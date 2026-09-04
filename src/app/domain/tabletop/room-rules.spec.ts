@@ -1,9 +1,11 @@
 import {
+  isGroupAnswered,
   readRuleFlag,
   readRuleNumber,
   readRuleText,
   resolveRoomRules,
   ROOM_RULE_DEFAULTS,
+  ROOM_RULE_GROUPS,
   RoomRules,
   writeRuleFlag,
   writeRuleNumber,
@@ -127,5 +129,27 @@ describe('resolveRoomRules()', () => {
     expect(resolveRoomRules({ zocMode: 'nonsense' as RoomRules['zocMode'] }, table).zocMode).toBe(
       ROOM_RULE_DEFAULTS.zocMode
     );
+  });
+});
+
+describe('isGroupAnswered()', () => {
+  it('says a room that has answered nothing owns no group', () => {
+    expect(isGroupAnswered(null, 'moveRange')).toBe(false);
+    expect(isGroupAnswered({}, 'zoc')).toBe(false);
+  });
+
+  it("says a group is the room's the moment one of its rules is answered", () => {
+    expect(isGroupAnswered({ zocRange: 2 }, 'zoc')).toBe(true);
+    expect(isGroupAnswered({ zocRange: 2 }, 'moveRange')).toBe(false);
+  });
+
+  it('hears an answer of no as an answer', () => {
+    expect(isGroupAnswered({ moveDiagonally: false }, 'moveRange')).toBe(true);
+  });
+
+  it('puts every rule in exactly one group', () => {
+    const grouped = Object.values(ROOM_RULE_GROUPS).flat();
+
+    expect([...grouped].sort()).toEqual(Object.keys(ROOM_RULE_DEFAULTS).sort());
   });
 });

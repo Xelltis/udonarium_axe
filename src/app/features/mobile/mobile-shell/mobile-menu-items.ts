@@ -1,6 +1,7 @@
 export type MobileMenuAction =
   | 'peerMenu'
   | 'tableSetting'
+  | 'roomSettings'
   | 'images'
   | 'jukebox'
   | 'cutIn'
@@ -33,6 +34,7 @@ export interface MobileMenuItem {
 export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
   { action: 'peerMenu', icon: 'people', labelKey: 'app.fab.peerMenu' },
   { action: 'tableSetting', icon: 'layers', labelKey: 'app.fab.tableSetting' },
+  { action: 'roomSettings', icon: 'tune', labelKey: 'app.fab.roomSettings', gameMasterOnly: true },
   { action: 'images', icon: 'photo_library', labelKey: 'app.fab.images' },
   { action: 'jukebox', icon: 'queue_music', labelKey: 'app.fab.jukebox' },
   { action: 'cutIn', icon: 'slideshow', labelKey: 'app.fab.cutIn' },

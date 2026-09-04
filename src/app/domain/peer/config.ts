@@ -159,6 +159,11 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocExtraCost = writeRuleNumber(answer);
   }
 
+  /** Hands rules back to the table, so whatever each table says rules by them again. */
+  forgetRoomRules(rules: readonly (keyof RoomRuleAnswers)[]): void {
+    for (const rule of rules) this[rule] = null;
+  }
+
   /** Every rule of play the room has been asked about, answered or not. */
   get roomRuleAnswers(): RoomRuleAnswers {
     return {

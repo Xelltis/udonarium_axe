@@ -46,6 +46,27 @@ export const ROOM_RULE_DEFAULTS: RoomRules = {
   zocExtraCost: DEFAULT_ZOC_EXTRA_COST,
 };
 
+/** The rules that are set together, and so are handed back to the table together. */
+export const ROOM_RULE_GROUPS = {
+  moveRange: [
+    'moveRangeEnabled',
+    'moveRangeAlways',
+    'moveDiagonally',
+    'piecesShareCells',
+    'moveRangeElementNames',
+    'cellDistance',
+    'cellDistanceUnit',
+  ],
+  zoc: ['zocMode', 'zocRange', 'zocAlways', 'zocExtraCost'],
+} as const satisfies Record<string, readonly (keyof RoomRules)[]>;
+
+export type RoomRuleGroup = keyof typeof ROOM_RULE_GROUPS;
+
+/** Whether the room has taken over any of the rules in a group, or left them all alone. */
+export function isGroupAnswered(answers: Partial<RoomRuleAnswers> | null, group: RoomRuleGroup): boolean {
+  return ROOM_RULE_GROUPS[group].some((rule) => (answers?.[rule] ?? null) !== null);
+}
+
 /** What a room holds where it has no answer of its own. */
 export const ROOM_RULE_UNANSWERED = '';
 

@@ -227,6 +227,8 @@ export class MobileShellComponent {
         return 'peerMenu';
       case 'tableSetting':
         return 'tableSetting';
+      case 'roomSettings':
+        return 'roomSettings';
       case 'images':
         return 'fileStorage';
       case 'jukebox':

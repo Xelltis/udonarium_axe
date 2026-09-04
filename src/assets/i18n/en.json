@@ -38,6 +38,7 @@
       "peerMenu": "Connection",
       "chatWindow": "Chat",
       "gameTableSetting": "Table settings",
+      "roomSettings": "Room settings",
       "fileStorage": "Files",
       "jukebox": "Jukebox",
       "cutInList": "Cut-ins",
@@ -2034,6 +2035,37 @@
         }
       }
     },
+    "roomSettings": {
+      "title": "Room settings",
+      "sectionMoveRange": "Movement range",
+      "sectionZoc": "Zone of control",
+      "ruledByTable": "Each table rules this for now. Change one here and the room takes it over.",
+      "ruledByRoom": "The room rules this, the same whichever table is out.",
+      "backToTable": "Back to each table",
+      "moveRangeEnabled": "Show where a piece can walk while it is picked up",
+      "moveRangeAlways": "Keep showing the reach of the piece that is picked",
+      "moveDiagonally": "Let a piece step across a corner, counted as one cell",
+      "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
+      "moveRangeElementNames": "Sheet fields",
+      "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing). Feet and metres are converted where the sheet is written in the other one; a sheet written in cells is read as cells.",
+      "cellDistance": "One cell stands for",
+      "cellDistanceUnit": "Cell unit",
+      "cellUnit": {
+        "cell": "Cells",
+        "metre": "Metres",
+        "foot": "Feet"
+      },
+      "zocMode": "Zone of control",
+      "zocMode_none": "None",
+      "zocMode_stop": "Halt (the walk ends on entering)",
+      "zocMode_block": "No entry (the cell is closed)",
+      "zocMode_cost": "Extra cost (entering costs more)",
+      "zocRange": "Reach",
+      "zocAlways": "Held ground",
+      "zocAlwaysHint": "Keep showing the ground held against the piece that is picked",
+      "zocExtraCost": "Extra cost",
+      "zocHint": "A piece is an enemy where the NPC mark differs from the one being moved, and the cells around it get in the way. A piece you cannot see holds no ground."
+    },
     "lobby": {
       "peerMenu": {
         "changeIcon": "Change icon",
@@ -3228,6 +3260,7 @@
       "peerMenu": "Connection",
       "chat": "Chat",
       "tableSetting": "Table",
+      "roomSettings": "Room settings",
       "images": "Images",
       "jukebox": "Jukebox",
       "cutIn": "Cut-in",

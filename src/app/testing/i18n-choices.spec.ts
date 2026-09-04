@@ -41,6 +41,7 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.chat.messageSetting.soundType_': CHAT_SOUND_TYPES,
   'feature.tabletop.tableSetting.facingMark_': TABLE_FACING_MARKS,
   'feature.tabletop.tableSetting.zocMode_': ZOC_MODES,
+  'feature.roomSettings.zocMode_': ZOC_MODES,
   'feature.hotbar.kind.': HOTBAR_SLOT_KINDS,
   'feature.hotbar.kindHint.': HOTBAR_SLOT_KINDS,
   'feature.hotbar.failure.': HOTBAR_FAILURES,

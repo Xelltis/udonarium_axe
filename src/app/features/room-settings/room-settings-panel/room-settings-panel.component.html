@@ -1,0 +1,194 @@
+<div class="text-ui-text bg-ui-elevated flex h-full flex-col overflow-y-auto px-3.5 py-3 text-[13px]">
+  <div class="mb-3.5 flex flex-col gap-2">
+    <div class="flex items-center justify-between gap-2">
+      <div class="border-ui-accent border-l-2 border-solid pl-2">
+        <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+          'feature.roomSettings.sectionMoveRange' | transloco
+        }}</span>
+      </div>
+      @if (answersFor('moveRange')) {
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel text-ui-dim hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid bg-transparent px-2 py-1 text-[11px] transition-colors"
+          data-testid="move-range-back-to-table"
+          (click)="backToTable('moveRange')"
+        >
+          {{ 'feature.roomSettings.backToTable' | transloco }}
+        </button>
+      }
+    </div>
+    <p class="text-ui-muted m-0 text-[11px]">
+      {{
+        (answersFor('moveRange') ? 'feature.roomSettings.ruledByRoom' : 'feature.roomSettings.ruledByTable') | transloco
+      }}
+    </p>
+    <div class="flex flex-col gap-2.5">
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="moveRangeEnabled"
+          name="moveRangeEnabled"
+        />
+        {{ 'feature.roomSettings.moveRangeEnabled' | transloco }}
+      </label>
+
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="moveRangeAlways"
+          name="moveRangeAlways"
+        />
+        {{ 'feature.roomSettings.moveRangeAlways' | transloco }}
+      </label>
+
+      @if (showsDiagonalOption) {
+        <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+          <input
+            type="checkbox"
+            class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+            [(ngModel)]="moveDiagonally"
+            name="moveDiagonally"
+          />
+          {{ 'feature.roomSettings.moveDiagonally' | transloco }}
+        </label>
+      }
+
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="piecesShareCells"
+          name="piecesShareCells"
+        />
+        {{ 'feature.roomSettings.piecesShareCells' | transloco }}
+      </label>
+
+      <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+        <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+          'feature.roomSettings.moveRangeElementNames' | transloco
+        }}</label>
+        <input
+          type="text"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [(ngModel)]="moveRangeElementNames"
+          name="moveRangeElementNames"
+        />
+
+        <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+          'feature.roomSettings.cellDistanceUnit' | transloco
+        }}</label>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [(ngModel)]="cellDistanceUnit"
+          name="cellDistanceUnit"
+        >
+          @for (unit of moveUnits; track unit) {
+            <option [value]="unit">{{ 'feature.roomSettings.cellUnit.' + unit | transloco }}</option>
+          }
+        </select>
+
+        @if (showsCellDistance) {
+          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+            'feature.roomSettings.cellDistance' | transloco
+          }}</label>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            [(ngModel)]="cellDistance"
+            name="cellDistance"
+          />
+        }
+      </div>
+      <p class="text-ui-muted m-0 text-[11px]">
+        {{ 'feature.roomSettings.moveRangeHint' | transloco }}
+      </p>
+    </div>
+  </div>
+
+  <div class="mb-3.5 flex flex-col gap-2">
+    <div class="flex items-center justify-between gap-2">
+      <div class="border-ui-accent border-l-2 border-solid pl-2">
+        <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+          'feature.roomSettings.sectionZoc' | transloco
+        }}</span>
+      </div>
+      @if (answersFor('zoc')) {
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel text-ui-dim hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid bg-transparent px-2 py-1 text-[11px] transition-colors"
+          data-testid="zoc-back-to-table"
+          (click)="backToTable('zoc')"
+        >
+          {{ 'feature.roomSettings.backToTable' | transloco }}
+        </button>
+      }
+    </div>
+    <p class="text-ui-muted m-0 text-[11px]">
+      {{ (answersFor('zoc') ? 'feature.roomSettings.ruledByRoom' : 'feature.roomSettings.ruledByTable') | transloco }}
+    </p>
+    <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+      <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+        'feature.roomSettings.zocMode' | transloco
+      }}</label>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="zocMode"
+        name="zocMode"
+      >
+        @for (mode of zocModes; track mode) {
+          <option [value]="mode">{{ 'feature.roomSettings.zocMode_' + mode | transloco }}</option>
+        }
+      </select>
+
+      @if (showsZocOptions) {
+        <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+          'feature.roomSettings.zocRange' | transloco
+        }}</label>
+        <input
+          type="number"
+          min="0"
+          max="9"
+          step="1"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [(ngModel)]="zocRange"
+          name="zocRange"
+        />
+
+        <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+          'feature.roomSettings.zocAlways' | transloco
+        }}</label>
+        <label class="text-ui-text col-span-2 flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+          <input
+            type="checkbox"
+            class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+            [(ngModel)]="zocAlways"
+            name="zocAlways"
+          />
+          {{ 'feature.roomSettings.zocAlwaysHint' | transloco }}
+        </label>
+      }
+
+      @if (showsZocExtraCost) {
+        <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+          'feature.roomSettings.zocExtraCost' | transloco
+        }}</label>
+        <input
+          type="number"
+          min="0"
+          max="9"
+          step="1"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [(ngModel)]="zocExtraCost"
+          name="zocExtraCost"
+        />
+      }
+    </div>
+    <p class="text-ui-muted m-0 text-[11px]">
+      {{ 'feature.roomSettings.zocHint' | transloco }}
+    </p>
+  </div>
+</div>

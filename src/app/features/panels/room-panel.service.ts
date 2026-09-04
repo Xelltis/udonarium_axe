@@ -47,6 +47,14 @@ export class RoomPanelService {
             ),
           option: { width: 630, height: 500 },
         };
+      case 'roomSettings':
+        return {
+          load: () =>
+            import('@axe/features/room-settings/room-settings-panel/room-settings-panel.component').then(
+              (m) => m.RoomSettingsPanelComponent
+            ),
+          option: { width: 560, height: 620 },
+        };
       case 'inventory':
         return {
           load: () =>
