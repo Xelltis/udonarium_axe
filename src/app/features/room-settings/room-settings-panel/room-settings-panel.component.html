@@ -1,5 +1,29 @@
 <div class="text-ui-text bg-ui-elevated flex h-full flex-col overflow-y-auto px-3.5 py-3 text-[13px]">
   <div class="mb-3.5 flex flex-col gap-2">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.roomSettings.sectionDice' | transloco
+      }}</span>
+    </div>
+    <div class="flex flex-col gap-1.5">
+      <ng-select
+        class="ud-select w-full"
+        (change)="loadDiceBot($event)"
+        [(ngModel)]="defaultDiceBot"
+        [ngModelOptions]="{ standalone: true }"
+        [clearable]="false"
+      >
+        @for (diceBotInfo of diceBotInfos; track diceBotInfo) {
+          <ng-option [value]="diceBotInfo.id">{{ diceBotInfo.name }}</ng-option>
+        }
+      </ng-select>
+      <p class="text-ui-muted m-0 text-[11px]">
+        {{ 'feature.roomSettings.diceBotHint' | transloco }}
+      </p>
+    </div>
+  </div>
+
+  <div class="mb-3.5 flex flex-col gap-2">
     <div class="flex items-center justify-between gap-2">
       <div class="border-ui-accent border-l-2 border-solid pl-2">
         <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{

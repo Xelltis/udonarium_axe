@@ -1884,8 +1884,6 @@
         "save": "저장",
         "delete": "삭제",
         "restore": "되돌리기",
-        "defaultDiceBot": "기본 다이스봇",
-        "diceBotHint": "방에 접속할 때 선택되는 다이스봇입니다(테이블별이 아니라 방 전체 설정)",
         "sectionWeather": "날씨(맵 전체)",
         "weatherKind": "날씨",
         "weatherNone": "없음",
@@ -1903,30 +1901,8 @@
         "fogModeHint": "이지는 한 번 걷힌 안개가 돌아오지 않고 계속 밝으며, 발견한 적은 어디로 움직여도 위치를 알 수 있습니다. 노멀은 안개는 돌아오지 않지만 떨어진 곳은 어두워지고, 적이 미탐색 지역으로 가면 놓칩니다. 하드는 시야에서 벗어나면 미탐색으로 돌아갑니다.",
         "fogColor": "안개 색",
         "fogReset": "안개 초기화",
-        "sectionMoveRange": "이동 범위",
-        "moveRangeEnabled": "말을 집어 들면 이동할 수 있는 칸을 표시",
-        "moveRangeAlways": "선택한 말의 이동 범위를 계속 표시",
-        "moveDiagonally": "대각선 이동을 허용한다 (한 칸으로 계산)",
-        "piecesShareCells": "같은 칸에 여러 말을 놓을 수 있음 (끄면 다른 말이 있는 칸은 이동 대상에서 제외)",
-        "moveRangeElementNames": "참조할 항목",
-        "cellDistance": "한 칸의 거리",
-        "cellDistanceUnit": "칸 단위",
-        "moveRangeHint": "항목 이름은 쉼표로 구분하며 시트에서 먼저 찾은 것을 사용합니다. 시트의 값을 한 칸의 거리로 나누어 칸 수로 만듭니다(0이면 나누지 않음). 시트의 단위가 탁자와 다르면 피트와 미터를 환산하고, 시트가 칸이면 그대로 칸 수로 읽습니다.",
-        "zocMode": "ZOC(지배 영역)",
-        "zocMode_none": "없음",
-        "zocMode_stop": "발묶기 (들어가면 이동 종료)",
-        "zocMode_block": "진입 불가 (그 칸에는 들어갈 수 없음)",
-        "zocMode_cost": "이동 코스트 증가 (들어갈 때 추가 소모)",
-        "zocRange": "ZOC 범위",
-        "zocExtraCost": "추가 이동 코스트",
-        "zocAlways": "ZOC 상시 표시",
-        "zocAlwaysHint": "선택한 말에 대한 ZOC를 계속 표시",
-        "zocHint": "NPC 여부가 다른 말을 적으로 보고, 그 주위 칸이 이동을 방해합니다. 자신에게 보이지 않는 말은 ZOC를 만들지 않습니다.",
-        "cellUnit": {
-          "cell": "칸",
-          "metre": "미터",
-          "foot": "피트"
-        }
+        "openRoomSettings": "방 설정 열기",
+        "roomSettingsHint": "이동 범위·ZOC·기본 다이스봇은 방 전체 설정입니다"
       },
       "dungeonGenerator": {
         "atmosphere": {
@@ -2037,6 +2013,7 @@
     },
     "roomSettings": {
       "title": "방 설정",
+      "sectionDice": "다이스",
       "sectionMoveRange": "이동 범위",
       "sectionZoc": "ZOC(지배 영역)",
       "ruledByTable": "지금은 테이블별 설정입니다. 여기서 바꾸면 방 전체 설정이 됩니다.",
@@ -2064,7 +2041,8 @@
       "zocAlways": "ZOC 상시 표시",
       "zocAlwaysHint": "선택한 말에 대한 ZOC를 계속 표시",
       "zocExtraCost": "추가 이동 코스트",
-      "zocHint": "NPC 여부가 다른 말을 적으로 보고, 그 주위 칸이 이동을 방해합니다. 자신에게 보이지 않는 말은 ZOC를 만들지 않습니다."
+      "zocHint": "NPC 여부가 다른 말을 적으로 보고, 그 주위 칸이 이동을 방해합니다. 자신에게 보이지 않는 말은 ZOC를 만들지 않습니다.",
+      "diceBotHint": "방에 들어올 때 선택되는 다이스봇입니다"
     },
     "lobby": {
       "peerMenu": {

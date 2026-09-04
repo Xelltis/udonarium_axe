@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Config } from '@axe/domain/peer/config';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
@@ -19,10 +21,12 @@ import {
 } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TranslocoModule } from '@jsverse/transloco';
+import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
-/** A count of cells is whole and never below nothing. */
+/** A count of cells written into a box, taken as none where it is not a whole one above zero. */
 function wholeCells(value: number): number {
-  return Math.max(0, Math.floor(Number(value)));
+  const cells = Math.floor(Number(value));
+  return Number.isFinite(cells) && cells > 0 ? cells : 0;
 }
 
 @Component({
@@ -30,7 +34,7 @@ function wholeCells(value: number): number {
   selector: 'room-settings-panel',
   templateUrl: './room-settings-panel.component.html',
   host: { class: 'block', '[attr.inert]': "isReadOnly() ? '' : null" },
-  imports: [FormsModule, TranslocoModule],
+  imports: [FormsModule, NgSelectComponent, NgOptionComponent, TranslocoModule],
 })
 export class RoomSettingsPanelComponent {
   private readonly objectStore = inject(ObjectStore);
@@ -38,6 +42,7 @@ export class RoomSettingsPanelComponent {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly panelService = inject(PanelService);
+  private readonly diceBotCatalog = inject(DiceBotCatalogService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly moveUnits = MOVE_UNITS;
@@ -109,6 +114,22 @@ export class RoomSettingsPanelComponent {
     return this.zocMode === 'cost';
   }
 
+  get diceBotInfos() {
+    return this.diceBotCatalog.infos();
+  }
+
+  get defaultDiceBot(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.defaultDiceBot;
+  }
+  set defaultDiceBot(gameType: string) {
+    if (this.isEditable) this.config.defaultDiceBot = gameType;
+  }
+
+  loadDiceBot(gameType: string): void {
+    DiceBot.getHelpMessage(gameType).then(() => {});
+  }
+
   get moveRangeEnabled(): boolean {
     return this.rules.moveRangeEnabled;
   }
@@ -148,7 +169,9 @@ export class RoomSettingsPanelComponent {
     return this.rules.cellDistance;
   }
   set cellDistance(value: number) {
-    if (this.isEditable) this.config.cellDistance = Math.max(0, Number(value));
+    if (!this.isEditable) return;
+    const distance = Number(value);
+    this.config.cellDistance = Number.isFinite(distance) && distance > 0 ? distance : 0;
   }
 
   get cellDistanceUnit(): MoveUnit {

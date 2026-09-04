@@ -1884,8 +1884,6 @@
         "save": "Save",
         "delete": "Delete",
         "restore": "Restore",
-        "defaultDiceBot": "Default dice bot",
-        "diceBotHint": "This dice bot is selected when joining a room (not per-table; room-wide setting)",
         "sectionWeather": "Weather (whole map)",
         "weatherKind": "Weather",
         "weatherNone": "None",
@@ -1903,30 +1901,8 @@
         "fogModeHint": "Easy holds cleared ground lit for good, and a piece once found is followed wherever it goes. Normal keeps the ground cleared but lets it darken, and loses a piece that walks into ground nobody has reached. Hard closes the fog again the moment nobody is looking.",
         "fogColor": "Fog colour",
         "fogReset": "Reset the fog",
-        "sectionMoveRange": "Movement range",
-        "moveRangeEnabled": "Show where a piece can walk while it is picked up",
-        "moveRangeAlways": "Keep showing the reach of the piece that is picked",
-        "moveDiagonally": "Let a piece step across a corner, counted as one cell",
-        "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
-        "moveRangeElementNames": "Sheet fields",
-        "cellDistance": "One cell stands for",
-        "cellDistanceUnit": "Cell unit",
-        "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing). Feet and metres are converted where the sheet is written in the other one; a sheet written in cells is read as cells.",
-        "zocMode": "Zone of control",
-        "zocMode_none": "None",
-        "zocMode_stop": "Halt (the walk ends on entering)",
-        "zocMode_block": "No entry (the cell is closed)",
-        "zocMode_cost": "Extra cost (entering costs more)",
-        "zocRange": "Reach",
-        "zocExtraCost": "Extra cost",
-        "zocAlways": "Held ground",
-        "zocAlwaysHint": "Keep showing the ground held against the piece that is picked",
-        "zocHint": "A piece is an enemy where the NPC mark differs from the one being moved, and the cells around it get in the way. A piece you cannot see holds no ground.",
-        "cellUnit": {
-          "cell": "Cells",
-          "metre": "Metres",
-          "foot": "Feet"
-        }
+        "openRoomSettings": "Open room settings",
+        "roomSettingsHint": "Movement range, zone of control and the default dice bot belong to the room"
       },
       "dungeonGenerator": {
         "atmosphere": {
@@ -2037,6 +2013,7 @@
     },
     "roomSettings": {
       "title": "Room settings",
+      "sectionDice": "Dice",
       "sectionMoveRange": "Movement range",
       "sectionZoc": "Zone of control",
       "ruledByTable": "Each table rules this for now. Change one here and the room takes it over.",
@@ -2064,7 +2041,8 @@
       "zocAlways": "Held ground",
       "zocAlwaysHint": "Keep showing the ground held against the piece that is picked",
       "zocExtraCost": "Extra cost",
-      "zocHint": "A piece is an enemy where the NPC mark differs from the one being moved, and the cells around it get in the way. A piece you cannot see holds no ground."
+      "zocHint": "A piece is an enemy where the NPC mark differs from the one being moved, and the cells around it get in the way. A piece you cannot see holds no ground.",
+      "diceBotHint": "The dice bot everyone joining the room starts on"
     },
     "lobby": {
       "peerMenu": {

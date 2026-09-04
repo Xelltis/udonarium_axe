@@ -3,7 +3,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { RoomSettingsPanelComponent } from '@axe/features/room-settings/room-settings-panel/room-settings-panel.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -107,6 +107,88 @@ describe('RoomSettingsPanelComponent', () => {
 
     expect(component.zocRange).toBe(2);
     expect(component.zocExtraCost).toBe(0);
+  });
+
+  describe('the questions it puts', () => {
+    it('puts the question of corners only to a square board', () => {
+      table.gridType = GridType.SQUARE;
+      expect(component.showsDiagonalOption).toBe(true);
+
+      table.gridType = GridType.HEX_VERTICAL;
+      expect(component.showsDiagonalOption).toBe(false);
+    });
+
+    it('asks what a cell stands for only where it is not ruled in cells', () => {
+      component.cellDistanceUnit = 'cell';
+      expect(component.showsCellDistance).toBe(false);
+
+      component.cellDistanceUnit = 'foot';
+      expect(component.showsCellDistance).toBe(true);
+    });
+
+    it('asks nothing more where an enemy holds no ground', () => {
+      component.zocMode = 'none';
+
+      expect(component.showsZocOptions).toBe(false);
+      expect(component.showsZocExtraCost).toBe(false);
+    });
+
+    it('asks how far the ground reaches, and what it costs only where it is charged for', () => {
+      component.zocMode = 'stop';
+      expect(component.showsZocOptions).toBe(true);
+      expect(component.showsZocExtraCost).toBe(false);
+
+      component.zocMode = 'block';
+      expect(component.showsZocExtraCost).toBe(false);
+
+      component.zocMode = 'cost';
+      expect(component.showsZocOptions).toBe(true);
+      expect(component.showsZocExtraCost).toBe(true);
+    });
+
+    it('reads a table carrying something it does not know as holding no ground', () => {
+      table.zocMode = 'engagement';
+
+      expect(component.zocMode).toBe('none');
+    });
+
+    it('takes a reach that is not a whole count as none at all', () => {
+      component.zocRange = Number.NaN;
+      component.zocExtraCost = -2;
+
+      expect(component.zocRange).toBe(0);
+      expect(component.zocExtraCost).toBe(0);
+    });
+
+    it('takes a distance that is not a number as no conversion at all', () => {
+      component.cellDistance = Number.NaN;
+
+      expect(component.cellDistance).toBe(0);
+    });
+
+    it('shows the boxes only once an enemy holds ground', async () => {
+      function boxes(): string[] {
+        return [...fixture.nativeElement.querySelectorAll('input[type="number"]')].map(
+          (node: Element) => node.getAttribute('name') ?? ''
+        );
+      }
+
+      component.zocMode = 'none';
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(boxes()).not.toContain('zocRange');
+
+      component.zocMode = 'stop';
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(boxes()).toContain('zocRange');
+      expect(boxes()).not.toContain('zocExtraCost');
+
+      component.zocMode = 'cost';
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(boxes()).toContain('zocExtraCost');
+    });
   });
 
   it('does not throw when it is drawn', () => {

@@ -1884,8 +1884,6 @@
         "save": "保存",
         "delete": "削除",
         "restore": "元に戻す",
-        "defaultDiceBot": "標準ダイスボット",
-        "diceBotHint": "部屋接続時に選択されるダイスボットです（テーブル毎ではなく部屋全体の設定）",
         "sectionWeather": "天候（マップ全体）",
         "weatherKind": "天候",
         "weatherNone": "なし",
@@ -1903,30 +1901,8 @@
         "fogModeHint": "イージーは一度晴らした霧が戻らず明るいままで、見つけた敵はどこへ動いても位置がわかります。ノーマルは霧こそ戻りませんが、離れた場所は暗くなり、敵も未踏破へ動くと見失います。ハードは視界から外れると未踏破に戻ります",
         "fogColor": "霧の色",
         "fogReset": "霧をリセット",
-        "sectionMoveRange": "移動範囲",
-        "moveRangeEnabled": "コマを持ち上げたら移動できるマスを表示する",
-        "moveRangeAlways": "選んだコマの移動範囲を出したままにする",
-        "moveDiagonally": "斜め移動を許可する（1 マスとして数える）",
-        "piecesShareCells": "同じマスに複数のコマを置ける（切ると、他のコマがいるマスは移動先に出さない）",
-        "moveRangeElementNames": "参照する項目",
-        "cellDistance": "1 マスの距離",
-        "cellDistanceUnit": "マスの単位",
-        "moveRangeHint": "項目名はカンマ区切りで、シートに先に見つかったものを使う。シートの値を 1 マスの距離で割ってマス数にする（0 なら割らない）。シートの単位が卓と違えば、フィートとメートルは換算する。シートが「マス」ならそのままマス数として読む。",
-        "zocMode": "ZOC（支配領域）",
-        "zocMode_none": "なし",
-        "zocMode_stop": "足止め（入ったらそこで移動終了）",
-        "zocMode_block": "進入不可（そのマスには入れない）",
-        "zocMode_cost": "移動コスト増（入るのに余分に消費）",
-        "zocRange": "ZOC の広さ",
-        "zocExtraCost": "余分な移動コスト",
-        "zocAlways": "ZOC の常時表示",
-        "zocAlwaysHint": "選んだコマに対する ZOC を出したままにする",
-        "zocHint": "NPC かどうかが違うコマを敵とみなし、その周りのマスが移動を妨げる。自分に見えていないコマは ZOC を張らない。",
-        "cellUnit": {
-          "cell": "マス",
-          "metre": "メートル",
-          "foot": "フィート"
-        }
+        "openRoomSettings": "部屋設定を開く",
+        "roomSettingsHint": "移動範囲・ZOC・既定のダイスボットは部屋全体の設定です"
       },
       "dungeonGenerator": {
         "atmosphere": {
@@ -2037,6 +2013,7 @@
     },
     "roomSettings": {
       "title": "部屋設定",
+      "sectionDice": "ダイス",
       "sectionMoveRange": "移動範囲",
       "sectionZoc": "ZOC（支配領域）",
       "ruledByTable": "いまはテーブルごとの設定です。ここで変えると部屋全体の設定になります。",
@@ -2064,7 +2041,8 @@
       "zocAlways": "ZOC の常時表示",
       "zocAlwaysHint": "選んだコマに対する ZOC を出したままにする",
       "zocExtraCost": "余分な移動コスト",
-      "zocHint": "NPC かどうかが違うコマを敵とみなし、その周りのマスが移動を妨げる。自分に見えていないコマは ZOC を張らない。"
+      "zocHint": "NPC かどうかが違うコマを敵とみなし、その周りのマスが移動を妨げる。自分に見えていないコマは ZOC を張らない。",
+      "diceBotHint": "部屋に入ったときに選ばれるダイスボットです"
     },
     "lobby": {
       "peerMenu": {

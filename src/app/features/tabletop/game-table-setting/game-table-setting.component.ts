@@ -1,7 +1,6 @@
 import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
@@ -16,7 +15,6 @@ import { emitSelectGameTable, triggerUpdateGameObject } from '@axe/core/event/do
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { DiceBot } from '@axe/domain/dice/dice-bot';
 import {
   ambienceColorOf,
   ambienceDensityOf,
@@ -28,27 +26,13 @@ import {
 } from '@axe/domain/effect/ambience/ambience-kind';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { encodeCutInIdentifiers, parseCutInIdentifiers } from '@axe/domain/media/table-cut-in';
-import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
-import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import {
-  DEFAULT_CELL_DISTANCE,
-  DEFAULT_CELL_DISTANCE_UNIT,
-  DEFAULT_MOVE_RANGE_ELEMENT_NAMES,
-} from '@axe/domain/tabletop/move/move-cells';
-import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
-import {
-  asZocMode,
-  DEFAULT_ZOC_EXTRA_COST,
-  DEFAULT_ZOC_RANGE,
-  ZOC_MODES,
-  ZocMode,
-} from '@axe/domain/tabletop/move/zone-of-control';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import {
   MapImageGridAdjusterComponent,
   MapImageGridAdjusterResult,
@@ -85,29 +69,15 @@ export class GameTableSettingComponent {
   private readonly visionService = inject(VisionService);
   private readonly cutInService = inject(CutInService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly roomPanels = inject(RoomPanelService);
 
-  get gameType(): string {
-    return this.config.defaultDiceBot;
-  }
-  set gameType(gameType: string) {
-    this.config.defaultDiceBot = gameType;
-  }
-  loadDiceBot(gameType: string) {
-    DiceBot.getHelpMessage(gameType).then(() => {});
-  }
-
-  get config(): Config {
-    return this.objectStore.get<Config>('Config')!;
+  /** The room holds the rules of play and the dice bot it starts everyone on. */
+  openRoomSettings(): void {
+    this.roomPanels.open('roomSettings');
   }
 
   minSize: number = 1;
   maxSize: number = 100;
-
-  private readonly diceBotCatalog = inject(DiceBotCatalogService);
-
-  get diceBotInfos() {
-    return this.diceBotCatalog.infos();
-  }
 
   get tableBackgroundImage(): ImageFile {
     this.objectChange.fileVersion();
@@ -275,111 +245,6 @@ export class GameTableSettingComponent {
     const table = this.selectedTable;
     if (!this.isEditable || !table) return;
     ensureFogMemoryOn(table).reset();
-  }
-
-  get tableMoveRangeEnabled(): boolean {
-    return this.selectedTable?.moveRangeEnabled ?? true;
-  }
-  set tableMoveRangeEnabled(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.moveRangeEnabled = value;
-  }
-
-  get tableMoveRangeElementNames(): string {
-    return this.selectedTable?.moveRangeElementNames ?? DEFAULT_MOVE_RANGE_ELEMENT_NAMES;
-  }
-  set tableMoveRangeElementNames(value: string) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.moveRangeElementNames = value;
-  }
-
-  /** A hex board has no corners to cut, so the question is only put on squares. */
-  get showsDiagonalOption(): boolean {
-    return !isHexGrid(this.tableGridType);
-  }
-
-  get tableMoveDiagonally(): boolean {
-    return this.selectedTable?.moveDiagonally ?? true;
-  }
-  set tableMoveDiagonally(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.moveDiagonally = value;
-  }
-
-  /** A cell standing for so many cells says nothing, so the distance is only asked for lengths. */
-  get showsCellDistance(): boolean {
-    return this.tableCellDistanceUnit !== 'cell';
-  }
-
-  get tableMoveRangeAlways(): boolean {
-    return this.selectedTable?.moveRangeAlways ?? false;
-  }
-  set tableMoveRangeAlways(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.moveRangeAlways = value;
-  }
-
-  get tableZocAlways(): boolean {
-    return this.selectedTable?.zocAlways ?? false;
-  }
-  set tableZocAlways(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.zocAlways = value;
-  }
-
-  get tablePiecesShareCells(): boolean {
-    return this.selectedTable?.piecesShareCells ?? true;
-  }
-  set tablePiecesShareCells(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.piecesShareCells = value;
-  }
-
-  get tableCellDistance(): number {
-    return this.selectedTable?.cellDistance ?? DEFAULT_CELL_DISTANCE;
-  }
-  set tableCellDistance(value: number) {
-    if (!this.isEditable || !this.selectedTable) return;
-    const amount = Number(value);
-    this.selectedTable.cellDistance = Number.isFinite(amount) && amount > 0 ? amount : 0;
-  }
-
-  readonly moveUnits = MOVE_UNITS;
-
-  get tableCellDistanceUnit(): MoveUnit {
-    return parseMoveUnit(this.selectedTable?.cellDistanceUnit) ?? DEFAULT_CELL_DISTANCE_UNIT;
-  }
-  set tableCellDistanceUnit(value: MoveUnit) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.cellDistanceUnit = value;
-  }
-
-  readonly zocModes = ZOC_MODES;
-
-  get tableZocMode(): ZocMode {
-    return asZocMode(this.selectedTable?.zocMode);
-  }
-  set tableZocMode(value: ZocMode) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.zocMode = asZocMode(value);
-  }
-
-  /** A table where an enemy holds no ground is asked nothing about how much of it. */
-  get showsZocOptions(): boolean {
-    return this.tableZocMode !== 'none';
-  }
-
-  /** What it costs on top is a question only for a table that charges for the ground. */
-  get showsZocExtraCost(): boolean {
-    return this.tableZocMode === 'cost';
-  }
-
-  get tableZocRange(): number {
-    return this.selectedTable?.zocRange ?? DEFAULT_ZOC_RANGE;
-  }
-  set tableZocRange(value: number) {
-    if (!this.isEditable || !this.selectedTable) return;
-    this.selectedTable.zocRange = wholeCells(value);
-  }
-
-  get tableZocExtraCost(): number {
-    return this.selectedTable?.zocExtraCost ?? DEFAULT_ZOC_EXTRA_COST;
-  }
-  set tableZocExtraCost(value: number) {
-    if (!this.isEditable || !this.selectedTable) return;
-    this.selectedTable.zocExtraCost = wholeCells(value);
   }
 
   protected readonly weatherKinds = SKY_AMBIENCE_KINDS;
@@ -767,10 +632,4 @@ export class GameTableSettingComponent {
   onSelectGameTable(event: Event): void {
     this.chooseGameTable((event.target as HTMLInputElement).value);
   }
-}
-
-/** A count of cells written into a box, taken as none where it is not a whole one above zero. */
-function wholeCells(value: number): number {
-  const cells = Math.floor(Number(value));
-  return Number.isFinite(cells) && cells > 0 ? cells : 0;
 }
