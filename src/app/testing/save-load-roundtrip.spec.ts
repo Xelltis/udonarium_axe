@@ -13,6 +13,7 @@ import {
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
+import { Config } from '@axe/domain/peer/config';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -33,6 +34,42 @@ describe('save and load round trip', () => {
 
   afterEach(() => {
     (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+  });
+
+  describe("the room's own rules", () => {
+    afterEach(() => {
+      (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    });
+
+    it('carries every answer through a save and a load', () => {
+      const config = Config.instance;
+      config.moveRangeEnabled = false;
+      config.moveDiagonally = false;
+      config.zocExtraCost = 0;
+      config.cellDistance = 5;
+      config.cellDistanceUnit = 'foot';
+      config.zocMode = 'stop';
+
+      const xml = serializer.toXml(config);
+      serializer.parseXml(xml);
+
+      expect(Config.instance.moveRangeEnabled).toBe(false);
+      expect(Config.instance.moveDiagonally).toBe(false);
+      expect(Config.instance.zocExtraCost).toBe(0);
+      expect(Config.instance.cellDistance).toBe(5);
+      expect(Config.instance.cellDistanceUnit).toBe('foot');
+      expect(Config.instance.zocMode).toBe('stop');
+    });
+
+    it('reads a room that was saved before it had rules to answer for', () => {
+      const xml = '<config identifier="Config" _defaultDiceBot="DiceBot"></config>';
+
+      serializer.parseXml(xml);
+
+      expect(Config.instance.roomRuleAnswers.zocMode).toBeNull();
+      expect(Config.instance.roomRuleAnswers.cellDistance).toBeNull();
+      expect(Config.instance.roomRuleAnswers.moveRangeEnabled).toBeNull();
+    });
   });
 
   describe('terrain serialisation', () => {

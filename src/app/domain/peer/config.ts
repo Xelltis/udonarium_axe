@@ -4,6 +4,15 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import {
+  readRuleFlag,
+  readRuleNumber,
+  readRuleText,
+  RoomRuleAnswers,
+  writeRuleFlag,
+  writeRuleNumber,
+  writeRuleText,
+} from '@axe/domain/tabletop/room-rules';
 
 @SyncObject('config')
 export class Config extends ObjectNode implements InnerXml {
@@ -13,6 +22,20 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_systemDiceAvatarIdentifier') private _systemDiceAvatarIdentifier: string = '';
   @SyncVar('_hideSystemAvatar') private _hideSystemAvatar: string = '';
   @SyncVar('_showSpeakerAvatar') private _showSpeakerAvatar: string = '';
+
+  // The rules of play the room answers for itself. Each one is left unanswered until the
+  // room settings are asked, and whatever is unanswered stays with the table that is out.
+  @SyncVar('_moveRangeEnabled') private _moveRangeEnabled: string = '';
+  @SyncVar('_moveRangeElementNames') private _moveRangeElementNames: string = '';
+  @SyncVar('_moveDiagonally') private _moveDiagonally: string = '';
+  @SyncVar('_piecesShareCells') private _piecesShareCells: string = '';
+  @SyncVar('_moveRangeAlways') private _moveRangeAlways: string = '';
+  @SyncVar('_zocAlways') private _zocAlways: string = '';
+  @SyncVar('_cellDistance') private _cellDistance: number = -1;
+  @SyncVar('_cellDistanceUnit') private _cellDistanceUnit: string = '';
+  @SyncVar('_zocMode') private _zocMode: string = '';
+  @SyncVar('_zocRange') private _zocRange: number = -1;
+  @SyncVar('_zocExtraCost') private _zocExtraCost: number = -1;
 
   get defaultDiceBot(): string {
     if (this._defaultDiceBot == '') {
@@ -57,6 +80,100 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set isSpeakerAvatarVisible(visible: boolean) {
     this._showSpeakerAvatar = visible ? '1' : '';
+  }
+
+  get moveRangeEnabled(): boolean | null {
+    return readRuleFlag(this._moveRangeEnabled);
+  }
+  set moveRangeEnabled(answer: boolean | null) {
+    this._moveRangeEnabled = writeRuleFlag(answer);
+  }
+
+  get moveRangeElementNames(): string | null {
+    return readRuleText(this._moveRangeElementNames);
+  }
+  set moveRangeElementNames(answer: string | null) {
+    this._moveRangeElementNames = writeRuleText(answer);
+  }
+
+  get moveDiagonally(): boolean | null {
+    return readRuleFlag(this._moveDiagonally);
+  }
+  set moveDiagonally(answer: boolean | null) {
+    this._moveDiagonally = writeRuleFlag(answer);
+  }
+
+  get piecesShareCells(): boolean | null {
+    return readRuleFlag(this._piecesShareCells);
+  }
+  set piecesShareCells(answer: boolean | null) {
+    this._piecesShareCells = writeRuleFlag(answer);
+  }
+
+  get moveRangeAlways(): boolean | null {
+    return readRuleFlag(this._moveRangeAlways);
+  }
+  set moveRangeAlways(answer: boolean | null) {
+    this._moveRangeAlways = writeRuleFlag(answer);
+  }
+
+  get zocAlways(): boolean | null {
+    return readRuleFlag(this._zocAlways);
+  }
+  set zocAlways(answer: boolean | null) {
+    this._zocAlways = writeRuleFlag(answer);
+  }
+
+  get cellDistance(): number | null {
+    return readRuleNumber(this._cellDistance);
+  }
+  set cellDistance(answer: number | null) {
+    this._cellDistance = writeRuleNumber(answer);
+  }
+
+  get cellDistanceUnit(): string | null {
+    return readRuleText(this._cellDistanceUnit);
+  }
+  set cellDistanceUnit(answer: string | null) {
+    this._cellDistanceUnit = writeRuleText(answer);
+  }
+
+  get zocMode(): string | null {
+    return readRuleText(this._zocMode);
+  }
+  set zocMode(answer: string | null) {
+    this._zocMode = writeRuleText(answer);
+  }
+
+  get zocRange(): number | null {
+    return readRuleNumber(this._zocRange);
+  }
+  set zocRange(answer: number | null) {
+    this._zocRange = writeRuleNumber(answer);
+  }
+
+  get zocExtraCost(): number | null {
+    return readRuleNumber(this._zocExtraCost);
+  }
+  set zocExtraCost(answer: number | null) {
+    this._zocExtraCost = writeRuleNumber(answer);
+  }
+
+  /** Every rule of play the room has been asked about, answered or not. */
+  get roomRuleAnswers(): RoomRuleAnswers {
+    return {
+      moveRangeEnabled: this.moveRangeEnabled,
+      moveRangeElementNames: this.moveRangeElementNames,
+      moveDiagonally: this.moveDiagonally,
+      piecesShareCells: this.piecesShareCells,
+      moveRangeAlways: this.moveRangeAlways,
+      zocAlways: this.zocAlways,
+      cellDistance: this.cellDistance,
+      cellDistanceUnit: this.cellDistanceUnit,
+      zocMode: this.zocMode,
+      zocRange: this.zocRange,
+      zocExtraCost: this.zocExtraCost,
+    };
   }
 
   // The jukebox keeps the settings of the person listening.

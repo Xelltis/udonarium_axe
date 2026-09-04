@@ -55,6 +55,61 @@ describe('Config', () => {
     });
   });
 
+  describe('the rules of play', () => {
+    it('answers nothing at all until it is asked', () => {
+      expect(Config.instance.roomRuleAnswers).toEqual({
+        moveRangeEnabled: null,
+        moveRangeElementNames: null,
+        moveDiagonally: null,
+        piecesShareCells: null,
+        moveRangeAlways: null,
+        zocAlways: null,
+        cellDistance: null,
+        cellDistanceUnit: null,
+        zocMode: null,
+        zocRange: null,
+        zocExtraCost: null,
+      });
+    });
+
+    it('holds on to an answer of no rather than forgetting it was asked', () => {
+      Config.instance.moveDiagonally = false;
+      Config.instance.piecesShareCells = false;
+
+      expect(Config.instance.moveDiagonally).toBe(false);
+      expect(Config.instance.piecesShareCells).toBe(false);
+    });
+
+    it('holds on to a count of nought', () => {
+      Config.instance.zocExtraCost = 0;
+
+      expect(Config.instance.zocExtraCost).toBe(0);
+    });
+
+    it('gives an answer back to the table when it is taken away', () => {
+      Config.instance.zocMode = 'stop';
+      Config.instance.zocRange = 2;
+
+      Config.instance.zocMode = null;
+      Config.instance.zocRange = null;
+
+      expect(Config.instance.zocMode).toBeNull();
+      expect(Config.instance.zocRange).toBeNull();
+    });
+
+    it('reads an answer back out of the text an attribute carries', () => {
+      Config.instance.moveRangeEnabled = false;
+      Config.instance.cellDistance = 5;
+
+      for (const attribute of ['_moveRangeEnabled', '_cellDistance']) {
+        Config.instance.setAttribute(attribute, `${Config.instance.getAttribute(attribute)}`);
+      }
+
+      expect(Config.instance.moveRangeEnabled).toBe(false);
+      expect(Config.instance.cellDistance).toBe(5);
+    });
+  });
+
   describe('system avatar', () => {
     it('starts with no picture of its own', () => {
       expect(Config.instance.systemAvatarIdentifier).toBe('');
