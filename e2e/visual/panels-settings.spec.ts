@@ -12,6 +12,16 @@ test('the table setting looks the same', async ({ page }) => {
   await snap(page, 'panels-table-setting', { maxDiffPixelRatio: 0.001, threshold: 0.1 });
 });
 
+test('the room settings look the same', async ({ page }) => {
+  await prepare(page);
+  await closePanels(page);
+  await freeze(page);
+  await openPanel(page, '部屋設定');
+  await expect(page.locator('room-settings-panel')).toBeVisible({ timeout: 10000 });
+  await settle(page, 400);
+  await snap(page, 'panels-room-settings', { maxDiffPixelRatio: 0.001, threshold: 0.1 });
+});
+
 test('the cut-in editor looks the same', async ({ page }) => {
   await prepare(page);
   await closePanels(page);
