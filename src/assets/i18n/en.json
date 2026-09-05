@@ -2714,7 +2714,7 @@
         "load": "Load",
         "importTable": "Read the table",
         "importTableHint": "Reads the size, the floor and the painted functions of the table that is out",
-        "importTableConfirm": "This throws away what is being edited and reads the table that is out. Terrain and masks that sit square on the grid come in as painted cells, and the editor manages them from then on. Go on?",
+        "importTableConfirm": "This throws away what is being edited and reads the table that is out. Every terrain and mask on it comes in as painted cells, and the editor manages them from then on. Go on?",
         "importTableDone": "Read the table in",
         "importTableNoTable": "There is no table to read",
         "loadError": "Failed to load",

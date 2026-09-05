@@ -33,6 +33,21 @@ export interface TerrainFaceImages {
   west: string;
 }
 
+/**
+ * Where a block really sits, when that is not simply the corner of its cell.
+ *
+ * A wall that was turned, or that stands between cells, or that is two and a half cells
+ * wide, cannot be said in cells alone. It is said here instead, so that reading it in and
+ * laying it back down returns exactly what was there.
+ */
+export interface BlockPlacement {
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+  rotate: number;
+}
+
 /** Everything a painted wall is, which is everything a terrain of one block can be. */
 export interface TerrainPaintSpec {
   /** How tall it stands, in cells. Nought is a floor with no wall over it. */
@@ -46,12 +61,37 @@ export interface TerrainPaintSpec {
   showsGrid: boolean;
   dropShadow: boolean;
   surfaceShading: boolean;
+  locked: boolean;
+  doorStyle: string;
+  doorOpen: boolean;
+  doorMirrored: boolean;
+  slope: boolean;
+  slopeDirection: number;
+  light: TerrainLightSpec;
   images: TerrainFaceImages;
+  /** Null where the block sits square on its cells, which is where the brush put it. */
+  placement: BlockPlacement | null;
+}
+
+export interface TerrainLightSpec {
+  enabled: boolean;
+  preset: string;
+  brightRadius: number;
+  dimRadius: number;
+  color: string;
+  angle: number;
+  direction: number;
+  pitch: number;
+  animation: string;
 }
 
 export interface MaskPaintSpec {
   color: string;
   opacity: number;
+  locked: boolean;
+  owner: string;
+  scratchedGrids: string;
+  placement: BlockPlacement | null;
 }
 
 /** What a role lays on the table, the same for every cell the layer holds. */
@@ -92,13 +132,51 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     showsGrid: false,
     dropShadow: true,
     surfaceShading: true,
+    locked: false,
+    doorStyle: 'none',
+    doorOpen: false,
+    doorMirrored: false,
+    slope: false,
+    slopeDirection: 0,
+    light: {
+      enabled: false,
+      preset: 'custom',
+      brightRadius: 0,
+      dimRadius: 0,
+      color: '#ffd9a0',
+      angle: 360,
+      direction: 0,
+      pitch: 0,
+      animation: 'none',
+    },
     images: { ...NO_FACE_IMAGES },
+    placement: null,
   },
   mask: {
     color: '#555555',
     opacity: 0.6,
+    locked: false,
+    owner: '',
+    scratchedGrids: '',
+    placement: null,
   },
 };
+
+function sanitizePlacement(value: unknown): BlockPlacement | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const held = value as Record<string, unknown>;
+  const number = (key: string): number => {
+    const amount = Number(held[key]);
+    return Number.isFinite(amount) ? amount : 0;
+  };
+  return {
+    x: number('x'),
+    y: number('y'),
+    width: Math.max(0, number('width')),
+    depth: Math.max(0, number('depth')),
+    rotate: number('rotate'),
+  };
+}
 
 function countIn(held: Record<string, unknown>, key: string, fallback: number, least: number, most: number): number {
   const amount = Number(held[key]);
@@ -125,6 +203,26 @@ export function sanitizeFaceImages(value: unknown): TerrainFaceImages {
   return images;
 }
 
+function sanitizeLight(value: unknown): TerrainLightSpec {
+  const held = asRecord(value);
+  const fallback = DEFAULT_FUNCTION_SPEC.terrain.light;
+  const number = (key: string, miss: number): number => {
+    const amount = Number(held[key]);
+    return Number.isFinite(amount) ? amount : miss;
+  };
+  return {
+    enabled: flagIn(held, 'enabled', fallback.enabled),
+    preset: textIn(held, 'preset', fallback.preset),
+    brightRadius: number('brightRadius', fallback.brightRadius),
+    dimRadius: number('dimRadius', fallback.dimRadius),
+    color: textIn(held, 'color', fallback.color),
+    angle: number('angle', fallback.angle),
+    direction: number('direction', fallback.direction),
+    pitch: number('pitch', fallback.pitch),
+    animation: textIn(held, 'animation', fallback.animation),
+  };
+}
+
 export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
   const held = asRecord(value);
   const terrain = asRecord(held['terrain']);
@@ -141,11 +239,23 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       showsGrid: flagIn(terrain, 'showsGrid', fallback.terrain.showsGrid),
       dropShadow: flagIn(terrain, 'dropShadow', fallback.terrain.dropShadow),
       surfaceShading: flagIn(terrain, 'surfaceShading', fallback.terrain.surfaceShading),
+      locked: flagIn(terrain, 'locked', fallback.terrain.locked),
+      doorStyle: textIn(terrain, 'doorStyle', fallback.terrain.doorStyle),
+      doorOpen: flagIn(terrain, 'doorOpen', fallback.terrain.doorOpen),
+      doorMirrored: flagIn(terrain, 'doorMirrored', fallback.terrain.doorMirrored),
+      slope: flagIn(terrain, 'slope', fallback.terrain.slope),
+      slopeDirection: countIn(terrain, 'slopeDirection', fallback.terrain.slopeDirection, 0, 4),
+      light: sanitizeLight(terrain['light']),
       images: sanitizeFaceImages(terrain['images']),
+      placement: sanitizePlacement(terrain['placement']),
     },
     mask: {
       color: textIn(mask, 'color', fallback.mask.color),
       opacity: countIn(mask, 'opacity', fallback.mask.opacity, 0, 1),
+      locked: flagIn(mask, 'locked', fallback.mask.locked),
+      owner: textIn(mask, 'owner', fallback.mask.owner),
+      scratchedGrids: textIn(mask, 'scratchedGrids', fallback.mask.scratchedGrids),
+      placement: sanitizePlacement(mask['placement']),
     },
   };
 }

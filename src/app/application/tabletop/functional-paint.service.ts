@@ -5,6 +5,7 @@ import { CellRect, rectKey } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
+  BlockPlacement,
   FunctionPaintPlan,
   MaskBlock,
   MaskPaintSpec,
@@ -29,23 +30,21 @@ function terrainsOn(table: GameTable): Terrain[] {
   return table.children.filter((child): child is Terrain => child instanceof Terrain);
 }
 
-/**
- * Whether the brush could have painted this wall, and so may unpaint it.
- *
- * A door or a ramp is more than a block and no painting puts one back, so both are left
- * where hands put them however the cells around them are painted over.
- */
-function isPaintableTerrain(terrain: Terrain): boolean {
-  return !terrain.isDoor && !terrain.isSlope;
-}
-
 function masksOn(table: GameTable): GameTableMask[] {
   return table.children.filter((child): child is GameTableMask => child instanceof GameTableMask);
 }
 
-/** Lays one block of terrain wearing everything the brush was set to. */
+/** Lays one block of terrain wearing everything the block carries. */
 function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number): Terrain {
-  const terrain = Terrain.create('', width, depth, Math.max(0, spec.height), spec.images.wall, spec.images.floor);
+  const placed = spec.placement;
+  const terrain = Terrain.create(
+    '',
+    placed ? placed.width : width,
+    placed ? placed.depth : depth,
+    Math.max(0, spec.height),
+    spec.images.wall,
+    spec.images.floor
+  );
   terrain.mode = spec.mode;
   terrain.blocksSight = spec.blocksSight;
   terrain.blocksLight = spec.blocksLight;
@@ -53,11 +52,35 @@ function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number): 
   terrain.isGrid = spec.showsGrid;
   terrain.isDropShadow = spec.dropShadow;
   terrain.isSurfaceShading = spec.surfaceShading;
+  terrain.isLocked = spec.locked;
+  terrain.doorStyle = spec.doorStyle;
+  terrain.isDoorOpen = spec.doorOpen;
+  terrain.doorMirrored = spec.doorMirrored;
+  terrain.isSlope = spec.slope;
+  terrain.slopeDirection = spec.slopeDirection;
+  terrain.rotate = placed ? placed.rotate : 0;
+  terrain.lightEnabled = spec.light.enabled;
+  terrain.lightPreset = spec.light.preset;
+  terrain.lightBrightRadius = spec.light.brightRadius;
+  terrain.lightDimRadius = spec.light.dimRadius;
+  terrain.lightColor = spec.light.color;
+  terrain.lightAngle = spec.light.angle;
+  terrain.lightDirection = spec.light.direction;
+  terrain.lightPitch = spec.light.pitch;
+  terrain.lightAnimation = spec.light.animation;
   for (const face of TERRAIN_FACES) {
     const held = spec.images[face];
     if (held.length > 0) terrain.setFaceImage(face, held);
   }
   return terrain;
+}
+
+/** Where a block goes: exactly where it was, or the corner of the cell the brush painted. */
+function blockOrigin(spec: { placement: BlockPlacement | null }, rect: CellRect, gridSize: number) {
+  const placed = spec.placement;
+  return placed
+    ? { name: 'table', x: placed.x, y: placed.y }
+    : { name: 'table', x: rect.col * gridSize, y: rect.row * gridSize };
 }
 
 /** A mask counts its opacity out of this, so the fraction it shows is the current value over it. */
@@ -98,8 +121,13 @@ export function blockedCellKeysOn(table: GameTable, grid: CellGrid): string[] {
   return keys;
 }
 
-/** The look one terrain wears, read off the terrain itself. */
-export function terrainSpecOf(terrain: Terrain): TerrainPaintSpec {
+/**
+ * Everything one terrain is, read off the terrain itself.
+ *
+ * All of it, so that laying the block back down returns what was there rather than an
+ * upright rectangle wearing its colours.
+ */
+export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null): TerrainPaintSpec {
   const images = { ...NO_FACE_IMAGES };
   for (const face of TERRAIN_FACE_KEYS) images[face] = terrain.faceImageIdentifier(face);
   return {
@@ -111,33 +139,77 @@ export function terrainSpecOf(terrain: Terrain): TerrainPaintSpec {
     showsGrid: terrain.isGrid,
     dropShadow: terrain.isDropShadow,
     surfaceShading: terrain.isSurfaceShading,
+    locked: terrain.isLocked,
+    doorStyle: terrain.doorStyle,
+    doorOpen: terrain.isDoorOpen,
+    doorMirrored: terrain.doorMirrored,
+    slope: terrain.isSlope,
+    slopeDirection: terrain.slopeDirection,
+    light: {
+      enabled: terrain.lightEnabled,
+      preset: terrain.lightPreset,
+      brightRadius: terrain.lightBrightRadius,
+      dimRadius: terrain.lightDimRadius,
+      color: terrain.lightColor,
+      angle: terrain.lightAngle,
+      direction: terrain.lightDirection,
+      pitch: terrain.lightPitch,
+      animation: terrain.lightAnimation,
+    },
     images,
+    placement,
   };
 }
 
-export function maskSpecOf(mask: GameTableMask): MaskPaintSpec {
-  return { color: mask.color, opacity: mask.opacity };
+export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null): MaskPaintSpec {
+  return {
+    color: mask.color,
+    opacity: mask.opacity,
+    locked: mask.isLock,
+    owner: mask.owner,
+    scratchedGrids: mask.scratchedGrids,
+    placement,
+  };
 }
 
 /**
- * Where a block stands, or nothing where it stands somewhere the editor cannot paint.
+ * The cells a block stands over, and whether it stands over them squarely.
  *
- * A block has to sit square on the grid to be painted: anything turned, or standing between
- * cells, is a thing hands made and hands must keep.
+ * Everything on the table is read in. One that sits square on the grid needs nothing said
+ * about it beyond its cells; one that was turned, or that stands between them, or that is
+ * two and a half cells wide, keeps its exact placement alongside so that laying it back
+ * down returns it as it was.
  */
-export function blockRectOf(
+export function blockFootprintOf(
   object: { location: { x: number; y: number }; rotate?: number },
   width: number,
   depth: number,
   gridSize: number
-): CellRect | null {
+): { rect: CellRect; placement: BlockPlacement | null } | null {
   if (gridSize <= 0) return null;
-  if ((object.rotate ?? 0) % 360 !== 0) return null;
-  const col = object.location.x / gridSize;
-  const row = object.location.y / gridSize;
-  if (!Number.isInteger(col) || !Number.isInteger(row) || col < 0 || row < 0) return null;
-  if (!Number.isInteger(width) || !Number.isInteger(depth) || width < 1 || depth < 1) return null;
-  return { col, row, width, height: depth };
+  const rotate = object.rotate ?? 0;
+  const exactCol = object.location.x / gridSize;
+  const exactRow = object.location.y / gridSize;
+  if (!Number.isFinite(exactCol) || !Number.isFinite(exactRow)) return null;
+
+  const col = Math.max(0, Math.floor(exactCol));
+  const row = Math.max(0, Math.floor(exactRow));
+  const cellWidth = Math.max(1, Math.ceil(width));
+  const cellDepth = Math.max(1, Math.ceil(depth));
+
+  const square =
+    rotate % 360 === 0 &&
+    Number.isInteger(exactCol) &&
+    Number.isInteger(exactRow) &&
+    exactCol >= 0 &&
+    exactRow >= 0 &&
+    Number.isInteger(width) &&
+    Number.isInteger(depth);
+
+  return {
+    rect: { col, row, width: cellWidth, height: cellDepth },
+    placement: square ? null : { x: object.location.x, y: object.location.y, width, depth, rotate },
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -180,7 +252,7 @@ export class FunctionalPaintService {
     this.takeAway(
       terrainsOn(table).map((held) => ({
         object: held,
-        rect: isPaintableTerrain(held) ? blockRectOf(held, held.width, held.depth, table.gridSize) : null,
+        rect: blockFootprintOf(held, held.width, held.depth, table.gridSize)?.rect ?? null,
       })),
       plan.terrain.remove
     );
@@ -188,7 +260,7 @@ export class FunctionalPaintService {
     for (const block of plan.terrain.add) {
       const terrain = layTerrainBlock(block.spec, block.width, block.height);
       terrain.paintCell = encodePaintedCell(block);
-      terrain.location = { name: 'table', x: block.col * table.gridSize, y: block.row * table.gridSize };
+      terrain.location = blockOrigin(block.spec, block, table.gridSize);
       table.appendChild(terrain);
     }
   }
@@ -197,17 +269,26 @@ export class FunctionalPaintService {
     this.takeAway(
       masksOn(table).map((held) => ({
         object: held,
-        rect: blockRectOf(held, held.width, held.height, table.gridSize),
+        rect: blockFootprintOf(held, held.width, held.height, table.gridSize)?.rect ?? null,
       })),
       plan.mask.remove
     );
 
     for (const block of plan.mask.add) {
-      const mask = GameTableMask.create('', block.width, block.height, MASK_OPACITY_FULL);
+      const placed = block.spec.placement;
+      const mask = GameTableMask.create(
+        '',
+        placed ? placed.width : block.width,
+        placed ? placed.depth : block.height,
+        MASK_OPACITY_FULL
+      );
       paintMaskColor(mask, block.spec.color);
       setMaskOpacity(mask, block.spec.opacity);
+      mask.isLock = block.spec.locked;
+      mask.owner = block.spec.owner;
+      mask.scratchedGrids = block.spec.scratchedGrids;
       mask.paintCell = encodePaintedCell(block);
-      mask.location = { name: 'table', x: block.col * table.gridSize, y: block.row * table.gridSize };
+      mask.location = blockOrigin(block.spec, block, table.gridSize);
       table.appendChild(mask);
     }
   }
@@ -239,17 +320,14 @@ export class FunctionalPaintService {
       blockedCells: blockedCellKeysOn(table, grid),
       terrainBlocks: terrainsOn(table)
         .map((held) => {
-          // A door or a ramp is more than a block, and the brush has no way of painting one
-          // back. They stay where hands put them, out of the editor's sight and its reach.
-          if (!isPaintableTerrain(held)) return null;
-          const rect = blockRectOf(held, held.width, held.depth, table.gridSize);
-          return rect ? { ...rect, spec: terrainSpecOf(held) } : null;
+          const stood = blockFootprintOf(held, held.width, held.depth, table.gridSize);
+          return stood ? { ...stood.rect, spec: terrainSpecOf(held, stood.placement) } : null;
         })
         .filter((block): block is TerrainBlock => block !== null),
       maskBlocks: masksOn(table)
         .map((held) => {
-          const rect = blockRectOf(held, held.width, held.height, table.gridSize);
-          return rect ? { ...rect, spec: maskSpecOf(held) } : null;
+          const stood = blockFootprintOf(held, held.width, held.height, table.gridSize);
+          return stood ? { ...stood.rect, spec: maskSpecOf(held, stood.placement) } : null;
         })
         .filter((block): block is MaskBlock => block !== null),
     };

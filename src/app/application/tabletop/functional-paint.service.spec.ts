@@ -69,30 +69,48 @@ describe('FunctionalPaintService', () => {
     expect(service.snapshot()!.terrainBlocks.map(rectKey).sort()).toEqual(['1,1,3,2', '3,4,1,1']);
   });
 
-  it("leaves a wall that was turned out of the brush's reach", () => {
+  it('reads a wall that was turned, and remembers how it stands', () => {
     const turned = Terrain.create('回した壁', 2, 1, 2, '', '');
     turned.location = { name: 'table', x: 0, y: 0 };
     turned.rotate = 45;
     table.appendChild(turned);
 
-    expect(service.snapshot()!.terrainBlocks).toEqual([]);
+    const block = service.snapshot()!.terrainBlocks[0];
+
+    expect(rectKey(block)).toBe('0,0,2,1');
+    expect(block.spec.placement).toEqual({ x: 0, y: 0, width: 2, depth: 1, rotate: 45 });
   });
 
-  it('leaves a wall standing between cells out of reach as well', () => {
+  it('reads a wall standing between cells, and remembers where', () => {
     const askew = Terrain.create('ずれた壁', 1, 1, 1, '', '');
     askew.location = { name: 'table', x: 25, y: 0 };
     table.appendChild(askew);
 
-    expect(service.snapshot()!.terrainBlocks).toEqual([]);
+    const block = service.snapshot()!.terrainBlocks[0];
+
+    expect(rectKey(block)).toBe('0,0,1,1');
+    expect(block.spec.placement?.x).toBe(25);
   });
 
-  it('leaves a door where hands put it', () => {
+  it('reads a door as a door', () => {
     const door = Terrain.create('扉', 1, 1, 2, '', '');
     door.location = { name: 'table', x: 0, y: 0 };
     door.doorStyle = 'swing';
+    door.isDoorOpen = true;
     table.appendChild(door);
 
-    expect(service.snapshot()!.terrainBlocks).toEqual([]);
+    const block = service.snapshot()!.terrainBlocks[0];
+
+    expect(block.spec.doorStyle).toBe('swing');
+    expect(block.spec.doorOpen).toBe(true);
+  });
+
+  it('says nothing of a placement for a wall that sits square on its cells', () => {
+    const square = Terrain.create('揃った壁', 2, 1, 2, '', '');
+    square.location = { name: 'table', x: 2 * 50, y: 3 * 50 };
+    table.appendChild(square);
+
+    expect(service.snapshot()!.terrainBlocks[0].spec.placement).toBeNull();
   });
 
   it('reads every cover that sits square on the grid', () => {
@@ -158,27 +176,57 @@ describe('FunctionalPaintService', () => {
       expect(terrainOn()).toHaveLength(0);
     });
 
-    it('leaves a wall that was turned exactly where it stands', () => {
+    it('lays a turned wall back exactly as it stood', () => {
       const turned = Terrain.create('回した壁', 2, 1, 2, '', '');
-      turned.location = { name: 'table', x: 0, y: 0 };
+      turned.location = { name: 'table', x: 25, y: 75 };
       turned.rotate = 45;
       table.appendChild(turned);
+      const read = service.snapshot()!.terrainBlocks[0];
+      turned.destroy();
 
-      service.apply(plan({ terrain: { add: [], remove: [{ col: 0, row: 0, width: 2, height: 1 }] } }));
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
 
-      expect(terrainOn().some((held) => held.identifier === turned.identifier)).toBe(true);
-      expect(turned.rotate).toBe(45);
+      const laid = terrainOn()[0];
+      expect(laid.rotate).toBe(45);
+      expect(laid.location.x).toBe(25);
+      expect(laid.location.y).toBe(75);
+      expect(laid.width).toBe(2);
+      expect(laid.depth).toBe(1);
     });
 
-    it('leaves a door where hands put it', () => {
+    it('lays a door back as a door', () => {
       const door = Terrain.create('扉', 1, 1, 2, '', '');
       door.location = { name: 'table', x: 0, y: 0 };
       door.doorStyle = 'swing';
+      door.doorMirrored = true;
       table.appendChild(door);
+      const read = service.snapshot()!.terrainBlocks[0];
+      door.destroy();
 
-      service.apply(plan({ terrain: { add: [], remove: [oneCell] } }));
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
 
-      expect(terrainOn().some((held) => held.identifier === door.identifier)).toBe(true);
+      expect(terrainOn()[0].doorStyle).toBe('swing');
+      expect(terrainOn()[0].doorMirrored).toBe(true);
+    });
+
+    it('lays a ramp back as a ramp, with its light still on it', () => {
+      const ramp = Terrain.create('坂', 1, 1, 1, '', '');
+      ramp.location = { name: 'table', x: 0, y: 0 };
+      ramp.isSlope = true;
+      ramp.slopeDirection = 2;
+      ramp.lightEnabled = true;
+      ramp.lightBrightRadius = 3;
+      table.appendChild(ramp);
+      const read = service.snapshot()!.terrainBlocks[0];
+      ramp.destroy();
+
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
+
+      const laid = terrainOn()[0];
+      expect(laid.isSlope).toBe(true);
+      expect(laid.slopeDirection).toBe(2);
+      expect(laid.lightEnabled).toBe(true);
+      expect(laid.lightBrightRadius).toBe(3);
     });
 
     it('lays a mask across a whole block too', () => {
