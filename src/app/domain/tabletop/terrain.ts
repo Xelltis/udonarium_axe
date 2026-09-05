@@ -178,6 +178,23 @@ export class Terrain extends TabletopObject {
     }
   }
 
+  /**
+   * Whether any face has been given a picture, whether or not that picture is to hand.
+   *
+   * Asked of the name written down rather than of the image it names: a picture that has not
+   * arrived from another table yet is still a picture somebody chose, and a wall must not
+   * turn to glass while it is on its way.
+   */
+  get hasFaceImage(): boolean {
+    const images = this.imageDataElement;
+    if (!images) return false;
+    for (const name of ['wall', 'floor', ...TERRAIN_FACES]) {
+      const element = this.getElement(name, images);
+      if (element && `${element.value ?? ''}`.length > 0) return true;
+    }
+    return false;
+  }
+
   setFaceImage(face: TerrainFace, imageIdentifier: string): void {
     const imageEl = this.imageDataElement;
     if (!imageEl) return;

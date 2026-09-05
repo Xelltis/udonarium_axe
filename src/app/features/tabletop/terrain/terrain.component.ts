@@ -17,6 +17,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -30,6 +31,7 @@ import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switc
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
+import { ImageFile } from '@axe/core/storage/image-file';
 import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-counters';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -119,6 +121,7 @@ export class TerrainComponent {
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
@@ -285,9 +288,28 @@ export class TerrainComponent {
     { equal: imageFileEqual() }
   );
 
+  /**
+   * A terrain nobody has given a picture to.
+   *
+   * It used to be shown as a white block, which is a placeholder standing in the way of the
+   * map. It is glass instead: the wall is there and stops what it stops, but only the game
+   * master is shown where it stands.
+   */
+  readonly isBlank = computed(() => {
+    this.objectChange.fileVersion();
+    this.terrainVersion();
+    return !this.terrain().hasFaceImage;
+  });
+
+  readonly showsBlankOutline = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.isBlank() && this.rolePermission.canSeeHidden;
+  });
+
   private faceImageOf(face: TerrainFace) {
     this.objectChange.fileVersion();
     this.terrainVersion();
+    if (this.isBlank()) return ImageFile.Empty;
     return this.imageService.getSkeletonOr(this.terrain().faceImage(face));
   }
   readonly topFaceImage = computed(() => this.faceImageOf('top'), { equal: imageFileEqual() });

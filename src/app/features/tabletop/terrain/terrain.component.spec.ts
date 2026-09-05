@@ -96,6 +96,59 @@ describe('TerrainComponent', () => {
     });
   });
 
+  describe('a terrain nobody gave a picture to', () => {
+    function blankWall(): Terrain {
+      const terrain = Terrain.create('wall', 1, 1, 2, '', '');
+      fixture.componentRef.setInput('terrain', terrain);
+      return terrain;
+    }
+
+    it('is glass rather than a white block', async () => {
+      const terrain = blankWall();
+      await fixture.whenStable();
+
+      expect(component.isBlank()).toBe(true);
+      expect(component.northFaceImage().url).toBe('');
+      expect(component.topFaceImage().url).toBe('');
+
+      terrain.destroy();
+    });
+
+    it('stops being glass the moment it is given one', async () => {
+      const terrain = blankWall();
+      terrain.setFaceImage('north', 'some-image');
+      await fixture.whenStable();
+
+      expect(component.isBlank()).toBe(false);
+
+      terrain.destroy();
+    });
+
+    it('shows the game master where it stands', async () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const terrain = blankWall();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="terrain-blank-outline"]')).not.toBeNull();
+
+      terrain.destroy();
+    });
+
+    it('shows a player nothing of it at all', async () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Player;
+      const terrain = blankWall();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="terrain-blank-outline"]')).toBeNull();
+
+      terrain.destroy();
+    });
+  });
+
   describe('the grid it carries', () => {
     it('builds no canvas for terrain that was never asked to show a grid', async () => {
       const terrain = Terrain.create('wall', 1, 1, 2, '', '');

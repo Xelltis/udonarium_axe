@@ -42,6 +42,15 @@
           (onWall() ? 'rotateY(180deg) ' : '') + 'translateZ(' + altitude() * gridSize + 'px)' + doorTransform(),
       }"
     >
+      @if (showsBlankOutline()) {
+        <div
+          class="pointer-events-none absolute top-0 left-0 box-border border-2 border-dashed border-sky-300/70 backface-hidden"
+          data-testid="terrain-blank-outline"
+          [style.width.px]="width() * gridSize"
+          [style.height.px]="depth() * gridSize"
+          [style.transform]="'translateZ(' + (hasWall() ? height() * gridSize : 0) + 'px)'"
+        ></div>
+      }
       @if (hasFloor() && isVisibleFloor() && 0 < topFaceImage().url.length) {
         @if (isHexSlope() && hexSlopeSteps().floors.length > 0) {
           @for (step of hexSlopeSteps().floors; track $index) {
