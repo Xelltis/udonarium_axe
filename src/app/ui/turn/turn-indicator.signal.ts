@@ -21,6 +21,8 @@ export function turnIndicatorSignal(): Signal<TurnIndicator | null> {
     if (currentIdentifier) objectChange.versionOf(currentIdentifier)();
     const current = currentIdentifier ? objectStore.get(currentIdentifier) : null;
     const name = current instanceof GameCharacter ? current.name : '';
-    return buildTurnIndicator(turnOrder.phase, turnOrder.round, name);
+    objectChange.collectionOf('party')();
+    const side = turnOrder.currentSide;
+    return buildTurnIndicator(turnOrder.phase, turnOrder.round, name, side ? turnOrder.sideName(side) : '');
   });
 }
