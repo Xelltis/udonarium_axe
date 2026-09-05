@@ -1,6 +1,11 @@
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
-import { DEFAULT_FUNCTION_SPEC, FunctionSpec, MapFunctionRole } from '@axe/features/map-editor/model/function-layer';
+import {
+  DEFAULT_FUNCTION_SPEC,
+  FunctionSpec,
+  lookKey,
+  MapFunctionRole,
+} from '@axe/features/map-editor/model/function-layer';
 import {
   createScene,
   FunctionLayer,
@@ -51,7 +56,7 @@ function layersByLook<T extends CellRect & { spec: unknown }>(
 ): FunctionLayer[] {
   const grouped = new Map<string, { spec: FunctionSpec; cells: string[] }>();
   for (const block of blocks) {
-    const key = JSON.stringify(block.spec);
+    const key = lookKey(block.spec);
     const held = grouped.get(key) ?? { spec: specOf(block), cells: [] };
     held.cells.push(...rectCells(block));
     grouped.set(key, held);

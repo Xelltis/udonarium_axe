@@ -185,11 +185,13 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected readonly functionRoles = MAP_FUNCTION_ROLES;
 
   protected setTerrainPaint(patch: Partial<TerrainPaintSpec>): void {
-    this.state.functionSpec.update((spec) => ({ ...spec, terrain: { ...spec.terrain, ...patch } }));
+    const spec = this.state.functionSpec();
+    this.state.setFunctionSpec({ ...spec, terrain: { ...spec.terrain, ...patch } });
   }
 
   protected setMaskPaint(patch: Partial<MaskPaintSpec>): void {
-    this.state.functionSpec.update((spec) => ({ ...spec, mask: { ...spec.mask, ...patch } }));
+    const spec = this.state.functionSpec();
+    this.state.setFunctionSpec({ ...spec, mask: { ...spec.mask, ...patch } });
   }
 
   protected readonly terrainFaces = TERRAIN_FACE_KEYS;

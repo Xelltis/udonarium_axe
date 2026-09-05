@@ -303,9 +303,14 @@ export interface MaskBlock extends CellRect {
   spec: MaskPaintSpec;
 }
 
+/** The look a spec stands for, so that two alike share one layer. */
+export function lookKey(spec: unknown): string {
+  return JSON.stringify(spec);
+}
+
 /** What one block is known by, which is where it stands and what it looks like. */
 export function blockKey(block: CellRect, spec: unknown): string {
-  return `${block.col},${block.row},${block.width},${block.height}|${JSON.stringify(spec)}`;
+  return `${block.col},${block.row},${block.width},${block.height}|${lookKey(spec)}`;
 }
 
 export interface BlockChange<T extends CellRect> {

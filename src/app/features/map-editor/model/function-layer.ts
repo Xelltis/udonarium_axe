@@ -10,6 +10,7 @@ export {
   asFunctionRole,
   DEFAULT_FUNCTION_ROLE,
   DEFAULT_FUNCTION_SPEC,
+  lookKey,
   MAP_FUNCTION_ROLES,
   sanitizeFunctionSpec,
 } from '@axe/domain/tabletop/function-paint';
