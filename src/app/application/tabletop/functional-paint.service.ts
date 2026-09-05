@@ -38,7 +38,7 @@ function masksOn(table: GameTable): GameTableMask[] {
 function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number): Terrain {
   const placed = spec.placement;
   const terrain = Terrain.create(
-    '',
+    spec.name,
     placed ? placed.width : width,
     placed ? placed.depth : depth,
     Math.max(0, spec.height),
@@ -53,6 +53,9 @@ function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number): 
   terrain.isDropShadow = spec.dropShadow;
   terrain.isSurfaceShading = spec.surfaceShading;
   terrain.isLocked = spec.locked;
+  terrain.posZ = spec.altitude;
+  terrain.isAltitudeIndicate = spec.showsAltitude;
+  if (spec.imageIdentifier.length > 0) terrain.setFaceImage('imageIdentifier', spec.imageIdentifier);
   terrain.doorStyle = spec.doorStyle;
   terrain.isDoorOpen = spec.doorOpen;
   terrain.doorMirrored = spec.doorMirrored;
@@ -131,6 +134,10 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
   const images = { ...NO_FACE_IMAGES };
   for (const face of TERRAIN_FACE_KEYS) images[face] = terrain.faceImageIdentifier(face);
   return {
+    name: terrain.name,
+    imageIdentifier: terrain.faceImageIdentifier('imageIdentifier'),
+    altitude: terrain.posZ,
+    showsAltitude: terrain.isAltitudeIndicate,
     height: terrain.height,
     mode: terrain.mode,
     blocksSight: terrain.blocksSight,
@@ -163,11 +170,16 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
 
 export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null): MaskPaintSpec {
   return {
+    name: mask.name,
     color: mask.color,
     opacity: mask.opacity,
+    altitude: mask.posZ,
     locked: mask.isLock,
+    showsLockMark: mask.dispLockMark,
     owner: mask.owner,
     scratchedGrids: mask.scratchedGrids,
+    scratchingGrids: mask.scratchingGrids,
+    preview: mask.isPreview,
     placement,
   };
 }
@@ -277,7 +289,7 @@ export class FunctionalPaintService {
     for (const block of plan.mask.add) {
       const placed = block.spec.placement;
       const mask = GameTableMask.create(
-        '',
+        block.spec.name,
         placed ? placed.width : block.width,
         placed ? placed.depth : block.height,
         MASK_OPACITY_FULL
@@ -285,8 +297,12 @@ export class FunctionalPaintService {
       paintMaskColor(mask, block.spec.color);
       setMaskOpacity(mask, block.spec.opacity);
       mask.isLock = block.spec.locked;
+      mask.dispLockMark = block.spec.showsLockMark;
       mask.owner = block.spec.owner;
       mask.scratchedGrids = block.spec.scratchedGrids;
+      mask.scratchingGrids = block.spec.scratchingGrids;
+      mask.isPreview = block.spec.preview;
+      mask.posZ = block.spec.altitude;
       mask.paintCell = encodePaintedCell(block);
       mask.location = blockOrigin(block.spec, block, table.gridSize);
       table.appendChild(mask);

@@ -42,6 +42,9 @@ export const DOOR_STYLES: readonly DoorStyle[] = [DoorStyle.SWING, DoorStyle.SLI
 
 export type TerrainFace = 'top' | 'bottom' | 'north' | 'south' | 'east' | 'west';
 
+/** Every picture a terrain holds: its faces, the two that stand in for them, and its own. */
+export type TerrainImageSlot = TerrainFace | 'wall' | 'floor' | 'imageIdentifier';
+
 export const TERRAIN_FACES: readonly TerrainFace[] = ['top', 'bottom', 'north', 'south', 'east', 'west'] as const;
 
 @SyncObject('terrain')
@@ -178,8 +181,8 @@ export class Terrain extends TabletopObject {
     }
   }
 
-  /** The name written down for one face, empty where none was. */
-  faceImageIdentifier(face: TerrainFace | 'wall' | 'floor'): string {
+  /** The name written down for one picture, empty where none was. */
+  faceImageIdentifier(face: TerrainImageSlot): string {
     const images = this.imageDataElement;
     if (!images) return '';
     const element = this.getElement(face, images);
@@ -202,7 +205,7 @@ export class Terrain extends TabletopObject {
     return false;
   }
 
-  setFaceImage(face: TerrainFace, imageIdentifier: string): void {
+  setFaceImage(face: TerrainImageSlot, imageIdentifier: string): void {
     const imageEl = this.imageDataElement;
     if (!imageEl) return;
     const existing = this.getElement(face, imageEl);

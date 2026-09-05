@@ -50,6 +50,11 @@ export interface BlockPlacement {
 
 /** Everything a painted wall is, which is everything a terrain of one block can be. */
 export interface TerrainPaintSpec {
+  name: string;
+  /** The picture the piece itself is known by, which is not one of its faces. */
+  imageIdentifier: string;
+  altitude: number;
+  showsAltitude: boolean;
   /** How tall it stands, in cells. Nought is a floor with no wall over it. */
   height: number;
   /** Whether it is a floor, a wall, or both. One of TerrainViewState. */
@@ -86,11 +91,17 @@ export interface TerrainLightSpec {
 }
 
 export interface MaskPaintSpec {
+  name: string;
   color: string;
   opacity: number;
+  altitude: number;
   locked: boolean;
+  showsLockMark: boolean;
   owner: string;
+  /** How far it has been scratched away, and how far a scratch in hand has got. */
   scratchedGrids: string;
+  scratchingGrids: string;
+  preview: boolean;
   placement: BlockPlacement | null;
 }
 
@@ -124,6 +135,10 @@ export const TERRAIN_FACE_KEYS: readonly (keyof TerrainFaceImages)[] = [
 
 export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
   terrain: {
+    name: '',
+    imageIdentifier: '',
+    altitude: 0,
+    showsAltitude: false,
     height: 1,
     mode: 3,
     blocksSight: true,
@@ -153,11 +168,16 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     placement: null,
   },
   mask: {
+    name: '',
     color: '#555555',
     opacity: 0.6,
+    altitude: 0,
     locked: false,
+    showsLockMark: true,
     owner: '',
     scratchedGrids: '',
+    scratchingGrids: '',
+    preview: false,
     placement: null,
   },
 };
@@ -231,6 +251,10 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
 
   return {
     terrain: {
+      name: textIn(terrain, 'name', fallback.terrain.name),
+      imageIdentifier: textIn(terrain, 'imageIdentifier', fallback.terrain.imageIdentifier),
+      altitude: countIn(terrain, 'altitude', fallback.terrain.altitude, -999, 999),
+      showsAltitude: flagIn(terrain, 'showsAltitude', fallback.terrain.showsAltitude),
       height: countIn(terrain, 'height', fallback.terrain.height, 0, 99),
       mode: countIn(terrain, 'mode', fallback.terrain.mode, 0, 3),
       blocksSight: flagIn(terrain, 'blocksSight', fallback.terrain.blocksSight),
@@ -250,11 +274,16 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       placement: sanitizePlacement(terrain['placement']),
     },
     mask: {
+      name: textIn(mask, 'name', fallback.mask.name),
       color: textIn(mask, 'color', fallback.mask.color),
       opacity: countIn(mask, 'opacity', fallback.mask.opacity, 0, 1),
+      altitude: countIn(mask, 'altitude', fallback.mask.altitude, -999, 999),
       locked: flagIn(mask, 'locked', fallback.mask.locked),
+      showsLockMark: flagIn(mask, 'showsLockMark', fallback.mask.showsLockMark),
       owner: textIn(mask, 'owner', fallback.mask.owner),
       scratchedGrids: textIn(mask, 'scratchedGrids', fallback.mask.scratchedGrids),
+      scratchingGrids: textIn(mask, 'scratchingGrids', fallback.mask.scratchingGrids),
+      preview: flagIn(mask, 'preview', fallback.mask.preview),
       placement: sanitizePlacement(mask['placement']),
     },
   };

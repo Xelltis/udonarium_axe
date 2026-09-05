@@ -304,6 +304,104 @@ describe('FunctionalPaintService', () => {
     });
   });
 
+  describe('reading a block in and laying it back down', () => {
+    function planWith(over: Partial<FunctionPaintPlan> = {}): FunctionPaintPlan {
+      return { blocked: [], terrain: { add: [], remove: [] }, mask: { add: [], remove: [] }, ...over };
+    }
+
+    it('returns a wall with everything it had', () => {
+      const before = Terrain.create('石の壁', 2, 3, 4, 'granite', 'moss');
+      before.location = { name: 'table', x: 25, y: 75 };
+      before.rotate = 30;
+      before.posZ = 12;
+      before.isAltitudeIndicate = true;
+      before.mode = 2;
+      before.isLocked = true;
+      before.isTiledTexture = true;
+      before.isGrid = true;
+      before.isDropShadow = false;
+      before.isSurfaceShading = false;
+      before.blocksSight = false;
+      before.blocksLight = false;
+      before.doorStyle = 'slide';
+      before.isDoorOpen = true;
+      before.doorMirrored = true;
+      before.isSlope = true;
+      before.slopeDirection = 3;
+      before.lightEnabled = true;
+      before.lightPreset = 'torch';
+      before.lightBrightRadius = 5;
+      before.lightDimRadius = 9;
+      before.lightColor = '#ff8800';
+      before.lightAngle = 120;
+      before.lightDirection = 45;
+      before.lightPitch = 10;
+      before.lightAnimation = 'flicker';
+      before.setFaceImage('imageIdentifier', 'thumb');
+      for (const face of ['top', 'bottom', 'north', 'south', 'east', 'west'] as const) {
+        before.setFaceImage(face, `face-${face}`);
+      }
+      table.appendChild(before);
+
+      const read = service.snapshot()!.terrainBlocks[0];
+      before.destroy();
+      service.apply(planWith({ terrain: { add: [read], remove: [] } }));
+
+      const after = table.children.filter((child): child is Terrain => child instanceof Terrain)[0];
+      expect(after.name).toBe('石の壁');
+      expect(after.location).toMatchObject({ x: 25, y: 75 });
+      expect([after.width, after.depth, after.height]).toEqual([2, 3, 4]);
+      expect([after.rotate, after.posZ, after.isAltitudeIndicate]).toEqual([30, 12, true]);
+      expect([after.mode, after.isLocked, after.isTiledTexture, after.isGrid]).toEqual([2, true, true, true]);
+      expect([after.isDropShadow, after.isSurfaceShading]).toEqual([false, false]);
+      expect([after.blocksSight, after.blocksLight]).toEqual([false, false]);
+      expect([after.doorStyle, after.isDoorOpen, after.doorMirrored]).toEqual(['slide', true, true]);
+      expect([after.isSlope, after.slopeDirection]).toEqual([true, 3]);
+      expect(after.lightSpec).toMatchObject({
+        enabled: true,
+        preset: 'torch',
+        brightRadius: 5,
+        dimRadius: 9,
+        color: '#ff8800',
+        angle: 120,
+        pitch: 10,
+        animation: 'flicker',
+      });
+      expect(after.faceImageIdentifier('imageIdentifier')).toBe('thumb');
+      expect(after.faceImageIdentifier('wall')).toBe('granite');
+      expect(after.faceImageIdentifier('floor')).toBe('moss');
+      for (const face of ['top', 'bottom', 'north', 'south', 'east', 'west'] as const) {
+        expect(after.faceImageIdentifier(face)).toBe(`face-${face}`);
+      }
+    });
+
+    it('returns a cover with its scratches still on it', () => {
+      const before = GameTableMask.create('覆い', 3, 2, 100);
+      before.location = { name: 'table', x: 2 * 50, y: 1 * 50 };
+      before.posZ = 4;
+      before.isLock = true;
+      before.dispLockMark = false;
+      before.owner = 'someone';
+      before.scratchedGrids = '1:2,3:4';
+      before.scratchingGrids = '5:6';
+      before.isPreview = true;
+      table.appendChild(before);
+
+      const read = service.snapshot()!.maskBlocks[0];
+      before.destroy();
+      service.apply(planWith({ mask: { add: [read], remove: [] } }));
+
+      const after = table.children.filter((child): child is GameTableMask => child instanceof GameTableMask)[0];
+      expect(after.name).toBe('覆い');
+      expect([after.width, after.height]).toEqual([3, 2]);
+      expect(after.posZ).toBe(4);
+      expect([after.isLock, after.dispLockMark, after.isPreview]).toEqual([true, false, true]);
+      expect(after.owner).toBe('someone');
+      expect(after.scratchedGrids).toBe('1:2,3:4');
+      expect(after.scratchingGrids).toBe('5:6');
+    });
+  });
+
   it('reads nothing at all from a table with no size', () => {
     table.gridSize = 0;
 
