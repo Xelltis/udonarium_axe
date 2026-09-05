@@ -40,7 +40,7 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.tabletop.dungeonGenerator.prop.': FIELD_PROP_IDS,
   'feature.tabletop.dungeonGenerator.kind.': MAP_KINDS,
   'feature.chat.messageSetting.soundType_': CHAT_SOUND_TYPES,
-  'feature.tabletop.tableSetting.facingMark_': TABLE_FACING_MARKS,
+  'feature.roomSettings.facingMark_': TABLE_FACING_MARKS,
   'feature.roomSettings.zocMode_': ZOC_MODES,
   'feature.roomSettings.turnOrderMode_': TURN_ORDER_MODES,
   'feature.roomSettings.factionPhaseMode_': FACTION_PHASE_MODES,

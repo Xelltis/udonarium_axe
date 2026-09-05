@@ -58,6 +58,6 @@ describe('buildTurnIndicator', () => {
   });
 
   it('carries the side through the start and end of a round', () => {
-    expect(buildTurnIndicator('roundStart', 1, '', '味方').sideName).toBe('味方');
+    expect(buildTurnIndicator('roundStart', 1, '', '味方')?.sideName).toBe('味方');
   });
 });

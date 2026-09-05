@@ -1889,11 +1889,6 @@
         "sectionWeather": "Weather (whole map)",
         "weatherKind": "Weather",
         "weatherNone": "None",
-        "facingMark": "Which way a piece faces",
-        "facingMark_none": "Do not show",
-        "facingMark_turn": "Turn the picture",
-        "facingMark_arrow": "Show an arrowhead",
-        "facingMarkHint": "Lets a piece be turned in 2D. An arrowhead leaves the picture facing you and shows the facing on its own, in 3D as well",
         "sectionFog": "Fog of war",
         "fogEnabled": "Enable fog of war",
         "fogMode": "How the fog comes back",
@@ -2031,6 +2026,7 @@
       "sectionDice": "Dice",
       "sectionMoveRange": "Movement range",
       "sectionZoc": "Zone of control",
+      "sectionFacing": "Which way a piece faces",
       "ruledByTable": "Each table rules this for now. Change one here and the room takes it over.",
       "ruledByRoom": "The room rules this, the same whichever table is out.",
       "backToTable": "Back to each table",
@@ -2057,7 +2053,12 @@
       "zocAlwaysHint": "Keep showing the ground held against the piece that is picked",
       "zocExtraCost": "Extra cost",
       "zocHint": "A piece is an enemy where the NPC mark differs from the one being moved, and the cells around it get in the way. A piece you cannot see holds no ground.",
-      "diceBotHint": "The dice bot everyone joining the room starts on"
+      "diceBotHint": "The dice bot everyone joining the room starts on",
+      "facingMark": "Which way a piece faces",
+      "facingMark_none": "Do not show",
+      "facingMark_turn": "Turn the picture",
+      "facingMark_arrow": "Show an arrowhead",
+      "facingMarkHint": "Lets a piece be turned in 2D. An arrowhead leaves the picture facing you and shows the facing on its own, in 3D as well"
     },
     "lobby": {
       "peerMenu": {

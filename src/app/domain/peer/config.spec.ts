@@ -108,6 +108,7 @@ describe('Config', () => {
         zocMode: null,
         zocRange: null,
         zocExtraCost: null,
+        facingMark: null,
       });
     });
 

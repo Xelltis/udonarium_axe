@@ -1889,11 +1889,6 @@
         "sectionWeather": "天候（マップ全体）",
         "weatherKind": "天候",
         "weatherNone": "なし",
-        "facingMark": "キャラクターの向き",
-        "facingMark_none": "示さない",
-        "facingMark_turn": "コマごと回す",
-        "facingMark_arrow": "矢尻で示す",
-        "facingMarkHint": "2Dモードでコマを回せるようにします。矢尻はカメラ追従のまま向きだけを示し、3Dモードでも出ます",
         "sectionFog": "戦場の霧（探索）",
         "fogEnabled": "戦場の霧を有効化",
         "fogMode": "霧の戻り方",
@@ -2031,6 +2026,7 @@
       "sectionDice": "ダイス",
       "sectionMoveRange": "移動範囲",
       "sectionZoc": "ZOC（支配領域）",
+      "sectionFacing": "コマの向き",
       "ruledByTable": "いまはテーブルごとの設定です。ここで変えると部屋全体の設定になります。",
       "ruledByRoom": "部屋全体の設定です。どのテーブルを出しても同じルールになります。",
       "backToTable": "テーブルごとに戻す",
@@ -2057,7 +2053,12 @@
       "zocAlwaysHint": "選んだコマに対する ZOC を出したままにする",
       "zocExtraCost": "余分な移動コスト",
       "zocHint": "NPC かどうかが違うコマを敵とみなし、その周りのマスが移動を妨げる。自分に見えていないコマは ZOC を張らない。",
-      "diceBotHint": "部屋に入ったときに選ばれるダイスボットです"
+      "diceBotHint": "部屋に入ったときに選ばれるダイスボットです",
+      "facingMark": "キャラクターの向き",
+      "facingMark_none": "示さない",
+      "facingMark_turn": "コマごと回す",
+      "facingMark_arrow": "矢尻で示す",
+      "facingMarkHint": "2Dモードでコマを回せるようにします。矢尻はカメラ追従のまま向きだけを示し、3Dモードでも出ます"
     },
     "lobby": {
       "peerMenu": {

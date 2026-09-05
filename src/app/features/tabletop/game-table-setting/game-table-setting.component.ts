@@ -30,7 +30,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
-import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import {
@@ -159,17 +158,6 @@ export class GameTableSettingComponent {
   set tableMode2d(value: boolean) {
     if (!this.selectedTable) return;
     this.selectedTable.mode2d = value;
-    triggerUpdateGameObject(this.selectedTable.toContext());
-  }
-
-  readonly facingMarks = TABLE_FACING_MARKS;
-
-  get tableFacingMark(): TableFacingMark {
-    return asTableFacingMark(this.selectedTable?.facingMark);
-  }
-  set tableFacingMark(value: TableFacingMark) {
-    if (!this.selectedTable) return;
-    this.selectedTable.facingMark = asTableFacingMark(value);
     triggerUpdateGameObject(this.selectedTable.toContext());
   }
 

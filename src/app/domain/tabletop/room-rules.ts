@@ -10,6 +10,7 @@ import {
   DEFAULT_ZOC_RANGE,
   ZocMode,
 } from '@axe/domain/tabletop/move/zone-of-control';
+import { DEFAULT_TABLE_FACING_MARK } from '@axe/domain/tabletop/table-facing-mark';
 
 /** How a piece walks and what an enemy holds against it, as the table plays it. */
 export interface RoomRules {
@@ -24,6 +25,7 @@ export interface RoomRules {
   zocMode: ZocMode;
   zocRange: number;
   zocExtraCost: number;
+  facingMark: string;
 }
 
 /** The same rules in the looser terms a table holds them and an attribute carries them. */
@@ -44,6 +46,7 @@ export const ROOM_RULE_DEFAULTS: RoomRules = {
   zocMode: DEFAULT_ZOC_MODE,
   zocRange: DEFAULT_ZOC_RANGE,
   zocExtraCost: DEFAULT_ZOC_EXTRA_COST,
+  facingMark: DEFAULT_TABLE_FACING_MARK,
 };
 
 /** The rules that are set together, and so are handed back to the table together. */
@@ -58,6 +61,7 @@ export const ROOM_RULE_GROUPS = {
     'cellDistanceUnit',
   ],
   zoc: ['zocMode', 'zocRange', 'zocAlways', 'zocExtraCost'],
+  facing: ['facingMark'],
 } as const satisfies Record<string, readonly (keyof RoomRules)[]>;
 
 export type RoomRuleGroup = keyof typeof ROOM_RULE_GROUPS;
@@ -138,5 +142,6 @@ export function resolveRoomRules(
     zocMode: asZocMode(settled('zocMode')),
     zocRange: settled('zocRange'),
     zocExtraCost: settled('zocExtraCost'),
+    facingMark: settled('facingMark'),
   };
 }

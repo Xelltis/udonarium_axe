@@ -21,6 +21,7 @@ import {
   RoomRuleGroup,
   RoomRules,
 } from '@axe/domain/tabletop/room-rules';
+import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
   FACTION_PHASE_MODES,
@@ -58,6 +59,7 @@ export class RoomSettingsPanelComponent {
   readonly turnOrderModes = TURN_ORDER_MODES;
   readonly factionPhaseModes = FACTION_PHASE_MODES;
   readonly moveUnits = MOVE_UNITS;
+  readonly facingMarks = TABLE_FACING_MARKS;
   readonly zocModes = ZOC_MODES;
 
   readonly isReadOnly = computed(() => {
@@ -201,6 +203,13 @@ export class RoomSettingsPanelComponent {
 
   loadDiceBot(gameType: string): void {
     DiceBot.getHelpMessage(gameType).then(() => {});
+  }
+
+  get facingMark(): TableFacingMark {
+    return asTableFacingMark(this.rules.facingMark);
+  }
+  set facingMark(value: TableFacingMark) {
+    if (this.isEditable) this.config.facingMark = asTableFacingMark(value);
   }
 
   get moveRangeEnabled(): boolean {

@@ -1889,11 +1889,6 @@
         "sectionWeather": "날씨(맵 전체)",
         "weatherKind": "날씨",
         "weatherNone": "없음",
-        "facingMark": "캐릭터의 방향",
-        "facingMark_none": "표시하지 않음",
-        "facingMark_turn": "말째로 회전",
-        "facingMark_arrow": "화살촉으로 표시",
-        "facingMarkHint": "2D 모드에서 말을 회전할 수 있게 합니다. 화살촉은 그림을 카메라 쪽으로 둔 채 방향만 나타내며 3D 모드에서도 보입니다",
         "sectionFog": "전장의 안개(탐색)",
         "fogEnabled": "전장의 안개 활성화",
         "fogMode": "안개가 돌아오는 방식",
@@ -2031,6 +2026,7 @@
       "sectionDice": "다이스",
       "sectionMoveRange": "이동 범위",
       "sectionZoc": "ZOC(지배 영역)",
+      "sectionFacing": "말의 방향",
       "ruledByTable": "지금은 테이블별 설정입니다. 여기서 바꾸면 방 전체 설정이 됩니다.",
       "ruledByRoom": "방 전체 설정입니다. 어느 테이블을 꺼내도 같은 규칙이 적용됩니다.",
       "backToTable": "테이블별로 되돌리기",
@@ -2057,7 +2053,12 @@
       "zocAlwaysHint": "선택한 말에 대한 ZOC를 계속 표시",
       "zocExtraCost": "추가 이동 코스트",
       "zocHint": "NPC 여부가 다른 말을 적으로 보고, 그 주위 칸이 이동을 방해합니다. 자신에게 보이지 않는 말은 ZOC를 만들지 않습니다.",
-      "diceBotHint": "방에 들어올 때 선택되는 다이스봇입니다"
+      "diceBotHint": "방에 들어올 때 선택되는 다이스봇입니다",
+      "facingMark": "캐릭터의 방향",
+      "facingMark_none": "표시하지 않음",
+      "facingMark_turn": "말째로 회전",
+      "facingMark_arrow": "화살촉으로 표시",
+      "facingMarkHint": "2D 모드에서 말을 회전할 수 있게 합니다. 화살촉은 그림을 카메라 쪽으로 둔 채 방향만 나타내며 3D 모드에서도 보입니다"
     },
     "lobby": {
       "peerMenu": {

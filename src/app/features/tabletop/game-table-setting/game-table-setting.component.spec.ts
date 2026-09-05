@@ -75,35 +75,6 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
-  describe('how a piece shows which way it faces', () => {
-    it('shows nothing for a table that has never been asked', () => {
-      component.selectedTable = null;
-      expect(component.tableFacingMark).toBe('none');
-    });
-
-    it('writes the choice onto the table', () => {
-      const table = new GameTable();
-      table.initialize();
-      component.selectedTable = table;
-
-      component.tableFacingMark = 'arrow';
-
-      expect(table.facingMark).toBe('arrow');
-      expect(component.tableFacingMark).toBe('arrow');
-      table.destroy();
-    });
-
-    it('reads a table carrying something it does not know as showing nothing', () => {
-      const table = new GameTable();
-      table.initialize();
-      table.facingMark = 'compass' as never;
-      component.selectedTable = table;
-
-      expect(component.tableFacingMark).toBe('none');
-      table.destroy();
-    });
-  });
-
   describe('signal-driven CD', () => {
     it('reads the deleted flag through a collection signal', () => {
       const objectChangeService = TestBed.inject(ObjectChangeService);

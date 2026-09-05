@@ -178,6 +178,40 @@ describe('RoomSettingsPanelComponent', () => {
     });
   });
 
+  describe('how a piece shows which way it faces', () => {
+    it('shows what the table asks for while the room has been asked nothing', () => {
+      table.facingMark = 'arrow';
+
+      expect(component.answersFor('facing')).toBe(false);
+      expect(component.facingMark).toBe('arrow');
+    });
+
+    it('takes the choice over from the table', () => {
+      table.facingMark = 'arrow';
+
+      component.facingMark = 'turn';
+
+      expect(component.facingMark).toBe('turn');
+      expect(component.answersFor('facing')).toBe(true);
+      expect(table.facingMark).toBe('arrow');
+    });
+
+    it('reads something it does not know as showing nothing', () => {
+      table.facingMark = 'compass' as never;
+
+      expect(component.facingMark).toBe('none');
+    });
+
+    it('gives the choice back to the table', () => {
+      table.facingMark = 'arrow';
+      component.facingMark = 'turn';
+
+      component.backToTable('facing');
+
+      expect(component.facingMark).toBe('arrow');
+    });
+  });
+
   describe('the questions it puts', () => {
     it('puts the question of corners only to a square board', () => {
       table.gridType = GridType.SQUARE;

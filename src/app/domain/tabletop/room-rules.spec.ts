@@ -24,6 +24,7 @@ const table: RoomRules = {
   zocMode: 'stop',
   zocRange: 2,
   zocExtraCost: 3,
+  facingMark: 'arrow',
 };
 
 describe('readRuleFlag()', () => {

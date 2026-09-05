@@ -48,6 +48,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_zocMode') private _zocMode: string = '';
   @SyncVar('_zocRange') private _zocRange: number = -1;
   @SyncVar('_zocExtraCost') private _zocExtraCost: number = -1;
+  @SyncVar('_facingMark') private _facingMark: string = '';
 
   get defaultDiceBot(): string {
     if (this._defaultDiceBot == '') {
@@ -200,6 +201,13 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocExtraCost = writeRuleNumber(answer);
   }
 
+  get facingMark(): string | null {
+    return readRuleText(this._facingMark);
+  }
+  set facingMark(answer: string | null) {
+    this._facingMark = writeRuleText(answer);
+  }
+
   /** Hands rules back to the table, so whatever each table says rules by them again. */
   forgetRoomRules(rules: readonly (keyof RoomRuleAnswers)[]): void {
     for (const rule of rules) this[rule] = null;
@@ -219,6 +227,7 @@ export class Config extends ObjectNode implements InnerXml {
       zocMode: this.zocMode,
       zocRange: this.zocRange,
       zocExtraCost: this.zocExtraCost,
+      facingMark: this.facingMark,
     };
   }
 

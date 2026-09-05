@@ -67,8 +67,10 @@ import {
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Config } from '@axe/domain/peer/config';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { buildGameCharacterContextMenu } from '@axe/features/character/game-character/game-character-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
@@ -475,12 +477,14 @@ export class GameCharacterComponent {
     return table.mode2d;
   });
 
-  /** What the table asks of a piece that has to show which way it faces. */
+  /** What the room asks of a piece that has to show which way it faces. */
   readonly facingMark = computed<TableFacingMark>(() => {
     const table = this.tabletopService.currentTable;
     this.objectChange.versionOf(table.identifier)();
     this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    return asTableFacingMark(table.facingMark);
+    this.objectChange.versionOf('Config')();
+    const config = this.objectStore.get<Config>('Config') ?? null;
+    return asTableFacingMark(resolveRoomRules(config?.roomRuleAnswers ?? null, table).facingMark);
   });
 
   /**

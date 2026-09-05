@@ -13,6 +13,7 @@ import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Config } from '@axe/domain/peer/config';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -195,6 +196,21 @@ describe('GameCharacterComponent', () => {
     function arrow(): SVGElement | null {
       return (fixture.nativeElement as HTMLElement).querySelector<SVGElement>('[data-testid="facing-arrow"]');
     }
+
+    it('takes the room over the table where the room has said which way it shows', () => {
+      tableShowing('none', true);
+      Config.instance.facingMark = 'arrow';
+      place(90);
+
+      expect(component.facingMark()).toBe('arrow');
+      expect(arrow()).not.toBeNull();
+
+      Config.instance.facingMark = null;
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+      fixture.detectChanges();
+
+      expect(component.facingMark()).toBe('none');
+    });
 
     it('holds a piece still from above while the table shows nothing', () => {
       tableShowing('none', true);
