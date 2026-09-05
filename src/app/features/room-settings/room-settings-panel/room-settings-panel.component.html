@@ -1,28 +1,32 @@
-<div class="text-ui-text bg-ui-elevated flex h-full flex-col overflow-y-auto px-3.5 py-3 text-[13px]">
-  <div class="border-ui-border-panel mb-3 flex shrink-0 gap-0.5 border-b border-solid" role="tablist">
-    @for (name of tabs; track name) {
-      <button
-        type="button"
-        role="tab"
-        class="hover:text-ui-accent -mb-px cursor-pointer border-0 border-b-2 border-solid bg-transparent px-2.5 py-1.5 text-[12px] transition-colors"
-        [class.border-ui-accent]="tab() === name"
-        [class.text-ui-accent]="tab() === name"
-        [class.border-transparent]="tab() !== name"
-        [class.text-ui-muted]="tab() !== name"
-        [attr.aria-selected]="tab() === name"
-        [attr.data-testid]="'room-settings-tab-' + name"
-        (click)="tab.set(name)"
-      >
-        {{ 'feature.roomSettings.tab_' + name | transloco }}
-      </button>
-    }
+<div class="text-ui-text bg-ui-elevated flex h-full min-h-0 flex-col text-[13px]">
+  <div class="border-ui-border-panel shrink-0 border-b border-solid px-3 pt-3 pb-2.5">
+    <div class="border-ui-border-panel bg-ui-input rounded-ui flex gap-0.5 border border-solid p-0.5" role="tablist">
+      @for (name of tabs; track name) {
+        <button
+          type="button"
+          role="tab"
+          class="rounded-ui-sm grow cursor-pointer border-0 p-1.5 text-[11px] font-medium whitespace-nowrap transition-[background,color]"
+          [class.bg-ui-accent]="tab() === name"
+          [class.text-white]="tab() === name"
+          [class.bg-transparent]="tab() !== name"
+          [class.text-ui-muted]="tab() !== name"
+          [class.hover:bg-ui-hover]="tab() !== name"
+          [class.hover:text-ui-text]="tab() !== name"
+          [attr.aria-selected]="tab() === name"
+          [attr.data-testid]="'room-settings-tab-' + name"
+          (click)="tab.set(name)"
+        >
+          {{ 'feature.roomSettings.tab_' + name | transloco }}
+        </button>
+      }
+    </div>
   </div>
 
-  <div class="flex flex-col" [attr.inert]="isReadOnly() ? '' : null">
+  <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3" [attr.inert]="isReadOnly() ? '' : null">
     @if (tab() === 'general') {
-      <div class="mb-3.5 flex flex-col gap-2">
-        <div class="border-ui-accent border-l-2 border-solid pl-2">
-          <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+        <div class="min-w-0">
+          <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
             'feature.roomSettings.sectionDice' | transloco
           }}</span>
         </div>
@@ -38,16 +42,16 @@
               <ng-option [value]="diceBotInfo.id">{{ diceBotInfo.name }}</ng-option>
             }
           </ng-select>
-          <p class="text-ui-muted m-0 text-[11px]">
+          <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
             {{ 'feature.roomSettings.diceBotHint' | transloco }}
           </p>
         </div>
       </div>
 
-      <div class="mb-3.5 flex flex-col gap-2">
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
         <div class="flex items-center justify-between gap-2">
-          <div class="border-ui-accent border-l-2 border-solid pl-2">
-            <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+          <div class="min-w-0">
+            <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
               'feature.roomSettings.sectionFacing' | transloco
             }}</span>
           </div>
@@ -76,14 +80,16 @@
             }
           </select>
         </div>
-        <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.roomSettings.facingMarkHint' | transloco }}</p>
+        <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+          {{ 'feature.roomSettings.facingMarkHint' | transloco }}
+        </p>
       </div>
     }
 
     @if (tab() === 'battle') {
-      <div class="mb-3.5 flex flex-col gap-2">
-        <div class="border-ui-accent border-l-2 border-solid pl-2">
-          <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+        <div class="min-w-0">
+          <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
             'feature.roomSettings.sectionRound' | transloco
           }}</span>
         </div>
@@ -151,7 +157,9 @@
                 </li>
               }
             </ul>
-            <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+            <label
+              class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+            >
               <input
                 type="checkbox"
                 class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
@@ -160,13 +168,15 @@
               />
               {{ 'feature.roomSettings.factionSkipUnassigned' | transloco }}
             </label>
-            <p class="text-ui-muted m-0 text-[11px]">
+            <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
               {{ 'feature.roomSettings.factionOrderHint' | transloco }}
             </p>
           </div>
         }
 
-        <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <label
+          class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+        >
           <input
             type="checkbox"
             class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
@@ -179,10 +189,10 @@
     }
 
     @if (tab() === 'move') {
-      <div class="mb-3.5 flex flex-col gap-2">
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
         <div class="flex items-center justify-between gap-2">
-          <div class="border-ui-accent border-l-2 border-solid pl-2">
-            <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+          <div class="min-w-0">
+            <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
               'feature.roomSettings.sectionMoveRange' | transloco
             }}</span>
           </div>
@@ -197,14 +207,16 @@
             </button>
           }
         </div>
-        <p class="text-ui-muted m-0 text-[11px]">
+        <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
           {{
             (answersFor('moveRange') ? 'feature.roomSettings.ruledByRoom' : 'feature.roomSettings.ruledByTable')
               | transloco
           }}
         </p>
         <div class="flex flex-col gap-2.5">
-          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+          <label
+            class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+          >
             <input
               type="checkbox"
               class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
@@ -214,7 +226,9 @@
             {{ 'feature.roomSettings.moveRangeEnabled' | transloco }}
           </label>
 
-          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+          <label
+            class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+          >
             <input
               type="checkbox"
               class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
@@ -225,7 +239,9 @@
           </label>
 
           @if (showsDiagonalOption) {
-            <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+            <label
+              class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+            >
               <input
                 type="checkbox"
                 class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
@@ -236,7 +252,9 @@
             </label>
           }
 
-          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+          <label
+            class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+          >
             <input
               type="checkbox"
               class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
@@ -284,16 +302,16 @@
               />
             }
           </div>
-          <p class="text-ui-muted m-0 text-[11px]">
+          <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
             {{ 'feature.roomSettings.moveRangeHint' | transloco }}
           </p>
         </div>
       </div>
 
-      <div class="mb-3.5 flex flex-col gap-2">
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
         <div class="flex items-center justify-between gap-2">
-          <div class="border-ui-accent border-l-2 border-solid pl-2">
-            <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+          <div class="min-w-0">
+            <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
               'feature.roomSettings.sectionZoc' | transloco
             }}</span>
           </div>
@@ -308,7 +326,7 @@
             </button>
           }
         </div>
-        <p class="text-ui-muted m-0 text-[11px]">
+        <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
           {{
             (answersFor('zoc') ? 'feature.roomSettings.ruledByRoom' : 'feature.roomSettings.ruledByTable') | transloco
           }}
@@ -370,15 +388,17 @@
             />
           }
         </div>
-        <p class="text-ui-muted m-0 text-[11px]">
+        <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
           {{ 'feature.roomSettings.zocHint' | transloco }}
         </p>
       </div>
     }
 
     @if (tab() === 'archive') {
-      <div class="mb-3.5 flex flex-col gap-2">
-        <label class="flex cursor-pointer items-center gap-2 select-none">
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+        <label
+          class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+        >
           <input
             type="checkbox"
             class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
@@ -387,14 +407,18 @@
           />
           <span class="text-[12px]">{{ 'feature.roomSettings.autoSaveKeeping' | transloco }}</span>
         </label>
-        <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.roomSettings.autoSaveHint' | transloco }}</p>
+        <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+          {{ 'feature.roomSettings.autoSaveHint' | transloco }}
+        </p>
       </div>
 
-      <app-room-snapshot-panel />
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui border border-solid [&>div]:h-auto">
+        <app-room-snapshot-panel />
+      </div>
     }
 
     @if (tab() === 'utility') {
-      <div class="mb-3.5 flex flex-col gap-2">
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
         <button
           type="button"
           class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:border-ui-accent hover:text-ui-accent flex cursor-pointer items-center gap-2 border border-solid px-2.5 py-1.5 text-left text-[12px] transition-colors [&_i]:text-[18px]"
@@ -404,7 +428,9 @@
           <i class="material-icons">person_add</i>
           {{ 'app.fab.importCharacter' | transloco }}
         </button>
-        <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.roomSettings.characterImportHint' | transloco }}</p>
+        <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+          {{ 'feature.roomSettings.characterImportHint' | transloco }}
+        </p>
       </div>
     }
   </div>
