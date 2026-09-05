@@ -1102,6 +1102,8 @@
       "prev": "Prev",
       "round": "Round {{n}}",
       "roundStart": "Round {{n}} begins.",
+      "sidePhaseStart": "The {{name}} phase begins.",
+      "unassignedSide": "No party",
       "roundEnd": "Round {{n}} ends.",
       "reset": "Reset round",
       "resetAnnounce": "The round has been reset.",

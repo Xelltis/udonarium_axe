@@ -5,6 +5,8 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { Party } from '@axe/domain/party/party';
+import { Config } from '@axe/domain/peer/config';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -20,8 +22,18 @@ describe('TurnOrderService', () => {
       providers: [...TEST_PROVIDERS, { provide: TRANSLATE_FN, useValue: (key: string) => key }],
     });
 
+    // Config is a singleton that outlives a test, so how the round is taken has to be put
+    // back or one faction test rules every test that runs after it.
+    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    const config = Config.instance;
+    config.turnOrderMode = 'initiative';
+    config.factionPhaseMode = 'free';
+    config.factionOrder = '';
+    config.factionSkipUnassigned = false;
+
     turnState = TestBed.inject(TurnState);
     turnState.currentIdentifier = '';
+    turnState.currentSide = '';
     turnState.round = 0;
     turnState.phase = 'idle';
     turnState.buffDecay = true;
@@ -365,5 +377,209 @@ describe('TurnOrderService', () => {
     expect(turnState.round).toBe(0);
     expect(turnState.phase).toBe('idle');
     expect(sendSpy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('taking the round side by side', () => {
+    let heroes: Party;
+    let monsters: Party;
+    let hero: GameCharacter;
+    let squire: GameCharacter;
+    let monster: GameCharacter;
+    let bystander: GameCharacter;
+
+    function saidTo(): string[] {
+      return sendSpy.mock.calls.map((call) => call[0] as string);
+    }
+
+    beforeEach(() => {
+      orderedSpy.mockRestore();
+      heroes = new Party();
+      heroes.name = '味方';
+      heroes.initialize();
+      monsters = new Party();
+      monsters.name = '敵';
+      monsters.initialize();
+
+      [hero, squire, monster, bystander] = [
+        new GameCharacter(),
+        new GameCharacter(),
+        new GameCharacter(),
+        new GameCharacter(),
+      ];
+      [hero, squire, monster, bystander].forEach((piece) => piece.initialize());
+      hero.partyIdentifier = heroes.identifier;
+      squire.partyIdentifier = heroes.identifier;
+      monster.partyIdentifier = monsters.identifier;
+
+      vi.spyOn(TestBed.inject(GameObjectInventoryService).tableInventory, 'tabletopObjects', 'get').mockReturnValue([
+        hero,
+        monster,
+        squire,
+        bystander,
+      ]);
+
+      Config.instance.turnOrderMode = 'faction';
+      Config.instance.factionOrder = `${heroes.identifier},${monsters.identifier}`;
+    });
+
+    it('gathers the pieces under their sides, in the order the sides are taken', () => {
+      expect(service.orderedSides().map((group) => group.side)).toEqual([
+        heroes.identifier,
+        monsters.identifier,
+        '@none',
+      ]);
+      expect(service.orderedCharacters()).toEqual([hero, squire, monster, bystander]);
+    });
+
+    it('leaves the pieces on no party out where the room asks it to', () => {
+      Config.instance.factionSkipUnassigned = true;
+
+      expect(service.orderedCharacters()).toEqual([hero, squire, monster]);
+    });
+
+    it('opens the first side once the round has begun', () => {
+      service.next();
+      expect(turnState.phase).toBe('roundStart');
+
+      service.next();
+
+      expect(service.currentSide).toBe(heroes.identifier);
+      expect(turnState.phase).toBe('acting');
+      expect(saidTo()).toContain('feature.turnOrder.sidePhaseStart');
+    });
+
+    it('hands the whole side its phase and moves on when it is closed', () => {
+      service.next();
+      service.next();
+
+      service.next();
+
+      expect(service.currentSide).toBe(monsters.identifier);
+      expect(service.isActed(hero.identifier)).toBe(true);
+      expect(service.isActed(squire.identifier)).toBe(true);
+    });
+
+    it('ends the round once the last side has had its phase', () => {
+      service.next();
+      service.next();
+      service.next();
+      service.next();
+
+      service.next();
+
+      expect(turnState.phase).toBe('roundEnd');
+      expect(saidTo()).toContain('feature.turnOrder.roundEnd');
+    });
+
+    it('lets a side move in whatever order it likes', () => {
+      service.next();
+      service.next();
+
+      service.setCurrent(squire.identifier);
+
+      expect(turnState.currentIdentifier).toBe(squire.identifier);
+      expect(service.currentSide).toBe(heroes.identifier);
+      expect(service.isActed(hero.identifier)).toBe(false);
+    });
+
+    it('closes one piece off before opening the next, so each is opened once', () => {
+      service.next();
+      service.next();
+      service.setCurrent(hero.identifier);
+
+      service.setCurrent(squire.identifier);
+
+      expect(service.isActed(hero.identifier)).toBe(true);
+      expect(service.isActed(squire.identifier)).toBe(false);
+    });
+
+    it('does nothing on being handed the turn a piece already holds', () => {
+      service.next();
+      service.next();
+      service.setCurrent(hero.identifier);
+      const before = turnState.history;
+
+      service.setCurrent(hero.identifier);
+
+      expect(turnState.history).toBe(before);
+      expect(service.isActed(hero.identifier)).toBe(false);
+    });
+
+    it('goes round the pieces of a side in order where the room asks for it', () => {
+      Config.instance.factionPhaseMode = 'initiative';
+      service.next();
+
+      service.next();
+
+      expect(turnState.currentIdentifier).toBe(hero.identifier);
+
+      service.next();
+
+      expect(turnState.currentIdentifier).toBe(squire.identifier);
+      expect(service.currentSide).toBe(heroes.identifier);
+
+      service.next();
+
+      expect(service.currentSide).toBe(monsters.identifier);
+      expect(turnState.currentIdentifier).toBe(monster.identifier);
+    });
+
+    it('passes over a side nobody is on', () => {
+      monster.noTurn = true;
+      service.next();
+      service.next();
+
+      service.next();
+
+      expect(service.currentSide).toBe('@none');
+    });
+
+    it('stands somewhere a piece is on when the party it was on is taken away', () => {
+      service.next();
+      service.next();
+      expect(service.currentSide).toBe(heroes.identifier);
+
+      heroes.destroy();
+
+      expect(service.currentSide).toBe(monsters.identifier);
+    });
+
+    it('puts the round back a step, side and all', () => {
+      service.next();
+      service.next();
+      service.next();
+      expect(service.currentSide).toBe(monsters.identifier);
+
+      service.prev();
+
+      expect(service.currentSide).toBe(heroes.identifier);
+      expect(service.isActed(hero.identifier)).toBe(false);
+    });
+
+    it('puts a whole round back', () => {
+      service.next();
+      service.next();
+      service.next();
+      service.next();
+      service.next();
+      expect(turnState.round).toBe(1);
+
+      service.next();
+      expect(turnState.round).toBe(2);
+
+      service.retreatRound();
+
+      expect(turnState.round).toBe(1);
+    });
+
+    it('leaves the round on no side once it is reset', () => {
+      service.next();
+      service.next();
+
+      service.reset();
+
+      expect(turnState.currentSide).toBe('');
+      expect(service.currentSide).toBe('');
+    });
   });
 });

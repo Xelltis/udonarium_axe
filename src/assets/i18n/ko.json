@@ -1102,6 +1102,8 @@
       "prev": "이전으로",
       "round": "라운드 {{n}}",
       "roundStart": "라운드 {{n}} 시작입니다.",
+      "sidePhaseStart": "{{name}} 페이즈 시작입니다.",
+      "unassignedSide": "무소속",
       "roundEnd": "라운드 {{n}} 종료입니다.",
       "reset": "라운드 초기화",
       "resetAnnounce": "라운드가 초기화되었습니다.",

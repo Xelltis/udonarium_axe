@@ -1102,6 +1102,8 @@
       "prev": "前へ",
       "round": "ラウンド {{n}}",
       "roundStart": "ラウンド{{n}}開始です。",
+      "sidePhaseStart": "{{name}}フェイズ開始です。",
+      "unassignedSide": "無所属",
       "roundEnd": "ラウンド{{n}}終了です。",
       "reset": "ラウンドをリセット",
       "resetAnnounce": "ラウンドがリセットされました。",
