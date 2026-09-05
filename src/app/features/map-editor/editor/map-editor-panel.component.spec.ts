@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -195,63 +194,6 @@ describe('MapEditorPanelComponent', () => {
 
       expect(add).not.toHaveBeenCalled();
       expect(dresser().state.functionSpec().terrain.images.wall).toBe('already-kept');
-    });
-  });
-
-  describe('being handed the brush as it opens', () => {
-    interface Brushed {
-      beginFunctionPaint: (role: 'moveBlock' | 'terrain' | 'mask') => void;
-      state: MapEditorState;
-      functionalPaint: FunctionalPaintService;
-    }
-
-    function brushed(): Brushed {
-      return component as unknown as Brushed;
-    }
-
-    it('takes up the brush that was handed over', () => {
-      brushed().beginFunctionPaint('terrain');
-
-      expect(brushed().state.tool()).toBe('functionPaint');
-      expect(brushed().state.functionRole()).toBe('terrain');
-    });
-
-    it('reads the table in over a scene with nothing drawn on it', () => {
-      vi.spyOn(brushed().functionalPaint, 'snapshot').mockReturnValue({
-        cols: 6,
-        rows: 4,
-        cellPx: 32,
-        gridType: GridType.SQUARE,
-        floorImageIdentifier: '',
-        blockedCells: ['1,1'],
-        terrainBlocks: [],
-        maskBlocks: [],
-      });
-
-      brushed().beginFunctionPaint('moveBlock');
-
-      expect(brushed().state.current.cols).toBe(6);
-    });
-
-    it('leaves a scene that has been worked on exactly as it stands', () => {
-      brushed().state.functionRole.set('mask');
-      brushed().state.paintFunctionCell(0, 0);
-      const before = brushed().state.current.cols;
-      vi.spyOn(brushed().functionalPaint, 'snapshot').mockReturnValue({
-        cols: 6,
-        rows: 4,
-        cellPx: 32,
-        gridType: GridType.SQUARE,
-        floorImageIdentifier: '',
-        blockedCells: [],
-        terrainBlocks: [],
-        maskBlocks: [],
-      });
-
-      brushed().beginFunctionPaint('moveBlock');
-
-      expect(brushed().state.current.cols).toBe(before);
-      expect(brushed().state.current.layers).toHaveLength(1);
     });
   });
 

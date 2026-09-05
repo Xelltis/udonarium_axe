@@ -96,7 +96,6 @@ Udonarium Axe が **追加** または **大きく拡張・再設計** した機
 - **取り込み** — `features/map-editor/model/table-import` の `sceneFromTable()` が `TableSnapshot`（`domain/tabletop/table-snapshot`）から scene を組む。床は焼かれたラスタなので**ロックした画像レイヤー**として入れる（図形へは戻せない）。画像は中心座標で置く（`drawImageItem` が `-w/2` で描くため、原点に置くと 3/4 が地図の外に出る）
 - **書き戻し** — `table-apply` の `planFunctionPaint()` が**卓を触らずに差分だけ返す**ので spec が書ける。適用は `application/tabletop/functional-paint.service`。マス数・グリッド種別が食い違う scene は拒否する（cellPx の差は無害＝配置は卓の `gridSize` を使う）。差分は**セル矩形の一致**で当てるので、塗り直されていないブロックは `remove` に出ず、作り直されないまま identifier を保つ
 - **床に触らない反映** — 「機能だけ反映」と「テーブル背景に設定」の 2 つ。前者は床画像を焼き直さないので、既存マップへの塗り足しで画質と画像の同一性を失わない
-- **導線** — GM ツールバーの ⊘ が `RoomPanelService.open<FunctionPaintPanel>('mapEditor', …, setup)` でパネルを開き、`beginFunctionPaint('moveBlock')` を呼ぶ。scene が手つかず（レイヤーなし・undo なし）のときだけ卓を取り込み、描きかけは触らない。`FunctionPaintPanel` は features 間 import を避けるため `domain/ui/room-panel` に置く
 - **立入禁止は全員に見える** — `table-move-block-overlay` の GM 判定を撤去。塗りは GM ツールバーからマップエディターへ移り、`MoveBlockService` は表示用の読み出しだけになった
 
 ## 複数選択・一括操作

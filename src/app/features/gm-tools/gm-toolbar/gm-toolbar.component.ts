@@ -20,7 +20,6 @@ import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.s
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { findOrphanedOwnership } from '@axe/domain/tabletop/ownership';
-import { FunctionPaintPanel } from '@axe/domain/ui/room-panel';
 import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { NpcBarComponent } from '@axe/features/gm-tools/npc-bar/npc-bar.component';
 import { NpcBarService } from '@axe/features/gm-tools/npc-bar/npc-bar.service';
@@ -137,13 +136,6 @@ export class GmToolbarComponent {
 
   protected openMapEditor(): void {
     this.roomPanels.open('mapEditor', { left: 80, top: 60 });
-  }
-
-  /** Opens the map editor already holding the brush that closes ground. */
-  protected paintNoEntry(): void {
-    this.roomPanels.open<FunctionPaintPanel>('mapEditor', { left: 80, top: 60 }, (panel) =>
-      panel.beginFunctionPaint('moveBlock')
-    );
   }
 
   protected openDungeonGenerator(): void {

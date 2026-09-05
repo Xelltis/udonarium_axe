@@ -18,7 +18,7 @@ const LAYER_ICONS: Record<LayerKind, string> = {
   freehand: 'gesture',
   text: 'title',
   image: 'image',
-  function: 'block',
+  function: 'dashboard_customize',
 };
 
 @Component({

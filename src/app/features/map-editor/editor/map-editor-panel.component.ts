@@ -41,7 +41,6 @@ import {
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   MAP_FUNCTION_ROLES,
-  MapFunctionRole,
   MaskPaintSpec,
   TERRAIN_FACE_KEYS,
   TerrainFaceImages,
@@ -312,7 +311,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     { tool: 'image', icon: 'image', key: 'I' },
     {
       tool: 'functionPaint',
-      icon: 'block',
+      icon: 'dashboard_customize',
       key: 'K',
       label: 'feature.mapEditor.tools.function',
       covers: ['functionErase'],
@@ -1554,20 +1553,6 @@ export class MapEditorPanelComponent implements AfterViewInit {
     } finally {
       this.busy.set(false);
     }
-  }
-
-  /**
-   * Opens ready to paint one kind of function on the table that is out.
-   *
-   * A scene with nothing drawn on it has nothing to lose, so the table is read in without
-   * asking. One that has been worked on is left exactly as it stands: the brush is handed
-   * over and reading the table in stays the game master's own decision.
-   */
-  beginFunctionPaint(role: MapFunctionRole): void {
-    const snapshot = this.state.isUntouched ? this.functionalPaint.snapshot() : null;
-    if (snapshot) this.state.loadScene(sceneFromTable(snapshot));
-    this.state.functionRole.set(role);
-    this.state.tool.set('functionPaint');
   }
 
   /**
