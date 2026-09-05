@@ -5,6 +5,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { RoomSettingsPanelComponent } from '@axe/features/room-settings/room-settings-panel/room-settings-panel.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -295,6 +296,20 @@ describe('RoomSettingsPanelComponent', () => {
       expect(fixture.nativeElement.hasAttribute('inert')).toBe(false);
       const strip = fixture.nativeElement.querySelector('[data-testid="room-settings-tab-move"]');
       expect(strip.closest('[inert]')).toBeNull();
+    });
+
+    it('reaches the character import from the utility part', async () => {
+      const opened: string[] = [];
+      vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(((name: string) => {
+        opened.push(name);
+      }) as never);
+      component.tab.set('utility');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      fixture.nativeElement.querySelector('[data-testid="room-settings-character-import"]').click();
+
+      expect(opened).toEqual(['characterImport']);
     });
 
     it('shows the boxes only once an enemy holds ground', async () => {

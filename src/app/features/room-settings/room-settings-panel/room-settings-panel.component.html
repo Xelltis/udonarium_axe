@@ -392,5 +392,20 @@
 
       <app-room-snapshot-panel />
     }
+
+    @if (tab() === 'utility') {
+      <div class="mb-3.5 flex flex-col gap-2">
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:border-ui-accent hover:text-ui-accent flex cursor-pointer items-center gap-2 border border-solid px-2.5 py-1.5 text-left text-[12px] transition-colors [&_i]:text-[18px]"
+          data-testid="room-settings-character-import"
+          (click)="openCharacterImport()"
+        >
+          <i class="material-icons">person_add</i>
+          {{ 'app.fab.importCharacter' | transloco }}
+        </button>
+        <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.roomSettings.characterImportHint' | transloco }}</p>
+      </div>
+    }
   </div>
 </div>

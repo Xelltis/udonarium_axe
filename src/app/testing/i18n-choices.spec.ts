@@ -20,6 +20,7 @@ import { ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
 import { TABLE_FACING_MARKS } from '@axe/domain/tabletop/table-facing-mark';
 import { FACTION_PHASE_MODES, TURN_ORDER_MODES } from '@axe/domain/tabletop/turn-order-mode';
 import { LightPreset } from '@axe/domain/tabletop/vision-types';
+import { FAB_ENTRIES } from '@axe/domain/ui/fab-menu';
 import { MAP_KINDS } from '@axe/features/tabletop/dungeon-generator/dungeon-generator.component';
 const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty'] as const;
 
@@ -60,6 +61,7 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.media.cutInEditor.easing': CUT_IN_EASING_NAMES,
   'feature.media.cutInEditor.look': CUT_IN_LAYER_PRESETS.map((preset) => preset.id),
   'feature.media.cutInEditor.preset': [...CUT_IN_ENTRANCES, ...CUT_IN_EXITS],
+  'app.fab.': FAB_ENTRIES.map((entry) => entry.key),
 };
 
 function dictionary(language: string): Record<string, unknown> {

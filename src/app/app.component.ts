@@ -32,6 +32,7 @@ import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
+import { FAB_ENTRIES, FabEntry } from '@axe/domain/ui/fab-menu';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
@@ -139,6 +140,13 @@ export class AppComponent {
   });
 
   fabOpen = signal(true);
+
+  protected readonly fabEntries = FAB_ENTRIES;
+
+  protected chooseFab(entry: FabEntry): void {
+    if (entry.action.kind === 'panel') this.open(entry.action.panel);
+    else if (entry.action.kind === 'visualNovel') this.visualNovel.toggle();
+  }
   isSaving = signal(false);
   progressPercent = signal(0);
   readonly themeLabel = computed(() => {

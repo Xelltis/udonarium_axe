@@ -32,6 +32,7 @@ import {
 } from '@axe/domain/tabletop/turn-order-mode';
 import { describeSide, encodeFactionOrder, normalizeFactionOrder } from '@axe/domain/tabletop/turn-side';
 import { ROOM_SETTINGS_TABS, RoomSettingsTab } from '@axe/domain/ui/room-settings-tab';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { RoomSnapshotPanelComponent } from '@axe/features/room-archive/room-snapshot-panel/room-snapshot-panel.component';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
@@ -59,11 +60,16 @@ export class RoomSettingsPanelComponent {
   private readonly turnOrder = inject(TurnOrderService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly roomSnapshot = inject(RoomSnapshotService);
+  private readonly roomPanels = inject(RoomPanelService);
 
   readonly tabs = ROOM_SETTINGS_TABS;
   readonly tab = signal<RoomSettingsTab>('general');
 
   readonly isKeeping = this.roomSnapshot.isKeeping;
+
+  openCharacterImport(): void {
+    this.roomPanels.open('characterImport');
+  }
 
   setKeeping(event: Event): void {
     this.roomSnapshot.setKeeping((event.target as HTMLInputElement).checked);

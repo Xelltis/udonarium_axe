@@ -37,99 +37,36 @@
         class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md pointer-events-none absolute top-[calc(100%+10px)] left-0 z-8 w-14 origin-top-left -translate-y-4 border border-solid opacity-0 [backdrop-filter:blur(24px)_saturate(1.5)] transition-[transform,opacity] duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:pointer-events-auto group-[.open]:translate-y-0 group-[.open]:opacity-100 [@media(max-height:760px)]:w-28"
       >
         <ul class="m-0 list-none p-1.5 [@media(max-height:760px)]:grid [@media(max-height:760px)]:grid-cols-2">
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.peerMenu' | transloco"
-            (click)="open('peerMenu')"
-          >
-            <i class="material-icons">people</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.chat' | transloco"
-            (click)="open('chatWindow')"
-          >
-            <i class="material-icons">speaker_notes</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.tableSetting' | transloco"
-            (click)="open('tableSetting')"
-          >
-            <i class="material-icons">layers</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.roomSettings' | transloco"
-            (click)="open('roomSettings')"
-          >
-            <i class="material-icons">tune</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.inventory' | transloco"
-            (click)="open('inventory')"
-          >
-            <i class="material-icons">folder_shared</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [class.text-ui-accent]="visualNovel.active()"
-            [attr.data-label]="'app.fab.visualNovel' | transloco"
-            (click)="visualNovel.toggle()"
-          >
-            <i class="material-icons">auto_stories</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.images' | transloco"
-            (click)="open('fileStorage')"
-          >
-            <i class="material-icons">photo_library</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.jukebox' | transloco"
-            (click)="open('jukebox')"
-          >
-            <i class="material-icons">queue_music</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.cutIn' | transloco"
-            (click)="open('cutInList')"
-          >
-            <i class="material-icons">slideshow</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.importCharacter' | transloco"
-            (click)="open('characterImport')"
-          >
-            <i class="material-icons">person_add</i>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px] [&>label]:flex [&>label]:size-full [&>label]:cursor-pointer [&>label]:items-center [&>label]:justify-center [&>label]:text-inherit"
-            [attr.data-label]="'app.fab.zipLoad' | transloco"
-          >
-            <label>
-              <i class="material-icons">open_in_browser</i>
-              <input
-                type="file"
-                class="hidden"
-                (change)="handleFileSelect($event)"
-                multiple
-                accept="application/xml,text/xml,application/zip"
-              />
-            </label>
-          </li>
-          <li
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'app.fab.replay' | transloco"
-            (click)="open('replay')"
-          >
-            <i class="material-icons">receipt_long</i>
-          </li>
+          @for (entry of fabEntries; track entry.key) {
+            @if (entry.action.kind === 'zipLoad') {
+              <li
+                class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px] [&>label]:flex [&>label]:size-full [&>label]:cursor-pointer [&>label]:items-center [&>label]:justify-center [&>label]:text-inherit"
+                [attr.data-label]="'app.fab.' + entry.key | transloco"
+                [attr.data-testid]="'fab-entry-' + entry.key"
+              >
+                <label>
+                  <i class="material-icons">{{ entry.icon }}</i>
+                  <input
+                    type="file"
+                    class="hidden"
+                    (change)="handleFileSelect($event)"
+                    multiple
+                    accept="application/xml,text/xml,application/zip"
+                  />
+                </label>
+              </li>
+            } @else {
+              <li
+                class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
+                [class.text-ui-accent]="entry.action.kind === 'visualNovel' && visualNovel.active()"
+                [attr.data-label]="'app.fab.' + entry.key | transloco"
+                [attr.data-testid]="'fab-entry-' + entry.key"
+                (click)="chooseFab(entry)"
+              >
+                <i class="material-icons">{{ entry.icon }}</i>
+              </li>
+            }
+          }
         </ul>
         <div
           class="flex flex-col gap-0 px-1.5 pb-1.5 [@media(max-height:760px)]:grid [@media(max-height:760px)]:grid-cols-2"

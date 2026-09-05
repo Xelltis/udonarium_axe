@@ -2068,7 +2068,9 @@
       "tab_move": "Movement",
       "tab_archive": "Auto-save",
       "autoSaveKeeping": "Keep the room on this device",
-      "autoSaveHint": "A copy of the room is kept here once the table settles. It never reaches the other players and never leaves this device. Stopping takes no further copies; the ones already kept stay."
+      "autoSaveHint": "A copy of the room is kept here once the table settles. It never reaches the other players and never leaves this device. Stopping takes no further copies; the ones already kept stay.",
+      "tab_utility": "Utilities",
+      "characterImportHint": "Brings a piece in from an outside character sheet service. What comes in is placed on the table and reaches the other players."
     },
     "lobby": {
       "peerMenu": {
