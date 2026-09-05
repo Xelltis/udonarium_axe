@@ -137,6 +137,24 @@ describe('Config', () => {
       expect(Config.instance.zocRange).toBeNull();
     });
 
+    it('answers nothing where the attributes were never written, rather than answering nought', () => {
+      // What an older build hands over carries none of these, and a bag with nothing in it
+      // is what is left. A count read as 0 there would rule that a cell stands for nothing.
+      Config.instance.cellDistance = 5;
+      Config.instance.zocMode = 'stop';
+      Config.instance.moveDiagonally = false;
+
+      for (const attribute of ['_cellDistance', '_zocMode', '_moveDiagonally']) {
+        Config.instance.removeAttribute(attribute);
+      }
+
+      expect(Config.instance.cellDistance).toBeNull();
+      expect(Config.instance.zocMode).toBeNull();
+      expect(Config.instance.moveDiagonally).toBeNull();
+      expect(Config.instance.turnOrderMode).toBe('initiative');
+      expect(Config.instance.factionSkipUnassigned).toBe(false);
+    });
+
     it('reads an answer back out of the text an attribute carries', () => {
       Config.instance.moveRangeEnabled = false;
       Config.instance.cellDistance = 5;
