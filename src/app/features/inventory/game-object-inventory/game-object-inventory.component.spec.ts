@@ -10,6 +10,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
+import { Party } from '@axe/domain/party/party';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameObjectInventoryComponent } from '@axe/features/inventory/game-object-inventory/game-object-inventory.component';
@@ -44,6 +46,7 @@ describe('GameObjectInventoryComponent', () => {
 
   afterEach(() => {
     localStorage.removeItem('ui-inventory-view');
+    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
   });
 
   it('should create', () => {
@@ -56,6 +59,68 @@ describe('GameObjectInventoryComponent', () => {
 
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(GameObjectInventoryComponent);
+  });
+
+  describe('the round shown side by side', () => {
+    function putOnTable(name: string, party = ''): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      character.setLocation('table');
+      character.partyIdentifier = party;
+      return character;
+    }
+
+    it('shows no sides while the round is taken one piece at a time', () => {
+      putOnTable('だれか');
+
+      expect(component.turnSides()).toEqual([]);
+      expect(component.currentTurnSide()).toBe('');
+    });
+
+    it('gathers the pieces under the party each is on', () => {
+      const heroes = new Party();
+      heroes.name = '味方';
+      heroes.initialize();
+      putOnTable('勇者', heroes.identifier);
+      putOnTable('通りすがり');
+      Config.instance.turnOrderMode = 'faction';
+
+      const sides = component.turnSides();
+
+      expect(sides.map((group) => group.name)).toEqual(['味方', '無所属']);
+      expect(sides[0].members.map((piece) => piece.name)).toEqual(['勇者']);
+      expect(sides[1].members.map((piece) => piece.name)).toEqual(['通りすがり']);
+    });
+
+    it('heads the round strip with each side, and marks the one whose phase it is', async () => {
+      const heroes = new Party();
+      heroes.name = '味方';
+      heroes.initialize();
+      const monsters = new Party();
+      monsters.name = '敵';
+      monsters.initialize();
+      putOnTable('勇者', heroes.identifier);
+      putOnTable('魔物', monsters.identifier);
+      Config.instance.turnOrderMode = 'faction';
+      Config.instance.factionSkipUnassigned = true;
+      TestBed.inject(PanelService).isMinimized.set(true);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const headings = [...(fixture.nativeElement as HTMLElement).querySelectorAll('[title="味方"], [title="敵"]')];
+      expect(headings.map((node) => node.getAttribute('title'))).toEqual(['味方', '敵']);
+    });
+
+    it('takes the colour of the party for the side', () => {
+      const heroes = new Party();
+      heroes.name = '味方';
+      heroes.color = '#7dd3fc';
+      heroes.initialize();
+      putOnTable('勇者', heroes.identifier);
+      Config.instance.turnOrderMode = 'faction';
+
+      expect(component.turnSides()[0].color).toBe('#7dd3fc');
+    });
   });
 
   describe('searching the list', () => {

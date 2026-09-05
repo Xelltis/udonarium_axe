@@ -394,6 +394,27 @@ export class GameObjectInventoryComponent {
     return this.turnOrderService.round;
   });
 
+  /** The pieces gathered under their sides, empty unless the round is taken side by side. */
+  readonly turnSides = computed<{ side: string; name: string; color: string; members: GameCharacter[] }[]>(() => {
+    this.inventoryService.inventoryVersion();
+    this.objectChange.versionOf('Config')();
+    this.objectChange.collectionOf('party')();
+    this.objectChange.trackMyCursor();
+    return this.turnOrderService.orderedSides(this.rolePermission.canSeeHidden).map((group) => ({
+      side: group.side,
+      name: this.turnOrderService.sideName(group.side),
+      color: this.turnOrderService.sideColor(group.side),
+      members: group.members,
+    }));
+  });
+
+  readonly currentTurnSide = computed<string>(() => {
+    this.objectChange.versionOf('TurnState')();
+    this.objectChange.versionOf('Config')();
+    this.objectChange.collectionOf('party')();
+    return this.turnOrderService.currentSide;
+  });
+
   selectTurn(character: GameCharacter): void {
     this.turnOrderService.setCurrent(character.identifier);
   }
