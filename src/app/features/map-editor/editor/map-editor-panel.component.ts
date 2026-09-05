@@ -16,6 +16,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -65,6 +66,7 @@ import { guessLineWidth, useTextMeasurer } from '@axe/features/map-editor/model/
 import { removeText, updateText } from '@axe/features/map-editor/model/scene-ops';
 import { deserializeScene } from '@axe/features/map-editor/model/serialize';
 import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/features/map-editor/model/shape-points';
+import { sceneFromTable } from '@axe/features/map-editor/model/table-import';
 import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/features/map-editor/model/textures';
 import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
 import { getRasterImage, loadRasterImage } from '@axe/features/map-editor/render/raster-image';
@@ -160,6 +162,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
+  private readonly functionalPaint = inject(FunctionalPaintService);
 
   private readonly exportFn = exportSceneToBlob;
   private readonly loadImageFn = loadRasterImage;
@@ -1409,6 +1412,25 @@ export class MapEditorPanelComponent implements AfterViewInit {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /**
+   * Brings the table that is out into the editor.
+   *
+   * The floor arrives as a picture and only what the editor painted arrives as cells, so
+   * whatever a person placed by hand stays on the table, out of reach and out of the way.
+   */
+  protected async importTable(): Promise<void> {
+    if (this.busy()) return;
+    const snapshot = this.functionalPaint.snapshot();
+    if (!snapshot) {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+      return;
+    }
+    if (!(await this.confirm.ask(this.t('feature.mapEditor.actions.importTableConfirm')))) return;
+
+    this.state.loadScene(sceneFromTable(snapshot));
+    this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
   }
 
   protected async setAsTable(): Promise<void> {

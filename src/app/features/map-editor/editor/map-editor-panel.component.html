@@ -805,6 +805,14 @@
         <button class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-1" (click)="triggerLoad()">
           {{ 'feature.mapEditor.actions.load' | transloco }}
         </button>
+        <button
+          class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-1 disabled:opacity-40"
+          [disabled]="busy()"
+          [title]="'feature.mapEditor.actions.importTableHint' | transloco"
+          (click)="importTable()"
+        >
+          {{ 'feature.mapEditor.actions.importTable' | transloco }}
+        </button>
         <input #fileInput class="hidden" type="file" accept=".json,.zip" (change)="onFileSelected($event)" />
 
         <div class="bg-ui-border-panel h-5 w-px"></div>
