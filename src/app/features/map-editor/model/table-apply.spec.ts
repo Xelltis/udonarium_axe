@@ -185,3 +185,54 @@ describe('the blocks a painting comes to', () => {
     expect(plan.terrain.remove.map(rectKey)).toEqual(['0,0,3,1']);
   });
 });
+
+describe('walls painted over walls', () => {
+  function wallLayer(cells: string[], over: Partial<typeof DEFAULT_FUNCTION_SPEC.terrain> = {}): FunctionLayer {
+    return layerOf('terrain', cells, {
+      spec: { ...DEFAULT_FUNCTION_SPEC, terrain: { ...DEFAULT_FUNCTION_SPEC.terrain, ...over } },
+    });
+  }
+
+  it('sets the upper layer on top of the one beneath rather than inside it', () => {
+    const scene = sceneWith(wallLayer(['2,2']), wallLayer(['2,2'], { name: 'upper' }));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    expect(plan.terrain.add.map((block) => block.spec.altitude)).toEqual([0, 50]);
+  });
+
+  it('counts the height of what is beneath, not the number of layers', () => {
+    const scene = sceneWith(wallLayer(['2,2'], { height: 3 }), wallLayer(['2,2'], { name: 'upper' }));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    expect(plan.terrain.add.map((block) => block.spec.altitude)).toEqual([0, 150]);
+  });
+
+  it('leaves a layer on the ground where nothing stands under it', () => {
+    const scene = sceneWith(wallLayer(['2,2']), wallLayer(['5,5'], { name: 'apart' }));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    expect(plan.terrain.add.every((block) => block.spec.altitude === 0)).toBe(true);
+  });
+
+  it('cuts a layer apart where it starts at two heights at once', () => {
+    const scene = sceneWith(wallLayer(['2,2']), wallLayer(['2,2', '3,2'], { name: 'upper' }));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    const raised = plan.terrain.add.filter((block) => block.spec.altitude === 50);
+    const grounded = plan.terrain.add.filter((block) => block.spec.altitude === 0);
+    expect(raised.map(rectKey)).toEqual(['2,2,1,1']);
+    expect(grounded.map(rectKey)).toEqual(['2,2,1,1', '3,2,1,1']);
+  });
+
+  it('keeps a floor from lifting what is painted over it', () => {
+    const scene = sceneWith(wallLayer(['2,2'], { height: 0 }), wallLayer(['2,2'], { name: 'upper' }));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    expect(plan.terrain.add.map((block) => block.spec.altitude)).toEqual([0, 0]);
+  });
+});

@@ -1,4 +1,5 @@
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
+import { TerrainBlock, terrainStackLevels } from '@axe/domain/tabletop/function-paint';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import {
   DEFAULT_FUNCTION_SPEC,
@@ -67,6 +68,31 @@ function layersByLook<T extends CellRect & { spec: unknown }>(
 }
 
 /**
+ * The walls gathered into one layer per look, and per storey.
+ *
+ * A wall standing on another is read as starting where the one below leaves off, and the
+ * height it was found at is taken off what the layer carries. Laying the painting back down
+ * puts that height on again, so a table read in and written straight back out is unchanged
+ * while a layer newly painted over another still climbs on top of it.
+ */
+function terrainLayers(blocks: readonly TerrainBlock[], cellPx: number, name: string): FunctionLayer[] {
+  const levels = terrainStackLevels(blocks);
+  const grouped = new Map<string, { spec: FunctionSpec; level: number; cells: string[] }>();
+  blocks.forEach((block, index) => {
+    const level = levels[index];
+    const base = level === 0 ? block.spec : { ...block.spec, altitude: block.spec.altitude - level * cellPx };
+    const key = `${level}|${lookKey(base)}`;
+    const held = grouped.get(key) ?? { spec: { ...DEFAULT_FUNCTION_SPEC, terrain: base }, level, cells: [] };
+    held.cells.push(...rectCells(block));
+    grouped.set(key, held);
+  });
+  const storeys = [...grouped.values()].sort((a, b) => a.level - b.level);
+  return storeys.map((held, index) =>
+    functionLayer('terrain', storeys.length > 1 ? `${name} ${index + 1}` : name, held.cells, held.spec)
+  );
+}
+
+/**
  * The scene a table comes into the editor as.
  *
  * The floor arrives as a picture rather than as the shapes that made it: it was baked into
@@ -117,12 +143,7 @@ export function sceneFromTable(table: TableSnapshot): MapScene {
   layers.push(
     ...layersByLook(table.maskBlocks, 'mask', 'mask', (block) => ({ ...DEFAULT_FUNCTION_SPEC, mask: block.spec }))
   );
-  layers.push(
-    ...layersByLook(table.terrainBlocks, 'terrain', 'terrain', (block) => ({
-      ...DEFAULT_FUNCTION_SPEC,
-      terrain: block.spec,
-    }))
-  );
+  layers.push(...terrainLayers(table.terrainBlocks, table.cellPx, 'terrain'));
   if (table.blockedCells.length > 0) layers.push(functionLayer('moveBlock', 'no entry', table.blockedCells));
 
   return { ...scene, layers };

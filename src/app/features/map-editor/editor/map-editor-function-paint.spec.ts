@@ -150,6 +150,31 @@ describe('painting what a cell does', () => {
     expect(Object.keys(wood.cells)).not.toContain('7,7');
   });
 
+  it('starts a layer for a role when one is asked for by hand', () => {
+    state.functionRole.set('terrain');
+    state.setFunctionSpec({
+      ...DEFAULT_FUNCTION_SPEC,
+      terrain: { ...DEFAULT_FUNCTION_SPEC.terrain, images: { ...DEFAULT_FUNCTION_SPEC.terrain.images, wall: 'stone' } },
+    });
+
+    const made = state.addEmptyFunctionLayer('mask', '覆い 1');
+
+    expect(made.role).toBe('mask');
+    expect(made.name).toBe('覆い 1');
+    expect(state.functionRole()).toBe('mask');
+    expect(state.activeLayer()).toBe(made);
+    expect(made.spec.terrain.images.wall).toBe('stone');
+  });
+
+  it('paints into the layer that was asked for rather than starting another', () => {
+    const made = state.addEmptyFunctionLayer('terrain', '壁 1');
+
+    state.paintFunctionCell(3, 3);
+
+    expect(layersOfRole('terrain')).toHaveLength(1);
+    expect(Object.keys(made.cells)).toEqual(['3,3']);
+  });
+
   it('rubs out only the role that is being erased', () => {
     state.functionRole.set('moveBlock');
     state.paintFunctionCell(3, 3);

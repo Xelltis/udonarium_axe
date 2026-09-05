@@ -3,7 +3,9 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { MapFunctionRole } from '@axe/domain/tabletop/function-paint';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
+import { everyFunctionRole, functionRoleLabelKey } from '@axe/features/map-editor/model/function-layer';
 import { LayerKind, MapLayer } from '@axe/features/map-editor/model/scene';
 import { moveLayer, removeLayer } from '@axe/features/map-editor/model/scene-ops';
 import { reorderRows, RowReorder } from '@axe/ui/dragging/row-reorder';
@@ -36,6 +38,8 @@ export class MapEditorLayerDrawerComponent {
   readonly open = input(true);
 
   protected readonly layerKinds: LayerKind[] = ['cell', 'shape', 'stamp', 'freehand', 'text', 'image'];
+  protected readonly functionRoles = everyFunctionRole();
+  protected readonly functionRoleLabelKey = functionRoleLabelKey;
   protected readonly addLayerMenuOpen = signal(false);
   protected readonly renamingLayerId = signal<string | null>(null);
   protected readonly layerDrag = new RowReorder<string>();
@@ -148,6 +152,13 @@ export class MapEditorLayerDrawerComponent {
     const label = this.t('feature.mapEditor.layers.kinds.' + kind);
     const count = this.state.current.layers.filter((l) => l.kind === kind).length + 1;
     this.state.addEmptyLayer(kind, label + ' ' + count);
+    this.addLayerMenuOpen.set(false);
+  }
+
+  protected addFunctionLayerOfRole(role: MapFunctionRole): void {
+    const label = this.t(functionRoleLabelKey(role));
+    const count = this.state.current.layers.filter((l) => l.kind === 'function' && l.role === role).length + 1;
+    this.state.addEmptyFunctionLayer(role, label + ' ' + count);
     this.addLayerMenuOpen.set(false);
   }
 }

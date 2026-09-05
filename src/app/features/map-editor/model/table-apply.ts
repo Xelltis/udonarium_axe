@@ -46,13 +46,33 @@ export function specForRole(scene: MapScene, role: MapFunctionRole): FunctionSpe
  *
  * Each layer is cut on its own and keeps the look it carries, so two walls of different
  * stone stay two walls of different stone rather than collapsing into whichever came first.
+ *
+ * Layers are walked from the bottom up, and a cell already built on carries the next layer
+ * that high: paint a wall over a wall and it becomes a second storey rather than the two
+ * standing inside one another. Cells of a layer that start at different heights are cut
+ * apart, since one block can only begin at one height.
  */
-function terrainBlocksOf(scene: MapScene): TerrainBlock[] {
+function terrainBlocksOf(scene: MapScene, cellPx: number): TerrainBlock[] {
   const blocks: TerrainBlock[] = [];
+  const standing = new Map<string, number>();
   for (const layer of functionLayersOf(scene, 'terrain')) {
-    for (const rect of largestRectangles(Object.keys(layer.cells))) {
-      blocks.push({ ...rect, spec: layer.spec.terrain });
+    const spec = layer.spec.terrain;
+    const cells = Object.keys(layer.cells);
+    const byLevel = new Map<number, string[]>();
+    for (const key of cells) {
+      const level = standing.get(key) ?? 0;
+      const group = byLevel.get(level);
+      if (group) group.push(key);
+      else byLevel.set(level, [key]);
     }
+    for (const level of [...byLevel.keys()].sort((a, b) => a - b)) {
+      const raised = level === 0 ? spec : { ...spec, altitude: spec.altitude + level * cellPx };
+      for (const rect of largestRectangles(byLevel.get(level) ?? [])) {
+        blocks.push({ ...rect, spec: raised });
+      }
+    }
+    const tall = Math.max(0, Math.round(spec.height));
+    for (const key of cells) standing.set(key, (standing.get(key) ?? 0) + tall);
   }
   return blocks;
 }
@@ -88,7 +108,7 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
 
   return {
     blocked: cellsForRole(scene, 'moveBlock'),
-    terrain: blockChange(terrainBlocksOf(scene), table.terrainBlocks),
+    terrain: blockChange(terrainBlocksOf(scene, table.cellPx), table.terrainBlocks),
     mask: blockChange(maskBlocksOf(scene), table.maskBlocks),
   };
 }

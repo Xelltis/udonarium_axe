@@ -1,4 +1,4 @@
-import { CellRect } from '@axe/domain/tabletop/cell-rectangles';
+import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
 
 /**
  * What a painted cell does, and what it lays on the table.
@@ -301,6 +301,33 @@ export interface TerrainBlock extends CellRect {
 
 export interface MaskBlock extends CellRect {
   spec: MaskPaintSpec;
+}
+
+/**
+ * How high each block stands, counted in the cells of the blocks beneath it.
+ *
+ * Blocks are walked from the ground up, so a wall laid over a wall is told that it starts
+ * where the one below leaves off. A block spanning cells of unequal standing takes the
+ * highest of them, since a wall cannot begin at two heights at once.
+ */
+type StandingBlock = CellRect & { spec: { altitude: number; height: number } };
+
+export function terrainStackLevels(blocks: readonly StandingBlock[]): number[] {
+  const order = blocks
+    .map((_, index) => index)
+    .sort((a, b) => blocks[a].spec.altitude - blocks[b].spec.altitude || a - b);
+  const standing = new Map<string, number>();
+  const levels = new Array<number>(blocks.length).fill(0);
+  for (const index of order) {
+    const block = blocks[index];
+    const cells = rectCells(block);
+    let level = 0;
+    for (const key of cells) level = Math.max(level, standing.get(key) ?? 0);
+    levels[index] = level;
+    const tall = Math.max(0, Math.round(block.spec.height));
+    for (const key of cells) standing.set(key, level + tall);
+  }
+  return levels;
 }
 
 /** The look a spec stands for, so that two alike share one layer. */

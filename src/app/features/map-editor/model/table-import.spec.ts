@@ -1,6 +1,7 @@
 import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { FunctionLayer, ImageLayer, sceneHeightPx, sceneWidthPx } from '@axe/features/map-editor/model/scene';
+import { planChangesNothing, planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
 import { sceneFromTable, TableSnapshot } from '@axe/features/map-editor/model/table-import';
 
 function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
@@ -136,5 +137,41 @@ describe('the walls already on the table', () => {
     const layers = scene.layers.filter((held): held is FunctionLayer => held.kind === 'function');
     expect(layers).toHaveLength(1);
     expect(Object.keys(layers[0].cells).sort()).toEqual(['0,0', '5,5']);
+  });
+});
+
+describe('a table that already has walls upon walls', () => {
+  function wall(col: number, row: number, altitude: number, height = 1) {
+    return {
+      col,
+      row,
+      width: 1,
+      height: 1,
+      spec: { ...DEFAULT_FUNCTION_SPEC.terrain, altitude, height },
+    };
+  }
+
+  it('leaves a storeyed wall standing where it stands', () => {
+    const table = snapshot({ terrainBlocks: [wall(2, 2, 0), wall(2, 2, 50)] });
+
+    const plan = planFunctionPaint(sceneFromTable(table), table)!;
+
+    expect(planChangesNothing(plan, table)).toBe(true);
+  });
+
+  it('leaves a tall wall carrying a storey where it stands', () => {
+    const table = snapshot({ terrainBlocks: [wall(2, 2, 0, 3), wall(2, 2, 150)] });
+
+    const plan = planFunctionPaint(sceneFromTable(table), table)!;
+
+    expect(planChangesNothing(plan, table)).toBe(true);
+  });
+
+  it('leaves two walls sharing a cell at one height where they stand', () => {
+    const table = snapshot({ terrainBlocks: [wall(2, 2, 0), wall(2, 2, 0)] });
+
+    const plan = planFunctionPaint(sceneFromTable(table), table)!;
+
+    expect(planChangesNothing(plan, table)).toBe(true);
   });
 });

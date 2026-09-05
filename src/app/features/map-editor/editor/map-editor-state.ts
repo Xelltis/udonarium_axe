@@ -388,6 +388,17 @@ export class MapEditorState {
     return created;
   }
 
+  /** Starts a layer for a role by hand, wearing the brush that is in hand. */
+  addEmptyFunctionLayer(role: MapFunctionRole, name: string): FunctionLayer {
+    const created = createLayer('function', name) as FunctionLayer;
+    created.role = role;
+    created.spec = { ...this.functionSpec() };
+    this.applyCommitted((scene) => addLayer(scene, created));
+    this.activeLayerId.set(created.id);
+    this.functionRole.set(role);
+    return created;
+  }
+
   placeStamp(x: number, y: number, layerName: string): void {
     const stampId = this.stampId();
     if (!stampId) return;
