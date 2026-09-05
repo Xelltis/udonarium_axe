@@ -1038,6 +1038,8 @@ body {
     'Malgun Gothic', 'Noto Sans KR', sans-serif;
   position: relative;
   color: var(--ui-text);
+  line-break: strict;
+  word-break: auto-phrase;
 }
 
 .sk-cube-grid {
