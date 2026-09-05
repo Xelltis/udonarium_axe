@@ -142,6 +142,10 @@ interface ToolDef {
   icon: string;
   key: string;
   svg?: SafeHtml;
+  /** The name to show, where the tool stands on the rail for more than itself. */
+  label?: string;
+  /** The tools this one stands for, so that the rail stays lit while they are in hand. */
+  covers?: readonly EditorTool[];
 }
 
 @Component({
@@ -268,9 +272,25 @@ export class MapEditorPanelComponent implements AfterViewInit {
     { tool: 'text', icon: 'title', key: 'T' },
     { tool: 'stamp', icon: 'approval', key: 'S' },
     { tool: 'image', icon: 'image', key: 'I' },
-    { tool: 'functionPaint', icon: 'block', key: 'K' },
-    { tool: 'functionErase', icon: 'backspace', key: '' },
+    {
+      tool: 'functionPaint',
+      icon: 'block',
+      key: 'K',
+      label: 'feature.mapEditor.tools.function',
+      covers: ['functionErase'],
+    },
   ];
+
+  protected readonly functionTools: EditorTool[] = ['functionPaint', 'functionErase'];
+
+  protected toolLabelKey(def: ToolDef): string {
+    return def.label ?? 'feature.mapEditor.tools.' + def.tool;
+  }
+
+  protected isToolInHand(def: ToolDef): boolean {
+    const held = this.state.tool();
+    return held === def.tool || (def.covers?.includes(held) ?? false);
+  }
 
   protected readonly dashKinds: StrokeDash[] = ['solid', 'dashed', 'dotted', 'dashdot', 'longdash'];
   protected readonly lineKinds: LineKind[] = ['straight', 'polyline', 'curve', 'closedCurve'];

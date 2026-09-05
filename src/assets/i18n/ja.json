@@ -2566,8 +2566,9 @@
         "settings": "設定",
         "shape": "図形",
         "image": "画像",
-        "functionPaint": "機能塗り",
-        "functionErase": "機能消し"
+        "functionPaint": "機能ペン",
+        "functionErase": "機能消しゴム",
+        "function": "機能ツール"
       },
       "function": {
         "title": "機能塗り",

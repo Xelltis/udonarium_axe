@@ -2566,8 +2566,9 @@
         "settings": "설정",
         "shape": "도형",
         "image": "이미지",
-        "functionPaint": "기능 칠하기",
-        "functionErase": "기능 지우기"
+        "functionPaint": "기능 펜",
+        "functionErase": "기능 지우개",
+        "function": "기능 도구"
       },
       "function": {
         "title": "기능 칠하기",

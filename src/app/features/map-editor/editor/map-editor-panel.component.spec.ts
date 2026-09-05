@@ -87,6 +87,49 @@ describe('MapEditorPanelComponent', () => {
     expect(fixture.nativeElement.querySelector('canvas')).not.toBeNull();
   });
 
+  describe('the one tool the function pen and eraser live under', () => {
+    interface Railed {
+      tools: { tool: string; key: string; label?: string; covers?: readonly string[] }[];
+      toolLabelKey: (def: { tool: string; label?: string }) => string;
+      isToolInHand: (def: { tool: string; covers?: readonly string[] }) => boolean;
+      state: MapEditorState;
+    }
+
+    function railed(): Railed {
+      return component as unknown as Railed;
+    }
+
+    it('puts one entry on the rail rather than two', () => {
+      const functions = railed().tools.filter((def) => def.tool.startsWith('function'));
+
+      expect(functions.map((def) => def.tool)).toEqual(['functionPaint']);
+    });
+
+    it('names that entry for the tool rather than for the pen', () => {
+      const def = railed().tools.find((held) => held.tool === 'functionPaint')!;
+
+      expect(railed().toolLabelKey(def)).toBe('feature.mapEditor.tools.function');
+    });
+
+    it('leaves no tool on the rail without a key to reach it by', () => {
+      expect(railed().tools.every((def) => def.key.length > 0)).toBe(true);
+    });
+
+    it('keeps the rail lit while the eraser is the one in hand', () => {
+      const def = railed().tools.find((held) => held.tool === 'functionPaint')!;
+      railed().state.tool.set('functionErase');
+
+      expect(railed().isToolInHand(def)).toBe(true);
+    });
+
+    it('does not light the rail for a tool of another kind', () => {
+      const def = railed().tools.find((held) => held.tool === 'functionPaint')!;
+      railed().state.tool.set('cellErase');
+
+      expect(railed().isToolInHand(def)).toBe(false);
+    });
+  });
+
   describe('dressing a wall in a picture that ships with the room', () => {
     interface Dresser {
       chooseFaceTexture: (face: 'wall', url: string) => void;

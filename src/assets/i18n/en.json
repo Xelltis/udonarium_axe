@@ -2566,8 +2566,9 @@
         "settings": "Settings",
         "shape": "Shape",
         "image": "Image",
-        "functionPaint": "Function",
-        "functionErase": "Unpaint"
+        "functionPaint": "Function pen",
+        "functionErase": "Function eraser",
+        "function": "Function"
       },
       "function": {
         "title": "Function paint",

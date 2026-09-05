@@ -26,11 +26,11 @@
       @for (def of tools; track def.tool) {
         <button
           class="hover:bg-ui-hover rounded-ui-sm flex w-full flex-col items-center gap-0.5 border border-solid py-1"
-          [class.bg-ui-accent-bg]="state.tool() === def.tool"
-          [class.text-ui-accent]="state.tool() === def.tool"
-          [class.border-ui-accent]="state.tool() === def.tool"
-          [class.border-transparent]="state.tool() !== def.tool"
-          [title]="('feature.mapEditor.tools.' + def.tool | transloco) + ' (' + def.key + ')'"
+          [class.bg-ui-accent-bg]="isToolInHand(def)"
+          [class.text-ui-accent]="isToolInHand(def)"
+          [class.border-ui-accent]="isToolInHand(def)"
+          [class.border-transparent]="!isToolInHand(def)"
+          [title]="(toolLabelKey(def) | transloco) + ' (' + def.key + ')'"
           (click)="setTool(def.tool)"
         >
           @if (def.svg) {
@@ -39,7 +39,7 @@
             <i class="material-icons text-[18px]!">{{ def.icon }}</i>
           }
           <span class="text-[9px] leading-tight" [class.whitespace-nowrap]="isCompact()">{{
-            'feature.mapEditor.tools.' + def.tool | transloco
+            toolLabelKey(def) | transloco
           }}</span>
         </button>
       }
@@ -427,6 +427,20 @@
       @if (state.tool() === 'functionPaint' || state.tool() === 'functionErase') {
         <div class="flex flex-col gap-2">
           <div class="font-semibold">{{ 'feature.mapEditor.function.title' | transloco }}</div>
+          <div class="border-ui-border-panel rounded-ui-sm flex gap-0.5 border border-solid p-0.5">
+            @for (tool of functionTools; track tool) {
+              <button
+                class="hover:bg-ui-hover rounded-ui-sm flex grow items-center justify-center gap-1 border-0 py-1 text-[11px]"
+                [class.bg-ui-accent-bg]="state.tool() === tool"
+                [class.text-ui-accent]="state.tool() === tool"
+                [class.bg-transparent]="state.tool() !== tool"
+                (click)="setTool(tool)"
+              >
+                <i class="material-icons text-[14px]!">{{ tool === 'functionPaint' ? 'edit' : 'backspace' }}</i>
+                {{ 'feature.mapEditor.tools.' + tool | transloco }}
+              </button>
+            }
+          </div>
           <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.mapEditor.function.hint' | transloco }}</p>
           <label class="flex items-center justify-between gap-2">
             <span class="text-ui-muted">{{ 'feature.mapEditor.function.role' | transloco }}</span>
