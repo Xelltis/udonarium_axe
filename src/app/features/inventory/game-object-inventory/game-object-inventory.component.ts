@@ -465,7 +465,7 @@ export class GameObjectInventoryComponent {
   }
 
   turnAdvanceRound(): void {
-    this.turnOrderService.advanceRound();
+    void this.turnOrderService.advanceRound();
   }
 
   turnRetreatRound(): void {

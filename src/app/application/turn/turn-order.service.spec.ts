@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
@@ -13,6 +14,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 describe('TurnOrderService', () => {
   let service: TurnOrderService;
   let turnState: TurnState;
+  let askedToLeaveBehind: ReturnType<typeof vi.spyOn>;
   let chars: GameCharacter[];
   let orderedSpy: ReturnType<typeof vi.spyOn>;
   let sendSpy: ReturnType<typeof vi.spyOn>;
@@ -30,6 +32,8 @@ describe('TurnOrderService', () => {
     config.factionPhaseMode = 'free';
     config.factionOrder = '';
     config.factionSkipUnassigned = false;
+
+    askedToLeaveBehind = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
     turnState = TestBed.inject(TurnState);
     turnState.currentIdentifier = '';
@@ -273,12 +277,12 @@ describe('TurnOrderService', () => {
       expect(turnState.phase).toBe('roundEnd');
     });
 
-    it('clears what was acted when a round opens', () => {
+    it('clears what was acted when a round opens', async () => {
       service.next(); // round 1 begins
       service.next(); // first character
       service.next(); // marks the first as acted
 
-      service.advanceRound();
+      await service.advanceRound();
 
       expect(turnState.actedIdentifiers).toEqual([]);
     });
@@ -296,11 +300,11 @@ describe('TurnOrderService', () => {
   });
 
   describe('advancing the round itself', () => {
-    it('closes the round it is in and opens the next one', () => {
+    it('closes the round it is in and opens the next one', async () => {
       service.next(); // round 1 begins
       service.next(); // first character
 
-      service.advanceRound();
+      await service.advanceRound();
 
       expect(turnState.round).toBe(2);
       expect(turnState.phase).toBe('roundStart');
@@ -310,10 +314,10 @@ describe('TurnOrderService', () => {
       expect(announced).toContain('feature.turnOrder.roundStart');
     });
 
-    it('takes the round back to where the one before it left off', () => {
+    it('takes the round back to where the one before it left off', async () => {
       service.next(); // round 1 begins
       service.next(); // chars[0] is up
-      service.advanceRound(); // round 2 begins
+      await service.advanceRound(); // round 2 begins
 
       service.retreatRound();
 
@@ -321,8 +325,8 @@ describe('TurnOrderService', () => {
       expect(turnState.currentIdentifier).toBe(chars[0].identifier);
     });
 
-    it('opens the first round from idle without closing one that never began', () => {
-      service.advanceRound();
+    it('opens the first round from idle without closing one that never began', async () => {
+      await service.advanceRound();
 
       expect(turnState.round).toBe(1);
       expect(turnState.phase).toBe('roundStart');
@@ -342,7 +346,7 @@ describe('TurnOrderService', () => {
       expect(turnState.currentIdentifier).toBe(chars[0].identifier);
     });
 
-    it('puts back the buffs a whole round took away', () => {
+    it('puts back the buffs a whole round took away', async () => {
       const bearer = GameCharacter.create('ラウンド戻し', 1, '');
       bearer.addExtendData();
       bearer.buffs.addRound('祝福', '', 1);
@@ -350,7 +354,7 @@ describe('TurnOrderService', () => {
 
       service.next(); // round 1 begins
       service.next(); // the bearer is up
-      service.advanceRound(); // the round ends and 祝福 runs out
+      await service.advanceRound(); // the round ends and 祝福 runs out
 
       expect(bearer.buffDataElement?.children[0]?.children ?? []).toHaveLength(0);
 
@@ -377,6 +381,61 @@ describe('TurnOrderService', () => {
     expect(turnState.round).toBe(0);
     expect(turnState.phase).toBe('idle');
     expect(sendSpy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('pressing the round on over pieces that have not moved', () => {
+    let waiting: GameCharacter[];
+
+    beforeEach(() => {
+      waiting = ['コマ1', 'コマ2', 'コマ3'].map((name) => GameCharacter.create(name, 1, ''));
+      orderedSpy.mockReturnValue(waiting);
+      service.next();
+    });
+
+    it('asks before leaving anyone behind, naming who is being left', async () => {
+      await service.advanceRound();
+
+      const asked = askedToLeaveBehind.mock.calls[0][0] as { message: string };
+      expect(asked.message).toContain('コマ1');
+      expect(asked.message).toContain('コマ2');
+      expect(asked.message).toContain('コマ3');
+    });
+
+    it('stays where it is when the answer is no', async () => {
+      askedToLeaveBehind.mockResolvedValue(false);
+
+      await service.advanceRound();
+
+      expect(turnState.round).toBe(1);
+    });
+
+    it('moves on when the answer is yes', async () => {
+      await service.advanceRound();
+
+      expect(turnState.round).toBe(2);
+    });
+
+    it('asks nothing at all once everyone has moved', async () => {
+      turnState.actedIdentifiers = waiting.map((piece) => piece.identifier);
+
+      await service.advanceRound();
+
+      expect(askedToLeaveBehind).not.toHaveBeenCalled();
+      expect(turnState.round).toBe(2);
+    });
+
+    it('counts the rest rather than naming a whole table of them', async () => {
+      orderedSpy.mockReturnValue(
+        Array.from({ length: 12 }, (_, index) => GameCharacter.create(`兵${index + 1}`, 1, ''))
+      );
+
+      await service.advanceRound();
+
+      const asked = askedToLeaveBehind.mock.calls[0][0] as { message: string };
+      expect(asked.message).toContain('兵8');
+      expect(asked.message).not.toContain('兵9');
+      expect(asked.message).toContain('feature.turnOrder.unactedMore');
+    });
   });
 
   describe('taking the round side by side', () => {

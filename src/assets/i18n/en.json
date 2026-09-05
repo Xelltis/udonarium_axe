@@ -1118,7 +1118,11 @@
       "acted": "Acted",
       "undo": "Step back",
       "retreatRound": "Take the round back",
-      "retreatRoundAnnounce": "Back to round {{n}}."
+      "retreatRoundAnnounce": "Back to round {{n}}.",
+      "unactedTitle": "Some pieces have yet to move",
+      "unactedMessage": "These have not taken a turn this round. Moving the round on now takes them into the next one without having acted.",
+      "unactedMore": "and {{n}} more",
+      "unactedProceed": "Move on anyway"
     },
     "inventory": {
       "contextMenu": {

@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ExpiredBuffEntry, formatExpiredBuffs } from '@axe/domain/character/buff-expiry';
@@ -24,11 +25,15 @@ import {
 } from '@axe/domain/tabletop/turn-side';
 import { TurnPhase, TurnState } from '@axe/domain/tabletop/turn-state';
 
+/** How many of the pieces still waiting are named before the rest are counted. */
+const UNACTED_NAMES_SHOWN = 8;
+
 @Injectable({ providedIn: 'root' })
 export class TurnOrderService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly inventory = inject(GameObjectInventoryService);
+  private readonly confirm = inject(ConfirmService);
   private readonly chat = inject(ChatMessageService);
   private readonly selection = inject(SelectionSignalService);
   private readonly destroyRef = inject(DestroyRef);
@@ -268,11 +273,39 @@ export class TurnOrderService {
   }
 
   /** Closes the round wherever it stands and opens the next one. */
-  advanceRound(): void {
+  /** The pieces that have not had their turn, in the order the round would reach them. */
+  unactedCharacters(): GameCharacter[] {
+    if (this.turnState.phase === 'idle' || this.turnState.phase === 'roundEnd') return [];
+    return this.orderedCharacters(true).filter((piece) => !this.isActed(piece.identifier));
+  }
+
+  /**
+   * Moves the round on, once whoever is still to move has been accounted for.
+   *
+   * A round pressed on while pieces are still waiting takes their turn away without ever
+   * showing it happening, so the ones being left behind are named and the press has to be
+   * made a second time.
+   */
+  async advanceRound(): Promise<void> {
+    if (!(await this.mayLeaveTheseBehind())) return;
     this.step(() => {
       const turnState = this.turnState;
       if (turnState.phase === 'acting' || turnState.phase === 'roundStart') this.finishRound();
       this.beginRound(this.turnState.round + 1);
+    });
+  }
+
+  private async mayLeaveTheseBehind(): Promise<boolean> {
+    const waiting = this.unactedCharacters();
+    if (waiting.length < 1) return true;
+    const shown = waiting.slice(0, UNACTED_NAMES_SHOWN).map((piece) => piece.name);
+    if (waiting.length > shown.length) {
+      shown.push(this.t('feature.turnOrder.unactedMore', { n: waiting.length - shown.length }));
+    }
+    return this.confirm.ask({
+      title: this.t('feature.turnOrder.unactedTitle'),
+      message: `${this.t('feature.turnOrder.unactedMessage')}\n\n${shown.join('\n')}`,
+      okLabel: this.t('feature.turnOrder.unactedProceed'),
     });
   }
 

@@ -1118,7 +1118,11 @@
       "acted": "행동 완료",
       "undo": "한 단계 되돌리기",
       "retreatRound": "라운드 되돌리기",
-      "retreatRoundAnnounce": "라운드 {{n}}(으)로 되돌렸습니다."
+      "retreatRoundAnnounce": "라운드 {{n}}(으)로 되돌렸습니다.",
+      "unactedTitle": "아직 행동하지 않은 말이 있습니다",
+      "unactedMessage": "다음 말들은 이번 라운드에 아직 차례를 갖지 않았습니다. 이대로 라운드를 넘기면 행동하지 못한 채 다음 라운드로 들어갑니다.",
+      "unactedMore": "외 {{n}}개",
+      "unactedProceed": "이대로 진행"
     },
     "inventory": {
       "contextMenu": {

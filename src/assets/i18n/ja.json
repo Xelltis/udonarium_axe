@@ -1118,7 +1118,11 @@
       "acted": "行動済み",
       "undo": "1つ前に戻す",
       "retreatRound": "ラウンドを戻す",
-      "retreatRoundAnnounce": "ラウンド{{n}}に戻しました。"
+      "retreatRoundAnnounce": "ラウンド{{n}}に戻しました。",
+      "unactedTitle": "まだ動いていないコマがいます",
+      "unactedMessage": "次のコマは、このラウンドでまだ手番を取っていません。このままラウンドを進めると、行動しないまま次のラウンドに入ります。",
+      "unactedMore": "ほか {{n}} 体",
+      "unactedProceed": "このまま進める"
     },
     "inventory": {
       "contextMenu": {
