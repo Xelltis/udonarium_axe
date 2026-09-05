@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
+import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -30,6 +31,8 @@ import {
   TurnOrderMode,
 } from '@axe/domain/tabletop/turn-order-mode';
 import { describeSide, encodeFactionOrder, normalizeFactionOrder } from '@axe/domain/tabletop/turn-side';
+import { ROOM_SETTINGS_TABS, RoomSettingsTab } from '@axe/domain/ui/room-settings-tab';
+import { RoomSnapshotPanelComponent } from '@axe/features/room-archive/room-snapshot-panel/room-snapshot-panel.component';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -43,8 +46,8 @@ function wholeCells(value: number): number {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'room-settings-panel',
   templateUrl: './room-settings-panel.component.html',
-  host: { class: 'block', '[attr.inert]': "isReadOnly() ? '' : null" },
-  imports: [FormsModule, NgSelectComponent, NgOptionComponent, TranslocoModule],
+  host: { class: 'block' },
+  imports: [FormsModule, NgSelectComponent, NgOptionComponent, RoomSnapshotPanelComponent, TranslocoModule],
 })
 export class RoomSettingsPanelComponent {
   private readonly objectStore = inject(ObjectStore);
@@ -55,6 +58,16 @@ export class RoomSettingsPanelComponent {
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly roomSnapshot = inject(RoomSnapshotService);
+
+  readonly tabs = ROOM_SETTINGS_TABS;
+  readonly tab = signal<RoomSettingsTab>('general');
+
+  readonly isKeeping = this.roomSnapshot.isKeeping;
+
+  setKeeping(event: Event): void {
+    this.roomSnapshot.setKeeping((event.target as HTMLInputElement).checked);
+  }
 
   readonly turnOrderModes = TURN_ORDER_MODES;
   readonly factionPhaseModes = FACTION_PHASE_MODES;

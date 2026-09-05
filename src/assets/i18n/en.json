@@ -2062,7 +2062,13 @@
       "facingMark_none": "Do not show",
       "facingMark_turn": "Turn the picture",
       "facingMark_arrow": "Show an arrowhead",
-      "facingMarkHint": "Lets a piece be turned in 2D. An arrowhead leaves the picture facing you and shows the facing on its own, in 3D as well"
+      "facingMarkHint": "Lets a piece be turned in 2D. An arrowhead leaves the picture facing you and shows the facing on its own, in 3D as well",
+      "tab_general": "General",
+      "tab_battle": "Battle",
+      "tab_move": "Movement",
+      "tab_archive": "Auto-save",
+      "autoSaveKeeping": "Keep the room on this device",
+      "autoSaveHint": "A copy of the room is kept here once the table settles. It never reaches the other players and never leaves this device. Stopping takes no further copies; the ones already kept stay."
     },
     "lobby": {
       "peerMenu": {

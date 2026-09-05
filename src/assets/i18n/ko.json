@@ -2062,7 +2062,13 @@
       "facingMark_none": "표시하지 않음",
       "facingMark_turn": "말째로 회전",
       "facingMark_arrow": "화살촉으로 표시",
-      "facingMarkHint": "2D 모드에서 말을 회전할 수 있게 합니다. 화살촉은 그림을 카메라 쪽으로 둔 채 방향만 나타내며 3D 모드에서도 보입니다"
+      "facingMarkHint": "2D 모드에서 말을 회전할 수 있게 합니다. 화살촉은 그림을 카메라 쪽으로 둔 채 방향만 나타내며 3D 모드에서도 보입니다",
+      "tab_general": "일반",
+      "tab_battle": "전투",
+      "tab_move": "이동",
+      "tab_archive": "자동 저장",
+      "autoSaveKeeping": "이 기기에 방을 자동 저장",
+      "autoSaveHint": "탁자의 변화가 멎으면 이 기기 안에 방의 사본을 남깁니다. 사본은 다른 참가자에게 가지 않고 밖으로도 나가지 않습니다. 멈추면 새 사본은 남기지 않고, 이미 있는 것은 그대로 남습니다."
     },
     "lobby": {
       "peerMenu": {

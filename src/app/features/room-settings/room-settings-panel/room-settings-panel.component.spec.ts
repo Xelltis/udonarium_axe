@@ -269,6 +269,34 @@ describe('RoomSettingsPanelComponent', () => {
       expect(component.cellDistance).toBe(0);
     });
 
+    it('opens on the general part and shows only that part', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.tab()).toBe('general');
+      expect(fixture.nativeElement.querySelector('[name="turnOrderMode"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[name="zocMode"]')).toBeNull();
+    });
+
+    it('shows the round only under the part it belongs to', async () => {
+      component.tab.set('battle');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('[name="turnOrderMode"]')).not.toBeNull();
+    });
+
+    it('leaves a reader who may not edit free to look through the parts', async () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.isReadOnly()).toBe(true);
+      expect(fixture.nativeElement.hasAttribute('inert')).toBe(false);
+      const strip = fixture.nativeElement.querySelector('[data-testid="room-settings-tab-move"]');
+      expect(strip.closest('[inert]')).toBeNull();
+    });
+
     it('shows the boxes only once an enemy holds ground', async () => {
       function boxes(): string[] {
         return [...fixture.nativeElement.querySelectorAll('input[type="number"]')].map(
@@ -276,6 +304,7 @@ describe('RoomSettingsPanelComponent', () => {
         );
       }
 
+      component.tab.set('move');
       component.zocMode = 'none';
       fixture.detectChanges();
       await fixture.whenStable();

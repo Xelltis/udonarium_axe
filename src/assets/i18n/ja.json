@@ -2062,7 +2062,13 @@
       "facingMark_none": "示さない",
       "facingMark_turn": "コマごと回す",
       "facingMark_arrow": "矢尻で示す",
-      "facingMarkHint": "2Dモードでコマを回せるようにします。矢尻はカメラ追従のまま向きだけを示し、3Dモードでも出ます"
+      "facingMarkHint": "2Dモードでコマを回せるようにします。矢尻はカメラ追従のまま向きだけを示し、3Dモードでも出ます",
+      "tab_general": "一般",
+      "tab_battle": "戦闘",
+      "tab_move": "移動",
+      "tab_archive": "自動保存",
+      "autoSaveKeeping": "この端末で部屋を自動保存する",
+      "autoSaveHint": "卓の変化が落ち着いたころに、この端末の中へ部屋のひかえを取ります。ひかえは他の参加者には渡らず、外にも出ません。止めると新しいひかえは取らなくなり、すでにあるものはそのまま残ります。"
     },
     "lobby": {
       "peerMenu": {

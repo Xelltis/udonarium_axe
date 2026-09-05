@@ -67,7 +67,7 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   'pl-tools': ['card', 'chat'],
   replay: ['room-archive'],
   'room-archive': [],
-  'room-settings': [],
+  'room-settings': ['room-archive'],
   'status-ailment': [],
   'streaming-overlay': [],
   tabletop: ['card', 'character', 'coin', 'dice', 'disclosure', 'effect', 'lobby', 'map-editor', 'replay'],

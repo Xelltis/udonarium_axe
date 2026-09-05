@@ -17,6 +17,7 @@ describe('RoomArchiveEventHandlerService', () => {
   let capture: ReturnType<typeof vi.fn>;
   let canEditTabletop: boolean;
   let isRestoring: boolean;
+  let isKeeping: boolean;
   let isDragging: boolean;
   let lastCaptureMs: number;
 
@@ -35,7 +36,13 @@ describe('RoomArchiveEventHandlerService', () => {
         },
         {
           provide: RoomSnapshotService,
-          useValue: { isSupported: true, isRestoring: () => isRestoring, lastCaptureMs: () => lastCaptureMs, capture },
+          useValue: {
+            isSupported: true,
+            isKeeping: () => isKeeping,
+            isRestoring: () => isRestoring,
+            lastCaptureMs: () => lastCaptureMs,
+            capture,
+          },
         },
         {
           provide: PointerDeviceService,
@@ -63,6 +70,7 @@ describe('RoomArchiveEventHandlerService', () => {
     capture = vi.fn().mockResolvedValue(null);
     canEditTabletop = true;
     isRestoring = false;
+    isKeeping = true;
     isDragging = false;
     lastCaptureMs = 0;
   });
@@ -111,6 +119,38 @@ describe('RoomArchiveEventHandlerService', () => {
 
     await vi.advanceTimersByTimeAsync(30_000);
     expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('saves nothing at all once the keeping is stopped', async () => {
+    isKeeping = false;
+    setup();
+    emitChange();
+
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('leaves a save that was already due where the keeping stops before it lands', async () => {
+    setup();
+    emitChange();
+    isKeeping = false;
+
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('waits for a fresh change rather than saving what happened while it was stopped', async () => {
+    isKeeping = false;
+    setup();
+    emitChange();
+    isKeeping = true;
+
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(capture).not.toHaveBeenCalled();
+
+    emitChange();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(capture).toHaveBeenCalledTimes(1);
   });
 
   it('holds the save off while it is restoring', async () => {
