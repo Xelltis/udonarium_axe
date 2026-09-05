@@ -100,6 +100,7 @@ function topmostDrawnIndex(layers: readonly MapLayer[]): number {
 function hasContent(layer: MapLayer): boolean {
   switch (layer.kind) {
     case 'cell':
+    case 'function':
       return Object.keys(layer.cells).length > 0;
     case 'freehand':
       return layer.strokes.length > 0;

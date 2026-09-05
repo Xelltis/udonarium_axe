@@ -455,7 +455,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const helpers = this.buildHelpers(ctx);
-    renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined });
+    renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined, drawFunctionLayers: true });
     this.drawOverlay(ctx);
   }
 
@@ -1343,7 +1343,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     if (!ctx) return '';
     const single: MapScene = { ...scene, gridVisible: false, background: 'transparent', layers: [layer] };
     ctx.scale(scale, scale);
-    renderScene(ctx, single, this.buildHelpers(ctx), { drawGrid: false });
+    renderScene(ctx, single, this.buildHelpers(ctx), { drawGrid: false, drawFunctionLayers: true });
     try {
       return canvas.toDataURL();
     } catch {

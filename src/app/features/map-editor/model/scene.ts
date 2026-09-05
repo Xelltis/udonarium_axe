@@ -1,13 +1,19 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
+import {
+  DEFAULT_FUNCTION_ROLE,
+  DEFAULT_FUNCTION_SPEC,
+  FunctionSpec,
+  MapFunctionRole,
+} from '@axe/features/map-editor/model/function-layer';
 
 export const MAP_SCENE_VERSION = 1;
 
 export const DEFAULT_SCENE_BACKGROUND = 'transparent';
 export const DEFAULT_SCENE_GRID_COLOR = '#00000059';
 
-export type LayerKind = 'cell' | 'shape' | 'stamp' | 'freehand' | 'text' | 'image';
+export type LayerKind = 'cell' | 'shape' | 'stamp' | 'freehand' | 'text' | 'image' | 'function';
 
 export type FillStyle =
   { type: 'solid'; color: string } | { type: 'texture'; textureId: string; scale: number; rotation: number };
@@ -141,7 +147,20 @@ export interface ImageLayer extends BaseLayer {
   items: ImageItem[];
 }
 
-export type MapLayer = CellLayer | ShapeLayer | StampLayer | FreehandLayer | TextLayer | ImageLayer;
+/**
+ * Cells painted for what they do rather than how they look.
+ *
+ * It carries no fill: the look comes from the role, and the layer never reaches the picture
+ * the map is exported as.
+ */
+export interface FunctionLayer extends BaseLayer {
+  kind: 'function';
+  role: MapFunctionRole;
+  cells: Record<string, true>;
+  spec: FunctionSpec;
+}
+
+export type MapLayer = CellLayer | ShapeLayer | StampLayer | FreehandLayer | TextLayer | ImageLayer | FunctionLayer;
 
 export interface MapScene {
   version: number;
@@ -195,6 +214,8 @@ export function createLayer(kind: LayerKind, name: string): MapLayer {
   switch (kind) {
     case 'cell':
       return { ...base, kind: 'cell', cells: {} };
+    case 'function':
+      return { ...base, kind: 'function', role: DEFAULT_FUNCTION_ROLE, cells: {}, spec: { ...DEFAULT_FUNCTION_SPEC } };
     case 'shape':
       return { ...base, kind: 'shape', items: [] };
     case 'stamp':

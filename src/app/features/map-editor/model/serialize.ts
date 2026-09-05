@@ -1,4 +1,5 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { asFunctionRole, sanitizeFunctionSpec } from '@axe/features/map-editor/model/function-layer';
 import {
   DEFAULT_SCENE_BACKGROUND,
   DEFAULT_SCENE_GRID_COLOR,
@@ -27,7 +28,7 @@ function isPositiveFiniteNumber(v: unknown): v is number {
   return isFiniteNumber(v) && (v as number) > 0;
 }
 
-const VALID_KINDS = new Set(['cell', 'shape', 'stamp', 'freehand', 'text', 'image']);
+const VALID_KINDS = new Set(['cell', 'shape', 'stamp', 'freehand', 'text', 'image', 'function']);
 
 const VALID_DASHES = new Set<StrokeDash>(['solid', 'dashed', 'dotted', 'dashdot', 'longdash']);
 
@@ -151,6 +152,16 @@ export function isMapScene(value: unknown): value is MapScene {
   return true;
 }
 
+/** A painted cell is remembered by its key alone, so whatever was written for it reads as painted. */
+function sanitizeFunctionCells(value: unknown): Record<string, true> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  const cells: Record<string, true> = {};
+  for (const [key, held] of Object.entries(value as Record<string, unknown>)) {
+    if (held) cells[key] = true;
+  }
+  return cells;
+}
+
 function sanitizeLayer(raw: Record<string, unknown>): MapLayer {
   const base = {
     id: String(raw['id'] ?? ''),
@@ -170,6 +181,14 @@ function sanitizeLayer(raw: Record<string, unknown>): MapLayer {
         cells: (typeof raw['cells'] === 'object' && raw['cells'] !== null && !Array.isArray(raw['cells'])
           ? raw['cells']
           : {}) as Record<string, never>,
+      };
+    case 'function':
+      return {
+        ...base,
+        kind: 'function',
+        role: asFunctionRole(raw['role']),
+        cells: sanitizeFunctionCells(raw['cells']),
+        spec: sanitizeFunctionSpec(raw['spec']),
       };
     case 'shape':
       return {

@@ -1,8 +1,10 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { DEFAULT_FUNCTION_SPEC } from '@axe/features/map-editor/model/function-layer';
 import {
   CellLayer,
   createScene,
   FreehandLayer,
+  FunctionLayer,
   ImageLayer,
   MapScene,
   ShapeLayer,
@@ -139,6 +141,53 @@ describe('renderScene', () => {
     renderScene(ctx, sceneWith(layer), helpers, { drawGrid: false });
     const cellFills = ctx.calls.filter((c) => c.method === 'fillRect' && c.args[2] === 10 && c.args[3] === 10);
     expect(cellFills.length).toBe(2);
+  });
+
+  describe('the cells painted for what they do', () => {
+    function blocked(): FunctionLayer {
+      return {
+        id: 'f',
+        kind: 'function',
+        name: 'blocked',
+        visible: true,
+        locked: false,
+        opacity: 1,
+        role: 'moveBlock',
+        cells: { '0,0': true, '1,1': true },
+        spec: { ...DEFAULT_FUNCTION_SPEC },
+      };
+    }
+
+    function cellFillsIn(ctx: ReturnType<typeof createMockCtx>): number {
+      return ctx.calls.filter((c) => c.method === 'fillRect' && c.args[2] === 10 && c.args[3] === 10).length;
+    }
+
+    it('leaves them out of the picture unless it is asked for them', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(blocked()), helpers, { drawGrid: false });
+
+      expect(cellFillsIn(ctx)).toBe(0);
+    });
+
+    it('draws them where the editor asks to see its workings', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(blocked()), helpers, { drawGrid: false, drawFunctionLayers: true });
+
+      expect(cellFillsIn(ctx)).toBe(2);
+    });
+
+    it('leaves out a layer that has been hidden, asked for or not', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith({ ...blocked(), visible: false }), helpers, {
+        drawGrid: false,
+        drawFunctionLayers: true,
+      });
+
+      expect(cellFillsIn(ctx)).toBe(0);
+    });
   });
 
   it('draws each shape kind without throwing', () => {
