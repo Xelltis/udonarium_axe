@@ -2603,9 +2603,10 @@
         "terrainGrid": "Draw a grid on it",
         "terrainShadow": "Cast a shadow",
         "terrainShading": "Shade the faces",
-        "facePalette": "Pick a texture that ships with the room",
         "paletteWall": "Dungeon walls",
-        "paletteGround": "Ground and floor"
+        "paletteGround": "Ground and floor",
+        "paletteOwn": "Textures you added",
+        "faceFromLibrary": "Pick from the image library"
       },
       "stampCategories": {
         "door": "Doors",

@@ -25,12 +25,15 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
+import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ImageTag } from '@axe/domain/media/image-tag';
 import {
   isTextureId,
   TEXTURE_ASSET_URLS,
   TEXTURE_BASE_COLOR,
   TEXTURE_IDS,
+  TEXTURE_IMAGE_TAG,
   WALL_TEXTURE_ASSET_URLS,
   WALL_TEXTURE_BASE_COLOR,
   WALL_TEXTURE_IDS,
@@ -60,6 +63,7 @@ import {
   ShapeGeneratorKind,
 } from '@axe/features/map-editor/editor/map-editor-state';
 import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
+import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import {
   curveAnchorAt,
   fitImageSize,
@@ -179,6 +183,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly panelService = inject(PanelService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly dungeonBuild = inject(DungeonBuildService);
+  private readonly textureIntake = inject(TextureIntakeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -193,6 +198,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   private readonly board = viewChild<ElementRef<HTMLCanvasElement>>('board');
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+  private readonly faceTextureInput = viewChild<ElementRef<HTMLInputElement>>('faceTextureInput');
   protected readonly textEditor = viewChild<ElementRef<HTMLElement>>('textEditor');
   private readonly stage = viewChild<ElementRef<HTMLDivElement>>('stage');
 
@@ -221,11 +227,11 @@ export class MapEditorPanelComponent implements AfterViewInit {
     return id ? (this.imageStorage.get(id)?.url ?? null) : null;
   }
 
-  /** Picks the picture one face of a painted wall wears, or takes it off again. */
+  /** Picks the picture one face of a painted wall wears from the whole image library. */
   protected async chooseFaceImage(face: keyof TerrainFaceImages): Promise<void> {
     const id = await this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).catch(() => null);
     if (id === null) return;
-    this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: id } });
+    this.wearFaceImage(face, id);
   }
 
   protected clearFaceImage(face: keyof TerrainFaceImages): void {
@@ -240,6 +246,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected readonly textureBaseColor = TEXTURE_BASE_COLOR;
 
   protected readonly faceTexturesOpen = signal<string>('');
+  private faceTextureAwaiting: keyof TerrainFaceImages | null = null;
 
   protected toggleFaceTextures(face: keyof TerrainFaceImages): void {
     this.faceTexturesOpen.update((held) => (held === face ? '' : face));
@@ -249,6 +256,37 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected chooseFaceTexture(face: keyof TerrainFaceImages, url: string): void {
     const identifier = this.dungeonBuild.registerAsset(url);
     if (identifier.length < 1) return;
+    this.wearFaceImage(face, identifier);
+  }
+
+  protected readonly faceTextures = computed<ImageFile[]>(() => {
+    this.objectChange.fileVersion();
+    this.objectChange.collectionOf('image-tag')();
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden);
+  });
+
+  protected chooseFaceImageTexture(face: keyof TerrainFaceImages, file: ImageFile): void {
+    this.wearFaceImage(face, file.identifier);
+  }
+
+  protected addFaceTexture(face: keyof TerrainFaceImages): void {
+    this.faceTextureAwaiting = face;
+    this.faceTextureInput()?.nativeElement.click();
+  }
+
+  protected async onFaceTextureFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const face = this.faceTextureAwaiting;
+    this.faceTextureAwaiting = null;
+    if (!file || !face) return;
+    const imageFile = await this.textureIntake.takeIn(file);
+    if (!imageFile) return;
+    this.wearFaceImage(face, imageFile.identifier);
+  }
+
+  private wearFaceImage(face: keyof TerrainFaceImages, identifier: string): void {
     this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: identifier } });
     this.faceTexturesOpen.set('');
   }

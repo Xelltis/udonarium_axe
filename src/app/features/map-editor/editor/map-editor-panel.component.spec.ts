@@ -14,6 +14,7 @@ import {
   MapEditorPanelComponent,
 } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
+import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import { pointToCell } from '@axe/features/map-editor/model/grid-cells';
 import {
   cellKey,
@@ -149,6 +150,40 @@ describe('MapEditorPanelComponent', () => {
 
       expect(add).toHaveBeenCalledWith('assets/images/walls/wall_brick.webp');
       expect(dresser().state.functionSpec().terrain.images.wall).toBe('wall-asset');
+    });
+
+    it('wears a texture that was added by hand', async () => {
+      const dressed = component as unknown as {
+        addFaceTexture: (face: 'wall') => void;
+        onFaceTextureFileSelected: (event: Event) => Promise<void>;
+        state: MapEditorState;
+      };
+      const intake = TestBed.inject(TextureIntakeService);
+      vi.spyOn(intake, 'takeIn').mockResolvedValue({ identifier: 'added-texture' } as never);
+      dressed.addFaceTexture('wall');
+
+      await dressed.onFaceTextureFileSelected({
+        target: { files: [new File([new Uint8Array([1])], 'x.png')], value: 'x' },
+      } as unknown as Event);
+
+      expect(dressed.state.functionSpec().terrain.images.wall).toBe('added-texture');
+    });
+
+    it('wears nothing where the crop was left unfinished', async () => {
+      const dressed = component as unknown as {
+        addFaceTexture: (face: 'wall') => void;
+        onFaceTextureFileSelected: (event: Event) => Promise<void>;
+        state: MapEditorState;
+      };
+      const intake = TestBed.inject(TextureIntakeService);
+      vi.spyOn(intake, 'takeIn').mockResolvedValue(null);
+      dressed.addFaceTexture('wall');
+
+      await dressed.onFaceTextureFileSelected({
+        target: { files: [new File([new Uint8Array([1])], 'x.png')], value: 'x' },
+      } as unknown as Event);
+
+      expect(dressed.state.functionSpec().terrain.images.wall).toBe('');
     });
 
     it('takes up a picture already kept rather than keeping it twice', () => {

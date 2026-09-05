@@ -2603,9 +2603,10 @@
         "terrainGrid": "그리드를 그림",
         "terrainShadow": "그림자를 드리움",
         "terrainShading": "면마다 음영",
-        "facePalette": "기본 제공 텍스처에서 선택",
         "paletteWall": "던전 벽",
-        "paletteGround": "지면·바닥"
+        "paletteGround": "지면·바닥",
+        "paletteOwn": "추가한 텍스처",
+        "faceFromLibrary": "이미지 라이브러리에서 선택"
       },
       "stampCategories": {
         "door": "문",
