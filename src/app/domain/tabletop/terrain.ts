@@ -51,7 +51,6 @@ export const TERRAIN_FACES: readonly TerrainFace[] = ['top', 'bottom', 'north', 
 export class Terrain extends TabletopObject {
   @SyncVar() isLocked: boolean = false;
   /** The cell the map editor painted this onto, empty for anything a person placed by hand. */
-  @SyncVar() paintCell: string = '';
   @SyncVar() mode: TerrainViewState = TerrainViewState.ALL;
   @SyncVar() rotate: number = 0;
   @SyncVar() isDropShadow: boolean = true;

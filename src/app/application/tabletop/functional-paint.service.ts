@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
 import { DataElement } from '@axe/domain/data/data-element';
+import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { CellRect, rectKey } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -17,7 +18,6 @@ import {
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
-import { encodePaintedCell, parsePaintedCell } from '@axe/domain/tabletop/painted-cell';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { Terrain, TERRAIN_FACES } from '@axe/domain/tabletop/terrain';
@@ -103,11 +103,6 @@ function setMaskOpacity(mask: GameTableMask, fraction: number): void {
   const element = mask.commonDataElement?.getFirstElementByName('opacity');
   if (!element) return;
   element.currentValue = Math.round(Math.min(1, Math.max(0, fraction)) * MASK_OPACITY_FULL);
-}
-
-function parseCellKey(key: string): { col: number; row: number } | null {
-  const cell = parsePaintedCell(key);
-  return cell;
 }
 
 /** The cells a table is closed on, in the editor's own way of naming them. */
@@ -228,12 +223,7 @@ export function blockFootprintOf(
 export class FunctionalPaintService {
   private readonly tableSelecter = inject(TableSelecter);
 
-  /**
-   * Lays what was painted on the table.
-   *
-   * Only the objects the editor painted are made and unmade. Anything a person placed by
-   * hand is passed over without being read, moved or counted, whatever the plan says.
-   */
+  /** Lays what was painted on the table, making and unmaking only the blocks the plan names. */
   apply(plan: FunctionPaintPlan): boolean {
     const table = this.tableSelecter.viewTable;
     if (!table) return false;
@@ -271,7 +261,6 @@ export class FunctionalPaintService {
 
     for (const block of plan.terrain.add) {
       const terrain = layTerrainBlock(block.spec, block.width, block.height);
-      terrain.paintCell = encodePaintedCell(block);
       terrain.location = blockOrigin(block.spec, block, table.gridSize);
       table.appendChild(terrain);
     }
@@ -303,13 +292,12 @@ export class FunctionalPaintService {
       mask.scratchingGrids = block.spec.scratchingGrids;
       mask.isPreview = block.spec.preview;
       mask.posZ = block.spec.altitude;
-      mask.paintCell = encodePaintedCell(block);
       mask.location = blockOrigin(block.spec, block, table.gridSize);
       table.appendChild(mask);
     }
   }
 
-  /** Takes away the blocks that are going, wherever the editor is the one holding them. */
+  /** Takes away whatever stands on the cells the plan is clearing. */
   private takeAway(
     held: readonly { object: { destroy(): void }; rect: CellRect | null }[],
     going: readonly CellRect[]

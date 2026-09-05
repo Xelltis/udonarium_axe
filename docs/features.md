@@ -85,13 +85,12 @@ Udonarium Axe が **追加** または **大きく拡張・再設計** した機
 
 ## 機能塗り（マップエディター）
 
-- **地形塗りは地形と同等** — `TerrainPaintSpec`（`domain/tabletop/function-paint`）が高さ・見せ方(`TerrainViewState`)・6 面＋wall/floor のテクスチャ・視線/光の遮り・タイル/グリッド/影/陰影を持ち、`Terrain` にそのまま載る。テクスチャ未指定の地形は**透明な壁**（`Terrain.hasFaceImage` が false → 面を描かず、GM にだけ足元の枠を出す）。判定は**解決した画像ではなく識別子の有無**で行う（未同期の画像で壁が消えるのを防ぐ）
-- **塗りは最大矩形にまとめる** — `domain/tabletop/cell-rectangles` の `largestRectangles()` が左上から貪欲に最大矩形を取る。**決定的**であることが要件（揺れると反映のたびに壁が建て直される）。`paintCell` は起点セル、実寸はオブジェクト自身の width/depth が持つ
+- **地形塗りは地形と同等** — `TerrainPaintSpec`（`domain/tabletop/function-paint`）が名前・高さ・見せ方(`TerrainViewState`)・6 面＋wall/floor＋コマ自身のテクスチャ・高度と高度表示・視線/光の遮り・タイル/グリッド/影/陰影を持ち、`Terrain` にそのまま載る。マスク側の `MaskPaintSpec` も同様に、色・濃さ・所有者・ロック表示に加えて**削った跡と削りかけの跡**（`scratchedGrids` / `scratchingGrids`）まで持つ。テクスチャ未指定の地形は**透明な壁**（`Terrain.hasFaceImage` が false → 面を描かず、GM にだけ足元の枠を出す）。判定は**解決した画像ではなく識別子の有無**で行う（未同期の画像で壁が消えるのを防ぐ）
+- **塗りは最大矩形にまとめる** — `domain/tabletop/cell-rectangles` の `largestRectangles()` が左上から貪欲に最大矩形を取る。**決定的**であることが要件（揺れると反映のたびに壁が建て直される）。矩形の起点はオブジェクトの `location`、実寸は自身の width/depth が持つ
 - **既存オブジェクトを例外なく取り込む** — 卓上の `Terrain`/`GameTableMask` はすべて `TableSnapshot` に入り、以後エディター管理。回転・非整数位置・扉・スロープ・光も対象で、`TerrainPaintSpec` が**そのオブジェクトの全属性**を持つ（`blockFootprintOf()` がセル矩形＋`BlockPlacement`（実座標・実寸・回転）を返し、マス目に揃っているものだけ placement が null）。触られていないブロックは差分に出ないので作り直されず、identifier も保たれる。ブロックは各々 spec を持ち、`sceneFromTable` が**見た目ごとに別レイヤー**へ分ける（1 枚に混ぜると次の反映で片方の見た目に揃ってしまう）
 - **見た目ではなく卓のはたらきを塗る** — `FunctionLayer`（`domain/tabletop/function-paint` の `MapFunctionRole` = `moveBlock` / `terrain` / `mask`）。セル集合＋役割ごとの spec を持ち、**書き出す画像には入らない**（`renderScene` の `drawFunctionLayers` が既定 false。忘れると網掛けが床に焼き付くので、安全側を既定にしてある）。役割を 1 つ足せば「入ったらダメージ」のような塗りが増やせる形
-- **手置きを壊さない** — `Terrain` / `GameTableMask` の `paintCell`（`"col,row"`・既定 `''`・`domain/tabletop/painted-cell`）が「エディターが塗ったもの」の印。取り込みも書き戻しも**この印があるものだけ**を対象にし、手で置いた回転済み・複数マスの地形には一切触れない。古い部屋のオブジェクトは全部空なので自動的に保護される
 - **取り込み** — `features/map-editor/model/table-import` の `sceneFromTable()` が `TableSnapshot`（`domain/tabletop/table-snapshot`）から scene を組む。床は焼かれたラスタなので**ロックした画像レイヤー**として入れる（図形へは戻せない）。画像は中心座標で置く（`drawImageItem` が `-w/2` で描くため、原点に置くと 3/4 が地図の外に出る）
-- **書き戻し** — `table-apply` の `planFunctionPaint()` が**卓を触らずに差分だけ返す**ので spec が書ける。適用は `application/tabletop/functional-paint.service`。マス数・グリッド種別が食い違う scene は拒否する（cellPx の差は無害＝配置は卓の `gridSize` を使う）。1 マス 1 オブジェクトで、矩形へマージしない（`paintCell` の 1 対 1 が崩れるため）
+- **書き戻し** — `table-apply` の `planFunctionPaint()` が**卓を触らずに差分だけ返す**ので spec が書ける。適用は `application/tabletop/functional-paint.service`。マス数・グリッド種別が食い違う scene は拒否する（cellPx の差は無害＝配置は卓の `gridSize` を使う）。差分は**セル矩形の一致**で当てるので、塗り直されていないブロックは `remove` に出ず、作り直されないまま identifier を保つ
 - **床に触らない反映** — 「機能だけ反映」と「テーブル背景に設定」の 2 つ。前者は床画像を焼き直さないので、既存マップへの塗り足しで画質と画像の同一性を失わない
 - **導線** — GM ツールバーの ⊘ が `RoomPanelService.open<FunctionPaintPanel>('mapEditor', …, setup)` でパネルを開き、`beginFunctionPaint('moveBlock')` を呼ぶ。scene が手つかず（レイヤーなし・undo なし）のときだけ卓を取り込み、描きかけは触らない。`FunctionPaintPanel` は features 間 import を避けるため `domain/ui/room-panel` に置く
 - **立入禁止は全員に見える** — `table-move-block-overlay` の GM 判定を撤去。塗りは GM ツールバーからマップエディターへ移り、`MoveBlockService` は表示用の読み出しだけになった

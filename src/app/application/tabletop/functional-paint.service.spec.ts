@@ -58,10 +58,9 @@ describe('FunctionalPaintService', () => {
   });
 
   it('reads every wall that sits square on the grid, however it got there', () => {
-    const painted = Terrain.create('塗った壁', 1, 1, 1, '', '');
-    painted.paintCell = '3,4';
-    painted.location = { name: 'table', x: 3 * 50, y: 4 * 50 };
-    table.appendChild(painted);
+    const square = Terrain.create('揃った壁', 1, 1, 1, '', '');
+    square.location = { name: 'table', x: 3 * 50, y: 4 * 50 };
+    table.appendChild(square);
     const byHand = Terrain.create('置いた壁', 3, 2, 4, '', '');
     byHand.location = { name: 'table', x: 1 * 50, y: 1 * 50 };
     table.appendChild(byHand);
@@ -114,10 +113,9 @@ describe('FunctionalPaintService', () => {
   });
 
   it('reads every cover that sits square on the grid', () => {
-    const painted = GameTableMask.create('塗った覆い', 1, 1, 100);
-    painted.paintCell = '5,6';
-    painted.location = { name: 'table', x: 5 * 50, y: 6 * 50 };
-    table.appendChild(painted);
+    const square = GameTableMask.create('揃った覆い', 1, 1, 100);
+    square.location = { name: 'table', x: 5 * 50, y: 6 * 50 };
+    table.appendChild(square);
     const byHand = GameTableMask.create('置いた覆い', 4, 4, 100);
     byHand.location = { name: 'table', x: 0, y: 0 };
     table.appendChild(byHand);
@@ -155,7 +153,6 @@ describe('FunctionalPaintService', () => {
       expect(laid).toHaveLength(1);
       expect(laid[0].width).toBe(4);
       expect(laid[0].depth).toBe(2);
-      expect(laid[0].paintCell).toBe('1,2');
       expect(laid[0].location.x).toBe(1 * 50);
       expect(laid[0].location.y).toBe(2 * 50);
     });
@@ -285,7 +282,6 @@ describe('FunctionalPaintService', () => {
 
       expect(masksOn()[0].color).toBe('#abcdef');
       expect(masksOn()[0].opacity).toBeCloseTo(0.25, 5);
-      expect(masksOn()[0].paintCell).toBe('0,0');
     });
 
     it('closes the table on the cells it was given, letting the rest open again', () => {

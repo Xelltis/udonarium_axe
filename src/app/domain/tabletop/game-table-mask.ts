@@ -8,7 +8,6 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 export class GameTableMask extends TabletopObject {
   @SyncVar() isLock: boolean = false;
   /** The cell the map editor painted this onto, empty for anything a person placed by hand. */
-  @SyncVar() paintCell: string = '';
   @SyncVar() dispLockMark: boolean = true;
 
   @SyncVar() owner: string = '';

@@ -19,8 +19,6 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { isPaintedByEditor } from '@axe/domain/tabletop/painted-cell';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 
 describe('save and load round trip', () => {
@@ -87,38 +85,6 @@ describe('save and load round trip', () => {
       expect(Config.instance.roomRuleAnswers.zocMode).toBeNull();
       expect(Config.instance.roomRuleAnswers.cellDistance).toBeNull();
       expect(Config.instance.roomRuleAnswers.moveRangeEnabled).toBeNull();
-    });
-  });
-
-  describe('who put a piece of terrain on the table', () => {
-    it('writes the cell the editor painted it onto', () => {
-      const terrain = Terrain.create('壁', 1, 1, 1, 'w', 'f');
-      terrain.paintCell = '3,7';
-
-      expect(serializer.toXml(terrain)).toContain('paintCell="3,7"');
-      terrain.destroy();
-    });
-
-    it('reads the cell back out of what was written', () => {
-      const restored = serializer.parseXml('<terrain identifier="painted-terrain" paintCell="3,7"></terrain>');
-
-      expect((restored as Terrain).paintCell).toBe('3,7');
-      restored?.destroy();
-    });
-
-    it('reads terrain saved before the editor could paint as placed by hand', () => {
-      const restored = serializer.parseXml('<terrain identifier="hand-placed-terrain"></terrain>') as Terrain;
-
-      expect(restored.paintCell).toBe('');
-      expect(isPaintedByEditor(restored.paintCell)).toBe(false);
-      restored.destroy();
-    });
-
-    it('reads a mask saved before the editor could paint as placed by hand', () => {
-      const restored = serializer.parseXml('<table-mask identifier="hand-placed-mask"></table-mask>') as GameTableMask;
-
-      expect(isPaintedByEditor(restored.paintCell)).toBe(false);
-      restored.destroy();
     });
   });
 
