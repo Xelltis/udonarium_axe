@@ -99,8 +99,8 @@ function terrainLayers(blocks: readonly TerrainBlock[], cellPx: number, name: st
  * one the moment it was laid on the table, and there is nothing to take back apart. It is
  * locked, so that painting over the map cannot drag the map itself about.
  *
- * Only what the editor painted comes back as cells. Anything a person placed by hand is left
- * on the table where it stands, out of the editor's reach and out of its way.
+ * Everything standing on the table comes back as cells, however it got there, and each block
+ * carries the whole of what it looks like so that laying it down again puts it back as it was.
  */
 export function sceneFromTable(table: TableSnapshot): MapScene {
   const scene = createScene(

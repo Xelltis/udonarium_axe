@@ -269,7 +269,6 @@ export class TurnOrderService {
     if (first) this.takeTurn(first.identifier);
   }
 
-  /** Closes the round wherever it stands and opens the next one. */
   /** The pieces that have not had their turn, in the order the round would reach them. */
   unactedCharacters(): GameCharacter[] {
     if (this.turnState.phase === 'idle' || this.turnState.phase === 'roundEnd') return [];

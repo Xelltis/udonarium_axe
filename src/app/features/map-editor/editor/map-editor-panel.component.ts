@@ -1573,8 +1573,8 @@ export class MapEditorPanelComponent implements AfterViewInit {
   /**
    * Brings the table that is out into the editor.
    *
-   * The floor arrives as a picture and only what the editor painted arrives as cells, so
-   * whatever a person placed by hand stays on the table, out of reach and out of the way.
+   * The floor arrives as a picture, since it was baked into one the moment it was laid down.
+   * Everything else arrives as cells and comes under the editor from then on.
    */
   protected async importTable(): Promise<void> {
     if (this.busy()) return;
