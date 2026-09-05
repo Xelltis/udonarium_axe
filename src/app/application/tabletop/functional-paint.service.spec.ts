@@ -75,8 +75,8 @@ describe('FunctionalPaintService', () => {
         blocked: [],
         terrain: { add: [], remove: [] },
         mask: { add: [], remove: [] },
-        terrainSpec: { ...DEFAULT_FUNCTION_SPEC },
-        maskSpec: { ...DEFAULT_FUNCTION_SPEC },
+        terrainSpec: { ...DEFAULT_FUNCTION_SPEC.terrain },
+        maskSpec: { ...DEFAULT_FUNCTION_SPEC.mask },
         ...over,
       };
     }
@@ -133,7 +133,7 @@ describe('FunctionalPaintService', () => {
       service.apply(
         plan({
           terrain: { add: ['0,0'], remove: [] },
-          terrainSpec: { ...DEFAULT_FUNCTION_SPEC, terrainBlocksSight: false, terrainBlocksLight: false },
+          terrainSpec: { ...DEFAULT_FUNCTION_SPEC.terrain, blocksSight: false, blocksLight: false },
         })
       );
 
@@ -143,15 +143,47 @@ describe('FunctionalPaintService', () => {
 
     it('gives a laid mask the fraction of opacity the layer carried', () => {
       service.apply(
-        plan({ mask: { add: ['0,0'], remove: [] }, maskSpec: { ...DEFAULT_FUNCTION_SPEC, maskOpacity: 0.25 } })
+        plan({ mask: { add: ['0,0'], remove: [] }, maskSpec: { ...DEFAULT_FUNCTION_SPEC.mask, opacity: 0.25 } })
       );
 
       expect(masksOn()[0].opacity).toBeCloseTo(0.25, 5);
     });
 
+    it('dresses a laid wall in every picture the brush carried', () => {
+      service.apply(
+        plan({
+          terrain: { add: ['0,0'], remove: [] },
+          terrainSpec: {
+            ...DEFAULT_FUNCTION_SPEC.terrain,
+            height: 3,
+            mode: 2,
+            tiledTexture: true,
+            showsGrid: true,
+            images: { ...DEFAULT_FUNCTION_SPEC.terrain.images, wall: 'stone', floor: 'grass', north: 'mural' },
+          },
+        })
+      );
+
+      const laid = terrainOn()[0];
+      expect(laid.height).toBe(3);
+      expect(laid.mode).toBe(2);
+      expect(laid.isTiledTexture).toBe(true);
+      expect(laid.isGrid).toBe(true);
+      expect(laid.faceImageIdentifier('wall')).toBe('stone');
+      expect(laid.faceImageIdentifier('floor')).toBe('grass');
+      expect(laid.faceImageIdentifier('north')).toBe('mural');
+      expect(laid.faceImageIdentifier('south')).toBe('');
+    });
+
+    it('leaves a wall the brush dressed in nothing as glass', () => {
+      service.apply(plan({ terrain: { add: ['0,0'], remove: [] } }));
+
+      expect(terrainOn()[0].hasFaceImage).toBe(false);
+    });
+
     it('gives a laid mask the colour the layer carried', () => {
       service.apply(
-        plan({ mask: { add: ['0,0'], remove: [] }, maskSpec: { ...DEFAULT_FUNCTION_SPEC, maskColor: '#abcdef' } })
+        plan({ mask: { add: ['0,0'], remove: [] }, maskSpec: { ...DEFAULT_FUNCTION_SPEC.mask, color: '#abcdef' } })
       );
 
       expect(masksOn()[0].color).toBe('#abcdef');

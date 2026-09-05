@@ -3,17 +3,34 @@ import { GameObject } from '@axe/core/sync/game-object';
 import { DataElement } from '@axe/domain/data/data-element';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { FunctionPaintPlan } from '@axe/domain/tabletop/function-paint';
+import { FunctionPaintPlan, TerrainPaintSpec } from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { encodePaintedCell, parsePaintedCell } from '@axe/domain/tabletop/painted-cell';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { Terrain, TERRAIN_FACES } from '@axe/domain/tabletop/terrain';
 
 function cellKeyOf(col: number, row: number): string {
   return `${col},${row}`;
+}
+
+/** Lays one block of terrain wearing everything the brush was set to. */
+function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number): Terrain {
+  const terrain = Terrain.create('', width, depth, Math.max(0, spec.height), spec.images.wall, spec.images.floor);
+  terrain.mode = spec.mode;
+  terrain.blocksSight = spec.blocksSight;
+  terrain.blocksLight = spec.blocksLight;
+  terrain.isTiledTexture = spec.tiledTexture;
+  terrain.isGrid = spec.showsGrid;
+  terrain.isDropShadow = spec.dropShadow;
+  terrain.isSurfaceShading = spec.surfaceShading;
+  for (const face of TERRAIN_FACES) {
+    const held = spec.images[face];
+    if (held.length > 0) terrain.setFaceImage(face, held);
+  }
+  return terrain;
 }
 
 /** A mask counts its opacity out of this, so the fraction it shows is the current value over it. */
@@ -107,9 +124,7 @@ export class FunctionalPaintService {
     for (const key of plan.terrain.add) {
       const cell = parseCellKey(key);
       if (!cell) continue;
-      const terrain = Terrain.create('', 1, 1, Math.max(0, plan.terrainSpec.terrainHeight), '', '');
-      terrain.blocksSight = plan.terrainSpec.terrainBlocksSight;
-      terrain.blocksLight = plan.terrainSpec.terrainBlocksLight;
+      const terrain = layTerrainBlock(plan.terrainSpec, 1, 1);
       terrain.paintCell = encodePaintedCell(cell);
       terrain.location = { name: 'table', x: cell.col * table.gridSize, y: cell.row * table.gridSize };
       table.appendChild(terrain);
@@ -124,8 +139,8 @@ export class FunctionalPaintService {
       const cell = parseCellKey(key);
       if (!cell) continue;
       const mask = GameTableMask.create('', 1, 1, MASK_OPACITY_FULL);
-      paintMaskColor(mask, plan.maskSpec.maskColor);
-      setMaskOpacity(mask, plan.maskSpec.maskOpacity);
+      paintMaskColor(mask, plan.maskSpec.color);
+      setMaskOpacity(mask, plan.maskSpec.opacity);
       mask.paintCell = encodePaintedCell(cell);
       mask.location = { name: 'table', x: cell.col * table.gridSize, y: cell.row * table.gridSize };
       table.appendChild(mask);

@@ -27,8 +27,16 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isTextureId, TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { FunctionSpec, MAP_FUNCTION_ROLES, MapFunctionRole } from '@axe/domain/tabletop/function-paint';
+import {
+  MAP_FUNCTION_ROLES,
+  MapFunctionRole,
+  MaskPaintSpec,
+  TERRAIN_FACE_KEYS,
+  TerrainFaceImages,
+  TerrainPaintSpec,
+} from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
 import { getStampById, STAMPS } from '@axe/features/map-editor/assets/stamps';
@@ -176,8 +184,36 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   protected readonly functionRoles = MAP_FUNCTION_ROLES;
 
-  protected setFunctionSpec(patch: Partial<FunctionSpec>): void {
-    this.state.functionSpec.update((spec) => ({ ...spec, ...patch }));
+  protected setTerrainPaint(patch: Partial<TerrainPaintSpec>): void {
+    this.state.functionSpec.update((spec) => ({ ...spec, terrain: { ...spec.terrain, ...patch } }));
+  }
+
+  protected setMaskPaint(patch: Partial<MaskPaintSpec>): void {
+    this.state.functionSpec.update((spec) => ({ ...spec, mask: { ...spec.mask, ...patch } }));
+  }
+
+  protected readonly terrainFaces = TERRAIN_FACE_KEYS;
+
+  protected readonly terrainModes = [
+    { mode: TerrainViewState.ALL, key: 'both' },
+    { mode: TerrainViewState.WALL, key: 'wall' },
+    { mode: TerrainViewState.FLOOR, key: 'floor' },
+  ];
+
+  protected faceImageUrl(face: keyof TerrainFaceImages): string | null {
+    const id = this.state.functionSpec().terrain.images[face];
+    return id ? (this.imageStorage.get(id)?.url ?? null) : null;
+  }
+
+  /** Picks the picture one face of a painted wall wears, or takes it off again. */
+  protected async chooseFaceImage(face: keyof TerrainFaceImages): Promise<void> {
+    const id = await this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).catch(() => null);
+    if (id === null) return;
+    this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: id } });
+  }
+
+  protected clearFaceImage(face: keyof TerrainFaceImages): void {
+    this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: '' } });
   }
 
   protected readonly settingsTool: ToolDef = { tool: 'settings', icon: 'settings', key: '' };

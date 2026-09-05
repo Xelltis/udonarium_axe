@@ -579,7 +579,7 @@ describe('the cells painted for what they do', () => {
       opacity: 1,
       role: 'terrain',
       cells: { '2,3': true, '4,5': true },
-      spec: { ...DEFAULT_FUNCTION_SPEC, terrainHeight: 3 },
+      spec: { ...DEFAULT_FUNCTION_SPEC, terrain: { ...DEFAULT_FUNCTION_SPEC.terrain, height: 3 } },
     };
     return { ...makeScene(), layers: [layer] };
   }
@@ -591,7 +591,7 @@ describe('the cells painted for what they do', () => {
     expect(layer.kind).toBe('function');
     expect(layer.role).toBe('terrain');
     expect(Object.keys(layer.cells).sort()).toEqual(['2,3', '4,5']);
-    expect(layer.spec.terrainHeight).toBe(3);
+    expect(layer.spec.terrain.height).toBe(3);
   });
 
   it('reads a role it does not know as the one a new layer starts on', () => {

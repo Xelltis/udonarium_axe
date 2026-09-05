@@ -178,6 +178,14 @@ export class Terrain extends TabletopObject {
     }
   }
 
+  /** The name written down for one face, empty where none was. */
+  faceImageIdentifier(face: TerrainFace | 'wall' | 'floor'): string {
+    const images = this.imageDataElement;
+    if (!images) return '';
+    const element = this.getElement(face, images);
+    return element ? `${element.value ?? ''}` : '';
+  }
+
   /**
    * Whether any face has been given a picture, whether or not that picture is to hand.
    *
@@ -188,9 +196,8 @@ export class Terrain extends TabletopObject {
   get hasFaceImage(): boolean {
     const images = this.imageDataElement;
     if (!images) return false;
-    for (const name of ['wall', 'floor', ...TERRAIN_FACES]) {
-      const element = this.getElement(name, images);
-      if (element && `${element.value ?? ''}`.length > 0) return true;
+    for (const name of ['wall', 'floor', ...TERRAIN_FACES] as const) {
+      if (this.faceImageIdentifier(name).length > 0) return true;
     }
     return false;
   }

@@ -47,11 +47,14 @@ describe('painting what a cell does', () => {
 
   it('carries the settings that were chosen onto the layer', () => {
     state.functionRole.set('terrain');
-    state.functionSpec.set({ ...DEFAULT_FUNCTION_SPEC, terrainHeight: 4 });
+    state.functionSpec.set({
+      ...DEFAULT_FUNCTION_SPEC,
+      terrain: { ...DEFAULT_FUNCTION_SPEC.terrain, height: 4 },
+    });
 
     state.paintFunctionCell(2, 2);
 
-    expect(layersOfRole('terrain')[0].spec.terrainHeight).toBe(4);
+    expect(layersOfRole('terrain')[0].spec.terrain.height).toBe(4);
   });
 
   it('rubs out only the role that is being erased', () => {

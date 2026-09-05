@@ -443,6 +443,20 @@
 
           @if (state.functionRole() === 'terrain') {
             <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.terrainMode' | transloco }}</span>
+              <select
+                class="bg-ui-input rounded-ui-sm p-1"
+                [ngModel]="state.functionSpec().terrain.mode"
+                (ngModelChange)="setTerrainPaint({ mode: $event })"
+              >
+                @for (choice of terrainModes; track choice.mode) {
+                  <option [ngValue]="choice.mode">
+                    {{ 'feature.mapEditor.function.terrainMode_' + choice.key | transloco }}
+                  </option>
+                }
+              </select>
+            </label>
+            <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.terrainHeight' | transloco }}</span>
               <input
                 type="number"
@@ -450,16 +464,56 @@
                 max="99"
                 step="1"
                 class="bg-ui-input rounded-ui-sm w-16 p-1 text-right"
-                [ngModel]="state.functionSpec().terrainHeight"
-                (ngModelChange)="setFunctionSpec({ terrainHeight: $event })"
+                [ngModel]="state.functionSpec().terrain.height"
+                (ngModelChange)="setTerrainPaint({ height: $event })"
               />
             </label>
+
+            <div class="flex flex-col gap-1">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.faces' | transloco }}</span>
+              <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.mapEditor.function.facesHint' | transloco }}</p>
+              @for (face of terrainFaces; track face) {
+                <div class="flex items-center gap-2">
+                  <span class="text-ui-muted w-14 shrink-0 text-[11px]">{{
+                    'feature.mapEditor.function.face_' + face | transloco
+                  }}</span>
+                  <button
+                    class="bg-ui-input hover:bg-ui-hover rounded-ui-sm flex grow items-center gap-1 px-2 py-1"
+                    (click)="chooseFaceImage(face)"
+                  >
+                    @if (faceImageUrl(face); as url) {
+                      <img class="rounded-ui-sm size-6 shrink-0 object-cover" [src]="url" alt="" />
+                    } @else {
+                      <i class="material-icons text-[16px]!">add_photo_alternate</i>
+                    }
+                    <span class="truncate text-[11px]">
+                      {{
+                        (faceImageUrl(face)
+                          ? 'feature.mapEditor.function.faceChange'
+                          : 'feature.mapEditor.function.faceNone'
+                        ) | transloco
+                      }}
+                    </span>
+                  </button>
+                  @if (faceImageUrl(face)) {
+                    <button
+                      class="text-ui-dim hover:text-ui-danger flex shrink-0 cursor-pointer items-center border-0 bg-transparent p-0"
+                      [attr.aria-label]="'feature.mapEditor.function.faceClear' | transloco"
+                      (click)="clearFaceImage(face)"
+                    >
+                      <i class="material-icons text-[16px]!">close</i>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+
             <label class="flex cursor-pointer items-center gap-1.5 select-none">
               <input
                 type="checkbox"
                 class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-                [ngModel]="state.functionSpec().terrainBlocksSight"
-                (ngModelChange)="setFunctionSpec({ terrainBlocksSight: $event })"
+                [ngModel]="state.functionSpec().terrain.blocksSight"
+                (ngModelChange)="setTerrainPaint({ blocksSight: $event })"
               />
               {{ 'feature.mapEditor.function.terrainBlocksSight' | transloco }}
             </label>
@@ -467,10 +521,46 @@
               <input
                 type="checkbox"
                 class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-                [ngModel]="state.functionSpec().terrainBlocksLight"
-                (ngModelChange)="setFunctionSpec({ terrainBlocksLight: $event })"
+                [ngModel]="state.functionSpec().terrain.blocksLight"
+                (ngModelChange)="setTerrainPaint({ blocksLight: $event })"
               />
               {{ 'feature.mapEditor.function.terrainBlocksLight' | transloco }}
+            </label>
+            <label class="flex cursor-pointer items-center gap-1.5 select-none">
+              <input
+                type="checkbox"
+                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                [ngModel]="state.functionSpec().terrain.tiledTexture"
+                (ngModelChange)="setTerrainPaint({ tiledTexture: $event })"
+              />
+              {{ 'feature.mapEditor.function.terrainTiled' | transloco }}
+            </label>
+            <label class="flex cursor-pointer items-center gap-1.5 select-none">
+              <input
+                type="checkbox"
+                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                [ngModel]="state.functionSpec().terrain.showsGrid"
+                (ngModelChange)="setTerrainPaint({ showsGrid: $event })"
+              />
+              {{ 'feature.mapEditor.function.terrainGrid' | transloco }}
+            </label>
+            <label class="flex cursor-pointer items-center gap-1.5 select-none">
+              <input
+                type="checkbox"
+                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                [ngModel]="state.functionSpec().terrain.dropShadow"
+                (ngModelChange)="setTerrainPaint({ dropShadow: $event })"
+              />
+              {{ 'feature.mapEditor.function.terrainShadow' | transloco }}
+            </label>
+            <label class="flex cursor-pointer items-center gap-1.5 select-none">
+              <input
+                type="checkbox"
+                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                [ngModel]="state.functionSpec().terrain.surfaceShading"
+                (ngModelChange)="setTerrainPaint({ surfaceShading: $event })"
+              />
+              {{ 'feature.mapEditor.function.terrainShading' | transloco }}
             </label>
           }
 
@@ -480,8 +570,8 @@
               <input
                 type="color"
                 class="bg-ui-input rounded-ui-sm h-7 w-12 p-0.5"
-                [ngModel]="state.functionSpec().maskColor"
-                (ngModelChange)="setFunctionSpec({ maskColor: $event })"
+                [ngModel]="state.functionSpec().mask.color"
+                (ngModelChange)="setMaskPaint({ color: $event })"
               />
             </label>
             <label class="flex items-center justify-between gap-2">
@@ -491,8 +581,8 @@
                 min="0"
                 max="1"
                 step="0.05"
-                [ngModel]="state.functionSpec().maskOpacity"
-                (ngModelChange)="setFunctionSpec({ maskOpacity: $event })"
+                [ngModel]="state.functionSpec().mask.opacity"
+                (ngModelChange)="setMaskPaint({ opacity: $event })"
               />
             </label>
           }

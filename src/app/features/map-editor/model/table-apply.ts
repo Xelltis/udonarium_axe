@@ -63,8 +63,8 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
     blocked: cellsForRole(scene, 'moveBlock'),
     terrain: changeBetween(cellsForRole(scene, 'terrain'), table.terrainCells),
     mask: changeBetween(cellsForRole(scene, 'mask'), table.maskCells),
-    terrainSpec: specForRole(scene, 'terrain'),
-    maskSpec: specForRole(scene, 'mask'),
+    terrainSpec: specForRole(scene, 'terrain').terrain,
+    maskSpec: specForRole(scene, 'mask').mask,
   };
 }
 

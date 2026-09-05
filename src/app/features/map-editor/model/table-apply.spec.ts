@@ -85,14 +85,18 @@ describe('planFunctionPaint()', () => {
 
   it('takes each role its own settings', () => {
     const scene = sceneWith(
-      layerOf('terrain', ['0,0'], { spec: { ...DEFAULT_FUNCTION_SPEC, terrainHeight: 5 } }),
-      layerOf('mask', ['1,1'], { spec: { ...DEFAULT_FUNCTION_SPEC, maskColor: '#abcdef' } })
+      layerOf('terrain', ['0,0'], {
+        spec: { ...DEFAULT_FUNCTION_SPEC, terrain: { ...DEFAULT_FUNCTION_SPEC.terrain, height: 5 } },
+      }),
+      layerOf('mask', ['1,1'], {
+        spec: { ...DEFAULT_FUNCTION_SPEC, mask: { ...DEFAULT_FUNCTION_SPEC.mask, color: '#abcdef' } },
+      })
     );
 
     const plan = planFunctionPaint(scene, snapshot())!;
 
-    expect(plan.terrainSpec.terrainHeight).toBe(5);
-    expect(plan.maskSpec.maskColor).toBe('#abcdef');
+    expect(plan.terrainSpec.height).toBe(5);
+    expect(plan.maskSpec.color).toBe('#abcdef');
   });
 
   it('refuses a scene painted against a different grid', () => {

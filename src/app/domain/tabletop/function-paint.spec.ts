@@ -3,7 +3,10 @@ import {
   DEFAULT_FUNCTION_ROLE,
   DEFAULT_FUNCTION_SPEC,
   MAP_FUNCTION_ROLES,
+  NO_FACE_IMAGES,
   sanitizeFunctionSpec,
+  TERRAIN_FACE_KEYS,
+  wearsAnyImage,
 } from '@axe/domain/tabletop/function-paint';
 
 describe('asFunctionRole()', () => {
@@ -24,21 +27,49 @@ describe('sanitizeFunctionSpec()', () => {
   });
 
   it('keeps what it is given', () => {
-    const spec = sanitizeFunctionSpec({ terrainHeight: 3, terrainBlocksSight: false, maskColor: '#112233' });
+    const spec = sanitizeFunctionSpec({
+      terrain: { height: 3, blocksSight: false },
+      mask: { color: '#112233' },
+    });
 
-    expect(spec.terrainHeight).toBe(3);
-    expect(spec.terrainBlocksSight).toBe(false);
-    expect(spec.maskColor).toBe('#112233');
+    expect(spec.terrain.height).toBe(3);
+    expect(spec.terrain.blocksSight).toBe(false);
+    expect(spec.mask.color).toBe('#112233');
   });
 
   it('holds a wall to a height a table can draw', () => {
-    expect(sanitizeFunctionSpec({ terrainHeight: -4 }).terrainHeight).toBe(0);
-    expect(sanitizeFunctionSpec({ terrainHeight: 1000 }).terrainHeight).toBe(99);
-    expect(sanitizeFunctionSpec({ terrainHeight: 'tall' }).terrainHeight).toBe(DEFAULT_FUNCTION_SPEC.terrainHeight);
+    expect(sanitizeFunctionSpec({ terrain: { height: -4 } }).terrain.height).toBe(0);
+    expect(sanitizeFunctionSpec({ terrain: { height: 1000 } }).terrain.height).toBe(99);
+    expect(sanitizeFunctionSpec({ terrain: { height: 'tall' } }).terrain.height).toBe(
+      DEFAULT_FUNCTION_SPEC.terrain.height
+    );
   });
 
   it('keeps a mask between see-through and solid', () => {
-    expect(sanitizeFunctionSpec({ maskOpacity: 2 }).maskOpacity).toBe(1);
-    expect(sanitizeFunctionSpec({ maskOpacity: -1 }).maskOpacity).toBe(0);
+    expect(sanitizeFunctionSpec({ mask: { opacity: 2 } }).mask.opacity).toBe(1);
+    expect(sanitizeFunctionSpec({ mask: { opacity: -1 } }).mask.opacity).toBe(0);
+  });
+
+  it('keeps the picture on every face it is told about', () => {
+    const spec = sanitizeFunctionSpec({ terrain: { images: { wall: 'stone', north: 'mural', nonsense: 'x' } } });
+
+    expect(spec.terrain.images.wall).toBe('stone');
+    expect(spec.terrain.images.north).toBe('mural');
+    expect(spec.terrain.images.south).toBe('');
+    expect(Object.keys(spec.terrain.images).sort()).toEqual(TERRAIN_FACE_KEYS.slice().sort());
+  });
+
+  it('reads a spec written before it had a shape as the defaults', () => {
+    expect(sanitizeFunctionSpec({ terrainHeight: 3, maskColor: '#112233' })).toEqual(DEFAULT_FUNCTION_SPEC);
+  });
+});
+
+describe('wearsAnyImage()', () => {
+  it('says a wall given nothing wears nothing', () => {
+    expect(wearsAnyImage(NO_FACE_IMAGES)).toBe(false);
+  });
+
+  it('says a wall given one picture wears one', () => {
+    expect(wearsAnyImage({ ...NO_FACE_IMAGES, east: 'mural' })).toBe(true);
   });
 });
