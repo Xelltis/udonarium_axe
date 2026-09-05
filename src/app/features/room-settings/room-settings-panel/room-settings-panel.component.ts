@@ -4,9 +4,11 @@ import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.se
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
@@ -20,6 +22,13 @@ import {
   RoomRules,
 } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import {
+  FACTION_PHASE_MODES,
+  FactionPhaseMode,
+  TURN_ORDER_MODES,
+  TurnOrderMode,
+} from '@axe/domain/tabletop/turn-order-mode';
+import { describeSide, encodeFactionOrder, normalizeFactionOrder } from '@axe/domain/tabletop/turn-side';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -43,8 +52,11 @@ export class RoomSettingsPanelComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly panelService = inject(PanelService);
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
+  private readonly turnOrder = inject(TurnOrderService);
   private readonly t = inject(TRANSLATE_FN);
 
+  readonly turnOrderModes = TURN_ORDER_MODES;
+  readonly factionPhaseModes = FACTION_PHASE_MODES;
   readonly moveUnits = MOVE_UNITS;
   readonly zocModes = ZOC_MODES;
 
@@ -112,6 +124,67 @@ export class RoomSettingsPanelComponent {
   /** What it costs on top is a question only for a room that charges for the ground. */
   get showsZocExtraCost(): boolean {
     return this.zocMode === 'cost';
+  }
+
+  get turnOrderMode(): TurnOrderMode {
+    this.objectChange.versionOf('Config')();
+    return this.config.turnOrderMode;
+  }
+  set turnOrderMode(mode: TurnOrderMode) {
+    if (this.isEditable) this.config.turnOrderMode = mode;
+  }
+
+  get takesRoundBySides(): boolean {
+    return this.turnOrderMode === 'faction';
+  }
+
+  get factionPhaseMode(): FactionPhaseMode {
+    this.objectChange.versionOf('Config')();
+    return this.config.factionPhaseMode;
+  }
+  set factionPhaseMode(mode: FactionPhaseMode) {
+    if (this.isEditable) this.config.factionPhaseMode = mode;
+  }
+
+  get factionSkipUnassigned(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.factionSkipUnassigned;
+  }
+  set factionSkipUnassigned(skips: boolean) {
+    if (this.isEditable) this.config.factionSkipUnassigned = skips;
+  }
+
+  /** The sides in the order the round takes them, named and coloured as the parties are. */
+  get factionOrder(): { side: string; name: string; color: string }[] {
+    this.objectChange.versionOf('Config')();
+    this.objectChange.collectionOf(Party.aliasName)();
+    const parties = this.parties();
+    return normalizeFactionOrder(this.config.factionOrder, parties, {
+      skipUnassigned: this.config.factionSkipUnassigned,
+    }).map((side) => ({ side, ...describeSide(side, parties, this.t('feature.turnOrder.unassignedSide')) }));
+  }
+
+  /** Moves one side up or down the order, which is the only time the order is written down. */
+  moveSide(side: string, by: number): void {
+    if (!this.isEditable) return;
+    const order = this.factionOrder.map((entry) => entry.side);
+    const from = order.indexOf(side);
+    const to = from + by;
+    if (from < 0 || to < 0 || to >= order.length) return;
+    order.splice(to, 0, ...order.splice(from, 1));
+    this.config.factionOrder = encodeFactionOrder(order);
+  }
+
+  get buffDecay(): boolean {
+    this.objectChange.versionOf('TurnState')();
+    return this.turnOrder.buffDecay;
+  }
+  set buffDecay(decays: boolean) {
+    if (this.isEditable) this.turnOrder.setBuffDecay(decays);
+  }
+
+  private parties(): Party[] {
+    return this.objectStore.getObjects<Party>(Party);
   }
 
   get diceBotInfos() {

@@ -388,7 +388,7 @@ describe('TurnOrderService', () => {
     let bystander: GameCharacter;
 
     function saidTo(): string[] {
-      return sendSpy.mock.calls.map((call) => call[0] as string);
+      return sendSpy.mock.calls.map((call: unknown[]) => call[0] as string);
     }
 
     beforeEach(() => {
