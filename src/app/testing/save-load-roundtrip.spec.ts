@@ -61,6 +61,22 @@ describe('save and load round trip', () => {
       expect(Config.instance.zocMode).toBe('stop');
     });
 
+    it('carries how the round is taken through a save and a load', () => {
+      const config = Config.instance;
+      config.turnOrderMode = 'faction';
+      config.factionPhaseMode = 'initiative';
+      config.factionOrder = 'p-a,p-b';
+      config.factionSkipUnassigned = true;
+
+      const xml = serializer.toXml(config);
+      serializer.parseXml(xml);
+
+      expect(Config.instance.turnOrderMode).toBe('faction');
+      expect(Config.instance.factionPhaseMode).toBe('initiative');
+      expect(Config.instance.factionOrder).toBe('p-a,p-b');
+      expect(Config.instance.factionSkipUnassigned).toBe(true);
+    });
+
     it('reads a room that was saved before it had rules to answer for', () => {
       const xml = '<config identifier="Config" _defaultDiceBot="DiceBot"></config>';
 

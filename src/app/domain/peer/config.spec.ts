@@ -55,6 +55,45 @@ describe('Config', () => {
     });
   });
 
+  describe('how the round is taken', () => {
+    it('takes the round one piece at a time until it is told otherwise', () => {
+      expect(Config.instance.turnOrderMode).toBe('initiative');
+      expect(Config.instance.factionPhaseMode).toBe('free');
+      expect(Config.instance.factionOrder).toBe('');
+      expect(Config.instance.factionSkipUnassigned).toBe(false);
+    });
+
+    it('returns the modes it is given', () => {
+      Config.instance.turnOrderMode = 'faction';
+      Config.instance.factionPhaseMode = 'initiative';
+
+      expect(Config.instance.turnOrderMode).toBe('faction');
+      expect(Config.instance.factionPhaseMode).toBe('initiative');
+    });
+
+    it('holds the order of the sides as it is written', () => {
+      Config.instance.factionOrder = 'p-a,p-b';
+
+      expect(Config.instance.factionOrder).toBe('p-a,p-b');
+    });
+
+    it('reads a mode it does not know as the one it starts on', () => {
+      Config.instance.setAttribute('_turnOrderMode', 'sides');
+
+      expect(Config.instance.turnOrderMode).toBe('initiative');
+    });
+
+    it('reads the flag back the way a loaded room writes it', () => {
+      Config.instance.factionSkipUnassigned = true;
+      Config.instance.setAttribute(
+        '_factionSkipUnassigned',
+        `${Config.instance.getAttribute('_factionSkipUnassigned')}`
+      );
+
+      expect(Config.instance.factionSkipUnassigned).toBe(true);
+    });
+  });
+
   describe('the rules of play', () => {
     it('answers nothing at all until it is asked', () => {
       expect(Config.instance.roomRuleAnswers).toEqual({

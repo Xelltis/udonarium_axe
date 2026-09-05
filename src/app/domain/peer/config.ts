@@ -13,6 +13,12 @@ import {
   writeRuleNumber,
   writeRuleText,
 } from '@axe/domain/tabletop/room-rules';
+import {
+  asFactionPhaseMode,
+  asTurnOrderMode,
+  FactionPhaseMode,
+  TurnOrderMode,
+} from '@axe/domain/tabletop/turn-order-mode';
 
 @SyncObject('config')
 export class Config extends ObjectNode implements InnerXml {
@@ -22,6 +28,12 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_systemDiceAvatarIdentifier') private _systemDiceAvatarIdentifier: string = '';
   @SyncVar('_hideSystemAvatar') private _hideSystemAvatar: string = '';
   @SyncVar('_showSpeakerAvatar') private _showSpeakerAvatar: string = '';
+
+  // How the round is taken, which is the room's own decision rather than a table's.
+  @SyncVar('_turnOrderMode') private _turnOrderMode: string = '';
+  @SyncVar('_factionPhaseMode') private _factionPhaseMode: string = '';
+  @SyncVar('_factionOrder') private _factionOrder: string = '';
+  @SyncVar('_factionSkipUnassigned') private _factionSkipUnassigned: string = '';
 
   // The rules of play the room answers for itself. Each one is left unanswered until the
   // room settings are asked, and whatever is unanswered stays with the table that is out.
@@ -80,6 +92,35 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set isSpeakerAvatarVisible(visible: boolean) {
     this._showSpeakerAvatar = visible ? '1' : '';
+  }
+
+  get turnOrderMode(): TurnOrderMode {
+    return asTurnOrderMode(this._turnOrderMode);
+  }
+  set turnOrderMode(mode: TurnOrderMode) {
+    this._turnOrderMode = asTurnOrderMode(mode);
+  }
+
+  get factionPhaseMode(): FactionPhaseMode {
+    return asFactionPhaseMode(this._factionPhaseMode);
+  }
+  set factionPhaseMode(mode: FactionPhaseMode) {
+    this._factionPhaseMode = asFactionPhaseMode(mode);
+  }
+
+  /** The sides in the order the round takes them, as a comma-separated list. */
+  get factionOrder(): string {
+    return this._factionOrder;
+  }
+  set factionOrder(order: string) {
+    this._factionOrder = order;
+  }
+
+  get factionSkipUnassigned(): boolean {
+    return this._factionSkipUnassigned === '1';
+  }
+  set factionSkipUnassigned(skips: boolean) {
+    this._factionSkipUnassigned = skips ? '1' : '';
   }
 
   get moveRangeEnabled(): boolean | null {
