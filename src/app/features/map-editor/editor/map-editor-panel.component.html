@@ -495,6 +495,15 @@
                       }}
                     </span>
                   </button>
+                  <button
+                    class="text-ui-dim hover:text-ui-accent flex shrink-0 cursor-pointer items-center border-0 bg-transparent p-0"
+                    [class.text-ui-accent]="faceTexturesOpen() === face"
+                    [attr.aria-label]="'feature.mapEditor.function.facePalette' | transloco"
+                    [title]="'feature.mapEditor.function.facePalette' | transloco"
+                    (click)="toggleFaceTextures(face)"
+                  >
+                    <i class="material-icons text-[16px]!">texture</i>
+                  </button>
                   @if (faceImageUrl(face)) {
                     <button
                       class="text-ui-dim hover:text-ui-danger flex shrink-0 cursor-pointer items-center border-0 bg-transparent p-0"
@@ -505,6 +514,38 @@
                     </button>
                   }
                 </div>
+                @if (faceTexturesOpen() === face) {
+                  <div class="border-ui-border-panel rounded-ui-sm max-h-64 overflow-y-auto border border-solid p-1.5">
+                    <div class="text-ui-muted mb-1 text-[11px]">
+                      {{ 'feature.mapEditor.function.paletteWall' | transloco }}
+                    </div>
+                    <div class="mb-2 grid grid-cols-4 gap-1">
+                      @for (id of wallTextureIds; track id) {
+                        <button
+                          class="rounded-ui-sm border-ui-border-panel hover:border-ui-accent size-11 overflow-hidden border-2 border-solid bg-cover bg-center"
+                          [style.background-image]="'url(' + wallTextureAssetUrls[id] + ')'"
+                          [style.background-color]="wallTextureBaseColor[id]"
+                          [title]="'common.textures.' + id | transloco"
+                          (click)="chooseFaceTexture(face, wallTextureAssetUrls[id])"
+                        ></button>
+                      }
+                    </div>
+                    <div class="text-ui-muted mb-1 text-[11px]">
+                      {{ 'feature.mapEditor.function.paletteGround' | transloco }}
+                    </div>
+                    <div class="grid grid-cols-4 gap-1">
+                      @for (id of groundTextureIds; track id) {
+                        <button
+                          class="rounded-ui-sm border-ui-border-panel hover:border-ui-accent size-11 overflow-hidden border-2 border-solid bg-cover bg-center"
+                          [style.background-image]="'url(' + textureAssetUrls[id] + ')'"
+                          [style.background-color]="textureBaseColor[id]"
+                          [title]="'common.textures.' + id | transloco"
+                          (click)="chooseFaceTexture(face, textureAssetUrls[id])"
+                        ></button>
+                      }
+                    </div>
+                  </div>
+                }
               }
             </div>
 

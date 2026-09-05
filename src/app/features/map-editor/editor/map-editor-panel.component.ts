@@ -16,6 +16,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { DungeonBuildService } from '@axe/application/tabletop/dungeon-build.service';
 import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -25,7 +26,15 @@ import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { isTextureId, TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
+import {
+  isTextureId,
+  TEXTURE_ASSET_URLS,
+  TEXTURE_BASE_COLOR,
+  TEXTURE_IDS,
+  WALL_TEXTURE_ASSET_URLS,
+  WALL_TEXTURE_BASE_COLOR,
+  WALL_TEXTURE_IDS,
+} from '@axe/domain/media/texture-catalog';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   MAP_FUNCTION_ROLES,
@@ -165,6 +174,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   }
   private readonly panelService = inject(PanelService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly dungeonBuild = inject(DungeonBuildService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -216,6 +226,27 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   protected clearFaceImage(face: keyof TerrainFaceImages): void {
     this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: '' } });
+  }
+
+  protected readonly wallTextureIds = WALL_TEXTURE_IDS;
+  protected readonly wallTextureAssetUrls = WALL_TEXTURE_ASSET_URLS;
+  protected readonly wallTextureBaseColor = WALL_TEXTURE_BASE_COLOR;
+  protected readonly groundTextureIds = TEXTURE_IDS;
+  protected readonly textureAssetUrls = TEXTURE_ASSET_URLS;
+  protected readonly textureBaseColor = TEXTURE_BASE_COLOR;
+
+  protected readonly faceTexturesOpen = signal<string>('');
+
+  protected toggleFaceTextures(face: keyof TerrainFaceImages): void {
+    this.faceTexturesOpen.update((held) => (held === face ? '' : face));
+  }
+
+  /** Dresses one face in a picture that ships with the room, the way the dungeons are built. */
+  protected chooseFaceTexture(face: keyof TerrainFaceImages, url: string): void {
+    const identifier = this.dungeonBuild.registerAsset(url);
+    if (identifier.length < 1) return;
+    this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: identifier } });
+    this.faceTexturesOpen.set('');
   }
 
   protected readonly settingsTool: ToolDef = { tool: 'settings', icon: 'settings', key: '' };

@@ -2601,7 +2601,10 @@
         "terrainTiled": "텍스처를 반복",
         "terrainGrid": "그리드를 그림",
         "terrainShadow": "그림자를 드리움",
-        "terrainShading": "면마다 음영"
+        "terrainShading": "면마다 음영",
+        "facePalette": "기본 제공 텍스처에서 선택",
+        "paletteWall": "던전 벽",
+        "paletteGround": "지면·바닥"
       },
       "stampCategories": {
         "door": "문",

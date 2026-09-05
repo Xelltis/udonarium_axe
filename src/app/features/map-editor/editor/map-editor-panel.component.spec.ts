@@ -87,6 +87,39 @@ describe('MapEditorPanelComponent', () => {
     expect(fixture.nativeElement.querySelector('canvas')).not.toBeNull();
   });
 
+  describe('dressing a wall in a picture that ships with the room', () => {
+    interface Dresser {
+      chooseFaceTexture: (face: 'wall', url: string) => void;
+      state: MapEditorState;
+    }
+
+    function dresser(): Dresser {
+      return component as unknown as Dresser;
+    }
+
+    it('wears the texture as an image the terrain can hold', () => {
+      imageStorage.get.mockReturnValue(undefined);
+      const add = vi.fn().mockReturnValue({ identifier: 'wall-asset' });
+      (imageStorage as unknown as { add: unknown }).add = add;
+
+      dresser().chooseFaceTexture('wall', 'assets/images/walls/wall_brick.webp');
+
+      expect(add).toHaveBeenCalledWith('assets/images/walls/wall_brick.webp');
+      expect(dresser().state.functionSpec().terrain.images.wall).toBe('wall-asset');
+    });
+
+    it('takes up a picture already kept rather than keeping it twice', () => {
+      imageStorage.get.mockReturnValue({ identifier: 'already-kept' });
+      const add = vi.fn();
+      (imageStorage as unknown as { add: unknown }).add = add;
+
+      dresser().chooseFaceTexture('wall', 'assets/images/walls/wall_brick.webp');
+
+      expect(add).not.toHaveBeenCalled();
+      expect(dresser().state.functionSpec().terrain.images.wall).toBe('already-kept');
+    });
+  });
+
   describe('being handed the brush as it opens', () => {
     interface Brushed {
       beginFunctionPaint: (role: 'moveBlock' | 'terrain' | 'mask') => void;

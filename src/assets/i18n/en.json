@@ -2601,7 +2601,10 @@
         "terrainTiled": "Tile the texture",
         "terrainGrid": "Draw a grid on it",
         "terrainShadow": "Cast a shadow",
-        "terrainShading": "Shade the faces"
+        "terrainShading": "Shade the faces",
+        "facePalette": "Pick a texture that ships with the room",
+        "paletteWall": "Dungeon walls",
+        "paletteGround": "Ground and floor"
       },
       "stampCategories": {
         "door": "Doors",

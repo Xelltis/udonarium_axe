@@ -2601,7 +2601,10 @@
         "terrainTiled": "テクスチャを敷き詰める",
         "terrainGrid": "グリッドを描く",
         "terrainShadow": "影を落とす",
-        "terrainShading": "面ごとに陰影をつける"
+        "terrainShading": "面ごとに陰影をつける",
+        "facePalette": "そなえつけのテクスチャから選ぶ",
+        "paletteWall": "ダンジョンの壁",
+        "paletteGround": "地面・床"
       },
       "stampCategories": {
         "door": "扉",
