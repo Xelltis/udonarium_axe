@@ -56,7 +56,7 @@ describe('FunctionalPaintService', () => {
     const byHand = Terrain.create('置いた壁', 3, 2, 4, '', '');
     table.appendChild(byHand);
 
-    expect(service.snapshot()!.terrainCells).toEqual(['3,4']);
+    expect(service.snapshot()!.terrainRects).toEqual([{ col: 3, row: 4, width: 1, height: 1 }]);
   });
 
   it('reads only the masks the editor painted', () => {
@@ -66,7 +66,7 @@ describe('FunctionalPaintService', () => {
     const byHand = GameTableMask.create('置いた覆い', 4, 4, 0.6);
     table.appendChild(byHand);
 
-    expect(service.snapshot()!.maskCells).toEqual(['5,6']);
+    expect(service.snapshot()!.maskRects).toEqual([{ col: 5, row: 6, width: 1, height: 1 }]);
   });
 
   describe('laying what was painted on the table', () => {
@@ -94,7 +94,17 @@ describe('FunctionalPaintService', () => {
       byHand.location = { name: 'table', x: 100, y: 150 };
       table.appendChild(byHand);
 
-      service.apply(plan({ terrain: { add: ['0,0'], remove: ['0,0', '5,5'] } }));
+      service.apply(
+        plan({
+          terrain: {
+            add: [{ col: 0, row: 0, width: 1, height: 1 }],
+            remove: [
+              { col: 0, row: 0, width: 1, height: 1 },
+              { col: 5, row: 5, width: 1, height: 1 },
+            ],
+          },
+        })
+      );
 
       const survivor = terrainOn().find((held) => held.identifier === byHand.identifier);
       expect(survivor).toBeTruthy();
@@ -106,13 +116,58 @@ describe('FunctionalPaintService', () => {
       const byHand = GameTableMask.create('置いた覆い', 4, 4, 0.6);
       table.appendChild(byHand);
 
-      service.apply(plan({ mask: { add: [], remove: ['0,0', '1,1'] } }));
+      service.apply(
+        plan({
+          mask: {
+            add: [],
+            remove: [
+              { col: 0, row: 0, width: 1, height: 1 },
+              { col: 1, row: 1, width: 1, height: 1 },
+            ],
+          },
+        })
+      );
 
       expect(masksOn().some((held) => held.identifier === byHand.identifier)).toBe(true);
     });
 
+    it('lays one wall across a whole block rather than one per cell', () => {
+      service.apply(plan({ terrain: { add: [{ col: 1, row: 2, width: 4, height: 2 }], remove: [] } }));
+
+      const laid = terrainOn();
+      expect(laid).toHaveLength(1);
+      expect(laid[0].width).toBe(4);
+      expect(laid[0].depth).toBe(2);
+      expect(laid[0].paintCell).toBe('1,2');
+      expect(laid[0].location.x).toBe(1 * 50);
+      expect(laid[0].location.y).toBe(2 * 50);
+    });
+
+    it('reads a laid block back as the block it is', () => {
+      service.apply(plan({ terrain: { add: [{ col: 1, row: 2, width: 4, height: 2 }], remove: [] } }));
+
+      expect(service.snapshot()!.terrainRects).toEqual([{ col: 1, row: 2, width: 4, height: 2 }]);
+    });
+
+    it('pulls a block down only when the block itself is the one going', () => {
+      service.apply(plan({ terrain: { add: [{ col: 1, row: 2, width: 4, height: 2 }], remove: [] } }));
+
+      service.apply(plan({ terrain: { add: [], remove: [{ col: 1, row: 2, width: 1, height: 1 }] } }));
+      expect(terrainOn()).toHaveLength(1);
+
+      service.apply(plan({ terrain: { add: [], remove: [{ col: 1, row: 2, width: 4, height: 2 }] } }));
+      expect(terrainOn()).toHaveLength(0);
+    });
+
+    it('lays a mask across a whole block too', () => {
+      service.apply(plan({ mask: { add: [{ col: 0, row: 0, width: 3, height: 2 }], remove: [] } }));
+
+      expect(masksOn()[0].width).toBe(3);
+      expect(masksOn()[0].height).toBe(2);
+    });
+
     it('lays a wall on each cell it was told to, marked with the cell it belongs to', () => {
-      service.apply(plan({ terrain: { add: ['2,3'], remove: [] } }));
+      service.apply(plan({ terrain: { add: [{ col: 2, row: 3, width: 1, height: 1 }], remove: [] } }));
 
       const laid = terrainOn();
       expect(laid).toHaveLength(1);
@@ -122,9 +177,19 @@ describe('FunctionalPaintService', () => {
     });
 
     it('takes away only the wall it painted onto the cell it is done with', () => {
-      service.apply(plan({ terrain: { add: ['1,1', '2,2'], remove: [] } }));
+      service.apply(
+        plan({
+          terrain: {
+            add: [
+              { col: 1, row: 1, width: 1, height: 1 },
+              { col: 2, row: 2, width: 1, height: 1 },
+            ],
+            remove: [],
+          },
+        })
+      );
 
-      service.apply(plan({ terrain: { add: [], remove: ['1,1'] } }));
+      service.apply(plan({ terrain: { add: [], remove: [{ col: 1, row: 1, width: 1, height: 1 }] } }));
 
       expect(terrainOn().map((held) => held.paintCell)).toEqual(['2,2']);
     });
@@ -132,7 +197,7 @@ describe('FunctionalPaintService', () => {
     it('gives a laid wall the settings the layer carried', () => {
       service.apply(
         plan({
-          terrain: { add: ['0,0'], remove: [] },
+          terrain: { add: [{ col: 0, row: 0, width: 1, height: 1 }], remove: [] },
           terrainSpec: { ...DEFAULT_FUNCTION_SPEC.terrain, blocksSight: false, blocksLight: false },
         })
       );
@@ -143,7 +208,10 @@ describe('FunctionalPaintService', () => {
 
     it('gives a laid mask the fraction of opacity the layer carried', () => {
       service.apply(
-        plan({ mask: { add: ['0,0'], remove: [] }, maskSpec: { ...DEFAULT_FUNCTION_SPEC.mask, opacity: 0.25 } })
+        plan({
+          mask: { add: [{ col: 0, row: 0, width: 1, height: 1 }], remove: [] },
+          maskSpec: { ...DEFAULT_FUNCTION_SPEC.mask, opacity: 0.25 },
+        })
       );
 
       expect(masksOn()[0].opacity).toBeCloseTo(0.25, 5);
@@ -152,7 +220,7 @@ describe('FunctionalPaintService', () => {
     it('dresses a laid wall in every picture the brush carried', () => {
       service.apply(
         plan({
-          terrain: { add: ['0,0'], remove: [] },
+          terrain: { add: [{ col: 0, row: 0, width: 1, height: 1 }], remove: [] },
           terrainSpec: {
             ...DEFAULT_FUNCTION_SPEC.terrain,
             height: 3,
@@ -176,14 +244,17 @@ describe('FunctionalPaintService', () => {
     });
 
     it('leaves a wall the brush dressed in nothing as glass', () => {
-      service.apply(plan({ terrain: { add: ['0,0'], remove: [] } }));
+      service.apply(plan({ terrain: { add: [{ col: 0, row: 0, width: 1, height: 1 }], remove: [] } }));
 
       expect(terrainOn()[0].hasFaceImage).toBe(false);
     });
 
     it('gives a laid mask the colour the layer carried', () => {
       service.apply(
-        plan({ mask: { add: ['0,0'], remove: [] }, maskSpec: { ...DEFAULT_FUNCTION_SPEC.mask, color: '#abcdef' } })
+        plan({
+          mask: { add: [{ col: 0, row: 0, width: 1, height: 1 }], remove: [] },
+          maskSpec: { ...DEFAULT_FUNCTION_SPEC.mask, color: '#abcdef' },
+        })
       );
 
       expect(masksOn()[0].color).toBe('#abcdef');
@@ -202,7 +273,9 @@ describe('FunctionalPaintService', () => {
     it('will not lay anything with no table out', () => {
       table.gridSize = 0;
 
-      expect(service.apply(plan({ terrain: { add: ['0,0'], remove: [] } }))).toBe(false);
+      expect(service.apply(plan({ terrain: { add: [{ col: 0, row: 0, width: 1, height: 1 }], remove: [] } }))).toBe(
+        false
+      );
     });
   });
 

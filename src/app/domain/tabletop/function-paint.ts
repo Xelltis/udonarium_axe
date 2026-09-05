@@ -1,3 +1,5 @@
+import { CellRect } from '@axe/domain/tabletop/cell-rectangles';
+
 /**
  * What a painted cell does, and what it lays on the table.
  *
@@ -154,8 +156,8 @@ export function wearsAnyImage(images: TerrainFaceImages): boolean {
 }
 
 export interface CellChange {
-  add: string[];
-  remove: string[];
+  add: CellRect[];
+  remove: CellRect[];
 }
 
 /** What has to change on the table for it to match what was painted. */

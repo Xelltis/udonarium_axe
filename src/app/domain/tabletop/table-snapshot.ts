@@ -1,3 +1,4 @@
+import { CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 /**
@@ -15,8 +16,8 @@ export interface TableSnapshot {
   floorImageIdentifier: string;
   /** The cells the table is closed on, as `"col,row"`. */
   blockedCells: readonly string[];
-  /** The cells the editor painted a wall onto. */
-  terrainCells: readonly string[];
-  /** The cells the editor painted a cover onto. */
-  maskCells: readonly string[];
+  /** The blocks of wall the editor painted, as they stand on the table. */
+  terrainRects: readonly CellRect[];
+  /** The blocks of cover the editor painted. */
+  maskRects: readonly CellRect[];
 }

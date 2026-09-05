@@ -10,8 +10,8 @@ function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
     gridType: GridType.SQUARE,
     floorImageIdentifier: '',
     blockedCells: [],
-    terrainCells: [],
-    maskCells: [],
+    terrainRects: [],
+    maskRects: [],
     ...over,
   };
 }
@@ -67,7 +67,13 @@ describe('sceneFromTable()', () => {
   });
 
   it('keeps each kind of painted cell in its own layer', () => {
-    const scene = sceneFromTable(snapshot({ blockedCells: ['0,0'], terrainCells: ['1,0'], maskCells: ['2,0'] }));
+    const scene = sceneFromTable(
+      snapshot({
+        blockedCells: ['0,0'],
+        terrainRects: [{ col: 1, row: 0, width: 1, height: 1 }],
+        maskRects: [{ col: 2, row: 0, width: 1, height: 1 }],
+      })
+    );
 
     const roles = scene.layers.filter((held) => held.kind === 'function').map((held) => (held as FunctionLayer).role);
     expect(roles.sort()).toEqual(['mask', 'moveBlock', 'terrain']);

@@ -1,3 +1,4 @@
+import { rectKey } from '@axe/domain/tabletop/cell-rectangles';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { DEFAULT_FUNCTION_SPEC, MapFunctionRole } from '@axe/features/map-editor/model/function-layer';
@@ -33,8 +34,8 @@ function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
     gridType: GridType.SQUARE,
     floorImageIdentifier: '',
     blockedCells: [],
-    terrainCells: [],
-    maskCells: [],
+    terrainRects: [],
+    maskRects: [],
     ...over,
   };
 }
@@ -69,15 +70,23 @@ describe('planFunctionPaint()', () => {
   it('adds what was painted and takes away what was rubbed out', () => {
     const plan = planFunctionPaint(
       sceneWith(layerOf('terrain', ['0,0', '1,0'])),
-      snapshot({ terrainCells: ['1,0', '2,0'] })
+      snapshot({
+        terrainRects: [
+          { col: 1, row: 0, width: 1, height: 1 },
+          { col: 2, row: 0, width: 1, height: 1 },
+        ],
+      })
     )!;
 
-    expect(plan.terrain.add).toEqual(['0,0']);
-    expect(plan.terrain.remove).toEqual(['2,0']);
+    expect(plan.terrain.add).toEqual([{ col: 0, row: 0, width: 2, height: 1 }]);
+    expect(plan.terrain.remove.map(rectKey).sort()).toEqual(['1,0,1,1', '2,0,1,1']);
   });
 
   it('leaves a cell that was already there alone', () => {
-    const plan = planFunctionPaint(sceneWith(layerOf('mask', ['4,4'])), snapshot({ maskCells: ['4,4'] }))!;
+    const plan = planFunctionPaint(
+      sceneWith(layerOf('mask', ['4,4'])),
+      snapshot({ maskRects: [{ col: 4, row: 4, width: 1, height: 1 }] })
+    )!;
 
     expect(plan.mask.add).toEqual([]);
     expect(plan.mask.remove).toEqual([]);
@@ -106,17 +115,23 @@ describe('planFunctionPaint()', () => {
   });
 
   it('takes away everything the editor painted where the scene has nothing left', () => {
-    const plan = planFunctionPaint(sceneWith(), snapshot({ terrainCells: ['0,0'], maskCells: ['1,1'] }))!;
+    const plan = planFunctionPaint(
+      sceneWith(),
+      snapshot({
+        terrainRects: [{ col: 0, row: 0, width: 1, height: 1 }],
+        maskRects: [{ col: 1, row: 1, width: 1, height: 1 }],
+      })
+    )!;
 
-    expect(plan.terrain.remove).toEqual(['0,0']);
-    expect(plan.mask.remove).toEqual(['1,1']);
+    expect(plan.terrain.remove.map(rectKey)).toEqual(['0,0,1,1']);
+    expect(plan.mask.remove.map(rectKey)).toEqual(['1,1,1,1']);
     expect(plan.blocked).toEqual([]);
   });
 });
 
 describe('planChangesNothing()', () => {
   it('says so where the table already matches', () => {
-    const table = snapshot({ blockedCells: ['1,1'], terrainCells: ['2,2'] });
+    const table = snapshot({ blockedCells: ['1,1'], terrainRects: [{ col: 2, row: 2, width: 1, height: 1 }] });
     const plan = planFunctionPaint(sceneWith(layerOf('moveBlock', ['1,1']), layerOf('terrain', ['2,2'])), table)!;
 
     expect(planChangesNothing(plan, table)).toBe(true);
@@ -127,5 +142,32 @@ describe('planChangesNothing()', () => {
     const plan = planFunctionPaint(sceneWith(layerOf('moveBlock', ['1,1'])), table)!;
 
     expect(planChangesNothing(plan, table)).toBe(false);
+  });
+});
+
+describe('the blocks a painting comes to', () => {
+  it('lays a row of painted cells as one long wall rather than a row of posts', () => {
+    const plan = planFunctionPaint(sceneWith(layerOf('terrain', ['0,0', '1,0', '2,0'])), snapshot())!;
+
+    expect(plan.terrain.add).toEqual([{ col: 0, row: 0, width: 3, height: 1 }]);
+  });
+
+  it('leaves a wall that already stands exactly as it is', () => {
+    const table = snapshot({ terrainRects: [{ col: 0, row: 0, width: 3, height: 1 }] });
+
+    const plan = planFunctionPaint(sceneWith(layerOf('terrain', ['0,0', '1,0', '2,0'])), table)!;
+
+    expect(plan.terrain.add).toEqual([]);
+    expect(plan.terrain.remove).toEqual([]);
+    expect(planChangesNothing(plan, table)).toBe(true);
+  });
+
+  it('rebuilds a wall that grew rather than adding a post beside it', () => {
+    const table = snapshot({ terrainRects: [{ col: 0, row: 0, width: 3, height: 1 }] });
+
+    const plan = planFunctionPaint(sceneWith(layerOf('terrain', ['0,0', '1,0', '2,0', '3,0'])), table)!;
+
+    expect(plan.terrain.add.map(rectKey)).toEqual(['0,0,4,1']);
+    expect(plan.terrain.remove.map(rectKey)).toEqual(['0,0,3,1']);
   });
 });

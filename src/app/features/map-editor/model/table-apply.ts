@@ -1,3 +1,4 @@
+import { CellRect, largestRectangles, rectangleChange } from '@axe/domain/tabletop/cell-rectangles';
 import {
   CellChange,
   DEFAULT_FUNCTION_SPEC,
@@ -37,13 +38,9 @@ export function specForRole(scene: MapScene, role: MapFunctionRole): FunctionSpe
   return { ...DEFAULT_FUNCTION_SPEC };
 }
 
-function changeBetween(wanted: readonly string[], held: readonly string[]): CellChange {
-  const has = new Set(held);
-  const wants = new Set(wanted);
-  return {
-    add: [...wants].filter((key) => !has.has(key)),
-    remove: [...has].filter((key) => !wants.has(key)),
-  };
+/** The blocks a role's painting comes to, which is what the table is asked to build. */
+function blocksFor(scene: MapScene, role: MapFunctionRole): CellRect[] {
+  return largestRectangles(cellsForRole(scene, role));
 }
 
 /**
@@ -61,8 +58,8 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
 
   return {
     blocked: cellsForRole(scene, 'moveBlock'),
-    terrain: changeBetween(cellsForRole(scene, 'terrain'), table.terrainCells),
-    mask: changeBetween(cellsForRole(scene, 'mask'), table.maskCells),
+    terrain: rectangleChange(blocksFor(scene, 'terrain'), table.terrainRects),
+    mask: rectangleChange(blocksFor(scene, 'mask'), table.maskRects),
     terrainSpec: specForRole(scene, 'terrain').terrain,
     maskSpec: specForRole(scene, 'mask').mask,
   };

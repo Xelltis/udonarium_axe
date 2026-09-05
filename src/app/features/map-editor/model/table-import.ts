@@ -1,3 +1,4 @@
+import { rectCells } from '@axe/domain/tabletop/cell-rectangles';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { DEFAULT_FUNCTION_SPEC, MapFunctionRole } from '@axe/features/map-editor/model/function-layer';
 import {
@@ -78,8 +79,10 @@ export function sceneFromTable(table: TableSnapshot): MapScene {
     layers.push(floor);
   }
 
-  if (table.maskCells.length > 0) layers.push(functionLayer('mask', 'mask', table.maskCells));
-  if (table.terrainCells.length > 0) layers.push(functionLayer('terrain', 'terrain', table.terrainCells));
+  const maskCells = table.maskRects.flatMap(rectCells);
+  const terrainCells = table.terrainRects.flatMap(rectCells);
+  if (maskCells.length > 0) layers.push(functionLayer('mask', 'mask', maskCells));
+  if (terrainCells.length > 0) layers.push(functionLayer('terrain', 'terrain', terrainCells));
   if (table.blockedCells.length > 0) layers.push(functionLayer('moveBlock', 'no entry', table.blockedCells));
 
   return { ...scene, layers };

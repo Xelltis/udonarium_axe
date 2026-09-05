@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
 import { DataElement } from '@axe/domain/data/data-element';
+import { CellRect, rectKey } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { FunctionPaintPlan, TerrainPaintSpec } from '@axe/domain/tabletop/function-paint';
@@ -71,14 +72,32 @@ export function blockedCellKeysOn(table: GameTable, grid: CellGrid): string[] {
   return keys;
 }
 
-/** The cells the editor painted an object onto. Anything placed by hand answers with nothing. */
-export function paintedCellKeysOf(objects: readonly { paintCell: string }[]): string[] {
-  const keys: string[] = [];
+/**
+ * The blocks the editor painted, as they stand.
+ *
+ * The cell an object was painted onto is where it starts, and its own footprint says how far
+ * it reaches, so a wall ten cells long comes back as one block rather than as ten.
+ */
+export function paintedRectsOf(objects: readonly PaintedBlock[]): CellRect[] {
+  const rects: CellRect[] = [];
   for (const object of objects) {
     const cell = parsePaintedCell(object.paintCell);
-    if (cell) keys.push(cellKeyOf(cell.col, cell.row));
+    if (!cell) continue;
+    rects.push({
+      col: cell.col,
+      row: cell.row,
+      width: Math.max(1, Math.floor(object.width)),
+      height: Math.max(1, Math.floor(object.footprintDepth)),
+    });
   }
-  return keys;
+  return rects;
+}
+
+interface PaintedBlock {
+  paintCell: string;
+  width: number;
+  /** How far it reaches away from the reader, which a terrain calls depth and a mask height. */
+  footprintDepth: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -119,41 +138,52 @@ export class FunctionalPaintService {
 
   private layTerrain(table: GameTable, plan: FunctionPaintPlan): void {
     const painted = table.children.filter((child): child is Terrain => child instanceof Terrain);
-    this.takeAway(painted, plan.terrain.remove);
+    this.takeAway(
+      painted.map((held) => ({ object: held, width: held.width, footprintDepth: held.depth })),
+      plan.terrain.remove
+    );
 
-    for (const key of plan.terrain.add) {
-      const cell = parseCellKey(key);
-      if (!cell) continue;
-      const terrain = layTerrainBlock(plan.terrainSpec, 1, 1);
-      terrain.paintCell = encodePaintedCell(cell);
-      terrain.location = { name: 'table', x: cell.col * table.gridSize, y: cell.row * table.gridSize };
+    for (const rect of plan.terrain.add) {
+      const terrain = layTerrainBlock(plan.terrainSpec, rect.width, rect.height);
+      terrain.paintCell = encodePaintedCell(rect);
+      terrain.location = { name: 'table', x: rect.col * table.gridSize, y: rect.row * table.gridSize };
       table.appendChild(terrain);
     }
   }
 
   private layMasks(table: GameTable, plan: FunctionPaintPlan): void {
     const painted = table.children.filter((child): child is GameTableMask => child instanceof GameTableMask);
-    this.takeAway(painted, plan.mask.remove);
+    this.takeAway(
+      painted.map((held) => ({ object: held, width: held.width, footprintDepth: held.height })),
+      plan.mask.remove
+    );
 
-    for (const key of plan.mask.add) {
-      const cell = parseCellKey(key);
-      if (!cell) continue;
-      const mask = GameTableMask.create('', 1, 1, MASK_OPACITY_FULL);
+    for (const rect of plan.mask.add) {
+      const mask = GameTableMask.create('', rect.width, rect.height, MASK_OPACITY_FULL);
       paintMaskColor(mask, plan.maskSpec.color);
       setMaskOpacity(mask, plan.maskSpec.opacity);
-      mask.paintCell = encodePaintedCell(cell);
-      mask.location = { name: 'table', x: cell.col * table.gridSize, y: cell.row * table.gridSize };
+      mask.paintCell = encodePaintedCell(rect);
+      mask.location = { name: 'table', x: rect.col * table.gridSize, y: rect.row * table.gridSize };
       table.appendChild(mask);
     }
   }
 
-  /** Takes away only what the editor painted onto the cells it is done with. */
-  private takeAway(objects: readonly { paintCell: string; destroy(): void }[], cells: readonly string[]): void {
-    const going = new Set(cells);
-    for (const object of objects) {
-      const cell = parsePaintedCell(object.paintCell);
+  /** Takes away only the blocks the editor painted and is now done with. */
+  private takeAway(
+    held: readonly { object: { paintCell: string; destroy(): void }; width: number; footprintDepth: number }[],
+    going: readonly CellRect[]
+  ): void {
+    const keys = new Set(going.map(rectKey));
+    for (const entry of held) {
+      const cell = parsePaintedCell(entry.object.paintCell);
       if (!cell) continue;
-      if (going.has(cellKeyOf(cell.col, cell.row))) object.destroy();
+      const rect: CellRect = {
+        col: cell.col,
+        row: cell.row,
+        width: Math.max(1, Math.floor(entry.width)),
+        height: Math.max(1, Math.floor(entry.footprintDepth)),
+      };
+      if (keys.has(rectKey(rect))) entry.object.destroy();
     }
   }
 
@@ -171,9 +201,15 @@ export class FunctionalPaintService {
       gridType: table.gridType,
       floorImageIdentifier: table.imageIdentifier,
       blockedCells: blockedCellKeysOn(table, grid),
-      terrainCells: paintedCellKeysOf(table.children.filter((child): child is Terrain => child instanceof Terrain)),
-      maskCells: paintedCellKeysOf(
-        table.children.filter((child): child is GameTableMask => child instanceof GameTableMask)
+      terrainRects: paintedRectsOf(
+        table.children
+          .filter((child): child is Terrain => child instanceof Terrain)
+          .map((held) => ({ paintCell: held.paintCell, width: held.width, footprintDepth: held.depth }))
+      ),
+      maskRects: paintedRectsOf(
+        table.children
+          .filter((child): child is GameTableMask => child instanceof GameTableMask)
+          .map((held) => ({ paintCell: held.paintCell, width: held.width, footprintDepth: held.height }))
       ),
     };
   }
