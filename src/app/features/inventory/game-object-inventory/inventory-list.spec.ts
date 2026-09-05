@@ -1,6 +1,7 @@
 import { matchesSearchText } from '@axe/core/util/text-search';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
+  bandRowsBySide,
   buildInventoryRow,
   filterInventoryRows,
   filterInventoryRowsByHidden,
@@ -97,5 +98,47 @@ describe('filterInventoryRowsByHidden()', () => {
 
   it('drops what the inventory hides', () => {
     expect(filterInventoryRowsByHidden(rows, 'exclude', isHidden)).toEqual([shown]);
+  });
+});
+
+describe('bandRowsBySide()', () => {
+  const sides = [
+    { side: 'heroes', name: '味方', color: '#00f', members: [{ identifier: 'a' }, { identifier: 'c' }] },
+    { side: 'monsters', name: '敵', color: '#f00', members: [{ identifier: 'b' }] },
+  ];
+
+  function row(identifier: string) {
+    return { identifier };
+  }
+
+  it('gathers the rows under their sides, in the order the sides are taken', () => {
+    const bands = bandRowsBySide([row('b'), row('a'), row('c')], sides, (held) => held.identifier);
+
+    expect(bands.map((band) => band.side)).toEqual(['heroes', 'monsters']);
+    expect(bands[0].rows.map((held) => held.identifier)).toEqual(['a', 'c']);
+    expect(bands[1].rows.map((held) => held.identifier)).toEqual(['b']);
+  });
+
+  it('keeps the order the rows came in within a side', () => {
+    const bands = bandRowsBySide([row('c'), row('a')], sides, (held) => held.identifier);
+
+    expect(bands[0].rows.map((held) => held.identifier)).toEqual(['c', 'a']);
+  });
+
+  it('puts a row on no side last, under no name', () => {
+    const bands = bandRowsBySide([row('z'), row('a')], sides, (held) => held.identifier);
+
+    expect(bands.map((band) => band.side)).toEqual(['heroes', '']);
+    expect(bands[1].rows.map((held) => held.identifier)).toEqual(['z']);
+  });
+
+  it('leaves no heading behind for a side nobody is listed under', () => {
+    const bands = bandRowsBySide([row('b')], sides, (held) => held.identifier);
+
+    expect(bands.map((band) => band.side)).toEqual(['monsters']);
+  });
+
+  it('answers with nothing at all where there is nothing to gather', () => {
+    expect(bandRowsBySide([], sides, (held: { identifier: string }) => held.identifier)).toEqual([]);
   });
 });

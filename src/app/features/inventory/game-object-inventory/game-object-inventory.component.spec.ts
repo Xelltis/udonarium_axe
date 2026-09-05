@@ -111,6 +111,60 @@ describe('GameObjectInventoryComponent', () => {
       expect(headings.map((node) => node.getAttribute('title'))).toEqual(['味方', '敵']);
     });
 
+    it('heads the full list with each side as well as the round strip', async () => {
+      const heroes = new Party();
+      heroes.name = '味方';
+      heroes.initialize();
+      const monsters = new Party();
+      monsters.name = '敵';
+      monsters.initialize();
+      putOnTable('勇者', heroes.identifier);
+      putOnTable('魔物', monsters.identifier);
+      Config.instance.turnOrderMode = 'faction';
+      Config.instance.factionSkipUnassigned = true;
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const headings = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll(
+          '[data-testid="inventory-side-heading"] span:nth-child(2)'
+        ),
+      ];
+      expect(headings.map((node) => node.textContent?.trim())).toEqual(['味方', '敵']);
+    });
+
+    it('heads the table view with each side too', async () => {
+      const heroes = new Party();
+      heroes.name = '味方';
+      heroes.initialize();
+      putOnTable('勇者', heroes.identifier);
+      Config.instance.turnOrderMode = 'faction';
+      Config.instance.factionSkipUnassigned = true;
+      TestBed.inject(GameObjectInventoryService).tableDataTag = 'HP';
+      component.setViewMode('table');
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const headings = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll(
+          '[data-testid="inventory-table-side-heading"] span span:nth-child(2)'
+        ),
+      ];
+      expect(headings.map((node) => node.textContent?.trim())).toEqual(['味方']);
+    });
+
+    it('leaves the list unheaded while the round is taken one piece at a time', async () => {
+      putOnTable('だれか');
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.sideBands()).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-side-heading"]')).toBeNull();
+    });
+
     it('takes the colour of the party for the side', () => {
       const heroes = new Party();
       heroes.name = '味方';

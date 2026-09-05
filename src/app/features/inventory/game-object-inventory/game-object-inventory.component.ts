@@ -17,7 +17,12 @@ import { StatusAilmentService } from '@axe/application/character/status-ailment.
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import { buildInventoryTable, InventoryTable, InventoryTableColumn } from '@axe/application/inventory/inventory-table';
+import {
+  buildInventoryTable,
+  InventoryTable,
+  InventoryTableColumn,
+  InventoryTableRow,
+} from '@axe/application/inventory/inventory-table';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -71,12 +76,14 @@ import {
   type FolderTree,
 } from '@axe/features/inventory/game-object-inventory/inventory-folder-tree';
 import {
+  bandRowsBySide,
   buildInventoryRow,
   filterInventoryRows,
   filterInventoryRowsByHidden,
   type InventoryHiddenFilter,
   type InventoryRow,
   inventorySearchText,
+  type SideBand,
 } from '@axe/features/inventory/game-object-inventory/inventory-list';
 import { InventoryObjectDrag } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
 import { InventoryFilterService } from '@axe/features/inventory/inventory-filter.service';
@@ -406,6 +413,30 @@ export class GameObjectInventoryComponent {
       color: this.turnOrderService.sideColor(group.side),
       members: group.members,
     }));
+  });
+
+  /**
+   * The listed rows gathered under their sides, or nothing where they should not be.
+   *
+   * Only the table's own list is banded, and only while the round is taken side by side.
+   * A search or a folder tree does its own gathering, and a second one over the top of it
+   * would leave the reader with two answers to the same question.
+   */
+  readonly sideBands = computed<SideBand<InventoryRow>[] | null>(() => {
+    if (this.selectTab() !== 'table') return null;
+    if (this.showTree() || this.hasQuery()) return null;
+    const sides = this.turnSides();
+    if (sides.length < 1) return null;
+    return bandRowsBySide(this.filteredRows(), sides, (row) => row.identifier);
+  });
+
+  /** The same banding for the table view, whose rows carry their piece rather than being one. */
+  readonly tableSideBands = computed<SideBand<InventoryTableRow>[] | null>(() => {
+    if (this.selectTab() !== 'table') return null;
+    if (this.hasQuery()) return null;
+    const sides = this.turnSides();
+    if (sides.length < 1) return null;
+    return bandRowsBySide(this.inventoryTable().rows, sides, (row) => row.object.identifier);
   });
 
   readonly currentTurnSide = computed<string>(() => {

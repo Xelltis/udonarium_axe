@@ -307,6 +307,13 @@
               </div>
             }
           }
+        } @else if (sideBands(); as bands) {
+          @for (band of bands; track band.side) {
+            <ng-container *ngTemplateOutlet="sideHeading; context: { $implicit: band }"></ng-container>
+            @for (row of band.rows; track row.identifier) {
+              <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
+            }
+          }
         } @else {
           @for (row of filteredRows(); track row.identifier) {
             <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
@@ -535,122 +542,143 @@
           </tr>
         </thead>
         <tbody>
-          @for (row of table.rows; track row.object.identifier) {
-            <tr
-              data-testid="inventory-table-row"
-              class="hover:bg-ui-hover cursor-pointer transition-colors select-none"
-              [class.bg-ui-accent-bg!]="selectedIdentifier() === row.object.identifier"
-              [class.opacity-50]="isHiddenRowDimmed(row.object)"
-              [class.italic]="isHiddenRowDimmed(row.object)"
-              (contextmenu)="onContextMenu($event, row.object)"
-              (click)="selectGameObject(row.object)"
-              (dblclick)="focusToObject($event, row.object)"
-            >
-              @if (isMultiMove()) {
-                <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
-                  <input
-                    class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
-                    type="checkbox"
-                    [checked]="multiMoveTargets().has(row.object.identifier)"
-                    (click)="$event.stopPropagation()"
-                    (change)="toggleMultiMoveTarget($event, $any(row.object))"
-                  />
-                </td>
-              }
-              <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
-                <span class="flex items-center justify-end gap-0.5">
-                  @if (currentTurnId() !== row.object.identifier && actedIds().has(row.object.identifier)) {
-                    <i
-                      class="material-icons text-ui-dim block text-[14px]!"
-                      [title]="'feature.turnOrder.acted' | transloco"
-                      >check</i
-                    >
-                  } @else {
-                    <i
-                      class="material-icons text-ui-accent block text-[14px]!"
-                      [class.invisible]="currentTurnId() !== row.object.identifier"
-                      >play_arrow</i
-                    >
-                  }
-                  <span class="text-ui-muted tabular-nums">{{ row.order }}</span>
-                </span>
-              </td>
-              <td class="border-ui-border-panel w-0 border-b border-solid py-0.5 pr-1">
-                <span
-                  class="bg-ui-input border-ui-border-panel flex size-4.5 items-center justify-center overflow-hidden rounded-sm border border-solid"
+          @let bandedRows = tableSideBands();
+          @for (band of bandedRows ?? [{ side: '', name: '', color: '', rows: table.rows }]; track band.side) {
+            @if (band.side.length > 0) {
+              <tr data-testid="inventory-table-side-heading">
+                <th
+                  class="bg-ui-elevated border-ui-border-panel border-b border-solid px-1.5 py-0.5 text-left"
+                  scope="colgroup"
+                  colspan="99"
                 >
-                  @if (row.object.imageFile.url) {
-                    <img
-                      class="size-full object-cover object-top"
-                      [src]="row.object.imageFile.url | safe: 'resourceUrl'"
-                      draggable="false"
-                      alt=""
+                  <span class="flex items-center gap-1.5">
+                    <span
+                      class="size-2 shrink-0 rounded-full"
+                      [style.background]="band.color || 'var(--ui-dim)'"
+                    ></span>
+                    <span class="text-ui-muted text-[11px] font-semibold">{{ band.name }}</span>
+                    <span class="text-ui-dim text-[10px]">{{ band.rows.length }}</span>
+                  </span>
+                </th>
+              </tr>
+            }
+            @for (row of band.rows; track row.object.identifier) {
+              <tr
+                data-testid="inventory-table-row"
+                class="hover:bg-ui-hover cursor-pointer transition-colors select-none"
+                [class.bg-ui-accent-bg!]="selectedIdentifier() === row.object.identifier"
+                [class.opacity-50]="isHiddenRowDimmed(row.object)"
+                [class.italic]="isHiddenRowDimmed(row.object)"
+                (contextmenu)="onContextMenu($event, row.object)"
+                (click)="selectGameObject(row.object)"
+                (dblclick)="focusToObject($event, row.object)"
+              >
+                @if (isMultiMove()) {
+                  <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
+                    <input
+                      class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                      type="checkbox"
+                      [checked]="multiMoveTargets().has(row.object.identifier)"
+                      (click)="$event.stopPropagation()"
+                      (change)="toggleMultiMoveTarget($event, $any(row.object))"
                     />
-                  }
-                </span>
-              </td>
-              <td class="border-ui-border-panel border-b border-solid px-1 py-0.5">
-                <span class="flex items-center gap-1 font-semibold" [title]="row.object.name">
-                  <span class="max-w-40 truncate">{{ row.object.name }}</span>
-                  @if (!canView(row.object)) {
-                    <i class="material-icons text-ui-dim shrink-0 text-[12px]!">lock</i>
-                  }
-                </span>
-              </td>
+                  </td>
+                }
+                <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
+                  <span class="flex items-center justify-end gap-0.5">
+                    @if (currentTurnId() !== row.object.identifier && actedIds().has(row.object.identifier)) {
+                      <i
+                        class="material-icons text-ui-dim block text-[14px]!"
+                        [title]="'feature.turnOrder.acted' | transloco"
+                        >check</i
+                      >
+                    } @else {
+                      <i
+                        class="material-icons text-ui-accent block text-[14px]!"
+                        [class.invisible]="currentTurnId() !== row.object.identifier"
+                        >play_arrow</i
+                      >
+                    }
+                    <span class="text-ui-muted tabular-nums">{{ row.order }}</span>
+                  </span>
+                </td>
+                <td class="border-ui-border-panel w-0 border-b border-solid py-0.5 pr-1">
+                  <span
+                    class="bg-ui-input border-ui-border-panel flex size-4.5 items-center justify-center overflow-hidden rounded-sm border border-solid"
+                  >
+                    @if (row.object.imageFile.url) {
+                      <img
+                        class="size-full object-cover object-top"
+                        [src]="row.object.imageFile.url | safe: 'resourceUrl'"
+                        draggable="false"
+                        alt=""
+                      />
+                    }
+                  </span>
+                </td>
+                <td class="border-ui-border-panel border-b border-solid px-1 py-0.5">
+                  <span class="flex items-center gap-1 font-semibold" [title]="row.object.name">
+                    <span class="max-w-40 truncate">{{ row.object.name }}</span>
+                    @if (!canView(row.object)) {
+                      <i class="material-icons text-ui-dim shrink-0 text-[12px]!">lock</i>
+                    }
+                  </span>
+                </td>
 
-              @for (cell of row.cells; track $index) {
-                <td class="border-ui-border-panel border-b border-solid px-1.5 py-0.5 text-center">
-                  @if (!canView(row.object)) {
-                    <span class="text-ui-dim">-</span>
-                  } @else {
-                    @switch (cell.kind) {
-                      @case ('ailment') {
-                        @let ailment = table.columns[$index].ailment!;
-                        <input
-                          class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
-                          type="checkbox"
-                          [title]="ailment.effect || ailment.name"
-                          [checked]="isAilmentOn(row.object, ailment)"
-                          (click)="$event.stopPropagation()"
-                          (change)="toggleAilment($event, row.object, ailment)"
-                        />
-                      }
-                      @case ('numberResource') {
-                        <input
-                          class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-12 [appearance:textfield] rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[12px] font-bold outline-none"
-                          type="number"
-                          name="table-current-value"
-                          [style]="'color:' + cell.element!.nowValueColor"
-                          [title]="cell.element!.currentValue + ' / ' + cell.element!.value"
-                          [(ngModel)]="cell.element!.currentValue"
-                          (click)="$event.stopPropagation()"
-                        />
-                      }
-                      @case ('check') {
-                        <input
-                          class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
-                          type="checkbox"
-                          [checked]="cell.element!.isChecked"
-                          (click)="$event.stopPropagation()"
-                          (change)="cell.element!.value = cell.element!.isChecked ? 0 : 1"
-                        />
-                      }
-                      @case ('calc') {
-                        <span class="text-ui-text font-bold">{{ calcText(cell.element!) }}</span>
-                      }
-                      @case ('value') {
-                        <input
-                          class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-16 rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[12px] outline-none"
-                          name="table-value"
-                          [(ngModel)]="cell.element!.value"
-                          (click)="$event.stopPropagation()"
-                        />
+                @for (cell of row.cells; track $index) {
+                  <td class="border-ui-border-panel border-b border-solid px-1.5 py-0.5 text-center">
+                    @if (!canView(row.object)) {
+                      <span class="text-ui-dim">-</span>
+                    } @else {
+                      @switch (cell.kind) {
+                        @case ('ailment') {
+                          @let ailment = table.columns[$index].ailment!;
+                          <input
+                            class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                            type="checkbox"
+                            [title]="ailment.effect || ailment.name"
+                            [checked]="isAilmentOn(row.object, ailment)"
+                            (click)="$event.stopPropagation()"
+                            (change)="toggleAilment($event, row.object, ailment)"
+                          />
+                        }
+                        @case ('numberResource') {
+                          <input
+                            class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-12 [appearance:textfield] rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[12px] font-bold outline-none"
+                            type="number"
+                            name="table-current-value"
+                            [style]="'color:' + cell.element!.nowValueColor"
+                            [title]="cell.element!.currentValue + ' / ' + cell.element!.value"
+                            [(ngModel)]="cell.element!.currentValue"
+                            (click)="$event.stopPropagation()"
+                          />
+                        }
+                        @case ('check') {
+                          <input
+                            class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                            type="checkbox"
+                            [checked]="cell.element!.isChecked"
+                            (click)="$event.stopPropagation()"
+                            (change)="cell.element!.value = cell.element!.isChecked ? 0 : 1"
+                          />
+                        }
+                        @case ('calc') {
+                          <span class="text-ui-text font-bold">{{ calcText(cell.element!) }}</span>
+                        }
+                        @case ('value') {
+                          <input
+                            class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-16 rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[12px] outline-none"
+                            name="table-value"
+                            [(ngModel)]="cell.element!.value"
+                            (click)="$event.stopPropagation()"
+                          />
+                        }
                       }
                     }
-                  }
-                </td>
-              }
-            </tr>
+                  </td>
+                }
+              </tr>
+            }
           }
         </tbody>
       </table>
@@ -717,6 +745,17 @@
         }
       }
     </span>
+  }
+</ng-template>
+
+<ng-template #sideHeading let-band>
+  @if (band.side.length > 0) {
+    <div class="mt-1 flex items-center gap-1.5 px-1 first:mt-0" data-testid="inventory-side-heading">
+      <span class="size-2 shrink-0 rounded-full" [style.background]="band.color || 'var(--ui-dim)'"></span>
+      <span class="text-ui-muted text-[11px] font-semibold">{{ band.name }}</span>
+      <span class="bg-ui-border-panel h-px grow"></span>
+      <span class="text-ui-dim text-[10px]">{{ band.rows.length }}</span>
+    </div>
   }
 </ng-template>
 
