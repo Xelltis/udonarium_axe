@@ -450,6 +450,10 @@ describe('TurnOrderService', () => {
       return sendSpy.mock.calls.map((call: unknown[]) => call[0] as string);
     }
 
+    function pressUntil(reached: () => boolean, limit = 30): void {
+      for (let press = 0; press < limit && !reached(); press += 1) service.next();
+    }
+
     beforeEach(() => {
       orderedSpy.mockRestore();
       heroes = new Party();
@@ -507,24 +511,36 @@ describe('TurnOrderService', () => {
       expect(saidTo()).toContain('feature.turnOrder.sidePhaseStart');
     });
 
-    it('hands the whole side its phase and moves on when it is closed', () => {
+    it('goes round the pieces of a side before it leaves for the next', () => {
       service.next();
       service.next();
 
       service.next();
+      expect(service.currentIdentifier).toBe(hero.identifier);
+      expect(service.currentSide).toBe(heroes.identifier);
 
+      service.next();
+      expect(service.currentIdentifier).toBe(squire.identifier);
+      expect(service.currentSide).toBe(heroes.identifier);
+
+      service.next();
       expect(service.currentSide).toBe(monsters.identifier);
       expect(service.isActed(hero.identifier)).toBe(true);
       expect(service.isActed(squire.identifier)).toBe(true);
     });
 
-    it('ends the round once the last side has had its phase', () => {
-      service.next();
-      service.next();
+    it('leaves nobody behind on the side it is closing', () => {
       service.next();
       service.next();
 
       service.next();
+
+      expect(service.currentSide).toBe(heroes.identifier);
+      expect(service.isActed(squire.identifier)).toBe(false);
+    });
+
+    it('ends the round once the last side has had its phase', () => {
+      pressUntil(() => turnState.phase === 'roundEnd');
 
       expect(turnState.phase).toBe('roundEnd');
       expect(saidTo()).toContain('feature.turnOrder.roundEnd');
@@ -585,10 +601,8 @@ describe('TurnOrderService', () => {
 
     it('passes over a side nobody is on', () => {
       monster.noTurn = true;
-      service.next();
-      service.next();
 
-      service.next();
+      pressUntil(() => service.currentSide === '@none');
 
       expect(service.currentSide).toBe('@none');
     });
@@ -604,26 +618,17 @@ describe('TurnOrderService', () => {
     });
 
     it('puts the round back a step, side and all', () => {
-      service.next();
-      service.next();
-      service.next();
+      pressUntil(() => service.currentSide === monsters.identifier);
       expect(service.currentSide).toBe(monsters.identifier);
 
       service.prev();
 
       expect(service.currentSide).toBe(heroes.identifier);
-      expect(service.isActed(hero.identifier)).toBe(false);
+      expect(service.isActed(squire.identifier)).toBe(false);
     });
 
     it('puts a whole round back', () => {
-      service.next();
-      service.next();
-      service.next();
-      service.next();
-      service.next();
-      expect(turnState.round).toBe(1);
-
-      service.next();
+      pressUntil(() => turnState.round === 2, 40);
       expect(turnState.round).toBe(2);
 
       service.retreatRound();

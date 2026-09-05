@@ -215,9 +215,10 @@ export class TurnOrderService {
   /**
    * One press of the round, taken side by side.
    *
-   * Where a side moves in whatever order it likes, the press closes the side's whole phase:
-   * anyone on it who never moved has passed. Where a side moves in the order of the round,
-   * the press hands the turn on within the side and only leaves it once nobody is left.
+   * The press hands the turn on within the side and only leaves it once nobody on it is
+   * waiting, whichever way the side moves through its phase. A press that closed the whole
+   * phase would take the turn away from everyone who had not moved yet, which is the one
+   * thing a press of the round should never do quietly.
    */
   private nextSideStep(): void {
     const turnState = this.turnState;
@@ -232,14 +233,10 @@ export class TurnOrderService {
 
     this.closeCurrentPiece();
     const side = this.currentSide;
-    if (this.factionPhaseMode === 'initiative') {
-      const waiting = this.firstUnacted(this.membersOfSide(side));
-      if (waiting) {
-        this.takeTurn(waiting.identifier);
-        return;
-      }
-    } else {
-      for (const member of this.membersOfSide(side)) this.markActed(member.identifier);
+    const waiting = this.firstUnacted(this.membersOfSide(side));
+    if (waiting) {
+      this.takeTurn(waiting.identifier);
+      return;
     }
     this.openSide(nextSide(side, this.orderedSides(), (group) => this.hasUnacted(group)));
   }
