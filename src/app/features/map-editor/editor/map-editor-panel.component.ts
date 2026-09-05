@@ -27,6 +27,7 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isTextureId, TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { FunctionSpec, MAP_FUNCTION_ROLES } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
@@ -173,6 +174,12 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected readonly textEditor = viewChild<ElementRef<HTMLElement>>('textEditor');
   private readonly stage = viewChild<ElementRef<HTMLDivElement>>('stage');
 
+  protected readonly functionRoles = MAP_FUNCTION_ROLES;
+
+  protected setFunctionSpec(patch: Partial<FunctionSpec>): void {
+    this.state.functionSpec.update((spec) => ({ ...spec, ...patch }));
+  }
+
   protected readonly settingsTool: ToolDef = { tool: 'settings', icon: 'settings', key: '' };
 
   protected readonly tools: ToolDef[] = [
@@ -192,6 +199,8 @@ export class MapEditorPanelComponent implements AfterViewInit {
     { tool: 'text', icon: 'title', key: 'T' },
     { tool: 'stamp', icon: 'approval', key: 'S' },
     { tool: 'image', icon: 'image', key: 'I' },
+    { tool: 'functionPaint', icon: 'block', key: 'K' },
+    { tool: 'functionErase', icon: 'backspace', key: '' },
   ];
 
   protected readonly dashKinds: StrokeDash[] = ['solid', 'dashed', 'dotted', 'dashdot', 'longdash'];
@@ -606,6 +615,9 @@ export class MapEditorPanelComponent implements AfterViewInit {
         return 'select';
       case 'cellPaint':
         return 'paint';
+      case 'functionPaint':
+      case 'functionErase':
+        return 'paint';
       case 'cellErase':
         return this.isVectorEraseTarget() ? 'vectorErase' : 'paint';
       case 'fill':
@@ -712,7 +724,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
       case 'vectorErase':
         return this.eraseVectorAlong(pos);
       case 'paint':
-        return this.paintAt(pos, this.state.tool() === 'cellErase' ? 'cellErase' : 'cellPaint');
+        return this.paintAt(pos, this.state.tool());
       case 'box':
         return this.boxMove(pos);
       case 'freehand':
@@ -831,7 +843,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     this.state.beginGesture();
     this.gesture.lastPaintedCell = null;
     this.gesture.lastPaintPx = null;
-    this.paintAt(pos, this.state.tool() === 'cellErase' ? 'cellErase' : 'cellPaint');
+    this.paintAt(pos, this.state.tool());
   }
 
   private paintUp(): void {
@@ -1072,7 +1084,9 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const key = cellKey(col, row);
     if (key === this.gesture.lastPaintedCell) return;
     this.gesture.lastPaintedCell = key;
-    if (tool === 'cellPaint') this.state.paintCell(col, row);
+    if (tool === 'functionPaint') this.state.paintFunctionCell(col, row);
+    else if (tool === 'functionErase') this.state.eraseFunctionCellAt(col, row);
+    else if (tool === 'cellPaint') this.state.paintCell(col, row);
     else this.state.eraseCellAt(col, row);
   }
 

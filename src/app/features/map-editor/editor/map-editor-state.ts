@@ -1,5 +1,11 @@
 export type { EditorTool, LineKind, ShapeGeneratorKind } from '@axe/features/map-editor/model/editor-tool';
 import { Injectable, signal } from '@angular/core';
+import {
+  DEFAULT_FUNCTION_ROLE,
+  DEFAULT_FUNCTION_SPEC,
+  FunctionSpec,
+  MapFunctionRole,
+} from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { StampCategory } from '@axe/features/map-editor/assets/stamp-types';
 import { sampleCurvePoints } from '@axe/features/map-editor/model/curve-geometry';
@@ -13,6 +19,7 @@ import {
   FillStyle,
   FreehandLayer,
   FreehandStroke,
+  FunctionLayer,
   ImageItem,
   ImageLayer,
   LayerKind,
@@ -48,6 +55,7 @@ import {
   addStroke,
   addText,
   eraseCell,
+  eraseFunctionCell,
   eraseStrokeAtPoint,
   floodFill,
   removeImage,
@@ -57,6 +65,7 @@ import {
   removeText,
   resizeScene,
   setCell,
+  setFunctionCell,
   updateImage,
   updateStamp,
   updateStroke,
@@ -81,6 +90,9 @@ export class MapEditorState {
 
   readonly tool = signal<EditorTool>('select');
   readonly activeLayerId = signal<string | null>(null);
+
+  readonly functionRole = signal<MapFunctionRole>(DEFAULT_FUNCTION_ROLE);
+  readonly functionSpec = signal<FunctionSpec>({ ...DEFAULT_FUNCTION_SPEC });
 
   readonly fillMode = signal<'solid' | 'texture'>('solid');
   readonly solidColor = signal('#88aa66');
@@ -263,6 +275,48 @@ export class MapEditorState {
       if (layer.kind === 'cell' && layer.visible && !layer.locked) return layer;
     }
     return null;
+  }
+
+  /** The layer a function is painted onto: one of that role, or a new one for it. */
+  ensureFunctionLayerFor(role: MapFunctionRole): FunctionLayer {
+    const active = this.activeLayer();
+    if (active && active.kind === 'function' && active.role === role && !active.locked) return active;
+
+    for (let i = this.scene.layers.length - 1; i >= 0; i -= 1) {
+      const layer = this.scene.layers[i];
+      if (layer.kind === 'function' && layer.role === role && layer.visible && !layer.locked) return layer;
+    }
+
+    const created = createLayer('function', role) as FunctionLayer;
+    created.role = role;
+    addLayer(this.scene, created);
+    this.activeLayerId.set(created.id);
+    this.bump();
+    return created;
+  }
+
+  paintFunctionCell(col: number, row: number): void {
+    const layer = this.ensureFunctionLayerFor(this.functionRole());
+    layer.spec = { ...this.functionSpec() };
+    setFunctionCell(layer, col, row);
+    this.bump();
+  }
+
+  eraseFunctionCellAt(col: number, row: number): void {
+    const role = this.functionRole();
+    const active = this.activeLayer();
+    const layer =
+      active && active.kind === 'function' && active.role === role && !active.locked
+        ? active
+        : [...this.scene.layers]
+            .reverse()
+            .find(
+              (held): held is FunctionLayer =>
+                held.kind === 'function' && held.role === role && held.visible && !held.locked
+            );
+    if (!layer) return;
+    eraseFunctionCell(layer, col, row);
+    this.bump();
   }
 
   paintCell(col: number, row: number): void {

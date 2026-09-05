@@ -15,6 +15,7 @@ import { DUNGEON_PROP_IDS, TEXTURE_IDS, WALL_TEXTURE_IDS } from '@axe/domain/med
 import { DUNGEON_ATMOSPHERE_IDS, DUNGEON_ENTRANCE_STYLES } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { DUNGEON_ROOM_ROLES } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { FIELD_ATMOSPHERE_IDS, FIELD_PROP_IDS } from '@axe/domain/tabletop/field/field-atmosphere';
+import { MAP_FUNCTION_ROLES } from '@axe/domain/tabletop/function-paint';
 import { ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
 import { TABLE_FACING_MARKS } from '@axe/domain/tabletop/table-facing-mark';
 import { FACTION_PHASE_MODES, TURN_ORDER_MODES } from '@axe/domain/tabletop/turn-order-mode';
@@ -42,6 +43,7 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.chat.messageSetting.soundType_': CHAT_SOUND_TYPES,
   'feature.roomSettings.facingMark_': TABLE_FACING_MARKS,
   'feature.roomSettings.zocMode_': ZOC_MODES,
+  'feature.mapEditor.function.role_': MAP_FUNCTION_ROLES,
   'feature.roomSettings.turnOrderMode_': TURN_ORDER_MODES,
   'feature.roomSettings.factionPhaseMode_': FACTION_PHASE_MODES,
   'feature.hotbar.kind.': HOTBAR_SLOT_KINDS,

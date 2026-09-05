@@ -2565,7 +2565,22 @@
         "text": "テキスト",
         "settings": "設定",
         "shape": "図形",
-        "image": "画像"
+        "image": "画像",
+        "functionPaint": "機能塗り",
+        "functionErase": "機能消し"
+      },
+      "function": {
+        "title": "機能塗り",
+        "hint": "見た目ではなく卓のはたらきを塗ります。書き出す画像には入りません。",
+        "role": "種類",
+        "role_moveBlock": "立入禁止",
+        "role_terrain": "地形（壁）",
+        "role_mask": "マップマスク",
+        "terrainHeight": "壁の高さ",
+        "terrainBlocksSight": "視線を遮る",
+        "terrainBlocksLight": "光を遮る",
+        "maskColor": "マスクの色",
+        "maskOpacity": "マスクの濃さ"
       },
       "stampCategories": {
         "door": "扉",

@@ -2565,7 +2565,22 @@
         "text": "Text",
         "settings": "Settings",
         "shape": "Shape",
-        "image": "Image"
+        "image": "Image",
+        "functionPaint": "Function",
+        "functionErase": "Unpaint"
+      },
+      "function": {
+        "title": "Function paint",
+        "hint": "Paints what a cell does rather than how it looks. It never reaches the exported image.",
+        "role": "Kind",
+        "role_moveBlock": "No entry",
+        "role_terrain": "Terrain (wall)",
+        "role_mask": "Map mask",
+        "terrainHeight": "Wall height",
+        "terrainBlocksSight": "Blocks sight",
+        "terrainBlocksLight": "Blocks light",
+        "maskColor": "Mask colour",
+        "maskOpacity": "Mask strength"
       },
       "stampCategories": {
         "door": "Doors",

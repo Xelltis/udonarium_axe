@@ -2565,7 +2565,22 @@
         "text": "텍스트",
         "settings": "설정",
         "shape": "도형",
-        "image": "이미지"
+        "image": "이미지",
+        "functionPaint": "기능 칠하기",
+        "functionErase": "기능 지우기"
+      },
+      "function": {
+        "title": "기능 칠하기",
+        "hint": "겉모습이 아니라 테이블의 작용을 칠합니다. 내보내는 이미지에는 들어가지 않습니다.",
+        "role": "종류",
+        "role_moveBlock": "진입 금지",
+        "role_terrain": "지형(벽)",
+        "role_mask": "맵 마스크",
+        "terrainHeight": "벽 높이",
+        "terrainBlocksSight": "시선을 막음",
+        "terrainBlocksLight": "빛을 막음",
+        "maskColor": "마스크 색",
+        "maskOpacity": "마스크 농도"
       },
       "stampCategories": {
         "door": "문",

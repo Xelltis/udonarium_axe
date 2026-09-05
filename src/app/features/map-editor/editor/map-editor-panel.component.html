@@ -424,6 +424,81 @@
         </div>
       }
 
+      @if (state.tool() === 'functionPaint' || state.tool() === 'functionErase') {
+        <div class="flex flex-col gap-2">
+          <div class="font-semibold">{{ 'feature.mapEditor.function.title' | transloco }}</div>
+          <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.mapEditor.function.hint' | transloco }}</p>
+          <label class="flex items-center justify-between gap-2">
+            <span class="text-ui-muted">{{ 'feature.mapEditor.function.role' | transloco }}</span>
+            <select
+              class="bg-ui-input rounded-ui-sm p-1"
+              [ngModel]="state.functionRole()"
+              (ngModelChange)="state.functionRole.set($event)"
+            >
+              @for (role of functionRoles; track role) {
+                <option [ngValue]="role">{{ 'feature.mapEditor.function.role_' + role | transloco }}</option>
+              }
+            </select>
+          </label>
+
+          @if (state.functionRole() === 'terrain') {
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.terrainHeight' | transloco }}</span>
+              <input
+                type="number"
+                min="0"
+                max="99"
+                step="1"
+                class="bg-ui-input rounded-ui-sm w-16 p-1 text-right"
+                [ngModel]="state.functionSpec().terrainHeight"
+                (ngModelChange)="setFunctionSpec({ terrainHeight: $event })"
+              />
+            </label>
+            <label class="flex cursor-pointer items-center gap-1.5 select-none">
+              <input
+                type="checkbox"
+                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                [ngModel]="state.functionSpec().terrainBlocksSight"
+                (ngModelChange)="setFunctionSpec({ terrainBlocksSight: $event })"
+              />
+              {{ 'feature.mapEditor.function.terrainBlocksSight' | transloco }}
+            </label>
+            <label class="flex cursor-pointer items-center gap-1.5 select-none">
+              <input
+                type="checkbox"
+                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                [ngModel]="state.functionSpec().terrainBlocksLight"
+                (ngModelChange)="setFunctionSpec({ terrainBlocksLight: $event })"
+              />
+              {{ 'feature.mapEditor.function.terrainBlocksLight' | transloco }}
+            </label>
+          }
+
+          @if (state.functionRole() === 'mask') {
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.maskColor' | transloco }}</span>
+              <input
+                type="color"
+                class="bg-ui-input rounded-ui-sm h-7 w-12 p-0.5"
+                [ngModel]="state.functionSpec().maskColor"
+                (ngModelChange)="setFunctionSpec({ maskColor: $event })"
+              />
+            </label>
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.maskOpacity' | transloco }}</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                [ngModel]="state.functionSpec().maskOpacity"
+                (ngModelChange)="setFunctionSpec({ maskOpacity: $event })"
+              />
+            </label>
+          }
+        </div>
+      }
+
       @if (state.tool() === 'cellErase') {
         <div class="flex flex-col gap-2">
           <div class="font-semibold">{{ 'feature.mapEditor.tools.cellErase' | transloco }}</div>
