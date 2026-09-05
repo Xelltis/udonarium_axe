@@ -1,3 +1,4 @@
+import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { FunctionLayer, ImageLayer, sceneHeightPx, sceneWidthPx } from '@axe/features/map-editor/model/scene';
 import { sceneFromTable, TableSnapshot } from '@axe/features/map-editor/model/table-import';
@@ -10,8 +11,8 @@ function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
     gridType: GridType.SQUARE,
     floorImageIdentifier: '',
     blockedCells: [],
-    terrainRects: [],
-    maskRects: [],
+    terrainBlocks: [],
+    maskBlocks: [],
     ...over,
   };
 }
@@ -70,8 +71,8 @@ describe('sceneFromTable()', () => {
     const scene = sceneFromTable(
       snapshot({
         blockedCells: ['0,0'],
-        terrainRects: [{ col: 1, row: 0, width: 1, height: 1 }],
-        maskRects: [{ col: 2, row: 0, width: 1, height: 1 }],
+        terrainBlocks: [{ col: 1, row: 0, width: 1, height: 1, spec: DEFAULT_FUNCTION_SPEC.terrain }],
+        maskBlocks: [{ col: 2, row: 0, width: 1, height: 1, spec: DEFAULT_FUNCTION_SPEC.mask }],
       })
     );
 
@@ -91,5 +92,49 @@ describe('sceneFromTable()', () => {
 
     expect(scene.cols).toBe(1);
     expect(scene.rows).toBe(1);
+  });
+});
+
+describe('the walls already on the table', () => {
+  function wallBlock(over: Partial<{ col: number; row: number; width: number; height: number }>, wall: string) {
+    return {
+      col: 0,
+      row: 0,
+      width: 1,
+      height: 1,
+      ...over,
+      spec: { ...DEFAULT_FUNCTION_SPEC.terrain, images: { ...DEFAULT_FUNCTION_SPEC.terrain.images, wall } },
+    };
+  }
+
+  it('comes back as cells the brush can paint over', () => {
+    const scene = sceneFromTable(snapshot({ terrainBlocks: [wallBlock({ col: 1, row: 1, width: 3, height: 1 }, '')] }));
+
+    const layer = scene.layers.find((held) => held.kind === 'function') as FunctionLayer;
+    expect(Object.keys(layer.cells).sort()).toEqual(['1,1', '2,1', '3,1']);
+  });
+
+  it('keeps two walls of different stone on layers of their own', () => {
+    const scene = sceneFromTable(
+      snapshot({
+        terrainBlocks: [wallBlock({ col: 0, row: 0 }, 'granite'), wallBlock({ col: 5, row: 5 }, 'timber')],
+      })
+    );
+
+    const layers = scene.layers.filter((held): held is FunctionLayer => held.kind === 'function');
+    expect(layers).toHaveLength(2);
+    expect(layers.map((layer) => layer.spec.terrain.images.wall).sort()).toEqual(['granite', 'timber']);
+  });
+
+  it('gathers two walls of the same stone onto one layer', () => {
+    const scene = sceneFromTable(
+      snapshot({
+        terrainBlocks: [wallBlock({ col: 0, row: 0 }, 'granite'), wallBlock({ col: 5, row: 5 }, 'granite')],
+      })
+    );
+
+    const layers = scene.layers.filter((held): held is FunctionLayer => held.kind === 'function');
+    expect(layers).toHaveLength(1);
+    expect(Object.keys(layers[0].cells).sort()).toEqual(['0,0', '5,5']);
   });
 });

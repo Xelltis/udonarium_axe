@@ -1,6 +1,6 @@
-import { rectCells } from '@axe/domain/tabletop/cell-rectangles';
+import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
-import { DEFAULT_FUNCTION_SPEC, MapFunctionRole } from '@axe/features/map-editor/model/function-layer';
+import { DEFAULT_FUNCTION_SPEC, FunctionSpec, MapFunctionRole } from '@axe/features/map-editor/model/function-layer';
 import {
   createScene,
   FunctionLayer,
@@ -15,7 +15,12 @@ export type { TableSnapshot };
 
 export const IMPORTED_FLOOR_LAYER_NAME = 'floor';
 
-function functionLayer(role: MapFunctionRole, name: string, cells: readonly string[]): FunctionLayer {
+function functionLayer(
+  role: MapFunctionRole,
+  name: string,
+  cells: readonly string[],
+  spec: FunctionSpec = DEFAULT_FUNCTION_SPEC
+): FunctionLayer {
   const held: Record<string, true> = {};
   for (const key of cells) held[key] = true;
   return {
@@ -27,8 +32,33 @@ function functionLayer(role: MapFunctionRole, name: string, cells: readonly stri
     opacity: 1,
     role,
     cells: held,
-    spec: { ...DEFAULT_FUNCTION_SPEC },
+    spec: { ...spec },
   };
+}
+
+/**
+ * The blocks gathered into one layer per look.
+ *
+ * Two walls of different stone are two layers. Poured into one they would come back out
+ * wearing whichever look happened to be read first, and half the table would change its
+ * face the next time the painting was laid.
+ */
+function layersByLook<T extends CellRect & { spec: unknown }>(
+  blocks: readonly T[],
+  role: MapFunctionRole,
+  name: string,
+  specOf: (block: T) => FunctionSpec
+): FunctionLayer[] {
+  const grouped = new Map<string, { spec: FunctionSpec; cells: string[] }>();
+  for (const block of blocks) {
+    const key = JSON.stringify(block.spec);
+    const held = grouped.get(key) ?? { spec: specOf(block), cells: [] };
+    held.cells.push(...rectCells(block));
+    grouped.set(key, held);
+  }
+  return [...grouped.values()].map((held, index) =>
+    functionLayer(role, grouped.size > 1 ? `${name} ${index + 1}` : name, held.cells, held.spec)
+  );
 }
 
 /**
@@ -79,10 +109,15 @@ export function sceneFromTable(table: TableSnapshot): MapScene {
     layers.push(floor);
   }
 
-  const maskCells = table.maskRects.flatMap(rectCells);
-  const terrainCells = table.terrainRects.flatMap(rectCells);
-  if (maskCells.length > 0) layers.push(functionLayer('mask', 'mask', maskCells));
-  if (terrainCells.length > 0) layers.push(functionLayer('terrain', 'terrain', terrainCells));
+  layers.push(
+    ...layersByLook(table.maskBlocks, 'mask', 'mask', (block) => ({ ...DEFAULT_FUNCTION_SPEC, mask: block.spec }))
+  );
+  layers.push(
+    ...layersByLook(table.terrainBlocks, 'terrain', 'terrain', (block) => ({
+      ...DEFAULT_FUNCTION_SPEC,
+      terrain: block.spec,
+    }))
+  );
   if (table.blockedCells.length > 0) layers.push(functionLayer('moveBlock', 'no entry', table.blockedCells));
 
   return { ...scene, layers };

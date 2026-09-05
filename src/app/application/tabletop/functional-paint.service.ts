@@ -4,7 +4,15 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { CellRect, rectKey } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { FunctionPaintPlan, TerrainPaintSpec } from '@axe/domain/tabletop/function-paint';
+import {
+  FunctionPaintPlan,
+  MaskBlock,
+  MaskPaintSpec,
+  NO_FACE_IMAGES,
+  TERRAIN_FACE_KEYS,
+  TerrainBlock,
+  TerrainPaintSpec,
+} from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
@@ -15,6 +23,24 @@ import { Terrain, TERRAIN_FACES } from '@axe/domain/tabletop/terrain';
 
 function cellKeyOf(col: number, row: number): string {
   return `${col},${row}`;
+}
+
+function terrainsOn(table: GameTable): Terrain[] {
+  return table.children.filter((child): child is Terrain => child instanceof Terrain);
+}
+
+/**
+ * Whether the brush could have painted this wall, and so may unpaint it.
+ *
+ * A door or a ramp is more than a block and no painting puts one back, so both are left
+ * where hands put them however the cells around them are painted over.
+ */
+function isPaintableTerrain(terrain: Terrain): boolean {
+  return !terrain.isDoor && !terrain.isSlope;
+}
+
+function masksOn(table: GameTable): GameTableMask[] {
+  return table.children.filter((child): child is GameTableMask => child instanceof GameTableMask);
 }
 
 /** Lays one block of terrain wearing everything the brush was set to. */
@@ -72,32 +98,46 @@ export function blockedCellKeysOn(table: GameTable, grid: CellGrid): string[] {
   return keys;
 }
 
-/**
- * The blocks the editor painted, as they stand.
- *
- * The cell an object was painted onto is where it starts, and its own footprint says how far
- * it reaches, so a wall ten cells long comes back as one block rather than as ten.
- */
-export function paintedRectsOf(objects: readonly PaintedBlock[]): CellRect[] {
-  const rects: CellRect[] = [];
-  for (const object of objects) {
-    const cell = parsePaintedCell(object.paintCell);
-    if (!cell) continue;
-    rects.push({
-      col: cell.col,
-      row: cell.row,
-      width: Math.max(1, Math.floor(object.width)),
-      height: Math.max(1, Math.floor(object.footprintDepth)),
-    });
-  }
-  return rects;
+/** The look one terrain wears, read off the terrain itself. */
+export function terrainSpecOf(terrain: Terrain): TerrainPaintSpec {
+  const images = { ...NO_FACE_IMAGES };
+  for (const face of TERRAIN_FACE_KEYS) images[face] = terrain.faceImageIdentifier(face);
+  return {
+    height: terrain.height,
+    mode: terrain.mode,
+    blocksSight: terrain.blocksSight,
+    blocksLight: terrain.blocksLight,
+    tiledTexture: terrain.isTiledTexture,
+    showsGrid: terrain.isGrid,
+    dropShadow: terrain.isDropShadow,
+    surfaceShading: terrain.isSurfaceShading,
+    images,
+  };
 }
 
-interface PaintedBlock {
-  paintCell: string;
-  width: number;
-  /** How far it reaches away from the reader, which a terrain calls depth and a mask height. */
-  footprintDepth: number;
+export function maskSpecOf(mask: GameTableMask): MaskPaintSpec {
+  return { color: mask.color, opacity: mask.opacity };
+}
+
+/**
+ * Where a block stands, or nothing where it stands somewhere the editor cannot paint.
+ *
+ * A block has to sit square on the grid to be painted: anything turned, or standing between
+ * cells, is a thing hands made and hands must keep.
+ */
+export function blockRectOf(
+  object: { location: { x: number; y: number }; rotate?: number },
+  width: number,
+  depth: number,
+  gridSize: number
+): CellRect | null {
+  if (gridSize <= 0) return null;
+  if ((object.rotate ?? 0) % 360 !== 0) return null;
+  const col = object.location.x / gridSize;
+  const row = object.location.y / gridSize;
+  if (!Number.isInteger(col) || !Number.isInteger(row) || col < 0 || row < 0) return null;
+  if (!Number.isInteger(width) || !Number.isInteger(depth) || width < 1 || depth < 1) return null;
+  return { col, row, width, height: depth };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -137,53 +177,49 @@ export class FunctionalPaintService {
   }
 
   private layTerrain(table: GameTable, plan: FunctionPaintPlan): void {
-    const painted = table.children.filter((child): child is Terrain => child instanceof Terrain);
     this.takeAway(
-      painted.map((held) => ({ object: held, width: held.width, footprintDepth: held.depth })),
+      terrainsOn(table).map((held) => ({
+        object: held,
+        rect: isPaintableTerrain(held) ? blockRectOf(held, held.width, held.depth, table.gridSize) : null,
+      })),
       plan.terrain.remove
     );
 
-    for (const rect of plan.terrain.add) {
-      const terrain = layTerrainBlock(plan.terrainSpec, rect.width, rect.height);
-      terrain.paintCell = encodePaintedCell(rect);
-      terrain.location = { name: 'table', x: rect.col * table.gridSize, y: rect.row * table.gridSize };
+    for (const block of plan.terrain.add) {
+      const terrain = layTerrainBlock(block.spec, block.width, block.height);
+      terrain.paintCell = encodePaintedCell(block);
+      terrain.location = { name: 'table', x: block.col * table.gridSize, y: block.row * table.gridSize };
       table.appendChild(terrain);
     }
   }
 
   private layMasks(table: GameTable, plan: FunctionPaintPlan): void {
-    const painted = table.children.filter((child): child is GameTableMask => child instanceof GameTableMask);
     this.takeAway(
-      painted.map((held) => ({ object: held, width: held.width, footprintDepth: held.height })),
+      masksOn(table).map((held) => ({
+        object: held,
+        rect: blockRectOf(held, held.width, held.height, table.gridSize),
+      })),
       plan.mask.remove
     );
 
-    for (const rect of plan.mask.add) {
-      const mask = GameTableMask.create('', rect.width, rect.height, MASK_OPACITY_FULL);
-      paintMaskColor(mask, plan.maskSpec.color);
-      setMaskOpacity(mask, plan.maskSpec.opacity);
-      mask.paintCell = encodePaintedCell(rect);
-      mask.location = { name: 'table', x: rect.col * table.gridSize, y: rect.row * table.gridSize };
+    for (const block of plan.mask.add) {
+      const mask = GameTableMask.create('', block.width, block.height, MASK_OPACITY_FULL);
+      paintMaskColor(mask, block.spec.color);
+      setMaskOpacity(mask, block.spec.opacity);
+      mask.paintCell = encodePaintedCell(block);
+      mask.location = { name: 'table', x: block.col * table.gridSize, y: block.row * table.gridSize };
       table.appendChild(mask);
     }
   }
 
-  /** Takes away only the blocks the editor painted and is now done with. */
+  /** Takes away the blocks that are going, wherever the editor is the one holding them. */
   private takeAway(
-    held: readonly { object: { paintCell: string; destroy(): void }; width: number; footprintDepth: number }[],
+    held: readonly { object: { destroy(): void }; rect: CellRect | null }[],
     going: readonly CellRect[]
   ): void {
     const keys = new Set(going.map(rectKey));
     for (const entry of held) {
-      const cell = parsePaintedCell(entry.object.paintCell);
-      if (!cell) continue;
-      const rect: CellRect = {
-        col: cell.col,
-        row: cell.row,
-        width: Math.max(1, Math.floor(entry.width)),
-        height: Math.max(1, Math.floor(entry.footprintDepth)),
-      };
-      if (keys.has(rectKey(rect))) entry.object.destroy();
+      if (entry.rect && keys.has(rectKey(entry.rect))) entry.object.destroy();
     }
   }
 
@@ -201,16 +237,21 @@ export class FunctionalPaintService {
       gridType: table.gridType,
       floorImageIdentifier: table.imageIdentifier,
       blockedCells: blockedCellKeysOn(table, grid),
-      terrainRects: paintedRectsOf(
-        table.children
-          .filter((child): child is Terrain => child instanceof Terrain)
-          .map((held) => ({ paintCell: held.paintCell, width: held.width, footprintDepth: held.depth }))
-      ),
-      maskRects: paintedRectsOf(
-        table.children
-          .filter((child): child is GameTableMask => child instanceof GameTableMask)
-          .map((held) => ({ paintCell: held.paintCell, width: held.width, footprintDepth: held.height }))
-      ),
+      terrainBlocks: terrainsOn(table)
+        .map((held) => {
+          // A door or a ramp is more than a block, and the brush has no way of painting one
+          // back. They stay where hands put them, out of the editor's sight and its reach.
+          if (!isPaintableTerrain(held)) return null;
+          const rect = blockRectOf(held, held.width, held.depth, table.gridSize);
+          return rect ? { ...rect, spec: terrainSpecOf(held) } : null;
+        })
+        .filter((block): block is TerrainBlock => block !== null),
+      maskBlocks: masksOn(table)
+        .map((held) => {
+          const rect = blockRectOf(held, held.width, held.height, table.gridSize);
+          return rect ? { ...rect, spec: maskSpecOf(held) } : null;
+        })
+        .filter((block): block is MaskBlock => block !== null),
     };
   }
 }

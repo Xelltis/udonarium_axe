@@ -1,7 +1,7 @@
 import { rectKey } from '@axe/domain/tabletop/cell-rectangles';
+import { DEFAULT_FUNCTION_SPEC, MapFunctionRole, MaskBlock, TerrainBlock } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
-import { DEFAULT_FUNCTION_SPEC, MapFunctionRole } from '@axe/features/map-editor/model/function-layer';
 import { createScene, FunctionLayer, MapScene, newId } from '@axe/features/map-editor/model/scene';
 import { cellsForRole, planChangesNothing, planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
 
@@ -26,6 +26,14 @@ function sceneWith(...layers: FunctionLayer[]): MapScene {
   return { ...createScene(10, 8, 50), layers };
 }
 
+function terrainBlock(rect: { col: number; row: number; width: number; height: number }): TerrainBlock {
+  return { ...rect, spec: { ...DEFAULT_FUNCTION_SPEC.terrain } };
+}
+
+function maskBlock(rect: { col: number; row: number; width: number; height: number }): MaskBlock {
+  return { ...rect, spec: { ...DEFAULT_FUNCTION_SPEC.mask } };
+}
+
 function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
   return {
     cols: 10,
@@ -34,8 +42,8 @@ function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
     gridType: GridType.SQUARE,
     floorImageIdentifier: '',
     blockedCells: [],
-    terrainRects: [],
-    maskRects: [],
+    terrainBlocks: [],
+    maskBlocks: [],
     ...over,
   };
 }
@@ -71,31 +79,34 @@ describe('planFunctionPaint()', () => {
     const plan = planFunctionPaint(
       sceneWith(layerOf('terrain', ['0,0', '1,0'])),
       snapshot({
-        terrainRects: [
-          { col: 1, row: 0, width: 1, height: 1 },
-          { col: 2, row: 0, width: 1, height: 1 },
+        terrainBlocks: [
+          terrainBlock({ col: 1, row: 0, width: 1, height: 1 }),
+          terrainBlock({ col: 2, row: 0, width: 1, height: 1 }),
         ],
       })
     )!;
 
-    expect(plan.terrain.add).toEqual([{ col: 0, row: 0, width: 2, height: 1 }]);
+    expect(plan.terrain.add.map(rectKey)).toEqual(['0,0,2,1']);
     expect(plan.terrain.remove.map(rectKey).sort()).toEqual(['1,0,1,1', '2,0,1,1']);
   });
 
   it('leaves a cell that was already there alone', () => {
     const plan = planFunctionPaint(
       sceneWith(layerOf('mask', ['4,4'])),
-      snapshot({ maskRects: [{ col: 4, row: 4, width: 1, height: 1 }] })
+      snapshot({ maskBlocks: [maskBlock({ col: 4, row: 4, width: 1, height: 1 })] })
     )!;
 
     expect(plan.mask.add).toEqual([]);
     expect(plan.mask.remove).toEqual([]);
   });
 
-  it('takes each role its own settings', () => {
+  it('gives every block the look of the layer it came from', () => {
     const scene = sceneWith(
       layerOf('terrain', ['0,0'], {
         spec: { ...DEFAULT_FUNCTION_SPEC, terrain: { ...DEFAULT_FUNCTION_SPEC.terrain, height: 5 } },
+      }),
+      layerOf('terrain', ['4,4'], {
+        spec: { ...DEFAULT_FUNCTION_SPEC, terrain: { ...DEFAULT_FUNCTION_SPEC.terrain, height: 2 } },
       }),
       layerOf('mask', ['1,1'], {
         spec: { ...DEFAULT_FUNCTION_SPEC, mask: { ...DEFAULT_FUNCTION_SPEC.mask, color: '#abcdef' } },
@@ -104,8 +115,8 @@ describe('planFunctionPaint()', () => {
 
     const plan = planFunctionPaint(scene, snapshot())!;
 
-    expect(plan.terrainSpec.height).toBe(5);
-    expect(plan.maskSpec.color).toBe('#abcdef');
+    expect(plan.terrain.add.map((block) => block.spec.height).sort()).toEqual([2, 5]);
+    expect(plan.mask.add[0].spec.color).toBe('#abcdef');
   });
 
   it('refuses a scene painted against a different grid', () => {
@@ -118,8 +129,8 @@ describe('planFunctionPaint()', () => {
     const plan = planFunctionPaint(
       sceneWith(),
       snapshot({
-        terrainRects: [{ col: 0, row: 0, width: 1, height: 1 }],
-        maskRects: [{ col: 1, row: 1, width: 1, height: 1 }],
+        terrainBlocks: [terrainBlock({ col: 0, row: 0, width: 1, height: 1 })],
+        maskBlocks: [maskBlock({ col: 1, row: 1, width: 1, height: 1 })],
       })
     )!;
 
@@ -131,7 +142,10 @@ describe('planFunctionPaint()', () => {
 
 describe('planChangesNothing()', () => {
   it('says so where the table already matches', () => {
-    const table = snapshot({ blockedCells: ['1,1'], terrainRects: [{ col: 2, row: 2, width: 1, height: 1 }] });
+    const table = snapshot({
+      blockedCells: ['1,1'],
+      terrainBlocks: [terrainBlock({ col: 2, row: 2, width: 1, height: 1 })],
+    });
     const plan = planFunctionPaint(sceneWith(layerOf('moveBlock', ['1,1']), layerOf('terrain', ['2,2'])), table)!;
 
     expect(planChangesNothing(plan, table)).toBe(true);
@@ -149,11 +163,11 @@ describe('the blocks a painting comes to', () => {
   it('lays a row of painted cells as one long wall rather than a row of posts', () => {
     const plan = planFunctionPaint(sceneWith(layerOf('terrain', ['0,0', '1,0', '2,0'])), snapshot())!;
 
-    expect(plan.terrain.add).toEqual([{ col: 0, row: 0, width: 3, height: 1 }]);
+    expect(plan.terrain.add.map(rectKey)).toEqual(['0,0,3,1']);
   });
 
   it('leaves a wall that already stands exactly as it is', () => {
-    const table = snapshot({ terrainRects: [{ col: 0, row: 0, width: 3, height: 1 }] });
+    const table = snapshot({ terrainBlocks: [terrainBlock({ col: 0, row: 0, width: 3, height: 1 })] });
 
     const plan = planFunctionPaint(sceneWith(layerOf('terrain', ['0,0', '1,0', '2,0'])), table)!;
 
@@ -163,7 +177,7 @@ describe('the blocks a painting comes to', () => {
   });
 
   it('rebuilds a wall that grew rather than adding a post beside it', () => {
-    const table = snapshot({ terrainRects: [{ col: 0, row: 0, width: 3, height: 1 }] });
+    const table = snapshot({ terrainBlocks: [terrainBlock({ col: 0, row: 0, width: 3, height: 1 })] });
 
     const plan = planFunctionPaint(sceneWith(layerOf('terrain', ['0,0', '1,0', '2,0', '3,0'])), table)!;
 

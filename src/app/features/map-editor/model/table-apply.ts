@@ -1,15 +1,18 @@
-import { CellRect, largestRectangles, rectangleChange } from '@axe/domain/tabletop/cell-rectangles';
+import { largestRectangles } from '@axe/domain/tabletop/cell-rectangles';
 import {
-  CellChange,
+  BlockChange,
+  blockChange,
   DEFAULT_FUNCTION_SPEC,
   FunctionPaintPlan,
   FunctionSpec,
   MapFunctionRole,
+  MaskBlock,
+  TerrainBlock,
 } from '@axe/domain/tabletop/function-paint';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { FunctionLayer, MapScene } from '@axe/features/map-editor/model/scene';
 
-export type { CellChange, FunctionPaintPlan };
+export type { BlockChange, FunctionPaintPlan };
 
 /**
  * The cells one role holds across the whole scene.
@@ -38,9 +41,36 @@ export function specForRole(scene: MapScene, role: MapFunctionRole): FunctionSpe
   return { ...DEFAULT_FUNCTION_SPEC };
 }
 
-/** The blocks a role's painting comes to, which is what the table is asked to build. */
-function blocksFor(scene: MapScene, role: MapFunctionRole): CellRect[] {
-  return largestRectangles(cellsForRole(scene, role));
+/**
+ * The blocks a role's painting comes to, layer by layer.
+ *
+ * Each layer is cut on its own and keeps the look it carries, so two walls of different
+ * stone stay two walls of different stone rather than collapsing into whichever came first.
+ */
+function terrainBlocksOf(scene: MapScene): TerrainBlock[] {
+  const blocks: TerrainBlock[] = [];
+  for (const layer of functionLayersOf(scene, 'terrain')) {
+    for (const rect of largestRectangles(Object.keys(layer.cells))) {
+      blocks.push({ ...rect, spec: layer.spec.terrain });
+    }
+  }
+  return blocks;
+}
+
+function maskBlocksOf(scene: MapScene): MaskBlock[] {
+  const blocks: MaskBlock[] = [];
+  for (const layer of functionLayersOf(scene, 'mask')) {
+    for (const rect of largestRectangles(Object.keys(layer.cells))) {
+      blocks.push({ ...rect, spec: layer.spec.mask });
+    }
+  }
+  return blocks;
+}
+
+function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer[] {
+  return scene.layers.filter(
+    (layer): layer is FunctionLayer => layer.kind === 'function' && (layer as FunctionLayer).role === role
+  );
 }
 
 /**
@@ -58,10 +88,8 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
 
   return {
     blocked: cellsForRole(scene, 'moveBlock'),
-    terrain: rectangleChange(blocksFor(scene, 'terrain'), table.terrainRects),
-    mask: rectangleChange(blocksFor(scene, 'mask'), table.maskRects),
-    terrainSpec: specForRole(scene, 'terrain').terrain,
-    maskSpec: specForRole(scene, 'mask').mask,
+    terrain: blockChange(terrainBlocksOf(scene), table.terrainBlocks),
+    mask: blockChange(maskBlocksOf(scene), table.maskBlocks),
   };
 }
 

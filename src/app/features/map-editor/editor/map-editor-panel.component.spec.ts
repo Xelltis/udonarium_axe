@@ -113,8 +113,8 @@ describe('MapEditorPanelComponent', () => {
         gridType: GridType.SQUARE,
         floorImageIdentifier: '',
         blockedCells: ['1,1'],
-        terrainRects: [],
-        maskRects: [],
+        terrainBlocks: [],
+        maskBlocks: [],
       });
 
       brushed().beginFunctionPaint('moveBlock');
@@ -133,8 +133,8 @@ describe('MapEditorPanelComponent', () => {
         gridType: GridType.SQUARE,
         floorImageIdentifier: '',
         blockedCells: [],
-        terrainRects: [],
-        maskRects: [],
+        terrainBlocks: [],
+        maskBlocks: [],
       });
 
       brushed().beginFunctionPaint('moveBlock');

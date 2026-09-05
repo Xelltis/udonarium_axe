@@ -155,8 +155,22 @@ export function wearsAnyImage(images: TerrainFaceImages): boolean {
   return TERRAIN_FACE_KEYS.some((face) => images[face].length > 0);
 }
 
-export interface CellChange {
-  add: CellRect[];
+/** A block of wall, and the look it wears. Every block carries its own. */
+export interface TerrainBlock extends CellRect {
+  spec: TerrainPaintSpec;
+}
+
+export interface MaskBlock extends CellRect {
+  spec: MaskPaintSpec;
+}
+
+/** What one block is known by, which is where it stands and what it looks like. */
+export function blockKey(block: CellRect, spec: unknown): string {
+  return `${block.col},${block.row},${block.width},${block.height}|${JSON.stringify(spec)}`;
+}
+
+export interface BlockChange<T extends CellRect> {
+  add: T[];
   remove: CellRect[];
 }
 
@@ -164,9 +178,24 @@ export interface CellChange {
 export interface FunctionPaintPlan {
   /** Every cell the table should be closed on, which replaces whatever it held before. */
   blocked: string[];
-  terrain: CellChange;
-  mask: CellChange;
-  /** The settings each role's own layer carries, which the newly laid objects take. */
-  terrainSpec: TerrainPaintSpec;
-  maskSpec: MaskPaintSpec;
+  terrain: BlockChange<TerrainBlock>;
+  mask: BlockChange<MaskBlock>;
+}
+
+/**
+ * What has to be built and pulled down for one set of blocks to become another.
+ *
+ * A block whose look changed is pulled down and built again rather than dressed in place:
+ * one rule covers both, and the table ends up with exactly what was painted either way.
+ */
+export function blockChange<T extends CellRect & { spec: unknown }>(
+  wanted: readonly T[],
+  held: readonly T[]
+): BlockChange<T> {
+  const wantedKeys = new Set(wanted.map((block) => blockKey(block, block.spec)));
+  const heldKeys = new Set(held.map((block) => blockKey(block, block.spec)));
+  return {
+    add: wanted.filter((block) => !heldKeys.has(blockKey(block, block.spec))),
+    remove: held.filter((block) => !wantedKeys.has(blockKey(block, block.spec))),
+  };
 }

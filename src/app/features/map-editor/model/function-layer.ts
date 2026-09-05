@@ -1,6 +1,11 @@
 import { MAP_FUNCTION_ROLES, MapFunctionRole } from '@axe/domain/tabletop/function-paint';
 
-export type { CellChange, FunctionPaintPlan, FunctionSpec, MapFunctionRole } from '@axe/domain/tabletop/function-paint';
+export type {
+  BlockChange,
+  FunctionPaintPlan,
+  FunctionSpec,
+  MapFunctionRole,
+} from '@axe/domain/tabletop/function-paint';
 export {
   asFunctionRole,
   DEFAULT_FUNCTION_ROLE,
