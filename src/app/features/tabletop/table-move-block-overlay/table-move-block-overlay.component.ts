@@ -32,8 +32,6 @@ export class TableMoveBlockOverlayComponent {
   );
 
   protected readonly view = computed<MoveBlockView | null>(() => {
-    if (!this.moveBlock.canPaint()) return null;
-
     const table = this.tabletopService.currentTableVersion();
     if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return null;
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);

@@ -51,10 +51,32 @@ describe('TableMoveBlockOverlayComponent', () => {
     expect(fixture.nativeElement.querySelector('canvas')).not.toBeNull();
   });
 
-  it('shows a player nothing at all', () => {
+  it('shows the painted ground to a player too', () => {
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.Player;
     paintOneCell();
+
+    const fixture = TestBed.createComponent(TableMoveBlockOverlayComponent);
+    fixture.detectChanges();
+
+    // A piece that will not go where it is dragged is a puzzle unless the ground says why.
+    expect(fixture.nativeElement.querySelector('canvas')).not.toBeNull();
+  });
+
+  it('shows a guest the same ground', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    paintOneCell();
+
+    const fixture = TestBed.createComponent(TableMoveBlockOverlayComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('canvas')).not.toBeNull();
+  });
+
+  it('shows nothing where no ground has been closed', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Player;
 
     const fixture = TestBed.createComponent(TableMoveBlockOverlayComponent);
     fixture.detectChanges();
