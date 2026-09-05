@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { MoveBlockService } from '@axe/application/tabletop/move-block.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -50,7 +49,6 @@ export class GmToolbarComponent {
   private readonly turnOrder = inject(TurnOrderService);
   protected readonly handRail = inject(HandRailService);
   protected readonly widgets = inject(WidgetVisibilityService);
-  protected readonly moveBlock = inject(MoveBlockService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
 
@@ -153,23 +151,6 @@ export class GmToolbarComponent {
     table.darknessEnabled = !table.darknessEnabled;
     table.update();
     this.objectChange.notifyChanged(table.identifier);
-  }
-
-  protected toggleMoveBlock(): void {
-    this.moveBlock.togglePainting();
-  }
-
-  protected useBlockBrush(): void {
-    this.moveBlock.setBrush('block');
-  }
-
-  protected useEraserBrush(): void {
-    this.moveBlock.setBrush('erase');
-  }
-
-  protected async clearMoveBlocks(): Promise<void> {
-    if (!(await this.confirm.ask(this.t('app.fab.moveBlockClearConfirm')))) return;
-    this.moveBlock.clearAll();
   }
 
   protected toggleFog(): void {

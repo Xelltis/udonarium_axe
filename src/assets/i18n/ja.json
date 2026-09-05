@@ -3305,13 +3305,7 @@
       "replay": "リプレイ",
       "recording": "録画",
       "fogOn": "戦場の霧: オン（クリックでオフ）",
-      "fogOff": "戦場の霧: オフ（クリックでオン）",
-      "moveBlockOn": "移動不可を塗る（終了）",
-      "moveBlockOff": "移動不可を塗る",
-      "moveBlockBrush": "塗る",
-      "moveBlockErase": "消しゴム",
-      "moveBlockClear": "全部消す",
-      "moveBlockClearConfirm": "塗った移動不可マスを全部消しますか？"
+      "fogOff": "戦場の霧: オフ（クリックでオン）"
     },
     "roomDataDefault": "ルームデータ"
   },

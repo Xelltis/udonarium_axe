@@ -54,38 +54,6 @@
     />
 
     <ui-icon-button
-      icon="block"
-      [label]="(moveBlock.isPainting() ? 'app.fab.moveBlockOn' : 'app.fab.moveBlockOff') | transloco"
-      [active]="moveBlock.isPainting()"
-      [dim]="!moveBlock.isPainting()"
-      testId="move-block-toggle"
-      (press)="toggleMoveBlock()"
-    />
-
-    @if (moveBlock.isPainting()) {
-      <ui-icon-button
-        icon="brush"
-        [label]="'app.fab.moveBlockBrush' | transloco"
-        [active]="moveBlock.brush() === 'block'"
-        testId="move-block-brush"
-        (press)="useBlockBrush()"
-      />
-      <ui-icon-button
-        icon="ink_eraser"
-        [label]="'app.fab.moveBlockErase' | transloco"
-        [active]="moveBlock.brush() === 'erase'"
-        testId="move-block-erase"
-        (press)="useEraserBrush()"
-      />
-      <ui-icon-button
-        icon="delete_sweep"
-        [label]="'app.fab.moveBlockClear' | transloco"
-        testId="move-block-clear"
-        (press)="clearMoveBlocks()"
-      />
-    }
-
-    <ui-icon-button
       icon="style"
       [label]="'app.fab.handCards' | transloco"
       [active]="handRail.isOpen()"

@@ -3540,13 +3540,7 @@
       "replay": "리플레이",
       "recording": "녹화",
       "fogOn": "전장의 안개: 켬(클릭하면 끔)",
-      "fogOff": "전장의 안개: 끔(클릭하면 켬)",
-      "moveBlockOn": "이동 불가 칠하기(종료)",
-      "moveBlockOff": "이동 불가 칠하기",
-      "moveBlockBrush": "칠하기",
-      "moveBlockErase": "지우개",
-      "moveBlockClear": "전부 지우기",
-      "moveBlockClearConfirm": "칠한 이동 불가 칸을 전부 지울까요?"
+      "fogOff": "전장의 안개: 끔(클릭하면 켬)"
     },
     "roomDataDefault": "룸 데이터"
   },

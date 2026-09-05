@@ -3305,13 +3305,7 @@
       "replay": "Replay",
       "recording": "Recording",
       "fogOn": "Fog of war: on (click to turn off)",
-      "fogOff": "Fog of war: off (click to turn on)",
-      "moveBlockOn": "Paint no-go cells (done)",
-      "moveBlockOff": "Paint no-go cells",
-      "moveBlockBrush": "Brush",
-      "moveBlockErase": "Eraser",
-      "moveBlockClear": "Wipe them all",
-      "moveBlockClearConfirm": "Wipe every no-go cell you have painted?"
+      "fogOff": "Fog of war: off (click to turn on)"
     },
     "roomDataDefault": "Room data"
   },
