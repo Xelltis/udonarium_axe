@@ -192,6 +192,7 @@ export class TurnOrderService {
       round: turnState.round,
       phase: turnState.phase,
       currentIdentifier: turnState.currentIdentifier,
+      currentSide: turnState.currentSide,
       acted: [...turnState.actedIdentifiers],
       buffs: [],
     };
@@ -218,6 +219,7 @@ export class TurnOrderService {
     turnState.round = step.round;
     turnState.phase = step.phase;
     turnState.currentIdentifier = step.currentIdentifier;
+    turnState.currentSide = step.currentSide;
     turnState.actedIdentifiers = [...step.acted];
     for (const entry of step.buffs) {
       this.objectStore.get<GameCharacter>(entry.identifier)?.buffs.restore(entry.buffs);

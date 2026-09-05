@@ -1,8 +1,13 @@
 import { BuffSnapshotEntry } from '@axe/domain/character/buff-manager';
 import { TurnPhase } from '@axe/domain/tabletop/turn-state';
 
-/** How many steps back the round can be taken. Older ones fall off the end. */
-export const TURN_HISTORY_LIMIT = 30;
+/**
+ * How many steps back the round can be taken. Older ones fall off the end.
+ *
+ * A round taken side by side costs a step per side on top of one per piece, and a round
+ * cannot be put back at all once the step that opened it has fallen off the end.
+ */
+export const TURN_HISTORY_LIMIT = 60;
 
 export interface CharacterBuffSnapshot {
   identifier: string;
@@ -14,6 +19,7 @@ export interface TurnStep {
   round: number;
   phase: TurnPhase;
   currentIdentifier: string;
+  currentSide: string;
   acted: string[];
   buffs: CharacterBuffSnapshot[];
 }
@@ -21,7 +27,9 @@ export interface TurnStep {
 export function parseTurnHistory(json: string): TurnStep[] {
   try {
     const parsed: unknown = JSON.parse(json || '[]');
-    return Array.isArray(parsed) ? (parsed as TurnStep[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // A step written where the round had no sides carries none, and reads as none.
+    return (parsed as TurnStep[]).map((step) => ({ ...step, currentSide: step.currentSide ?? '' }));
   } catch {
     return [];
   }
