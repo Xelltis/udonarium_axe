@@ -3,7 +3,19 @@ import { DEFAULT_FUNCTION_SPEC, MapFunctionRole, MaskBlock, TerrainBlock } from 
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { createScene, FunctionLayer, MapScene, newId } from '@axe/features/map-editor/model/scene';
-import { cellsForRole, planChangesNothing, planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
+import { cellsForRole, FunctionPaintPlan, planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
+
+function changesNothing(plan: FunctionPaintPlan, table: TableSnapshot): boolean {
+  const sameBlocked =
+    plan.blocked.length === table.blockedCells.length && plan.blocked.every((key) => table.blockedCells.includes(key));
+  return (
+    sameBlocked &&
+    plan.terrain.add.length === 0 &&
+    plan.terrain.remove.length === 0 &&
+    plan.mask.add.length === 0 &&
+    plan.mask.remove.length === 0
+  );
+}
 
 function layerOf(role: MapFunctionRole, cells: string[], over: Partial<FunctionLayer> = {}): FunctionLayer {
   const held: Record<string, true> = {};
@@ -140,7 +152,7 @@ describe('planFunctionPaint()', () => {
   });
 });
 
-describe('planChangesNothing()', () => {
+describe('changesNothing()', () => {
   it('says so where the table already matches', () => {
     const table = snapshot({
       blockedCells: ['1,1'],
@@ -148,14 +160,14 @@ describe('planChangesNothing()', () => {
     });
     const plan = planFunctionPaint(sceneWith(layerOf('moveBlock', ['1,1']), layerOf('terrain', ['2,2'])), table)!;
 
-    expect(planChangesNothing(plan, table)).toBe(true);
+    expect(changesNothing(plan, table)).toBe(true);
   });
 
   it('says otherwise for a cell that would be closed and was not', () => {
     const table = snapshot();
     const plan = planFunctionPaint(sceneWith(layerOf('moveBlock', ['1,1'])), table)!;
 
-    expect(planChangesNothing(plan, table)).toBe(false);
+    expect(changesNothing(plan, table)).toBe(false);
   });
 });
 
@@ -173,7 +185,7 @@ describe('the blocks a painting comes to', () => {
 
     expect(plan.terrain.add).toEqual([]);
     expect(plan.terrain.remove).toEqual([]);
-    expect(planChangesNothing(plan, table)).toBe(true);
+    expect(changesNothing(plan, table)).toBe(true);
   });
 
   it('rebuilds a wall that grew rather than adding a post beside it', () => {

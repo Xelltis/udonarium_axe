@@ -1,4 +1,4 @@
-import { CellRect, largestRectangles, rectangleChange, rectCells, rectKey } from '@axe/domain/tabletop/cell-rectangles';
+import { CellRect, largestRectangles, rectCells, rectKey } from '@axe/domain/tabletop/cell-rectangles';
 
 function keysOf(rects: readonly CellRect[]): string[] {
   return rects.map(rectKey).sort();
@@ -62,32 +62,5 @@ describe('largestRectangles()', () => {
 
   it('passes over a key it cannot read', () => {
     expect(largestRectangles(['nonsense', '-1,0', '1,1'])).toEqual([{ col: 1, row: 1, width: 1, height: 1 }]);
-  });
-});
-
-describe('rectangleChange()', () => {
-  const wall: CellRect = { col: 0, row: 0, width: 3, height: 1 };
-  const post: CellRect = { col: 5, row: 5, width: 1, height: 1 };
-
-  it('builds what is wanted and was not there', () => {
-    expect(keysOf(rectangleChange([wall], []).add)).toEqual([rectKey(wall)]);
-  });
-
-  it('pulls down what is there and is no longer wanted', () => {
-    expect(keysOf(rectangleChange([], [post]).remove)).toEqual([rectKey(post)]);
-  });
-
-  it('leaves a block that is wanted and already stands', () => {
-    const change = rectangleChange([wall, post], [wall]);
-
-    expect(keysOf(change.add)).toEqual([rectKey(post)]);
-    expect(change.remove).toEqual([]);
-  });
-
-  it('rebuilds a block whose shape changed rather than leaving it', () => {
-    const change = rectangleChange([{ ...wall, width: 4 }], [wall]);
-
-    expect(change.add).toHaveLength(1);
-    expect(change.remove).toHaveLength(1);
   });
 });

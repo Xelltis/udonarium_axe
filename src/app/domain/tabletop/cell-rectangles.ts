@@ -91,16 +91,3 @@ export function largestRectangles(cells: readonly string[]): CellRect[] {
     return true;
   }
 }
-
-/** What has to be built and what has to be pulled down for one set of blocks to become another. */
-export function rectangleChange(
-  wanted: readonly CellRect[],
-  held: readonly CellRect[]
-): { add: CellRect[]; remove: CellRect[] } {
-  const wantedKeys = new Set(wanted.map(rectKey));
-  const heldKeys = new Set(held.map(rectKey));
-  return {
-    add: wanted.filter((rect) => !heldKeys.has(rectKey(rect))),
-    remove: held.filter((rect) => !wantedKeys.has(rectKey(rect))),
-  };
-}

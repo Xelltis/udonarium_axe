@@ -2,9 +2,7 @@ import { largestRectangles } from '@axe/domain/tabletop/cell-rectangles';
 import {
   BlockChange,
   blockChange,
-  DEFAULT_FUNCTION_SPEC,
   FunctionPaintPlan,
-  FunctionSpec,
   MapFunctionRole,
   MaskBlock,
   TerrainBlock,
@@ -29,16 +27,6 @@ export function cellsForRole(scene: MapScene, role: MapFunctionRole): string[] {
     for (const key of Object.keys((layer as FunctionLayer).cells)) held.add(key);
   }
   return [...held];
-}
-
-/** The settings the first layer of a role carries, or the defaults where it has none. */
-export function specForRole(scene: MapScene, role: MapFunctionRole): FunctionSpec {
-  for (const layer of scene.layers) {
-    if (layer.kind === 'function' && (layer as FunctionLayer).role === role) {
-      return (layer as FunctionLayer).spec;
-    }
-  }
-  return { ...DEFAULT_FUNCTION_SPEC };
 }
 
 /**
@@ -111,17 +99,4 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
     terrain: blockChange(terrainBlocksOf(scene, table.cellPx), table.terrainBlocks),
     mask: blockChange(maskBlocksOf(scene), table.maskBlocks),
   };
-}
-
-/** Whether the plan would change anything at all. */
-export function planChangesNothing(plan: FunctionPaintPlan, table: TableSnapshot): boolean {
-  const sameBlocked =
-    plan.blocked.length === table.blockedCells.length && plan.blocked.every((key) => table.blockedCells.includes(key));
-  return (
-    sameBlocked &&
-    plan.terrain.add.length === 0 &&
-    plan.terrain.remove.length === 0 &&
-    plan.mask.add.length === 0 &&
-    plan.mask.remove.length === 0
-  );
 }

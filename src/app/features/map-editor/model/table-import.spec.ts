@@ -1,8 +1,20 @@
 import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { FunctionLayer, ImageLayer, sceneHeightPx, sceneWidthPx } from '@axe/features/map-editor/model/scene';
-import { planChangesNothing, planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
+import { FunctionPaintPlan, planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
 import { sceneFromTable, TableSnapshot } from '@axe/features/map-editor/model/table-import';
+
+function changesNothing(plan: FunctionPaintPlan, table: TableSnapshot): boolean {
+  const sameBlocked =
+    plan.blocked.length === table.blockedCells.length && plan.blocked.every((key) => table.blockedCells.includes(key));
+  return (
+    sameBlocked &&
+    plan.terrain.add.length === 0 &&
+    plan.terrain.remove.length === 0 &&
+    plan.mask.add.length === 0 &&
+    plan.mask.remove.length === 0
+  );
+}
 
 function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
   return {
@@ -156,7 +168,7 @@ describe('a table that already has walls upon walls', () => {
 
     const plan = planFunctionPaint(sceneFromTable(table), table)!;
 
-    expect(planChangesNothing(plan, table)).toBe(true);
+    expect(changesNothing(plan, table)).toBe(true);
   });
 
   it('leaves a tall wall carrying a storey where it stands', () => {
@@ -164,7 +176,7 @@ describe('a table that already has walls upon walls', () => {
 
     const plan = planFunctionPaint(sceneFromTable(table), table)!;
 
-    expect(planChangesNothing(plan, table)).toBe(true);
+    expect(changesNothing(plan, table)).toBe(true);
   });
 
   it('leaves two walls sharing a cell at one height where they stand', () => {
@@ -172,6 +184,6 @@ describe('a table that already has walls upon walls', () => {
 
     const plan = planFunctionPaint(sceneFromTable(table), table)!;
 
-    expect(planChangesNothing(plan, table)).toBe(true);
+    expect(changesNothing(plan, table)).toBe(true);
   });
 });

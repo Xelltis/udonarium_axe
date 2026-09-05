@@ -1,4 +1,4 @@
-import { encodeCellKey, parseCellKey } from '@axe/domain/tabletop/cell-key';
+import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 
 describe('parseCellKey()', () => {
   it('reads the cell a key names', () => {
@@ -6,8 +6,8 @@ describe('parseCellKey()', () => {
     expect(parseCellKey('0,0')).toEqual({ col: 0, row: 0 });
   });
 
-  it('writes a cell back the way it reads it', () => {
-    expect(parseCellKey(encodeCellKey({ col: 12, row: 4 }))).toEqual({ col: 12, row: 4 });
+  it('reads a cell far along the grid', () => {
+    expect(parseCellKey('12,4')).toEqual({ col: 12, row: 4 });
   });
 
   it('reads an empty key as nothing', () => {

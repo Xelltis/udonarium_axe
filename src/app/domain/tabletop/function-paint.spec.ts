@@ -3,10 +3,8 @@ import {
   DEFAULT_FUNCTION_ROLE,
   DEFAULT_FUNCTION_SPEC,
   MAP_FUNCTION_ROLES,
-  NO_FACE_IMAGES,
   sanitizeFunctionSpec,
   TERRAIN_FACE_KEYS,
-  wearsAnyImage,
 } from '@axe/domain/tabletop/function-paint';
 
 describe('asFunctionRole()', () => {
@@ -61,15 +59,5 @@ describe('sanitizeFunctionSpec()', () => {
 
   it('reads a spec written before it had a shape as the defaults', () => {
     expect(sanitizeFunctionSpec({ terrainHeight: 3, maskColor: '#112233' })).toEqual(DEFAULT_FUNCTION_SPEC);
-  });
-});
-
-describe('wearsAnyImage()', () => {
-  it('says a wall given nothing wears nothing', () => {
-    expect(wearsAnyImage(NO_FACE_IMAGES)).toBe(false);
-  });
-
-  it('says a wall given one picture wears one', () => {
-    expect(wearsAnyImage({ ...NO_FACE_IMAGES, east: 'mural' })).toBe(true);
   });
 });

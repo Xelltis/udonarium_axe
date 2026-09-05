@@ -3,10 +3,6 @@ export interface CellKey {
   row: number;
 }
 
-export function encodeCellKey(cell: CellKey): string {
-  return `${cell.col},${cell.row}`;
-}
-
 /**
  * The cell a key names, or nothing where it names none.
  *

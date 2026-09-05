@@ -289,11 +289,6 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
   };
 }
 
-/** Whether a painted wall wears any picture at all. Wearing none makes it glass. */
-export function wearsAnyImage(images: TerrainFaceImages): boolean {
-  return TERRAIN_FACE_KEYS.some((face) => images[face].length > 0);
-}
-
 /** A block of wall, and the look it wears. Every block carries its own. */
 export interface TerrainBlock extends CellRect {
   spec: TerrainPaintSpec;

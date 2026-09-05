@@ -51,10 +51,6 @@ export function eraseFunctionCell(layer: FunctionLayer, col: number, row: number
   delete layer.cells[cellKey(col, row)];
 }
 
-export function hasFunctionCell(layer: FunctionLayer, col: number, row: number): boolean {
-  return layer.cells[cellKey(col, row)] === true;
-}
-
 export function floodFill(scene: MapScene, layer: CellLayer, col: number, row: number, fill: FillStyle): void {
   if (!inBounds(scene, col, row)) return;
   const startFill = getCell(layer, col, row);
