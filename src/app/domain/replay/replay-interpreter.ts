@@ -260,7 +260,12 @@ function describeTurn(
   after: SyncData,
   keys: ReadonlySet<string>
 ): { kind: ReplayEventKind; detail: Record<string, unknown>; targetIdentifier?: string } | null {
-  if (!hasChangedKey(keys, 'round') && !hasChangedKey(keys, 'phase') && !hasChangedKey(keys, 'currentIdentifier')) {
+  if (
+    !hasChangedKey(keys, 'round') &&
+    !hasChangedKey(keys, 'phase') &&
+    !hasChangedKey(keys, 'currentIdentifier') &&
+    !hasChangedKey(keys, 'currentSide')
+  ) {
     return null;
   }
   return {
@@ -269,6 +274,7 @@ function describeTurn(
     detail: {
       round: Number(syncValueOf(after, 'round') ?? 0),
       phase: asString(syncValueOf(after, 'phase')),
+      side: asString(syncValueOf(after, 'currentSide')),
     },
   };
 }
