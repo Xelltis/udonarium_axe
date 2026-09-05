@@ -838,6 +838,14 @@
           }}
         </button>
         <button
+          class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-1 disabled:opacity-40"
+          [disabled]="busy()"
+          [title]="'feature.mapEditor.actions.applyFunctionsHint' | transloco"
+          (click)="applyFunctionsOnly()"
+        >
+          {{ 'feature.mapEditor.actions.applyFunctions' | transloco }}
+        </button>
+        <button
           class="bg-ui-accent-bg text-ui-accent rounded-ui-sm px-2 py-1 disabled:opacity-40"
           [disabled]="busy()"
           (click)="setAsTable()"

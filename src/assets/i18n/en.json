@@ -2689,7 +2689,11 @@
         "exporting": "Exporting…",
         "savedImage": "Image saved",
         "setTableDone": "Set as table background",
-        "exportError": "Export failed"
+        "exportError": "Export failed",
+        "applyFunctions": "Lay the functions",
+        "applyFunctionsHint": "Lays the painted no-entry, terrain and masks on the table, leaving the floor as it is",
+        "applyFunctionsDone": "Laid the painted functions on the table",
+        "applyFunctionsGridMismatch": "The grid does not match the table. Read the table in first"
       },
       "status": {
         "cell": "{{col}}-{{row}}"

@@ -1,6 +1,14 @@
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { DEFAULT_FUNCTION_SPEC, MapFunctionRole } from '@axe/features/map-editor/model/function-layer';
-import { createScene, FunctionLayer, ImageLayer, MapScene, newId } from '@axe/features/map-editor/model/scene';
+import {
+  createScene,
+  FunctionLayer,
+  ImageLayer,
+  MapScene,
+  newId,
+  sceneHeightPx,
+  sceneWidthPx,
+} from '@axe/features/map-editor/model/scene';
 
 export type { TableSnapshot };
 
@@ -40,6 +48,11 @@ export function sceneFromTable(table: TableSnapshot): MapScene {
     table.gridType
   );
 
+  // A picture is placed by its middle rather than its corner, so a floor put at the origin
+  // would hang off the top left with only a quarter of it over the map.
+  const width = sceneWidthPx(scene);
+  const height = sceneHeightPx(scene);
+
   const layers: MapScene['layers'] = [];
   if (table.floorImageIdentifier.length > 0) {
     const floor: ImageLayer = {
@@ -53,10 +66,10 @@ export function sceneFromTable(table: TableSnapshot): MapScene {
         {
           id: newId(),
           imageIdentifier: table.floorImageIdentifier,
-          x: 0,
-          y: 0,
-          w: scene.cols * scene.cellPx,
-          h: scene.rows * scene.cellPx,
+          x: width / 2,
+          y: height / 2,
+          w: width,
+          h: height,
           rotation: 0,
           opacity: 1,
         },

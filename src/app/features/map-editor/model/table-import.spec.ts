@@ -1,5 +1,5 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { FunctionLayer, ImageLayer } from '@axe/features/map-editor/model/scene';
+import { FunctionLayer, ImageLayer, sceneHeightPx, sceneWidthPx } from '@axe/features/map-editor/model/scene';
 import { sceneFromTable, TableSnapshot } from '@axe/features/map-editor/model/table-import';
 
 function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
@@ -39,6 +39,23 @@ describe('sceneFromTable()', () => {
     expect(layer.items[0].imageIdentifier).toBe('floor-image');
     expect(layer.items[0].w).toBe(10 * 50);
     expect(layer.items[0].h).toBe(8 * 50);
+  });
+
+  it('places the floor by its middle, which is where a picture is hung from', () => {
+    const scene = sceneFromTable(snapshot({ floorImageIdentifier: 'floor-image' }));
+
+    // Hung from the corner instead, three quarters of the floor would sit off the map.
+    const item = (scene.layers[0] as ImageLayer).items[0];
+    expect(item.x).toBe(sceneWidthPx(scene) / 2);
+    expect(item.y).toBe(sceneHeightPx(scene) / 2);
+  });
+
+  it('covers a hex map by the width the hexes actually take', () => {
+    const scene = sceneFromTable(snapshot({ floorImageIdentifier: 'floor-image', gridType: GridType.HEX_VERTICAL }));
+
+    const item = (scene.layers[0] as ImageLayer).items[0];
+    expect(item.w).toBe(sceneWidthPx(scene));
+    expect(item.h).toBe(sceneHeightPx(scene));
   });
 
   it('brings the cells the table is closed on in as a layer of their own', () => {

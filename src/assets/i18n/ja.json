@@ -2689,7 +2689,11 @@
         "exporting": "書き出し中…",
         "savedImage": "画像を保存しました",
         "setTableDone": "テーブル背景に設定しました",
-        "exportError": "書き出しに失敗しました"
+        "exportError": "書き出しに失敗しました",
+        "applyFunctions": "機能だけ反映",
+        "applyFunctionsHint": "床画像はそのままに、塗った立入禁止・地形・マスクだけをテーブルへ反映します",
+        "applyFunctionsDone": "塗った機能をテーブルへ反映しました",
+        "applyFunctionsGridMismatch": "テーブルとマス目が合いません。先にテーブルを取り込んでください"
       },
       "status": {
         "cell": "{{col}}-{{row}}"

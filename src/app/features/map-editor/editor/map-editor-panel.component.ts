@@ -66,6 +66,7 @@ import { guessLineWidth, useTextMeasurer } from '@axe/features/map-editor/model/
 import { removeText, updateText } from '@axe/features/map-editor/model/scene-ops';
 import { deserializeScene } from '@axe/features/map-editor/model/serialize';
 import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/features/map-editor/model/shape-points';
+import { planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
 import { sceneFromTable } from '@axe/features/map-editor/model/table-import';
 import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/features/map-editor/model/textures';
 import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
@@ -1433,6 +1434,35 @@ export class MapEditorPanelComponent implements AfterViewInit {
     this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
   }
 
+  /**
+   * Lays what was painted on the table, and leaves the floor as it is.
+   *
+   * Baking the picture again to add a closed cell would cost the floor its quality and its
+   * identity both, and neither has anything to do with what was painted.
+   */
+  protected applyFunctions(): boolean {
+    const snapshot = this.functionalPaint.snapshot();
+    if (!snapshot) {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+      return false;
+    }
+    const plan = planFunctionPaint(this.state.current, snapshot);
+    if (!plan) {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.applyFunctionsGridMismatch'));
+      return false;
+    }
+    if (!this.functionalPaint.apply(plan)) {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+      return false;
+    }
+    return true;
+  }
+
+  protected applyFunctionsOnly(): void {
+    if (this.busy()) return;
+    if (this.applyFunctions()) this.notice.show(this.t('feature.mapEditor.actions.applyFunctionsDone'));
+  }
+
   protected async setAsTable(): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
@@ -1450,6 +1480,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
       table.height = scene.rows;
       table.gridSize = scene.cellPx;
       table.gridType = scene.gridType;
+      this.applyFunctions();
       this.notice.show(this.t('feature.mapEditor.actions.setTableDone'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));

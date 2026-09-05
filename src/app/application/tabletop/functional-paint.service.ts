@@ -1,15 +1,43 @@
 import { inject, Injectable } from '@angular/core';
-import { cellColRow, CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { GameObject } from '@axe/core/sync/game-object';
+import { DataElement } from '@axe/domain/data/data-element';
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
+import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { FunctionPaintPlan } from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
-import { parsePaintedCell } from '@axe/domain/tabletop/painted-cell';
+import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
+import { encodePaintedCell, parsePaintedCell } from '@axe/domain/tabletop/painted-cell';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
 function cellKeyOf(col: number, row: number): string {
   return `${col},${row}`;
+}
+
+/** A mask counts its opacity out of this, so the fraction it shows is the current value over it. */
+const MASK_OPACITY_FULL = 100;
+
+/**
+ * A mask carries no colour until one is written down for it, and the setter will not write
+ * what is not already there, so the element has to be laid alongside it.
+ */
+function paintMaskColor(mask: GameTableMask, color: string): void {
+  const common = mask.commonDataElement;
+  if (!common) return;
+  common.appendChild(DataElement.create('color', color, { currentValue: '#0a0a0a' }, `color_${mask.identifier}`));
+}
+
+function setMaskOpacity(mask: GameTableMask, fraction: number): void {
+  const element = mask.commonDataElement?.getFirstElementByName('opacity');
+  if (!element) return;
+  element.currentValue = Math.round(Math.min(1, Math.max(0, fraction)) * MASK_OPACITY_FULL);
+}
+
+function parseCellKey(key: string): { col: number; row: number } | null {
+  const cell = parsePaintedCell(key);
+  return cell;
 }
 
 /** The cells a table is closed on, in the editor's own way of naming them. */
@@ -39,6 +67,80 @@ export function paintedCellKeysOf(objects: readonly { paintCell: string }[]): st
 @Injectable({ providedIn: 'root' })
 export class FunctionalPaintService {
   private readonly tableSelecter = inject(TableSelecter);
+
+  /**
+   * Lays what was painted on the table.
+   *
+   * Only the objects the editor painted are made and unmade. Anything a person placed by
+   * hand is passed over without being read, moved or counted, whatever the plan says.
+   */
+  apply(plan: FunctionPaintPlan): boolean {
+    const table = this.tableSelecter.viewTable;
+    if (!table) return false;
+    if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return false;
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+
+    GameObject.batch(() => {
+      this.closeCells(table, grid, plan.blocked);
+      this.layTerrain(table, plan);
+      this.layMasks(table, plan);
+    });
+    return true;
+  }
+
+  private closeCells(table: GameTable, grid: CellGrid, blocked: readonly string[]): void {
+    const bits = new CellBits(grid.cols * grid.rows);
+    for (const key of blocked) {
+      const cell = parseCellKey(key);
+      if (!cell) continue;
+      const index = cellIndexOf(grid, cell.col, cell.row);
+      if (index >= 0) bits.set(index);
+    }
+    if (bits.isEmpty && !moveBlockMapOn(table)) return;
+    ensureMoveBlockMapOn(table).write(grid, bits);
+  }
+
+  private layTerrain(table: GameTable, plan: FunctionPaintPlan): void {
+    const painted = table.children.filter((child): child is Terrain => child instanceof Terrain);
+    this.takeAway(painted, plan.terrain.remove);
+
+    for (const key of plan.terrain.add) {
+      const cell = parseCellKey(key);
+      if (!cell) continue;
+      const terrain = Terrain.create('', 1, 1, Math.max(0, plan.terrainSpec.terrainHeight), '', '');
+      terrain.blocksSight = plan.terrainSpec.terrainBlocksSight;
+      terrain.blocksLight = plan.terrainSpec.terrainBlocksLight;
+      terrain.paintCell = encodePaintedCell(cell);
+      terrain.location = { name: 'table', x: cell.col * table.gridSize, y: cell.row * table.gridSize };
+      table.appendChild(terrain);
+    }
+  }
+
+  private layMasks(table: GameTable, plan: FunctionPaintPlan): void {
+    const painted = table.children.filter((child): child is GameTableMask => child instanceof GameTableMask);
+    this.takeAway(painted, plan.mask.remove);
+
+    for (const key of plan.mask.add) {
+      const cell = parseCellKey(key);
+      if (!cell) continue;
+      const mask = GameTableMask.create('', 1, 1, MASK_OPACITY_FULL);
+      paintMaskColor(mask, plan.maskSpec.maskColor);
+      setMaskOpacity(mask, plan.maskSpec.maskOpacity);
+      mask.paintCell = encodePaintedCell(cell);
+      mask.location = { name: 'table', x: cell.col * table.gridSize, y: cell.row * table.gridSize };
+      table.appendChild(mask);
+    }
+  }
+
+  /** Takes away only what the editor painted onto the cells it is done with. */
+  private takeAway(objects: readonly { paintCell: string; destroy(): void }[], cells: readonly string[]): void {
+    const going = new Set(cells);
+    for (const object of objects) {
+      const cell = parsePaintedCell(object.paintCell);
+      if (!cell) continue;
+      if (going.has(cellKeyOf(cell.col, cell.row))) object.destroy();
+    }
+  }
 
   /** The table the editor would be reading, or nothing where none is out. */
   snapshot(): TableSnapshot | null {
