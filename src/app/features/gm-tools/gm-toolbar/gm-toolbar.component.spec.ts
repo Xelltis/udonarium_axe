@@ -52,6 +52,19 @@ describe('GmToolbarComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="move-block-erase"]')).toBeNull();
   });
 
+  it('hands the game master to the map editor already holding the brush', async () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[data-testid="paint-no-entry"]').click();
+
+    const [load, , setup] = panelStub.openLazy.mock.calls[0];
+    await expect(load()).resolves.toBe(MapEditorPanelComponent);
+    const panel = { beginFunctionPaint: vi.fn() };
+    setup(panel);
+    expect(panel.beginFunctionPaint).toHaveBeenCalledWith('moveBlock');
+  });
+
   it('opens the object list', async () => {
     (component as unknown as { openObjectList: () => void }).openObjectList();
     expect(panelStub.openLazy).toHaveBeenCalledWith(

@@ -27,7 +27,7 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isTextureId, TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { FunctionSpec, MAP_FUNCTION_ROLES } from '@axe/domain/tabletop/function-paint';
+import { FunctionSpec, MAP_FUNCTION_ROLES, MapFunctionRole } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
@@ -1427,6 +1427,20 @@ export class MapEditorPanelComponent implements AfterViewInit {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /**
+   * Opens ready to paint one kind of function on the table that is out.
+   *
+   * A scene with nothing drawn on it has nothing to lose, so the table is read in without
+   * asking. One that has been worked on is left exactly as it stands: the brush is handed
+   * over and reading the table in stays the game master's own decision.
+   */
+  beginFunctionPaint(role: MapFunctionRole): void {
+    const snapshot = this.state.isUntouched ? this.functionalPaint.snapshot() : null;
+    if (snapshot) this.state.loadScene(sceneFromTable(snapshot));
+    this.state.functionRole.set(role);
+    this.state.tool.set('functionPaint');
   }
 
   /**

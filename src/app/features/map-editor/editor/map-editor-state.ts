@@ -429,6 +429,11 @@ export class MapEditorState {
     this.refreshHistoryFlags();
   }
 
+  /** Whether the scene is still as new, which is when reading a table over it costs nothing. */
+  get isUntouched(): boolean {
+    return this.scene.layers.length === 0 && !this.canUndo();
+  }
+
   loadScene(scene: MapScene): void {
     this.scene = scene;
     this.history.reset(this.scene);

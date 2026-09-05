@@ -73,3 +73,24 @@ describe('painting what a cell does', () => {
     expect(layersOfRole('mask')).toHaveLength(0);
   });
 });
+
+describe('being handed the brush as the editor opens', () => {
+  let state: MapEditorState;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [MapEditorState] });
+    state = TestBed.inject(MapEditorState);
+    state.newScene(10, 8, 50, 'transparent');
+  });
+
+  it('counts a scene with nothing drawn on it as having nothing to lose', () => {
+    expect(state.isUntouched).toBe(true);
+  });
+
+  it('counts a scene that has been painted on as worth keeping', () => {
+    state.functionRole.set('moveBlock');
+    state.paintFunctionCell(0, 0);
+
+    expect(state.isUntouched).toBe(false);
+  });
+});

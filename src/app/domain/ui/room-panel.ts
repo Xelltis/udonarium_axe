@@ -1,3 +1,15 @@
+import { MapFunctionRole } from '@axe/domain/tabletop/function-paint';
+
+/**
+ * A panel that can be opened already holding a brush.
+ *
+ * The map editor is where a cell's job is painted, and the toolbar wants to hand a game
+ * master straight to it rather than leaving them to find the tool themselves.
+ */
+export interface FunctionPaintPanel {
+  beginFunctionPaint(role: MapFunctionRole): void;
+}
+
 /** The panels that belong to one character, which cannot be opened without saying whose. */
 export const CHARACTER_PANELS = ['chatPalette', 'sheet', 'remoteController'] as const;
 
