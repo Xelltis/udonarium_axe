@@ -1860,7 +1860,6 @@
         "snapAll": "Cell + vertex + edge",
         "sectionDisplay": "Display mode",
         "imageBillboard": "Billboard piece images",
-        "mode2d": "2D mode (top-down)",
         "sectionDarkness": "Darkness (vision & lighting)",
         "darknessEnabled": "Enable darkness",
         "lightSnapToGrid": "Snap light to the grid",
@@ -2033,7 +2032,6 @@
       "sectionFacing": "Which way a piece faces",
       "ruledByTable": "Each table rules this for now. Change one here and the room takes it over.",
       "ruledByRoom": "The room rules this, the same whichever table is out.",
-      "backToTable": "Back to each table",
       "moveRangeEnabled": "Show where a piece can walk while it is picked up",
       "moveRangeAlways": "Keep showing the reach of the piece that is picked",
       "moveDiagonally": "Let a piece step across a corner, counted as one cell",
@@ -2070,7 +2068,9 @@
       "autoSaveKeeping": "Keep the room on this device",
       "autoSaveHint": "A copy of the room is kept here once the table settles. It never reaches the other players and never leaves this device. Stopping takes no further copies; the ones already kept stay.",
       "tab_utility": "Utilities",
-      "characterImportHint": "Brings a piece in from an outside character sheet service. What comes in is placed on the table and reaches the other players."
+      "characterImportHint": "Brings a piece in from an outside character sheet service. What comes in is placed on the table and reaches the other players.",
+      "moveStrict": "Only let a piece down where it could have walked",
+      "moveStrictHint": "A piece showing a reach goes back where it was lifted from if it is set down outside that reach. A piece with no reach to show is still set down wherever the hand leaves it."
     },
     "lobby": {
       "peerMenu": {
@@ -3343,7 +3343,9 @@
       "replay": "Replay",
       "recording": "Recording",
       "fogOn": "Fog of war: on (click to turn off)",
-      "fogOff": "Fog of war: off (click to turn on)"
+      "fogOff": "Fog of war: off (click to turn on)",
+      "viewFlat": "Flat view (click for depth)",
+      "viewPerspective": "Table in depth (click to flatten)"
     },
     "roomDataDefault": "Room data"
   },

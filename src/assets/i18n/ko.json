@@ -1860,7 +1860,6 @@
         "snapAll": "셀＋교차점＋변",
         "sectionDisplay": "표시 모드",
         "imageBillboard": "이미지를 카메라를 향하게",
-        "mode2d": "2D 모드(부감 고정)",
         "sectionDarkness": "어둠(시야·조명)",
         "darknessEnabled": "어둠 사용",
         "lightSnapToGrid": "조명을 칸에 맞추기",
@@ -2033,7 +2032,6 @@
       "sectionFacing": "말의 방향",
       "ruledByTable": "지금은 테이블별 설정입니다. 여기서 바꾸면 방 전체 설정이 됩니다.",
       "ruledByRoom": "방 전체 설정입니다. 어느 테이블을 꺼내도 같은 규칙이 적용됩니다.",
-      "backToTable": "테이블별로 되돌리기",
       "moveRangeEnabled": "말을 집어 들면 이동할 수 있는 칸을 표시",
       "moveRangeAlways": "선택한 말의 이동 범위를 계속 표시",
       "moveDiagonally": "대각선 이동을 허용한다 (한 칸으로 계산)",
@@ -2070,7 +2068,9 @@
       "autoSaveKeeping": "이 기기에 방을 자동 저장",
       "autoSaveHint": "탁자의 변화가 멎으면 이 기기 안에 방의 사본을 남깁니다. 사본은 다른 참가자에게 가지 않고 밖으로도 나가지 않습니다. 멈추면 새 사본은 남기지 않고, 이미 있는 것은 그대로 남습니다.",
       "tab_utility": "유틸리티",
-      "characterImportHint": "외부 캐릭터 시트 보관소에서 말을 가져옵니다. 가져온 말은 탁자에 놓이고 다른 참가자에게도 전달됩니다."
+      "characterImportHint": "외부 캐릭터 시트 보관소에서 말을 가져옵니다. 가져온 말은 탁자에 놓이고 다른 참가자에게도 전달됩니다.",
+      "moveStrict": "이동할 수 있는 칸 안에만 놓을 수 있게 하기",
+      "moveStrictHint": "이동 범위가 표시된 말을 범위 밖에 놓으려 하면 집어 올린 자리로 되돌립니다. 이동 범위가 나오지 않는 말은 지금까지처럼 어디에나 놓을 수 있습니다."
     },
     "lobby": {
       "peerMenu": {
@@ -3578,7 +3578,9 @@
       "replay": "리플레이",
       "recording": "녹화",
       "fogOn": "전장의 안개: 켬(클릭하면 끔)",
-      "fogOff": "전장의 안개: 끔(클릭하면 켬)"
+      "fogOff": "전장의 안개: 끔(클릭하면 켬)",
+      "viewFlat": "2D 표시(클릭하면 3D)",
+      "viewPerspective": "3D 표시(클릭하면 2D)"
     },
     "roomDataDefault": "룸 데이터"
   },

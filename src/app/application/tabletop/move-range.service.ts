@@ -37,6 +37,7 @@ export class MoveRangeService {
   private readonly objectChange = inject(ObjectChangeService);
 
   private readonly held = signal<MoveRangeView | null>(null);
+  private lifted: { identifier: string; x: number; y: number; z: number } | null = null;
 
   /**
    * What is drawn on the table: the piece in hand, or else the piece the reader has picked.
@@ -82,11 +83,48 @@ export class MoveRangeService {
   });
 
   show(character: GameCharacter): void {
-    this.held.set(this.build(character));
+    const view = this.build(character);
+    this.held.set(view);
+    this.lifted = view
+      ? {
+          identifier: character.identifier,
+          x: character.location.x,
+          y: character.location.y,
+          z: character.posZ,
+        }
+      : null;
   }
 
   hide(): void {
     if (this.held() !== null) this.held.set(null);
+    this.lifted = null;
+  }
+
+  /**
+   * Sets a piece back where it was lifted from, where the room will not have it set down out
+   * of reach.
+   *
+   * Only a piece that was showing a reach when it was lifted is held to one: a piece with no
+   * move to speak of, or lifted while the room was not drawing reaches, is put down wherever
+   * the hand left it.
+   */
+  returnIfOutOfReach(character: GameCharacter): boolean {
+    const from = this.lifted;
+    const view = this.held();
+    this.lifted = null;
+    if (!from || !view || from.identifier !== character.identifier) return false;
+    if (!this.objectStore.get<Config>('Config')?.moveStrict) return false;
+
+    const table = this.tableSelecter.viewTable;
+    if (!table) return false;
+    const landed = startCellOf(view.grid, character, table);
+    if (landed >= 0 && view.cells.get(landed)) return false;
+
+    character.location.x = from.x;
+    character.location.y = from.y;
+    character.posZ = from.z;
+    character.update();
+    return true;
   }
 
   /** What the table is played by, which the room answers for wherever it has been asked. */

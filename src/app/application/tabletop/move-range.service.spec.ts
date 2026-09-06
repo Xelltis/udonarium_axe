@@ -192,6 +192,92 @@ describe('MoveRangeService', () => {
     expect(service.range()!.held).toBeNull();
   });
 
+  describe('setting a piece down where it could not have walked', () => {
+    // Config outlives a test, so a room that asked for strict moves would ask it of every
+    // test that ran afterwards.
+    afterEach(() => {
+      Config.instance.moveStrict = false;
+    });
+
+    function lift(character: GameCharacter): void {
+      service.show(character);
+    }
+
+    function moveTo(character: GameCharacter, col: number, row: number): void {
+      character.location = { name: 'table', x: col * GRID, y: row * GRID };
+    }
+
+    it('puts the piece back where it was lifted from', () => {
+      Config.instance.moveStrict = true;
+      const piece = pieceAt(5, 5, 2);
+      lift(piece);
+
+      moveTo(piece, 11, 11);
+      const refused = service.returnIfOutOfReach(piece);
+
+      expect(refused).toBe(true);
+      expect(piece.location.x).toBe(5 * GRID);
+      expect(piece.location.y).toBe(5 * GRID);
+    });
+
+    it('leaves a piece set down within its reach where it landed', () => {
+      Config.instance.moveStrict = true;
+      const piece = pieceAt(5, 5, 2);
+      lift(piece);
+
+      moveTo(piece, 6, 5);
+      const refused = service.returnIfOutOfReach(piece);
+
+      expect(refused).toBe(false);
+      expect(piece.location.x).toBe(6 * GRID);
+    });
+
+    it('holds nobody to a reach until the room asks for it', () => {
+      const piece = pieceAt(5, 5, 2);
+      lift(piece);
+
+      moveTo(piece, 11, 11);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(false);
+      expect(piece.location.x).toBe(11 * GRID);
+    });
+
+    it('lets a piece with no reach to show go wherever it is put', () => {
+      Config.instance.moveStrict = true;
+      const piece = pieceAt(5, 5, null);
+      lift(piece);
+
+      moveTo(piece, 11, 11);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(false);
+      expect(piece.location.x).toBe(11 * GRID);
+    });
+
+    it('holds a piece to its own reach and not to the one before it', () => {
+      Config.instance.moveStrict = true;
+      const first = pieceAt(5, 5, 2);
+      const second = pieceAt(1, 1, 2);
+      lift(first);
+
+      moveTo(second, 11, 11);
+
+      expect(service.returnIfOutOfReach(second)).toBe(false);
+      expect(second.location.x).toBe(11 * GRID);
+    });
+
+    it('asks nothing of a piece set down after the reach was let go', () => {
+      Config.instance.moveStrict = true;
+      const piece = pieceAt(5, 5, 2);
+      lift(piece);
+      service.hide();
+
+      moveTo(piece, 11, 11);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(false);
+      expect(piece.location.x).toBe(11 * GRID);
+    });
+  });
+
   describe('what a picked piece keeps showing', () => {
     function pick(character: GameCharacter): void {
       TestBed.inject(SelectionSignalService).selectObject(character.identifier, 'character');
