@@ -459,7 +459,7 @@ export class ChatInputComponent {
       bubbles: this.chatBubbles(this.colorSelectNo()),
       replyTo: this.replyTarget()?.identifier ?? '',
       quoteOf: this.quoteTarget()?.identifier ?? '',
-      toTicker: this.sendsToTicker(),
+      toTicker: this.showsTickerSwitch() && this.sendsToTicker(),
     };
     DiceBot.loadGameSystemAsync(this.gameType).then((gameSystem) => {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));

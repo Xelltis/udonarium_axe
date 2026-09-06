@@ -144,9 +144,11 @@ export class GameTableGestureService {
     const rx = this.viewRotateX.toFixed(4);
     const ry = this.viewRotateY.toFixed(4);
     const rz = this.viewRotateZ.toFixed(4);
-    const projectionScale = this.orthographicProjection
-      ? `scale(${(TABLE_PERSPECTIVE_PX / (TABLE_PERSPECTIVE_PX - this.viewPositionZ)).toFixed(6)}) `
-      : '';
+    // The camera is held short of the plane it would be standing on. At the plane the divisor
+    // is nothing and the whole transform is thrown out by the browser, taking the pan and the
+    // rotation with it; past it the board is drawn mirrored.
+    const depth = Math.max(TABLE_PERSPECTIVE_PX / 100, TABLE_PERSPECTIVE_PX - this.viewPositionZ);
+    const projectionScale = this.orthographicProjection ? `scale(${(TABLE_PERSPECTIVE_PX / depth).toFixed(6)}) ` : '';
     this.gameTableEl.style.transform = `${projectionScale}translateZ(${tz}px) translateY(${ty}px) translateX(${tx}px) rotateY(${ry}deg) rotateX(${rx}deg) rotateZ(${rz}deg)`;
 
     this.coordinateService.invalidateTabletopTransform();

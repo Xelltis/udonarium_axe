@@ -407,7 +407,10 @@ export class GameObjectInventoryComponent {
     this.objectChange.versionOf('Config')();
     this.objectChange.collectionOf('party')();
     this.objectChange.trackMyCursor();
-    return this.turnOrderService.orderedSides(this.rolePermission.canSeeHidden).map((group) => ({
+    // The same grouping the round itself walks. Banding a game master's strip by what only they
+    // can see offered a side the round cannot reach: handing it the turn wrote a side nothing
+    // could resolve afterwards, and the next press gave the turn away to somebody else's piece.
+    return this.turnOrderService.orderedSides().map((group) => ({
       side: group.side,
       name: this.turnOrderService.sideName(group.side),
       color: this.turnOrderService.sideColor(group.side),
@@ -443,6 +446,9 @@ export class GameObjectInventoryComponent {
     this.objectChange.versionOf('TurnState')();
     this.objectChange.versionOf('Config')();
     this.objectChange.collectionOf('party')();
+    // Which side is up is worked out against the sides that exist, and those come and go with
+    // the pieces on the table; without this the strip highlights a band that has left it.
+    this.inventoryService.inventoryVersion();
     return this.turnOrderService.currentSide;
   });
 
