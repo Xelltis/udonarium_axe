@@ -18,6 +18,7 @@ import { MultiAngleMotionMode } from '@axe/domain/tabletop/multi-angle';
 import { MultiAngleFontScale } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { DEFAULT_TABLE_FACING_MARK, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import {
   DEFAULT_TABLETOP_DISPLAY_SETTINGS as DISPLAY_DEFAULTS,
@@ -152,6 +153,18 @@ export class GameTable extends ObjectNode {
 
   get ambiences(): TableAmbience[] {
     return this.children.filter((o): o is TableAmbience => o instanceof TableAmbience);
+  }
+
+  /**
+   * What drifts under the board, furthest back first.
+   *
+   * A table drawn on a transparent picture shows these through it; one drawn on an opaque one
+   * hides them, and the room pays nothing for layers nobody can see.
+   */
+  get backgroundLayers(): TableBackgroundLayer[] {
+    return this.children
+      .filter((o): o is TableBackgroundLayer => o instanceof TableBackgroundLayer)
+      .sort((a, b) => a.order - b.order);
   }
 
   get masks(): GameTableMask[] {

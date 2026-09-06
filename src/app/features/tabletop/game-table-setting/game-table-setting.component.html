@@ -218,6 +218,180 @@
       </div>
 
       <div class="mb-3.5 flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <div class="border-ui-accent flex-1 border-l-2 border-solid pl-2">
+            <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+              'feature.tabletop.tableSetting.sectionBackgroundLayers' | transloco
+            }}</span>
+          </div>
+          <button
+            class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-0.5 text-[12px] disabled:cursor-not-allowed disabled:opacity-40"
+            type="button"
+            data-testid="background-layer-add"
+            [disabled]="!canAddBackgroundLayer"
+            (click)="addBackgroundLayer()"
+          >
+            {{ 'feature.tabletop.tableSetting.backgroundLayerAdd' | transloco }}
+          </button>
+        </div>
+        <p class="text-ui-dim m-0 text-[11px]">
+          {{ 'feature.tabletop.tableSetting.backgroundLayerHint' | transloco }}
+        </p>
+
+        @for (layer of backgroundLayers; track layer.identifier; let index = $index) {
+          <div
+            class="rounded-ui-sm border-ui-border-panel flex flex-col gap-2 border border-solid p-2"
+            data-testid="background-layer-row"
+          >
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+                <input
+                  type="checkbox"
+                  class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                  [attr.name]="'backgroundLayerEnabled' + index"
+                  [ngModel]="backgroundLayerEnabled(layer)"
+                  (ngModelChange)="setBackgroundLayerEnabled(layer, $event)"
+                />
+                {{
+                  (backgroundLayerPlacement(layer) === 'over'
+                    ? 'feature.tabletop.tableSetting.backgroundLayerIndexOver'
+                    : 'feature.tabletop.tableSetting.backgroundLayerIndexUnder'
+                  ) | transloco: { index: backgroundLayerNumber(layer) }
+                }}
+              </label>
+              <span class="flex-1"></span>
+              <button
+                class="text-ui-muted cursor-pointer border-0 bg-transparent p-0 leading-none disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+                data-testid="background-layer-move-up"
+                [title]="'feature.tabletop.tableSetting.backgroundLayerMoveUp' | transloco"
+                [disabled]="!canMoveBackgroundLayer(layer, -1)"
+                (click)="moveBackgroundLayer(layer, -1)"
+              >
+                <i class="material-icons text-[15px]!">arrow_upward</i>
+              </button>
+              <button
+                class="text-ui-muted cursor-pointer border-0 bg-transparent p-0 leading-none disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+                data-testid="background-layer-move-down"
+                [title]="'feature.tabletop.tableSetting.backgroundLayerMoveDown' | transloco"
+                [disabled]="!canMoveBackgroundLayer(layer, 1)"
+                (click)="moveBackgroundLayer(layer, 1)"
+              >
+                <i class="material-icons text-[15px]!">arrow_downward</i>
+              </button>
+              <button
+                class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-0.5 text-[12px]"
+                type="button"
+                data-testid="background-layer-image"
+                (click)="openBackgroundLayerImage(layer)"
+              >
+                {{ 'feature.tabletop.tableSetting.backgroundLayerImage' | transloco }}
+              </button>
+              <button
+                class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-0.5 text-[12px]"
+                type="button"
+                data-testid="background-layer-remove"
+                (click)="removeBackgroundLayer(layer)"
+              >
+                {{ 'feature.tabletop.tableSetting.backgroundLayerRemove' | transloco }}
+              </button>
+            </div>
+
+            @if (backgroundLayerImage(layer).url) {
+              <div
+                class="bg-ui-elevated h-14 rounded-sm bg-contain bg-center bg-no-repeat"
+                [style.background-image]="'url(' + backgroundLayerImage(layer).url + ')' | safe: 'style'"
+              ></div>
+            }
+
+            <div class="grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-2">
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.tabletop.tableSetting.backgroundLayerPlacement' | transloco
+              }}</label>
+              <select
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-1 py-0.5 text-[13px]"
+                data-testid="background-layer-placement"
+                [attr.name]="'backgroundLayerPlacement' + index"
+                [ngModel]="backgroundLayerPlacement(layer)"
+                (ngModelChange)="setBackgroundLayerPlacement(layer, $event)"
+              >
+                @for (placement of tableLayerPlacements; track placement) {
+                  <option [value]="placement">
+                    {{ 'feature.tabletop.tableSetting.backgroundLayerPlacement_' + placement | transloco }}
+                  </option>
+                }
+              </select>
+
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.tabletop.tableSetting.backgroundLayerSpeedX' | transloco
+              }}</label>
+              <input
+                type="number"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-24 border border-solid px-1 py-0.5 text-[13px]"
+                [min]="-maxBackgroundScrollSpeed"
+                [max]="maxBackgroundScrollSpeed"
+                step="5"
+                data-testid="background-layer-speed-x"
+                [attr.name]="'backgroundLayerSpeedX' + index"
+                [ngModel]="backgroundLayerSpeedX(layer)"
+                (ngModelChange)="setBackgroundLayerSpeedX(layer, $event)"
+              />
+
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.tabletop.tableSetting.backgroundLayerSpeedY' | transloco
+              }}</label>
+              <input
+                type="number"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-24 border border-solid px-1 py-0.5 text-[13px]"
+                [min]="-maxBackgroundScrollSpeed"
+                [max]="maxBackgroundScrollSpeed"
+                step="5"
+                data-testid="background-layer-speed-y"
+                [attr.name]="'backgroundLayerSpeedY' + index"
+                [ngModel]="backgroundLayerSpeedY(layer)"
+                (ngModelChange)="setBackgroundLayerSpeedY(layer, $event)"
+              />
+
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.tabletop.tableSetting.backgroundLayerOpacity' | transloco
+              }}</label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="range"
+                  class="min-w-20 flex-1 cursor-pointer [accent-color:var(--ui-accent)]"
+                  min="0"
+                  max="100"
+                  step="5"
+                  data-testid="background-layer-opacity"
+                  [attr.name]="'backgroundLayerOpacity' + index"
+                  [ngModel]="backgroundLayerOpacityPercent(layer)"
+                  (ngModelChange)="setBackgroundLayerOpacityPercent(layer, $event)"
+                />
+                <span class="text-ui-text w-10 text-right tabular-nums"
+                  >{{ backgroundLayerOpacityPercent(layer) }}%</span
+                >
+              </div>
+
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.tabletop.tableSetting.backgroundLayerScale' | transloco
+              }}</label>
+              <input
+                type="number"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-24 border border-solid px-1 py-0.5 text-[13px]"
+                [min]="minBackgroundLayerScale"
+                [max]="maxBackgroundLayerScale"
+                step="0.1"
+                data-testid="background-layer-scale"
+                [attr.name]="'backgroundLayerScale' + index"
+                [ngModel]="backgroundLayerScale(layer)"
+                (ngModelChange)="setBackgroundLayerScale(layer, $event)"
+              />
+            </div>
+          </div>
+        }
+      </div>
+      <div class="mb-3.5 flex flex-col gap-2">
         <div class="border-ui-accent border-l-2 border-solid pl-2">
           <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
             'feature.tabletop.tableSetting.sectionSize' | transloco

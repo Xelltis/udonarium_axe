@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -34,6 +34,7 @@ import {
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { buildToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
@@ -44,11 +45,17 @@ import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import {
+  backgroundScrollAnimation,
+  backgroundScrollMargin,
+  backgroundTileSize,
+} from '@axe/domain/tabletop/background-scroll';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { boardSurfaceOf, surfaceOf, TABLE_SURFACES, TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
@@ -104,9 +111,20 @@ import {
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { translateZCss, Z_OFFSET_BACKGROUND_LAYERS_PX, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** Whether something is being typed into a field, so the board does not steal the key. */
+/** One picture drifting under the board, ready to be drawn. */
+interface BackgroundLayerView {
+  readonly identifier: string;
+  readonly imageUrl: string;
+  readonly outerStyle: Record<string, string>;
+  readonly innerStyle: Record<string, string>;
+  readonly scrollsX: boolean;
+  readonly scrollsY: boolean;
+}
+
 interface WallView {
   readonly wall: ActiveWall;
   readonly pools: readonly { readonly style: Record<string, string> }[];
@@ -154,6 +172,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
   providers: [GameTableGestureService],
   imports: [
     NgClass,
+    NgTemplateOutlet,
     TerrainComponent,
     WhiteBoardComponent,
     GameTableMaskComponent,
@@ -201,6 +220,7 @@ export class GameTableComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly coordinateService = inject(CoordinateService);
   private readonly imageService = inject(ImageService);
+  private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly tabletopActionService = inject(TabletopActionService);
   protected readonly visionService = inject(VisionService);
@@ -502,6 +522,113 @@ export class GameTableComponent {
   wallBackground(imageUrl: string, gridUrl: string): WallBackground {
     return wallBackground(imageUrl, gridUrl);
   }
+
+  /**
+   * What each layer's picture measures, once the browser has loaded it.
+   *
+   * Nothing in the image store reports a size, and the drift is measured in tiles: sliding by
+   * anything other than exactly one tile leaves a seam. So the size is read off the loaded
+   * picture, and until it arrives the layer stands still rather than guessing.
+   */
+  private readonly layerNaturalSizes = signal<ReadonlyMap<string, { width: number; height: number }>>(new Map());
+
+  protected onBackgroundLayerImageLoad(identifier: string, event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
+    const known = this.layerNaturalSizes().get(identifier);
+    if (known?.width === img.naturalWidth && known?.height === img.naturalHeight) return;
+    const next = new Map(this.layerNaturalSizes());
+    next.set(identifier, { width: img.naturalWidth, height: img.naturalHeight });
+    this.layerNaturalSizes.set(next);
+  }
+
+  private readonly laidLayers = computed(() => {
+    // Laying one down and taking one away come through the collection; what each says about
+    // itself comes through its own version.
+    this.objectChangeService.collectionOf(TableBackgroundLayer.aliasName)();
+    this.objectChangeService.fileVersion();
+    const table = this.watchCurrentTable();
+    return table.backgroundLayers.filter((layer) => {
+      this.objectChangeService.versionOf(layer.identifier)();
+      // A layer with no picture yet has nothing to draw, and an empty pane still costs the
+      // machine a surface to composite.
+      return layer.enabled && !!this.imageService.getEmptyOr(layer.imageIdentifier).url;
+    });
+  });
+
+  readonly underLayers = computed(() => this.laidLayers().filter((layer) => !layer.placedOver));
+  readonly overLayers = computed(() => this.laidLayers().filter((layer) => layer.placedOver));
+
+  readonly underLayerViews = computed<readonly BackgroundLayerView[]>(() => this.layerViews(this.underLayers()));
+  readonly overLayerViews = computed<readonly BackgroundLayerView[]>(() => this.layerViews(this.overLayers()));
+
+  /**
+   * What one run of layers is drawn as.
+   *
+   * Nothing here says how deep a layer sits. The wrapper hides what overflows it, which flattens
+   * everything inside into one plane, so within a run it is document order that decides — and
+   * that is already back to front. The run as a whole carries the depth.
+   */
+  private layerViews(layers: readonly TableBackgroundLayer[]): readonly BackgroundLayerView[] {
+    this.objectChangeService.fileVersion();
+    const sizes = this.layerNaturalSizes();
+    const moving = this.motion.enabled();
+
+    return layers.map((layer) => {
+      const tile = backgroundTileSize(sizes.get(layer.identifier) ?? null, layer.scale);
+      const x = moving ? backgroundScrollAnimation(layer.speedX, tile?.width ?? 0) : null;
+      const y = moving ? backgroundScrollAnimation(layer.speedY, tile?.height ?? 0) : null;
+      const scrollsX = !!x && x.durationSeconds > 0;
+      const scrollsY = !!y && y.durationSeconds > 0;
+      // Spare cloth for the drift to pull in, on the side it is heading for and nowhere else.
+      const margin = backgroundScrollMargin(tile, scrollsX, scrollsY);
+      const image = this.imageService.getEmptyOr(layer.imageIdentifier);
+
+      return {
+        identifier: layer.identifier,
+        imageUrl: image.url,
+        outerStyle: {
+          inset: `0px ${-margin.x}px ${-margin.y}px 0px`,
+          // Anything short of whole makes a group of its own to composite, so say it only when
+          // the layer actually asked to be seen through.
+          ...(layer.opacity < 1 ? { opacity: `${layer.opacity}` } : {}),
+          ...(x && scrollsX
+            ? {
+                'animation-duration': `${x.durationSeconds}s`,
+                'animation-direction': x.reversed ? 'reverse' : 'normal',
+                '--bg-layer-tile-w': `${tile?.width ?? 0}px`,
+              }
+            : {}),
+        },
+        innerStyle: {
+          'background-image': `url(${image.url})`,
+          'background-repeat': 'repeat',
+          ...(tile ? { 'background-size': `${tile.width}px ${tile.height}px` } : {}),
+          ...(y && scrollsY
+            ? {
+                'animation-duration': `${y.durationSeconds}s`,
+                'animation-direction': y.reversed ? 'reverse' : 'normal',
+                '--bg-layer-tile-h': `${tile?.height ?? 0}px`,
+              }
+            : {}),
+        },
+        scrollsX,
+        scrollsY,
+      };
+    });
+  }
+
+  /**
+   * Where each run sits as a whole.
+   *
+   * The wrapper hides what overflows it, which flattens the layers inside; so a run needs a
+   * depth of its own rather than leaning on document order to clear the board.
+   */
+  protected readonly backgroundLayerTransform = translateZCss(-Z_OFFSET_BACKGROUND_LAYERS_PX);
+  protected readonly foregroundLayerTransform = translateZCss(Z_OFFSET_FOREGROUND_LAYERS_PX);
+
+  /** A board drawn on a transparent picture must not be washed out by the veil over it. */
+  readonly showsTableSurfaceVeil = computed(() => this.underLayers().length === 0);
 
   readonly tableSurfaceStyle = computed<Record<string, string>>(() => {
     const table = this.watchCurrentTable();

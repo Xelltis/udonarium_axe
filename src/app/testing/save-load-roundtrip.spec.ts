@@ -19,6 +19,7 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 
 describe('save and load round trip', () => {
@@ -196,6 +197,32 @@ describe('save and load round trip', () => {
 
       expect(xml).toContain('mode2d="true"');
       expect(restored.mode2d).toBe(true);
+    });
+
+    it('keeps what drifts under the board in the room data', () => {
+      const table = new GameTable('background-layers');
+      table.initialize();
+      const layer = new TableBackgroundLayer();
+      layer.initialize();
+      layer.order = 2;
+      layer.speedX = -40;
+      layer.speedY = 15;
+      layer.opacity = 0.6;
+      layer.scale = 1.5;
+      layer.placement = 'over';
+      table.appendChild(layer);
+
+      const xml = serializer.toXml(table);
+      const restored = serializer.parseXml(xml) as GameTable;
+
+      const back = restored.backgroundLayers;
+      expect(back).toHaveLength(1);
+      expect(back[0].order).toBe(2);
+      expect(back[0].speedX).toBe(-40);
+      expect(back[0].speedY).toBe(15);
+      expect(back[0].opacity).toBe(0.6);
+      expect(back[0].scale).toBe(1.5);
+      expect(back[0].placedOver).toBe(true);
     });
   });
 
