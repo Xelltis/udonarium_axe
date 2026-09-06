@@ -1,6 +1,6 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
+import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -124,12 +124,12 @@ describe('TabletopService', () => {
 
       expect(service.display().multiAngleEnabled).toBe(true);
 
-      TestBed.inject(SeatDisplayPreferenceService).set({ multiAngleEnabled: false });
+      TestBed.inject(TabletopDisplayPreferenceService).set({ multiAngleEnabled: false });
 
       expect(service.display().multiAngleEnabled).toBe(false);
       expect(service.display().multiAngleTickerEnabled).toBe(true);
 
-      TestBed.inject(SeatDisplayPreferenceService).forget();
+      TestBed.inject(TabletopDisplayPreferenceService).forget();
 
       expect(service.display().multiAngleEnabled).toBe(true);
     });

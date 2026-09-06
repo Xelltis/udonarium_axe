@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
+import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { resolveTabletopDisplay, TabletopDisplaySettings } from '@axe/domain/tabletop/tabletop-display';
 
 /**
@@ -12,7 +12,7 @@ import { resolveTabletopDisplay, TabletopDisplaySettings } from '@axe/domain/tab
 @Injectable({ providedIn: 'root' })
 export class TabletopDisplayService {
   private readonly tabletop = inject(TabletopService);
-  private readonly seat = inject(SeatDisplayPreferenceService);
+  private readonly seat = inject(TabletopDisplayPreferenceService);
 
   readonly settings = this.tabletop.display;
 

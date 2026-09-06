@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
+import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
@@ -318,7 +318,7 @@ describe('RoomSettingsPanelComponent', () => {
       component.hoverDetailPlacement = 'screen-edges';
       component.cellMm = 30;
 
-      const own = TestBed.inject(SeatDisplayPreferenceService).own();
+      const own = TestBed.inject(TabletopDisplayPreferenceService).own();
       expect(own).toEqual({
         orthographicProjection: true,
         multiAngleEnabled: true,
@@ -351,13 +351,13 @@ describe('RoomSettingsPanelComponent', () => {
       component.forgetOwnDisplay();
 
       expect(component.multiAngleEnabled).toBe(true);
-      expect(TestBed.inject(SeatDisplayPreferenceService).own()).toEqual({});
+      expect(TestBed.inject(TabletopDisplayPreferenceService).own()).toEqual({});
     });
 
     it('asks for the turn button on windows, which the panels read from this screen', () => {
       component.panelRotationEnabled = true;
 
-      expect(TestBed.inject(SeatDisplayPreferenceService).own().panelRotationEnabled).toBe(true);
+      expect(TestBed.inject(TabletopDisplayPreferenceService).own().panelRotationEnabled).toBe(true);
       expect(component.panelRotationEnabled).toBe(true);
     });
 

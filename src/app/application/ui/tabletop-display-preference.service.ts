@@ -5,7 +5,7 @@ import {
   TabletopDisplaySettings,
 } from '@axe/domain/tabletop/tabletop-display';
 
-export const SEAT_DISPLAY_OVERRIDE_STORAGE_KEY = 'ui-tabletop-display-override';
+export const TABLETOP_DISPLAY_STORAGE_KEY = 'ui-tabletop-display';
 
 /**
  * How the screen in front of this reader draws a table laid flat.
@@ -15,7 +15,7 @@ export const SEAT_DISPLAY_OVERRIDE_STORAGE_KEY = 'ui-tabletop-display-override';
  * rather than in the room for that reason, and because it describes this glass.
  */
 @Injectable({ providedIn: 'root' })
-export class SeatDisplayPreferenceService {
+export class TabletopDisplayPreferenceService {
   private readonly state = signal<TabletopDisplayOwn>(stored());
 
   /** Only what this screen has been told; anything else is still the table's to answer. */
@@ -34,7 +34,7 @@ export class SeatDisplayPreferenceService {
     const normalized = normalizeTabletopDisplayOwn(next);
     this.state.set(normalized);
     try {
-      localStorage.setItem(SEAT_DISPLAY_OVERRIDE_STORAGE_KEY, JSON.stringify(normalized));
+      localStorage.setItem(TABLETOP_DISPLAY_STORAGE_KEY, JSON.stringify(normalized));
     } catch {
       // Storage can be unavailable in private mode; the signal still serves this session.
     }
@@ -43,7 +43,7 @@ export class SeatDisplayPreferenceService {
 
 function stored(): TabletopDisplayOwn {
   try {
-    const raw = localStorage.getItem(SEAT_DISPLAY_OVERRIDE_STORAGE_KEY);
+    const raw = localStorage.getItem(TABLETOP_DISPLAY_STORAGE_KEY);
     return normalizeTabletopDisplayOwn(raw ? JSON.parse(raw) : null);
   } catch {
     return {};

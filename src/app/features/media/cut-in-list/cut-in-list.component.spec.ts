@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
+import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { CutInListComponent } from '@axe/features/media/cut-in-list/cut-in-list.component';
@@ -37,7 +37,7 @@ describe('CutInListComponent', () => {
       component.multiDirectionMode = 'four-directions';
 
       expect(component.multiDirectionMode).toBe('four-directions');
-      expect(TestBed.inject(SeatDisplayPreferenceService).own().cutInMultiDirectionMode).toBe('four-directions');
+      expect(TestBed.inject(TabletopDisplayPreferenceService).own().cutInMultiDirectionMode).toBe('four-directions');
       expect(table.cutInMultiDirectionMode).toBe('none');
     });
 

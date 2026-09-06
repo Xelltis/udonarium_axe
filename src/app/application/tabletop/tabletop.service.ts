@@ -1,7 +1,7 @@
 import { computed, DestroyRef, inject, Injectable, Signal } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
+import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -51,7 +51,7 @@ export class TabletopService {
   readonly tableSelecter = inject(TableSelecter);
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly seatDisplay = inject(SeatDisplayPreferenceService);
+  private readonly seatDisplay = inject(TabletopDisplayPreferenceService);
   private readonly destroyRef = inject(DestroyRef);
 
   private _emptyTable: GameTable = new GameTable('');
