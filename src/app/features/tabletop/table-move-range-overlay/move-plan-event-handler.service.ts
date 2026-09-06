@@ -33,7 +33,7 @@ export class MovePlanEventHandlerService {
     this.listening = true;
     this.armed = false;
     document.addEventListener('pointermove', this.onPointerMove, true);
-    document.addEventListener('pointerup', this.onPointerUp, true);
+    document.addEventListener('pointerdown', this.onPointerDown, true);
     document.addEventListener('click', this.onClick, true);
     document.addEventListener('contextmenu', this.onContextMenu, true);
     document.addEventListener('keydown', this.onKeyDown, true);
@@ -43,7 +43,7 @@ export class MovePlanEventHandlerService {
     if (!this.listening) return;
     this.listening = false;
     document.removeEventListener('pointermove', this.onPointerMove, true);
-    document.removeEventListener('pointerup', this.onPointerUp, true);
+    document.removeEventListener('pointerdown', this.onPointerDown, true);
     document.removeEventListener('click', this.onClick, true);
     document.removeEventListener('contextmenu', this.onContextMenu, true);
     document.removeEventListener('keydown', this.onKeyDown, true);
@@ -55,7 +55,7 @@ export class MovePlanEventHandlerService {
     this.movePlan.lookAt(at.x, at.y);
   };
 
-  private readonly onPointerUp = (): void => {
+  private readonly onPointerDown = (): void => {
     this.armed = true;
   };
 

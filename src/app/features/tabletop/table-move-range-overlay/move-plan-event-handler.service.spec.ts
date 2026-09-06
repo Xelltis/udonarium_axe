@@ -25,9 +25,15 @@ describe('MovePlanEventHandlerService', () => {
     TestBed.tick();
   }
 
-  /** The press that opened the move, let go of over the piece. */
-  function letGoOfThePress(): void {
+  /** A press of the reader's own, after the one that opened the move has finished. */
+  function pressTheTable(): void {
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  }
+
+  /** The press that opened the move, finishing over the piece. */
+  function finishTheOpeningPress(): void {
     document.body.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    clickTheTable();
   }
 
   function clickTheTable(modifiers: MouseEventInit = {}): void {
@@ -62,17 +68,18 @@ describe('MovePlanEventHandlerService', () => {
     expect(movePlan.lookAt).toHaveBeenCalledWith(120, 340);
   });
 
-  it('passes over the click that let go of the press which opened the move', () => {
+  it('passes over the press that opened the move as it finishes', () => {
     openAMove();
 
-    clickTheTable();
+    finishTheOpeningPress();
 
     expect(movePlan.run).not.toHaveBeenCalled();
+    expect(movePlan.cancel).not.toHaveBeenCalled();
   });
 
   it('walks the way on a click of its own', () => {
     openAMove();
-    letGoOfThePress();
+    pressTheTable();
 
     clickTheTable();
 
@@ -82,7 +89,7 @@ describe('MovePlanEventHandlerService', () => {
 
   it('settles a leg where the click is still holding shift', () => {
     openAMove();
-    letGoOfThePress();
+    pressTheTable();
 
     clickTheTable({ shiftKey: true });
 
@@ -92,7 +99,7 @@ describe('MovePlanEventHandlerService', () => {
 
   it('puts the move away on a tap that would walk it nowhere', () => {
     openAMove();
-    letGoOfThePress();
+    pressTheTable();
     movePlan.wholeWay.mockReturnValue([1]);
 
     clickTheTable();
@@ -140,7 +147,7 @@ describe('MovePlanEventHandlerService', () => {
 
   it('lets go of the table once the move is over', () => {
     openAMove();
-    letGoOfThePress();
+    pressTheTable();
     held.set(null);
     TestBed.tick();
 

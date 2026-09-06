@@ -122,7 +122,7 @@ describe('GameCharacterComponent', () => {
       expect(moveRange.range()).toBeNull();
     });
 
-    it('works a move out instead of dragging when the press holds shift', () => {
+    it('works a move out instead of dragging when the press holds shift', async () => {
       const movePlan = TestBed.inject(MovePlanService);
       const piece = pieceThatWalks(2);
       fixture.componentRef.setInput('gameCharacter', piece);
@@ -133,6 +133,12 @@ describe('GameCharacterComponent', () => {
 
       expect(movePlan.plan()?.characterIdentifier).toBe(piece.identifier);
       expect(component.isPlanningMove()).toBe(true);
+      // The drag is still taking the press up; refusing it now would be undone by the rest
+      // of that setting up, which puts the piece's transition and layer aside.
+      expect(turnedAway).not.toHaveBeenCalled();
+
+      await Promise.resolve();
+
       expect(turnedAway).toHaveBeenCalled();
       movePlan.cancel();
     });

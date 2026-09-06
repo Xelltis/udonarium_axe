@@ -935,13 +935,17 @@ export class GameCharacterComponent {
    * The press is turned away rather than followed: a planned move leaves the piece standing
    * while the way is drawn, and a piece that came along with the hand would be standing
    * somewhere the way was never drawn from.
+   *
+   * Turned away once the press has finished being taken up, not in the middle of it: the
+   * drag puts the piece's transition and its collidable layer aside after saying it has
+   * started, and a refusal that arrives first is undone by the very setting up it refused.
    */
   onGrab(event: PointerEvent) {
     if (!event.shiftKey || event.altKey) return;
     const character = this.gameCharacter();
     if (!character || this.isLock) return;
     if (!this.movePlan.begin(character)) return;
-    this.movableRef()?.cancel();
+    queueMicrotask(() => this.movableRef()?.cancel());
   }
 
   onPickUp() {
