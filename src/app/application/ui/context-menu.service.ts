@@ -152,10 +152,14 @@ export class ContextMenuService {
       open(loaded);
       return;
     }
-    void ContextMenuService.loadFourWayRadialMenuComponent?.().then((componentClass) => {
-      ContextMenuService.FourWayRadialMenuComponentClass = componentClass;
-      open(componentClass);
-    });
+    // A menu that fails to arrive falls back to the one that is already here. Left to reject,
+    // a single missing chunk takes every right-click on the table with it for the whole session.
+    void ContextMenuService.loadFourWayRadialMenuComponent?.()
+      .then((componentClass) => {
+        ContextMenuService.FourWayRadialMenuComponentClass = componentClass;
+        open(componentClass);
+      })
+      .catch(() => open(ContextMenuService.ContextMenuComponentClass));
   }
 
   private openComponent(

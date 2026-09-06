@@ -21,7 +21,12 @@ export function turnIndicatorSignal(): Signal<TurnIndicator | null> {
     if (currentIdentifier) objectChange.versionOf(currentIdentifier)();
     const current = currentIdentifier ? objectStore.get(currentIdentifier) : null;
     const name = current instanceof GameCharacter ? current.name : '';
+    // The sides come from the room's rules and from the parties themselves, names and all, so
+    // a mode switched back or a party renamed has to reach the heading without waiting for a turn.
+    objectChange.versionOf('Config')();
     objectChange.collectionOf('party')();
+    objectChange.collectionOf(GameCharacter.aliasName)();
+    for (const party of objectStore.getObjects('party')) objectChange.versionOf(party.identifier)();
     const side = turnOrder.currentSide;
     return buildTurnIndicator(turnOrder.phase, turnOrder.round, name, side ? turnOrder.sideName(side) : '');
   });

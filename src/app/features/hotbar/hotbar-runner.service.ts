@@ -405,19 +405,25 @@ export class HotbarRunnerService {
     const wantsSize = options.size > KEEP_SIZE;
     if (!wantsPicture && !wantsPortrait && !wantsSize) return failed('empty');
 
+    // The picture is the only part that can be missing, and the rest of the slot has nothing to
+    // do with it. Asking first means a piece that cannot change its face still changes its size.
+    let missedPicture = false;
     if (wantsPicture) {
       character.addExtendData();
       const icon = character.detailDataElement?.getFirstElementByName('ICON');
-      if (!icon) return failed('notFound');
-      icon.currentValue = Math.min(options.image, pictures - 1);
-      icon.value = pictures - 1;
+      if (icon) {
+        icon.currentValue = Math.min(options.image, pictures - 1);
+        icon.value = pictures - 1;
+      } else {
+        missedPicture = true;
+      }
     }
     // The portrait a reader speaks with is theirs alone, so this one reaches no further.
     if (wantsPortrait) character.selectedPortraitIndex = options.portrait;
     if (wantsSize) character.size = options.size;
 
     character.update();
-    return OK;
+    return missedPicture ? failed('notFound') : OK;
   }
 
   private runTurn(slot: HotbarSlot): HotbarRunResult {
