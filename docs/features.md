@@ -360,6 +360,7 @@ SE は効果音ラボ・On-Jin の素材を取り込み、`PresetSound` 経由�
 ## ロビー / 部屋 / ネットワーク
 
 - **厳密な移動** — `Config.moveStrict`（部屋の決めごと、文字列 boolean）。`MoveRangeService.show()` が持ち上げた位置を控え、`returnIfOutOfReach()` が着地セルを `MoveRangeView.cells` と突き合わせて範囲外なら戻す。呼ぶのは `game-character.component` の `onPutDown()` で、**戻したときは着地音を鳴らさない**。範囲が出ていないコマ（移動力なし・移動範囲オフ）は素通し
+- **移動の計画** — `MovePlanService`（`application/tabletop`）。Shift を押しながらコマを掴むか、コマのメニューの「移動を決めて動かす」で開く。コマはその場に置いたまま `cheapestPath()`（`domain/tabletop/move/cheapest-path`）でポインタまでの最安経路を引き、クリック/タップで `run()` が 1 マスずつ歩かせる。Shift + クリック・右クリック・長押しが `settle()` で経由点を置き、残りの移動力で `reachableCells()` を引き直す。リーチと同じ `ReachTerms`（`MoveRangeService.termsOf()`）で値段を付けるので、描いた線と数える歩数がずれない。入力の受け口は `features/tabletop/table-move-range-overlay/move-plan-event-handler.service.ts`（計画中だけ document を聴き、開いた押下の離しで出るクリックは無視する）
 - **経路の厳密化** — `Config.moveStrictPath`（`moveStrict` の下位オプション）。`MoveRangeService.trace()` を `movable.ondrag` から呼んで通過セルを記録し、`walkedPath()`（`domain/tabletop/move/walked-path`）が隣接・侵入可否・コストを再計算する。**リーチは最安経路で出るので終点判定だけでは壁をまたげてしまう**のが動機。1 マス戻る動きは記録側で打ち消す（手の震えで移動力が減らないように）。ZOC の cost/stop も同じ `ReachOptions` を使い回すため、リーチと経路で判定がずれない
 - **2D / 3D は席ごと** — `ViewModePreferenceService`（`application/ui`、localStorage）が持ち、`TabletopService.mode2d` はそれだけを見る。`GameTable.mode2d` は**削除済み**（卓の決めごとではなくなったため）。卓の傾きロックは `game-table.component` の effect が `mode2d()` を見て張り直す（テーブル切替時にしか再評価されず、切り替えても外れなかった）
 - **FAB メニューは 1 枚のリスト** — 項目は `domain/ui/fab-menu` の `FAB_ENTRIES`（順番＝押す場面の近さ）。`FabAction` は `panel` / `zipLoad` / `visualNovel` の 3 種で、テーマ・エフェクト・言語は状態を持つので template 側に残す。**サブメニューは作らない**（一度作って戻した）。i18n の抜けは `i18n-choices.spec` の `'app.fab.'` が拾う
@@ -385,6 +386,7 @@ SE は効果音ラボ・On-Jin の素材を取り込み、`PresetSound` 経由�
 - **機能の集約** — 下部バー（所有キャラクター / メニュー）から全機能へ到達。ツールバー固有だったマップエディター・同行・手札・暗闇・行動順送り・操作対象のパレットもメニューに集約し、GM 限定項目はロールで出し分け
 - **手動切替** — 「パソコン版の画面を使う」でデスクトップ版へ、FAB のスマホアイコンで復帰。選択は永続化
 - **タッチ長押しのコンテキストメニュー** — `contextmenu` イベントは iOS で発火しないため、`PointerDeviceService` が 400ms の長押しを検出して合成（移動・複数指でキャンセル）
+- **キーを持たない手への口** — Alt でのターゲット指定と Shift + Alt の一括解除、Shift で開く移動の計画は、いずれもコマのコンテキストメニューからも辿れる（`game-character-context-menu.ts` の `onToggleTarget` / `onClearTargets` / `onPlanMove`）。マーキーは指のとき、既に何か選ばれていれば置き換えではなく反転する（`marqueeApply()`、`application/ui/rect-hit-test`）
 - **パネルのモバイル化** — 全画面表示、ドラッグ/リサイズとハンドルの無効化、入力欄 16px（iOS の自動ズーム防止）、表の横スクロール、多カラムの縦積み、ホバーでしか出ない操作の常時表示、「クリック」表記のタップ化
 - **ビジュアルノベルモード** — モバイルではシェルを退避して全画面を占有。操作列はメッセージ欄以外を折りたたみ
 
