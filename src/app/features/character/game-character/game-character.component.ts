@@ -861,6 +861,8 @@ export class GameCharacterComponent {
         onInvokeEffect: (name) => this.invokeEffect(char, name),
         onDeployDice: () => this.characterDice.deploy(char),
         onPlanMove: this.moveRangeService.canPlan(char) ? () => void this.movePlan.begin(char) : undefined,
+        onToggleTarget: () => this.toggleTarget(),
+        onClearTargets: this.anythingTargeted() ? () => this.clearEveryTarget() : undefined,
       },
       this.translateFn,
       overlapEntries,
@@ -974,23 +976,36 @@ export class GameCharacterComponent {
     if (key_shift && key_alt) {
       key_event.preventDefault();
       key_event.stopPropagation();
-      const objects = this.objectStore.getObjects(GameCharacter);
-      for (const object of objects) {
-        object.targeted = false;
-        this.uiSignalService.notifyTargetChange(object.identifier, object.aliasName);
-      }
+      this.clearEveryTarget();
       return;
     }
 
     if (key_alt) {
       key_event.preventDefault();
       key_event.stopPropagation();
-      const char = this.gameCharacter();
-      if (char) {
-        char.targeted = !char.targeted;
-        this.uiSignalService.notifyTargetChange(char.identifier, char.aliasName);
-      }
+      this.toggleTarget();
     }
+  }
+
+  /** Marks the piece as one an effect is aimed at, or takes the mark off it. */
+  toggleTarget(): void {
+    const char = this.gameCharacter();
+    if (!char) return;
+    char.targeted = !char.targeted;
+    this.uiSignalService.notifyTargetChange(char.identifier, char.aliasName);
+  }
+
+  clearEveryTarget(): void {
+    for (const object of this.objectStore.getObjects(GameCharacter)) {
+      if (!object.targeted) continue;
+      object.targeted = false;
+      this.uiSignalService.notifyTargetChange(object.identifier, object.aliasName);
+    }
+  }
+
+  /** Whether anything on the table is aimed at, which is what makes clearing worth offering. */
+  private anythingTargeted(): boolean {
+    return this.objectStore.getObjects(GameCharacter).some((object) => object.targeted);
   }
 
   /** Fires an effect from a character sheet. It is looked up by name, so the same row works in any room. */

@@ -77,6 +77,10 @@ export function buildGameCharacterContextMenu(
     onDeployDice?: () => void;
     /** Opens a move to be worked out. Left out for a piece with no reach to work one out in. */
     onPlanMove?: () => void;
+    /** Aims at the piece, or stops aiming at it. The keys do the same on a board with a keyboard. */
+    onToggleTarget?: () => void;
+    /** Stops aiming at everything. Left out where nothing is aimed at. */
+    onClearTargets?: () => void;
   },
   t: TranslateFn,
   overlapEntries: ContextMenuAction[] = [],
@@ -133,6 +137,22 @@ export function buildGameCharacterContextMenu(
       name: (char.showVisionRange ? '✔ ' : '') + t('feature.character.contextMenu.showVisionRange'),
       action: () => (char.showVisionRange = !char.showVisionRange),
     },
+    ...(callbacks.onToggleTarget
+      ? [
+          {
+            name: (char.targeted ? '✔ ' : '') + t('feature.character.contextMenu.target'),
+            action: () => callbacks.onToggleTarget?.(),
+          } as ContextMenuAction,
+        ]
+      : []),
+    ...(callbacks.onClearTargets
+      ? [
+          {
+            name: t('feature.character.contextMenu.clearTargets'),
+            action: () => callbacks.onClearTargets?.(),
+          } as ContextMenuAction,
+        ]
+      : []),
     ...(registeredShapes.length > 0 && callbacks.onInvokeRangeShape
       ? [
           {

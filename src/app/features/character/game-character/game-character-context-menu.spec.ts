@@ -18,6 +18,7 @@ interface MutableChar {
   hideBuff: boolean;
   isNpc: boolean;
   isLock: boolean;
+  targeted: boolean;
   setLocation: ReturnType<typeof vi.fn>;
   clone: ReturnType<typeof vi.fn>;
 }
@@ -38,6 +39,7 @@ function makeChar(overrides: Partial<MutableChar> = {}): MutableChar {
     hideBuff: false,
     isNpc: false,
     isLock: false,
+    targeted: false,
     setLocation: vi.fn(),
     clone: vi.fn(() => ({ location: { x: 0, y: 0 }, update: vi.fn() })),
     ...overrides,
@@ -84,6 +86,52 @@ describe('buildGameCharacterContextMenu()', () => {
     );
 
     expect(menu.map((action) => action.name)).not.toContain('移動を決めて動かす');
+  });
+
+  describe('aiming without a keyboard', () => {
+    it('offers to aim at the piece, ticked by whether it already is', () => {
+      const onToggleTarget = vi.fn();
+      const aimed = buildGameCharacterContextMenu(
+        makeChar({ targeted: true }) as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), onToggleTarget },
+        t
+      );
+      expect(names(aimed)).toContain('✔ ターゲット');
+
+      const plain = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), onToggleTarget },
+        t
+      );
+      expect(names(plain)).toContain('ターゲット');
+      plain.find((action) => action.name === 'ターゲット')!.action!();
+      expect(onToggleTarget).toHaveBeenCalled();
+    });
+
+    it('offers to stop aiming at everything only while something is aimed at', () => {
+      const onClearTargets = vi.fn();
+      const withAim = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), onClearTargets },
+        t
+      );
+      expect(names(withAim)).toContain('ターゲットを全部外す');
+
+      const without = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        callbacks(),
+        t
+      );
+      expect(names(without)).not.toContain('ターゲットを全部外す');
+    });
   });
 
   it('leads with the sheet, which opens the group at the top', () => {

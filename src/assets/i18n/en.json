@@ -1401,7 +1401,9 @@
         "buffView": "Buff display",
         "invokeEffect": "Play an effect",
         "deployDice": "Lay out {{count}} dice",
-        "showVisionRange": "Show range of sight"
+        "showVisionRange": "Show range of sight",
+        "target": "Target",
+        "clearTargets": "Stop aiming at everything"
       },
       "panel": {
         "sheet": "Character sheet",

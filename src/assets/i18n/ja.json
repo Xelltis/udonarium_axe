@@ -1401,7 +1401,9 @@
         "buffView": "バフの表示",
         "invokeEffect": "演出を発動",
         "deployDice": "ダイスを展開する（{{count}}個）",
-        "showVisionRange": "視界範囲を表示"
+        "showVisionRange": "視界範囲を表示",
+        "target": "ターゲット",
+        "clearTargets": "ターゲットを全部外す"
       },
       "panel": {
         "sheet": "キャラクターシート",

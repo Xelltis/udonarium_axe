@@ -1401,7 +1401,9 @@
         "buffView": "버프 표시",
         "invokeEffect": "연출 발동",
         "deployDice": "주사위 펼치기({{count}}개)",
-        "showVisionRange": "시야 범위 표시"
+        "showVisionRange": "시야 범위 표시",
+        "target": "타깃",
+        "clearTargets": "타깃 모두 해제"
       },
       "panel": {
         "sheet": "캐릭터 시트",
