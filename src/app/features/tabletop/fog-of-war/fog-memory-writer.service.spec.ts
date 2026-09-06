@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
@@ -17,8 +18,8 @@ describe('FogMemoryWriterService', () => {
     return cursor;
   }
 
-  function startRoom(search: string): void {
-    history.replaceState({}, '', `/${search}`);
+  function startRoom(local: boolean): void {
+    TestBed.inject(LocalModePreferenceService).set(local);
   }
 
   beforeEach(() => {
@@ -28,12 +29,12 @@ describe('FogMemoryWriterService', () => {
 
   afterEach(() => {
     for (const cursor of others.splice(0)) cursor.destroy();
-    startRoom('');
+    startRoom(false);
   });
 
   describe('who writes the fog down', () => {
     it('writes it itself in the local mode a room is tried out in', () => {
-      startRoom('?local=1');
+      startRoom(true);
       const mine = PeerCursor.createMyCursor();
       mine.role = PeerRole.Player;
 
@@ -72,7 +73,7 @@ describe('FogMemoryWriterService', () => {
     });
 
     it('writes nothing while it has no cursor of its own', () => {
-      startRoom('?local=1');
+      startRoom(true);
       PeerCursor.myCursor = null!;
 
       expect(service.isScribe()).toBe(false);

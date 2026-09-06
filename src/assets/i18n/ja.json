@@ -2231,7 +2231,15 @@
         "inviteCopy": "コピー",
         "inviteCopied": "コピーしました",
         "inviteOverlay": "配信用（透過画面）",
-        "inviteOverlayHint": "OBS のブラウザソースに貼る用の URL にします。盤面もパネルも出さず、発言と手番だけを透過の背景に出します"
+        "inviteOverlayHint": "OBS のブラウザソースに貼る用の URL にします。盤面もパネルも出さず、発言と手番だけを透過の背景に出します",
+        "connectionMode": "接続",
+        "mode_online": "オンライン",
+        "mode_offline": "オフライン",
+        "modeHint_online": "他の人とつながって遊びます。切り替えると再読み込みします。",
+        "modeHint_offline": "このブラウザだけで動いています。SkyWay にもバックエンドにもつながらず、他の人とはつながりません。切り替えると再読み込みします。",
+        "confirmOffline": "オフラインに切り替えます。再読み込みして、いまの部屋から抜けます。よろしいですか？",
+        "confirmOnline": "オンラインに切り替えます。再読み込みして通信を始めます。よろしいですか？",
+        "offlineNote": "部屋の保存と読み込みはこのままできます。他の人と遊ぶときは「オンライン」に切り替えてください。"
       },
       "lobby": {
         "title": "ロビー",

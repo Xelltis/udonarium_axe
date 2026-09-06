@@ -2231,7 +2231,15 @@
         "inviteCopy": "Copy",
         "inviteCopied": "Copied",
         "inviteOverlay": "For streaming (transparent)",
-        "inviteOverlayHint": "Makes a URL for an OBS browser source: no table, no panels — just speech and turns on a transparent background"
+        "inviteOverlayHint": "Makes a URL for an OBS browser source: no table, no panels — just speech and turns on a transparent background",
+        "connectionMode": "Connection",
+        "mode_online": "Online",
+        "mode_offline": "Offline",
+        "modeHint_online": "Plays with the others over the network. Switching reloads the page.",
+        "modeHint_offline": "This browser is on its own: no SkyWay, no backend, nobody else. Switching reloads the page.",
+        "confirmOffline": "Go offline? The page reloads and you leave this room.",
+        "confirmOnline": "Go online? The page reloads and connects.",
+        "offlineNote": "Saving and loading a room still works. Switch to Online to play with others."
       },
       "lobby": {
         "title": "Lobby",

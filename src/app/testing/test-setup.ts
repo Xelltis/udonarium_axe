@@ -17,6 +17,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { LoggerService } from '@axe/application/logging/logger.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-display-preference.service';
@@ -273,6 +274,7 @@ function forgetMyCursor(): void {
 function forgetTabletopDisplaySettings(): void {
   localStorage.removeItem(TABLETOP_DISPLAY_STORAGE_KEY);
   localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
+  localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
 }
 
 beforeEach(async () => {

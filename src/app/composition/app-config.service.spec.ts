@@ -1,10 +1,13 @@
 import { inject, TestBed } from '@angular/core/testing';
-import { AppConfigService, isLocalModeSearch } from '@axe/composition/app-config.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
+import { AppConfigService } from '@axe/composition/app-config.service';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('AppConfigService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [AppConfigService],
+      providers: [...TEST_PROVIDERS, AppConfigService],
     });
   });
 
@@ -12,11 +15,18 @@ describe('AppConfigService', () => {
     expect(service).toBeTruthy();
   }));
 
-  it.each(['?local=1', '?local=true', '?foo=bar&local=1'])('recognizes local mode in %s', (search) => {
-    expect(isLocalModeSearch(search)).toBe(true);
-  });
+  it('starts the room on its own when this browser asked for local mode', async () => {
+    TestBed.inject(LocalModePreferenceService).set(true);
+    const loaded = new Promise<boolean>((resolve) =>
+      TestBed.inject(ObjectChangeService).loadConfig$.subscribe((event) =>
+        resolve((event.config as { localMode: boolean }).localMode)
+      )
+    );
+    const fetched = vi.spyOn(globalThis, 'fetch');
 
-  it.each(['', '?local=0', '?local=false', '?local=yes'])('keeps networking enabled for %s', (search) => {
-    expect(isLocalModeSearch(search)).toBe(false);
+    TestBed.inject(AppConfigService).initialize();
+
+    expect(await loaded).toBe(true);
+    expect(fetched).not.toHaveBeenCalled();
   });
 });

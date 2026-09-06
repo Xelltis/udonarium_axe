@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { LoggerService } from '@axe/application/logging/logger.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { emitLoadConfig } from '@axe/core/event/domain-events';
 
 export interface AppConfig {
@@ -9,14 +10,10 @@ export interface AppConfig {
   localMode: boolean;
 }
 
-export function isLocalModeSearch(search: string): boolean {
-  const value = new URLSearchParams(search).get('local');
-  return value === '1' || value === 'true';
-}
-
 @Injectable()
 export class AppConfigService {
   private readonly logger = inject(LoggerService);
+  private readonly localMode = inject(LocalModePreferenceService);
 
   constructor() {}
 
@@ -35,8 +32,7 @@ export class AppConfigService {
   }
 
   private async initAppConfig() {
-    const search = typeof location === 'undefined' ? '' : location.search;
-    if (isLocalModeSearch(search)) {
+    if (this.localMode.enabled()) {
       AppConfigService.appConfig.localMode = true;
       this.logger.info('ローカル確認モードで起動します。ネットワーク接続は行いません。');
       emitLoadConfig({ config: AppConfigService.appConfig });

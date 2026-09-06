@@ -1,6 +1,7 @@
 import { DestroyRef, effect, inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -28,6 +29,7 @@ export class FogMemoryWriterService {
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly localMode = inject(LocalModePreferenceService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -116,10 +118,8 @@ export class FogMemoryWriterService {
     return pool.length > 0 && pool.sort()[0] === mine;
   }
 
-  /** The same flag the room is started with, read here rather than reached for across the layers. */
+  /** The same flag the room is started with. */
   private isLocalMode(): boolean {
-    if (typeof location === 'undefined') return false;
-    const value = new URLSearchParams(location.search).get('local');
-    return value === '1' || value === 'true';
+    return this.localMode.enabled();
   }
 }
