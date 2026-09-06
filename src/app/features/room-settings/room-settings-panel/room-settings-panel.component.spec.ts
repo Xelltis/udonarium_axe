@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
@@ -308,24 +309,29 @@ describe('RoomSettingsPanelComponent', () => {
   });
 
   describe('the way a table lying flat is drawn', () => {
-    it('writes each feature to the room, so everyone around the screen is shown the same thing', () => {
+    it('writes each feature to this screen alone, so nobody else is told', () => {
       component.orthographicProjection = true;
       component.multiAngleEnabled = true;
       component.multiAngleFontScale = 'large';
       component.radialMenuEnabled = true;
       component.radialMenuRotationSpeed = 9;
       component.hoverDetailPlacement = 'screen-edges';
+      component.cellMm = 30;
 
-      const answers = Config.instance.tabletopDisplayAnswers;
-      expect(answers.orthographicProjection).toBe('true');
-      expect(answers.multiAngleEnabled).toBe('true');
-      expect(answers.multiAngleFontScale).toBe('large');
-      expect(answers.radialMenuEnabled).toBe('true');
-      expect(answers.radialMenuRotationSpeed).toBe('9');
-      expect(answers.hoverDetailPlacement).toBe('screen-edges');
+      const own = TestBed.inject(SeatDisplayPreferenceService).own();
+      expect(own).toEqual({
+        orthographicProjection: true,
+        multiAngleEnabled: true,
+        multiAngleFontScale: 'large',
+        radialMenuEnabled: true,
+        radialMenuRotationSpeed: 9,
+        hoverDetailPlacement: 'screen-edges',
+        cellMm: 30,
+      });
+      expect(Config.instance.getAttribute('_displayMultiAngleEnabled')).toBe('');
     });
 
-    it('shows what the table has while the room has not been asked, and the room once it has', () => {
+    it('shows what the table has until this screen is told otherwise', () => {
       table.multiAngleEnabled = true;
       TableSelecter.instance.viewTableIdentifier = table.identifier;
 
@@ -334,73 +340,73 @@ describe('RoomSettingsPanelComponent', () => {
       component.multiAngleEnabled = false;
 
       expect(component.multiAngleEnabled).toBe(false);
-      expect(Config.instance.tabletopDisplayAnswers.multiAngleEnabled).toBe('false');
+      expect(table.multiAngleEnabled).toBe(true);
     });
 
-    it('leaves the room alone for a feature this reader has taken over, and the rest with it', () => {
-      component.multiAngleEnabled = true;
-      component.radialMenuEnabled = true;
-
-      component.setOnThisScreenOnly('pieceLabels', true);
-      component.multiAngleEnabled = false;
-      component.radialMenuEnabled = false;
-
-      expect(component.onThisScreenOnly('pieceLabels')).toBe(true);
-      expect(component.multiAngleEnabled).toBe(false);
-      expect(Config.instance.tabletopDisplayAnswers.multiAngleEnabled).toBe('true');
-      expect(Config.instance.tabletopDisplayAnswers.radialMenuEnabled).toBe('false');
-    });
-
-    it('goes back to what the room asks for once the feature is handed back', () => {
-      component.multiAngleEnabled = true;
-      component.setOnThisScreenOnly('pieceLabels', true);
+    it('hands everything back to the table when the screen is emptied', () => {
+      table.multiAngleEnabled = true;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       component.multiAngleEnabled = false;
 
-      component.setOnThisScreenOnly('pieceLabels', false);
+      component.forgetOwnDisplay();
 
-      expect(component.onThisScreenOnly('pieceLabels')).toBe(false);
       expect(component.multiAngleEnabled).toBe(true);
+      expect(TestBed.inject(SeatDisplayPreferenceService).own()).toEqual({});
     });
 
     it('starts a piece turning by the second the moment it is asked to turn in quarters', () => {
       component.multiAngleMotionMode = 'quarter-turn';
 
-      const answers = Config.instance.tabletopDisplayAnswers;
-      expect(answers.multiAngleMotionMode).toBe('quarter-turn');
-      expect(answers.multiAnglePieceRevolutionSeconds).toBe('5');
+      expect(component.multiAngleMotionMode).toBe('quarter-turn');
+      expect(component.multiAnglePieceRevolutionSeconds).toBe(5);
     });
 
-    it('lets a reader who may not edit the room keep their own screen', () => {
+    it('lets a reader who may not edit the room set their own screen anyway', () => {
       // Whether it is read-only is a computed, so the role has to be settled before it is asked.
       PeerCursor.myCursor.role = PeerRole.Guest;
 
       component.multiAngleEnabled = true;
-      expect(Config.instance.tabletopDisplayAnswers.multiAngleEnabled).toBe('');
 
-      component.setOnThisScreenOnly('pieceLabels', true);
-      component.multiAngleEnabled = true;
-
+      expect(component.isReadOnly()).toBe(true);
       expect(component.multiAngleEnabled).toBe(true);
-      expect(Config.instance.tabletopDisplayAnswers.multiAngleEnabled).toBe('');
     });
 
-    it('shows the boxes under the part they belong to', async () => {
-      component.tab.set('display');
+    it('keeps the shared settings out of a reader who may not edit the room', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+
+      component.imageBillboard = true;
+
+      expect(table.imageBillboard).toBe(false);
+    });
+
+    it('shows what the room shares apart from what this screen keeps', async () => {
+      component.tab.set('ui');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const root = fixture.nativeElement as HTMLElement;
+      const shared = root.querySelector('[data-testid="room-settings-shared"]');
+      const own = root.querySelector('[data-testid="room-settings-own"]');
+
+      expect(shared?.querySelector('[data-testid="facing-mark"]')).not.toBeNull();
+      expect(shared?.querySelector('[data-testid="image-billboard"]')).not.toBeNull();
+      expect(own?.querySelector('[data-testid="orthographic-projection"]')).not.toBeNull();
+      expect(own?.querySelector('[data-testid="multi-angle-enabled"]')).not.toBeNull();
+      expect(own?.querySelector('[data-testid="ticker-enabled"]')).not.toBeNull();
+      expect(own?.querySelector('[data-testid="cell-mm"]')).not.toBeNull();
+      expect(own?.querySelector('[data-testid="real-size-enabled"]')).not.toBeNull();
+      expect(own?.querySelector('[data-testid="forget-own-display"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="reset-calibration"]')).toBeNull();
+    });
+
+    it('keeps the measuring tool under the utility part', async () => {
+      component.tab.set('utility');
       fixture.detectChanges();
       await fixture.whenStable();
       const root = fixture.nativeElement as HTMLElement;
 
-      expect(root.querySelector('[data-testid="orthographic-projection"]')).not.toBeNull();
-      expect(root.querySelector('[data-testid="multi-angle-enabled"]')).not.toBeNull();
-      expect(root.querySelector('[data-testid="radial-menu-enabled"]')).not.toBeNull();
-      expect(root.querySelector('[data-testid="view-locked"]')).toBeNull();
-
-      component.tab.set('utility');
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(root.querySelector('[data-testid="view-locked"]')).not.toBeNull();
       expect(root.querySelector('[data-testid="reset-calibration"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="real-size-enabled"]')).toBeNull();
     });
   });
 

@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
@@ -223,13 +224,14 @@ describe('DisplayCalibrationComponent', () => {
     expect(table.cellMm).toBe(25.4);
   });
 
-  it('writes a square that is not an inch onto the table', () => {
+  it('writes a square that is not an inch to this screen, which is the one being measured', () => {
     component.onFrameInput('274');
     component.onCellMmInput('50.8');
 
     component.confirm();
 
-    expect(table.cellMm).toBe(50.8);
+    expect(TestBed.inject(SeatDisplayPreferenceService).own().cellMm).toBe(50.8);
+    expect(TestBed.inject(TabletopService).cellMm()).toBe(50.8);
   });
 
   it('leaves the screen unmeasured when the reader backs out', () => {

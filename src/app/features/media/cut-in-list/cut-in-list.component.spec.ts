@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Config } from '@axe/domain/peer/config';
+import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { CutInListComponent } from '@axe/features/media/cut-in-list/cut-in-list.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -14,32 +16,33 @@ describe('CutInListComponent', () => {
     }).compileComponents();
   });
 
+  let table: GameTable;
+
   beforeEach(() => {
+    table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     fixture = TestBed.createComponent(CutInListComponent);
     component = fixture.componentInstance;
   });
+
+  afterEach(() => table.destroy());
 
   it('should be created', () => {
     expect(component).toBeTruthy();
   });
 
   describe('how many ways a cut-in faces', () => {
-    it('writes the choice to the room, which is what everyone around the screen watches', () => {
-      component.multiDirectionMode = 'four-directions';
-
-      expect(Config.instance.tabletopDisplayAnswers.cutInMultiDirectionMode).toBe('four-directions');
-    });
-
-    it('keeps the choice to this screen once the reader takes it over', () => {
-      component.multiDirectionMode = 'vertical';
-
-      component.onThisScreenOnly = true;
+    it('writes the choice to this screen, which is the one the cut-in is watched on', () => {
       component.multiDirectionMode = 'four-directions';
 
       expect(component.multiDirectionMode).toBe('four-directions');
-      expect(Config.instance.tabletopDisplayAnswers.cutInMultiDirectionMode).toBe('vertical');
+      expect(TestBed.inject(SeatDisplayPreferenceService).own().cutInMultiDirectionMode).toBe('four-directions');
+      expect(table.cutInMultiDirectionMode).toBe('none');
+    });
 
-      component.onThisScreenOnly = false;
+    it('shows what the table asks for until this screen is told otherwise', () => {
+      table.cutInMultiDirectionMode = 'vertical';
 
       expect(component.multiDirectionMode).toBe('vertical');
     });

@@ -116,7 +116,7 @@ describe('TabletopService', () => {
       expect(service.orthographicProjection()).toBe(true);
     });
 
-    it('leaves the features this reader took over to them, and the rest to the table', async () => {
+    it('answers with what this screen was told, and with the table for the rest', async () => {
       const service = TestBed.inject(TabletopService);
       table.multiAngleEnabled = true;
       table.multiAngleTickerEnabled = true;
@@ -124,13 +124,14 @@ describe('TabletopService', () => {
 
       expect(service.display().multiAngleEnabled).toBe(true);
 
-      TestBed.inject(SeatDisplayPreferenceService).takeOver('pieceLabels', {
-        ...service.display(),
-        multiAngleEnabled: false,
-      });
+      TestBed.inject(SeatDisplayPreferenceService).set({ multiAngleEnabled: false });
 
       expect(service.display().multiAngleEnabled).toBe(false);
       expect(service.display().multiAngleTickerEnabled).toBe(true);
+
+      TestBed.inject(SeatDisplayPreferenceService).forget();
+
+      expect(service.display().multiAngleEnabled).toBe(true);
     });
   });
 });

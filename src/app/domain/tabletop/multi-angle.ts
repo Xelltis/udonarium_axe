@@ -30,18 +30,6 @@ export function normalizeDegrees(degrees: number): number {
   return ((degrees % 360) + 360) % 360;
 }
 
-export function multiAngleSeatVector(degrees: number): { x: number; y: number } {
-  const radians = (degrees * Math.PI) / 180;
-  return {
-    x: -Math.sin(radians),
-    y: Math.cos(radians),
-  };
-}
-
-export function compensateMultiAngleDegrees(degrees: number, tableDegrees: number): number {
-  return normalizeDegrees(degrees - tableDegrees);
-}
-
 /** Maps a pointer around a piece to one of four 90-degree viewing areas. */
 export function multiAngleDegreesFromPoint(pointX: number, pointY: number, centerX: number, centerY: number): number {
   const dx = pointX - centerX;

@@ -29,8 +29,6 @@ export type CharacterPanelName = (typeof CHARACTER_PANELS)[number];
 export type RoomPanelName = (typeof ROOM_PANELS)[number];
 export type PanelName = CharacterPanelName | RoomPanelName;
 
-export const PANEL_NAMES: readonly PanelName[] = [...CHARACTER_PANELS, ...ROOM_PANELS];
-
 export const DEFAULT_CHARACTER_PANEL: CharacterPanelName = 'chatPalette';
 
 export const STATUS_AILMENT_PANEL = 'status-ailment';

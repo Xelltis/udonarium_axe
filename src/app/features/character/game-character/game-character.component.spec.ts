@@ -1539,7 +1539,6 @@ describe('GameCharacterComponent', () => {
       table.multiAngleEnabled = true;
       table.multiAngleResourceBuffEnabled = false;
       const display = TestBed.inject(TabletopDisplayService);
-      display.takeOver('pieceLabels');
       const character = GameCharacter.create('表示切替', 1, '');
       const buff = DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE });
       character.buffDataElement!.appendChild(buff);
@@ -1552,14 +1551,14 @@ describe('GameCharacterComponent', () => {
         expect(root.querySelector('[data-testid="buff-badge"]')).toBeTruthy();
         expect(root.querySelector('[data-testid="multi-angle-resource-buff-orbit"]')).toBeNull();
 
-        display.set('pieceLabels', { multiAngleResourceBuffEnabled: true });
+        display.set({ multiAngleResourceBuffEnabled: true });
         fixture.detectChanges();
         expect(root.querySelector('[data-testid="piece-gauge"]')).toBeNull();
         expect(root.querySelector('[data-testid="buff-badge"]')).toBeNull();
         expect(root.querySelectorAll('[data-testid="multi-angle-resource-segment"]')).toHaveLength(2);
         expect(root.querySelector('[data-testid="multi-angle-buff-icon"]')).toBeTruthy();
 
-        display.set('pieceLabels', { multiAngleResourceBuffEnabled: false });
+        display.set({ multiAngleResourceBuffEnabled: false });
         fixture.detectChanges();
         expect(root.querySelectorAll('[data-testid="piece-gauge"]')).toHaveLength(2);
         expect(root.querySelector('[data-testid="buff-badge"]')).toBeTruthy();

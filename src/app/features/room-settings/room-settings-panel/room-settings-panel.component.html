@@ -48,31 +48,6 @@
             </p>
           </div>
         </div>
-
-        <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
-          <div class="min-w-0">
-            <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
-              'feature.roomSettings.sectionFacing' | transloco
-            }}</span>
-          </div>
-          <div class="grid grid-cols-[7rem_1fr] items-center gap-x-3 gap-y-2.5">
-            <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-              'feature.roomSettings.facingMark' | transloco
-            }}</label>
-            <select
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="facingMark"
-              name="facingMark"
-            >
-              @for (mark of facingMarks; track mark) {
-                <option [value]="mark">{{ 'feature.roomSettings.facingMark_' + mark | transloco }}</option>
-              }
-            </select>
-          </div>
-          <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
-            {{ 'feature.roomSettings.facingMarkHint' | transloco }}
-          </p>
-        </div>
       </div>
     }
 
@@ -393,264 +368,94 @@
       </div>
     }
 
-    @if (tab() === 'display') {
-      <div class="mb-3.5 flex flex-col gap-2">
+    @if (tab() === 'ui') {
+      <div
+        class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-3 border border-solid p-3"
+        data-testid="room-settings-shared"
+        [attr.inert]="isReadOnly() ? '' : null"
+      >
+        <div class="min-w-0">
+          <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+            'feature.roomSettings.sectionShared' | transloco
+          }}</span>
+          <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.sharedHint' | transloco }}</p>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <div class="border-ui-accent border-l-2 border-solid pl-2">
+            <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+              'feature.roomSettings.sectionFacing' | transloco
+            }}</span>
+          </div>
+          <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+            <span class="flex-1">{{ 'feature.roomSettings.facingMark' | transloco }}</span>
+            <select
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
+              [(ngModel)]="facingMark"
+              name="facingMark"
+              data-testid="facing-mark"
+            >
+              @for (mark of facingMarks; track mark) {
+                <option [value]="mark">{{ 'feature.roomSettings.facingMark_' + mark | transloco }}</option>
+              }
+            </select>
+          </label>
+          <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.facingMarkHint' | transloco }}</p>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <div class="border-ui-accent border-l-2 border-solid pl-2">
+            <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+              'feature.roomSettings.sectionView3d' | transloco
+            }}</span>
+          </div>
+          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+            <input
+              type="checkbox"
+              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+              [(ngModel)]="imageBillboard"
+              name="imageBillboard"
+              data-testid="image-billboard"
+            />
+            {{ 'feature.roomSettings.imageBillboard' | transloco }}
+          </label>
+        </div>
+      </div>
+
+      <div
+        class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-3 border border-solid p-3"
+        data-testid="room-settings-own"
+      >
+        <div class="min-w-0">
+          <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+            'feature.roomSettings.sectionOwn' | transloco
+          }}</span>
+          <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.ownHint' | transloco }}</p>
+        </div>
+
         <div class="border-ui-accent border-l-2 border-solid pl-2">
           <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
-            'feature.roomSettings.sectionFlatTable' | transloco
+            'feature.roomSettings.sectionView2d' | transloco
           }}</span>
         </div>
         <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.flatTableHint' | transloco }}</p>
 
-        <div class="flex flex-col gap-1.5">
-          <div class="flex items-center gap-2">
-            <label class="text-ui-text flex flex-1 cursor-pointer items-center gap-1.5 text-[13px] select-none">
-              <input
-                type="checkbox"
-                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-                [(ngModel)]="orthographicProjection"
-                name="orthographicProjection"
-                [disabled]="displayReadOnly('projection')"
-                data-testid="orthographic-projection"
-              />
-              {{ 'feature.roomSettings.orthographicProjection' | transloco }}
-            </label>
-            <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[11px] select-none">
-              <input
-                type="checkbox"
-                class="size-3 cursor-pointer [accent-color:var(--ui-accent)]"
-                [ngModel]="onThisScreenOnly('projection')"
-                (ngModelChange)="setOnThisScreenOnly('projection', $event)"
-                name="projectionOnThisScreenOnly"
-                data-testid="projection-on-this-screen-only"
-              />
-              {{ 'common.display.onThisScreenOnly' | transloco }}
-            </label>
-          </div>
-        </div>
+        <ng-container [ngTemplateOutlet]="projectionBlock" />
+        <ng-container [ngTemplateOutlet]="cellSizeBlock" />
+        <ng-container [ngTemplateOutlet]="hoverDetailBlock" />
+        <ng-container [ngTemplateOutlet]="menusBlock" />
+        <ng-container [ngTemplateOutlet]="pieceLabelsBlock" />
+        <ng-container [ngTemplateOutlet]="tickerBlock" />
+        <ng-container [ngTemplateOutlet]="realSizeBlock" />
 
-        <div class="flex flex-col gap-1.5">
-          <div class="flex items-center gap-2">
-            <label class="text-ui-text flex flex-1 items-center gap-1.5 text-[13px] select-none">
-              <span class="flex-1">{{ 'feature.roomSettings.hoverDetailPlacement' | transloco }}</span>
-              <select
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
-                [(ngModel)]="hoverDetailPlacement"
-                name="hoverDetailPlacement"
-                [disabled]="displayReadOnly('hoverDetail')"
-              >
-                @for (placement of hoverDetailPlacements; track placement) {
-                  <option [value]="placement">
-                    {{ 'feature.roomSettings.hoverDetailPlacement_' + placement | transloco }}
-                  </option>
-                }
-              </select>
-            </label>
-            <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[11px] select-none">
-              <input
-                type="checkbox"
-                class="size-3 cursor-pointer [accent-color:var(--ui-accent)]"
-                [ngModel]="onThisScreenOnly('hoverDetail')"
-                (ngModelChange)="setOnThisScreenOnly('hoverDetail', $event)"
-                name="hoverDetailOnThisScreenOnly"
-              />
-              {{ 'common.display.onThisScreenOnly' | transloco }}
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="mb-3.5 flex flex-col gap-2">
-        <div class="border-ui-accent border-l-2 border-solid pl-2">
-          <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
-            'feature.roomSettings.sectionFlatMenu' | transloco
-          }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-            <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
-              <input
-                type="checkbox"
-                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-                [(ngModel)]="radialMenuEnabled"
-                name="radialMenuEnabled"
-                [disabled]="displayReadOnly('menus')"
-                data-testid="radial-menu-enabled"
-              />
-              {{ 'feature.roomSettings.radialMenu' | transloco }}
-            </label>
-            <label class="text-ui-muted flex items-center gap-1 text-[11px]">
-              <span>{{ 'feature.roomSettings.radialMenuSpeed' | transloco }}</span>
-              <input
-                type="range"
-                class="h-1 w-24 p-0 [accent-color:var(--ui-accent)]"
-                min="1"
-                max="24"
-                step="1"
-                [(ngModel)]="radialMenuRotationSpeed"
-                name="radialMenuRotationSpeed"
-                [disabled]="!radialMenuEnabled || displayReadOnly('menus')"
-              />
-              <span class="min-w-9 text-right">{{ radialMenuRotationSpeed }}°/s</span>
-            </label>
-          </div>
-          <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[11px] select-none">
-            <input
-              type="checkbox"
-              class="size-3 cursor-pointer [accent-color:var(--ui-accent)]"
-              [ngModel]="onThisScreenOnly('menus')"
-              (ngModelChange)="setOnThisScreenOnly('menus', $event)"
-              name="menusOnThisScreenOnly"
-            />
-            {{ 'common.display.onThisScreenOnly' | transloco }}
-          </label>
-        </div>
-        <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.radialMenuHelp' | transloco }}</p>
-      </div>
-
-      <div class="mb-3.5 flex flex-col gap-2">
-        <div class="border-ui-accent border-l-2 border-solid pl-2">
-          <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
-            'feature.roomSettings.sectionMultiAngle' | transloco
-          }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <label class="text-ui-text flex flex-1 cursor-pointer items-center gap-1.5 text-[13px] select-none">
-            <input
-              type="checkbox"
-              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-              [(ngModel)]="multiAngleEnabled"
-              name="multiAngleEnabled"
-              [disabled]="displayReadOnly('pieceLabels')"
-              data-testid="multi-angle-enabled"
-            />
-            {{ 'feature.roomSettings.multiAngle' | transloco }}
-          </label>
-          <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[11px] select-none">
-            <input
-              type="checkbox"
-              class="size-3 cursor-pointer [accent-color:var(--ui-accent)]"
-              [ngModel]="onThisScreenOnly('pieceLabels')"
-              (ngModelChange)="setOnThisScreenOnly('pieceLabels', $event)"
-              name="pieceLabelsOnThisScreenOnly"
-              data-testid="piece-labels-on-this-screen-only"
-            />
-            {{ 'common.display.onThisScreenOnly' | transloco }}
-          </label>
-        </div>
-
-        <div
-          class="border-ui-border-panel bg-ui-input/35 grid grid-cols-[9.5rem_1fr] items-center gap-2 rounded-md border border-solid p-2"
-          [class.opacity-45]="!multiAngleEnabled"
+        <button
+          class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text self-start border border-solid px-2 py-0.5 text-[12px]"
+          type="button"
+          data-testid="forget-own-display"
+          (click)="forgetOwnDisplay()"
         >
-          <label class="text-ui-text col-span-2 flex cursor-pointer items-center gap-1.5 text-[12px] select-none">
-            <input
-              type="checkbox"
-              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-              [(ngModel)]="multiAngleResourceBuffEnabled"
-              name="multiAngleResourceBuffEnabled"
-              [disabled]="displayReadOnly('pieceLabels')"
-              [disabled]="!multiAngleEnabled"
-            />
-            {{ 'feature.roomSettings.multiAngleResourceBuff' | transloco }}
-          </label>
-
-          <label class="text-ui-muted text-[11px]" for="multiAngleFontScale">{{
-            'feature.roomSettings.multiAngleFontScale' | transloco
-          }}</label>
-          <select
-            id="multiAngleFontScale"
-            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 border border-solid px-2 py-1 text-[12px]"
-            [(ngModel)]="multiAngleFontScale"
-            name="multiAngleFontScale"
-            [disabled]="displayReadOnly('pieceLabels')"
-          >
-            @for (scale of multiAngleFontScales; track scale) {
-              <option [value]="scale">
-                {{ 'feature.roomSettings.multiAngleFontScale_' + scale | transloco }}
-              </option>
-            }
-          </select>
-
-          <label class="text-ui-muted text-[11px]" for="multiAngleMotionMode">{{
-            'feature.roomSettings.multiAngleMotionMode' | transloco
-          }}</label>
-          <select
-            id="multiAngleMotionMode"
-            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 border border-solid px-2 py-1 text-[12px]"
-            [(ngModel)]="multiAngleMotionMode"
-            name="multiAngleMotionMode"
-            [disabled]="displayReadOnly('pieceLabels')"
-            [disabled]="!multiAngleEnabled"
-          >
-            <option value="continuous">{{ 'feature.roomSettings.multiAngleContinuous' | transloco }}</option>
-            <option value="quarter-turn">
-              {{ 'feature.roomSettings.multiAngleQuarterTurn' | transloco }}
-            </option>
-            <option value="piece-quarter-turn">
-              {{ 'feature.roomSettings.multiAnglePieceQuarterTurn' | transloco }}
-            </option>
-          </select>
-
-          <label class="text-ui-muted text-[11px]" for="multiAngleRevolutionSeconds">{{
-            'feature.roomSettings.multiAngleRevolutionSeconds' | transloco
-          }}</label>
-          <div class="flex items-center gap-1.5">
-            <input
-              id="multiAngleRevolutionSeconds"
-              type="number"
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
-              [(ngModel)]="multiAngleRevolutionSeconds"
-              name="multiAngleRevolutionSeconds"
-              [disabled]="displayReadOnly('pieceLabels')"
-              min="1"
-              max="120"
-              step="1"
-              [disabled]="!multiAngleEnabled"
-            />
-            <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
-          </div>
-
-          <label class="text-ui-muted text-[11px]" for="multiAnglePieceRevolutionSeconds">{{
-            'feature.roomSettings.multiAnglePieceRevolutionSeconds' | transloco
-          }}</label>
-          <div class="flex items-center gap-1.5">
-            <input
-              id="multiAnglePieceRevolutionSeconds"
-              type="number"
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
-              [(ngModel)]="multiAnglePieceRevolutionSeconds"
-              name="multiAnglePieceRevolutionSeconds"
-              [disabled]="displayReadOnly('pieceLabels')"
-              min="5"
-              max="300"
-              step="5"
-              [disabled]="!multiAngleEnabled"
-            />
-            <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
-          </div>
-
-          @if (multiAngleMotionMode !== 'continuous') {
-            <label class="text-ui-muted text-[11px]" for="multiAnglePauseSeconds">{{
-              'feature.roomSettings.multiAnglePauseSeconds' | transloco
-            }}</label>
-            <div class="flex items-center gap-1.5">
-              <input
-                id="multiAnglePauseSeconds"
-                type="number"
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
-                [(ngModel)]="multiAnglePauseSeconds"
-                name="multiAnglePauseSeconds"
-                [disabled]="displayReadOnly('pieceLabels')"
-                min="0"
-                max="30"
-                step="0.5"
-                [disabled]="!multiAngleEnabled"
-              />
-              <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
-            </div>
-          }
-        </div>
+          {{ 'feature.roomSettings.forgetOwnDisplay' | transloco }}
+        </button>
       </div>
     }
 
@@ -698,36 +503,15 @@
       </div>
 
       <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
-        <div class="mb-3.5 flex flex-col gap-2">
+        <div class="flex flex-col gap-2">
           <div class="border-ui-accent border-l-2 border-solid pl-2">
             <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
-              'feature.roomSettings.sectionRealSize' | transloco
+              'feature.roomSettings.sectionMeasure' | transloco
             }}</span>
           </div>
-          <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.realSizeHint' | transloco }}</p>
-
-          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
-            <input
-              type="checkbox"
-              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-              [(ngModel)]="viewLocked"
-              name="viewLocked"
-              data-testid="view-locked"
-            />
-            {{ 'feature.roomSettings.viewLock' | transloco }}
-          </label>
+          <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.measureHint' | transloco }}</p>
 
           <div class="flex flex-wrap items-center gap-2">
-            <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
-              <input
-                type="checkbox"
-                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-                [(ngModel)]="realSizeEnabled"
-                name="realSizeEnabled"
-                data-testid="real-size-enabled"
-              />
-              {{ 'feature.roomSettings.realSize' | transloco }}
-            </label>
             <button
               class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text border border-solid px-2 py-0.5 text-[12px]"
               type="button"
@@ -782,3 +566,315 @@
     }
   </div>
 </div>
+
+<ng-template #billboardBlock>
+  <div class="flex items-center gap-2">
+    <label class="text-ui-text flex flex-1 cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="imageBillboard"
+        name="imageBillboard"
+        data-testid="image-billboard"
+      />
+      {{ 'feature.roomSettings.imageBillboard' | transloco }}
+    </label>
+  </div>
+</ng-template>
+
+<ng-template #projectionBlock>
+  <div class="flex flex-col gap-1.5">
+    <div class="flex items-center gap-2">
+      <label class="text-ui-text flex flex-1 cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="orthographicProjection"
+          name="orthographicProjection"
+          data-testid="orthographic-projection"
+        />
+        {{ 'feature.roomSettings.orthographicProjection' | transloco }}
+      </label>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #hoverDetailBlock>
+  <div class="flex flex-col gap-1.5">
+    <div class="flex items-center gap-2">
+      <label class="text-ui-text flex flex-1 items-center gap-1.5 text-[13px] select-none">
+        <span class="flex-1">{{ 'feature.roomSettings.hoverDetailPlacement' | transloco }}</span>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
+          [(ngModel)]="hoverDetailPlacement"
+          name="hoverDetailPlacement"
+        >
+          @for (placement of hoverDetailPlacements; track placement) {
+            <option [value]="placement">
+              {{ 'feature.roomSettings.hoverDetailPlacement_' + placement | transloco }}
+            </option>
+          }
+        </select>
+      </label>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #menusBlock>
+  <div class="flex items-center gap-2">
+    <div class="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="radialMenuEnabled"
+          name="radialMenuEnabled"
+          data-testid="radial-menu-enabled"
+        />
+        {{ 'feature.roomSettings.radialMenu' | transloco }}
+      </label>
+      <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+        <span>{{ 'feature.roomSettings.radialMenuSpeed' | transloco }}</span>
+        <input
+          type="range"
+          class="h-1 w-24 p-0 [accent-color:var(--ui-accent)]"
+          min="1"
+          max="24"
+          step="1"
+          [(ngModel)]="radialMenuRotationSpeed"
+          name="radialMenuRotationSpeed"
+          [disabled]="!radialMenuEnabled"
+        />
+        <span class="min-w-9 text-right">{{ radialMenuRotationSpeed }}°/s</span>
+      </label>
+    </div>
+  </div>
+  <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.radialMenuHelp' | transloco }}</p>
+</ng-template>
+
+<ng-template #pieceLabelsBlock>
+  <div class="flex items-center gap-2">
+    <label class="text-ui-text flex flex-1 cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="multiAngleEnabled"
+        name="multiAngleEnabled"
+        data-testid="multi-angle-enabled"
+      />
+      {{ 'feature.roomSettings.multiAngle' | transloco }}
+    </label>
+  </div>
+
+  <div
+    class="border-ui-border-panel bg-ui-input/35 grid grid-cols-[9.5rem_1fr] items-center gap-2 rounded-md border border-solid p-2"
+    [class.opacity-45]="!multiAngleEnabled"
+  >
+    <label class="text-ui-text col-span-2 flex cursor-pointer items-center gap-1.5 text-[12px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="multiAngleResourceBuffEnabled"
+        name="multiAngleResourceBuffEnabled"
+        [disabled]="!multiAngleEnabled"
+      />
+      {{ 'feature.roomSettings.multiAngleResourceBuff' | transloco }}
+    </label>
+
+    <label class="text-ui-muted text-[11px]" for="multiAngleFontScale">{{
+      'feature.roomSettings.multiAngleFontScale' | transloco
+    }}</label>
+    <select
+      id="multiAngleFontScale"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 border border-solid px-2 py-1 text-[12px]"
+      [(ngModel)]="multiAngleFontScale"
+      name="multiAngleFontScale"
+    >
+      @for (scale of multiAngleFontScales; track scale) {
+        <option [value]="scale">
+          {{ 'feature.roomSettings.multiAngleFontScale_' + scale | transloco }}
+        </option>
+      }
+    </select>
+
+    <label class="text-ui-muted text-[11px]" for="multiAngleMotionMode">{{
+      'feature.roomSettings.multiAngleMotionMode' | transloco
+    }}</label>
+    <select
+      id="multiAngleMotionMode"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 border border-solid px-2 py-1 text-[12px]"
+      [(ngModel)]="multiAngleMotionMode"
+      name="multiAngleMotionMode"
+      [disabled]="!multiAngleEnabled"
+    >
+      <option value="continuous">{{ 'feature.roomSettings.multiAngleContinuous' | transloco }}</option>
+      <option value="quarter-turn">
+        {{ 'feature.roomSettings.multiAngleQuarterTurn' | transloco }}
+      </option>
+      <option value="piece-quarter-turn">
+        {{ 'feature.roomSettings.multiAnglePieceQuarterTurn' | transloco }}
+      </option>
+    </select>
+
+    <label class="text-ui-muted text-[11px]" for="multiAngleRevolutionSeconds">{{
+      'feature.roomSettings.multiAngleRevolutionSeconds' | transloco
+    }}</label>
+    <div class="flex items-center gap-1.5">
+      <input
+        id="multiAngleRevolutionSeconds"
+        type="number"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
+        [(ngModel)]="multiAngleRevolutionSeconds"
+        name="multiAngleRevolutionSeconds"
+        min="1"
+        max="120"
+        step="1"
+        [disabled]="!multiAngleEnabled"
+      />
+      <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
+    </div>
+
+    <label class="text-ui-muted text-[11px]" for="multiAnglePieceRevolutionSeconds">{{
+      'feature.roomSettings.multiAnglePieceRevolutionSeconds' | transloco
+    }}</label>
+    <div class="flex items-center gap-1.5">
+      <input
+        id="multiAnglePieceRevolutionSeconds"
+        type="number"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
+        [(ngModel)]="multiAnglePieceRevolutionSeconds"
+        name="multiAnglePieceRevolutionSeconds"
+        min="5"
+        max="300"
+        step="5"
+        [disabled]="!multiAngleEnabled"
+      />
+      <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
+    </div>
+
+    @if (multiAngleMotionMode !== 'continuous') {
+      <label class="text-ui-muted text-[11px]" for="multiAnglePauseSeconds">{{
+        'feature.roomSettings.multiAnglePauseSeconds' | transloco
+      }}</label>
+      <div class="flex items-center gap-1.5">
+        <input
+          id="multiAnglePauseSeconds"
+          type="number"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
+          [(ngModel)]="multiAnglePauseSeconds"
+          name="multiAnglePauseSeconds"
+          min="0"
+          max="30"
+          step="0.5"
+          [disabled]="!multiAngleEnabled"
+        />
+        <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
+      </div>
+    }
+  </div>
+</ng-template>
+
+<ng-template #tickerBlock>
+  <div class="flex flex-col gap-1.5">
+    <div class="flex items-center gap-2">
+      <div class="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+        <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+          <input
+            type="checkbox"
+            class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+            [(ngModel)]="tickerEnabled"
+            name="tickerEnabled"
+            data-testid="ticker-enabled"
+          />
+          {{ 'feature.chat.window.tickerEnabled' | transloco }}
+        </label>
+        <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+          <span>{{ 'feature.chat.window.tickerSpeed' | transloco }}</span>
+          <input
+            type="range"
+            class="h-1 w-24 p-0 [accent-color:var(--ui-accent)]"
+            min="20"
+            max="240"
+            step="5"
+            [(ngModel)]="tickerPixelsPerSecond"
+            name="tickerPixelsPerSecond"
+            [disabled]="!tickerEnabled"
+          />
+          <span class="min-w-12 text-right"
+            >{{ tickerPixelsPerSecond }} {{ 'feature.chat.window.tickerSpeedUnit' | transloco }}</span
+          >
+        </label>
+      </div>
+    </div>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.tickerHint' | transloco }}</p>
+  </div>
+</ng-template>
+
+<ng-template #realSizeBlock>
+  <div class="flex flex-col gap-1.5">
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="realSizeEnabled"
+        name="realSizeEnabled"
+        data-testid="real-size-enabled"
+      />
+      {{ 'feature.roomSettings.realSize' | transloco }}
+    </label>
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="viewLocked"
+        name="viewLocked"
+        data-testid="view-locked"
+      />
+      {{ 'feature.roomSettings.viewLock' | transloco }}
+    </label>
+    @if (!isCalibrated()) {
+      <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.roomSettings.realSizeUncalibrated' | transloco }}</p>
+    }
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.realSizeWhere' | transloco }}</p>
+  </div>
+</ng-template>
+
+<ng-template #cellSizeBlock>
+  <div class="flex flex-col gap-1.5">
+    <div class="flex items-center gap-2">
+      <label class="text-ui-text flex flex-1 items-center gap-1.5 text-[13px] select-none">
+        <span class="flex-1">{{ 'feature.roomSettings.realSizeCellMm' | transloco }}</span>
+        <input
+          type="number"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-18 border border-solid px-1 py-0.5 text-[13px]"
+          min="5"
+          max="200"
+          step="0.1"
+          [(ngModel)]="cellMm"
+          name="cellMm"
+          data-testid="cell-mm"
+        />
+        <span class="text-ui-muted text-[12px]">mm</span>
+      </label>
+    </div>
+    <span class="text-ui-accent text-[12px]">
+      @if (cellSummary().unit === 'cell') {
+        {{
+          'feature.roomSettings.realSizeSummaryPlain'
+            | transloco: { mm: cellSummary().mm, inches: cellSummary().inches }
+        }}
+      } @else {
+        {{
+          'feature.roomSettings.realSizeSummary'
+            | transloco
+              : {
+                  mm: cellSummary().mm,
+                  inches: cellSummary().inches,
+                  distance: cellSummary().distance,
+                  unit: 'feature.roomSettings.cellUnit.' + cellSummary().unit | transloco,
+                }
+        }}
+      }
+    </span>
+  </div>
+</ng-template>

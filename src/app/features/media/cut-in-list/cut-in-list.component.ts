@@ -34,8 +34,8 @@ export class CutInListComponent {
   /**
    * How many ways a cut-in faces on a table seen from above.
    *
-   * It belongs to the table, since everyone around one screen watches the same cut-in, and a
-   * reader on their own screen may take it over.
+   * It belongs to the screen this reader is watching, so a cut-in reaches the people sitting
+   * around a flat screen from four sides, and everyone else the way it always did.
    */
   private readonly display = inject(TabletopDisplayService);
   protected readonly multiDirectionModes = CUT_IN_MULTI_DIRECTION_MODES;
@@ -44,15 +44,7 @@ export class CutInListComponent {
     return this.display.settingsNow().cutInMultiDirectionMode;
   }
   set multiDirectionMode(value: CutInMultiDirectionMode) {
-    this.display.set('cutIn', { cutInMultiDirectionMode: asCutInMultiDirectionMode(value) });
-  }
-
-  get onThisScreenOnly(): boolean {
-    return this.display.takesOver('cutIn');
-  }
-  set onThisScreenOnly(value: boolean) {
-    if (value) this.display.takeOver('cutIn');
-    else this.display.handBack('cutIn');
+    this.display.set({ cutInMultiDirectionMode: asCutInMultiDirectionMode(value) });
   }
 
   /** The settings a cut-in has always had, and the layers it may now be built from. */

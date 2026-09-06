@@ -9,10 +9,10 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
-import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatWindowComponent } from '@axe/features/chat/chat-window/chat-window.component';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -70,7 +70,7 @@ describe('ChatWindowComponent', () => {
     await expectPanelDragRecovery(ChatWindowComponent);
   });
 
-  it('shows the on/off switch and speed slider only on the ticker tab', () => {
+  it('points at where the ticker is set, and only on the ticker tab', () => {
     const ticker = ChatTabList.instance.ensureTickerTab();
     const ordinary = ChatTabList.instance.addChatTab('通常');
     try {
@@ -79,8 +79,8 @@ describe('ChatWindowComponent', () => {
 
       expect(component.isTickerTab()).toBe(true);
       expect(fixture.nativeElement.querySelector('[data-testid="ticker-controls"]')).toBeTruthy();
-      expect(fixture.nativeElement.querySelector('[data-testid="ticker-enabled"]')).toBeTruthy();
-      expect(fixture.nativeElement.querySelector('[data-testid="ticker-speed"]')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="ticker-open-settings"]')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="ticker-enabled"]')).toBeNull();
 
       component.chatTabidentifier = ordinary.identifier;
       fixture.detectChanges();
@@ -91,31 +91,12 @@ describe('ChatWindowComponent', () => {
     }
   });
 
-  it('writes the ticker settings to the room, which is where the ticker is read from', () => {
-    component.tickerEnabled = true;
-    component.tickerPixelsPerSecond = 88;
+  it('opens the room settings, where the ticker is set with the rest of the display', () => {
+    const opened = vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(() => undefined);
 
-    expect(Config.instance.tabletopDisplayAnswers.multiAngleTickerEnabled).toBe('true');
-    expect(Config.instance.tabletopDisplayAnswers.multiAngleTickerPixelsPerSecond).toBe('88');
-  });
+    component.openTickerSettings();
 
-  it('leaves the room alone once this reader has taken the ticker over', () => {
-    component.tickerEnabled = false;
-    component.tickerPixelsPerSecond = 55;
-
-    component.tickerOnThisScreenOnly = true;
-    component.tickerEnabled = true;
-    component.tickerPixelsPerSecond = 88;
-
-    expect(component.tickerEnabled).toBe(true);
-    expect(component.tickerPixelsPerSecond).toBe(88);
-    expect(Config.instance.tabletopDisplayAnswers.multiAngleTickerEnabled).toBe('false');
-    expect(Config.instance.tabletopDisplayAnswers.multiAngleTickerPixelsPerSecond).toBe('55');
-
-    component.tickerOnThisScreenOnly = false;
-
-    expect(component.tickerEnabled).toBe(false);
-    expect(component.tickerPixelsPerSecond).toBe(55);
+    expect(opened).toHaveBeenCalledWith('roomSettings');
   });
 
   describe('who is typing', () => {

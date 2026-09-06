@@ -22,6 +22,7 @@ import {
   DEFAULT_MULTI_ANGLE_FONT_SCALE,
   MultiAngleFontScale,
 } from '@axe/domain/tabletop/multi-angle-font-scale';
+import { clampCellMm, DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
 import {
   DEFAULT_RADIAL_MENU_ROTATION_SPEED,
   MAX_RADIAL_MENU_ROTATION_SPEED,
@@ -29,15 +30,17 @@ import {
 } from '@axe/domain/tabletop/radial-menu';
 
 /**
- * How a table laid flat is drawn and reached, for the readers who are looking straight down on it.
+ * How a table laid flat is drawn and reached, for the reader looking straight down on it.
  *
- * Every one of these only has anything to say while the table is seen in 2D. They are the table's
- * own decisions, so that a screen laid flat in the middle of a group shows the same thing to
- * everyone around it, and any one reader can still ask for something else on their own glass.
+ * None of it has anything to say until the table is seen from above, and all of it describes the
+ * screen in front of one reader. A group sitting around a screen sets it on that screen; the
+ * people joining the same session from elsewhere are left with the table as they had it.
  */
 export interface TabletopDisplaySettings {
   /** Whether the flat table is drawn without perspective, the way a board seen from above has none. */
   orthographicProjection: boolean;
+  /** How wide one square is meant to measure on the glass, for a screen laid flat under miniatures. */
+  cellMm: number;
   /** Whether the four-way menus turn, rather than standing in four straight lists. */
   radialMenuEnabled: boolean;
   radialMenuRotationSpeed: number;
@@ -57,37 +60,12 @@ export interface TabletopDisplaySettings {
 
 export type TabletopDisplayKey = keyof TabletopDisplaySettings;
 
-/**
- * The settings of one feature, which is the unit a reader takes over.
- *
- * Taking over the piece labels leaves the menus and the ticker with what the table asks for.
- */
-export const TABLETOP_DISPLAY_SECTIONS = {
-  projection: ['orthographicProjection'],
-  menus: ['radialMenuEnabled', 'radialMenuRotationSpeed'],
-  pieceLabels: [
-    'multiAngleEnabled',
-    'multiAngleResourceBuffEnabled',
-    'multiAngleMotionMode',
-    'multiAngleRevolutionSeconds',
-    'multiAnglePauseSeconds',
-    'multiAnglePieceRevolutionSeconds',
-    'multiAngleFontScale',
-  ],
-  hoverDetail: ['hoverDetailPlacement'],
-  ticker: ['multiAngleTickerEnabled', 'multiAngleTickerPixelsPerSecond'],
-  cutIn: ['cutInMultiDirectionMode'],
-} as const satisfies Record<string, readonly TabletopDisplayKey[]>;
-
-export type TabletopDisplaySection = keyof typeof TABLETOP_DISPLAY_SECTIONS;
-
-export const TABLETOP_DISPLAY_SECTION_NAMES = Object.keys(TABLETOP_DISPLAY_SECTIONS) as TabletopDisplaySection[];
-
-/** What one reader asked for instead. A key left out is a key the table still answers. */
-export type TabletopDisplayOverride = Partial<TabletopDisplaySettings>;
+/** What this screen has been told. A key left out is a key the table still answers. */
+export type TabletopDisplayOwn = Partial<TabletopDisplaySettings>;
 
 export const DEFAULT_TABLETOP_DISPLAY_SETTINGS: TabletopDisplaySettings = {
   orthographicProjection: false,
+  cellMm: DEFAULT_CELL_MM,
   radialMenuEnabled: false,
   radialMenuRotationSpeed: DEFAULT_RADIAL_MENU_ROTATION_SPEED,
   hoverDetailPlacement: DEFAULT_HOVER_DETAIL_PLACEMENT,
@@ -135,6 +113,10 @@ export function normalizeTabletopDisplaySettings(value: unknown): TabletopDispla
   const defaults = DEFAULT_TABLETOP_DISPLAY_SETTINGS;
   return {
     orthographicProjection: booleanOr(source['orthographicProjection'], defaults.orthographicProjection),
+    cellMm:
+      source['cellMm'] === '' || source['cellMm'] === null || source['cellMm'] === undefined
+        ? defaults.cellMm
+        : clampCellMm(Number(source['cellMm'])),
     radialMenuEnabled: booleanOr(source['radialMenuEnabled'], defaults.radialMenuEnabled),
     radialMenuRotationSpeed: finiteInRange(
       source['radialMenuRotationSpeed'],
@@ -180,68 +162,24 @@ export function normalizeTabletopDisplaySettings(value: unknown): TabletopDispla
   };
 }
 
-/** Keeps the keys a reader has actually taken over, and drops anything that is not a setting. */
-export function normalizeTabletopDisplayOverride(value: unknown): TabletopDisplayOverride {
+/** Keeps the settings this screen has been told, and drops anything that is not one. */
+export function normalizeTabletopDisplayOwn(value: unknown): TabletopDisplayOwn {
   const source = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
   const held = normalizeTabletopDisplaySettings(source);
-  const override: TabletopDisplayOverride = {};
-  for (const section of TABLETOP_DISPLAY_SECTION_NAMES) {
-    if (!TABLETOP_DISPLAY_SECTIONS[section].every((key) => key in source)) continue;
-    Object.assign(override, pickSection(held, section));
-  }
-  return override;
-}
-
-export function pickSection(
-  settings: TabletopDisplaySettings,
-  section: TabletopDisplaySection
-): TabletopDisplayOverride {
-  const picked: TabletopDisplayOverride = {};
-  for (const key of TABLETOP_DISPLAY_SECTIONS[section]) {
-    (picked as Record<string, unknown>)[key] = settings[key];
-  }
-  return picked;
-}
-
-export function overridesSection(override: TabletopDisplayOverride, section: TabletopDisplaySection): boolean {
-  return TABLETOP_DISPLAY_SECTIONS[section].every((key) => override[key] !== undefined);
-}
-
-export function withoutSection(
-  override: TabletopDisplayOverride,
-  section: TabletopDisplaySection
-): TabletopDisplayOverride {
-  const next: TabletopDisplayOverride = { ...override };
-  for (const key of TABLETOP_DISPLAY_SECTIONS[section]) delete next[key];
-  return next;
-}
-
-/** The settings the room has answered for. An empty answer is one the room has not given. */
-export function answeredTabletopDisplay(answers: unknown): Partial<Record<TabletopDisplayKey, unknown>> {
-  const source = answers && typeof answers === 'object' ? (answers as Record<string, unknown>) : {};
-  const answered: Partial<Record<TabletopDisplayKey, unknown>> = {};
+  const own: TabletopDisplayOwn = {};
   for (const key of Object.keys(DEFAULT_TABLETOP_DISPLAY_SETTINGS) as TabletopDisplayKey[]) {
-    const held = source[key];
-    if (held === undefined || held === null || held === '') continue;
-    answered[key] = held;
+    if (!(key in source)) continue;
+    Object.assign(own, { [key]: held[key] });
   }
-  return answered;
+  return own;
 }
 
 /**
- * What is in force here, read from the furthest away inwards.
+ * What is in force on this screen: what it has been told, over what the table used to carry.
  *
- * The table answers for anything the room has not, which is how a room saved before the room
- * was asked keeps looking the way it did, and this reader answers for whatever they took over.
+ * The table is read first so that a room saved while these were still the table's own keeps
+ * looking the way it did until this screen says otherwise.
  */
-export function resolveTabletopDisplay(
-  table: unknown,
-  answers: unknown,
-  override: TabletopDisplayOverride
-): TabletopDisplaySettings {
-  return normalizeTabletopDisplaySettings({
-    ...normalizeTabletopDisplaySettings(table),
-    ...answeredTabletopDisplay(answers),
-    ...override,
-  });
+export function resolveTabletopDisplay(table: unknown, own: TabletopDisplayOwn): TabletopDisplaySettings {
+  return normalizeTabletopDisplaySettings({ ...normalizeTabletopDisplaySettings(table), ...own });
 }

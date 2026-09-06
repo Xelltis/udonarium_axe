@@ -104,9 +104,6 @@
       "stair_spiral": "Spiral stairs",
       "poison_pool": "Poisoned pool",
       "cactus_skin": "Cactus skin"
-    },
-    "display": {
-      "onThisScreenOnly": "This screen only"
     }
   },
   "feature": {
@@ -1900,11 +1897,7 @@
         "snapBoth": "Cell + vertex",
         "snapAll": "Cell + vertex + edge",
         "sectionDisplay": "Display mode",
-        "imageBillboard": "Billboard piece images",
         "cellDistance": "One cell stands for",
-        "realSizeSummary": "One square = {{mm}}mm ({{inches}} in) = {{distance}} {{unit}}",
-        "realSizeSummaryPlain": "One square = {{mm}}mm ({{inches}} in)",
-        "realSizeCellMm": "Real width of a square",
         "sectionDarkness": "Darkness (vision & lighting)",
         "darknessEnabled": "Enable darkness",
         "lightSnapToGrid": "Snap light to the grid",
@@ -1966,11 +1959,6 @@
         "zocAlways": "Held ground",
         "zocAlwaysHint": "Keep showing the ground held against the piece that is picked",
         "zocHint": "A piece is an enemy where the NPC mark differs from the one being moved, and the cells around it get in the way. A piece you cannot see holds no ground.",
-        "cellUnit": {
-          "cell": "Cells",
-          "metre": "Metres",
-          "foot": "Feet"
-        },
         "recommendedView": "Recommended view",
         "recommendedView_perspective": "3D (seen along the table)",
         "recommendedView_flat": "2D (seen from above)",
@@ -2162,7 +2150,7 @@
       "moveStrictHint": "A piece showing a reach goes back where it was lifted from if it is set down outside that reach. A piece with no reach to show is still set down wherever the hand leaves it.",
       "moveStrictPath": "Count the way it was taken, too",
       "sectionFlatTable": "Seen from above (2D)",
-      "flatTableHint": "Everything below applies only while the table is seen from straight above. Tick \"This screen only\" to take a feature over from the table for this browser.",
+      "flatTableHint": "These have something to say only while the table is seen from straight above.",
       "orthographicProjection": "Drop the perspective (for a screen laid flat)",
       "hoverDetailPlacement": "Hover detail of a piece",
       "hoverDetailPlacement_piece": "Beside the piece (classic)",
@@ -2197,7 +2185,22 @@
       "realSizeUncalibrated": "This device has not measured its screen yet.",
       "realSizeStale": "The screen has changed. Please measure it again.",
       "realSizeReset": "Reset this device's settings",
-      "tab_display": "Display"
+      "tab_ui": "UI",
+      "sectionShared": "Shared",
+      "sharedHint": "These reach everyone in the room, and only the game master may change them.",
+      "sectionOwn": "Your own",
+      "ownHint": "These reach this screen alone. Anyone may change them, nobody else is told, and a reader joining from elsewhere is left with the table as they had it.",
+      "sectionView3d": "Seen along the table",
+      "sectionView2d": "Seen from above",
+      "imageBillboard": "Keep piece images facing the reader",
+      "tickerHint": "Runs what is posted to the chat ticker tab around the four edges of the screen.",
+      "sectionMeasure": "Measuring this screen",
+      "measureHint": "Measures this screen against an ID-1 card. What is measured stays on this screen for this session alone.",
+      "realSizeWhere": "Measure the screen under Utility first, then a square can be drawn at its real size.",
+      "realSizeCellMm": "Real width of a square",
+      "realSizeSummary": "One square = {{mm}}mm ({{inches}} in) = {{distance}} {{unit}}",
+      "realSizeSummaryPlain": "One square = {{mm}}mm ({{inches}} in)",
+      "forgetOwnDisplay": "Forget this screen's settings"
     },
     "lobby": {
       "peerMenu": {
@@ -2334,7 +2337,8 @@
         "tickerSpeed": "Speed",
         "tickerSpeedUnit": "px/s",
         "noTarget": "No target selected",
-        "writingOthers": "{{count}} more typing"
+        "writingOthers": "{{count}} more typing",
+        "tickerWhere": "Whether it runs and how fast is set under the room settings UI part."
       },
       "input": {
         "you": " (you)",

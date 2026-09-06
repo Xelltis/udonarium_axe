@@ -372,8 +372,7 @@ describe('GameTableComponent', () => {
 
       expect(flatNames()).not.toContain('実寸に合わせ直す');
 
-      TestBed.inject(TabletopDisplayService).takeOver('projection');
-      TestBed.inject(TabletopDisplayService).set('projection', { orthographicProjection: true });
+      TestBed.inject(TabletopDisplayService).set({ orthographicProjection: true });
 
       expect(flatNames()).toContain('実寸に合わせ直す');
     });

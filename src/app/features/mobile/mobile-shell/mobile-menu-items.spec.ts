@@ -2,7 +2,6 @@ import {
   gameMasterMobileMenuItems,
   MOBILE_MENU_ITEMS,
   sharedMobileMenuItems,
-  visibleMobileMenuItems,
 } from '@axe/features/mobile/mobile-shell/mobile-menu-items';
 
 describe('mobileMenuItems', () => {
@@ -17,18 +16,6 @@ describe('mobileMenuItems', () => {
 
   it('keeps the game masters items to their own', () => {
     expect(gameMasterMobileMenuItems().every((item) => item.gameMasterOnly === true)).toBe(true);
-  });
-
-  it('shows the shared and the game masters items and nothing else', () => {
-    const merged = [...sharedMobileMenuItems(), ...gameMasterMobileMenuItems()].map((item) => item.action).sort();
-    const visible = visibleMobileMenuItems(true)
-      .map((item) => item.action)
-      .sort();
-    expect(merged).toEqual(visible);
-  });
-
-  it('shows a player none of them', () => {
-    expect(visibleMobileMenuItems(false)).toEqual(sharedMobileMenuItems());
   });
 
   it('counts loading a room among the shared items', () => {

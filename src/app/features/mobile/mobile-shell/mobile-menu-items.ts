@@ -63,10 +63,6 @@ export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
   { action: 'save', icon: 'sd_storage', labelKey: 'app.fab.save' },
 ];
 
-export function visibleMobileMenuItems(isGameMaster: boolean): MobileMenuItem[] {
-  return MOBILE_MENU_ITEMS.filter((item) => !item.gameMasterOnly || isGameMaster);
-}
-
 export function sharedMobileMenuItems(): MobileMenuItem[] {
   return MOBILE_MENU_ITEMS.filter((item) => !item.gameMasterOnly);
 }

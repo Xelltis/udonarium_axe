@@ -10,8 +10,6 @@ export interface RadialViewport {
   height: number;
 }
 
-export const RADIAL_MENU_PAGE_SIZE = 8;
-
 const SEAT_ANGLE: Record<RadialMenuSeat, number> = {
   north: -90,
   east: 0,
@@ -127,14 +125,4 @@ export function clampRadialCenter(anchor: RadialPoint, viewport: RadialViewport,
     x: clampAxis(anchor.x, viewport.width),
     y: clampAxis(anchor.y, viewport.height),
   };
-}
-
-export function radialPageCount(itemCount: number, pageSize = RADIAL_MENU_PAGE_SIZE): number {
-  return Math.max(1, Math.ceil(itemCount / pageSize));
-}
-
-export function radialPage<T>(items: T[], page: number, pageSize = RADIAL_MENU_PAGE_SIZE): T[] {
-  const pageCount = radialPageCount(items.length, pageSize);
-  const safePage = Math.max(0, Math.min(page, pageCount - 1));
-  return items.slice(safePage * pageSize, (safePage + 1) * pageSize);
 }

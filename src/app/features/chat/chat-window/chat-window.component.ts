@@ -21,7 +21,6 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
@@ -35,11 +34,6 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import {
-  DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
-  MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
-  MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
-} from '@axe/domain/tabletop/multi-angle';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatMessageSettingComponent } from '@axe/features/chat/chat-message-setting/chat-message-setting.component';
@@ -48,6 +42,7 @@ import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stre
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTabSettingComponent } from '@axe/features/chat/chat-tab-setting/chat-tab-setting.component';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -94,7 +89,7 @@ export class ChatWindowComponent {
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly activeChatTab = inject(ActiveChatTabService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly tabletopDisplay = inject(TabletopDisplayService);
+  private readonly roomPanels = inject(RoomPanelService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -193,37 +188,9 @@ export class ChatWindowComponent {
 
   readonly isTickerTab = computed(() => this.chatTab()?.isTickerTab ?? false);
 
-  get tickerEnabled(): boolean {
-    return this.tabletopDisplay.settingsNow().multiAngleTickerEnabled;
-  }
-  set tickerEnabled(value: boolean) {
-    this.tabletopDisplay.set('ticker', { multiAngleTickerEnabled: value });
-  }
-
-  get tickerOnThisScreenOnly(): boolean {
-    return this.tabletopDisplay.takesOver('ticker');
-  }
-  set tickerOnThisScreenOnly(value: boolean) {
-    if (value) this.tabletopDisplay.takeOver('ticker');
-    else this.tabletopDisplay.handBack('ticker');
-  }
-
-  get tickerPixelsPerSecond(): number {
-    const value = Number(this.tabletopDisplay.settingsNow().multiAngleTickerPixelsPerSecond);
-    return Number.isFinite(value)
-      ? Math.min(MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, Math.max(MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, value))
-      : DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND;
-  }
-  set tickerPixelsPerSecond(value: number) {
-    const numeric = Number(value);
-    this.tabletopDisplay.set('ticker', {
-      multiAngleTickerPixelsPerSecond: Number.isFinite(numeric)
-        ? Math.min(
-            MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
-            Math.max(MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, numeric)
-          )
-        : DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
-    });
+  /** The ticker is set where the rest of how this screen draws the table is set. */
+  openTickerSettings(): void {
+    this.roomPanels.open('roomSettings');
   }
 
   private isAutoScroll = true;

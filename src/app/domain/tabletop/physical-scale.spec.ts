@@ -6,7 +6,6 @@ import {
   DEFAULT_CELL_MM,
   dotsPerInch,
   ID1_CARD_WIDTH_MM,
-  isAtRealSize,
   isPxPerMm,
   nudgePxPerMm,
   pxPerMmFromCardRun,
@@ -112,17 +111,6 @@ describe('physical scale', () => {
       expect(viewPositionZToZoom(TABLE_PERSPECTIVE_PX)).toBe(20);
       expect(viewPositionZToZoom(TABLE_PERSPECTIVE_PX + 500)).toBe(20);
       expect(viewPositionZToZoom(Number.NaN)).toBe(20);
-    });
-  });
-
-  describe('telling whether the view is already real size', () => {
-    it('recognises the depth it just snapped to', () => {
-      const zoom = realSizeZoom(DEFAULT_CELL_MM, 3.201, 50);
-      expect(isAtRealSize(zoomToViewPositionZ(zoom), DEFAULT_CELL_MM, 3.201, 50)).toBe(true);
-    });
-
-    it('notices once the table has been zoomed away', () => {
-      expect(isAtRealSize(0, DEFAULT_CELL_MM, 3.201, 50)).toBe(false);
     });
   });
 

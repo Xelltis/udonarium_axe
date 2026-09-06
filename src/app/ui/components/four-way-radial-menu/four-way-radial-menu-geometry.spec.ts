@@ -7,8 +7,6 @@ import {
   nearestCardinalRotation,
   outwardRotationOnRing,
   pointOnRing,
-  radialPage,
-  radialPageCount,
   seatTextRotation,
 } from '@axe/ui/components/four-way-radial-menu/four-way-radial-menu-geometry';
 
@@ -72,13 +70,5 @@ describe('four-way radial menu geometry', () => {
       x: 150,
       y: 100,
     });
-  });
-
-  it('splits long action lists into pages of eight', () => {
-    const items = Array.from({ length: 18 }, (_, index) => index);
-    expect(radialPageCount(items.length)).toBe(3);
-    expect(radialPage(items, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    expect(radialPage(items, 2)).toEqual([16, 17]);
-    expect(radialPage(items, 99)).toEqual([16, 17]);
   });
 });

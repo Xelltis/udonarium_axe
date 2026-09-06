@@ -99,10 +99,6 @@ export function viewPositionZToZoom(viewPositionZ: number): number {
 }
 
 /** Whether the view is close enough to real size that snapping again would do nothing. */
-export function isAtRealSize(viewPositionZ: number, cellMm: number, pxPerMm: number, gridSize: number): boolean {
-  const wanted = realSizeZoom(cellMm, pxPerMm, gridSize);
-  return Math.abs(viewPositionZToZoom(viewPositionZ) - wanted) < wanted * 0.001;
-}
 
 /** The last of the accuracy is settled by eye, against a base sitting on a square. */
 export function nudgePxPerMm(pxPerMm: number, steps: number): number {

@@ -104,9 +104,6 @@
       "stair_spiral": "나선 계단",
       "poison_pool": "독 늪",
       "cactus_skin": "선인장 껍질"
-    },
-    "display": {
-      "onThisScreenOnly": "이 화면만"
     }
   },
   "feature": {
@@ -1900,11 +1897,7 @@
         "snapBoth": "셀＋교차점",
         "snapAll": "셀＋교차점＋변",
         "sectionDisplay": "표시 모드",
-        "imageBillboard": "이미지를 카메라를 향하게",
         "cellDistance": "한 칸의 거리",
-        "realSizeSummary": "한 칸 = {{mm}}mm ({{inches}}인치) = {{distance}}{{unit}}",
-        "realSizeSummaryPlain": "한 칸 = {{mm}}mm ({{inches}}인치)",
-        "realSizeCellMm": "한 칸의 실제 크기",
         "sectionDarkness": "어둠(시야·조명)",
         "darknessEnabled": "어둠 사용",
         "lightSnapToGrid": "조명을 칸에 맞추기",
@@ -1966,11 +1959,6 @@
         "zocAlways": "ZOC 상시 표시",
         "zocAlwaysHint": "선택한 말에 대한 ZOC를 계속 표시",
         "zocHint": "NPC 여부가 다른 말을 적으로 보고, 그 주위 칸이 이동을 방해합니다. 자신에게 보이지 않는 말은 ZOC를 만들지 않습니다.",
-        "cellUnit": {
-          "cell": "칸",
-          "metre": "미터",
-          "foot": "피트"
-        },
         "recommendedView": "권장 뷰",
         "recommendedView_perspective": "3D (비스듬히 보기)",
         "recommendedView_flat": "2D (위에서 보기)",
@@ -2162,7 +2150,7 @@
       "moveStrictHint": "이동 범위가 표시된 말을 범위 밖에 놓으려 하면 집어 올린 자리로 되돌립니다. 이동 범위가 나오지 않는 말은 지금까지처럼 어디에나 놓을 수 있습니다.",
       "moveStrictPath": "지나온 경로도 계산하기",
       "sectionFlatTable": "위에서 내려다볼 때 (2D)",
-      "flatTableHint": "아래 항목은 테이블을 바로 위에서 볼 때만 적용됩니다. \"이 화면만\"을 켜면 테이블 설정에서 분리되어 이 브라우저의 설정이 됩니다.",
+      "flatTableHint": "테이블을 바로 위에서 볼 때만 적용됩니다.",
       "orthographicProjection": "원근 없애기 (화면을 눕혀 둘러앉을 때)",
       "hoverDetailPlacement": "말 상세 표시",
       "hoverDetailPlacement_piece": "말 근처에 표시(기존)",
@@ -2197,7 +2185,22 @@
       "realSizeUncalibrated": "이 기기는 아직 화면을 측정하지 않았습니다.",
       "realSizeStale": "화면이 바뀌었습니다. 다시 맞춰 주세요.",
       "realSizeReset": "이 기기의 설정을 초기화",
-      "tab_display": "테이블톱"
+      "tab_ui": "UI",
+      "sectionShared": "공통 설정",
+      "sharedHint": "방의 모든 사람에게 적용되며 GM만 변경할 수 있습니다.",
+      "sectionOwn": "개인 설정",
+      "ownHint": "이 화면에만 적용됩니다. 누구나 바꿀 수 있고 다른 참가자에게는 전달되지 않습니다. 테이블을 둘러싸고 보는 화면을 위한 설정이므로, 떨어진 자리에서 참가하는 사람에게는 전달되지 않습니다.",
+      "sectionView3d": "3D 표시",
+      "sectionView2d": "2D 표시",
+      "imageBillboard": "말 이미지를 항상 카메라 쪽으로",
+      "tickerHint": "채팅의 \"티커\" 탭에 올린 글을 화면 네 변으로 흘려보냅니다.",
+      "sectionMeasure": "화면 실측",
+      "measureHint": "ID-1 규격 카드를 자로 삼아 이 화면의 실제 크기를 측정합니다. 측정값은 이 화면의 이번 세션에만 남습니다.",
+      "realSizeWhere": "실제 크기로 표시하려면 먼저 유틸리티에서 화면을 측정해 주세요.",
+      "realSizeCellMm": "한 칸의 실제 크기",
+      "realSizeSummary": "한 칸 = {{mm}}mm ({{inches}}인치) = {{distance}}{{unit}}",
+      "realSizeSummaryPlain": "한 칸 = {{mm}}mm ({{inches}}인치)",
+      "forgetOwnDisplay": "이 화면의 설정 지우기"
     },
     "lobby": {
       "peerMenu": {
@@ -2334,7 +2337,8 @@
         "tickerSpeed": "속도",
         "tickerSpeedUnit": "px/초",
         "noTarget": "대상이 선택되지 않았습니다",
-        "writingOthers": "외 {{count}}명 입력 중"
+        "writingOthers": "외 {{count}}명 입력 중",
+        "tickerWhere": "표시 여부와 속도는 방 설정의 UI에서 정합니다."
       },
       "input": {
         "you": "(당신)",

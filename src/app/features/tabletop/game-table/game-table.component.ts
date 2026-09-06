@@ -369,7 +369,7 @@ export class GameTableComponent {
    */
   private snapToRealSize(): void {
     if (!this.canShowRealSize()) return;
-    const zoom = this.displayCalibration.zoomFor(this.currentTable.cellMm, this.currentTable.gridSize);
+    const zoom = this.displayCalibration.zoomFor(this.tabletopService.cellMm(), this.currentTable.gridSize);
     if (zoom === null) return;
     this.gestureService.snapToViewPositionZ(zoomToViewPositionZ(zoom));
   }

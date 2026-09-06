@@ -1,44 +1,26 @@
 import {
-  compensateMultiAngleDegrees,
   MULTI_ANGLE_SEATS,
   multiAngleDegreesFromPoint,
   multiAngleNameMotionMode,
   multiAngleOrbitAnimation,
   multiAnglePieceMotionMode,
   multiAngleRotationPhase,
-  multiAngleSeatVector,
   normalizeDegrees,
 } from '@axe/domain/tabletop/multi-angle';
 
 describe('multi-angle geometry', () => {
   it('defines the four seats clockwise from the bottom edge', () => {
-    expect(MULTI_ANGLE_SEATS).toEqual([
-      { key: 'down', degrees: 0 },
-      { key: 'left', degrees: 90 },
-      { key: 'up', degrees: 180 },
-      { key: 'right', degrees: 270 },
+    expect(MULTI_ANGLE_SEATS.map((seat) => [seat.key, seat.degrees])).toEqual([
+      ['down', 0],
+      ['left', 90],
+      ['up', 180],
+      ['right', 270],
     ]);
-  });
-
-  it.each([
-    { degrees: 0, expected: { x: 0, y: 1 } },
-    { degrees: 90, expected: { x: -1, y: 0 } },
-    { degrees: 180, expected: { x: 0, y: -1 } },
-    { degrees: 270, expected: { x: 1, y: 0 } },
-  ])('points $degrees degrees toward its table edge', ({ degrees, expected }) => {
-    const actual = multiAngleSeatVector(degrees);
-    expect(actual.x).toBeCloseTo(expected.x, 8);
-    expect(actual.y).toBeCloseTo(expected.y, 8);
   });
 
   it('normalizes positive and negative turns', () => {
     expect(normalizeDegrees(450)).toBe(90);
     expect(normalizeDegrees(-90)).toBe(270);
-  });
-
-  it('subtracts the table rotation from a world-space label', () => {
-    expect(compensateMultiAngleDegrees(0, 90)).toBe(270);
-    expect(compensateMultiAngleDegrees(90, 270)).toBe(180);
   });
 
   it.each([

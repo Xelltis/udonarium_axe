@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
@@ -11,6 +12,7 @@ import { DisplayCalibrationService } from '@axe/application/ui/display-calibrati
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
+import { triggerUpdateGameObject } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Party } from '@axe/domain/party/party';
@@ -30,14 +32,11 @@ import {
   MULTI_ANGLE_FONT_SCALES,
   MultiAngleFontScale,
 } from '@axe/domain/tabletop/multi-angle-font-scale';
+import { cellWidthInches, clampCellMm } from '@axe/domain/tabletop/physical-scale';
 import { isGroupAnswered, resolveRoomRules, RoomRuleGroup, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import {
-  asMultiAngleMotionMode,
-  TabletopDisplaySection,
-  TabletopDisplaySettings,
-} from '@axe/domain/tabletop/tabletop-display';
+import { asMultiAngleMotionMode, TabletopDisplaySettings } from '@axe/domain/tabletop/tabletop-display';
 import {
   FACTION_PHASE_MODES,
   FactionPhaseMode,
@@ -63,7 +62,14 @@ function wholeCells(value: number): number {
   selector: 'room-settings-panel',
   templateUrl: './room-settings-panel.component.html',
   host: { class: 'block' },
-  imports: [FormsModule, NgSelectComponent, NgOptionComponent, RoomSnapshotPanelComponent, TranslocoModule],
+  imports: [
+    NgTemplateOutlet,
+    FormsModule,
+    NgSelectComponent,
+    NgOptionComponent,
+    RoomSnapshotPanelComponent,
+    TranslocoModule,
+  ],
 })
 export class RoomSettingsPanelComponent {
   private readonly objectStore = inject(ObjectStore);
@@ -125,72 +131,109 @@ export class RoomSettingsPanelComponent {
   protected readonly hoverDetailPlacements = HOVER_DETAIL_PLACEMENTS;
   protected readonly multiAngleFontScales = MULTI_ANGLE_FONT_SCALES;
 
-  onThisScreenOnly(section: TabletopDisplaySection): boolean {
-    return this.display.takesOver(section);
+  private displaySet(patch: Partial<TabletopDisplaySettings>): void {
+    this.display.set(patch);
   }
 
-  setOnThisScreenOnly(section: TabletopDisplaySection, value: boolean): void {
-    if (value) this.display.takeOver(section);
-    else this.display.handBack(section);
+  /** Back to the table for everything this screen was told about a table seen from above. */
+  forgetOwnDisplay(): void {
+    this.display.forget();
   }
 
-  /** Whether the room's own answer may be changed from here, which the reader's own copy always may. */
-  displayReadOnly(section: TabletopDisplaySection): boolean {
-    return this.isReadOnly() && !this.display.takesOver(section);
+  /** Whether a piece keeps its face to the reader, which is the table's own decision. */
+  get imageBillboard(): boolean {
+    this.objectChange.versionOf(this.tableSelecter.identifier)();
+    const table = this.tableSelecter.viewTable;
+    if (table) this.objectChange.versionOf(table.identifier)();
+    return table?.imageBillboard ?? false;
+  }
+  set imageBillboard(value: boolean) {
+    const table = this.tableSelecter.viewTable;
+    if (!this.isEditable || !table) return;
+    table.imageBillboard = value;
+    triggerUpdateGameObject(table.toContext());
   }
 
-  private displaySet(section: TabletopDisplaySection, patch: Partial<TabletopDisplaySettings>): void {
-    if (this.displayReadOnly(section)) return;
-    this.display.set(section, patch);
+  get tickerEnabled(): boolean {
+    return this.displaySettings.multiAngleTickerEnabled;
   }
+  set tickerEnabled(value: boolean) {
+    this.displaySet({ multiAngleTickerEnabled: value });
+  }
+
+  get tickerPixelsPerSecond(): number {
+    return this.displaySettings.multiAngleTickerPixelsPerSecond;
+  }
+  set tickerPixelsPerSecond(value: number) {
+    this.displaySet({ multiAngleTickerPixelsPerSecond: Number(value) });
+  }
+
+  get cellMm(): number {
+    return this.displaySettings.cellMm;
+  }
+  set cellMm(value: number) {
+    this.displaySet({ cellMm: clampCellMm(Number(value)) });
+  }
+
+  /** What a square comes to on this screen, read at a glance rather than worked out. */
+  readonly cellSummary = computed(() => {
+    const mm = this.cellMm;
+    const rules = this.rules;
+    return {
+      mm: Math.round(mm * 10) / 10,
+      inches: Math.round(cellWidthInches(mm) * 100) / 100,
+      distance: rules.cellDistance,
+      unit: parseMoveUnit(rules.cellDistanceUnit) ?? DEFAULT_CELL_DISTANCE_UNIT,
+    };
+  });
 
   get orthographicProjection(): boolean {
     return this.displaySettings.orthographicProjection;
   }
   set orthographicProjection(value: boolean) {
-    this.displaySet('projection', { orthographicProjection: value });
+    this.displaySet({ orthographicProjection: value });
   }
 
   get hoverDetailPlacement(): HoverDetailPlacement {
     return this.displaySettings.hoverDetailPlacement;
   }
   set hoverDetailPlacement(value: HoverDetailPlacement) {
-    this.displaySet('hoverDetail', { hoverDetailPlacement: asHoverDetailPlacement(value) });
+    this.displaySet({ hoverDetailPlacement: asHoverDetailPlacement(value) });
   }
 
   get radialMenuEnabled(): boolean {
     return this.displaySettings.radialMenuEnabled;
   }
   set radialMenuEnabled(value: boolean) {
-    this.displaySet('menus', { radialMenuEnabled: value });
+    this.displaySet({ radialMenuEnabled: value });
   }
 
   get radialMenuRotationSpeed(): number {
     return this.displaySettings.radialMenuRotationSpeed;
   }
   set radialMenuRotationSpeed(value: number) {
-    this.displaySet('menus', { radialMenuRotationSpeed: Number(value) });
+    this.displaySet({ radialMenuRotationSpeed: Number(value) });
   }
 
   get multiAngleEnabled(): boolean {
     return this.displaySettings.multiAngleEnabled;
   }
   set multiAngleEnabled(value: boolean) {
-    this.displaySet('pieceLabels', { multiAngleEnabled: value });
+    this.displaySet({ multiAngleEnabled: value });
   }
 
   get multiAngleResourceBuffEnabled(): boolean {
     return this.displaySettings.multiAngleResourceBuffEnabled;
   }
   set multiAngleResourceBuffEnabled(value: boolean) {
-    this.displaySet('pieceLabels', { multiAngleResourceBuffEnabled: value });
+    this.displaySet({ multiAngleResourceBuffEnabled: value });
   }
 
   get multiAngleFontScale(): MultiAngleFontScale {
     return this.displaySettings.multiAngleFontScale;
   }
   set multiAngleFontScale(value: MultiAngleFontScale) {
-    this.displaySet('pieceLabels', { multiAngleFontScale: asMultiAngleFontScale(value) });
+    this.displaySet({ multiAngleFontScale: asMultiAngleFontScale(value) });
   }
 
   get multiAngleMotionMode(): MultiAngleMotionMode {
@@ -198,7 +241,7 @@ export class RoomSettingsPanelComponent {
   }
   set multiAngleMotionMode(value: MultiAngleMotionMode) {
     const motionMode = asMultiAngleMotionMode(value);
-    this.displaySet('pieceLabels', {
+    this.displaySet({
       multiAngleMotionMode: motionMode,
       multiAnglePieceRevolutionSeconds: motionMode === 'continuous' ? DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS : 5,
     });
@@ -208,21 +251,21 @@ export class RoomSettingsPanelComponent {
     return this.displaySettings.multiAngleRevolutionSeconds;
   }
   set multiAngleRevolutionSeconds(value: number) {
-    this.displaySet('pieceLabels', { multiAngleRevolutionSeconds: Number(value) });
+    this.displaySet({ multiAngleRevolutionSeconds: Number(value) });
   }
 
   get multiAnglePauseSeconds(): number {
     return this.displaySettings.multiAnglePauseSeconds;
   }
   set multiAnglePauseSeconds(value: number) {
-    this.displaySet('pieceLabels', { multiAnglePauseSeconds: Number(value) });
+    this.displaySet({ multiAnglePauseSeconds: Number(value) });
   }
 
   get multiAnglePieceRevolutionSeconds(): number {
     return this.displaySettings.multiAnglePieceRevolutionSeconds;
   }
   set multiAnglePieceRevolutionSeconds(value: number) {
-    this.displaySet('pieceLabels', { multiAnglePieceRevolutionSeconds: Number(value) });
+    this.displaySet({ multiAnglePieceRevolutionSeconds: Number(value) });
   }
 
   /** The screen measurement and the lock describe this glass alone, and are never written down. */

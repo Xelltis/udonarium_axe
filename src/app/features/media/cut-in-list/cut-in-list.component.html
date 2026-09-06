@@ -44,16 +44,6 @@
           }
         </select>
       </label>
-      <label class="text-ui-muted flex cursor-pointer items-center gap-1.5 select-none">
-        <input
-          type="checkbox"
-          class="size-3 cursor-pointer [accent-color:var(--ui-accent)]"
-          data-testid="cut-in-multi-direction-on-this-screen-only"
-          name="cutInOnThisScreenOnly"
-          [(ngModel)]="onThisScreenOnly"
-        />
-        {{ 'common.display.onThisScreenOnly' | transloco }}
-      </label>
       <span class="text-ui-dim">{{ 'feature.media.cutIn.multiDirectionHint' | transloco }}</span>
     </div>
   </aside>

@@ -104,9 +104,6 @@
       "stair_spiral": "螺旋階段",
       "poison_pool": "毒の沼",
       "cactus_skin": "サボテンの肌"
-    },
-    "display": {
-      "onThisScreenOnly": "この画面だけ"
     }
   },
   "feature": {
@@ -1900,11 +1897,7 @@
         "snapBoth": "セル＋交差点",
         "snapAll": "セル＋交差点＋辺",
         "sectionDisplay": "表示モード",
-        "imageBillboard": "画像をカメラに追従",
         "cellDistance": "1 マスの距離",
-        "realSizeSummary": "1マス = {{mm}}mm（{{inches}}インチ）= {{distance}}{{unit}}",
-        "realSizeSummaryPlain": "1マス = {{mm}}mm（{{inches}}インチ）",
-        "realSizeCellMm": "1マスの実寸",
         "sectionDarkness": "暗闇（視界・照明）",
         "darknessEnabled": "暗闇を有効化",
         "lightSnapToGrid": "照明をマス目に沿わせる",
@@ -1966,11 +1959,6 @@
         "zocAlways": "ZOC の常時表示",
         "zocAlwaysHint": "選んだコマに対する ZOC を出したままにする",
         "zocHint": "NPC かどうかが違うコマを敵とみなし、その周りのマスが移動を妨げる。自分に見えていないコマは ZOC を張らない。",
-        "cellUnit": {
-          "cell": "マス",
-          "metre": "メートル",
-          "foot": "フィート"
-        },
         "recommendedView": "推奨ビュー",
         "recommendedView_perspective": "3D（斜めから見る）",
         "recommendedView_flat": "2D（真上から見る）",
@@ -2162,7 +2150,7 @@
       "moveStrictHint": "移動範囲が出ているコマを範囲の外へ置こうとすると、持ち上げた場所へ戻します。移動範囲が出ないコマ（移動力のないコマなど）は、これまでどおりどこへでも置けます。",
       "moveStrictPath": "通った道すじも数える",
       "sectionFlatTable": "真上から見るとき（2D）",
-      "flatTableHint": "ここから下は卓を真上から見ているあいだだけ効きます。「この画面だけ」を入れると、卓の設定から外れてこのブラウザの設定になります。",
+      "flatTableHint": "卓を真上から見ているあいだだけ効きます。",
       "orthographicProjection": "遠近をなくす（画面を寝かせて囲むとき）",
       "hoverDetailPlacement": "コマの詳細表示",
       "hoverDetailPlacement_piece": "コマの近くに表示（従来）",
@@ -2197,7 +2185,22 @@
       "realSizeUncalibrated": "この端末はまだ画面を測っていません。",
       "realSizeStale": "画面が変わりました。もう一度合わせてください。",
       "realSizeReset": "この端末の設定をリセット",
-      "tab_display": "卓上"
+      "tab_ui": "UI",
+      "sectionShared": "共通設定",
+      "sharedHint": "部屋の全員に効きます。変えられるのは GM だけです。",
+      "sectionOwn": "個人設定",
+      "ownHint": "この画面にだけ効きます。誰でも変えられ、ほかの参加者には伝わりません。卓を囲んで見る画面のための設定なので、離れた席から参加している人には配りません。",
+      "sectionView3d": "3D表示",
+      "sectionView2d": "2D表示",
+      "imageBillboard": "コマ画像を常にカメラに向ける",
+      "tickerHint": "チャットの「ティッカー」タブへの投稿を、画面の四辺へ流します。",
+      "sectionMeasure": "画面の実測",
+      "measureHint": "ID-1 規格のカードを物差しに、この画面の実寸を測ります。測った値はこの画面のこのセッションにだけ残ります。",
+      "realSizeWhere": "実寸で表示するには、先にユーティリティで画面を測ってください。",
+      "realSizeCellMm": "1マスの実寸",
+      "realSizeSummary": "1マス = {{mm}}mm（{{inches}}インチ）= {{distance}}{{unit}}",
+      "realSizeSummaryPlain": "1マス = {{mm}}mm（{{inches}}インチ）",
+      "forgetOwnDisplay": "この画面の設定を消す"
     },
     "lobby": {
       "peerMenu": {
@@ -2334,7 +2337,8 @@
         "tickerSpeed": "速度",
         "tickerSpeedUnit": "px/秒",
         "noTarget": "対象が未選択です",
-        "writingOthers": "他 {{count}} 人 入力中"
+        "writingOthers": "他 {{count}} 人 入力中",
+        "tickerWhere": "表示と速度は部屋設定の UI にあります。"
       },
       "input": {
         "you": "（あなた）",

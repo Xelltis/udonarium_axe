@@ -11,15 +11,14 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { triggerUpdateGameObject } from '@axe/core/event/domain-events';
 import {
   cardRunWidthMm,
   cellWidthInches,
   cellWidthPx,
   clampCellMm,
-  DEFAULT_CELL_MM,
   dotsPerInch,
   ID1_CARD_HEIGHT_MM,
   pxPerMmFromCardRun,
@@ -50,6 +49,7 @@ export class DisplayCalibrationComponent {
   private readonly modalService = inject(ModalService);
   private readonly calibration = inject(DisplayCalibrationService);
   private readonly tabletop = inject(TabletopService);
+  private readonly tabletopDisplay = inject(TabletopDisplayService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -100,7 +100,7 @@ export class DisplayCalibrationComponent {
   readonly pxPerMmLabel = computed(() => this.pxPerMm().toFixed(2));
   readonly dpi = computed(() => Math.round(dotsPerInch(this.pxPerMm())));
 
-  readonly cellMm = signal<number>(clampCellMm(this.tabletop.currentTable?.cellMm ?? DEFAULT_CELL_MM));
+  readonly cellMm = signal<number>(clampCellMm(this.tabletop.cellMm()));
   readonly cellPx = computed(() => Math.round(cellWidthPx(this.cellMm(), this.pxPerMm())));
   /** An inch is the unit a miniature's base is sold in, so it is the one worth reading back. */
   readonly cellInchesLabel = computed(() => cellWidthInches(this.cellMm()).toFixed(2));
@@ -154,12 +154,7 @@ export class DisplayCalibrationComponent {
   /** The reader says the card matches; this is the whole result of the exercise. */
   confirm(): void {
     this.calibration.calibrateFromCardRun(this.framePx(), this.cards());
-    // The width of a square belongs to the map, so it goes back to the table.
-    const table = this.tabletop.currentTable;
-    if (table) {
-      table.cellMm = clampCellMm(this.cellMm());
-      triggerUpdateGameObject(table.toContext());
-    }
+    this.tabletopDisplay.set({ cellMm: clampCellMm(this.cellMm()) });
     this.calibration.setRealSizeEnabled(true);
     this.modalService.resolve(true);
   }

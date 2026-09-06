@@ -210,10 +210,7 @@ export class DiceSymbolComponent {
 
   readonly imageBillboardEnabled = computed(() => {
     if (this.isPoster()) return true;
-    const table = this.tabletopService.currentTable;
-    this.objectChange.versionOf(table.identifier)();
-    this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    return table.imageBillboard || this.tabletopService.mode2d();
+    return this.tabletopService.imageBillboard() || this.tabletopService.mode2d();
   });
 
   readonly imageView = pieceImageView({

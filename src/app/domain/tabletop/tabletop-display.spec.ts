@@ -1,14 +1,9 @@
 import { DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND } from '@axe/domain/tabletop/multi-angle';
 import {
   DEFAULT_TABLETOP_DISPLAY_SETTINGS,
-  normalizeTabletopDisplayOverride,
+  normalizeTabletopDisplayOwn,
   normalizeTabletopDisplaySettings,
-  overridesSection,
-  pickSection,
   resolveTabletopDisplay,
-  TABLETOP_DISPLAY_SECTION_NAMES,
-  TABLETOP_DISPLAY_SECTIONS,
-  withoutSection,
 } from '@axe/domain/tabletop/tabletop-display';
 
 describe('the way a flat table is drawn', () => {
@@ -60,48 +55,38 @@ describe('the way a flat table is drawn', () => {
   });
 });
 
-describe('a reader taking a feature over', () => {
-  it('leaves every other feature to the table', () => {
+describe('what one screen has been told', () => {
+  it('answers with what it holds, and leaves the rest to the table', () => {
     const table = { multiAngleEnabled: true, radialMenuEnabled: true, multiAngleTickerEnabled: true };
-    const override = pickSection(normalizeTabletopDisplaySettings({ radialMenuEnabled: false }), 'menus');
 
-    const resolved = resolveTabletopDisplay(table, override);
+    const resolved = resolveTabletopDisplay(table, { radialMenuEnabled: false });
 
     expect(resolved.radialMenuEnabled).toBe(false);
     expect(resolved.multiAngleEnabled).toBe(true);
     expect(resolved.multiAngleTickerEnabled).toBe(true);
   });
 
-  it('knows which features it speaks for, and hands one back', () => {
-    const override = pickSection(normalizeTabletopDisplaySettings({ multiAngleEnabled: true }), 'pieceLabels');
-
-    expect(overridesSection(override, 'pieceLabels')).toBe(true);
-    expect(overridesSection(override, 'ticker')).toBe(false);
-    expect(overridesSection(withoutSection(override, 'pieceLabels'), 'pieceLabels')).toBe(false);
-  });
-
-  it('keeps only the features it holds every setting of', () => {
-    const override = normalizeTabletopDisplayOverride({
+  it('keeps only what it was actually told, and nothing that is not a setting', () => {
+    const own = normalizeTabletopDisplayOwn({
       multiAngleTickerEnabled: true,
       multiAngleTickerPixelsPerSecond: 100,
-      radialMenuEnabled: true,
       hoisted: 'nonsense',
     });
 
-    expect(override).toEqual({ multiAngleTickerEnabled: true, multiAngleTickerPixelsPerSecond: 100 });
+    expect(own).toEqual({ multiAngleTickerEnabled: true, multiAngleTickerPixelsPerSecond: 100 });
   });
 
-  it('carries nothing over from a record that has been emptied', () => {
-    expect(normalizeTabletopDisplayOverride({})).toEqual({});
-    expect(normalizeTabletopDisplayOverride('what')).toEqual({});
+  it('reads a value it cannot use as never having been told it', () => {
+    expect(normalizeTabletopDisplayOwn({ multiAngleTickerPixelsPerSecond: '' })).toEqual({
+      multiAngleTickerPixelsPerSecond: DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
+    });
+    expect(normalizeTabletopDisplayOwn({})).toEqual({});
+    expect(normalizeTabletopDisplayOwn('what')).toEqual({});
   });
-});
 
-describe('the features a reader chooses between', () => {
-  it('names every setting exactly once', () => {
-    const named = TABLETOP_DISPLAY_SECTION_NAMES.flatMap((section) => [...TABLETOP_DISPLAY_SECTIONS[section]]);
+  it('hands the table back everything once the screen is emptied', () => {
+    const table = { multiAngleEnabled: true };
 
-    expect(new Set(named).size).toBe(named.length);
-    expect([...named].sort()).toEqual(Object.keys(DEFAULT_TABLETOP_DISPLAY_SETTINGS).sort());
+    expect(resolveTabletopDisplay(table, {}).multiAngleEnabled).toBe(true);
   });
 });
