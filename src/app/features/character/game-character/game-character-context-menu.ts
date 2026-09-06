@@ -195,14 +195,6 @@ export function buildGameCharacterContextMenuModel(
       : []),
   ];
   const lightActions: ContextMenuAction[] = [
-    ...(callbacks.onPlanMove
-      ? [
-          {
-            name: t('feature.character.contextMenu.planMove'),
-            action: () => callbacks.onPlanMove?.(),
-          } as ContextMenuAction,
-        ]
-      : []),
     {
       name: t('feature.character.contextMenu.lightSettings'),
       action: () => callbacks.onShowLightSettings(),
@@ -211,22 +203,6 @@ export function buildGameCharacterContextMenuModel(
       name: (char.showVisionRange ? '✔ ' : '') + t('feature.character.contextMenu.showVisionRange'),
       action: () => (char.showVisionRange = !char.showVisionRange),
     },
-    ...(callbacks.onToggleTarget
-      ? [
-          {
-            name: (char.targeted ? '✔ ' : '') + t('feature.character.contextMenu.target'),
-            action: () => callbacks.onToggleTarget?.(),
-          } as ContextMenuAction,
-        ]
-      : []),
-    ...(callbacks.onClearTargets
-      ? [
-          {
-            name: t('feature.character.contextMenu.clearTargets'),
-            action: () => callbacks.onClearTargets?.(),
-          } as ContextMenuAction,
-        ]
-      : []),
   ];
   const openActions = [...basicActions, ...chatActions, ...buffEffectActions, ...lightActions];
 
@@ -356,6 +332,14 @@ export function buildGameCharacterContextMenuModel(
 
   // moving it
   const moveActions: ContextMenuAction[] = [
+    ...(callbacks.onPlanMove
+      ? [
+          {
+            name: t('feature.character.contextMenu.planMove'),
+            action: () => callbacks.onPlanMove?.(),
+          } as ContextMenuAction,
+        ]
+      : []),
     {
       name: t('feature.character.contextMenu.moveCommon'),
       action: () => {
@@ -384,6 +368,22 @@ export function buildGameCharacterContextMenuModel(
     ...overlapEntries,
     buildLockToggleAction(char.isLock, (next) => (char.isLock = next), t),
     buildCopyAction(char, gridSize, t),
+    ...(callbacks.onToggleTarget
+      ? [
+          {
+            name: (char.targeted ? '✔ ' : '') + t('feature.character.contextMenu.target'),
+            action: () => callbacks.onToggleTarget?.(),
+          } as ContextMenuAction,
+        ]
+      : []),
+    ...(callbacks.onClearTargets
+      ? [
+          {
+            name: t('feature.character.contextMenu.clearTargets'),
+            action: () => callbacks.onClearTargets?.(),
+          } as ContextMenuAction,
+        ]
+      : []),
   ];
 
   const actions: ContextMenuAction[] = [
