@@ -16,6 +16,10 @@ describe('CutInStageComponent', () => {
   });
 
   beforeEach(() => {
+    // Each test says for itself whether the browser can animate, by calling stubAnimate or
+    // not. Taken away here as well as afterwards, since the one that runs first would
+    // otherwise be the only one to meet a browser that can.
+    Reflect.deleteProperty(Element.prototype, 'animate');
     fixture = TestBed.createComponent(CutInStageComponent);
   });
 
