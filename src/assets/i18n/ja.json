@@ -1901,7 +1901,6 @@
         "snapAll": "セル＋交差点＋辺",
         "sectionDisplay": "表示モード",
         "imageBillboard": "画像をカメラに追従",
-        "terrainRotationIn2d": "地形の回転を許可（通常は2Dモードでは固定）",
         "cellDistance": "1 マスの距離",
         "realSizeSummary": "1マス = {{mm}}mm（{{inches}}インチ）= {{distance}}{{unit}}",
         "realSizeSummaryPlain": "1マス = {{mm}}mm（{{inches}}インチ）",

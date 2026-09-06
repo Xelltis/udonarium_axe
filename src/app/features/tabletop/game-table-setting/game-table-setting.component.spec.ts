@@ -162,39 +162,24 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
-  it('stores the 2D terrain rotation setting on the table', () => {
+  it('offers the recommended view, and none of what the room now answers for', async () => {
     const table = new GameTable();
     table.initialize();
     component.selectedTable = table;
 
     try {
-      expect(component.tableTerrainRotationIn2dEnabled).toBe(false);
-      component.tableTerrainRotationIn2dEnabled = true;
-      expect(table.terrainRotationIn2dEnabled).toBe(true);
-    } finally {
-      table.destroy();
-    }
-  });
+      expect(component.tableRecommendedView).toBe('perspective');
+      component.tableRecommendedView = 'flat';
+      expect(table.mode2d).toBe(true);
 
-  it('shows the terrain rotation permission even while table 2D mode is off', async () => {
-    const table = new GameTable();
-    table.initialize();
-    table.mode2d = false;
-    component.selectedTable = table;
-
-    try {
       fixture.detectChanges();
       await fixture.whenStable();
-      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
 
-      const terrainRotation = fixture.nativeElement.querySelector(
-        'input[name="tableTerrainRotationIn2dEnabled"]'
-      ) as HTMLInputElement;
-      expect(terrainRotation).toBeTruthy();
-      // The projection follows the device's tabletop display mode, so the table no longer holds it.
-      expect(fixture.nativeElement.querySelector('input[name="tableOrthographicProjection"]')).toBeNull();
-      expect(fixture.nativeElement.querySelector('input[name="tableRadialMenuEnabled"]')).toBeNull();
-      expect(fixture.nativeElement.querySelector('select[name="tableMultiAngleFontScale"]')).toBeNull();
+      expect(root.querySelector('[data-testid="recommended-view"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="orthographic-projection"]')).toBeNull();
+      expect(root.querySelector('[data-testid="multi-angle-enabled"]')).toBeNull();
+      expect(root.querySelector('[data-testid="view-locked"]')).toBeNull();
     } finally {
       table.destroy();
     }

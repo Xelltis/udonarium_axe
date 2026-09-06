@@ -101,9 +101,6 @@ export class TabletopService {
   readonly orthographicProjection: Signal<boolean> = computed(
     () => this.mode2d() && this.display().orthographicProjection
   );
-  readonly terrainRotationIn2dEnabled: Signal<boolean> = computed(
-    () => this.currentTableVersion().terrainRotationIn2dEnabled
-  );
   readonly imageBillboard: Signal<boolean> = computed(() => this.currentTableVersion().imageBillboard);
   readonly gridSize: Signal<number> = computed(() => this.currentTableVersion().gridSize);
 

@@ -158,32 +158,30 @@ describe('TerrainComponent', () => {
   });
 
   describe('the turn handle', () => {
-    function rotationDisabledFor2dTerrain(enabled: boolean, sharedMode2d = true, seatFlat = false): boolean {
+    function rotationDisabledFor2dTerrain(locked: boolean, sharedMode2d = true, seatFlat = false): boolean {
       const terrain = Terrain.create('2D terrain', 2, 3, 1, '', '');
+      terrain.isLocked = locked;
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = sharedMode2d;
-      table.terrainRotationIn2dEnabled = enabled;
       TestBed.inject(ViewModePreferenceService).choose(seatFlat ? 'flat' : 'auto');
       fixture.componentRef.setInput('terrain', terrain);
       fixture.detectChanges();
 
       const rotable = fixture.debugElement.query(By.directive(RotableDirective)).injector.get(RotableDirective);
-      expect(fixture.nativeElement.querySelector('.rotate-grab')).toBeTruthy();
       const disabled = rotable.isDisable();
       terrain.destroy();
       return disabled;
     }
 
-    it('keeps terrain rotation disabled by default in 2D mode', () => {
-      expect(rotationDisabledFor2dTerrain(false)).toBe(true);
+    it('hands the handle back on a table seen from above, the way it does on one seen along', () => {
+      expect(rotationDisabledFor2dTerrain(false)).toBe(false);
+      expect(rotationDisabledFor2dTerrain(false, false)).toBe(false);
+      expect(rotationDisabledFor2dTerrain(false, false, true)).toBe(false);
+      expect(fixture.nativeElement.querySelector('.rotate-grab')).toBeTruthy();
     });
 
-    it('enables terrain rotation when the 2D table setting allows it', () => {
-      expect(rotationDisabledFor2dTerrain(true)).toBe(false);
-    });
-
-    it('uses the shared terrain permission for a reader whose own seat lies flat', () => {
-      expect(rotationDisabledFor2dTerrain(true, false, true)).toBe(false);
+    it('keeps it from a terrain that has been fixed in place', () => {
+      expect(rotationDisabledFor2dTerrain(true)).toBe(true);
     });
   });
 

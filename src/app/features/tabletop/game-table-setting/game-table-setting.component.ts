@@ -171,15 +171,6 @@ export class GameTableSettingComponent {
     triggerUpdateGameObject(this.selectedTable.toContext());
   }
 
-  get tableTerrainRotationIn2dEnabled(): boolean {
-    return this.selectedTable?.terrainRotationIn2dEnabled ?? false;
-  }
-  set tableTerrainRotationIn2dEnabled(value: boolean) {
-    if (!this.selectedTable) return;
-    this.selectedTable.terrainRotationIn2dEnabled = value;
-    triggerUpdateGameObject(this.selectedTable.toContext());
-  }
-
   /** The width of a square belongs to the map, so it is kept on the table with the grid size. */
   get cellMm(): number {
     return clampCellMm(this.selectedTable?.cellMm ?? DEFAULT_CELL_MM);

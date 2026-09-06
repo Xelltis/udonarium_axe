@@ -186,17 +186,16 @@ describe('save and load round trip', () => {
   });
 
   describe('shared tabletop-display table settings', () => {
-    it('keeps 2D terrain rotation in the room data', () => {
+    it('keeps the view the table recommends in the room data', () => {
       const table = new GameTable('shared-tabletop-settings');
-      table.mode2d = false;
-      table.terrainRotationIn2dEnabled = true;
+      table.mode2d = true;
       table.initialize();
 
       const xml = serializer.toXml(table);
       const restored = serializer.parseXml(xml) as GameTable;
 
-      expect(xml).toContain('terrainRotationIn2dEnabled="true"');
-      expect(restored.terrainRotationIn2dEnabled).toBe(true);
+      expect(xml).toContain('mode2d="true"');
+      expect(restored.mode2d).toBe(true);
     });
   });
 

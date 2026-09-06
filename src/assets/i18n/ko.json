@@ -1901,7 +1901,6 @@
         "snapAll": "셀＋교차점＋변",
         "sectionDisplay": "표시 모드",
         "imageBillboard": "이미지를 카메라를 향하게",
-        "terrainRotationIn2d": "지형 회전 허용(일반적으로 2D 모드에서는 고정)",
         "cellDistance": "한 칸의 거리",
         "realSizeSummary": "한 칸 = {{mm}}mm ({{inches}}인치) = {{distance}}{{unit}}",
         "realSizeSummaryPlain": "한 칸 = {{mm}}mm ({{inches}}인치)",

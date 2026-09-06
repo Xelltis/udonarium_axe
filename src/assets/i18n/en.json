@@ -1901,7 +1901,6 @@
         "snapAll": "Cell + vertex + edge",
         "sectionDisplay": "Display mode",
         "imageBillboard": "Billboard piece images",
-        "terrainRotationIn2d": "Allow terrain rotation (normally fixed in 2D mode)",
         "cellDistance": "One cell stands for",
         "realSizeSummary": "One square = {{mm}}mm ({{inches}} in) = {{distance}} {{unit}}",
         "realSizeSummaryPlain": "One square = {{mm}}mm ({{inches}} in)",
