@@ -644,7 +644,7 @@
                         }
                         @case ('numberResource') {
                           <input
-                            class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-12 [appearance:textfield] rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[12px] font-bold outline-none"
+                            class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-16 [appearance:textfield] rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-center font-[inherit] text-[12px] font-bold outline-none"
                             type="number"
                             name="table-current-value"
                             [style]="'color:' + cell.element!.nowValueColor"
@@ -667,7 +667,7 @@
                         }
                         @case ('value') {
                           <input
-                            class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-16 rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[12px] outline-none"
+                            class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-16 rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-center font-[inherit] text-[12px] outline-none"
                             name="table-value"
                             [(ngModel)]="cell.element!.value"
                             (click)="$event.stopPropagation()"

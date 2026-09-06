@@ -873,6 +873,23 @@ describe('GameObjectInventoryComponent', () => {
         expect([...component.multiMoveTargets()]).toEqual([goblin.identifier]);
       });
 
+      it('lines the value boxes up with the heading, whatever kind of field they are', () => {
+        putOnTable('ゴブリン');
+        TestBed.inject(GameObjectInventoryService).tableDataTag = 'HP 敏捷度';
+        component.setViewMode('table');
+        fixture.detectChanges();
+
+        const boxes = [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody input')].filter(
+          (input) => (input as HTMLInputElement).type !== 'checkbox'
+        );
+        expect(boxes.length).toBeGreaterThanOrEqual(2);
+        for (const box of boxes) {
+          expect(box.className).toContain('text-center');
+          expect(box.className).toContain('w-16');
+          expect(box.className).not.toContain('text-right');
+        }
+      });
+
       it('says so when there is nothing to make columns of', () => {
         putOnTable('ゴブリン');
         TestBed.inject(GameObjectInventoryService).tableDataTag = '';
