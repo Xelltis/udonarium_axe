@@ -164,13 +164,39 @@ describe('FunctionalPaintService', () => {
     });
 
     it('pulls a block down only when the block itself is the one going', () => {
-      service.apply(plan({ terrain: { add: [wall({ col: 1, row: 2, width: 4, height: 2 })], remove: [] } }));
+      const stood = wall({ col: 1, row: 2, width: 4, height: 2 });
+      service.apply(plan({ terrain: { add: [stood], remove: [] } }));
 
-      service.apply(plan({ terrain: { add: [], remove: [{ col: 1, row: 2, width: 1, height: 1 }] } }));
+      service.apply(plan({ terrain: { add: [], remove: [wall({ col: 1, row: 2, width: 1, height: 1 })] } }));
       expect(terrainOn()).toHaveLength(1);
 
-      service.apply(plan({ terrain: { add: [], remove: [{ col: 1, row: 2, width: 4, height: 2 }] } }));
+      service.apply(plan({ terrain: { add: [], remove: [stood] } }));
       expect(terrainOn()).toHaveLength(0);
+    });
+
+    it('leaves what shares a footprint with the block that is going', () => {
+      const ground = wall({ col: 1, row: 2, width: 2, height: 2 }, { name: '床', height: 0.1 });
+      const above = wall({ col: 1, row: 2, width: 2, height: 2 }, { name: '壁', height: 3 });
+      service.apply(plan({ terrain: { add: [ground, above], remove: [] } }));
+      expect(terrainOn()).toHaveLength(2);
+
+      service.apply(plan({ terrain: { add: [], remove: [above] } }));
+
+      expect(terrainOn().map((terrain) => terrain.name)).toEqual(['床']);
+    });
+
+    it('fills a cover with the colour it was painted', () => {
+      service.apply(plan({ mask: { add: [cover(oneCell, { color: '#3366ff' })], remove: [] } }));
+
+      expect(masksOn()[0].bgcolor).toBe('#3366ff');
+    });
+
+    it('reads a cover back by the colour it is filled with, so applying it again keeps it', () => {
+      service.apply(plan({ mask: { add: [cover(oneCell, { color: '#3366ff' })], remove: [] } }));
+
+      const read = service.snapshot()!.maskBlocks[0];
+
+      expect(read.spec.color).toBe('#3366ff');
     });
 
     it('lays a turned wall back exactly as it stood', () => {

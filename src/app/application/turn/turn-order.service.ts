@@ -269,10 +269,16 @@ export class TurnOrderService {
     if (first) this.takeTurn(first.identifier);
   }
 
-  /** The pieces that have not had their turn, in the order the round would reach them. */
+  /**
+   * The pieces that have not had their turn, in the order the round would reach them.
+   *
+   * Only the ones it would reach: a piece kept out of the inventory is never given a turn,
+   * so counting it as waiting would leave the round asking to leave behind somebody who was
+   * never coming.
+   */
   unactedCharacters(): GameCharacter[] {
     if (this.turnState.phase === 'idle' || this.turnState.phase === 'roundEnd') return [];
-    return this.orderedCharacters(true).filter((piece) => !this.isActed(piece.identifier));
+    return this.orderedCharacters().filter((piece) => !this.isActed(piece.identifier));
   }
 
   /**

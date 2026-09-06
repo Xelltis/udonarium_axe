@@ -119,12 +119,17 @@ export class MoveRangeService {
    *
    * Only a cell it has not just come from is written down, so a hand wavering on a boundary
    * does not spend the piece's whole move going back and forth across one line.
+   *
+   * `at` is where the piece is being held this moment, which is not where it says it is: a
+   * dragged piece writes its place down every sixty-six milliseconds, and a hand that has
+   * crossed three cells by then would leave a trail with holes in it that no walk could
+   * have made.
    */
-  trace(character: GameCharacter): void {
+  trace(character: GameCharacter, at?: { x: number; y: number }): void {
     const view = this.held();
     const table = this.tableSelecter.viewTable;
     if (!view || !table || view.characterIdentifier !== character.identifier) return;
-    const cell = startCellOf(view.grid, character, table);
+    const cell = startCellOf(view.grid, character, table, at);
     if (cell < 0) return;
     const last = this.walked[this.walked.length - 1];
     if (cell === last) return;
@@ -283,9 +288,14 @@ export class MoveRangeService {
  * point is in answers with the one down and to the right, which throws the whole reach a
  * cell that way. It steps back half a cell to the one up and to the left instead.
  */
-function startCellOf(grid: CellGrid, character: GameCharacter, table: GameTable): number {
+function startCellOf(
+  grid: CellGrid,
+  character: GameCharacter,
+  table: GameTable,
+  at: { x: number; y: number } = character.location
+): number {
   const size = Math.max(1, character.size);
   const middle = (table.gridSize * size) / 2;
   const onACorner = size % 2 === 0 ? table.gridSize / 2 : 0;
-  return cellIndexAt(grid, character.location.x + middle - onACorner, character.location.y + middle - onACorner);
+  return cellIndexAt(grid, at.x + middle - onACorner, at.y + middle - onACorner);
 }

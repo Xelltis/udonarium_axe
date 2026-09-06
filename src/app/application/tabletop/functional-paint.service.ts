@@ -2,10 +2,11 @@ import { inject, Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
 import { DataElement } from '@axe/domain/data/data-element';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
-import { CellRect, rectKey } from '@axe/domain/tabletop/cell-rectangles';
+import { CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
+  blockKey,
   BlockPlacement,
   FunctionPaintPlan,
   MaskBlock,
@@ -96,7 +97,15 @@ const MASK_OPACITY_FULL = 100;
 function paintMaskColor(mask: GameTableMask, color: string): void {
   const common = mask.commonDataElement;
   if (!common) return;
-  common.appendChild(DataElement.create('color', color, { currentValue: '#0a0a0a' }, `color_${mask.identifier}`));
+  const held = common.getFirstElementByName('color');
+  if (held) {
+    held.value = color;
+    held.currentValue = color;
+    return;
+  }
+  common.appendChild(
+    DataElement.create('color', color, { type: 'colors', currentValue: color }, `color_${mask.identifier}`)
+  );
 }
 
 function setMaskOpacity(mask: GameTableMask, fraction: number): void {
@@ -166,7 +175,8 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
 export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null): MaskPaintSpec {
   return {
     name: mask.name,
-    color: mask.color,
+    // What the mask is filled with, which is what a reader would call its colour.
+    color: mask.bgcolor,
     opacity: mask.opacity,
     altitude: mask.posZ,
     locked: mask.isLock,
@@ -252,10 +262,10 @@ export class FunctionalPaintService {
 
   private layTerrain(table: GameTable, plan: FunctionPaintPlan): void {
     this.takeAway(
-      terrainsOn(table).map((held) => ({
-        object: held,
-        rect: blockFootprintOf(held, held.width, held.depth, table.gridSize)?.rect ?? null,
-      })),
+      terrainsOn(table).map((held) => {
+        const stood = blockFootprintOf(held, held.width, held.depth, table.gridSize);
+        return { object: held, key: stood ? blockKey(stood.rect, terrainSpecOf(held, stood.placement)) : null };
+      }),
       plan.terrain.remove
     );
 
@@ -268,10 +278,10 @@ export class FunctionalPaintService {
 
   private layMasks(table: GameTable, plan: FunctionPaintPlan): void {
     this.takeAway(
-      masksOn(table).map((held) => ({
-        object: held,
-        rect: blockFootprintOf(held, held.width, held.height, table.gridSize)?.rect ?? null,
-      })),
+      masksOn(table).map((held) => {
+        const stood = blockFootprintOf(held, held.width, held.height, table.gridSize);
+        return { object: held, key: stood ? blockKey(stood.rect, maskSpecOf(held, stood.placement)) : null };
+      }),
       plan.mask.remove
     );
 
@@ -297,14 +307,19 @@ export class FunctionalPaintService {
     }
   }
 
-  /** Takes away whatever stands on the cells the plan is clearing. */
+  /**
+   * Takes away what the plan is clearing, by where it stands and by what it looks like.
+   *
+   * Where alone would take down the whole pile: a floor with a wall on it shares a
+   * footprint with it, and only one of the two is being cleared.
+   */
   private takeAway(
-    held: readonly { object: { destroy(): void }; rect: CellRect | null }[],
-    going: readonly CellRect[]
+    held: readonly { object: { destroy(): void }; key: string | null }[],
+    going: readonly (CellRect & { spec: unknown })[]
   ): void {
-    const keys = new Set(going.map(rectKey));
+    const keys = new Set(going.map((block) => blockKey(block, block.spec)));
     for (const entry of held) {
-      if (entry.rect && keys.has(rectKey(entry.rect))) entry.object.destroy();
+      if (entry.key && keys.has(entry.key)) entry.object.destroy();
     }
   }
 

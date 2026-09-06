@@ -337,7 +337,13 @@ export function blockKey(block: CellRect, spec: unknown): string {
 
 export interface BlockChange<T extends CellRect> {
   add: T[];
-  remove: CellRect[];
+  /**
+   * The blocks to pull down, each with the look it was found wearing.
+   *
+   * Where it stands is not enough to know it by: a floor and a wall can share a footprint,
+   * and pulling down by footprint alone takes the one nobody touched with it.
+   */
+  remove: T[];
 }
 
 /** What has to change on the table for it to match what was painted. */

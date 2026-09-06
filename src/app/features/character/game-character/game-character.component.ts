@@ -956,7 +956,9 @@ export class GameCharacterComponent {
 
   onDragging() {
     const character = this.gameCharacter();
-    if (character) this.moveRangeService.trace(character);
+    if (!character) return;
+    const held = this.movableRef();
+    this.moveRangeService.trace(character, held ? { x: held.posX, y: held.posY } : undefined);
   }
 
   onPutDown() {

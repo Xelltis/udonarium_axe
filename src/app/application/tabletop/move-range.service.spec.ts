@@ -306,6 +306,22 @@ describe('MoveRangeService', () => {
       expect(piece.location.x).toBe(7 * GRID);
     });
 
+    it('follows where the piece is being held rather than where it last wrote itself down', () => {
+      Config.instance.moveStrict = true;
+      Config.instance.moveStrictPath = true;
+      const piece = pieceAt(5, 5, 3);
+      service.show(piece);
+
+      // A hand crossing two cells between one writing and the next: the piece is still
+      // saying it stands where it started, and only the drag knows better.
+      service.trace(piece, { x: 6 * GRID, y: 5 * GRID });
+      service.trace(piece, { x: 7 * GRID, y: 5 * GRID });
+      piece.location = { name: 'table', x: 7 * GRID, y: 5 * GRID };
+
+      expect(service.returnIfOutOfReach(piece)).toBe(false);
+      expect(piece.location.x).toBe(7 * GRID);
+    });
+
     it('puts back a piece dragged straight over ground it may not cross', () => {
       Config.instance.moveStrict = true;
       Config.instance.moveStrictPath = true;

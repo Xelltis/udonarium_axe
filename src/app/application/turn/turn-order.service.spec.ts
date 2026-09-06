@@ -415,6 +415,25 @@ describe('TurnOrderService', () => {
       expect(turnState.round).toBe(2);
     });
 
+    it('leaves out a piece kept from the inventory, which was never going to be reached', async () => {
+      orderedSpy.mockRestore();
+      const inventory = TestBed.inject(GameObjectInventoryService);
+      const seen = ['見えるコマ1', '見えるコマ2'].map((name) => GameCharacter.create(name, 1, ''));
+      const unseen = GameCharacter.create('隠れコマ', 1, '');
+      unseen.hideInventory = true;
+      vi.spyOn(inventory.tableInventory, 'tabletopObjects', 'get').mockReturnValue([...seen, unseen]);
+      service.reset();
+      service.next(); // round 1 begins
+      service.next(); // the first of them is up
+      service.next(); // the first has acted, the second is up
+
+      await service.advanceRound();
+
+      const asked = askedToLeaveBehind.mock.calls[0][0] as { message: string };
+      expect(asked.message).toContain('見えるコマ2');
+      expect(asked.message).not.toContain('隠れコマ');
+    });
+
     it('asks nothing at all once everyone has moved', async () => {
       turnState.actedIdentifiers = waiting.map((piece) => piece.identifier);
 
