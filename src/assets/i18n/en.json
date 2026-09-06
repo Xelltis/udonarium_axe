@@ -1978,7 +1978,9 @@
       },
       "displayCalibration": {
         "title": "Measure this screen",
-        "intro": "Hold a credit card against the screen and change the width until the frame matches it exactly.",
+        "intro": "This measures your screen against an ID-1 card, used as a ruler. ISO/IEC 7810 ID-1 (85.60 × 53.98 mm) fixes the size internationally, so any such card in your wallet will do: a credit card, a bank card, a driving licence, an insurance card.",
+        "standardNote": "Hold the card flat against the screen and change the width until the dashed frame matches its outline exactly.",
+        "privacyNote": "Nothing is read from the card. It is held up as a ruler, and no number or name is looked at or sent anywhere.",
         "cards": "Cards to hold up",
         "cardsOne": "One",
         "cardsTwo": "Two, side by side",
@@ -1988,7 +1990,7 @@
         "cellMm": "Real width of a square",
         "result": "This screen measures {{pxPerMm}} px/mm (about {{dpi}} dpi)",
         "cellPreview": "A square of {{mm}}mm ({{inches}} in) will be drawn {{px}}px wide",
-        "hint": "Two cards leave less room for error. Afterwards, stand a miniature on a square to check, and settle the rest with \"Larger square\" and \"Smaller square\" in the table settings.",
+        "hint": "Two cards leave less room for error. Afterwards, stand a miniature on a square to check, and settle the rest with \"Larger square\" and \"Smaller square\" under the room settings utility part.",
         "confirm": "It matches"
       },
       "dungeonGenerator": {

@@ -28,6 +28,15 @@ describe('DisplayCalibrationComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('says what the card is for, and that nothing is read from it', () => {
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.textContent).toContain('ID-1');
+    expect(root.textContent).toContain('85.60');
+    expect(root.querySelector('[data-testid="calibration-privacy-note"]')?.textContent ?? '').not.toBe('');
+  });
+
   it('starts on one card, with a frame a plausible screen would need', () => {
     expect(component.cards()).toBe(1);
     expect(component.framePx()).toBeGreaterThan(200);
