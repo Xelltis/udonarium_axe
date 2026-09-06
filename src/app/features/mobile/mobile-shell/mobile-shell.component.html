@@ -134,6 +134,14 @@
       </button>
       <button
         class="border-ui-border-panel text-ui-muted active:bg-ui-hover active:text-ui-accent rounded-ui flex w-12 shrink-0 items-center justify-center border border-solid bg-transparent shadow-none"
+        data-testid="mobile-view-mode"
+        [attr.aria-label]="viewModeLabel()"
+        (click)="cycleViewMode()"
+      >
+        <i class="material-icons text-[18px]!">{{ viewModeIcon() }}</i>
+      </button>
+      <button
+        class="border-ui-border-panel text-ui-muted active:bg-ui-hover active:text-ui-accent rounded-ui flex w-12 shrink-0 items-center justify-center border border-solid bg-transparent shadow-none"
         [attr.aria-label]="themeLabel()"
         (click)="cycleTheme()"
       >
