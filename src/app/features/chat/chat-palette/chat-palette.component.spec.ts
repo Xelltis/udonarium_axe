@@ -108,6 +108,7 @@ describe('ChatPaletteComponent', () => {
         messBubbleDark: '#332211',
         replyTo: '',
         quoteOf: '',
+        toTicker: false,
       });
 
       expect(send.mock.calls[0][2]).toEqual(

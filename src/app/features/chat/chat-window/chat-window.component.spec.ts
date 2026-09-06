@@ -538,6 +538,7 @@ describe('ChatWindowComponent', () => {
         messColor: '#000000',
         replyTo: '',
         quoteOf: '',
+        toTicker: false,
       });
     }
 

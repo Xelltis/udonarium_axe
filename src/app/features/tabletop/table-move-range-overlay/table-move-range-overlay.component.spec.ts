@@ -136,7 +136,6 @@ describe('TableMoveRangeOverlayComponent', () => {
       cells: cellsAt(cellIndexOf(grid, 2, 2)),
       held: cellsAt(cellIndexOf(grid, 3, 3)),
       showsReach: true,
-      route: [],
     });
 
     fixture.detectChanges();
@@ -151,7 +150,6 @@ describe('TableMoveRangeOverlayComponent', () => {
       cells: cellsAt(cellIndexOf(grid, 2, 2)),
       held: cellsAt(cellIndexOf(grid, 3, 3)),
       showsReach: false,
-      route: [],
     });
 
     fixture.detectChanges();
@@ -166,7 +164,6 @@ describe('TableMoveRangeOverlayComponent', () => {
       cells: cellsAt(cellIndexOf(grid, 2, 2)),
       held: null,
       showsReach: true,
-      route: [],
     });
 
     fixture.detectChanges();
