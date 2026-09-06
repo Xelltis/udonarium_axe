@@ -19,6 +19,10 @@ export const SYSTEM_CHAT_TAB_IDENTIFIER = 'SystemTab';
 
 export const SYSTEM_CHAT_TAB_NAME = 'システム';
 
+/** The room tab whose ordinary public messages are drawn around the screen perimeter. */
+export const TICKER_CHAT_TAB_IDENTIFIER = 'TickerTab';
+export const TICKER_CHAT_TAB_NAME = 'ティッカー';
+
 /**
  * The tag on a line that belongs to the room's record but not to the story being read.
  *

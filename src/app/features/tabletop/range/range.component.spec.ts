@@ -1,10 +1,17 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 
 describe('RangeComponent', () => {
   let component: RangeComponent;
@@ -98,6 +105,18 @@ describe('RangeComponent', () => {
   });
 
   describe('the turn handle', () => {
+    it('keeps rotation enabled for a rotatable shape in 2D mode', () => {
+      const range = RangeArea.create('テスト', 3, 3, 1);
+      range.type = 'SQUARE';
+      TestBed.inject(TabletopService).currentTable.mode2d = true;
+      fixture.componentRef.setInput('range', range);
+      fixture.detectChanges();
+
+      const rotable = fixture.debugElement.query(By.directive(RotableDirective)).injector.get(RotableDirective);
+
+      expect(rotable.isDisable()).toBe(false);
+    });
+
     it('shows a turn handle on a square', () => {
       const range = RangeArea.create('テスト', 3, 3, 1);
       range.type = 'SQUARE';
@@ -135,5 +154,65 @@ describe('RangeComponent', () => {
         expect(handle.style.top).toBe('-150px');
       }
     );
+  });
+
+  describe('context menu display', () => {
+    function openMenu(mode2d: boolean, radialMenuEnabled: boolean): RangeArea {
+      const range = RangeArea.create('射程メニュー', 3, 3, 50);
+      fixture.componentRef.setInput('range', range);
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = mode2d;
+      TestBed.inject(TabletopDisplaySettingsService).patch({
+        enabled: mode2d,
+        radialMenuEnabled,
+        radialMenuRotationSpeed: 9,
+      });
+      fixture.detectChanges();
+      vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
+      TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);
+
+      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+      return range;
+    }
+
+    it.each([false, true])('uses the 2D menu interface with rotating display %s', (enabled) => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      const range = openMenu(true, enabled);
+
+      expect(openRadial).toHaveBeenCalledWith(
+        expect.objectContaining({ x: 240, y: 180 }),
+        expect.any(Array),
+        expect.any(Array),
+        '射程メニュー',
+        enabled,
+        9,
+        1
+      );
+      expect(openRadial.mock.calls[0]?.[2].map((group) => group.name)).toEqual([
+        '位置・追従',
+        '形状',
+        '編集・作成',
+        'オブジェクト操作',
+      ]);
+      expect(openOrdinary).not.toHaveBeenCalled();
+      range.destroy();
+    });
+
+    it('keeps the ordinary menu outside 2D mode', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      const range = openMenu(false, true);
+
+      expect(openOrdinary).toHaveBeenCalledWith(
+        expect.objectContaining({ x: 240, y: 180 }),
+        expect.any(Array),
+        '射程メニュー'
+      );
+      expect(openRadial).not.toHaveBeenCalled();
+      range.destroy();
+    });
   });
 });

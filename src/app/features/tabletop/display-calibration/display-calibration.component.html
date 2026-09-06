@@ -1,0 +1,149 @@
+<div class="bg-ui-panel box-border flex h-[min(88dvh,720px)] w-[min(96vw,1400px)] flex-col gap-3 p-4">
+  <p class="text-[13px] leading-relaxed">
+    {{ 'feature.tabletop.displayCalibration.intro' | transloco }}
+  </p>
+
+  <div class="flex shrink-0 flex-wrap items-center gap-3 text-[13px]">
+    <span>{{ 'feature.tabletop.displayCalibration.cards' | transloco }}</span>
+    <button
+      class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2.5 py-1.25 text-[12px] whitespace-nowrap"
+      type="button"
+      [class.bg-ui-accent-bg]="cards() === 1"
+      (click)="setCards(1)"
+    >
+      {{ 'feature.tabletop.displayCalibration.cardsOne' | transloco }}
+    </button>
+    <button
+      class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2.5 py-1.25 text-[12px] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40"
+      type="button"
+      [class.bg-ui-accent-bg]="cards() === 2"
+      [disabled]="!twoCardsFit()"
+      [title]="twoCardsFit() ? null : ('feature.tabletop.displayCalibration.cardsTwoTooNarrow' | transloco)"
+      (click)="setCards(2)"
+    >
+      {{ 'feature.tabletop.displayCalibration.cardsTwo' | transloco }}
+    </button>
+    <span class="text-ui-muted text-[12px]">{{ runWidthMm() }} mm</span>
+    @if (!twoCardsFit()) {
+      <span class="text-ui-dim text-[11px]">
+        {{ 'feature.tabletop.displayCalibration.cardsTwoTooNarrow' | transloco }}
+      </span>
+    }
+  </div>
+
+  <div
+    #frameArea
+    class="border-ui-border-panel bg-ui-input flex min-h-0 flex-1 items-center justify-center overflow-auto border border-solid p-4"
+  >
+    <div
+      class="rounded-ui-sm border-ui-accent bg-ui-accent-bg relative box-border shrink-0 border-2 border-dashed"
+      [style.width.px]="framePx()"
+      [style.height.px]="frameHeightPx()"
+    >
+      <span class="text-ui-muted absolute inset-0 flex items-center justify-center text-[12px]">
+        {{ 'feature.tabletop.displayCalibration.frameHint' | transloco }}
+      </span>
+      <span
+        class="bg-ui-accent absolute -right-2 -bottom-2 size-4 cursor-ew-resize touch-none rounded-full"
+        [attr.aria-label]="'feature.tabletop.displayCalibration.frameWidth' | transloco"
+        (pointerdown)="onHandleDown($event)"
+        (pointermove)="onHandleMove($event)"
+        (pointerup)="onHandleUp($event)"
+        (pointercancel)="onHandleUp($event)"
+      ></span>
+    </div>
+  </div>
+
+  <div class="flex shrink-0 flex-wrap items-center gap-2 text-[13px]">
+    <button
+      class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-1 text-[12px]"
+      type="button"
+      (click)="nudgeFrame(-10)"
+    >
+      −10
+    </button>
+    <button
+      class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-1 text-[12px]"
+      type="button"
+      (click)="nudgeFrame(-1)"
+    >
+      −1
+    </button>
+    <input
+      class="min-w-0 flex-1"
+      type="range"
+      min="40"
+      max="1600"
+      step="1"
+      [value]="framePx()"
+      (input)="onFrameInput($any($event.target).value)"
+      [attr.aria-label]="'feature.tabletop.displayCalibration.frameWidth' | transloco"
+    />
+    <button
+      class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-1 text-[12px]"
+      type="button"
+      (click)="nudgeFrame(1)"
+    >
+      +1
+    </button>
+    <button
+      class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-1 text-[12px]"
+      type="button"
+      (click)="nudgeFrame(10)"
+    >
+      +10
+    </button>
+    <input
+      type="number"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-24 border border-solid px-2 py-1 text-[13px]"
+      min="40"
+      max="4000"
+      step="1"
+      [value]="framePx()"
+      (input)="onFrameInput($any($event.target).value)"
+      [attr.aria-label]="'feature.tabletop.displayCalibration.frameWidth' | transloco"
+    />
+    <span class="text-ui-muted text-[12px]">px</span>
+  </div>
+
+  <div class="border-ui-border-panel flex shrink-0 flex-wrap items-center gap-2 border-t border-solid pt-3 text-[13px]">
+    <label class="flex items-center gap-2">
+      {{ 'feature.tabletop.displayCalibration.cellMm' | transloco }}
+      <input
+        type="number"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-24 border border-solid px-2 py-1 text-[13px]"
+        min="5"
+        max="200"
+        step="0.1"
+        [value]="cellMm()"
+        (input)="onCellMmInput($any($event.target).value)"
+      />
+      <span class="text-ui-muted text-[12px]">mm</span>
+    </label>
+  </div>
+
+  <p class="text-ui-muted shrink-0 text-xs/relaxed">
+    {{ 'feature.tabletop.displayCalibration.result' | transloco: { pxPerMm: pxPerMmLabel(), dpi: dpi() } }}<br />
+    {{
+      'feature.tabletop.displayCalibration.cellPreview'
+        | transloco: { mm: cellMm(), inches: cellInchesLabel(), px: cellPx() }
+    }}
+  </p>
+
+  <p class="text-ui-dim shrink-0 text-[11px] leading-relaxed">
+    {{ 'feature.tabletop.displayCalibration.hint' | transloco }}
+  </p>
+
+  <div class="flex shrink-0 items-center justify-end gap-2">
+    <button class="px-2.5 py-1.25 text-[12px]" type="button" (click)="cancel()">
+      {{ 'common.button.cancel' | transloco }}
+    </button>
+    <button
+      class="border-ui-accent bg-ui-accent px-2.5 py-1.25 text-[12px] text-white"
+      type="button"
+      (click)="confirm()"
+    >
+      {{ 'feature.tabletop.displayCalibration.confirm' | transloco }}
+    </button>
+  </div>
+</div>

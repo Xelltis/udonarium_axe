@@ -39,6 +39,7 @@
       "chatWindow": "チャットウィンドウ",
       "gameTableSetting": "テーブル設定",
       "roomSettings": "部屋設定",
+      "tabletopDisplaySetting": "卓上ディスプレイ設定",
       "fileStorage": "ファイル一覧",
       "jukebox": "ジュークボックス",
       "cutInList": "カットインリスト",
@@ -693,6 +694,12 @@
       }
     },
     "textNote": {
+      "contextMenu": {
+        "radialContent": "内容",
+        "radialDisplay": "表示",
+        "radialDisclosure": "公開・所有",
+        "radialObject": "移動・操作"
+      },
       "section": {
         "layout": "レイアウト"
       },
@@ -1403,7 +1410,15 @@
         "deployDice": "ダイスを展開する（{{count}}個）",
         "showVisionRange": "視界範囲を表示",
         "target": "ターゲット",
-        "clearTargets": "ターゲットを全部外す"
+        "clearTargets": "ターゲットを全部外す",
+        "radialBasic": "基本情報",
+        "radialChat": "チャット",
+        "radialBuffEffect": "バフ・演出",
+        "radialDisplay": "表示",
+        "radialMove": "移動",
+        "radialDisclosure": "公開・所有",
+        "radialObject": "コマ操作",
+        "showVisionRange": "視界範囲を表示"
       },
       "panel": {
         "sheet": "キャラクターシート",
@@ -1526,7 +1541,10 @@
         "unfollow": "追従しない",
         "skin": "スキン",
         "skinFromLibrary": "画像保管庫から選ぶ",
-        "skinNone": "スキンなし"
+        "skinNone": "スキンなし",
+        "radialAppearance": "光源・見た目",
+        "radialPosition": "位置・追従",
+        "radialObject": "オブジェクト操作"
       },
       "preset": {
         "custom": "カスタム",
@@ -1638,6 +1656,15 @@
       }
     },
     "tabletop": {
+      "tabletopDisplaySetting": {
+        "enabled": "卓上ディスプレイモードをオンにする",
+        "localHint": "平行投影表示になります。設定はこのブラウザだけに適用され、他の参加者には同期されません。",
+        "menuAndDisplay": "メニュー・表示",
+        "multiAngleDisplay": "コマの多方向表示",
+        "multiAngleLocalHint": "コマごと回す設定より、このブラウザの周回表示を優先します。",
+        "ticker": "外周ティッカー",
+        "realSize": "実寸表示とビュー固定"
+      },
       "ccfoliaImport": {
         "tableName": "ココフォリアのルーム",
         "imported": "ココフォリアのルームを取り込みました（テーブル {{tables}} 枚 / パネル {{panels}} 件 / コマ {{pieces}} 体）。「{{table}}」を表示しています。",
@@ -1726,10 +1753,22 @@
         "unlock": "固定解除",
         "lockMarkShow": "固定マーク表示",
         "lockMarkHide": "固定マーク消去",
+        "viewLockOn": "☑ ビューを固定",
+        "viewLockOff": "☐ ビューを固定",
+        "snapToRealSize": "実寸に合わせ直す",
         "copy": "コピーを作る",
         "delete": "削除する",
         "createObject": "オブジェクト作成",
+        "createObject1": "オブジェクト作成1",
+        "createObject2": "オブジェクト作成2",
         "terrainEdit": "地形設定を編集",
+        "radialShape": "地形・扉",
+        "radialAppearance": "見た目・照明",
+        "radialMoveCreate": "移動・作成",
+        "radialObject": "オブジェクト操作",
+        "radialRangePosition": "位置・追従",
+        "radialRangeShape": "形状",
+        "radialRangeEditCreate": "編集・作成",
         "lightSection": "暗闇（視界・発光）",
         "blocksSight": "視界を遮る",
         "blocksLight": "光を遮る（窓ならOFF）",
@@ -1863,6 +1902,47 @@
         "snapAll": "セル＋交差点＋辺",
         "sectionDisplay": "表示モード",
         "imageBillboard": "画像をカメラに追従",
+        "mode2d": "2Dモード（俯瞰固定）",
+        "terrainRotationIn2d": "地形の回転を許可（通常は2Dモードでは固定）",
+        "cutInMultiDirection": "カットインの多方向表示",
+        "cutInMultiDirection_none": "しない",
+        "cutInMultiDirection_vertical": "上下",
+        "cutInMultiDirection_vertical-right": "上下右",
+        "cutInMultiDirection_vertical-left": "上下左",
+        "cutInMultiDirection_four-directions": "上下左右",
+        "hoverDetailPlacement": "コマの詳細表示",
+        "hoverDetailPlacement_piece": "コマの近くに表示（従来）",
+        "hoverDetailPlacement_screen-edges": "画面の端に4方向表示（編集不可）",
+        "multiAngleFontScale": "メニュー・ティッカーの文字サイズ",
+        "multiAngleFontScale_small": "小",
+        "multiAngleFontScale_medium": "中",
+        "multiAngleFontScale_large": "大",
+        "cellDistance": "1 マスの距離",
+        "realSizeSummary": "1マス = {{mm}}mm（{{inches}}インチ）= {{distance}}{{unit}}",
+        "realSizeSummaryPlain": "1マス = {{mm}}mm（{{inches}}インチ）",
+        "realSize": "1マスを実寸で表示",
+        "viewLock": "ビューを固定する（パン・ズーム・回転を止める）",
+        "realSizeCellMm": "1マスの実寸",
+        "realSizeDpi": "この画面は {{dpi}} dpi 相当",
+        "realSizeSmaller": "1マスを小さく",
+        "realSizeLarger": "1マスを大きく",
+        "realSizeStale": "画面が変わりました。もう一度合わせてください。",
+        "realSizeUncalibrated": "この端末はまだ画面を測っていません。",
+        "realSizeCalibrate": "実寸再調整",
+        "realSizeReset": "この端末の設定をリセット",
+        "radialMenu": "回転メニュー表示",
+        "radialMenuHelp": "右クリックで回転メニューを開き、連打で強制回転、右ドラッグでメニューの表示位置を移動できます。各メニュー項目から開くウィンドウの向きは、中心から4分割した角度方向になります。",
+        "radialMenuSpeed": "回転速度",
+        "multiAngle": "コマ名を円周に沿って周回",
+        "multiAngleResourceBuff": "リソースバフ回転表示（最大4つまで）",
+        "multiAngleMotionMode": "回転方法",
+        "multiAngleContinuous": "時計回りに連続回転",
+        "multiAngleQuarterTurn": "90°回転して静止",
+        "multiAnglePieceQuarterTurn": "コマだけ90°回転して停止",
+        "multiAngleRevolutionSeconds": "回転時間（一周）",
+        "multiAnglePieceRevolutionSeconds": "コマ本体の一周時間",
+        "multiAnglePauseSeconds": "90°後の静止時間",
+        "seconds": "秒",
         "sectionDarkness": "暗闇（視界・照明）",
         "darknessEnabled": "暗闇を有効化",
         "lightSnapToGrid": "照明をマス目に沿わせる",
@@ -1905,7 +1985,45 @@
         "fogColor": "霧の色",
         "fogReset": "霧をリセット",
         "openRoomSettings": "部屋設定を開く",
-        "roomSettingsHint": "移動範囲・ZOC・既定のダイスボットは部屋全体の設定です"
+        "roomSettingsHint": "移動範囲・ZOC・既定のダイスボットは部屋全体の設定です",
+        "sectionMoveRange": "移動範囲",
+        "moveRangeEnabled": "コマを持ち上げたら移動できるマスを表示する",
+        "moveRangeAlways": "選んだコマの移動範囲を出したままにする",
+        "moveDiagonally": "斜め移動を許可する（1 マスとして数える）",
+        "piecesShareCells": "同じマスに複数のコマを置ける（切ると、他のコマがいるマスは移動先に出さない）",
+        "moveRangeElementNames": "参照する項目",
+        "cellDistanceUnit": "マスの単位",
+        "moveRangeHint": "項目名はカンマ区切りで、シートに先に見つかったものを使う。シートの値を 1 マスの距離で割ってマス数にする（0 なら割らない）。シートの単位が卓と違えば、フィートとメートルは換算する。シートが「マス」ならそのままマス数として読む。",
+        "zocMode": "ZOC（支配領域）",
+        "zocMode_none": "なし",
+        "zocMode_stop": "足止め（入ったらそこで移動終了）",
+        "zocMode_block": "進入不可（そのマスには入れない）",
+        "zocMode_cost": "移動コスト増（入るのに余分に消費）",
+        "zocRange": "ZOC の広さ",
+        "zocExtraCost": "余分な移動コスト",
+        "zocAlways": "ZOC の常時表示",
+        "zocAlwaysHint": "選んだコマに対する ZOC を出したままにする",
+        "zocHint": "NPC かどうかが違うコマを敵とみなし、その周りのマスが移動を妨げる。自分に見えていないコマは ZOC を張らない。",
+        "cellUnit": {
+          "cell": "マス",
+          "metre": "メートル",
+          "foot": "フィート"
+        }
+      },
+      "displayCalibration": {
+        "title": "画面の実寸を合わせる",
+        "intro": "クレジットカード（縦横どちらも規格が同じカード）を画面に当てて、枠がぴったり重なるまで幅を変えてください。",
+        "cards": "当てる枚数",
+        "cardsOne": "1枚",
+        "cardsTwo": "2枚（横に並べる）",
+        "cardsTwoTooNarrow": "この画面では2枚ぶんの枠が収まりません",
+        "frameHint": "ここにカードを当ててください",
+        "frameWidth": "枠の幅",
+        "cellMm": "1マスの実寸",
+        "result": "この画面は {{pxPerMm}} px/mm（{{dpi}} dpi 相当）",
+        "cellPreview": "1マス {{mm}}mm（{{inches}}インチ）= {{px}}px で表示します",
+        "hint": "カードは2枚のほうが誤差が小さくなります。合わせたあとは、ミニチュアの台座を1マスに乗せて確かめ、ずれていればテーブル設定の「1マスを大きく／小さく」で詰めてください。",
+        "confirm": "合った"
       },
       "dungeonGenerator": {
         "atmosphere": {
@@ -2206,6 +2324,10 @@
         "voteMenuTitle": "点呼/投票設定",
         "alarmMenuTitle": "アラームタイマ",
         "tabSettingTitle": "チャットタブ設定",
+        "tickerEnabled": "外周ティッカーを表示",
+        "tickerTabletopDisplayOnly": "卓上ディスプレイモード専用",
+        "tickerSpeed": "速度",
+        "tickerSpeedUnit": "px/秒",
         "noTarget": "対象が未選択です",
         "writingOthers": "他 {{count}} 人 入力中"
       },
@@ -2249,6 +2371,7 @@
         "quote": "引用",
         "jumpToOriginal": "元のメッセージへ移動",
         "shareAsMemo": "共有メモにする",
+        "ticker": "ティッカー",
         "copyToTab": "別のタブにコピー"
       },
       "stream": {
@@ -3088,7 +3211,9 @@
         "settings": "環境エフェクトの設定",
         "kind": "種類を変える",
         "density": "濃さを変える",
-        "size": "広さを変える"
+        "size": "広さを変える",
+        "radialAppearance": "見た目",
+        "radialObject": "オブジェクト操作"
       },
       "kind": {
         "fog": "濃霧",
@@ -3321,6 +3446,7 @@
       "chat": "チャット",
       "tableSetting": "テーブル設定",
       "roomSettings": "部屋設定",
+      "tabletopDisplaySetting": "卓上ディスプレイ設定",
       "images": "画像",
       "jukebox": "ジュークボックス",
       "cutIn": "カットイン",
@@ -3608,10 +3734,22 @@
       "index": "インデックス",
       "altitudeHigh": "高",
       "altitudeLow": "低",
-      "altitudeLabel": "高度"
+      "altitudeLabel": "高度",
+      "radial": {
+        "menuTitle": "キャラクターメニュー",
+        "chooseDirection": "操作する向きを選択",
+        "seatNorth": "北側から操作",
+        "seatEast": "東側から操作",
+        "seatSouth": "南側から操作",
+        "seatWest": "西側から操作",
+        "back": "前の階層へ戻る",
+        "return": "戻る",
+        "nextPage": "次のページ"
+      }
     },
     "panel": {
       "menuTitle": "メニュー",
+      "rotate90": "時計回りに90度回転",
       "transparency": "透過率",
       "ghost": "透明モード"
     },

@@ -22,6 +22,7 @@ describe('the menu the room is reached through', () => {
       'chat',
       'roomSettings',
       'tableSetting',
+      'tabletopDisplaySetting',
       'inventory',
       'images',
       'jukebox',

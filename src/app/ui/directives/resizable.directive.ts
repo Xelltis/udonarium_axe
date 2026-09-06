@@ -10,6 +10,17 @@ interface BoxSize {
   height: number;
 }
 
+export function screenDeltaToElementDelta(x: number, y: number, rotationDegrees: number): PointerCoordinate {
+  const radians = (-rotationDegrees * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return {
+    x: x * cos - y * sin,
+    y: x * sin + y * cos,
+    z: 0,
+  };
+}
+
 @Directive({ selector: '[appResizable]' })
 export class ResizableDirective {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -20,6 +31,7 @@ export class ResizableDirective {
   readonly stackSelector = input('', { alias: 'resizable.stack' });
   readonly minWidth = input(100, { alias: 'resizable.minWidth' });
   readonly minHeight = input(100, { alias: 'resizable.minHeight' });
+  readonly rotation = input(0, { alias: 'resizable.rotation' });
 
   readonly ostart = output<MouseEvent | TouchEvent>({ alias: 'resizable.start' });
   readonly onmove = output<MouseEvent | TouchEvent>({ alias: 'resizable.move' });
@@ -84,15 +96,21 @@ export class ResizableDirective {
     this.startPointer = handle.input!.pointer;
     this.prevTrans = { left: 0, top: 0, width: 0, height: 0 };
 
+    this.ostart.emit(e);
     e.stopPropagation();
   }
 
   private onResizeMove(e: MouseEvent | TouchEvent, handle: ResizeHandler) {
+    const localDelta = screenDeltaToElementDelta(
+      handle.input!.pointer.x - this.startPointer.x,
+      handle.input!.pointer.y - this.startPointer.y,
+      this.rotation()
+    );
     const trans: BoxSize = {
       left: 0,
       top: 0,
-      width: handle.input!.pointer.x - this.startPointer.x,
-      height: handle.input!.pointer.y - this.startPointer.y,
+      width: localDelta.x,
+      height: localDelta.y,
     };
 
     switch (handle.type) {
@@ -146,7 +164,7 @@ export class ResizableDirective {
       height: trans.height - this.prevTrans.height,
     };
 
-    const correction = this.calcCorrectionPosition(diff);
+    const correction = this.rotation() % 360 === 0 ? this.calcCorrectionPosition(diff) : zeroBoxSize();
     trans.left += correction.left;
     trans.top += correction.top;
     trans.width += correction.width;
@@ -158,12 +176,14 @@ export class ResizableDirective {
     this.elementRef.nativeElement.style.height = trans.height + this.startPosition.height + 'px';
 
     this.prevTrans = trans;
+    this.onmove.emit(e);
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
   }
 
   private onResizeEnd(e: MouseEvent | TouchEvent, handle: ResizeHandler) {
     if (handle.input!.isDragging && e.cancelable) e.preventDefault();
+    this.onend.emit(e);
     e.stopPropagation();
   }
 
@@ -228,4 +248,8 @@ export class ResizableDirective {
     });
     this.elementRef.nativeElement.style.zIndex = topZindex + 1 + '';
   }
+}
+
+function zeroBoxSize(): BoxSize {
+  return { left: 0, top: 0, width: 0, height: 0 };
 }

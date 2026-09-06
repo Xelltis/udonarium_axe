@@ -132,6 +132,7 @@ export class AppInitializationService {
   private initializeChatTabs(): void {
     this.chatTabList.addChatTab('メインタブ', 'MainTab');
     this.chatTabList.addChatTab('サブタブ', 'SubTab');
+    this.chatTabList.ensureTickerTab();
     this.chatTabList.ensureSystemTab();
   }
 

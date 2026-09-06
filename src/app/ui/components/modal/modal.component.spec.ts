@@ -43,4 +43,15 @@ describe('ModalComponent', () => {
       expect(panel.classList.contains('w-200')).toBe(false);
     });
   });
+
+  it('rotates a modal toward the direction inherited from its menu action', () => {
+    component.modalService.rotationDegrees.set(270);
+    fixture.detectChanges();
+
+    const panel = fixture.nativeElement.querySelector('.animate-fly-in') as HTMLElement;
+    expect(panel.style.rotate).toBe('270deg');
+    expect(panel.dataset['modalRotation']).toBe('270');
+    expect(panel.style.maxWidth).toBe('calc(100dvh - 10px)');
+    expect(panel.style.maxHeight).toBe('calc(100vw - 10px)');
+  });
 });

@@ -1,8 +1,9 @@
-# Udonarium Axe
+# Udonarium Axe with Table-Top Display
 
-[![Latest release](https://img.shields.io/github/v/release/Xelltis/udonarium_axe?logo=github)](https://github.com/Xelltis/udonarium_axe/releases/latest)
-[![Release](https://github.com/Xelltis/udonarium_axe/actions/workflows/release.yml/badge.svg)](https://github.com/Xelltis/udonarium_axe/actions/workflows/release.yml)
-[![Docs](https://img.shields.io/badge/Docs-利用ガイド-5C73E7?logo=vitepress&logoColor=white)](https://xelltis.github.io/udonarium_axe/)
+> **おことわり** : このリポジトリ/ブランチは [Udonarium Axe](https://github.com/Xelltis/udonarium_axe) のフォークで、卓上ディスプレイに特化した機能を追加しています。このドキュメントはほぼフォーク元の内容なので、特化した追加機能の詳細は [2D多方向閲覧・回転メニュー・外周ティッカー](./docs/multi-angle.md) を参照してください。
+
+[![Latest release](https://img.shields.io/github/v/release/okamichi/udonarium_axe?logo=github)](https://github.com/okamichi/udonarium_axe/releases/latest)
+[![Docs](https://img.shields.io/badge/Docs-機能追加ガイド-5C73E7?logo=vitepress&logoColor=white)](https://github.com/okamichi/udonarium_axe/docs/multi-angle.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Angular](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)](https://angular.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -38,6 +39,8 @@ Secret をブラウザに置くわけにはいきません。そのため、**�
 2. **バックエンド**（トークン発行用。下記から 1 つ選んでデプロイ）
 3. **フロントエンド本体**（この成果物を静的ホスティングに配置）
 
+※ このフォーク版は、サーバ起動時のURLに '?local=1' のクエリを付けて起動すれば、ネットワークには接続できませんが、SkyWayやバックエンドなしに起動は可能です。
+
 ## クイックスタート
 
 1. **SkyWay でアプリを作成**
@@ -53,7 +56,7 @@ Secret をブラウザに置くわけにはいきません。そのため、**�
    ブラウザや `curl` で `https://<バックエンドのURL>/v1/status` を開き、`OK` が返れば成功です。
 
 3. **フロントエンドを配置**
-   [Releases](https://github.com/Xelltis/udonarium_axe/releases) の `axe_x.y.z.zip` を展開し
+   [Releases](https://github.com/okamichi/udonarium_axe/releases) の `axe_x.y.z.zip` を展開し
    （または自分でビルドした `dist/` を使い）、中身を任意の静的ホスティング
    （Cloudflare Pages / Amazon S3 / レンタルサーバー など）に置きます。
 
@@ -109,6 +112,14 @@ Secret をブラウザに置くわけにはいきません。そのため、**�
   エフェクト集だけを書き出して別の部屋へ持ち込めます
 - 視界外のコマや、OS の「視差効果を減らす」設定では絵を出さず効果音だけ鳴らします
 
+### 卓上ディスプレイ機能
+
+- 共通ウィンドウを90度ずつ回転し、卓の四方から操作できます
+- 2Dモードでコマや名前を回転させ、どの席からも読みやすく表示できます
+- 固定の「ティッカー」タブへの投稿を画面の四辺に流し、新着投稿へすぐに切り替えます
+- プルダウンメニューも４方向に表示できます
+- プルダウンメニューを回転メニュー化も可能で、クリックした周回項目の向きにウィンドウが開きます（実験機能）
+
 **→ 追加・拡張機能の一覧は [docs/features.md](docs/features.md) を参照してください。**
 
 ## 名前について
@@ -129,9 +140,9 @@ Lycoris はコードの継承元ではなく、ホットバーの着想を得た
 | **Udonarium**         | TK11235                   | <https://github.com/TK11235/udonarium>          | オリジナル                                   |
 | **Udonarium Lily**    | entyu（円柱）             | <https://github.com/entyu/udonarium_lily>       | 派生・機能拡張版（画像タグ等のコードを継承） |
 | **Udonarium Lycoris** | oron1208                  | <https://github.com/oron1208/udonarium-lycoris> | 着想元（ホットバー）。コードの継承はなし     |
-| **Udonarium Axe**     | SavageChieftain / Xelltis | <https://github.com/Xelltis/udonarium_axe>      | 本リポジトリ                                 |
+| **Udonarium Axe**     | SavageChieftain / Xelltis | <https://github.com/Xelltis/udonarium_axe>      | 本リポジトリのフォーク元                     |
 
-> 注: 上記の機能の切り分けは本リポジトリの LICENSE・コード・公開情報を根拠にした暫定整理です。
+> 注: 上記の機能の切り分けは本リポジトリのフォーク元の LICENSE・コード・公開情報を根拠にした暫定整理です。
 
 ## 開発
 
@@ -144,6 +155,10 @@ npm run lint       # ESLint
 npm run e2e        # Playwright E2E
 ```
 
+盤面やUIだけをローカルで確認するときは、開発サーバーの起動後に
+`http://localhost:4200/?local=1` を開いてください。ローカル確認モードではSkyWayへ接続しないため、
+バックエンドを用意しなくても単独ブラウザ内で操作できます。通常どおり通信するときは `?local=1` を外します。
+
 開発サーバーは既定で SkyWay バックエンドの URL を `assets/config.json`（`http://localhost:3000`）から読み込みます。
 ローカルで動かす場合はバックエンドをローカル起動するか、`assets/config.json` を公開済みバックエンドに向けてください。
 
@@ -153,6 +168,7 @@ npm run e2e        # Playwright E2E
 | ------------------------------------------------------ | ---------------------------------- |
 | [CLAUDE.md](CLAUDE.md)                                 | 開発規範の最小セット（まずはここ） |
 | [docs/features.md](docs/features.md)                   | Axe で追加・拡張した機能の一覧     |
+| [docs/multi-angle.md](docs/multi-angle.md)             | 2D 多方向閲覧と外周ティッカー      |
 | [docs/architecture.md](docs/architecture.md)           | 7 層アーキテクチャと設計思想       |
 | [docs/coding-guidelines.md](docs/coding-guidelines.md) | コーディング規範・コードスタイル   |
 | [docs/contribution.md](docs/contribution.md)           | コミット規約・lefthook フック      |

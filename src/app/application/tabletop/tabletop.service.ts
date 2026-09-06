@@ -1,6 +1,7 @@
 import { computed, DestroyRef, inject, Injectable, Signal } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -48,6 +49,7 @@ export class TabletopService {
   readonly tableSelecter = inject(TableSelecter);
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
+  readonly tabletopDisplaySettings = inject(TabletopDisplaySettingsService);
   private readonly destroyRef = inject(DestroyRef);
 
   private _emptyTable: GameTable = new GameTable('');
@@ -72,7 +74,18 @@ export class TabletopService {
     { equal: () => false }
   );
 
-  readonly mode2d: Signal<boolean> = computed(() => this.viewMode.mode() === 'flat');
+  /** What this seat asked for, which is the one of the three a reader chooses for themselves. */
+  readonly seatMode2d: Signal<boolean> = computed(() => this.viewMode.mode() === 'flat');
+  readonly sharedMode2d: Signal<boolean> = computed(() => this.currentTableVersion().mode2d);
+  readonly tabletopDisplayMode = this.tabletopDisplaySettings.enabled;
+  readonly mode2d: Signal<boolean> = computed(
+    () => this.seatMode2d() || this.sharedMode2d() || this.tabletopDisplayMode()
+  );
+  /** A screen laid flat under miniatures is always drawn without perspective. */
+  readonly orthographicProjection: Signal<boolean> = this.tabletopDisplayMode;
+  readonly terrainRotationIn2dEnabled: Signal<boolean> = computed(
+    () => this.currentTableVersion().terrainRotationIn2dEnabled
+  );
   readonly imageBillboard: Signal<boolean> = computed(() => this.currentTableVersion().imageBillboard);
   readonly gridSize: Signal<number> = computed(() => this.currentTableVersion().gridSize);
 

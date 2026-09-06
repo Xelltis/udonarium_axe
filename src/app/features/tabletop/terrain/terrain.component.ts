@@ -23,7 +23,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TerrainFogCover, VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -36,6 +36,7 @@ import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-coun
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, SlopeDirection, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
@@ -47,7 +48,7 @@ import {
   HexSlopeStepData,
   HexSlopeStepFloor,
 } from '@axe/features/tabletop/terrain/hex-slope-step-geometry';
-import { buildTerrainContextMenu } from '@axe/features/tabletop/terrain/terrain-context-menu';
+import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
 import { terrainWallFace, type WallSide } from '@axe/features/tabletop/terrain/terrain-wall-face';
 import {
   wallLightLayerStyle,
@@ -666,7 +667,8 @@ export class TerrainComponent {
       menuPosition.y,
       this.translateFn
     );
-    const menuArray = buildTerrainContextMenu(
+    const surfaceEntries = buildSurfaceSwitchContextMenu(this.terrain()!, this.currentTable, this.translateFn);
+    const menu = buildTerrainContextMenuModel(
       this.terrain()!,
       this.gridSize,
       objectPosition,
@@ -674,14 +676,23 @@ export class TerrainComponent {
       this.tabletopActionService,
       (terrain) => this.showDetail(terrain),
       this.translateFn,
-      overlapEntries
+      overlapEntries,
+      surfaceEntries
     );
-    const surfaceEntries = buildSurfaceSwitchContextMenu(this.terrain()!, this.currentTable, this.translateFn);
-    this.contextMenuService.open(
-      menuPosition,
-      surfaceEntries.length > 0 ? [...menuArray, ContextMenuSeparator, ...surfaceEntries] : menuArray,
-      this.name()
-    );
+    const display = this.tabletopService.tabletopDisplaySettings;
+    if (display.enabled()) {
+      this.contextMenuService.openRadial(
+        menuPosition,
+        menu.actions,
+        menu.radialGroups,
+        this.name(),
+        display.radialMenuEnabled(),
+        display.radialMenuRotationSpeed(),
+        multiAngleFontScaleFactor(display.multiAngleFontScale())
+      );
+      return;
+    }
+    this.contextMenuService.open(menuPosition, menu.actions, this.name());
   }
 
   onMove() {

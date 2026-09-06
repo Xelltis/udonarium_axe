@@ -78,6 +78,26 @@ describe('NetworkEventHandlerService', () => {
     expect(chatStub.calibrateTimeOffset).toHaveBeenCalledTimes(1);
   });
 
+  it('does not open a network connection in local mode', () => {
+    const configureSpy = vi.spyOn(Network, 'configure').mockImplementation(() => {});
+    const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+
+    stubChange.loadConfig$.emit({ config: { backend: { url: '' }, localMode: true } });
+    stubChange.networkError$.emit({ errorType: 'server-error', errorMessage: 'offline' });
+
+    expect(configureSpy).toHaveBeenCalledOnce();
+    expect(openStandbySpy).not.toHaveBeenCalled();
+    expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
+  });
+
+  it('opens the standby connection outside local mode', () => {
+    const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+
+    stubChange.loadConfig$.emit({ config: { backend: { url: 'https://example.test' }, localMode: false } });
+
+    expect(openStandbySpy).toHaveBeenCalledOnce();
+  });
+
   it('passes over an unavailable peer without a word or a reconnection', () => {
     const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
 
@@ -167,6 +187,18 @@ describe('NetworkEventHandlerService', () => {
 
     expect(chatStub.sendSystemMessage).toHaveBeenCalledTimes(2);
     expect(openStandbySpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops after the limit on an error that keeps coming back', () => {
+    const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+
+    // A token the cloud will not accept fails again the moment it is retried.
+    for (let i = 0; i < 10; i++) {
+      stubChange.networkError$.emit({ errorType: 'connectRtcApiFailed', errorMessage: '' });
+    }
+
+    expect(openStandbySpy).toHaveBeenCalledTimes(3);
+    expect(chatStub.sendSystemMessage).toHaveBeenCalledTimes(6);
   });
 
   it('says a peer is reconnecting', () => {

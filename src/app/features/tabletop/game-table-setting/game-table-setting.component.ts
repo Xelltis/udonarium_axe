@@ -26,10 +26,15 @@ import {
 } from '@axe/domain/effect/ambience/ambience-kind';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { encodeCutInIdentifiers, parseCutInIdentifiers } from '@axe/domain/media/table-cut-in';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
+import { DEFAULT_CELL_DISTANCE, DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
+import { parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
+import { cellWidthInches, clampCellMm, DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
+import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import {
@@ -57,13 +62,13 @@ export class GameTableSettingComponent {
     this.objectChange.trackMyCursor();
     return !this.rolePermission.canEditTabletop;
   });
-  private readonly modalService = inject(ModalService);
   private readonly saveDataService = inject(SaveDataService);
   private readonly imageService = inject(ImageService);
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectSerializer = inject(ObjectSerializer);
   private readonly tableSelecter = inject(TableSelecter);
+  private readonly modalService = inject(ModalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
   private readonly cutInService = inject(CutInService);
@@ -151,6 +156,56 @@ export class GameTableSettingComponent {
     this.selectedTable.imageBillboard = value;
     triggerUpdateGameObject(this.selectedTable.toContext());
   }
+
+  get tableMode2d(): boolean {
+    return this.selectedTable?.mode2d ?? false;
+  }
+  set tableMode2d(value: boolean) {
+    if (!this.selectedTable) return;
+    this.selectedTable.mode2d = value;
+    triggerUpdateGameObject(this.selectedTable.toContext());
+  }
+
+  get tableTerrainRotationIn2dEnabled(): boolean {
+    return this.selectedTable?.terrainRotationIn2dEnabled ?? false;
+  }
+  set tableTerrainRotationIn2dEnabled(value: boolean) {
+    if (!this.selectedTable) return;
+    this.selectedTable.terrainRotationIn2dEnabled = value;
+    triggerUpdateGameObject(this.selectedTable.toContext());
+  }
+
+  /** The width of a square belongs to the map, so it is kept on the table with the grid size. */
+  get cellMm(): number {
+    return clampCellMm(this.selectedTable?.cellMm ?? DEFAULT_CELL_MM);
+  }
+  set cellMm(value: number) {
+    if (!this.selectedTable) return;
+    this.selectedTable.cellMm = clampCellMm(value);
+    triggerUpdateGameObject(this.selectedTable.toContext());
+  }
+
+  /**
+   * What a square comes to on this screen, read at a glance rather than worked out.
+   *
+   * The game distance is the room's, since that is what the move rules are read from now,
+   * and the room falls back to the table's own where nobody has answered for it.
+   */
+  readonly cellSummary = computed(() => {
+    this.objectChange.versionOf(this.selectedTable?.identifier ?? '')();
+    this.objectChange.versionOf('Config')();
+    const table = this.selectedTable;
+    const mm = clampCellMm(table?.cellMm ?? DEFAULT_CELL_MM);
+    const rules = table
+      ? resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table)
+      : null;
+    return {
+      mm: round1(mm),
+      inches: round2(cellWidthInches(mm)),
+      distance: rules?.cellDistance ?? DEFAULT_CELL_DISTANCE,
+      unit: parseMoveUnit(rules?.cellDistanceUnit) ?? DEFAULT_CELL_DISTANCE_UNIT,
+    };
+  });
 
   get tableDarknessEnabled(): boolean {
     return this.selectedTable?.darknessEnabled ?? false;
@@ -611,4 +666,12 @@ export class GameTableSettingComponent {
   onSelectGameTable(event: Event): void {
     this.chooseGameTable((event.target as HTMLInputElement).value);
   }
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
 }

@@ -1,58 +1,86 @@
 <div
-  class="rounded-ui border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg absolute z-9900 box-border overflow-visible border border-solid px-0 py-1 whitespace-nowrap select-none [-moz-user-drag:none]"
+  data-context-menu-root
+  class="rounded-ui text-ui-text absolute z-9900 box-border overflow-visible px-0 whitespace-nowrap select-none [-moz-user-drag:none]"
+  [class.border-ui-border-menu]="!detachedItems()"
+  [class.bg-ui-menu]="!detachedItems()"
+  [class.shadow-ui-lg]="!detachedItems()"
+  [class.border]="!detachedItems()"
+  [class.border-solid]="!detachedItems()"
+  [class.py-1]="!detachedItems()"
   [style.zIndex]="layer() > 0 ? layer() : null"
+  [style.--menu-font-scale]="fontScale()"
   [ngClass]="{
-    'fixed! max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain': isSubmenu(),
+    'max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain': isSubmenu() && !subMenu(),
     'max-h-full max-w-full': !isSubmenu(),
     'pointer-events-none': isPointerDragging,
   }"
+  [style.rotate]="!isSubmenu() ? contextMenuService.rotationDegrees + 'deg' : null"
+  [style.transform-origin]="!isSubmenu() ? 'top left' : null"
+  [attr.data-menu-rotation]="!isSubmenu() ? contextMenuService.rotationDegrees : null"
+  [attr.data-detached-items]="detachedItems() ? 'true' : null"
+  (click)="$event.stopPropagation()"
   (mouseleave)="hideSubMenu()"
   #root
 >
-  <div
-    class="rounded-ui pointer-events-none absolute inset-0 -z-1 [backdrop-filter:blur(24px)_saturate(1.8)] [-webkit-backdrop-filter:blur(24px)_saturate(1.8)]"
-  ></div>
+  @if (!detachedItems()) {
+    <div
+      data-context-menu-backdrop
+      class="rounded-ui pointer-events-none absolute inset-0 -z-1 [backdrop-filter:blur(24px)_saturate(1.8)] [-webkit-backdrop-filter:blur(24px)_saturate(1.8)]"
+    ></div>
+  }
   @if (title) {
     <div
-      class="border-ui-border-separator text-ui-muted m-0 max-w-[18em] truncate border-b border-solid px-4 pt-1 pb-1.5 text-center text-[11px] font-semibold tracking-[0.04em]"
+      data-context-menu-title
+      class="border-ui-border-separator text-ui-muted m-0 max-w-[18em] truncate px-4 pt-1 pb-1.5 text-center text-[calc(11px*var(--menu-font-scale,1))] font-semibold tracking-[0.04em]"
+      [class.context-menu-detached-title]="detachedItems()"
+      [class.border-b]="!detachedItems()"
+      [class.border-solid]="!detachedItems()"
     >
       {{ title }}
     </div>
   }
   <div
     class="flex items-start"
-    [ngClass]="isSubmenu() ? '' : 'max-h-[calc(100dvh-2.5rem)] overflow-y-auto overscroll-contain'"
+    [ngClass]="isSubmenu() || subMenu() ? '' : 'max-h-[calc(100dvh-2.5rem)] overflow-y-auto overscroll-contain'"
     (scroll)="onListScroll()"
   >
     @if (altitudeHandle) {
-      <div class="text-ui-muted flex flex-col content-center self-stretch pr-0.5 pl-1 text-[small]">
-        <div class="mt-[2em]">{{ 'ui.contextMenu.altitudeHigh' | transloco }}</div>
-        <div class="my-auto self-center">0</div>
-        <div class="mb-[2em]">{{ 'ui.contextMenu.altitudeLow' | transloco }}</div>
-      </div>
-    }
-    @if (altitudeHandle) {
-      <div>
-        <input
-          #altitudeSlider
-          class="h-50 w-2 p-0.75 [direction:rtl] [writing-mode:vertical-lr]"
-          title="{{ altitudeHandle.altitude }}"
-          name="altitude"
-          [ngModel]="altitudeHandle.altitude"
-          (ngModelChange)="onAltitudeChange($event)"
-          type="range"
-          max="12"
-          min="-12"
-          step="0.5"
-          orient="vertical"
-        />
+      <div
+        data-context-menu-altitude-slider-panel
+        [class.contents]="!detachedItems()"
+        [class.context-menu-detached-altitude-slider-panel]="detachedItems()"
+      >
+        <div class="text-ui-muted flex flex-col content-center self-stretch pr-0.5 pl-1 text-[small]">
+          <div class="mt-[2em]">{{ 'ui.contextMenu.altitudeHigh' | transloco }}</div>
+          <div class="my-auto self-center">0</div>
+          <div class="mb-[2em]">{{ 'ui.contextMenu.altitudeLow' | transloco }}</div>
+        </div>
+        <div>
+          <input
+            #altitudeSlider
+            class="h-50 w-2 p-0.75 [direction:rtl] [writing-mode:vertical-lr]"
+            title="{{ altitudeHandle.altitude }}"
+            name="altitude"
+            [ngModel]="altitudeHandle.altitude"
+            (ngModelChange)="onAltitudeChange($event)"
+            type="range"
+            max="12"
+            min="-12"
+            step="0.5"
+            orient="vertical"
+          />
+        </div>
       </div>
     }
     <div class="grow">
       @if (altitudeHandle) {
         <div>
           <div
-            class="border-ui-border-separator text-ui-muted m-0 max-w-[18em] truncate border-b border-solid px-4 pt-1 pb-1.5 text-center text-[11px] font-semibold tracking-[0.04em]"
+            data-context-menu-altitude-title
+            class="border-ui-border-separator text-ui-muted m-0 max-w-[18em] truncate px-4 pt-1 pb-1.5 text-center text-[11px] font-semibold tracking-[0.04em]"
+            [class.context-menu-detached-altitude-title]="detachedItems()"
+            [class.border-b]="!detachedItems()"
+            [class.border-solid]="!detachedItems()"
             [style.color]="titleColor()"
             [style.font-weight]="titleBold() ? 'bolder' : 'normal'"
           >
@@ -71,16 +99,32 @@
           </div>
         </div>
       }
-      <ul class="m-0 list-none px-0 py-0.5">
+      <ul class="m-0 list-none px-0" [class.py-0.5]="!detachedItems()">
         @if (title !== indexTitle) {
-          @for (action of actions; track $index) {
+          @for (action of actions; track $index; let first = $first) {
+            @if (detachedItems() && !first) {
+              <li
+                data-context-menu-item-gap
+                class="pointer-events-none block shrink-0 bg-transparent"
+                [style.height.px]="2"
+                aria-hidden="true"
+              ></li>
+            }
             <ng-container
               *ngTemplateOutlet="action?.type === 'separator' ? separator : actionMenu; context: { action: action }"
             ></ng-container>
           }
         }
         @if (title === indexTitle) {
-          @for (action of actions; track $index) {
+          @for (action of actions; track $index; let first = $first) {
+            @if (detachedItems() && !first) {
+              <li
+                data-context-menu-item-gap
+                class="pointer-events-none block shrink-0 bg-transparent"
+                [style.height.px]="2"
+                aria-hidden="true"
+              ></li>
+            }
             <ng-container
               *ngTemplateOutlet="action?.type === 'separator' ? separator : indexMenu; context: { action: action }"
             ></ng-container>
@@ -93,7 +137,15 @@
 
 <ng-template #indexMenu let-action="action">
   <li
-    class="rounded-ui-sm text-ui-text hover:bg-ui-menu-hover hover:text-ui-accent relative mx-1 my-0 cursor-default px-5 py-1.25 text-[12px] transition-colors"
+    data-context-menu-item
+    class="rounded-ui-sm text-ui-text hover:text-ui-accent relative my-0 cursor-default px-5 py-1.25 text-[calc(12px*var(--menu-font-scale,1))] transition-colors"
+    [class.context-menu-detached-item]="detachedItems()"
+    [class.border-ui-border-menu]="detachedItems()"
+    [class.bg-ui-menu]="detachedItems()"
+    [class.border]="detachedItems()"
+    [class.border-solid]="detachedItems()"
+    [class.hover:bg-ui-menu-hover]="!detachedItems()"
+    [class.mx-1]="!detachedItems()"
     (click)="indexAction(action.line, action.id)"
   >
     <div class="inline-block">{{ action.line }}:{{ action.name }}</div>
@@ -102,7 +154,15 @@
 
 <ng-template #actionMenu let-action="action">
   <li
-    class="rounded-ui-sm text-ui-text hover:bg-ui-menu-hover hover:text-ui-accent relative mx-1 my-0 cursor-default px-5 py-1.25 text-[12px] transition-colors"
+    data-context-menu-item
+    class="rounded-ui-sm text-ui-text hover:text-ui-accent relative my-0 cursor-default px-5 py-1.25 text-[calc(12px*var(--menu-font-scale,1))] transition-colors"
+    [class.context-menu-detached-item]="detachedItems()"
+    [class.border-ui-border-menu]="detachedItems()"
+    [class.bg-ui-menu]="detachedItems()"
+    [class.border]="detachedItems()"
+    [class.border-solid]="detachedItems()"
+    [class.hover:bg-ui-menu-hover]="!detachedItems()"
+    [class.mx-1]="!detachedItems()"
     (click)="doAction(action)"
     (mouseenter)="showSubMenu(action)"
   >
@@ -127,7 +187,12 @@
       </div>
     }
     @if (subMenu() && parentMenu() === action) {
-      <context-menu [title]="action.name" [actions]="subMenu()!" [isSubmenu]="true"></context-menu>
+      <context-menu
+        [title]="action.name"
+        [actions]="subMenu()!"
+        [isSubmenu]="true"
+        [detachedItems]="detachedItems()"
+      ></context-menu>
     }
   </li>
 </ng-template>

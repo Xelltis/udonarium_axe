@@ -19,7 +19,7 @@
     [rotable.option]="rotableOption()"
     (rotable.ondragstart)="onMove()"
     (rotable.ondragend)="onMoved()"
-    [rotable.disable]="isLocked() || tabletopService.mode2d()"
+    [rotable.disable]="isLocked() || (tabletopService.mode2d() && !tabletopService.terrainRotationIn2dEnabled())"
   >
     @if (!onWall() && hasFloor() && isVisibleFloor() && 0 < topFaceImage().url.length) {
       @if (isDropShadow() && (terreinAltitude() !== 0 || (isSlope() && !hasWall()))) {

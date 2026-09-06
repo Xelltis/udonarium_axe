@@ -27,6 +27,7 @@ export const FAB_ENTRIES: readonly FabEntry[] = [
   panel('chat', 'speaker_notes', 'chatWindow'),
   panel('roomSettings', 'room_preferences', 'roomSettings'),
   panel('tableSetting', 'layers', 'tableSetting'),
+  panel('tabletopDisplaySetting', 'tv', 'tabletopDisplaySetting'),
   panel('inventory', 'folder_shared', 'inventory'),
   panel('images', 'photo_library', 'fileStorage'),
   panel('jukebox', 'queue_music', 'jukebox'),

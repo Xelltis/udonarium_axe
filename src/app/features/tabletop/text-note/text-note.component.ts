@@ -20,16 +20,17 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
-import { buildTextNoteContextMenu } from '@axe/features/tabletop/text-note/text-note-context-menu';
+import { buildTextNoteContextMenuModel } from '@axe/features/tabletop/text-note/text-note-context-menu';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -363,7 +364,12 @@ export class TextNoteComponent {
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
     const position = this.pointerDeviceService.pointers[0];
     if (this.pieceContextMenu.openForSelection(this.textNote(), this.gridSize, position)) return;
-    const baseMenu = buildTextNoteContextMenu(
+    const surfaceEntries = buildSurfaceSwitchContextMenu(
+      this.textNote(),
+      this.tabletopService.currentTable,
+      this.translateFn
+    );
+    const menu = buildTextNoteContextMenuModel(
       this.textNote(),
       this.gridSize,
       this.inventoryService,
@@ -374,18 +380,23 @@ export class TextNoteComponent {
         },
         onShowDetail: () => this.showDetail(this.textNote()),
       },
-      this.translateFn
+      this.translateFn,
+      surfaceEntries
     );
-    const surfaceEntries = buildSurfaceSwitchContextMenu(
-      this.textNote(),
-      this.tabletopService.currentTable,
-      this.translateFn
-    );
-    this.contextMenuService.open(
-      position,
-      surfaceEntries.length > 0 ? [...baseMenu, ContextMenuSeparator, ...surfaceEntries] : baseMenu,
-      this.title()
-    );
+    const display = this.tabletopService.tabletopDisplaySettings;
+    if (display.enabled()) {
+      this.contextMenuService.openRadial(
+        position,
+        menu.actions,
+        menu.radialGroups,
+        this.title(),
+        display.radialMenuEnabled(),
+        display.radialMenuRotationSpeed(),
+        multiAngleFontScaleFactor(display.multiAngleFontScale())
+      );
+      return;
+    }
+    this.contextMenuService.open(position, menu.actions, this.title());
   }
 
   onMove() {

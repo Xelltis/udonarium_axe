@@ -19,6 +19,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY } from '@axe/application/ui/tabletop-display-settings.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { provideTranslocoTesting } from '@axe/testing/transloco-testing';
 
@@ -266,9 +267,16 @@ function forgetMyCursor(): void {
   PeerCursor.myCursor = null!;
 }
 
+// Tabletop display preferences are intentionally persistent in the application, but a spec that
+// enables them must not turn the next spec's otherwise ordinary table into a flat display.
+function forgetTabletopDisplaySettings(): void {
+  localStorage.removeItem(TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY);
+}
+
 beforeEach(async () => {
   emptyObjectStore();
   forgetMyCursor();
+  forgetTabletopDisplaySettings();
   resetPeerContextProvider();
   await resolveComponentResources(resourceResolver as Parameters<typeof resolveComponentResources>[0]);
   applyConfigureTestingModuleWrapper();

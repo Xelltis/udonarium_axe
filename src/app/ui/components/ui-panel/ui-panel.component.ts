@@ -16,7 +16,7 @@ import {
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -124,6 +124,7 @@ export class UIPanelComponent {
     afterNextRender({
       write: () => {
         this.panelService.setDefaultScrollablePanel(this.scrollablePanel().nativeElement);
+        this.clampPanelToViewport(this.draggablePanel().nativeElement);
         if (this.panelService.cutInIdentifier) {
           this.timerCheckWindowSize = setInterval(() => {
             this.chkeWindowMinSize();
@@ -194,6 +195,19 @@ export class UIPanelComponent {
 
   readonly isFullScreen = signal(false);
   readonly isMinimized = signal(false);
+  readonly rotationDegrees = signal<PanelRotationDegrees>(0);
+
+  setInitialRotation(degrees: PanelRotationDegrees): void {
+    this.rotationDegrees.set(degrees);
+  }
+
+  get rotate90Title(): string {
+    return this.t('ui.panel.rotate90');
+  }
+
+  get isSideways(): boolean {
+    return this.rotationDegrees() === 90 || this.rotationDegrees() === 270;
+  }
 
   get contentMinimized(): boolean {
     return this.panelService.minimizeToContent && this.isMinimized();
@@ -332,12 +346,7 @@ export class UIPanelComponent {
     if (this.isMinimized()) return;
 
     const panel = this.draggablePanel().nativeElement;
-    if (
-      panel.offsetLeft <= 0 &&
-      panel.offsetTop <= 0 &&
-      panel.offsetWidth >= window.innerWidth &&
-      panel.offsetHeight >= window.innerHeight
-    ) {
+    if (this.isFullScreen()) {
       this.isFullScreen.set(false);
     } else {
       this.isFullScreen.set(true);
@@ -349,21 +358,75 @@ export class UIPanelComponent {
       this.preWidth = panel.offsetWidth;
       this.preHeight = panel.offsetHeight;
 
-      this.left = 0;
-      this.top = 0;
-      this.width = window.innerWidth;
-      this.height = window.innerHeight;
-
-      panel.style.left = this.left + 'px';
-      panel.style.top = this.top + 'px';
-      panel.style.width = this.width + 'px';
-      panel.style.height = this.height + 'px';
+      this.applyFullScreenLayout(panel);
     } else {
-      this.left = this.preLeft;
-      this.top = this.preTop;
-      this.width = this.preWidth;
-      this.height = this.preHeight;
+      this.applyPanelBox(panel, this.preLeft, this.preTop, this.preWidth, this.preHeight);
+      this.clampPanelToViewport(panel);
     }
+  }
+
+  rotatePanelClockwise(): void {
+    if (this.isCompact()) return;
+
+    const next = ((this.rotationDegrees() + 90) % 360) as PanelRotationDegrees;
+    const panel = this.draggablePanel().nativeElement;
+    this.rotationDegrees.set(next);
+
+    // Angular の次回描画を待たず、直後の getBoundingClientRect() に新しい向きを反映する。
+    panel.style.rotate = `${next}deg`;
+    if (this.isFullScreen()) {
+      this.applyFullScreenLayout(panel);
+    } else {
+      this.clampPanelToViewport(panel);
+    }
+  }
+
+  onPanelResizeEnd(): void {
+    const panel = this.draggablePanel().nativeElement;
+    this.left = panel.offsetLeft;
+    this.top = panel.offsetTop;
+    this.width = panel.offsetWidth;
+    this.height = panel.offsetHeight;
+    this.clampPanelToViewport(panel);
+  }
+
+  private applyFullScreenLayout(panel: HTMLElement): void {
+    const width = this.isSideways ? window.innerHeight : window.innerWidth;
+    const height = this.isSideways ? window.innerWidth : window.innerHeight;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    this.applyPanelBox(panel, left, top, width, height);
+  }
+
+  private applyPanelBox(panel: HTMLElement, left: number, top: number, width: number, height: number): void {
+    this.left = left;
+    this.top = top;
+    this.width = width;
+    this.height = height;
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.width = `${width}px`;
+    panel.style.height = `${height}px`;
+  }
+
+  private clampPanelToViewport(panel: HTMLElement): void {
+    const rect = panel.getBoundingClientRect();
+    let diffX = 0;
+    let diffY = 0;
+
+    if (window.innerWidth < rect.width) diffX = window.innerWidth / 2 - (rect.left + rect.width / 2);
+    else if (rect.left < 0) diffX = -rect.left;
+    else if (window.innerWidth < rect.right) diffX = window.innerWidth - rect.right;
+
+    if (window.innerHeight < rect.height) diffY = window.innerHeight / 2 - (rect.top + rect.height / 2);
+    else if (rect.top < 0) diffY = -rect.top;
+    else if (window.innerHeight < rect.bottom) diffY = window.innerHeight - rect.bottom;
+
+    if (diffX === 0 && diffY === 0) return;
+    this.left = panel.offsetLeft + diffX;
+    this.top = panel.offsetTop + diffY;
+    panel.style.left = `${this.left}px`;
+    panel.style.top = `${this.top}px`;
   }
 
   get padding_(): string {

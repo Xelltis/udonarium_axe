@@ -100,13 +100,26 @@ export class FogMemoryWriterService {
   /**
    * Whoever writes it down: the game master when one is at the table, and otherwise the first
    * player by name, which every client works out the same way.
+   *
+   * The exception is the local mode a room is tried out in, which never opens a connection and
+   * so never gives anybody a name. Nobody would be chosen and the fog would go unwritten, so
+   * the one client there does the writing. Everywhere else the rule is untouched.
    */
   private isScribe(): boolean {
+    if (this.isLocalMode()) return PeerCursor.myCursor !== null;
+
     const mine = PeerCursor.myCursor?.userId;
     if (!mine) return false;
     const peers = this.objectStore.getObjects<PeerCursor>(PeerCursor).filter((peer) => peer.userId.length > 0);
     const masters = peers.filter((peer) => peer.isGameMaster).map((peer) => peer.userId);
     const pool = masters.length > 0 ? masters : peers.filter((peer) => peer.isPlayer).map((peer) => peer.userId);
     return pool.length > 0 && pool.sort()[0] === mine;
+  }
+
+  /** The same flag the room is started with, read here rather than reached for across the layers. */
+  private isLocalMode(): boolean {
+    if (typeof location === 'undefined') return false;
+    const value = new URLSearchParams(location.search).get('local');
+    return value === '1' || value === 'true';
   }
 }

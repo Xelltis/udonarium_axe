@@ -27,6 +27,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -46,6 +47,7 @@ import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.compon
 import { ChatPortraitImageComponent } from '@axe/features/chat/chat-portrait-img/chat-portrait-img.component';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
+import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
@@ -82,6 +84,7 @@ import { DigitalClockComponent } from '@axe/features/widgets/digital-clock/digit
 import { RenderStatsComponent } from '@axe/features/widgets/render-stats/render-stats.component';
 import { ConfirmDialogComponent } from '@axe/ui/components/confirm-dialog/confirm-dialog.component';
 import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-menu.component';
+import { FourWayRadialMenuComponent } from '@axe/ui/components/four-way-radial-menu/four-way-radial-menu.component';
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -125,6 +128,7 @@ const FAB_MARGIN_PX = 12;
     ReplayBoardBannerComponent,
     InviteJoinComponent,
     StreamingOverlayComponent,
+    ChatTickerComponent,
     LanguageSelectorComponent,
     VisualNovelOverlayComponent,
     NgClass,
@@ -135,6 +139,7 @@ const FAB_MARGIN_PX = 12;
 })
 export class AppComponent {
   readonly theme = inject(ThemeService);
+  readonly tabletopDisplay = inject(TabletopDisplaySettingsService);
   readonly motion = inject(MotionService);
   readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);
@@ -316,6 +321,7 @@ PanelService.UIPanelComponentClass = UIPanelComponent;
 PanelService.chatPortraitComponentClass = ChatPortraitImageComponent;
 PanelService.cardStackListComponentClass = CardStackListImageComponent;
 ContextMenuService.ContextMenuComponentClass = ContextMenuComponent;
+ContextMenuService.FourWayRadialMenuComponentClass = FourWayRadialMenuComponent;
 ModalService.ModalComponentClass = ModalComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
 TooltipDirective.TooltipPanelComponentClass = OverviewPanelComponent;

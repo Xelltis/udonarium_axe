@@ -39,6 +39,7 @@
       "chatWindow": "Chat",
       "gameTableSetting": "Table settings",
       "roomSettings": "Room settings",
+      "tabletopDisplaySetting": "Table-top display settings",
       "fileStorage": "Files",
       "jukebox": "Jukebox",
       "cutInList": "Cut-ins",
@@ -693,6 +694,12 @@
       }
     },
     "textNote": {
+      "contextMenu": {
+        "radialContent": "Content",
+        "radialDisplay": "Display",
+        "radialDisclosure": "Access & owner",
+        "radialObject": "Move & actions"
+      },
       "section": {
         "layout": "Layout"
       },
@@ -1403,7 +1410,15 @@
         "deployDice": "Lay out {{count}} dice",
         "showVisionRange": "Show range of sight",
         "target": "Target",
-        "clearTargets": "Stop aiming at everything"
+        "clearTargets": "Stop aiming at everything",
+        "radialBasic": "Basics",
+        "radialChat": "Chat",
+        "radialBuffEffect": "Buffs & effects",
+        "radialDisplay": "Display",
+        "radialMove": "Move",
+        "radialDisclosure": "Access & owner",
+        "radialObject": "Piece actions",
+        "showVisionRange": "Show range of sight"
       },
       "panel": {
         "sheet": "Character sheet",
@@ -1526,7 +1541,10 @@
         "unfollow": "Stop following",
         "skin": "Skin",
         "skinFromLibrary": "Choose from the library",
-        "skinNone": "No skin"
+        "skinNone": "No skin",
+        "radialAppearance": "Light & appearance",
+        "radialPosition": "Position & following",
+        "radialObject": "Object actions"
       },
       "preset": {
         "custom": "Custom",
@@ -1638,6 +1656,15 @@
       }
     },
     "tabletop": {
+      "tabletopDisplaySetting": {
+        "enabled": "Enable table-top display mode",
+        "localHint": "The board is drawn without perspective. The settings apply only in this browser and are not shared with other participants.",
+        "menuAndDisplay": "Menus and display",
+        "multiAngleDisplay": "Multi-direction piece display",
+        "multiAngleLocalHint": "In this browser, orbiting takes priority over rotating the whole piece.",
+        "ticker": "Edge ticker",
+        "realSize": "Real size and the view lock"
+      },
       "ccfoliaImport": {
         "tableName": "CCFOLIA room",
         "imported": "Imported the CCFOLIA room ({{tables}} tables / {{panels}} panels / {{pieces}} pieces). Now showing \"{{table}}\".",
@@ -1726,10 +1753,22 @@
         "unlock": "Unlock",
         "lockMarkShow": "Show lock mark",
         "lockMarkHide": "Hide lock mark",
+        "viewLockOn": "☑ Lock the view",
+        "viewLockOff": "☐ Lock the view",
+        "snapToRealSize": "Back to real size",
         "copy": "Duplicate",
         "delete": "Delete",
         "createObject": "Create object",
+        "createObject1": "Create object 1",
+        "createObject2": "Create object 2",
         "terrainEdit": "Edit terrain",
+        "radialShape": "Terrain & doors",
+        "radialAppearance": "Appearance & lighting",
+        "radialMoveCreate": "Move & create",
+        "radialObject": "Object actions",
+        "radialRangePosition": "Position & following",
+        "radialRangeShape": "Shape",
+        "radialRangeEditCreate": "Edit & create",
         "lightSection": "Darkness (vision & glow)",
         "blocksSight": "Blocks sight",
         "blocksLight": "Blocks light (off = window)",
@@ -1863,6 +1902,47 @@
         "snapAll": "Cell + vertex + edge",
         "sectionDisplay": "Display mode",
         "imageBillboard": "Billboard piece images",
+        "mode2d": "2D mode (top-down)",
+        "terrainRotationIn2d": "Allow terrain rotation (normally fixed in 2D mode)",
+        "cutInMultiDirection": "Multi-direction cut-ins",
+        "cutInMultiDirection_none": "Off",
+        "cutInMultiDirection_vertical": "Top and bottom",
+        "cutInMultiDirection_vertical-right": "Top, bottom and right",
+        "cutInMultiDirection_vertical-left": "Top, bottom and left",
+        "cutInMultiDirection_four-directions": "Top, bottom, left and right",
+        "hoverDetailPlacement": "Hover detail of a piece",
+        "hoverDetailPlacement_piece": "Beside the piece (classic)",
+        "hoverDetailPlacement_screen-edges": "On all four screen edges (view only)",
+        "multiAngleFontScale": "Menu and ticker text size",
+        "multiAngleFontScale_small": "Small",
+        "multiAngleFontScale_medium": "Medium",
+        "multiAngleFontScale_large": "Large",
+        "cellDistance": "One cell stands for",
+        "realSizeSummary": "One square = {{mm}}mm ({{inches}} in) = {{distance}} {{unit}}",
+        "realSizeSummaryPlain": "One square = {{mm}}mm ({{inches}} in)",
+        "realSize": "Draw one square at its real width",
+        "viewLock": "Lock the view (no panning, zooming or turning)",
+        "realSizeCellMm": "Real width of a square",
+        "realSizeDpi": "This screen measures about {{dpi}} dpi",
+        "realSizeSmaller": "Smaller square",
+        "realSizeLarger": "Larger square",
+        "realSizeStale": "The screen has changed. Please measure it again.",
+        "realSizeUncalibrated": "This device has not measured its screen yet.",
+        "realSizeCalibrate": "Recalibrate",
+        "realSizeReset": "Reset this device's settings",
+        "radialMenu": "Show rotating menus",
+        "radialMenuHelp": "Right-click to open the rotating menu, right-click repeatedly to advance it, or right-drag to move it. Windows opened from menu items face one of the four directions divided around the center.",
+        "radialMenuSpeed": "Rotation speed",
+        "multiAngle": "Curve and orbit piece names",
+        "multiAngleResourceBuff": "Orbit resources and buffs (up to 4)",
+        "multiAngleMotionMode": "Motion",
+        "multiAngleContinuous": "Continuous clockwise",
+        "multiAngleQuarterTurn": "Turn 90° then pause",
+        "multiAnglePieceQuarterTurn": "Piece only: turn 90° then pause",
+        "multiAngleRevolutionSeconds": "Rotation time (one lap)",
+        "multiAnglePieceRevolutionSeconds": "Piece rotation (one lap)",
+        "multiAnglePauseSeconds": "Pause after each 90°",
+        "seconds": "sec",
         "sectionDarkness": "Darkness (vision & lighting)",
         "darknessEnabled": "Enable darkness",
         "lightSnapToGrid": "Snap light to the grid",
@@ -1905,7 +1985,45 @@
         "fogColor": "Fog colour",
         "fogReset": "Reset the fog",
         "openRoomSettings": "Open room settings",
-        "roomSettingsHint": "Movement range, zone of control and the default dice bot belong to the room"
+        "roomSettingsHint": "Movement range, zone of control and the default dice bot belong to the room",
+        "sectionMoveRange": "Movement range",
+        "moveRangeEnabled": "Show where a piece can walk while it is picked up",
+        "moveRangeAlways": "Keep showing the reach of the piece that is picked",
+        "moveDiagonally": "Let a piece step across a corner, counted as one cell",
+        "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
+        "moveRangeElementNames": "Sheet fields",
+        "cellDistanceUnit": "Cell unit",
+        "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing). Feet and metres are converted where the sheet is written in the other one; a sheet written in cells is read as cells.",
+        "zocMode": "Zone of control",
+        "zocMode_none": "None",
+        "zocMode_stop": "Halt (the walk ends on entering)",
+        "zocMode_block": "No entry (the cell is closed)",
+        "zocMode_cost": "Extra cost (entering costs more)",
+        "zocRange": "Reach",
+        "zocExtraCost": "Extra cost",
+        "zocAlways": "Held ground",
+        "zocAlwaysHint": "Keep showing the ground held against the piece that is picked",
+        "zocHint": "A piece is an enemy where the NPC mark differs from the one being moved, and the cells around it get in the way. A piece you cannot see holds no ground.",
+        "cellUnit": {
+          "cell": "Cells",
+          "metre": "Metres",
+          "foot": "Feet"
+        }
+      },
+      "displayCalibration": {
+        "title": "Measure this screen",
+        "intro": "Hold a credit card against the screen and change the width until the frame matches it exactly.",
+        "cards": "Cards to hold up",
+        "cardsOne": "One",
+        "cardsTwo": "Two, side by side",
+        "cardsTwoTooNarrow": "Two cards will not fit on this screen",
+        "frameHint": "Hold the card here",
+        "frameWidth": "Frame width",
+        "cellMm": "Real width of a square",
+        "result": "This screen measures {{pxPerMm}} px/mm (about {{dpi}} dpi)",
+        "cellPreview": "A square of {{mm}}mm ({{inches}} in) will be drawn {{px}}px wide",
+        "hint": "Two cards leave less room for error. Afterwards, stand a miniature on a square to check, and settle the rest with \"Larger square\" and \"Smaller square\" in the table settings.",
+        "confirm": "It matches"
       },
       "dungeonGenerator": {
         "atmosphere": {
@@ -2206,6 +2324,10 @@
         "voteMenuTitle": "Vote / Roll call",
         "alarmMenuTitle": "Alarm timer",
         "tabSettingTitle": "Chat tab settings",
+        "tickerEnabled": "Show edge ticker",
+        "tickerTabletopDisplayOnly": "For tabletop display mode only",
+        "tickerSpeed": "Speed",
+        "tickerSpeedUnit": "px/s",
         "noTarget": "No target selected",
         "writingOthers": "{{count}} more typing"
       },
@@ -2249,6 +2371,7 @@
         "quote": "Quote",
         "jumpToOriginal": "Jump to original message",
         "shareAsMemo": "Send to shared memo",
+        "ticker": "Ticker",
         "copyToTab": "Copy to another tab"
       },
       "stream": {
@@ -3088,7 +3211,9 @@
         "settings": "Ambient effect settings",
         "kind": "Change type",
         "density": "Change density",
-        "size": "Change size"
+        "size": "Change size",
+        "radialAppearance": "Appearance",
+        "radialObject": "Object actions"
       },
       "kind": {
         "fog": "Dense fog",
@@ -3321,6 +3446,7 @@
       "chat": "Chat",
       "tableSetting": "Table",
       "roomSettings": "Room settings",
+      "tabletopDisplaySetting": "Table-top display",
       "images": "Images",
       "jukebox": "Jukebox",
       "cutIn": "Cut-in",
@@ -3608,10 +3734,22 @@
       "index": "Index",
       "altitudeHigh": "Hi",
       "altitudeLow": "Lo",
-      "altitudeLabel": "Altitude"
+      "altitudeLabel": "Altitude",
+      "radial": {
+        "menuTitle": "Character menu",
+        "chooseDirection": "Choose your viewing side",
+        "seatNorth": "Use from the north side",
+        "seatEast": "Use from the east side",
+        "seatSouth": "Use from the south side",
+        "seatWest": "Use from the west side",
+        "back": "Back one level",
+        "return": "Back",
+        "nextPage": "Next page"
+      }
     },
     "panel": {
       "menuTitle": "Menu",
+      "rotate90": "Rotate 90° clockwise",
       "transparency": "Transparency",
       "ghost": "Ghost mode"
     },

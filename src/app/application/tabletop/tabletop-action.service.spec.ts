@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
+import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card, CardState } from '@axe/domain/card/card';
@@ -21,6 +22,45 @@ describe('TabletopActionService', () => {
 
   it('should be created', () => {
     expect(service).toBeTruthy();
+  });
+
+  describe('createTextNote()', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    it('lays a newly created note flat in 2D mode', () => {
+      table.mode2d = true;
+      const note = service.createTextNote({ x: 0, y: 0, z: 0 });
+
+      expect(note.isUpright).toBe(false);
+      note.destroy();
+    });
+
+    it('keeps a newly created note upright outside 2D mode', () => {
+      table.mode2d = false;
+      const note = service.createTextNote({ x: 0, y: 0, z: 0 });
+
+      expect(note.isUpright).toBe(true);
+      note.destroy();
+    });
+
+    it('lays a note flat when only this browser uses tabletop display mode', () => {
+      table.mode2d = false;
+      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      const note = service.createTextNote({ x: 0, y: 0, z: 0 });
+
+      expect(note.isUpright).toBe(false);
+      note.destroy();
+    });
   });
 
   describe('createBlankCard()', () => {

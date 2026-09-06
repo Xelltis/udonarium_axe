@@ -5,6 +5,7 @@
 ></div>
 <div
   class="absolute inset-0 m-auto block size-full touch-manipulation overflow-hidden select-none [-moz-user-drag:none] [-webkit-user-drag:none] perspective-[3000px]"
+  [style.perspective]="isOrthographicProjection() ? 'none' : null"
   [class.cursor-grabbing]="isPointerDragging"
   [class.animate-effect-shake-soft]="screenShake() === 'soft'"
   [class.animate-effect-shake-hard]="screenShake() === 'hard'"

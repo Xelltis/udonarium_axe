@@ -1,11 +1,12 @@
 import { emitMessageAdded } from '@axe/core/event/domain-events';
+import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatLogExporter } from '@axe/domain/chat/chat-log-exporter';
 import { ChatMessage, ChatMessageContext } from '@axe/domain/chat/chat-message';
-import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
+import { SYSTEM_CHAT_TAB_IDENTIFIER, TICKER_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 
 const PORTRAIT_SLOT_COUNT = 12;
@@ -18,6 +19,11 @@ export class ChatTab extends ObjectNode implements InnerXml {
   /** Whether it is the tab for the system messages. It cannot be deleted and stays out of an export of every tab. */
   get isSystemTab(): boolean {
     return this.identifier === SYSTEM_CHAT_TAB_IDENTIFIER;
+  }
+
+  /** The dedicated public conversation whose messages feed the four-edge ticker. */
+  get isTickerTab(): boolean {
+    return this.identifier === TICKER_CHAT_TAB_IDENTIFIER;
   }
 
   @SyncVar() plCanView = true;
@@ -212,6 +218,22 @@ export class ChatTab extends ObjectNode implements InnerXml {
     chat.initialize();
     this.appendChild(chat);
     return chat;
+  }
+
+  /** Reserved tabs keep their identity through room save/load instead of becoming ordinary tabs. */
+  override toAttributes(): Attributes {
+    const attributes = { ...ObjectSerializer.toAttributes(this.attributes as Attributes) };
+    attributes['identifier'] = this.identifier;
+    return attributes;
+  }
+
+  override parseAttributes(attributes: NamedNodeMap): void {
+    ObjectSerializer.parseAttributes(this.attributes, attributes);
+    const persistedIdentifier = this.attributes['identifier'];
+    if (typeof persistedIdentifier === 'string' && persistedIdentifier.length > 0) {
+      (this as unknown as { context: { identifier: string } }).context.identifier = persistedIdentifier;
+      delete (this.attributes as Record<string, unknown>)['identifier'];
+    }
   }
 
   markForRead() {

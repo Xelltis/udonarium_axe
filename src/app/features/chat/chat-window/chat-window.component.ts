@@ -20,6 +20,7 @@ import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
@@ -33,6 +34,11 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import {
+  DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
+  MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
+  MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
+} from '@axe/domain/tabletop/multi-angle';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatMessageSettingComponent } from '@axe/features/chat/chat-message-setting/chat-message-setting.component';
@@ -86,6 +92,7 @@ export class ChatWindowComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly activeChatTab = inject(ActiveChatTabService);
+  private readonly tabletopService = inject(TabletopService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -181,6 +188,33 @@ export class ChatWindowComponent {
     this.objectChange.versionOf(tab.identifier)();
     return canRoleSpeakTab(tab, PeerCursor.myRole);
   });
+
+  readonly isTickerTab = computed(() => this.chatTab()?.isTickerTab ?? false);
+
+  get tickerEnabled(): boolean {
+    return this.tabletopService.tabletopDisplaySettings.multiAngleTickerEnabled();
+  }
+  set tickerEnabled(value: boolean) {
+    this.tabletopService.tabletopDisplaySettings.patch({ multiAngleTickerEnabled: value });
+  }
+
+  get tickerPixelsPerSecond(): number {
+    const value = Number(this.tabletopService.tabletopDisplaySettings.multiAngleTickerPixelsPerSecond());
+    return Number.isFinite(value)
+      ? Math.min(MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, Math.max(MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, value))
+      : DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND;
+  }
+  set tickerPixelsPerSecond(value: number) {
+    const numeric = Number(value);
+    this.tabletopService.tabletopDisplaySettings.patch({
+      multiAngleTickerPixelsPerSecond: Number.isFinite(numeric)
+        ? Math.min(
+            MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
+            Math.max(MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, numeric)
+          )
+        : DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
+    });
+  }
 
   private isAutoScroll = true;
   readonly hasNewMessage = signal(false);

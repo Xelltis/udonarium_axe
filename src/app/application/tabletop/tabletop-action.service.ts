@@ -16,6 +16,7 @@ import {
 } from '@axe/application/tabletop/tabletop-default-setup';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -54,6 +55,7 @@ export class TabletopActionService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly tabletopDisplay = inject(TabletopDisplaySettingsService);
   private readonly t = inject(TRANSLATE_FN);
 
   constructor() {}
@@ -163,6 +165,7 @@ export class TabletopActionService {
     textNote.location.x = position.x;
     textNote.location.y = position.y;
     textNote.posZ = position.z;
+    textNote.isUpright = !((this.getViewTable()?.mode2d ?? false) || this.tabletopDisplay.enabled());
     this.applyCreationDefaults(textNote);
     return textNote;
   }
@@ -325,19 +328,29 @@ export class TabletopActionService {
   }
 
   makeDefaultContextMenuActions(position: PointerCoordinate): ContextMenuAction[] {
+    return this.makeDefaultContextMenuActionGroups(position).flat();
+  }
+
+  // The create items come in two halves so a rotating menu can spread them over two spokes
+  // instead of piling every one of them onto a single group.
+  makeDefaultContextMenuActionGroups(position: PointerCoordinate): ContextMenuAction[][] {
     return [
-      this.getCreateCharacterMenu(position),
-      this.getCreateTableMaskMenu(position),
-      this.getCreateTerrainMenu(position),
-      this.getCreateTextNoteMenu(position),
-      this.getCreateBlankCardMenu(position),
-      this.getCreateTrumpMenu(position),
-      this.getCreateDiceSymbolMenu(position),
-      this.getCreateCoinMenu(position),
-      this.getCreateRangeMenu(position),
-      this.getCreateLightSourceMenu(position),
-      this.getCreateWhiteBoardMenu(position),
-      this.getCreateAmbienceMenu(position),
+      [
+        this.getCreateCharacterMenu(position),
+        this.getCreateTableMaskMenu(position),
+        this.getCreateTerrainMenu(position),
+        this.getCreateTextNoteMenu(position),
+        this.getCreateBlankCardMenu(position),
+        this.getCreateTrumpMenu(position),
+        this.getCreateDiceSymbolMenu(position),
+      ],
+      [
+        this.getCreateCoinMenu(position),
+        this.getCreateRangeMenu(position),
+        this.getCreateLightSourceMenu(position),
+        this.getCreateWhiteBoardMenu(position),
+        this.getCreateAmbienceMenu(position),
+      ],
     ];
   }
 

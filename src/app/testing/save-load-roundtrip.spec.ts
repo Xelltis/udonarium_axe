@@ -185,6 +185,21 @@ describe('save and load round trip', () => {
     });
   });
 
+  describe('shared tabletop-display table settings', () => {
+    it('keeps 2D terrain rotation in the room data', () => {
+      const table = new GameTable('shared-tabletop-settings');
+      table.mode2d = false;
+      table.terrainRotationIn2dEnabled = true;
+      table.initialize();
+
+      const xml = serializer.toXml(table);
+      const restored = serializer.parseXml(xml) as GameTable;
+
+      expect(xml).toContain('terrainRotationIn2dEnabled="true"');
+      expect(restored.terrainRotationIn2dEnabled).toBe(true);
+    });
+  });
+
   describe('data element round trip, within the limits of happy-dom', () => {
     it('writes and reads a data element back', () => {
       const original = DataElement.create('testName', 'testValue', { type: 'image' });

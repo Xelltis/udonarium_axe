@@ -88,17 +88,21 @@ export class ChatTabSettingComponent {
     return !!this.selectedTab()?.isSystemTab;
   }
 
+  get isTickerTabSelected(): boolean {
+    return !!this.selectedTab()?.isTickerTab;
+  }
+
   /** It cannot be deleted; with nowhere for the arrivals and departures to go, they come back into the conversation. */
   get isDeletable(): boolean {
-    return !this.isEmpty && !!this.selectedTab() && !this.isSystemTabSelected;
+    return !this.isEmpty && !!this.selectedTab() && !this.isSystemTabSelected && !this.isTickerTabSelected;
   }
 
   get isRenamable(): boolean {
-    return !this.isSystemTabSelected;
+    return !this.isSystemTabSelected && !this.isTickerTabSelected;
   }
 
   get isMovable(): boolean {
-    return !this.isDeleted && !this.isSystemTabSelected;
+    return !this.isDeleted && !this.isSystemTabSelected && !this.isTickerTabSelected;
   }
 
   /** Whether it travels with the room data. The system tab is no part of the room. */

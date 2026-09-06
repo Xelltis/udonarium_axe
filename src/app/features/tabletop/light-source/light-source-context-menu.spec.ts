@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { LIGHT_PRESETS, LightPreset } from '@axe/domain/tabletop/vision-types';
-import { buildLightSourceContextMenu } from '@axe/features/tabletop/light-source/light-source-context-menu';
+import {
+  buildLightSourceContextMenu,
+  buildLightSourceContextMenuModel,
+} from '@axe/features/tabletop/light-source/light-source-context-menu';
 
 const t = (key: string) => key;
 
@@ -20,6 +23,20 @@ describe('buildLightSourceContextMenu', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('groups every action for the 2D menu without changing the ordinary menu', () => {
+    const light = LightSource.create('L');
+    const model = buildLightSourceContextMenuModel(light, 50, [], vi.fn(), t, vi.fn());
+
+    expect(model.radialGroups.map((group) => group.name)).toEqual([
+      'feature.light.contextMenu.radialAppearance',
+      'feature.light.contextMenu.radialPosition',
+      'feature.light.contextMenu.radialObject',
+    ]);
+    const ordinaryActions = model.actions.filter((action) => action.name.length > 0);
+    const radialActions = model.radialGroups.flatMap((group) => group.actions);
+    expect(new Set(radialActions)).toEqual(new Set(ordinaryActions));
   });
 
   it('switches the light on and off', () => {

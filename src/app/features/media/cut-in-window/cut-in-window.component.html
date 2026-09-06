@@ -1,5 +1,9 @@
 @if (cutIn) {
-  <div class="relative size-full overflow-hidden p-0" #cutInArea>
+  <div
+    class="relative size-full overflow-hidden p-0"
+    [style.visibility]="playbackStarted() ? 'visible' : 'hidden'"
+    #cutInArea
+  >
     <youtube-player
       #videoPlayerComponent
       [style.visibility]="isVisible()"
@@ -8,9 +12,9 @@
       [height]="youTubeHeight"
       suggestedQuality="default"
       [playerVars]="{
-        autoplay: 1,
+        autoplay: 0,
         controls: 0,
-        start: +(cutIn.videoStart ?? 0),
+        start: videoStartSeconds,
         loop: cutIn && cutIn.isLoop ? 1 : 0,
         playsinline: 1,
         rel: 0,
@@ -38,7 +42,8 @@
         [scene]="scene"
         [sceneWidth]="cutIn.width"
         [sceneHeight]="cutIn.height"
-        [playing]="true"
+        [playing]="playbackStarted()"
+        [startOffsetMs]="playbackOffsetMs"
       />
     }
   </div>

@@ -25,6 +25,11 @@ export class ModalComponent {
     return option != null && typeof option === 'object' && (option as Record<string, unknown>)['fitWidth'] === true;
   }
 
+  get isSideways(): boolean {
+    const degrees = this.modalService.rotationDegrees();
+    return degrees === 90 || degrees === 270;
+  }
+
   readonly content = viewChild.required('content', { read: ViewContainerRef });
 
   clickBackground(event: MouseEvent) {

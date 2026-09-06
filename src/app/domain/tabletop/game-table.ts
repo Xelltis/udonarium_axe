@@ -12,6 +12,7 @@ import {
   DEFAULT_MOVE_RANGE_ELEMENT_NAMES,
 } from '@axe/domain/tabletop/move/move-cells';
 import { DEFAULT_ZOC_EXTRA_COST, DEFAULT_ZOC_MODE, DEFAULT_ZOC_RANGE } from '@axe/domain/tabletop/move/zone-of-control';
+import { DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { DEFAULT_TABLE_FACING_MARK, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -56,8 +57,12 @@ export class GameTable extends ObjectNode {
   @SyncVar() gridSnap: boolean = true;
   @SyncVar() gridSnapStyle: GridSnapStyle = GridSnapStyle.CENTER;
   @SyncVar() imageBillboard: boolean = false;
+  @SyncVar() mode2d: boolean = false;
+  @SyncVar() terrainRotationIn2dEnabled: boolean = false;
   /** How a piece shows which way it faces; see {@link TableFacingMark}. */
   @SyncVar() facingMark: TableFacingMark = DEFAULT_TABLE_FACING_MARK;
+  /** How wide one square is meant to measure on the glass, for a screen laid flat under miniatures. */
+  @SyncVar() cellMm: number = DEFAULT_CELL_MM;
   @SyncVar() wallHeight: number = 10;
   @SyncVar() northWallImageIdentifier: string = 'imageIdentifier';
   @SyncVar() eastWallImageIdentifier: string = 'imageIdentifier';

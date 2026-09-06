@@ -2,7 +2,10 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
-import { buildTextNoteContextMenu } from '@axe/features/tabletop/text-note/text-note-context-menu';
+import {
+  buildTextNoteContextMenu,
+  buildTextNoteContextMenuModel,
+} from '@axe/features/tabletop/text-note/text-note-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
@@ -41,6 +44,24 @@ const names = (a: { name: string }[]) => a.map((x) => x.name);
 describe('buildTextNoteContextMenu()', () => {
   beforeEach(() => {
     PeerCursor.myCursor = null!;
+  });
+
+  it('groups every action for the 2D menu without changing the ordinary menu', () => {
+    const note = makeTextNote();
+    const surfaceAction = { name: '地形へ移動', action: vi.fn() };
+    const model = buildTextNoteContextMenuModel(
+      note as unknown as TextNote,
+      50,
+      makeService(),
+      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      t,
+      [surfaceAction]
+    );
+
+    expect(model.radialGroups.map((group) => group.name)).toEqual(['内容', '表示', '公開・所有', '移動・操作']);
+    const ordinaryActions = model.actions.filter((action) => action.type !== ContextMenuType.SEPARATOR);
+    const radialActions = model.radialGroups.flatMap((group) => group.actions);
+    expect(new Set(radialActions)).toEqual(new Set(ordinaryActions));
   });
 
   it('leads with editing the note, and offers altitude, standing, locking, copying and deleting', () => {

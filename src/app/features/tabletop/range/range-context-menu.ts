@@ -2,11 +2,20 @@ import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
-import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
+import {
+  ContextMenuAction,
+  ContextMenuRadialGroup,
+  ContextMenuSeparator,
+} from '@axe/application/ui/context-menu.service';
 import { buildAltitudeAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { RangeArea } from '@axe/domain/tabletop/range';
+
+export interface RangeContextMenuModel {
+  actions: ContextMenuAction[];
+  radialGroups: ContextMenuRadialGroup[];
+}
 
 export function buildRangeContextMenu(
   range: RangeArea,
@@ -20,126 +29,45 @@ export function buildRangeContextMenu(
   t: TranslateFn,
   onEditCells?: (r: RangeArea) => void
 ): ContextMenuAction[] {
-  const menuArray: ContextMenuAction[] = [];
+  return buildRangeContextMenuModel(
+    range,
+    gridSize,
+    objectPosition,
+    objectStore,
+    inventoryService,
+    tabletopActionService,
+    onDockingWindowOpen,
+    onEdit,
+    t,
+    onEditCells
+  ).actions;
+}
 
-  menuArray.push(
-    buildAltitudeAction(range, t, {
-      keepPosZ: true,
-      onChanged: () => inventoryService.notifyInventoryUpdate(),
-    })
-  );
-
-  menuArray.push(buildLockToggleAction(range.isLock, (next) => (range.isLock = next), t));
-  if (
-    range.type == 'CIRCLE' ||
-    range.type == 'SQUARE' ||
-    range.type == 'TRIANGLE' ||
-    range.type == 'PENTAGON' ||
-    range.type == 'HEXAGON'
-  ) {
-    menuArray.push(
-      objectStore.get(range.followingCharacterIdentifier) != null
-        ? {
-            name: t('feature.tabletop.contextMenu.unfollow'),
-            action: () => {
-              SoundEffect.play(PresetSound.unlock);
-              range.followingCharacterIdentifier = '';
-            },
-          }
-        : {
-            name: t('feature.tabletop.contextMenu.followCharacter'),
-            action: () => {
-              onDockingWindowOpen();
-            },
-          }
-    );
-  }
-  menuArray.push(ContextMenuSeparator);
-  menuArray.push({
-    name: t('feature.tabletop.contextMenu.shape'),
-    action: undefined,
-    subActions: [
-      {
-        name: (range.type === 'LINE' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeLine'),
-        action: () => {
-          range.type = 'LINE';
-          SoundEffect.play(PresetSound.sweep);
-        },
-      },
-      {
-        name: (range.type === 'CORN' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeCorn'),
-        action: () => {
-          range.type = 'CORN';
-          SoundEffect.play(PresetSound.sweep);
-        },
-      },
-      {
-        name: (range.type === 'TRIANGLE' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeTriangle'),
-        action: () => {
-          range.type = 'TRIANGLE';
-          SoundEffect.play(PresetSound.sweep);
-        },
-      },
-      {
-        name: (range.type === 'SQUARE' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeSquare'),
-        action: () => {
-          range.type = 'SQUARE';
-          SoundEffect.play(PresetSound.sweep);
-        },
-      },
-      {
-        name: (range.type === 'PENTAGON' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapePentagon'),
-        action: () => {
-          range.type = 'PENTAGON';
-          SoundEffect.play(PresetSound.sweep);
-        },
-      },
-      {
-        name: (range.type === 'HEXAGON' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeHexagon'),
-        action: () => {
-          range.type = 'HEXAGON';
-          SoundEffect.play(PresetSound.sweep);
-        },
-      },
-      {
-        name: (range.type === 'CIRCLE' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeCircle'),
-        action: () => {
-          range.type = 'CIRCLE';
-          SoundEffect.play(PresetSound.sweep);
-        },
-      },
-      {
-        name: (range.type === 'CUSTOM' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeCustom'),
-        action: () => {
-          range.type = 'CUSTOM';
-          SoundEffect.play(PresetSound.sweep);
-        },
-      },
-    ],
+export function buildRangeContextMenuModel(
+  range: RangeArea,
+  gridSize: number,
+  objectPosition: PointerCoordinate,
+  objectStore: ObjectStore,
+  inventoryService: GameObjectInventoryService,
+  tabletopActionService: TabletopActionService,
+  onDockingWindowOpen: () => void,
+  onEdit: (r: RangeArea) => void,
+  t: TranslateFn,
+  onEditCells?: (r: RangeArea) => void
+): RangeContextMenuModel {
+  const altitudeAction = buildAltitudeAction(range, t, {
+    keepPosZ: true,
+    onChanged: () => inventoryService.notifyInventoryUpdate(),
   });
-  if (range.type === 'CUSTOM') {
-    menuArray.push({
-      name: t('feature.range.custom.editCells'),
-      action: () => {
-        onEditCells?.(range);
-      },
-    });
-    menuArray.push({
-      name: (range.isRotatable ? '☑ ' : '☐ ') + t('feature.range.custom.rotatable'),
-      action: () => {
-        range.isRotatable = !range.isRotatable;
-        SoundEffect.play(PresetSound.sweep);
-      },
-    });
-  }
-  menuArray.push(ContextMenuSeparator);
-  menuArray.push({
+  const lockAction = buildLockToggleAction(range.isLock, (next) => (range.isLock = next), t);
+  const followAction = buildFollowAction(range, objectStore, onDockingWindowOpen, t);
+  const shapeAction = buildShapeAction(range, t);
+  const customActions = buildCustomActions(range, onEditCells, t);
+  const editAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.rangeEdit'),
-    action: () => {
-      onEdit(range);
-    },
-  });
-  menuArray.push({
+    action: () => onEdit(range),
+  };
+  const copyAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.copy'),
     action: () => {
       const cloneObject = range.clone();
@@ -149,20 +77,123 @@ export function buildRangeContextMenu(
       if (range.parent) range.parent.appendChild(cloneObject);
       SoundEffect.play(PresetSound.cardPut);
     },
-  });
-  menuArray.push({
+  };
+  const deleteAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.delete'),
     action: () => {
       range.destroy();
       SoundEffect.play(PresetSound.sweep);
     },
-  });
-  menuArray.push(ContextMenuSeparator);
-  menuArray.push({
+  };
+  const createAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.createObject'),
     action: undefined,
     subActions: tabletopActionService.makeDefaultContextMenuActions(objectPosition),
-  });
+  };
 
-  return menuArray;
+  const positionActions = [altitudeAction, lockAction, ...(followAction ? [followAction] : [])];
+  const shapeActions = [shapeAction, ...customActions];
+  const actions: ContextMenuAction[] = [
+    ...positionActions,
+    ContextMenuSeparator,
+    ...shapeActions,
+    ContextMenuSeparator,
+    editAction,
+    copyAction,
+    deleteAction,
+    ContextMenuSeparator,
+    createAction,
+  ];
+
+  return {
+    actions,
+    radialGroups: [
+      {
+        name: t('feature.tabletop.contextMenu.radialRangePosition'),
+        icon: 'my_location',
+        actions: positionActions,
+      },
+      {
+        name: t('feature.tabletop.contextMenu.radialRangeShape'),
+        icon: 'category',
+        actions: shapeActions,
+      },
+      {
+        name: t('feature.tabletop.contextMenu.radialRangeEditCreate'),
+        icon: 'edit',
+        actions: [editAction, createAction],
+      },
+      {
+        name: t('feature.tabletop.contextMenu.radialObject'),
+        icon: 'settings',
+        actions: [copyAction, deleteAction],
+      },
+    ],
+  };
+}
+
+function buildFollowAction(
+  range: RangeArea,
+  objectStore: ObjectStore,
+  onDockingWindowOpen: () => void,
+  t: TranslateFn
+): ContextMenuAction | null {
+  if (!['CIRCLE', 'SQUARE', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type)) return null;
+  return objectStore.get(range.followingCharacterIdentifier) != null
+    ? {
+        name: t('feature.tabletop.contextMenu.unfollow'),
+        action: () => {
+          SoundEffect.play(PresetSound.unlock);
+          range.followingCharacterIdentifier = '';
+        },
+      }
+    : {
+        name: t('feature.tabletop.contextMenu.followCharacter'),
+        action: () => onDockingWindowOpen(),
+      };
+}
+
+function buildShapeAction(range: RangeArea, t: TranslateFn): ContextMenuAction {
+  const shapes = [
+    ['LINE', 'shapeLine'],
+    ['CORN', 'shapeCorn'],
+    ['TRIANGLE', 'shapeTriangle'],
+    ['SQUARE', 'shapeSquare'],
+    ['PENTAGON', 'shapePentagon'],
+    ['HEXAGON', 'shapeHexagon'],
+    ['CIRCLE', 'shapeCircle'],
+    ['CUSTOM', 'shapeCustom'],
+  ] as const;
+  return {
+    name: t('feature.tabletop.contextMenu.shape'),
+    action: undefined,
+    subActions: shapes.map(([type, label]) => ({
+      name: (range.type === type ? '✔ ' : '') + t(`feature.tabletop.contextMenu.${label}`),
+      action: () => {
+        range.type = type;
+        SoundEffect.play(PresetSound.sweep);
+      },
+    })),
+  };
+}
+
+function buildCustomActions(
+  range: RangeArea,
+  onEditCells: ((r: RangeArea) => void) | undefined,
+  t: TranslateFn
+): ContextMenuAction[] {
+  if (range.type !== 'CUSTOM') return [];
+  return [
+    {
+      name: t('feature.range.custom.editCells'),
+      action: () => onEditCells?.(range),
+    },
+    {
+      name: (range.isRotatable ? '☑ ' : '☐ ') + t('feature.range.custom.rotatable'),
+      action: () => {
+        range.isRotatable = !range.isRotatable;
+        SoundEffect.play(PresetSound.sweep);
+      },
+    },
+  ];
 }

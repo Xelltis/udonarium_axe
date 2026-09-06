@@ -1,4 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
+import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -14,6 +21,7 @@ import { LightSource } from '@axe/domain/tabletop/light-source';
 import { DoorStyle, SlopeDirection, Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 
 /** happy-dom hands back no drawing context, and the grid render writes to one. */
 function stubCanvasContext(): void {
@@ -146,6 +154,103 @@ describe('TerrainComponent', () => {
       expect(fixture.nativeElement.querySelector('[data-testid="terrain-blank-outline"]')).toBeNull();
 
       terrain.destroy();
+    });
+  });
+
+  describe('the turn handle', () => {
+    function rotationDisabledFor2dTerrain(enabled: boolean, sharedMode2d = true, localMode = false): boolean {
+      const terrain = Terrain.create('2D terrain', 2, 3, 1, '', '');
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = sharedMode2d;
+      table.terrainRotationIn2dEnabled = enabled;
+      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: localMode });
+      fixture.componentRef.setInput('terrain', terrain);
+      fixture.detectChanges();
+
+      const rotable = fixture.debugElement.query(By.directive(RotableDirective)).injector.get(RotableDirective);
+      expect(fixture.nativeElement.querySelector('.rotate-grab')).toBeTruthy();
+      const disabled = rotable.isDisable();
+      terrain.destroy();
+      return disabled;
+    }
+
+    it('keeps terrain rotation disabled by default in 2D mode', () => {
+      expect(rotationDisabledFor2dTerrain(false)).toBe(true);
+    });
+
+    it('enables terrain rotation when the 2D table setting allows it', () => {
+      expect(rotationDisabledFor2dTerrain(true)).toBe(false);
+    });
+
+    it('uses the shared terrain permission when only this browser is in tabletop display mode', () => {
+      expect(rotationDisabledFor2dTerrain(true, false, true)).toBe(false);
+    });
+  });
+
+  describe('context menu display', () => {
+    function openMenu(mode2d: boolean, radialMenuEnabled: boolean): Terrain {
+      const terrain = Terrain.create('地形メニュー', 2, 3, 1, '', '');
+      fixture.componentRef.setInput('terrain', terrain);
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = mode2d;
+      TestBed.inject(TabletopDisplaySettingsService).patch({
+        enabled: mode2d,
+        radialMenuEnabled,
+        radialMenuRotationSpeed: 9,
+      });
+      fixture.detectChanges();
+      vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(TabletopOverlapService), 'findAt').mockReturnValue([]);
+      TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);
+
+      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+      return terrain;
+    }
+
+    it.each([false, true])('uses the 2D menu interface with rotating display %s', (enabled) => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      const terrain = openMenu(true, enabled);
+
+      try {
+        expect(openRadial).toHaveBeenCalledWith(
+          expect.objectContaining({ x: 240, y: 180 }),
+          expect.any(Array),
+          expect.any(Array),
+          '地形メニュー',
+          enabled,
+          9,
+          1
+        );
+        expect(openRadial.mock.calls[0]?.[2].map((group) => group.name)).toEqual([
+          '地形・扉',
+          '見た目・照明',
+          '移動・作成',
+          'オブジェクト操作',
+        ]);
+        expect(openOrdinary).not.toHaveBeenCalled();
+      } finally {
+        terrain.destroy();
+      }
+    });
+
+    it('keeps the ordinary menu outside 2D mode', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      const terrain = openMenu(false, true);
+
+      try {
+        expect(openOrdinary).toHaveBeenCalledWith(
+          expect.objectContaining({ x: 240, y: 180 }),
+          expect.any(Array),
+          '地形メニュー'
+        );
+        expect(openRadial).not.toHaveBeenCalled();
+      } finally {
+        terrain.destroy();
+      }
     });
   });
 

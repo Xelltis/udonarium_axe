@@ -1,5 +1,9 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import {
+  TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY,
+  TabletopDisplaySettingsService,
+} from '@axe/application/ui/tabletop-display-settings.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -9,6 +13,8 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('TabletopService', () => {
   beforeEach(() => {
+    localStorage.removeItem('ui-view-mode');
+    localStorage.removeItem(TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY);
     TestBed.configureTestingModule({
       providers: [...TEST_PROVIDERS, TabletopService],
     });
@@ -63,6 +69,8 @@ describe('TabletopService', () => {
     it('carries a change to the table through to everything derived from it', async () => {
       const service = TestBed.inject(TabletopService);
       expect(service.gridSize()).toBe(table.gridSize);
+      expect(service.mode2d()).toBe(false);
+      expect(service.orthographicProjection()).toBe(false);
 
       table.gridSize = 77;
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -77,6 +85,24 @@ describe('TabletopService', () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
 
       expect(service.mode2d()).toBe(true);
+      // Perspective is dropped for a screen laid flat, which only the device knows it is.
+      expect(service.orthographicProjection()).toBe(false);
+    });
+
+    it.each([
+      [false, false, false],
+      [true, false, true],
+      [false, true, true],
+      [true, true, true],
+    ])('combines shared 2D %s and local tabletop display %s into effective 2D %s', async (shared, local, effective) => {
+      const service = TestBed.inject(TabletopService);
+      table.mode2d = shared;
+      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: local });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(service.sharedMode2d()).toBe(shared);
+      expect(service.tabletopDisplayMode()).toBe(local);
+      expect(service.mode2d()).toBe(effective);
     });
   });
 });

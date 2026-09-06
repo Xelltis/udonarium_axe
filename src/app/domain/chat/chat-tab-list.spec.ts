@@ -4,7 +4,12 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
-import { SYSTEM_CHAT_TAB_IDENTIFIER, SYSTEM_CHAT_TAB_NAME } from '@axe/domain/chat/constants';
+import {
+  SYSTEM_CHAT_TAB_IDENTIFIER,
+  SYSTEM_CHAT_TAB_NAME,
+  TICKER_CHAT_TAB_IDENTIFIER,
+  TICKER_CHAT_TAB_NAME,
+} from '@axe/domain/chat/constants';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
@@ -274,6 +279,45 @@ describe('ChatTabList', () => {
       const html = list.logHtml();
       expect(html).toContain('会話の行');
       expect(html).not.toContain('退室の知らせ');
+    });
+  });
+
+  describe('the ticker tab', () => {
+    it('adds exactly one speakable room tab under its reserved identifier', () => {
+      const list = ChatTabList.instance;
+      const ticker = list.ensureTickerTab();
+
+      expect(ticker.identifier).toBe(TICKER_CHAT_TAB_IDENTIFIER);
+      expect(ticker.name).toBe(TICKER_CHAT_TAB_NAME);
+      expect(ticker.isTickerTab).toBe(true);
+      expect(ticker.plCanView).toBe(true);
+      expect(ticker.plCanSpeak).toBe(true);
+      expect(list.ensureTickerTab()).toBe(ticker);
+      expect(list.chatTabs.filter((tab) => tab.isTickerTab)).toHaveLength(1);
+    });
+
+    it('restores its fixed name and permissions without deleting its log', () => {
+      const list = ChatTabList.instance;
+      const ticker = list.ensureTickerTab();
+      ticker.name = '別名';
+      ticker.plCanSpeak = false;
+      ticker.addMessage({ name: '案内役', text: '開始', timestamp: 1 });
+
+      list.ensureTickerTab();
+
+      expect(ticker.name).toBe(TICKER_CHAT_TAB_NAME);
+      expect(ticker.plCanSpeak).toBe(true);
+      expect(ticker.chatMessages).toHaveLength(1);
+    });
+
+    it('travels with the room data', () => {
+      const list = ChatTabList.instance;
+      list.ensureTickerTab();
+
+      const xml = list.toXml();
+
+      expect(xml).toContain(`identifier="${TICKER_CHAT_TAB_IDENTIFIER}"`);
+      expect(xml).toContain(`name="${TICKER_CHAT_TAB_NAME}"`);
     });
   });
 });

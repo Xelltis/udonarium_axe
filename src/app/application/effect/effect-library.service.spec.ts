@@ -102,5 +102,7 @@ describe('EffectLibraryService', () => {
 
     PeerCursor.myCursor.role = PeerRole.GameMaster;
     expect(service.findByName('伏せ札の演出')).toBe(secret);
+
+    PeerCursor.myCursor.role = PeerRole.Player;
   });
 });

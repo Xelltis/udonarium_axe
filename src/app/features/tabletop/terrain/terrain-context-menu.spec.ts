@@ -1,7 +1,10 @@
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { DOOR_STYLES, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
-import { buildTerrainContextMenu } from '@axe/features/tabletop/terrain/terrain-context-menu';
+import {
+  buildTerrainContextMenu,
+  buildTerrainContextMenuModel,
+} from '@axe/features/tabletop/terrain/terrain-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
@@ -62,6 +65,35 @@ function makeActionService(): TabletopActionService {
 const names = (a: { name: string }[]) => a.map((x) => x.name);
 
 describe('buildTerrainContextMenu()', () => {
+  it('groups every terrain action for the rotating menu', () => {
+    const overlapAction = { name: '重なり' };
+    const surfaceAction = { name: '北壁へ移動' };
+    const model = buildTerrainContextMenuModel(
+      makeTerrain() as unknown as Terrain,
+      50,
+      { x: 0, y: 0, z: 0 },
+      makeService(),
+      makeActionService(),
+      vi.fn(),
+      t,
+      [overlapAction],
+      [surfaceAction]
+    );
+
+    expect(model.radialGroups.map((group) => group.name)).toEqual([
+      '地形・扉',
+      '見た目・照明',
+      '移動・作成',
+      'オブジェクト操作',
+    ]);
+    expect(model.radialGroups.find((group) => group.name === '移動・作成')?.actions).toContain(surfaceAction);
+    expect(model.radialGroups.find((group) => group.name === 'オブジェクト操作')?.actions).toContain(overlapAction);
+    expect(model.actions).toContain(surfaceAction);
+    const ordinaryActions = model.actions.filter((action) => action.name.length > 0);
+    const radialActions = model.radialGroups.flatMap((group) => group.actions);
+    expect(new Set(radialActions)).toEqual(new Set(ordinaryActions));
+  });
+
   it('offers three items for the altitude', () => {
     const menu = buildTerrainContextMenu(
       makeTerrain() as unknown as Terrain,

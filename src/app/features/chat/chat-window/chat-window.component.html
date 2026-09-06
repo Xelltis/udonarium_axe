@@ -141,6 +141,45 @@
           </div>
         </details>
       </div>
+      @if (isTickerTab()) {
+        <div
+          data-testid="ticker-controls"
+          class="border-ui-border-panel bg-ui-input/35 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-solid px-2 py-1.5 text-[11px]"
+        >
+          <label
+            class="text-ui-text inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap select-none"
+            [title]="'feature.chat.window.tickerTabletopDisplayOnly' | transloco"
+          >
+            <input
+              data-testid="ticker-enabled"
+              type="checkbox"
+              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+              name="ticker-enabled"
+              [ngModel]="tickerEnabled"
+              (ngModelChange)="tickerEnabled = $event"
+            />
+            {{ 'feature.chat.window.tickerEnabled' | transloco }}
+          </label>
+          <label class="text-ui-muted flex min-w-40 flex-1 items-center gap-2 whitespace-nowrap">
+            <span>{{ 'feature.chat.window.tickerSpeed' | transloco }}</span>
+            <input
+              data-testid="ticker-speed"
+              type="range"
+              class="min-w-20 flex-1 cursor-pointer [accent-color:var(--ui-accent)]"
+              name="ticker-speed"
+              min="20"
+              max="240"
+              step="5"
+              [ngModel]="tickerPixelsPerSecond"
+              (ngModelChange)="tickerPixelsPerSecond = $event"
+              [disabled]="!tickerEnabled"
+            />
+            <span class="text-ui-text w-14 text-right tabular-nums"
+              >{{ tickerPixelsPerSecond }} {{ 'feature.chat.window.tickerSpeedUnit' | transloco }}</span
+            >
+          </label>
+        </div>
+      }
     </form>
     <chat-input
       [chatTabidentifier]="chatTabidentifier"

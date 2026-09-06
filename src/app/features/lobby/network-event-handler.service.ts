@@ -27,10 +27,14 @@ export class NetworkEventHandlerService {
   };
   private serverErrorReconnectAttempts = 0;
   private serverErrorReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private localMode = false;
 
   constructor() {
     this.objectChange.loadConfig$.subscribe((event) => {
-      Network.configure(event.config as Record<string, unknown>);
+      const config = event.config as Record<string, unknown>;
+      this.localMode = config.localMode === true;
+      Network.configure(config);
+      if (this.localMode) return;
       Network.openStandby(loadIdentity()?.userId);
     }, this.destroyRef);
     this.objectChange.networkOpen$.subscribe(() => {
@@ -47,6 +51,7 @@ export class NetworkEventHandlerService {
       });
     }, this.destroyRef);
     this.objectChange.networkError$.subscribe((event) => {
+      if (this.localMode) return;
       const { errorType, errorMessage } = event;
       const quietErrorTypes = ['peer-unavailable'];
       if (quietErrorTypes.includes(errorType)) return;
@@ -58,6 +63,12 @@ export class NetworkEventHandlerService {
         return;
       }
 
+      // Any error can repeat without end - a token the cloud will not accept fails again the
+      // moment it is retried - so the same limit that bounds a server error bounds these too.
+      // Without it the chat fills with the same pair of lines and the reconnects become traffic.
+      if (this.serverErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) return;
+      this.serverErrorReconnectAttempts++;
+
       this.chatMessageService.sendSystemMessage(this.resolveNetworkErrorMessage(errorType, errorMessage));
       this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.reconnecting'));
       Network.openStandby(loadIdentity()?.userId);
@@ -66,6 +77,7 @@ export class NetworkEventHandlerService {
       this.chatMessageService.calibrateTimeOffset();
     }, this.destroyRef);
     this.objectChange.peerReconnect$.subscribe((event) => {
+      if (this.localMode) return;
       const key = NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS[event.state];
       if (!key) return;
       this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name: this.resolvePeerName(event.peerId) }));

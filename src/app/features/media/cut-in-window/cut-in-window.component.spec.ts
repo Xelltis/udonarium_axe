@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CutInSoundService } from '@axe/application/media/cut-in-sound.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
@@ -62,6 +63,16 @@ describe('CutInWindowComponent', () => {
 
       expect(component.videoVolume).toBe(50);
     });
+
+    it('mutes a replicated face that does not own the audio', () => {
+      const cutIn = new CutIn('muted-replica-test');
+      cutIn.initialize();
+      cutIn.videoVolume = 75;
+      component.cutIn = cutIn;
+      component.audioEnabled = false;
+
+      expect(component.videoVolume).toBe(0);
+    });
   });
 
   describe('which volume a cut-in plays through', () => {
@@ -96,6 +107,84 @@ describe('CutInWindowComponent', () => {
 
       expect(component.audioPlayer.volumeType).toBe(VolumeType.MASTER);
     });
+
+    it('does not play attached audio on a replicated face', () => {
+      const play = vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(() => {});
+      vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(() => {});
+      AudioStorage.instance.add(makeReadyAudio('replica-audio'));
+
+      const cutIn = new CutIn('replica-audio-test');
+      cutIn.initialize();
+      cutIn.audioIdentifier = 'replica-audio';
+      component.cutIn = cutIn;
+      component.audioEnabled = false;
+
+      component.startCutIn();
+
+      expect(play).not.toHaveBeenCalled();
+    });
+  });
+
+  it('keeps a supplied multi-direction panel layout', () => {
+    const cutIn = new CutIn('layout-test');
+    cutIn.initialize();
+    component.cutIn = cutIn;
+    component.panelLayout = { left: -40, top: 120, width: 300, height: 220 };
+
+    component.moveCutInPos();
+
+    expect(component.left).toBe(-40);
+    expect(component.top).toBe(120);
+    expect(component.width).toBe(300);
+    expect(component.height).toBe(220);
+  });
+
+  it('keeps ordinary YouTube playback at its configured start', () => {
+    const cutIn = new CutIn('ordinary-video-test');
+    cutIn.initialize();
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://youtu.be/abcdefghijk?t=12';
+    component.cutIn = cutIn;
+    const target = { setVolume: vi.fn(), seekTo: vi.fn(), playVideo: vi.fn() };
+
+    component.startCutIn();
+    component.onPlayerReady({ target });
+
+    expect(target.seekTo).not.toHaveBeenCalled();
+    expect(target.playVideo).toHaveBeenCalled();
+  });
+
+  it('seeks a replicated YouTube face to the shared playback clock', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(10_000);
+    const cutIn = new CutIn('replicated-video-test');
+    cutIn.initialize();
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://youtu.be/abcdefghijk?t=12';
+    component.cutIn = cutIn;
+    const target = { setVolume: vi.fn(), seekTo: vi.fn(), playVideo: vi.fn() };
+
+    component.startCutIn(9_500);
+    vi.setSystemTime(10_500);
+    component.onPlayerReady({ target });
+
+    expect(target.seekTo).toHaveBeenCalledWith(13, true);
+    vi.useRealTimers();
+  });
+
+  it('keeps a prepared YouTube face paused until the coordinated start', () => {
+    const cutIn = new CutIn('prepared-video-test');
+    cutIn.initialize();
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://youtu.be/abcdefghijk?t=12';
+    component.cutIn = cutIn;
+    const target = { setVolume: vi.fn(), seekTo: vi.fn(), playVideo: vi.fn() };
+
+    component.onPlayerReady({ target });
+    expect(target.playVideo).not.toHaveBeenCalled();
+
+    component.startCutIn();
+    expect(target.playVideo).toHaveBeenCalledTimes(1);
   });
 
   describe('ngOnDestroy', () => {
@@ -190,6 +279,20 @@ describe('CutInWindowComponent', () => {
 
       vi.advanceTimersByTime(2);
       expect(close).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('starts the primary scene sound at zero after coordinated preparation', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(10_000);
+      const cutIn = makeCutIn();
+      const scene = giveScene(cutIn, true);
+      const sound = TestBed.inject(CutInSoundService);
+      const play = vi.spyOn(sound, 'play').mockReturnValue({ stop: vi.fn() });
+
+      component.startCutIn(9_950, 0);
+
+      expect(play).toHaveBeenCalledWith(scene, 0, false);
       vi.useRealTimers();
     });
   });

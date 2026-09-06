@@ -33,7 +33,7 @@
       (rotable.ondragstart)="onMove()"
       (rotable.valueChange)="onRotateChanged($event)"
       (rotable.ondragend)="onMoved()"
-      [rotable.disable]="isLock() || !isRotatableRangeType() || tabletopService.mode2d()"
+      [rotable.disable]="isLock() || !isRotatableRangeType()"
       #rotate
     >
       @if (isLock()) {

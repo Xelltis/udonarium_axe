@@ -14,12 +14,14 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
+import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -33,6 +35,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
+import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { vnEmoteLabels } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
@@ -54,6 +57,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class ChatMessageComponent {
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly imageStorage = inject(ImageStorage);
@@ -61,6 +65,7 @@ export class ChatMessageComponent {
   private readonly language = inject(LanguageService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly tabletopService = inject(TabletopService);
   protected readonly theme = inject(ThemeService);
   private readonly systemAvatar = inject(SystemAvatarService);
   private readonly systemAvatarMenu = inject(SystemAvatarMenuService);
@@ -326,6 +331,16 @@ export class ChatMessageComponent {
     return true;
   }
 
+  readonly canShowInTicker = computed(() => {
+    // A window that only reads the log offers none of the buttons that act on a line.
+    if (this.readOnly()) return false;
+
+    const message = this.chatMessageInput();
+    if (!message) return false;
+    this.objectChange.versionOf(message.identifier)();
+    return formatChatTickerMessage(message) != null;
+  });
+
   clickReply() {
     if (!this.canInteract) return;
     this.uiSignalService.requestChatReply(this.chatMessage.identifier);
@@ -334,6 +349,11 @@ export class ChatMessageComponent {
   clickQuote() {
     if (!this.canInteract) return;
     this.uiSignalService.requestChatQuote(this.chatMessage.identifier);
+  }
+
+  clickShowInTicker() {
+    if (!this.canShowInTicker()) return;
+    this.chatTickerSelection.showMessage(this.chatMessage.identifier);
   }
 
   jumpToReplyTarget() {
@@ -412,6 +432,7 @@ export class ChatMessageComponent {
     const width = Math.max(3, Math.min(8, Math.ceil(longest / 12)));
     const height = Math.max(2, Math.min(8, Math.ceil(lines.length / 3)));
     const note = TextNote.create(title, text, 14, width, height);
+    note.isUpright = !this.tabletopService.mode2d();
     note.location.x = Math.floor(Math.random() * 200 - 100);
     note.location.y = Math.floor(Math.random() * 200 - 100);
     SoundEffect.play(PresetSound.cardPut);

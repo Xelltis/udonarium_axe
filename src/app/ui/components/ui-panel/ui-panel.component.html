@@ -15,7 +15,12 @@
   [style.top.px]="top"
   [style.width.px]="width"
   [style.height]="contentMinimized ? 'auto' : isCompact() ? 'calc(100dvh - ' + keyboardInset() + 'px)' : height + 'px'"
+  [style.rotate]="rotationDegrees() + 'deg'"
+  [style.transform-origin]="'center center'"
+  [style.max-width]="isFullScreen() && isSideways ? 'none' : null"
+  [style.max-height]="isFullScreen() && isSideways ? 'none' : null"
   [style.zIndex]="isFullScreen() || isCompact() ? '201' : layer() > 0 ? layer() : null"
+  [attr.data-panel-rotation]="rotationDegrees()"
   [attr.data-z-layer]="layer() > 0 ? layer() : null"
   [style.opacity]="panelOpacity() < 1 ? panelOpacity() : null"
   tabindex="-1"
@@ -24,6 +29,7 @@
   [style.visibility]="panelService.invisible ? 'hidden' : ''"
   [style.pointer-events]="panelService.invisible || frameless ? 'none' : ''"
   [resizable.disable]="isMinimized() || isFullScreen() || isCompact() || frameless"
+  [resizable.rotation]="rotationDegrees()"
   [draggable.disable]="isCompact()"
   [resizable.minWidth]="minWidth"
   [resizable.minHeight]="minHeight"
@@ -31,6 +37,7 @@
   appDraggable
   appResizable
   #draggablePanel
+  (resizable.end)="onPanelResizeEnd()"
   (mouseenter)="showPortrait(true)"
   (mouseleave)="showPortrait(false)"
 >
@@ -102,6 +109,15 @@
             (click)="toggleMinimize()"
           >
             <i class="material-icons text-[14px]!">remove</i>
+          </button>
+          <button
+            data-testid="panel-rotate-90"
+            class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+            [attr.aria-label]="rotate90Title"
+            [title]="rotate90Title"
+            (click)="rotatePanelClockwise()"
+          >
+            <i class="material-icons text-[14px]!">rotate_right</i>
           </button>
           <button
             class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"

@@ -4,7 +4,12 @@ import { InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatLogExporter } from '@axe/domain/chat/chat-log-exporter';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { SYSTEM_CHAT_TAB_IDENTIFIER, SYSTEM_CHAT_TAB_NAME } from '@axe/domain/chat/constants';
+import {
+  SYSTEM_CHAT_TAB_IDENTIFIER,
+  SYSTEM_CHAT_TAB_NAME,
+  TICKER_CHAT_TAB_IDENTIFIER,
+  TICKER_CHAT_TAB_NAME,
+} from '@axe/domain/chat/constants';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 @SyncObject('chat-tab-list')
@@ -41,6 +46,27 @@ export class ChatTabList extends ObjectNode implements InnerXml {
     if (!system.plCanView) system.plCanView = true;
     if (!system.guestCanView) system.guestCanView = true;
     return system;
+  }
+
+  get tickerTab(): ChatTab | null {
+    return this.chatTabs.find((tab) => tab.isTickerTab) ?? null;
+  }
+
+  /** Makes the one room-synchronised tab that supplies the screen-edge ticker. */
+  ensureTickerTab(): ChatTab {
+    const ticker = this.tickerTab;
+    if (ticker) return this.shapeTickerTab(ticker);
+    const detached = ObjectStore.instance.get<ChatTab>(TICKER_CHAT_TAB_IDENTIFIER);
+    if (detached) return this.shapeTickerTab(this.appendChild(detached)!);
+    return this.shapeTickerTab(this.addChatTab(TICKER_CHAT_TAB_NAME, TICKER_CHAT_TAB_IDENTIFIER));
+  }
+
+  private shapeTickerTab(ticker: ChatTab): ChatTab {
+    if (ticker.name !== TICKER_CHAT_TAB_NAME) ticker.name = TICKER_CHAT_TAB_NAME;
+    if (!ticker.plCanView) ticker.plCanView = true;
+    if (!ticker.plCanSpeak) ticker.plCanSpeak = true;
+    if (!ticker.guestCanView) ticker.guestCanView = true;
+    return ticker;
   }
 
   /** The tabs people talk in. An export covers these alone. */

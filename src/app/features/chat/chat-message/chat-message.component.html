@@ -98,6 +98,15 @@
                   >edit</i
                 >
               }
+              @if (canShowInTicker()) {
+                <i
+                  data-testid="chat-message-ticker"
+                  class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
+                  [title]="'feature.chat.message.ticker' | transloco"
+                  (click)="clickShowInTicker()"
+                  >campaign</i
+                >
+              }
             }
           </div>
           @if (replyPreview(); as preview) {
@@ -365,6 +374,15 @@
                     [title]="'feature.chat.messageFix.change' | transloco"
                     (click)="startEdit()"
                     >edit</i
+                  >
+                }
+                @if (canShowInTicker()) {
+                  <i
+                    data-testid="chat-message-ticker"
+                    class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
+                    [title]="'feature.chat.message.ticker' | transloco"
+                    (click)="clickShowInTicker()"
+                    >campaign</i
                   >
                 }
               }

@@ -19,7 +19,7 @@ import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -30,7 +30,7 @@ import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-i
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
-import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -71,9 +71,17 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import {
+  DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
+  multiAngleNameMotionMode,
+  multiAngleOrbitAnimation,
+  multiAnglePieceMotionMode,
+  multiAngleRotationPhase,
+} from '@axe/domain/tabletop/multi-angle';
+import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
-import { buildGameCharacterContextMenu } from '@axe/features/character/game-character/game-character-context-menu';
+import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
@@ -90,6 +98,12 @@ import {
   makeScreenLiftTransform,
 } from '@axe/ui/tabletop/billboard-transform';
 import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
+import { makeMultiAngleCurvedName } from '@axe/ui/tabletop/multi-angle-curved-name';
+import {
+  makeMultiAngleBuffOrbit,
+  makeMultiAngleResourceGauge,
+  MAX_MULTI_ANGLE_RESOURCE_GAUGES,
+} from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_TALL_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
@@ -99,6 +113,7 @@ const DECOR_SUPERSAMPLE = 3;
 const DECOR_BASE_FONT_PX = 10;
 const NAME_BASE_FONT_PX = 15;
 const GAUGE_ROW_HEIGHT_PX = 13;
+const MULTI_ANGLE_RESOURCE_BUFF_DURATION_FACTOR = 1.25;
 
 type PresetSoundKey = Exclude<keyof typeof PresetSound, 'prototype'>;
 
@@ -135,6 +150,14 @@ const ROLL_HANDLE_MAX_PX = 56;
 const ROLL_HANDLE_SIZE_RATIO = 0.56;
 const ROLL_HANDLE_GAP_RATIO = 0.25;
 const ROLL_HANDLE_ICON_RATIO = 24 / 28;
+const RIGHT_DRAG_THRESHOLD_PX = 3;
+
+interface PieceRightDrag {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  dragged: boolean;
+}
 
 @Component({
   selector: 'game-character',
@@ -262,6 +285,8 @@ export class GameCharacterComponent {
     this.destroyRef.onDestroy(() => {
       clearTimeout(this.highlightTimer);
       clearTimeout(this.unhighlightTimer);
+      this.clearNativeContextMenuSuppression();
+      this.removeRightDragCenterMarker();
       for (const timer of this.floatingTimers) clearTimeout(timer);
       this.floatingTimers.clear();
     });
@@ -443,13 +468,25 @@ export class GameCharacterComponent {
     return table.imageBillboard || this.tabletopService.mode2d();
   });
 
+  readonly multiAnglePiecePedestalRotation = computed(() =>
+    this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
+  );
+
+  readonly multiAnglePieceImageRotation = computed(() =>
+    this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
+  );
+
+  private readonly pieceImageBillboardTransform = computed(() =>
+    [this.billboardTransformImage(), this.multiAnglePieceImageRotation()].filter((part) => part.length > 0).join(' ')
+  );
+
   readonly imageView = pieceImageView({
     imageUrl: computed(() => this.imageFile().url),
     isPoster: this.isPoster,
     sizePx: computed(() => this.size() * this.gridSize),
     specifiedHeightPx: computed(() => (this.specifyKomaImageFlag() ? this.komaImageHeightSignal() : null)),
     billboardEnabled: this.imageBillboardEnabled,
-    billboardTransform: this.billboardTransformImage,
+    billboardTransform: this.pieceImageBillboardTransform,
     squarePoster: true,
   });
 
@@ -484,7 +521,10 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
     this.objectChange.versionOf('Config')();
     const config = this.objectStore.get<Config>('Config') ?? null;
-    return asTableFacingMark(resolveRoomRules(config?.roomRuleAnswers ?? null, table).facingMark);
+    const mark = asTableFacingMark(resolveRoomRules(config?.roomRuleAnswers ?? null, table).facingMark);
+    // A piece that turns to face every side of a flat screen has no one facing to mark.
+    const display = this.tabletopService.tabletopDisplaySettings;
+    return mark === 'turn' && display.enabled() && display.multiAngleEnabled() ? 'none' : mark;
   });
 
   /**
@@ -511,7 +551,12 @@ export class GameCharacterComponent {
    */
   readonly facingArrowSizePx = computed(() => Math.max(16, Math.round(this.gridSize * 0.44)));
 
-  readonly facingArrowOffsetPx = computed(() => Math.round(this.gridSize * 0.06));
+  readonly facingArrowOffsetPx = computed(() => {
+    const baseOffset = Math.round(this.gridSize * 0.06);
+    if (!this.multiAngleResourceBuffOrbitEnabled()) return baseOffset;
+    const gauge = this.multiAngleResourceGaugeLayout();
+    return gauge.segments.length > 0 ? baseOffset + gauge.strokeWidth : baseOffset;
+  });
 
   private labelOrbitTransform(distance3d: number, distance2d: number): string {
     return makeLabelOrbitTransform({
@@ -560,6 +605,8 @@ export class GameCharacterComponent {
     for (const element of collectDataElements(buffEl)) this.objectChange.versionOf(element.identifier)();
     return toBuffBadges(buffEl);
   });
+
+  readonly orbitPieceGauges = computed(() => this.pieceGauges().slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES));
 
   protected readonly decorFontSizePx = DECOR_BASE_FONT_PX * DECOR_SUPERSAMPLE;
   protected readonly nameFontSizePx = NAME_BASE_FONT_PX * DECOR_SUPERSAMPLE;
@@ -621,7 +668,9 @@ export class GameCharacterComponent {
     return this.labelOrbitTransform(56, 96);
   });
 
-  private readonly gaugePanelHeightEstimate = computed(() => this.pieceGauges().length * GAUGE_ROW_HEIGHT_PX);
+  private readonly gaugePanelHeightEstimate = computed(() =>
+    this.multiAngleResourceBuffOrbitEnabled() ? 0 : this.pieceGauges().length * GAUGE_ROW_HEIGHT_PX
+  );
 
   readonly billboardTransformGauge = computed(() =>
     this.isPoster() ? '' : this.makeBillboardTransform(GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate() / 2)
@@ -639,6 +688,113 @@ export class GameCharacterComponent {
     if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 5)}px)`;
     return this.labelOrbitTransform(30, 60);
   });
+
+  readonly multiAngleNameOrbitEnabled = computed(() => {
+    const display = this.tabletopService.tabletopDisplaySettings;
+    return !this.isPoster() && display.enabled() && display.multiAngleEnabled();
+  });
+
+  readonly multiAngleResourceBuffOrbitEnabled = computed(() => {
+    return (
+      this.multiAngleNameOrbitEnabled() && this.tabletopService.tabletopDisplaySettings.multiAngleResourceBuffEnabled()
+    );
+  });
+
+  readonly multiAngleCurvedNameLayout = computed(() =>
+    makeMultiAngleCurvedName(this.multiAngleLabelText(), this.size() * this.gridSize)
+  );
+
+  readonly multiAngleLabelText = computed(() => {
+    if (this.hideBuff() || this.multiAngleResourceBuffOrbitEnabled()) return this.name();
+    const buffNames = this.buffBadges()
+      .map((buff) => buff.name.trim())
+      .filter((name) => name.length > 0)
+      .join('・');
+    if (buffNames.length < 1) return this.name();
+    const leadingBuff = Array.from(buffNames).slice(0, 5).join('');
+    return `${this.name()}/${leadingBuff}`;
+  });
+
+  readonly multiAngleResourceGaugeLayout = computed(() =>
+    makeMultiAngleResourceGauge(this.orbitPieceGauges(), this.size() * this.gridSize)
+  );
+
+  readonly multiAngleBuffOrbitLayout = computed(() => {
+    const name = this.multiAngleCurvedNameLayout();
+    const gauge = this.multiAngleResourceGaugeLayout();
+    const innerExtent = Math.max(name.radius + name.fontSize / 2 + name.strokeWidth / 2, gauge.outerExtent);
+    return makeMultiAngleBuffOrbit(this.buffBadges().length, this.size() * this.gridSize, innerExtent);
+  });
+
+  readonly multiAngleOrbitVisible = computed(
+    () =>
+      this.multiAngleNameOrbitEnabled() &&
+      ((this.name().length > 0 && !this.hideName()) ||
+        (this.multiAngleResourceBuffOrbitEnabled() &&
+          (this.orbitPieceGauges().length > 0 || (!this.hideBuff() && this.buffBadges().length > 0))))
+  );
+
+  readonly multiAngleCurvedNamePathId = computed(
+    () => `multi-angle-curved-name-${this.gameCharacter()?.identifier ?? 'unknown'}`
+  );
+
+  readonly multiAngleNameOrbitAnimation = computed(() => {
+    const display = this.tabletopService.tabletopDisplaySettings;
+    return multiAngleOrbitAnimation(
+      multiAngleNameMotionMode(display.multiAngleMotionMode()),
+      display.multiAngleRevolutionSeconds(),
+      display.multiAnglePauseSeconds()
+    );
+  });
+
+  readonly multiAngleResourceBuffOrbitAnimation = computed(() => {
+    const nameAnimation = this.multiAngleNameOrbitAnimation();
+    return {
+      durationSeconds: nameAnimation.durationSeconds * MULTI_ANGLE_RESOURCE_BUFF_DURATION_FACTOR,
+      timingFunction: nameAnimation.timingFunction,
+    };
+  });
+
+  private readonly multiAngleNamePhase = computed(() =>
+    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:name`)
+  );
+
+  private readonly multiAngleResourceBuffPhase = computed(() =>
+    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:resource-buff`)
+  );
+
+  private readonly multiAnglePiecePhase = computed(() =>
+    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:piece`)
+  );
+
+  readonly multiAngleNameOrbitDelaySeconds = computed(
+    () => -this.multiAngleNamePhase() * this.multiAngleNameOrbitAnimation().durationSeconds
+  );
+
+  readonly multiAngleResourceBuffOrbitDelaySeconds = computed(
+    () => -this.multiAngleResourceBuffPhase() * this.multiAngleResourceBuffOrbitAnimation().durationSeconds
+  );
+
+  readonly multiAnglePieceRevolutionSeconds = computed(() => {
+    const seconds = this.tabletopService.tabletopDisplaySettings.multiAnglePieceRevolutionSeconds();
+    return Number.isFinite(seconds)
+      ? Math.min(300, Math.max(5, seconds))
+      : DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS;
+  });
+
+  readonly multiAnglePieceRotationAnimation = computed(() => {
+    const display = this.tabletopService.tabletopDisplaySettings;
+    return multiAngleOrbitAnimation(
+      multiAnglePieceMotionMode(display.multiAngleMotionMode()),
+      this.multiAnglePieceRevolutionSeconds(),
+      display.multiAnglePauseSeconds()
+    );
+  });
+
+  readonly multiAnglePieceRotationDelaySeconds = computed(
+    () => -this.multiAnglePiecePhase() * this.multiAnglePieceRotationAnimation().durationSeconds
+  );
+
   readonly buffLabelOrbit = computed(() => {
     if (this.isPoster())
       return `translateY(${-(this.size() * this.gridSize + 12 + this.gaugePanelHeightEstimate())}px)`;
@@ -649,11 +805,15 @@ export class GameCharacterComponent {
   });
 
   private readonly buffPanelHeightEstimate = computed(() => {
-    if (this.hideBuff() || this.buffNum() < 1) return 0;
+    if (this.multiAngleResourceBuffOrbitEnabled() || this.hideBuff() || this.buffNum() < 1) return 0;
     if (this.buffViewMode() === 'detail') return this.buffChildren().length * BUFF_DETAIL_ROW_HEIGHT_PX;
     if (this.buffViewMode() === 'count') return BUFF_BADGE_ROW_HEIGHT_PX;
     return Math.ceil(this.buffBadges().length / BUFF_BADGES_PER_ROW) * BUFF_BADGE_ROW_HEIGHT_PX;
   });
+
+  protected multiAngleBuffOrbitTransform(angle: number, radius: number): string {
+    return `rotate(${angle}deg) translateY(${-radius}px)`;
+  }
 
   private readonly pieceImageHeightEstimate = computed(() => {
     if (!this.gameCharacter() || this.imageFile().url.length < 1) return 0;
@@ -688,22 +848,22 @@ export class GameCharacterComponent {
   /**
    * The frame everything above the pedestal hangs from.
    *
-   * Seen from above, the piece's own turn is taken back out here, once, so that the name, the
-   * bars and the balloon keep the side of the piece they were on however it is turned. The
-   * picture puts the turn back on itself where the table asks the picture to turn.
+   * The existing flat/multi-angle renderer takes the piece's turn back out on each billboard.
+   * Counter-rotating this shared 3D frame as well makes the image plane disappear in some
+   * browsers when the table switches to 2D, so the frame itself keeps the original transform.
    */
   readonly standTransform = computed(() => {
     if (this.isPoster()) return 'translateY(-50%)';
-    const held = this.mode2dEnabled() ? `rotateZ(${-this.rotateSignal()}deg) ` : '';
     return (
-      `${held}rotateY(90deg) rotateZ(-90deg) rotateY(-90deg) ` +
+      'rotateY(90deg) rotateZ(-90deg) rotateY(-90deg) ' +
       `translateY(-50%) translateY(${-this.altitude() * this.gridSize}px)`
     );
   });
 
   private makeBillboardTransform(verticalOffset3D: number, turnsWithPiece = false): string {
-    // Above the pedestal in plan there is no turn left to take out; only the picture puts one back.
-    const pieceRotate = this.mode2dEnabled() ? (turnsWithPiece ? -this.rotateSignal() : 0) : this.rotateSignal();
+    // In 2D every billboard cancels the piece's turn, except the picture when the table asks it
+    // to turn with the piece. This also composes with the multi-angle image rotation.
+    const pieceRotate = this.mode2dEnabled() && turnsWithPiece ? 0 : this.rotateSignal();
     return makeBillboardTransform({
       rotation: this.uiSignalService.tableViewRotation(),
       pieceRotate,
@@ -826,6 +986,116 @@ export class GameCharacterComponent {
     if (this.input) this.input.cancel();
   }
 
+  private rightDrag: PieceRightDrag | null = null;
+  private rightDragCenterMarker: HTMLElement | null = null;
+  private nativeContextMenuSuppressionTimer: ReturnType<typeof setTimeout> | null = null;
+  private nativeContextMenuSuppressor: ((event: MouseEvent) => void) | null = null;
+
+  protected onPiecePointerDown(event: PointerEvent): void {
+    this.checkKey(event);
+    if (event.button !== 2 || !this.tabletopService.tabletopDisplayMode()) return;
+
+    this.selectionSignalService.cancelTableGesture();
+    this.rightDrag = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      dragged: false,
+    };
+    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+  }
+
+  protected onPiecePointerMove(event: PointerEvent): void {
+    const drag = this.rightDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (!drag.dragged) {
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      drag.dragged = dx * dx + dy * dy > RIGHT_DRAG_THRESHOLD_PX * RIGHT_DRAG_THRESHOLD_PX;
+      if (!drag.dragged) return;
+      // Some platforms raise contextmenu on the press rather than the release. Once this is
+      // known to be a drag, remove that early menu and replace it at the release point.
+      this.contextMenuService.close();
+    }
+
+    this.showRightDragCenterMarker(event.clientX, event.clientY);
+    if (event.cancelable) event.preventDefault();
+  }
+
+  protected onPiecePointerUp(event: PointerEvent): void {
+    const drag = this.rightDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    this.releasePiecePointer(event);
+    this.removeRightDragCenterMarker();
+    this.rightDrag = null;
+    if (!drag.dragged) return;
+
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+    this.suppressNextNativeContextMenu();
+
+    const menuPosition: PointerCoordinate = { x: event.clientX, y: event.clientY, z: 0 };
+    const anchor = this.pieceScreenCenter(menuPosition);
+    this.openCharacterContextMenu(menuPosition, menuPosition, anchor);
+  }
+
+  protected onPiecePointerCancel(event: PointerEvent): void {
+    if (!this.rightDrag || this.rightDrag.pointerId !== event.pointerId) return;
+    this.releasePiecePointer(event);
+    this.removeRightDragCenterMarker();
+    this.rightDrag = null;
+  }
+
+  private showRightDragCenterMarker(x: number, y: number): void {
+    let marker = this.rightDragCenterMarker;
+    if (!marker) {
+      marker = document.createElement('div');
+      marker.dataset['pieceRightDragCenter'] = '';
+      marker.className = 'piece-right-drag-center';
+      marker.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(marker);
+      this.rightDragCenterMarker = marker;
+    }
+    marker.style.left = `${x}px`;
+    marker.style.top = `${y}px`;
+  }
+
+  private removeRightDragCenterMarker(): void {
+    this.rightDragCenterMarker?.remove();
+    this.rightDragCenterMarker = null;
+  }
+
+  private releasePiecePointer(event: PointerEvent): void {
+    const element = event.currentTarget as HTMLElement | null;
+    if (element?.hasPointerCapture?.(event.pointerId)) element.releasePointerCapture(event.pointerId);
+  }
+
+  private suppressNextNativeContextMenu(): void {
+    this.clearNativeContextMenuSuppression();
+    const suppressor = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.clearNativeContextMenuSuppression();
+    };
+    this.nativeContextMenuSuppressor = suppressor;
+    document.addEventListener('contextmenu', suppressor, true);
+    // A contextmenu generated by this release is dispatched in the same task. Do not let this
+    // guard consume a separate right click made later.
+    this.nativeContextMenuSuppressionTimer = setTimeout(() => this.clearNativeContextMenuSuppression(), 0);
+  }
+
+  private clearNativeContextMenuSuppression(): void {
+    if (this.nativeContextMenuSuppressor) {
+      document.removeEventListener('contextmenu', this.nativeContextMenuSuppressor, true);
+      this.nativeContextMenuSuppressor = null;
+    }
+    if (this.nativeContextMenuSuppressionTimer !== null) {
+      clearTimeout(this.nativeContextMenuSuppressionTimer);
+      this.nativeContextMenuSuppressionTimer = null;
+    }
+  }
+
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -837,6 +1107,17 @@ export class GameCharacterComponent {
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
     const position = this.pointerDeviceService.pointers[0];
+    this.openCharacterContextMenu(position);
+  }
+
+  private openCharacterContextMenu(
+    position: PointerCoordinate,
+    radialCenter?: { x: number; y: number },
+    radialAnchor?: { x: number; y: number }
+  ): void {
+    const char = this.gameCharacter();
+    if (!char || !this.disclosureService.canView(char)) return;
+
     if (this.pieceContextMenu.openForSelection(char, this.gridSize, position)) return;
     const overlapEntries = buildOverlapContextMenu(
       this.tabletopOverlap,
@@ -845,8 +1126,10 @@ export class GameCharacterComponent {
       position.y,
       this.translateFn
     );
-    const surfaceEntries = buildSurfaceSwitchContextMenu(char, this.tabletopService.currentTable, this.translateFn);
-    const baseMenu = buildGameCharacterContextMenu(
+    const table = this.tabletopService.currentTable;
+    const display = this.tabletopService.tabletopDisplaySettings;
+    const surfaceEntries = buildSurfaceSwitchContextMenu(char, table, this.translateFn);
+    const menu = buildGameCharacterContextMenuModel(
       char,
       this.gridSize,
       this.inventoryService,
@@ -866,13 +1149,58 @@ export class GameCharacterComponent {
       },
       this.translateFn,
       overlapEntries,
-      this.buffViewMode()
+      this.buffViewMode(),
+      surfaceEntries
     );
-    this.contextMenuService.open(
-      position,
-      surfaceEntries.length > 0 ? [...baseMenu, ContextMenuSeparator, ...surfaceEntries] : baseMenu,
-      this.name()
-    );
+    if (!display.enabled()) {
+      this.contextMenuService.open(position, menu.actions, this.name());
+      return;
+    }
+
+    const rootBounds = this.rootElementRef()?.nativeElement.getBoundingClientRect();
+    const menuCenter = radialCenter ?? this.pieceScreenCenter(position, rootBounds);
+    const menuClearanceRadius = rootBounds ? this.contextMenuClearanceRadius(rootBounds) : 0;
+    const menuOcclusionHalfExtent = rootBounds ? Math.max(rootBounds.width, rootBounds.height) / 2 : 0;
+    const args = [
+      menuCenter,
+      menu.actions,
+      menu.radialGroups,
+      this.name(),
+      display.radialMenuEnabled(),
+      display.radialMenuRotationSpeed(),
+      multiAngleFontScaleFactor(display.multiAngleFontScale()),
+      menuClearanceRadius,
+      menuOcclusionHalfExtent,
+    ] as const;
+    if (radialAnchor) {
+      this.contextMenuService.openRadial(...args, radialAnchor);
+    } else {
+      this.contextMenuService.openRadial(...args);
+    }
+  }
+
+  private pieceScreenCenter(fallback: { x: number; y: number }, rootBounds?: DOMRect): { x: number; y: number } {
+    const bounds = rootBounds ?? this.rootElementRef()?.nativeElement.getBoundingClientRect();
+    return bounds
+      ? { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 }
+      : { x: fallback.x, y: fallback.y };
+  }
+
+  private contextMenuClearanceRadius(rootBounds: DOMRect): number {
+    const pieceDiameter = this.size() * this.gridSize;
+    const renderedDiameter = Math.max(rootBounds.width, rootBounds.height);
+    if (pieceDiameter <= 0 || renderedDiameter <= 0) return 0;
+
+    const renderedScale = renderedDiameter / pieceDiameter;
+    const curvedName = this.multiAngleCurvedNameLayout();
+    const nameExtent = curvedName.radius + curvedName.fontSize / 2 + curvedName.strokeWidth / 2;
+    const buffOrbit = this.multiAngleBuffOrbitLayout();
+    const resourceBuffExtent =
+      this.multiAngleResourceBuffOrbitEnabled() && !this.hideBuff() && this.buffBadges().length > 0
+        ? buffOrbit.radius + buffOrbit.iconSize / 2
+        : 0;
+    if (this.size() <= 1) return resourceBuffExtent * renderedScale;
+    return Math.max(nameExtent, resourceBuffExtent) * renderedScale;
   }
 
   /** How it goes down, set only while an effect is aimed at it. */

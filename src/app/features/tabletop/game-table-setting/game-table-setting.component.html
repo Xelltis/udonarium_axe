@@ -396,6 +396,60 @@
             />
             {{ 'feature.tabletop.tableSetting.imageBillboard' | transloco }}
           </label>
+
+          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+            <input
+              type="checkbox"
+              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+              [(ngModel)]="tableMode2d"
+              name="tableMode2d"
+            />
+            {{ 'feature.tabletop.tableSetting.mode2d' | transloco }}
+          </label>
+
+          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+            <input
+              type="checkbox"
+              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+              [(ngModel)]="tableTerrainRotationIn2dEnabled"
+              name="tableTerrainRotationIn2dEnabled"
+            />
+            {{ 'feature.tabletop.tableSetting.terrainRotationIn2d' | transloco }}
+          </label>
+          <div class="mt-1 flex flex-col gap-1.5">
+            <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+              <span class="flex-1">{{ 'feature.tabletop.tableSetting.realSizeCellMm' | transloco }}</span>
+              <input
+                type="number"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-18 border border-solid px-1 py-0.5 text-[13px]"
+                min="5"
+                max="200"
+                step="0.1"
+                [(ngModel)]="cellMm"
+                name="realSizeCellMm"
+              />
+              <span class="text-ui-muted text-[12px]">mm</span>
+            </label>
+            <span class="text-ui-accent text-[12px]">
+              @if (cellSummary().unit === 'cell') {
+                {{
+                  'feature.tabletop.tableSetting.realSizeSummaryPlain'
+                    | transloco: { mm: cellSummary().mm, inches: cellSummary().inches }
+                }}
+              } @else {
+                {{
+                  'feature.tabletop.tableSetting.realSizeSummary'
+                    | transloco
+                      : {
+                          mm: cellSummary().mm,
+                          inches: cellSummary().inches,
+                          distance: cellSummary().distance,
+                          unit: 'feature.tabletop.tableSetting.cellUnit.' + cellSummary().unit | transloco,
+                        }
+                }}
+              }
+            </span>
+          </div>
         </div>
       </div>
 

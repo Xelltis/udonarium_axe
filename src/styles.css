@@ -141,6 +141,7 @@
   --animate-coin-flip-turn: coinFlipTurn 900ms cubic-bezier(0.33, 0, 0.35, 1);
   --animate-chat-slide-in: chatSlideIn 200ms ease-out;
   --animate-chat-fade-in: chatFadeIn 200ms ease-out;
+  --animate-radial-orbit: spin 72s linear infinite;
   --animate-vn-fade-in: vnFadeIn 280ms ease-out;
   --animate-vn-leave: vnLeave 1600ms ease-in 500ms forwards;
   --animate-vn-slide-in: vnSlideIn 320ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -169,6 +170,8 @@
   --animate-focused: focused 1s ease;
   --animate-target-bob: targetBob 1.1s ease-in-out infinite;
   --animate-target-ring: targetRing 1.1s ease-in-out infinite;
+  --animate-multi-angle-name-orbit: multiAngleNameOrbit 12s linear infinite;
+  --animate-multi-angle-piece-spin: multiAnglePieceSpin 60s linear infinite;
   /* mini-jukebox のトラック名横スクロール。--scroll-dist は MiniJukeboxComponent が
      対象 element に直接 setProperty で注入する。 */
   --animate-title-scroll: title-scroll 7s ease-in-out infinite;
@@ -585,6 +588,36 @@ chat-message > div > div {
   --ui-shadow-sm: 0 2px 8px rgba(91, 64, 116, 0.14);
   --ui-shadow-md: 0 4px 20px rgba(91, 64, 116, 0.18), 0 1px 4px rgba(91, 64, 116, 0.1);
   --ui-shadow-lg: 0 8px 40px rgba(91, 64, 116, 0.22), 0 2px 8px rgba(91, 64, 116, 0.14);
+}
+
+/* Right-dragged piece menus use this translucent crosshair both while dragging and
+   while the menu is open. It is deliberately larger than a mouse pointer. */
+.piece-right-drag-center {
+  position: fixed;
+  z-index: 10001;
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  border: 2px solid color-mix(in srgb, var(--ui-accent) 78%, transparent);
+  border-radius: 50%;
+  background:
+    linear-gradient(
+        color-mix(in srgb, var(--ui-accent) 72%, transparent),
+        color-mix(in srgb, var(--ui-accent) 72%, transparent)
+      )
+      center / 24px 2px no-repeat,
+    linear-gradient(
+        color-mix(in srgb, var(--ui-accent) 72%, transparent),
+        color-mix(in srgb, var(--ui-accent) 72%, transparent)
+      )
+      center / 2px 24px no-repeat,
+    color-mix(in srgb, var(--ui-menu-bg) 32%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--ui-accent) 14%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  opacity: 0.86;
+  transform: translate(-50%, -50%);
 }
 
 /* Multi-select highlight applied by SelectableDirective on tabletop object roots.
@@ -1005,6 +1038,93 @@ chat-message > div > div {
     border-top: 1px solid var(--ui-panel-border);
     margin: 0.5em 0;
   }
+}
+
+/* 回転メニューの独立した項目でも、通常メニューと同じように下地の上へホバー色を重ねる。 */
+button.rotating-menu-item:hover:not(:disabled) {
+  background: var(--ui-menu-bg);
+  box-shadow:
+    inset 0 0 0 9999px var(--ui-menu-hover),
+    var(--ui-shadow-lg);
+  color: var(--ui-accent);
+}
+
+/* 回転メニューの親項目は、表示形状とクリック領域を同じドーナツセクターにする。 */
+button.radial-menu-sector {
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+button.radial-menu-sector:hover:not(:disabled),
+button.radial-menu-sector:focus-visible:not(:disabled),
+button.radial-menu-sector.radial-menu-sector-active:not(:disabled) {
+  background: var(--ui-menu-bg);
+  box-shadow: inset 0 0 0 9999px var(--ui-menu-hover);
+  color: var(--ui-accent);
+}
+
+button.radial-menu-sector:focus-visible {
+  outline: none;
+}
+
+button.radial-child-menu-item-detached {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+button.radial-child-menu-item-detached:hover:not(:disabled),
+button.radial-child-menu-item-detached:focus-visible:not(:disabled),
+button.radial-child-menu-item-detached.radial-child-menu-item-active:not(:disabled) {
+  background: var(--ui-menu-bg);
+  box-shadow:
+    inset 0 0 0 9999px var(--ui-menu-hover),
+    0 1px 3px rgba(0, 0, 0, 0.38);
+  color: var(--ui-accent);
+}
+
+button.radial-child-menu-item:focus-visible {
+  outline: none;
+}
+
+/* 回転メニューから開く子・孫メニューは、外箱ではなく各項目に黒い下地を持たせる。 */
+.context-menu-detached-title {
+  margin-bottom: 2px;
+  border: 1px solid var(--ui-menu-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-menu-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+.context-menu-detached-item {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+.context-menu-detached-item:hover {
+  background: var(--ui-menu-bg);
+  box-shadow:
+    inset 0 0 0 9999px var(--ui-menu-hover),
+    0 1px 3px rgba(0, 0, 0, 0.38);
+  color: var(--ui-accent);
+}
+
+/* 高度スライダーは通常の項目行ではないため、分離表示時だけ専用の不透明パネルで支える。 */
+.context-menu-detached-altitude-slider-panel {
+  display: flex;
+  align-self: stretch;
+  margin-right: 2px;
+  border: 1px solid var(--ui-menu-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-menu-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+.context-menu-detached-altitude-title {
+  margin-bottom: 2px;
+  border: 1px solid var(--ui-menu-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-menu-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
 }
 
 html,
@@ -1656,6 +1776,31 @@ input[type='range']::-moz-range-thumb {
   }
   50% {
     opacity: 0.35;
+  }
+}
+
+/* CSS の正方向は画面上で時計回り。下を 0deg として、名前をコマの周囲に公転させる。 */
+@keyframes multiAngleNameOrbit {
+  from {
+    transform: rotateZ(0deg);
+  }
+  to {
+    transform: rotateZ(360deg);
+  }
+}
+
+@property --multi-angle-piece-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
+
+@keyframes multiAnglePieceSpin {
+  from {
+    --multi-angle-piece-angle: 0deg;
+  }
+  to {
+    --multi-angle-piece-angle: 360deg;
   }
 }
 

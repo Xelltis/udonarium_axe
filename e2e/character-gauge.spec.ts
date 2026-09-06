@@ -57,7 +57,12 @@ async function box(locator: Locator) {
 
 test.describe('コマの頭上表示', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('ui-lang', 'ja'));
+    await page.addInitScript(() => {
+      localStorage.setItem('ui-lang', 'ja');
+      // The badges slide in over 160ms, and the geometry checks below measure the three of
+      // them one at a time. Measured mid-slide they never agree, so hold the motion still.
+      localStorage.setItem('ui-motion', 'off');
+    });
     await waitAppReady(page);
     await createCharacter(page);
   });

@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
+import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Config } from '@axe/domain/peer/config';
@@ -75,6 +77,62 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
+  describe('what this screen measures', () => {
+    it('reads the game distance from the table, which the room shares', () => {
+      const table = new GameTable();
+      table.initialize();
+      table.cellDistance = 5;
+      table.cellDistanceUnit = 'foot';
+      component.selectedTable = table;
+
+      // The check beside the calibration reads the table's own value rather than a second count.
+      expect(component.cellSummary().distance).toBe(5);
+      expect(component.cellSummary().unit).toBe('foot');
+      table.destroy();
+    });
+
+    it('keeps the width of a square on the table, where the map is shared from', () => {
+      const table = new GameTable();
+      table.initialize();
+      component.selectedTable = table;
+
+      component.cellMm = 30;
+
+      expect(table.cellMm).toBe(30);
+      expect(component.cellMm).toBe(30);
+      table.destroy();
+    });
+
+    it('reads a square back in inches, which is what a base is sold in', () => {
+      const table = new GameTable();
+      table.initialize();
+      component.selectedTable = table;
+      TestBed.inject(DisplayCalibrationService).calibrateFromCardRun(274, 1);
+
+      expect(component.cellSummary()).toEqual({ mm: 25.4, inches: 1, distance: 1, unit: 'cell' });
+      table.destroy();
+    });
+
+    it('leaves the table alone when the device settings are reset', () => {
+      const table = new GameTable();
+      table.initialize();
+      component.selectedTable = table;
+      component.cellMm = 30;
+      const calibration = TestBed.inject(DisplayCalibrationService);
+      calibration.calibrateFromCardRun(274, 1);
+      calibration.setRealSizeEnabled(true);
+
+      // The reset lives on the tabletop display panel now, since the measurement is the device's.
+      calibration.reset();
+
+      expect(calibration.isCalibrated()).toBe(false);
+      expect(TestBed.inject(ViewLockService).locked()).toBe(false);
+      // The map still asks for a 30mm square, whatever this screen has forgotten.
+      expect(table.cellMm).toBe(30);
+      table.destroy();
+    });
+  });
+
   describe('signal-driven CD', () => {
     it('reads the deleted flag through a collection signal', () => {
       const objectChangeService = TestBed.inject(ObjectChangeService);
@@ -102,6 +160,44 @@ describe('GameTableSettingComponent', () => {
       void component.tableDistanceviewImage;
       expect(spy).toHaveBeenCalledWith(table.identifier);
     });
+  });
+
+  it('stores the 2D terrain rotation setting on the table', () => {
+    const table = new GameTable();
+    table.initialize();
+    component.selectedTable = table;
+
+    try {
+      expect(component.tableTerrainRotationIn2dEnabled).toBe(false);
+      component.tableTerrainRotationIn2dEnabled = true;
+      expect(table.terrainRotationIn2dEnabled).toBe(true);
+    } finally {
+      table.destroy();
+    }
+  });
+
+  it('shows the terrain rotation permission even while table 2D mode is off', async () => {
+    const table = new GameTable();
+    table.initialize();
+    table.mode2d = false;
+    component.selectedTable = table;
+
+    try {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const terrainRotation = fixture.nativeElement.querySelector(
+        'input[name="tableTerrainRotationIn2dEnabled"]'
+      ) as HTMLInputElement;
+      expect(terrainRotation).toBeTruthy();
+      // The projection follows the device's tabletop display mode, so the table no longer holds it.
+      expect(fixture.nativeElement.querySelector('input[name="tableOrthographicProjection"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('input[name="tableRadialMenuEnabled"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('select[name="tableMultiAngleFontScale"]')).toBeNull();
+    } finally {
+      table.destroy();
+    }
   });
 
   describe('choosing a table from the list', () => {

@@ -39,6 +39,7 @@
       "chatWindow": "채팅 창",
       "gameTableSetting": "테이블 설정",
       "roomSettings": "방 설정",
+      "tabletopDisplaySetting": "테이블톱 디스플레이 설정",
       "fileStorage": "파일 목록",
       "jukebox": "주크박스",
       "cutInList": "컷인 목록",
@@ -693,6 +694,12 @@
       }
     },
     "textNote": {
+      "contextMenu": {
+        "radialContent": "내용",
+        "radialDisplay": "표시",
+        "radialDisclosure": "공개·소유자",
+        "radialObject": "이동·조작"
+      },
       "section": {
         "layout": "레이아웃"
       },
@@ -1403,7 +1410,15 @@
         "deployDice": "주사위 펼치기({{count}}개)",
         "showVisionRange": "시야 범위 표시",
         "target": "타깃",
-        "clearTargets": "타깃 모두 해제"
+        "clearTargets": "타깃 모두 해제",
+        "radialBasic": "기본 정보",
+        "radialChat": "채팅",
+        "radialBuffEffect": "버프·연출",
+        "radialDisplay": "표시",
+        "radialMove": "이동",
+        "radialDisclosure": "공개·소유자",
+        "radialObject": "말 조작",
+        "showVisionRange": "시야 범위 표시"
       },
       "panel": {
         "sheet": "캐릭터 시트",
@@ -1526,7 +1541,10 @@
         "unfollow": "따라가지 않기",
         "skin": "스킨",
         "skinFromLibrary": "이미지 보관함에서 선택",
-        "skinNone": "스킨 없음"
+        "skinNone": "스킨 없음",
+        "radialAppearance": "광원·외형",
+        "radialPosition": "위치·따라가기",
+        "radialObject": "오브젝트 조작"
       },
       "preset": {
         "custom": "커스텀",
@@ -1638,6 +1656,15 @@
       }
     },
     "tabletop": {
+      "tabletopDisplaySetting": {
+        "enabled": "테이블톱 디스플레이 모드 켜기",
+        "localHint": "평행 투영으로 표시됩니다. 설정은 이 브라우저에만 적용되며 다른 참가자와 동기화되지 않습니다.",
+        "menuAndDisplay": "메뉴 및 표시",
+        "multiAngleDisplay": "말 다방향 표시",
+        "multiAngleLocalHint": "이 브라우저에서는 원형 회전 표시가 말 전체 회전보다 우선합니다.",
+        "ticker": "외곽 티커",
+        "realSize": "실측 표시와 화면 고정"
+      },
       "ccfoliaImport": {
         "tableName": "코코포리아 룸",
         "imported": "코코포리아 룸을 가져왔습니다(테이블 {{tables}}개 / 패널 {{panels}}건 / 말 {{pieces}}체). \"{{table}}\"을(를) 표시하고 있습니다.",
@@ -1726,10 +1753,22 @@
         "unlock": "고정 해제",
         "lockMarkShow": "고정 표시 보이기",
         "lockMarkHide": "고정 표시 지우기",
+        "viewLockOn": "☑ 화면 고정",
+        "viewLockOff": "☐ 화면 고정",
+        "snapToRealSize": "실제 크기로 되돌리기",
         "copy": "복제 만들기",
         "delete": "삭제하기",
         "createObject": "오브젝트 만들기",
+        "createObject1": "오브젝트 만들기 1",
+        "createObject2": "오브젝트 만들기 2",
         "terrainEdit": "지형 설정 편집",
+        "radialShape": "지형·문",
+        "radialAppearance": "외형·조명",
+        "radialMoveCreate": "이동·만들기",
+        "radialObject": "오브젝트 조작",
+        "radialRangePosition": "위치·따라가기",
+        "radialRangeShape": "형상",
+        "radialRangeEditCreate": "편집·만들기",
         "lightSection": "어둠(시야·발광)",
         "blocksSight": "시야를 막음",
         "blocksLight": "빛을 막음(창문이면 끔)",
@@ -1863,6 +1902,47 @@
         "snapAll": "셀＋교차점＋변",
         "sectionDisplay": "표시 모드",
         "imageBillboard": "이미지를 카메라를 향하게",
+        "mode2d": "2D 모드(부감 고정)",
+        "terrainRotationIn2d": "지형 회전 허용(일반적으로 2D 모드에서는 고정)",
+        "cutInMultiDirection": "컷인 다방향 표시",
+        "cutInMultiDirection_none": "사용 안 함",
+        "cutInMultiDirection_vertical": "상하",
+        "cutInMultiDirection_vertical-right": "상하우",
+        "cutInMultiDirection_vertical-left": "상하좌",
+        "cutInMultiDirection_four-directions": "상하좌우",
+        "hoverDetailPlacement": "말 상세 표시",
+        "hoverDetailPlacement_piece": "말 근처에 표시(기존)",
+        "hoverDetailPlacement_screen-edges": "화면 가장자리에 4방향 표시(편집 불가)",
+        "multiAngleFontScale": "메뉴·티커 글자 크기",
+        "multiAngleFontScale_small": "작게",
+        "multiAngleFontScale_medium": "보통",
+        "multiAngleFontScale_large": "크게",
+        "cellDistance": "한 칸의 거리",
+        "realSizeSummary": "한 칸 = {{mm}}mm ({{inches}}인치) = {{distance}}{{unit}}",
+        "realSizeSummaryPlain": "한 칸 = {{mm}}mm ({{inches}}인치)",
+        "realSize": "한 칸을 실제 크기로 표시",
+        "viewLock": "화면 고정 (이동·확대·회전 정지)",
+        "realSizeCellMm": "한 칸의 실제 크기",
+        "realSizeDpi": "이 화면은 약 {{dpi}} dpi",
+        "realSizeSmaller": "한 칸을 작게",
+        "realSizeLarger": "한 칸을 크게",
+        "realSizeStale": "화면이 바뀌었습니다. 다시 맞춰 주세요.",
+        "realSizeUncalibrated": "이 기기는 아직 화면을 측정하지 않았습니다.",
+        "realSizeCalibrate": "실측 재조정",
+        "realSizeReset": "이 기기의 설정을 초기화",
+        "radialMenu": "회전 메뉴 표시",
+        "radialMenuHelp": "오른쪽 클릭으로 회전 메뉴를 열고, 연속 클릭으로 강제 회전하거나 오른쪽 드래그로 표시 위치를 옮길 수 있습니다. 각 메뉴 항목에서 여는 창은 중심을 기준으로 나눈 네 방향 중 하나를 향합니다.",
+        "radialMenuSpeed": "회전 속도",
+        "multiAngle": "말 이름을 원주를 따라 회전",
+        "multiAngleResourceBuff": "리소스·버프 회전 표시(최대 4개)",
+        "multiAngleMotionMode": "회전 방식",
+        "multiAngleContinuous": "시계 방향으로 연속 회전",
+        "multiAngleQuarterTurn": "90° 회전 후 정지",
+        "multiAnglePieceQuarterTurn": "말만 90° 회전 후 정지",
+        "multiAngleRevolutionSeconds": "회전 시간(한 바퀴)",
+        "multiAnglePieceRevolutionSeconds": "말 본체의 한 바퀴 회전 시간",
+        "multiAnglePauseSeconds": "90° 회전 후 정지 시간",
+        "seconds": "초",
         "sectionDarkness": "어둠(시야·조명)",
         "darknessEnabled": "어둠 사용",
         "lightSnapToGrid": "조명을 칸에 맞추기",
@@ -1905,7 +1985,45 @@
         "fogColor": "안개 색",
         "fogReset": "안개 초기화",
         "openRoomSettings": "방 설정 열기",
-        "roomSettingsHint": "이동 범위·ZOC·기본 다이스봇은 방 전체 설정입니다"
+        "roomSettingsHint": "이동 범위·ZOC·기본 다이스봇은 방 전체 설정입니다",
+        "sectionMoveRange": "이동 범위",
+        "moveRangeEnabled": "말을 집어 들면 이동할 수 있는 칸을 표시",
+        "moveRangeAlways": "선택한 말의 이동 범위를 계속 표시",
+        "moveDiagonally": "대각선 이동을 허용한다 (한 칸으로 계산)",
+        "piecesShareCells": "같은 칸에 여러 말을 놓을 수 있음 (끄면 다른 말이 있는 칸은 이동 대상에서 제외)",
+        "moveRangeElementNames": "참조할 항목",
+        "cellDistanceUnit": "칸 단위",
+        "moveRangeHint": "항목 이름은 쉼표로 구분하며 시트에서 먼저 찾은 것을 사용합니다. 시트의 값을 한 칸의 거리로 나누어 칸 수로 만듭니다(0이면 나누지 않음). 시트의 단위가 탁자와 다르면 피트와 미터를 환산하고, 시트가 칸이면 그대로 칸 수로 읽습니다.",
+        "zocMode": "ZOC(지배 영역)",
+        "zocMode_none": "없음",
+        "zocMode_stop": "발묶기 (들어가면 이동 종료)",
+        "zocMode_block": "진입 불가 (그 칸에는 들어갈 수 없음)",
+        "zocMode_cost": "이동 코스트 증가 (들어갈 때 추가 소모)",
+        "zocRange": "ZOC 범위",
+        "zocExtraCost": "추가 이동 코스트",
+        "zocAlways": "ZOC 상시 표시",
+        "zocAlwaysHint": "선택한 말에 대한 ZOC를 계속 표시",
+        "zocHint": "NPC 여부가 다른 말을 적으로 보고, 그 주위 칸이 이동을 방해합니다. 자신에게 보이지 않는 말은 ZOC를 만들지 않습니다.",
+        "cellUnit": {
+          "cell": "칸",
+          "metre": "미터",
+          "foot": "피트"
+        }
+      },
+      "displayCalibration": {
+        "title": "화면 실제 크기 맞추기",
+        "intro": "신용카드를 화면에 대고, 테두리가 정확히 맞을 때까지 폭을 조절해 주세요.",
+        "cards": "사용할 카드 수",
+        "cardsOne": "1장",
+        "cardsTwo": "2장 (가로로 나란히)",
+        "cardsTwoTooNarrow": "이 화면에는 2장 크기의 테두리가 들어가지 않습니다",
+        "frameHint": "여기에 카드를 대 주세요",
+        "frameWidth": "테두리 폭",
+        "cellMm": "한 칸의 실제 크기",
+        "result": "이 화면은 {{pxPerMm}} px/mm (약 {{dpi}} dpi)",
+        "cellPreview": "한 칸 {{mm}}mm ({{inches}}인치) 를 {{px}}px 로 표시합니다",
+        "hint": "카드 2장 쪽이 오차가 적습니다. 맞춘 뒤에는 미니어처 받침을 한 칸에 올려 확인하고, 어긋나면 테이블 설정의 \"한 칸을 크게 / 작게\"로 조정해 주세요.",
+        "confirm": "맞았습니다"
       },
       "dungeonGenerator": {
         "atmosphere": {
@@ -2206,6 +2324,10 @@
         "voteMenuTitle": "점호/투표 설정",
         "alarmMenuTitle": "알람 타이머",
         "tabSettingTitle": "채팅 탭 설정",
+        "tickerEnabled": "가장자리 티커 표시",
+        "tickerTabletopDisplayOnly": "탁상 디스플레이 모드 전용",
+        "tickerSpeed": "속도",
+        "tickerSpeedUnit": "px/초",
         "noTarget": "대상이 선택되지 않았습니다",
         "writingOthers": "외 {{count}}명 입력 중"
       },
@@ -2249,6 +2371,7 @@
         "quote": "인용",
         "jumpToOriginal": "원래 메시지로 이동",
         "shareAsMemo": "공유 메모로 보내기",
+        "ticker": "티커",
         "copyToTab": "다른 탭으로 복사"
       },
       "stream": {
@@ -3090,7 +3213,9 @@
         "settings": "환경 이펙트 설정",
         "kind": "종류 바꾸기",
         "density": "짙기 바꾸기",
-        "size": "넓이 바꾸기"
+        "size": "넓이 바꾸기",
+        "radialAppearance": "외형",
+        "radialObject": "오브젝트 조작"
       },
       "kind": {
         "fog": "짙은 안개",
@@ -3556,6 +3681,7 @@
       "chat": "채팅",
       "tableSetting": "테이블 설정",
       "roomSettings": "방 설정",
+      "tabletopDisplaySetting": "테이블톱 디스플레이",
       "images": "이미지",
       "jukebox": "주크박스",
       "cutIn": "컷인",
@@ -3610,10 +3736,22 @@
       "index": "인덱스",
       "altitudeHigh": "고",
       "altitudeLow": "저",
-      "altitudeLabel": "고도"
+      "altitudeLabel": "고도",
+      "radial": {
+        "menuTitle": "캐릭터 메뉴",
+        "chooseDirection": "조작할 방향 선택",
+        "seatNorth": "북쪽에서 조작",
+        "seatEast": "동쪽에서 조작",
+        "seatSouth": "남쪽에서 조작",
+        "seatWest": "서쪽에서 조작",
+        "back": "이전 단계로 돌아가기",
+        "return": "돌아가기",
+        "nextPage": "다음 페이지"
+      }
     },
     "panel": {
       "menuTitle": "메뉴",
+      "rotate90": "시계 방향으로 90도 회전",
       "transparency": "투명도",
       "ghost": "투명 모드"
     },

@@ -229,6 +229,8 @@ export class MobileShellComponent {
         return 'tableSetting';
       case 'roomSettings':
         return 'roomSettings';
+      case 'tabletopDisplaySetting':
+        return 'tabletopDisplaySetting';
       case 'images':
         return 'fileStorage';
       case 'jukebox':

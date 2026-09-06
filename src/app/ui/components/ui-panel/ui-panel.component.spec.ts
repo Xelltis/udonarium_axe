@@ -400,8 +400,57 @@ describe('UIPanelComponent', () => {
       );
 
       expect(icons).not.toContain('remove');
+      expect(icons).not.toContain('rotate_right');
       expect(icons).not.toContain('fullscreen');
       expect(icons).toContain('close');
+    });
+  });
+
+  describe('quarter-turn rotation', () => {
+    function panel(): HTMLElement {
+      return fixture.nativeElement.querySelector('.draggable-panel');
+    }
+
+    it('adds a clockwise 90 degree button to ordinary panel title bars', () => {
+      fixture.detectChanges();
+
+      const button = fixture.nativeElement.querySelector('[data-testid="panel-rotate-90"]') as HTMLButtonElement;
+      expect(button).toBeTruthy();
+      expect(button.title).toBe('時計回りに90度回転');
+      expect(button.textContent?.trim()).toBe('rotate_right');
+    });
+
+    it('cycles the whole panel through the four screen directions', () => {
+      fixture.detectChanges();
+
+      for (const degrees of [90, 180, 270, 0]) {
+        component.rotatePanelClockwise();
+        fixture.detectChanges();
+        expect(component.rotationDegrees()).toBe(degrees);
+        expect(panel().style.rotate).toBe(`${degrees}deg`);
+        expect(panel().dataset['panelRotation']).toBe(`${degrees}`);
+      }
+    });
+
+    it('starts in the direction supplied by the opening menu', () => {
+      component.setInitialRotation(180);
+      fixture.detectChanges();
+
+      expect(component.rotationDegrees()).toBe(180);
+      expect(panel().style.rotate).toBe('180deg');
+    });
+
+    it('swaps the fullscreen box dimensions while the panel is sideways', () => {
+      fixture.detectChanges();
+      component.rotatePanelClockwise();
+      component.toggleFullScreen();
+      fixture.detectChanges();
+
+      expect(component.isFullScreen()).toBe(true);
+      expect(panel().style.width).toBe(`${window.innerHeight}px`);
+      expect(panel().style.height).toBe(`${window.innerWidth}px`);
+      expect(panel().style.maxWidth).toBe('none');
+      expect(panel().style.maxHeight).toBe('none');
     });
   });
 

@@ -14,12 +14,25 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ModalService } from '@axe/application/ui/modal.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const SUBMENU_OVERLAP_PX = 4;
 const SUBMENU_RISE_PX = 16;
+
+function screenDeltaToMenuDelta(x: number, y: number, rotationDegrees: number): { x: number; y: number } {
+  const radians = (-rotationDegrees * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return {
+    x: x * cos - y * sin,
+    y: x * sin + y * cos,
+  };
+}
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'context-menu',
@@ -30,6 +43,8 @@ const SUBMENU_RISE_PX = 16;
 export class ContextMenuComponent {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   contextMenuService = inject(ContextMenuService);
+  private readonly panelService = inject(PanelService);
+  private readonly modalService = inject(ModalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly destroyRef = inject(DestroyRef);
@@ -42,11 +57,17 @@ export class ContextMenuComponent {
   readonly rootElementRef = viewChild.required<ElementRef<HTMLElement>>('root');
 
   readonly isSubmenu = input(false);
+  readonly detachedItems = input(false);
+
   /** Where this menu sits, for one opened by something that lives above where menus usually go. */
   protected layer(): number {
     return this.contextMenuService.layer;
   }
 
+  /** How much larger than usual this menu draws its text; see {@link ContextMenuService.fontScale}. */
+  protected fontScale(): number {
+    return this.contextMenuService.fontScale;
+  }
   protected readonly titleInput = input('', { alias: 'title' });
   readonly titleColor = input('');
   readonly titleBold = input(false);
@@ -79,6 +100,8 @@ export class ContextMenuComponent {
       this.indexMenuPosion();
     });
     this.destroyRef.onDestroy(() => {
+      clearTimeout(this.showSubMenuTimer);
+      clearTimeout(this.hideSubMenuTimer);
       document.removeEventListener('touchstart', this.callbackOnOutsideClick, true);
       document.removeEventListener('mousedown', this.callbackOnOutsideClick, true);
     });
@@ -159,20 +182,30 @@ export class ContextMenuComponent {
     const parent: HTMLElement = this.elementRef.nativeElement.parentElement!;
     const submenu: HTMLElement = this.rootElementRef().nativeElement;
 
-    const parentBox = parent.getBoundingClientRect();
-    const submenuBox = submenu.getBoundingClientRect();
-
-    let left = parentBox.right - SUBMENU_OVERLAP_PX;
-    if (window.innerWidth < left + submenuBox.width) {
-      left = parentBox.left - submenuBox.width + SUBMENU_OVERLAP_PX;
-    }
-    submenu.style.left = Math.max(0, Math.min(left, window.innerWidth - submenuBox.width)) + 'px';
-    submenu.style.top = Math.max(0, parentBox.top - SUBMENU_RISE_PX) + 'px';
+    let left = parent.offsetWidth - SUBMENU_OVERLAP_PX;
+    let top = -SUBMENU_RISE_PX;
+    submenu.style.left = `${left}px`;
+    submenu.style.top = `${top}px`;
 
     const placed = submenu.getBoundingClientRect();
-    if (window.innerHeight < placed.bottom) {
-      submenu.style.top = Math.max(0, window.innerHeight - placed.height) + 'px';
-    }
+    const margin = 8;
+    const screenX =
+      placed.left < margin
+        ? margin - placed.left
+        : placed.right > window.innerWidth - margin
+          ? window.innerWidth - margin - placed.right
+          : 0;
+    const screenY =
+      placed.top < margin
+        ? margin - placed.top
+        : placed.bottom > window.innerHeight - margin
+          ? window.innerHeight - margin - placed.bottom
+          : 0;
+    const localCorrection = screenDeltaToMenuDelta(screenX, screenY, this.contextMenuService.rotationDegrees);
+    left += localCorrection.x;
+    top += localCorrection.y;
+    submenu.style.left = `${left}px`;
+    submenu.style.top = `${top}px`;
   }
 
   onListScroll(): void {
@@ -184,22 +217,30 @@ export class ContextMenuComponent {
   }
 
   doAction(action: ContextMenuAction) {
-    this.showSubMenu(action);
+    this.showSubMenu(action, true);
     if (action.action != null) {
-      action.action();
+      const rotationDegrees = this.contextMenuService.rotationDegrees;
+      this.panelService.runWithInitialRotation(rotationDegrees, () =>
+        this.modalService.runWithInitialRotation(rotationDegrees, action.action!)
+      );
       this.close();
     }
   }
 
-  showSubMenu(action: ContextMenuAction) {
+  showSubMenu(action: ContextMenuAction, immediately = false) {
     this.hideSubMenu();
     clearTimeout(this.showSubMenuTimer);
     if (action.subActions == null || action.subActions.length === 0) return;
-    this.showSubMenuTimer = setTimeout(() => {
+    const open = () => {
       this.parentMenu.set(action);
       this.subMenu.set(action.subActions ?? []);
       clearTimeout(this.hideSubMenuTimer);
-    }, 250);
+    };
+    if (immediately) {
+      open();
+    } else {
+      this.showSubMenuTimer = setTimeout(open, 250);
+    }
   }
 
   hideSubMenu() {
