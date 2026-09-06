@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { DEFAULT_TABLETOP_DISPLAY_SETTINGS, resolveTabletopDisplay } from '@axe/domain/tabletop/tabletop-display';
 
 describe('GameTable', () => {
   let store: ObjectStore;
@@ -126,6 +127,36 @@ describe('GameTable', () => {
       table.initialize();
       expect(table.terrainRotationIn2dEnabled).toBe(false);
       expect(table.cellMm).toBe(25.4);
+    });
+
+    /** A room saved before any of this existed carries none of these attributes. */
+    it('shows a table nobody has asked about as drawn the way it always was', () => {
+      const table = new GameTable();
+      table.initialize();
+
+      expect(resolveTabletopDisplay(table, {})).toEqual(DEFAULT_TABLETOP_DISPLAY_SETTINGS);
+    });
+
+    it('reads every flat-table setting an older room wrote down as text', () => {
+      const table = new GameTable();
+      table.initialize();
+      Object.assign(table, {
+        orthographicProjection: 'true',
+        multiAngleEnabled: 'true',
+        multiAngleRevolutionSeconds: '20',
+        multiAngleTickerPixelsPerSecond: '',
+        radialMenuRotationSpeed: 'quickly',
+      });
+
+      const settings = resolveTabletopDisplay(table, {});
+
+      expect(settings.orthographicProjection).toBe(true);
+      expect(settings.multiAngleEnabled).toBe(true);
+      expect(settings.multiAngleRevolutionSeconds).toBe(20);
+      expect(settings.multiAngleTickerPixelsPerSecond).toBe(
+        DEFAULT_TABLETOP_DISPLAY_SETTINGS.multiAngleTickerPixelsPerSecond
+      );
+      expect(settings.radialMenuRotationSpeed).toBe(DEFAULT_TABLETOP_DISPLAY_SETTINGS.radialMenuRotationSpeed);
     });
 
     it('starts snapping to it', () => {
