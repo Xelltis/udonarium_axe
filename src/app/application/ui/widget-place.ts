@@ -6,6 +6,7 @@ export const WIDGET_VOTE = 'vote';
 export const WIDGET_RENDER_STATS = 'renderStats';
 export const WIDGET_HOTBAR = 'hotbar';
 export const WIDGET_ROOM_RESTORE = 'roomRestore';
+export const WIDGET_FAB = 'fab';
 
 export function placeWidget(
   layout: WidgetLayoutService,

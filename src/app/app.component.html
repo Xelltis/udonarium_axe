@@ -29,14 +29,22 @@
   <app-npc-drag-ghost></app-npc-drag-ghost>
   @if (!mobile.isActive()) {
     <div
-      class="group absolute top-[max(0.75rem,env(safe-area-inset-top))] left-[max(0.75rem,env(safe-area-inset-left))] z-200 flex w-14 justify-center"
+      #fabMenu
+      class="group fixed top-0 left-0 z-200 flex w-14 cursor-grab justify-center active:cursor-grabbing"
       data-testid="fab-menu"
       [class.open]="fabOpen()"
+      appDraggable
+      [appWidgetPlace]="fabWidget"
+      [widgetFallback]="fabFallback"
+      [draggable.unhandle]="'input,textarea,select,option,span,.panel-no-drag'"
+      (draggable.end)="measureFabSides()"
+      (draggable.settled)="measureFabSides()"
     >
       <nav
-        class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md pointer-events-none absolute top-[calc(100%+10px)] left-0 z-8 w-14 origin-top-left -translate-y-4 border border-solid opacity-0 [backdrop-filter:blur(24px)_saturate(1.5)] transition-[transform,opacity] duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:pointer-events-auto group-[.open]:translate-y-0 group-[.open]:opacity-100 [@media(max-height:760px)]:w-28"
+        class="panel-no-drag border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md pointer-events-none absolute z-8 w-14 cursor-default border border-solid opacity-0 [backdrop-filter:blur(24px)_saturate(1.5)] transition-[transform,opacity] duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:pointer-events-auto group-[.open]:translate-y-0 group-[.open]:opacity-100 [@media(max-height:760px)]:w-28"
+        [ngClass]="[fabDrawerPlace(), fabLabelSide()]"
       >
-        <ul class="m-0 list-none p-1.5 [@media(max-height:760px)]:grid [@media(max-height:760px)]:grid-cols-2">
+        <ul class="m-0 list-none p-1.5" [ngClass]="fabColumns">
           @for (entry of fabEntries; track entry.key) {
             @if (entry.action.kind === 'zipLoad') {
               <li
@@ -68,9 +76,7 @@
             }
           }
         </ul>
-        <div
-          class="flex flex-col gap-0 px-1.5 pb-1.5 [@media(max-height:760px)]:grid [@media(max-height:760px)]:grid-cols-2"
-        >
+        <div class="flex flex-col gap-0 px-1.5 pb-1.5 [@media(max-height:760px)]:block" [ngClass]="fabColumns">
           @if (!isSaving()) {
             <div
               class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
@@ -144,7 +150,7 @@
       </nav>
       <button
         class="border-ui-border-panel bg-ui-panel shadow-ui-md text-ui-muted hover:text-ui-accent group-[.open]:bg-ui-elevated group-[.open]:text-ui-accent relative z-10 flex size-12 cursor-pointer items-center justify-center rounded-full border border-solid [backdrop-filter:blur(24px)_saturate(1.5)] transition-[color,background,box-shadow,transform] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:shadow-[0_0_0_2px_var(--ui-accent-glow),var(--ui-shadow-md)] hover:shadow-[0_0_0_2px_var(--ui-accent-glow),var(--ui-shadow-md)] [&_i]:text-[24px] [&_i]:leading-none [&_i]:transition-transform [&_i]:duration-220 [&_i]:ease-in-out group-[.open]:[&_i]:rotate-90"
-        (click)="fabOpen.set(!fabOpen())"
+        (click)="toggleFab()"
         [attr.aria-label]="fabOpen() ? ('app.fab.menuClose' | transloco) : ('app.fab.menuOpen' | transloco)"
         [attr.aria-expanded]="fabOpen()"
       >

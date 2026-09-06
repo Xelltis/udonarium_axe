@@ -1,8 +1,10 @@
+import { NgClass } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   inject,
   signal,
   viewChild,
@@ -28,6 +30,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { WIDGET_FAB } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -81,9 +84,21 @@ import { ConfirmDialogComponent } from '@axe/ui/components/confirm-dialog/confir
 import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-menu.component';
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
+import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
+import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
+import {
+  FAB_COLUMN_CLASSES,
+  fabDrawerPlaceClasses,
+  FabDrawerSide,
+  fabDrawerSide,
+  fabLabelSideClasses,
+} from '@axe/ui/fab-drawer';
 import { TranslocoModule } from '@jsverse/transloco';
 import { version as APP_VERSION } from '@pkg';
+
+/** How far from the corner the button starts, before anybody has put it anywhere. */
+const FAB_MARGIN_PX = 12;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -112,6 +127,9 @@ import { version as APP_VERSION } from '@pkg';
     StreamingOverlayComponent,
     LanguageSelectorComponent,
     VisualNovelOverlayComponent,
+    NgClass,
+    DraggableDirective,
+    WidgetPlaceDirective,
     TranslocoModule,
   ],
 })
@@ -143,6 +161,39 @@ export class AppComponent {
   });
 
   fabOpen = signal(true);
+
+  protected readonly fabWidget = WIDGET_FAB;
+  protected readonly fabFallback = () => ({ left: FAB_MARGIN_PX, top: FAB_MARGIN_PX });
+  private readonly fabMenuRef = viewChild<ElementRef<HTMLElement>>('fabMenu');
+  private readonly fabSide = signal<FabDrawerSide>({ up: false, left: false });
+
+  /**
+   * Where the drawer hangs from the button, which is wherever there is room for it.
+   *
+   * The order of what is in it never turns round with the drawer: the first thing on the
+   * list is at the top whichever way it opens, so a menu learnt in one corner is the same
+   * menu in another.
+   */
+  protected readonly fabDrawerPlace = computed(() => fabDrawerPlaceClasses(this.fabSide()));
+
+  /** Which side of an item its name is written on, so it is never written off the screen. */
+  protected readonly fabLabelSide = computed(() => fabLabelSideClasses(this.fabSide()));
+
+  protected readonly fabColumns = FAB_COLUMN_CLASSES;
+
+  protected toggleFab(): void {
+    this.measureFabSides();
+    this.fabOpen.set(!this.fabOpen());
+  }
+
+  /** Reads where the button has been put, which is what settles the way the drawer opens. */
+  protected measureFabSides(): void {
+    const element = this.fabMenuRef()?.nativeElement;
+    if (!element) return;
+    const box = element.getBoundingClientRect();
+    if (box.width < 1 && box.height < 1) return;
+    this.fabSide.set(fabDrawerSide(box, { width: window.innerWidth, height: window.innerHeight }));
+  }
 
   protected readonly tabletop = inject(TabletopService);
   private readonly viewMode = inject(ViewModePreferenceService);
@@ -205,6 +256,7 @@ export class AppComponent {
     inject(TurnOrderService);
 
     afterNextRender(() => {
+      this.measureFabSides();
       PanelService.defaultParentViewContainerRef =
         ModalService.defaultParentViewContainerRef =
         ContextMenuService.defaultParentViewContainerRef =
