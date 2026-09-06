@@ -27,7 +27,6 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -139,7 +138,6 @@ const FAB_MARGIN_PX = 12;
 })
 export class AppComponent {
   readonly theme = inject(ThemeService);
-  readonly tabletopDisplay = inject(TabletopDisplaySettingsService);
   readonly motion = inject(MotionService);
   readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);

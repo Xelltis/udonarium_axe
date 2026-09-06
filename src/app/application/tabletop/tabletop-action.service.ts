@@ -16,7 +16,7 @@ import {
 } from '@axe/application/tabletop/tabletop-default-setup';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -55,7 +55,7 @@ export class TabletopActionService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
-  private readonly tabletopDisplay = inject(TabletopDisplaySettingsService);
+  private readonly viewMode = inject(ViewModePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
 
   constructor() {}
@@ -165,7 +165,7 @@ export class TabletopActionService {
     textNote.location.x = position.x;
     textNote.location.y = position.y;
     textNote.posZ = position.z;
-    textNote.isUpright = !((this.getViewTable()?.mode2d ?? false) || this.tabletopDisplay.enabled());
+    textNote.isUpright = !((this.getViewTable()?.mode2d ?? false) || this.viewMode.mode() === 'flat');
     this.applyCreationDefaults(textNote);
     return textNote;
   }

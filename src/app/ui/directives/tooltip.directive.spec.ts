@@ -3,7 +3,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -129,22 +128,16 @@ describe('TooltipDirective', () => {
 
     table = TestBed.inject(TabletopService).currentTable;
     table.mode2d = true;
-    TestBed.inject(TabletopDisplaySettingsService).patch({
-      enabled: true,
-      hoverDetailPlacement: 'screen-edges',
-      multiAngleEnabled: false,
-    });
+    table.hoverDetailPlacement = 'screen-edges';
+    table.multiAngleEnabled = false;
   });
 
   afterEach(() => {
     fixture.destroy();
     for (const character of characters.splice(0)) character.destroy();
     table.mode2d = false;
-    TestBed.inject(TabletopDisplaySettingsService).patch({
-      enabled: false,
-      hoverDetailPlacement: 'piece',
-      multiAngleEnabled: false,
-    });
+    table.hoverDetailPlacement = 'piece';
+    table.multiAngleEnabled = false;
   });
 
   it('shows one detail per edge seat while the table asks for screen edges', async () => {
@@ -171,10 +164,8 @@ describe('TooltipDirective', () => {
   });
 
   it('keeps the single detail beside the piece while the table asks for that', async () => {
-    TestBed.inject(TabletopDisplaySettingsService).patch({
-      hoverDetailPlacement: 'piece',
-      multiAngleEnabled: true,
-    });
+    table.hoverDetailPlacement = 'piece';
+    table.multiAngleEnabled = true;
     await hover('first-piece', -10, 0);
 
     const instances = [...panels()];
@@ -185,7 +176,6 @@ describe('TooltipDirective', () => {
 
   it('keeps the single upright detail outside 2D mode', async () => {
     table.mode2d = false;
-    TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: false });
     await hover('first-piece', -10, 0);
 
     const instances = [...panels()];

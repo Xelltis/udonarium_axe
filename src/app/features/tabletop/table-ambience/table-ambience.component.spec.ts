@@ -4,7 +4,6 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
@@ -30,7 +29,7 @@ describe('TableAmbienceComponent', () => {
     fixture.componentRef.setInput('ambience', ambience);
     const table = TestBed.inject(TabletopService).currentTable;
     table.mode2d = false;
-    TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: false, radialMenuEnabled: false });
+    table.radialMenuEnabled = false;
   });
 
   afterEach(() => {
@@ -108,11 +107,8 @@ describe('TableAmbienceComponent', () => {
     function openMenu(mode2d: boolean, radialMenuEnabled: boolean): void {
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = mode2d;
-      TestBed.inject(TabletopDisplaySettingsService).patch({
-        enabled: mode2d,
-        radialMenuEnabled,
-        radialMenuRotationSpeed: 9,
-      });
+      table.radialMenuEnabled = radialMenuEnabled;
+      table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
       vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
       TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);

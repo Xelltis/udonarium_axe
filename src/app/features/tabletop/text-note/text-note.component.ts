@@ -383,16 +383,16 @@ export class TextNoteComponent {
       this.translateFn,
       surfaceEntries
     );
-    const display = this.tabletopService.tabletopDisplaySettings;
-    if (display.enabled()) {
+    const display = this.tabletopService.display();
+    if (this.tabletopService.mode2d()) {
       this.contextMenuService.openRadial(
         position,
         menu.actions,
         menu.radialGroups,
         this.title(),
-        display.radialMenuEnabled(),
-        display.radialMenuRotationSpeed(),
-        multiAngleFontScaleFactor(display.multiAngleFontScale())
+        display.radialMenuEnabled,
+        display.radialMenuRotationSpeed,
+        multiAngleFontScaleFactor(display.multiAngleFontScale)
       );
       return;
     }

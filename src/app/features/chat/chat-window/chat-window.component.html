@@ -178,6 +178,17 @@
               >{{ tickerPixelsPerSecond }} {{ 'feature.chat.window.tickerSpeedUnit' | transloco }}</span
             >
           </label>
+          <label class="text-ui-muted inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap select-none">
+            <input
+              data-testid="ticker-on-this-screen-only"
+              type="checkbox"
+              class="size-3 cursor-pointer [accent-color:var(--ui-accent)]"
+              name="ticker-on-this-screen-only"
+              [ngModel]="tickerOnThisScreenOnly"
+              (ngModelChange)="tickerOnThisScreenOnly = $event"
+            />
+            {{ 'common.display.onThisScreenOnly' | transloco }}
+          </label>
         </div>
       }
     </form>

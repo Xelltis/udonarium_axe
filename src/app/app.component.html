@@ -66,10 +66,7 @@
             } @else {
               <li
                 class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-                [class.text-ui-accent]="
-                  (entry.action.kind === 'visualNovel' && visualNovel.active()) ||
-                  (entry.key === 'tabletopDisplaySetting' && tabletopDisplay.enabled())
-                "
+                [class.text-ui-accent]="entry.action.kind === 'visualNovel' && visualNovel.active()"
                 [attr.data-label]="'app.fab.' + entry.key | transloco"
                 [attr.data-testid]="'fab-entry-' + entry.key"
                 (click)="chooseFab(entry)"

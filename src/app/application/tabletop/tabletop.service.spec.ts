@@ -1,9 +1,6 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import {
-  TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY,
-  TabletopDisplaySettingsService,
-} from '@axe/application/ui/tabletop-display-settings.service';
+import { SeatDisplayPreferenceService } from '@axe/application/ui/seat-display-preference.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -13,8 +10,6 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('TabletopService', () => {
   beforeEach(() => {
-    localStorage.removeItem('ui-view-mode');
-    localStorage.removeItem(TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY);
     TestBed.configureTestingModule({
       providers: [...TEST_PROVIDERS, TabletopService],
     });
@@ -78,15 +73,13 @@ describe('TabletopService', () => {
       expect(service.gridSize()).toBe(77);
     });
 
-    it('lies flat only where this reader asked for that, whatever table is out', () => {
+    it('lies flat where this reader asked for that, whatever table is out', () => {
       const service = TestBed.inject(TabletopService);
       expect(service.mode2d()).toBe(false);
 
       TestBed.inject(ViewModePreferenceService).choose('flat');
 
       expect(service.mode2d()).toBe(true);
-      // Perspective is dropped for a screen laid flat, which only the device knows it is.
-      expect(service.orthographicProjection()).toBe(false);
     });
 
     it.each([
@@ -94,15 +87,48 @@ describe('TabletopService', () => {
       [true, false, true],
       [false, true, true],
       [true, true, true],
-    ])('combines shared 2D %s and local tabletop display %s into effective 2D %s', async (shared, local, effective) => {
+    ])(
+      'combines a shared 2D of %s and a seat asking %s into an effective 2D of %s',
+      async (shared, seat, effective) => {
+        const service = TestBed.inject(TabletopService);
+        table.mode2d = shared;
+        TestBed.inject(ViewModePreferenceService).choose(seat ? 'flat' : 'perspective');
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(service.sharedMode2d()).toBe(shared);
+        expect(service.seatMode2d()).toBe(seat);
+        expect(service.mode2d()).toBe(effective);
+      }
+    );
+
+    it('drops the perspective the table asks to be drawn without, but only while it is seen flat', async () => {
       const service = TestBed.inject(TabletopService);
-      table.mode2d = shared;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: local });
+      table.orthographicProjection = true;
       await new Promise((resolve) => setTimeout(resolve, 20));
 
-      expect(service.sharedMode2d()).toBe(shared);
-      expect(service.tabletopDisplayMode()).toBe(local);
-      expect(service.mode2d()).toBe(effective);
+      expect(service.orthographicProjection()).toBe(false);
+
+      table.mode2d = true;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(service.orthographicProjection()).toBe(true);
+    });
+
+    it('leaves the features this reader took over to them, and the rest to the table', async () => {
+      const service = TestBed.inject(TabletopService);
+      table.multiAngleEnabled = true;
+      table.multiAngleTickerEnabled = true;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(service.display().multiAngleEnabled).toBe(true);
+
+      TestBed.inject(SeatDisplayPreferenceService).takeOver('pieceLabels', {
+        ...service.display(),
+        multiAngleEnabled: false,
+      });
+
+      expect(service.display().multiAngleEnabled).toBe(false);
+      expect(service.display().multiAngleTickerEnabled).toBe(true);
     });
   });
 });

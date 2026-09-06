@@ -1,8 +1,8 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { AudioTag } from '@axe/domain/media/audio-tag';
@@ -19,7 +19,7 @@ export class CutInEventHandlerService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly panelService = inject(PanelService);
-  private readonly tabletopDisplay = inject(TabletopDisplaySettingsService);
+  private readonly tabletopService = inject(TabletopService);
   private readonly t = inject(TRANSLATE_FN);
 
   private readonly soundOnlyPlayer = new AudioPlayer();
@@ -47,8 +47,8 @@ export class CutInEventHandlerService {
 
   private openCutInPanel(cutIn: CutIn, invisible = false): void {
     if (!cutIn) return;
-    const mode = this.tabletopDisplay.enabled()
-      ? asCutInMultiDirectionMode(this.tabletopDisplay.cutInMultiDirectionMode())
+    const mode = this.tabletopService.mode2d()
+      ? asCutInMultiDirectionMode(this.tabletopService.display().cutInMultiDirectionMode)
       : 'none';
     if (invisible || mode === 'none') {
       this.openSingleCutInPanel(cutIn, invisible);

@@ -4,7 +4,6 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
@@ -142,11 +141,8 @@ describe('TextNoteComponent', () => {
     function openMenu(mode2d: boolean, radialMenuEnabled: boolean): void {
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = mode2d;
-      TestBed.inject(TabletopDisplaySettingsService).patch({
-        enabled: mode2d,
-        radialMenuEnabled,
-        radialMenuRotationSpeed: 9,
-      });
+      table.radialMenuEnabled = radialMenuEnabled;
+      table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
       vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
       TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);

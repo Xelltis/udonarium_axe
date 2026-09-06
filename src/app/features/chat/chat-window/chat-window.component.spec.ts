@@ -4,7 +4,6 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -92,18 +91,36 @@ describe('ChatWindowComponent', () => {
     }
   });
 
-  it('changes ticker display only in the browser-local settings', () => {
-    const settings = TestBed.inject(TabletopDisplaySettingsService);
+  it('writes the ticker settings onto the table, which is what the room reads them from', () => {
     const table = TestBed.inject(TabletopService).currentTable;
-    settings.patch({ multiAngleTickerEnabled: false, multiAngleTickerPixelsPerSecond: 55 });
-    const tableVersion = table.version;
+    table.multiAngleTickerEnabled = false;
+    table.multiAngleTickerPixelsPerSecond = 55;
 
     component.tickerEnabled = true;
     component.tickerPixelsPerSecond = 88;
 
-    expect(settings.multiAngleTickerEnabled()).toBe(true);
-    expect(settings.multiAngleTickerPixelsPerSecond()).toBe(88);
-    expect(table.version).toBe(tableVersion);
+    expect(table.multiAngleTickerEnabled).toBe(true);
+    expect(table.multiAngleTickerPixelsPerSecond).toBe(88);
+  });
+
+  it('leaves the table alone once this reader has taken the ticker over', () => {
+    const table = TestBed.inject(TabletopService).currentTable;
+    table.multiAngleTickerEnabled = false;
+    table.multiAngleTickerPixelsPerSecond = 55;
+
+    component.tickerOnThisScreenOnly = true;
+    component.tickerEnabled = true;
+    component.tickerPixelsPerSecond = 88;
+
+    expect(component.tickerEnabled).toBe(true);
+    expect(component.tickerPixelsPerSecond).toBe(88);
+    expect(table.multiAngleTickerEnabled).toBe(false);
+    expect(table.multiAngleTickerPixelsPerSecond).toBe(55);
+
+    component.tickerOnThisScreenOnly = false;
+
+    expect(component.tickerEnabled).toBe(false);
+    expect(component.tickerPixelsPerSecond).toBe(55);
   });
 
   describe('who is typing', () => {

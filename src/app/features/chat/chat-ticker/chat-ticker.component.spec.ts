@@ -3,13 +3,14 @@ import {
   CHAT_TICKER_SELECTION_EVENT_NAME,
   ChatTickerSelectionService,
 } from '@axe/application/chat/chat-ticker-selection.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { emitMessageAdded } from '@axe/core/event/domain-events';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { TICKER_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -18,6 +19,7 @@ describe('ChatTickerComponent', () => {
   let component: ChatTickerComponent;
   let tickerTab: ChatTab;
   const messages: ChatMessage[] = [];
+  let table: GameTable;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -25,6 +27,9 @@ describe('ChatTickerComponent', () => {
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
 
+    table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     tickerTab = ChatTabList.instance.ensureTickerTab();
     fixture = TestBed.createComponent(ChatTickerComponent);
     component = fixture.componentInstance;
@@ -34,7 +39,13 @@ describe('ChatTickerComponent', () => {
     fixture.destroy();
     for (const message of messages.splice(0)) message.destroy();
     tickerTab.destroy();
+    table.destroy();
   });
+
+  /** The table is read through a version signal, which only counts once the change has gone round. */
+  async function settle(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
 
   function post(identifier: string, text: string): void {
     const message = new ChatMessage(identifier);
@@ -90,29 +101,33 @@ describe('ChatTickerComponent', () => {
     expect(currentText()).toBe('案内役：ラウンド開始　◆');
   });
 
-  it('keeps using the ticker tab visibility and speed settings for a manual selection', () => {
-    const settings = TestBed.inject(TabletopDisplaySettingsService);
-    settings.patch({ enabled: true, multiAngleTickerEnabled: false, multiAngleTickerPixelsPerSecond: 88 });
+  it('keeps using the ticker tab visibility and speed settings for a manual selection', async () => {
+    table.mode2d = true;
+    table.multiAngleTickerEnabled = false;
+    table.multiAngleTickerPixelsPerSecond = 88;
+    await settle();
 
     select('manual-while-hidden', 'GM', '待機してください');
     expect(currentText()).toBe('GM：待機してください　◆');
     expect(component.isVisible()).toBe(false);
 
-    settings.patch({ multiAngleTickerEnabled: true });
+    table.multiAngleTickerEnabled = true;
+    await settle();
 
     expect(component.isVisible()).toBe(true);
     const internal = component as unknown as { pixelsPerSecond: () => number };
     expect(internal.pixelsPerSecond()).toBe(88);
   });
 
-  it('draws larger text when the table asks for a larger font scale', () => {
-    const settings = TestBed.inject(TabletopDisplaySettingsService);
+  it('draws larger text when the table asks for a larger font scale', async () => {
     const internal = component as unknown as { fontSizePx: () => number };
-    settings.patch({ multiAngleFontScale: 'small' });
+    table.multiAngleFontScale = 'small';
+    await settle();
     const small = internal.fontSizePx();
     expect(small).toBe(18);
 
-    settings.patch({ multiAngleFontScale: 'large' });
+    table.multiAngleFontScale = 'large';
+    await settle();
     expect(internal.fontSizePx()).toBeGreaterThan(small);
   });
 });

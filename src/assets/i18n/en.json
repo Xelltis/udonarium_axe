@@ -39,7 +39,6 @@
       "chatWindow": "Chat",
       "gameTableSetting": "Table settings",
       "roomSettings": "Room settings",
-      "tabletopDisplaySetting": "Table-top display settings",
       "fileStorage": "Files",
       "jukebox": "Jukebox",
       "cutInList": "Cut-ins",
@@ -105,6 +104,9 @@
       "stair_spiral": "Spiral stairs",
       "poison_pool": "Poisoned pool",
       "cactus_skin": "Cactus skin"
+    },
+    "display": {
+      "onThisScreenOnly": "This screen only"
     }
   },
   "feature": {
@@ -460,7 +462,14 @@
         "youtubeUrl": "YouTube URL",
         "youtubeVolume": "Per-cut-in volume",
         "youtubeTerms": "YouTube Terms of Service",
-        "youtubeTermsNotice": " — please review before use."
+        "youtubeTermsNotice": " — please review before use.",
+        "multiDirection": "Multi-direction cut-ins",
+        "multiDirection_none": "Off",
+        "multiDirection_vertical": "Top and bottom",
+        "multiDirection_vertical-right": "Top, bottom and right",
+        "multiDirection_vertical-left": "Top, bottom and left",
+        "multiDirection_four-directions": "Top, bottom, left and right",
+        "multiDirectionHint": "Faces the cut-in several ways, but only while the table is seen from above."
       },
       "cutInEditor": {
         "tabBasic": "Settings",
@@ -1417,8 +1426,7 @@
         "radialDisplay": "Display",
         "radialMove": "Move",
         "radialDisclosure": "Access & owner",
-        "radialObject": "Piece actions",
-        "showVisionRange": "Show range of sight"
+        "radialObject": "Piece actions"
       },
       "panel": {
         "sheet": "Character sheet",
@@ -1656,15 +1664,6 @@
       }
     },
     "tabletop": {
-      "tabletopDisplaySetting": {
-        "enabled": "Enable table-top display mode",
-        "localHint": "The board is drawn without perspective. The settings apply only in this browser and are not shared with other participants.",
-        "menuAndDisplay": "Menus and display",
-        "multiAngleDisplay": "Multi-direction piece display",
-        "multiAngleLocalHint": "In this browser, orbiting takes priority over rotating the whole piece.",
-        "ticker": "Edge ticker",
-        "realSize": "Real size and the view lock"
-      },
       "ccfoliaImport": {
         "tableName": "CCFOLIA room",
         "imported": "Imported the CCFOLIA room ({{tables}} tables / {{panels}} panels / {{pieces}} pieces). Now showing \"{{table}}\".",
@@ -1904,12 +1903,6 @@
         "imageBillboard": "Billboard piece images",
         "mode2d": "2D mode (top-down)",
         "terrainRotationIn2d": "Allow terrain rotation (normally fixed in 2D mode)",
-        "cutInMultiDirection": "Multi-direction cut-ins",
-        "cutInMultiDirection_none": "Off",
-        "cutInMultiDirection_vertical": "Top and bottom",
-        "cutInMultiDirection_vertical-right": "Top, bottom and right",
-        "cutInMultiDirection_vertical-left": "Top, bottom and left",
-        "cutInMultiDirection_four-directions": "Top, bottom, left and right",
         "hoverDetailPlacement": "Hover detail of a piece",
         "hoverDetailPlacement_piece": "Beside the piece (classic)",
         "hoverDetailPlacement_screen-edges": "On all four screen edges (view only)",
@@ -2008,7 +2001,14 @@
           "cell": "Cells",
           "metre": "Metres",
           "foot": "Feet"
-        }
+        },
+        "sectionFlatTable": "Seen from above (2D)",
+        "flatTableHint": "Everything below applies only while the table is seen from straight above. Tick \"This screen only\" to take a feature over from the table for this browser.",
+        "orthographicProjection": "Drop the perspective (for a screen laid flat)",
+        "sectionFlatMenu": "How menus open",
+        "sectionMultiAngle": "Piece labels for every side",
+        "sectionRealSize": "Real size and view lock (this screen)",
+        "realSizeHint": "The measurement of the screen and the view lock belong to this browser alone, and reach nobody else."
       },
       "displayCalibration": {
         "title": "Measure this screen",
@@ -2325,7 +2325,7 @@
         "alarmMenuTitle": "Alarm timer",
         "tabSettingTitle": "Chat tab settings",
         "tickerEnabled": "Show edge ticker",
-        "tickerTabletopDisplayOnly": "For tabletop display mode only",
+        "tickerTabletopDisplayOnly": "Runs while the table is seen from above",
         "tickerSpeed": "Speed",
         "tickerSpeedUnit": "px/s",
         "noTarget": "No target selected",
@@ -3446,7 +3446,6 @@
       "chat": "Chat",
       "tableSetting": "Table",
       "roomSettings": "Room settings",
-      "tabletopDisplaySetting": "Table-top display",
       "images": "Images",
       "jukebox": "Jukebox",
       "cutIn": "Cut-in",

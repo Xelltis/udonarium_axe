@@ -133,6 +133,90 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
+  describe('the way a table lying flat is drawn', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.initialize();
+      component.selectedTable = table;
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    it('writes each feature onto the table it is editing, not onto the one being looked at', () => {
+      component.orthographicProjection = true;
+      component.multiAngleEnabled = true;
+      component.multiAngleFontScale = 'large';
+      component.radialMenuEnabled = true;
+      component.radialMenuRotationSpeed = 9;
+      component.hoverDetailPlacement = 'screen-edges';
+
+      expect(table.orthographicProjection).toBe(true);
+      expect(table.multiAngleEnabled).toBe(true);
+      expect(table.multiAngleFontScale).toBe('large');
+      expect(table.radialMenuEnabled).toBe(true);
+      expect(table.radialMenuRotationSpeed).toBe(9);
+      expect(table.hoverDetailPlacement).toBe('screen-edges');
+    });
+
+    it('shows what the table asks for, feature by feature', () => {
+      table.multiAngleEnabled = true;
+      table.multiAngleRevolutionSeconds = 20;
+      table.radialMenuEnabled = true;
+
+      expect(component.multiAngleEnabled).toBe(true);
+      expect(component.multiAngleRevolutionSeconds).toBe(20);
+      expect(component.radialMenuEnabled).toBe(true);
+    });
+
+    it('leaves the table alone for a feature this reader has taken over, and the rest with it', () => {
+      table.multiAngleEnabled = true;
+      table.radialMenuEnabled = true;
+
+      component.setOnThisScreenOnly('pieceLabels', true);
+      component.multiAngleEnabled = false;
+      component.radialMenuEnabled = false;
+
+      expect(component.onThisScreenOnly('pieceLabels')).toBe(true);
+      expect(component.multiAngleEnabled).toBe(false);
+      expect(table.multiAngleEnabled).toBe(true);
+      expect(table.radialMenuEnabled).toBe(false);
+    });
+
+    it('goes back to what the table asks for once the feature is handed back', () => {
+      table.multiAngleEnabled = true;
+      component.setOnThisScreenOnly('pieceLabels', true);
+      component.multiAngleEnabled = false;
+
+      component.setOnThisScreenOnly('pieceLabels', false);
+
+      expect(component.onThisScreenOnly('pieceLabels')).toBe(false);
+      expect(component.multiAngleEnabled).toBe(true);
+    });
+
+    it('starts a piece turning by the second the moment it is asked to turn in quarters', () => {
+      component.multiAngleMotionMode = 'quarter-turn';
+
+      expect(table.multiAngleMotionMode).toBe('quarter-turn');
+      expect(table.multiAnglePieceRevolutionSeconds).toBe(5);
+    });
+
+    it('shows the boxes for the flat table whatever the room rules say', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const root = fixture.nativeElement as HTMLElement;
+
+      expect(root.querySelector('[data-testid="orthographic-projection"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="multi-angle-enabled"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="radial-menu-enabled"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="view-locked"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="reset-calibration"]')).not.toBeNull();
+    });
+  });
+
   describe('signal-driven CD', () => {
     it('reads the deleted flag through a collection signal', () => {
       const objectChangeService = TestBed.inject(ObjectChangeService);

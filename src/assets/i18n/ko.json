@@ -39,7 +39,6 @@
       "chatWindow": "채팅 창",
       "gameTableSetting": "테이블 설정",
       "roomSettings": "방 설정",
-      "tabletopDisplaySetting": "테이블톱 디스플레이 설정",
       "fileStorage": "파일 목록",
       "jukebox": "주크박스",
       "cutInList": "컷인 목록",
@@ -105,6 +104,9 @@
       "stair_spiral": "나선 계단",
       "poison_pool": "독 늪",
       "cactus_skin": "선인장 껍질"
+    },
+    "display": {
+      "onThisScreenOnly": "이 화면만"
     }
   },
   "feature": {
@@ -460,7 +462,14 @@
         "youtubeUrl": "YouTube URL",
         "youtubeVolume": "개별 음량",
         "youtubeTerms": "YouTube 이용약관",
-        "youtubeTermsNotice": "을 확인한 뒤 이용해 주세요."
+        "youtubeTermsNotice": "을 확인한 뒤 이용해 주세요.",
+        "multiDirection": "컷인 다방향 표시",
+        "multiDirection_none": "사용 안 함",
+        "multiDirection_vertical": "상하",
+        "multiDirection_vertical-right": "상하우",
+        "multiDirection_vertical-left": "상하좌",
+        "multiDirection_four-directions": "상하좌우",
+        "multiDirectionHint": "테이블을 위에서 볼 때만 여러 방향으로 표시합니다."
       },
       "cutInEditor": {
         "tabBasic": "기본 설정",
@@ -1417,8 +1426,7 @@
         "radialDisplay": "표시",
         "radialMove": "이동",
         "radialDisclosure": "공개·소유자",
-        "radialObject": "말 조작",
-        "showVisionRange": "시야 범위 표시"
+        "radialObject": "말 조작"
       },
       "panel": {
         "sheet": "캐릭터 시트",
@@ -1656,15 +1664,6 @@
       }
     },
     "tabletop": {
-      "tabletopDisplaySetting": {
-        "enabled": "테이블톱 디스플레이 모드 켜기",
-        "localHint": "평행 투영으로 표시됩니다. 설정은 이 브라우저에만 적용되며 다른 참가자와 동기화되지 않습니다.",
-        "menuAndDisplay": "메뉴 및 표시",
-        "multiAngleDisplay": "말 다방향 표시",
-        "multiAngleLocalHint": "이 브라우저에서는 원형 회전 표시가 말 전체 회전보다 우선합니다.",
-        "ticker": "외곽 티커",
-        "realSize": "실측 표시와 화면 고정"
-      },
       "ccfoliaImport": {
         "tableName": "코코포리아 룸",
         "imported": "코코포리아 룸을 가져왔습니다(테이블 {{tables}}개 / 패널 {{panels}}건 / 말 {{pieces}}체). \"{{table}}\"을(를) 표시하고 있습니다.",
@@ -1904,12 +1903,6 @@
         "imageBillboard": "이미지를 카메라를 향하게",
         "mode2d": "2D 모드(부감 고정)",
         "terrainRotationIn2d": "지형 회전 허용(일반적으로 2D 모드에서는 고정)",
-        "cutInMultiDirection": "컷인 다방향 표시",
-        "cutInMultiDirection_none": "사용 안 함",
-        "cutInMultiDirection_vertical": "상하",
-        "cutInMultiDirection_vertical-right": "상하우",
-        "cutInMultiDirection_vertical-left": "상하좌",
-        "cutInMultiDirection_four-directions": "상하좌우",
         "hoverDetailPlacement": "말 상세 표시",
         "hoverDetailPlacement_piece": "말 근처에 표시(기존)",
         "hoverDetailPlacement_screen-edges": "화면 가장자리에 4방향 표시(편집 불가)",
@@ -2008,7 +2001,14 @@
           "cell": "칸",
           "metre": "미터",
           "foot": "피트"
-        }
+        },
+        "sectionFlatTable": "위에서 내려다볼 때 (2D)",
+        "flatTableHint": "아래 항목은 테이블을 바로 위에서 볼 때만 적용됩니다. \"이 화면만\"을 켜면 테이블 설정에서 분리되어 이 브라우저의 설정이 됩니다.",
+        "orthographicProjection": "원근 없애기 (화면을 눕혀 둘러앉을 때)",
+        "sectionFlatMenu": "메뉴가 열리는 방식",
+        "sectionMultiAngle": "사방에서 읽는 말 이름",
+        "sectionRealSize": "실측 표시와 화면 고정 (이 화면)",
+        "realSizeHint": "화면 실측과 화면 고정은 이 브라우저에만 적용되며 다른 참가자에게 전달되지 않습니다."
       },
       "displayCalibration": {
         "title": "화면 실제 크기 맞추기",
@@ -2325,7 +2325,7 @@
         "alarmMenuTitle": "알람 타이머",
         "tabSettingTitle": "채팅 탭 설정",
         "tickerEnabled": "가장자리 티커 표시",
-        "tickerTabletopDisplayOnly": "탁상 디스플레이 모드 전용",
+        "tickerTabletopDisplayOnly": "테이블을 위에서 볼 때 흐릅니다",
         "tickerSpeed": "속도",
         "tickerSpeedUnit": "px/초",
         "noTarget": "대상이 선택되지 않았습니다",
@@ -3681,7 +3681,6 @@
       "chat": "채팅",
       "tableSetting": "테이블 설정",
       "roomSettings": "방 설정",
-      "tabletopDisplaySetting": "테이블톱 디스플레이",
       "images": "이미지",
       "jukebox": "주크박스",
       "cutIn": "컷인",

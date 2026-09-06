@@ -59,8 +59,11 @@ export class ChatTickerComponent {
   private animationFrame: number | null = null;
 
   readonly isVisible = computed(() => {
-    const display = this.tabletopService.tabletopDisplaySettings;
-    return display.enabled() && display.multiAngleTickerEnabled() && this.currentText().length > 0;
+    return (
+      this.tabletopService.mode2d() &&
+      this.tabletopService.display().multiAngleTickerEnabled &&
+      this.currentText().length > 0
+    );
   });
 
   constructor() {
@@ -175,14 +178,11 @@ export class ChatTickerComponent {
 
   /** The table setting scales the text, and the path margin follows it. */
   private fontSizePx(): number {
-    return (
-      TICKER_FONT_SIZE_PX *
-      multiAngleFontScaleFactor(this.tabletopService.tabletopDisplaySettings.multiAngleFontScale())
-    );
+    return TICKER_FONT_SIZE_PX * multiAngleFontScaleFactor(this.tabletopService.display().multiAngleFontScale);
   }
 
   private pixelsPerSecond(): number {
-    const value = Number(this.tabletopService.tabletopDisplaySettings.multiAngleTickerPixelsPerSecond());
+    const value = Number(this.tabletopService.display().multiAngleTickerPixelsPerSecond);
     return Number.isFinite(value)
       ? Math.min(MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, Math.max(MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, value))
       : DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND;

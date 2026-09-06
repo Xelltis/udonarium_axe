@@ -523,8 +523,8 @@ export class GameCharacterComponent {
     const config = this.objectStore.get<Config>('Config') ?? null;
     const mark = asTableFacingMark(resolveRoomRules(config?.roomRuleAnswers ?? null, table).facingMark);
     // A piece that turns to face every side of a flat screen has no one facing to mark.
-    const display = this.tabletopService.tabletopDisplaySettings;
-    return mark === 'turn' && display.enabled() && display.multiAngleEnabled() ? 'none' : mark;
+    const multiAngle = this.tabletopService.mode2d() && this.tabletopService.display().multiAngleEnabled;
+    return mark === 'turn' && multiAngle ? 'none' : mark;
   });
 
   /**
@@ -690,14 +690,11 @@ export class GameCharacterComponent {
   });
 
   readonly multiAngleNameOrbitEnabled = computed(() => {
-    const display = this.tabletopService.tabletopDisplaySettings;
-    return !this.isPoster() && display.enabled() && display.multiAngleEnabled();
+    return !this.isPoster() && this.tabletopService.mode2d() && this.tabletopService.display().multiAngleEnabled;
   });
 
   readonly multiAngleResourceBuffOrbitEnabled = computed(() => {
-    return (
-      this.multiAngleNameOrbitEnabled() && this.tabletopService.tabletopDisplaySettings.multiAngleResourceBuffEnabled()
-    );
+    return this.multiAngleNameOrbitEnabled() && this.tabletopService.display().multiAngleResourceBuffEnabled;
   });
 
   readonly multiAngleCurvedNameLayout = computed(() =>
@@ -739,11 +736,11 @@ export class GameCharacterComponent {
   );
 
   readonly multiAngleNameOrbitAnimation = computed(() => {
-    const display = this.tabletopService.tabletopDisplaySettings;
+    const display = this.tabletopService.display();
     return multiAngleOrbitAnimation(
-      multiAngleNameMotionMode(display.multiAngleMotionMode()),
-      display.multiAngleRevolutionSeconds(),
-      display.multiAnglePauseSeconds()
+      multiAngleNameMotionMode(display.multiAngleMotionMode),
+      display.multiAngleRevolutionSeconds,
+      display.multiAnglePauseSeconds
     );
   });
 
@@ -776,18 +773,18 @@ export class GameCharacterComponent {
   );
 
   readonly multiAnglePieceRevolutionSeconds = computed(() => {
-    const seconds = this.tabletopService.tabletopDisplaySettings.multiAnglePieceRevolutionSeconds();
+    const seconds = this.tabletopService.display().multiAnglePieceRevolutionSeconds;
     return Number.isFinite(seconds)
       ? Math.min(300, Math.max(5, seconds))
       : DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS;
   });
 
   readonly multiAnglePieceRotationAnimation = computed(() => {
-    const display = this.tabletopService.tabletopDisplaySettings;
+    const display = this.tabletopService.display();
     return multiAngleOrbitAnimation(
-      multiAnglePieceMotionMode(display.multiAngleMotionMode()),
+      multiAnglePieceMotionMode(display.multiAngleMotionMode),
       this.multiAnglePieceRevolutionSeconds(),
-      display.multiAnglePauseSeconds()
+      display.multiAnglePauseSeconds
     );
   });
 
@@ -993,7 +990,7 @@ export class GameCharacterComponent {
 
   protected onPiecePointerDown(event: PointerEvent): void {
     this.checkKey(event);
-    if (event.button !== 2 || !this.tabletopService.tabletopDisplayMode()) return;
+    if (event.button !== 2 || !this.mode2dEnabled()) return;
 
     this.selectionSignalService.cancelTableGesture();
     this.rightDrag = {
@@ -1127,7 +1124,7 @@ export class GameCharacterComponent {
       this.translateFn
     );
     const table = this.tabletopService.currentTable;
-    const display = this.tabletopService.tabletopDisplaySettings;
+    const display = this.tabletopService.display();
     const surfaceEntries = buildSurfaceSwitchContextMenu(char, table, this.translateFn);
     const menu = buildGameCharacterContextMenuModel(
       char,
@@ -1152,7 +1149,7 @@ export class GameCharacterComponent {
       this.buffViewMode(),
       surfaceEntries
     );
-    if (!display.enabled()) {
+    if (!this.tabletopService.mode2d()) {
       this.contextMenuService.open(position, menu.actions, this.name());
       return;
     }
@@ -1166,9 +1163,9 @@ export class GameCharacterComponent {
       menu.actions,
       menu.radialGroups,
       this.name(),
-      display.radialMenuEnabled(),
-      display.radialMenuRotationSpeed(),
-      multiAngleFontScaleFactor(display.multiAngleFontScale()),
+      display.radialMenuEnabled,
+      display.radialMenuRotationSpeed,
+      multiAngleFontScaleFactor(display.multiAngleFontScale),
       menuClearanceRadius,
       menuOcclusionHalfExtent,
     ] as const;

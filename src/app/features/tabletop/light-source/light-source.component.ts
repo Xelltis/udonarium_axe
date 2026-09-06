@@ -194,16 +194,16 @@ export class LightSourceComponent {
       this.translateFn,
       (skin) => this.applySkin(light, skin)
     );
-    const display = this.tabletopService.tabletopDisplaySettings;
-    if (display.enabled()) {
+    const display = this.tabletopService.display();
+    if (this.tabletopService.mode2d()) {
       this.contextMenuService.openRadial(
         menuPosition,
         menu.actions,
         menu.radialGroups,
         light.name,
-        display.radialMenuEnabled(),
-        display.radialMenuRotationSpeed(),
-        multiAngleFontScaleFactor(display.multiAngleFontScale())
+        display.radialMenuEnabled,
+        display.radialMenuRotationSpeed,
+        multiAngleFontScaleFactor(display.multiAngleFontScale)
       );
       return;
     }

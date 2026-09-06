@@ -1,13 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import {
-  TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY,
-  TabletopDisplaySettingsService,
-} from '@axe/application/ui/tabletop-display-settings.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -21,7 +19,6 @@ describe('GameTableComponent', () => {
   let fixture: ComponentFixture<GameTableComponent>;
 
   beforeEach(async () => {
-    localStorage.removeItem(TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY);
     TestBed.configureTestingModule({
       imports: [GameTableComponent],
       providers: [...TEST_PROVIDERS],
@@ -34,7 +31,6 @@ describe('GameTableComponent', () => {
   });
 
   afterEach(() => {
-    localStorage.removeItem(TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY);
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -70,10 +66,10 @@ describe('GameTableComponent', () => {
       expect(component.gestureService.viewRotateZ).toBe(15);
     });
 
-    it('enters flat mode from this browser local tabletop-display setting', () => {
+    it('enters flat mode where this reader asked for it, whatever the table is showing', () => {
       component.currentTable.mode2d = false;
       component.gestureService.viewRotateX = 35;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      TestBed.inject(ViewModePreferenceService).choose('flat');
 
       syncMode2d(component);
 
@@ -84,7 +80,7 @@ describe('GameTableComponent', () => {
     it('uses scale-based zoom only while orthographic projection is enabled in 2D mode', async () => {
       component.gestureService.viewPositionZ = -3000;
       component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      component.currentTable.orthographicProjection = true;
 
       syncMode2d(component);
       await nextFrame();
@@ -93,7 +89,7 @@ describe('GameTableComponent', () => {
         (component.gestureService as unknown as { gameTableEl: HTMLElement }).gameTableEl.style.transform
       ).toContain('scale(0.500000)');
 
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: false });
+      component.currentTable.orthographicProjection = false;
       syncMode2d(component);
       await nextFrame();
       expect(component.gestureService.orthographicProjection).toBe(false);
@@ -105,7 +101,7 @@ describe('GameTableComponent', () => {
     it('removes the perspective from the tabletop viewport', async () => {
       component.currentTable.gridType = GridType.NONE;
       component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      component.currentTable.orthographicProjection = true;
 
       fixture.detectChanges();
       await fixture.whenStable();
@@ -250,7 +246,7 @@ describe('GameTableComponent', () => {
 
     it('withholds the way back to real size until the screen has been measured', () => {
       component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      component.currentTable.orthographicProjection = true;
 
       expect(flatNames()).not.toContain('実寸に合わせ直す');
 
@@ -262,7 +258,7 @@ describe('GameTableComponent', () => {
 
     it('reaches the camera once for a run of resizes, not once per event', async () => {
       component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      component.currentTable.orthographicProjection = true;
       component.gestureService.orthographicProjection = true;
       component.currentTable.gridSize = 50;
       const calibration = TestBed.inject(DisplayCalibrationService);
@@ -301,8 +297,7 @@ describe('GameTableComponent', () => {
       const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
       vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
       internals._initialized = true;
-      // syncMode2d writes this from the table, so setting it on the service alone would be undone.
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      component.currentTable.orthographicProjection = true;
       const calibration = TestBed.inject(DisplayCalibrationService);
       // Let the table settle first, so nothing but the calibration is left to move the board.
       await fixture.whenStable();
@@ -322,8 +317,7 @@ describe('GameTableComponent', () => {
       const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
       vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
       internals._initialized = true;
-      // syncMode2d writes this from the table, so setting it on the service alone would be undone.
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      component.currentTable.orthographicProjection = true;
       const calibration = TestBed.inject(DisplayCalibrationService);
       calibration.calibrateFromCardRun(274, 1);
       calibration.setRealSizeEnabled(true);
@@ -352,7 +346,7 @@ describe('GameTableComponent', () => {
 
     it('takes the lock with it when the view is put back on real size', () => {
       component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      component.currentTable.orthographicProjection = true;
       component.gestureService.orthographicProjection = true;
       component.currentTable.gridSize = 50;
       TestBed.inject(DisplayCalibrationService).calibrateFromCardRun(274, 1);
@@ -373,12 +367,13 @@ describe('GameTableComponent', () => {
 
     it('offers no way back to real size under perspective, where there is no one scale', () => {
       component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: false });
+      component.currentTable.orthographicProjection = false;
       TestBed.inject(DisplayCalibrationService).calibrateFromCardRun(274, 1);
 
       expect(flatNames()).not.toContain('実寸に合わせ直す');
 
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: true });
+      TestBed.inject(TabletopDisplayService).takeOver('projection');
+      TestBed.inject(TabletopDisplayService).set('projection', { orthographicProjection: true });
 
       expect(flatNames()).toContain('実寸に合わせ直す');
     });
@@ -409,11 +404,8 @@ describe('GameTableComponent', () => {
 
     it('opens the rotating interface directly on an empty 2D table when enabled', () => {
       component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({
-        enabled: true,
-        radialMenuEnabled: true,
-        radialMenuRotationSpeed: 8,
-      });
+      component.currentTable.radialMenuEnabled = true;
+      component.currentTable.radialMenuRotationSpeed = 8;
       const menus = TestBed.inject(ContextMenuService);
       const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openLegacy = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
@@ -434,11 +426,8 @@ describe('GameTableComponent', () => {
 
     it('opens the four-direction launcher on an empty 2D table when rotating display is disabled', () => {
       component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({
-        enabled: true,
-        radialMenuEnabled: false,
-        radialMenuRotationSpeed: 6,
-      });
+      component.currentTable.radialMenuEnabled = false;
+      component.currentTable.radialMenuRotationSpeed = 6;
       const menus = TestBed.inject(ContextMenuService);
       const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openLegacy = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
@@ -459,7 +448,7 @@ describe('GameTableComponent', () => {
 
     it('keeps the existing vertical table menu outside 2D mode', () => {
       component.currentTable.mode2d = false;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: false, radialMenuEnabled: false });
+      component.currentTable.radialMenuEnabled = false;
       const menus = TestBed.inject(ContextMenuService);
       const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openLegacy = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
@@ -474,17 +463,18 @@ describe('GameTableComponent', () => {
       expect(openRotating).not.toHaveBeenCalled();
     });
 
-    it('keeps the ordinary menu in shared 2D when local tabletop display mode is off', () => {
-      component.currentTable.mode2d = true;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: false, radialMenuEnabled: true });
+    it('opens the four-way menu for a reader whose own seat lies flat over a table that does not', () => {
+      component.currentTable.mode2d = false;
+      component.currentTable.radialMenuEnabled = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       const menus = TestBed.inject(ContextMenuService);
       const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openLegacy = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
 
       component.openTableContextMenu(menuPosition, objectPosition);
 
-      expect(openLegacy).toHaveBeenCalled();
-      expect(openRotating).not.toHaveBeenCalled();
+      expect(openRotating).toHaveBeenCalled();
+      expect(openLegacy).not.toHaveBeenCalled();
     });
   });
 

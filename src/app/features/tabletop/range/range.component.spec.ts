@@ -5,7 +5,6 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { RangeArea } from '@axe/domain/tabletop/range';
@@ -162,11 +161,8 @@ describe('RangeComponent', () => {
       fixture.componentRef.setInput('range', range);
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = mode2d;
-      TestBed.inject(TabletopDisplaySettingsService).patch({
-        enabled: mode2d,
-        radialMenuEnabled,
-        radialMenuRotationSpeed: 9,
-      });
+      table.radialMenuEnabled = radialMenuEnabled;
+      table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
       vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
       TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);

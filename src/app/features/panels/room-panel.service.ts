@@ -56,14 +56,6 @@ export class RoomPanelService {
             ),
           option: { width: 560, height: 620 },
         };
-      case 'tabletopDisplaySetting':
-        return {
-          load: () =>
-            import('@axe/features/tabletop/tabletop-display-setting/tabletop-display-setting.component').then(
-              (m) => m.TabletopDisplaySettingComponent
-            ),
-          option: { width: 480, height: 650, single: 'tabletop-display-setting' },
-        };
       case 'inventory':
         return {
           load: () =>

@@ -377,16 +377,16 @@ export class RangeComponent {
       this.translateFn,
       (r) => this.openCellEditor(r)
     );
-    const display = this.tabletopService.tabletopDisplaySettings;
-    if (display.enabled()) {
+    const display = this.tabletopService.display();
+    if (this.tabletopService.mode2d()) {
       this.contextMenuService.openRadial(
         menuPosition,
         menu.actions,
         menu.radialGroups,
         this.name(),
-        display.radialMenuEnabled(),
-        display.radialMenuRotationSpeed(),
-        multiAngleFontScaleFactor(display.multiAngleFontScale())
+        display.radialMenuEnabled,
+        display.radialMenuRotationSpeed,
+        multiAngleFontScaleFactor(display.multiAngleFontScale)
       );
       return;
     }

@@ -7,9 +7,12 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { emitSelectGameTable, triggerUpdateGameObject } from '@axe/core/event/domain-events';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -31,12 +34,29 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
+import {
+  asHoverDetailPlacement,
+  HOVER_DETAIL_PLACEMENTS,
+  HoverDetailPlacement,
+} from '@axe/domain/tabletop/hover-detail-placement';
 import { DEFAULT_CELL_DISTANCE, DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
 import { parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
+import { DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS, MultiAngleMotionMode } from '@axe/domain/tabletop/multi-angle';
+import {
+  asMultiAngleFontScale,
+  MULTI_ANGLE_FONT_SCALES,
+  MultiAngleFontScale,
+} from '@axe/domain/tabletop/multi-angle-font-scale';
 import { cellWidthInches, clampCellMm, DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import {
+  asMultiAngleMotionMode,
+  TabletopDisplaySection,
+  TabletopDisplaySettings,
+} from '@axe/domain/tabletop/tabletop-display';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { DisplayCalibrationComponent } from '@axe/features/tabletop/display-calibration/display-calibration.component';
 import {
   MapImageGridAdjusterComponent,
   MapImageGridAdjusterResult,
@@ -173,6 +193,150 @@ export class GameTableSettingComponent {
     if (!this.selectedTable) return;
     this.selectedTable.terrainRotationIn2dEnabled = value;
     triggerUpdateGameObject(this.selectedTable.toContext());
+  }
+
+  /**
+   * How a table seen from straight above is drawn and reached.
+   *
+   * Each of these belongs to the table, so that a group around one screen laid flat sees the same
+   * thing, and each may be taken over by a reader who wants something else on their own glass.
+   */
+  protected readonly display = inject(TabletopDisplayService);
+  protected readonly hoverDetailPlacements = HOVER_DETAIL_PLACEMENTS;
+  protected readonly multiAngleFontScales = MULTI_ANGLE_FONT_SCALES;
+
+  onThisScreenOnly(section: TabletopDisplaySection): boolean {
+    return this.display.takesOver(section);
+  }
+
+  setOnThisScreenOnly(section: TabletopDisplaySection, value: boolean): void {
+    if (value) this.display.takeOver(section, this.selectedTable);
+    else this.display.handBack(section);
+  }
+
+  private displaySet(section: TabletopDisplaySection, patch: Partial<TabletopDisplaySettings>): void {
+    this.display.set(section, patch, this.selectedTable);
+  }
+
+  get orthographicProjection(): boolean {
+    return this.display.settingsOf(this.selectedTable).orthographicProjection;
+  }
+  set orthographicProjection(value: boolean) {
+    this.displaySet('projection', { orthographicProjection: value });
+  }
+
+  get hoverDetailPlacement(): HoverDetailPlacement {
+    return this.display.settingsOf(this.selectedTable).hoverDetailPlacement;
+  }
+  set hoverDetailPlacement(value: HoverDetailPlacement) {
+    this.displaySet('hoverDetail', { hoverDetailPlacement: asHoverDetailPlacement(value) });
+  }
+
+  get radialMenuEnabled(): boolean {
+    return this.display.settingsOf(this.selectedTable).radialMenuEnabled;
+  }
+  set radialMenuEnabled(value: boolean) {
+    this.displaySet('menus', { radialMenuEnabled: value });
+  }
+
+  get radialMenuRotationSpeed(): number {
+    return this.display.settingsOf(this.selectedTable).radialMenuRotationSpeed;
+  }
+  set radialMenuRotationSpeed(value: number) {
+    this.displaySet('menus', { radialMenuRotationSpeed: Number(value) });
+  }
+
+  get multiAngleEnabled(): boolean {
+    return this.display.settingsOf(this.selectedTable).multiAngleEnabled;
+  }
+  set multiAngleEnabled(value: boolean) {
+    this.displaySet('pieceLabels', { multiAngleEnabled: value });
+  }
+
+  get multiAngleResourceBuffEnabled(): boolean {
+    return this.display.settingsOf(this.selectedTable).multiAngleResourceBuffEnabled;
+  }
+  set multiAngleResourceBuffEnabled(value: boolean) {
+    this.displaySet('pieceLabels', { multiAngleResourceBuffEnabled: value });
+  }
+
+  get multiAngleFontScale(): MultiAngleFontScale {
+    return this.display.settingsOf(this.selectedTable).multiAngleFontScale;
+  }
+  set multiAngleFontScale(value: MultiAngleFontScale) {
+    this.displaySet('pieceLabels', { multiAngleFontScale: asMultiAngleFontScale(value) });
+  }
+
+  get multiAngleMotionMode(): MultiAngleMotionMode {
+    return this.display.settingsOf(this.selectedTable).multiAngleMotionMode;
+  }
+  set multiAngleMotionMode(value: MultiAngleMotionMode) {
+    const motionMode = asMultiAngleMotionMode(value);
+    this.displaySet('pieceLabels', {
+      multiAngleMotionMode: motionMode,
+      multiAnglePieceRevolutionSeconds: motionMode === 'continuous' ? DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS : 5,
+    });
+  }
+
+  get multiAngleRevolutionSeconds(): number {
+    return this.display.settingsOf(this.selectedTable).multiAngleRevolutionSeconds;
+  }
+  set multiAngleRevolutionSeconds(value: number) {
+    this.displaySet('pieceLabels', { multiAngleRevolutionSeconds: Number(value) });
+  }
+
+  get multiAnglePauseSeconds(): number {
+    return this.display.settingsOf(this.selectedTable).multiAnglePauseSeconds;
+  }
+  set multiAnglePauseSeconds(value: number) {
+    this.displaySet('pieceLabels', { multiAnglePauseSeconds: Number(value) });
+  }
+
+  get multiAnglePieceRevolutionSeconds(): number {
+    return this.display.settingsOf(this.selectedTable).multiAnglePieceRevolutionSeconds;
+  }
+  set multiAnglePieceRevolutionSeconds(value: number) {
+    this.displaySet('pieceLabels', { multiAnglePieceRevolutionSeconds: Number(value) });
+  }
+
+  /** The screen measurement and the lock describe this glass alone, and are never written down. */
+  private readonly displayCalibration = inject(DisplayCalibrationService);
+  private readonly viewLock = inject(ViewLockService);
+  protected readonly isCalibrated = this.displayCalibration.isCalibrated;
+  protected readonly calibrationDpi = this.displayCalibration.dpi;
+  protected readonly needsRecalibration = this.displayCalibration.needsRecalibration;
+
+  get viewLocked(): boolean {
+    return this.viewLock.locked();
+  }
+  set viewLocked(value: boolean) {
+    this.viewLock.set(value);
+  }
+
+  get realSizeEnabled(): boolean {
+    return this.displayCalibration.realSizeEnabled();
+  }
+  set realSizeEnabled(value: boolean) {
+    // Real size means nothing until the screen has been measured, so asking for it asks for that.
+    if (value && !this.displayCalibration.isCalibrated()) {
+      this.openCalibration();
+      return;
+    }
+    this.displayCalibration.setRealSizeEnabled(value);
+  }
+
+  openCalibration(): void {
+    // Without this the shell holds a fixed 800px and clips the frame the card is matched against.
+    void this.modalService.open(DisplayCalibrationComponent, { fitWidth: true });
+  }
+
+  nudgeScale(steps: number): void {
+    this.displayCalibration.nudge(steps);
+  }
+
+  /** Back to an unmeasured screen. The width of a square stays, since the map still asks for it. */
+  resetCalibration(): void {
+    this.displayCalibration.reset();
   }
 
   /** The width of a square belongs to the map, so it is kept on the table with the grid size. */

@@ -39,7 +39,6 @@
       "chatWindow": "チャットウィンドウ",
       "gameTableSetting": "テーブル設定",
       "roomSettings": "部屋設定",
-      "tabletopDisplaySetting": "卓上ディスプレイ設定",
       "fileStorage": "ファイル一覧",
       "jukebox": "ジュークボックス",
       "cutInList": "カットインリスト",
@@ -105,6 +104,9 @@
       "stair_spiral": "螺旋階段",
       "poison_pool": "毒の沼",
       "cactus_skin": "サボテンの肌"
+    },
+    "display": {
+      "onThisScreenOnly": "この画面だけ"
     }
   },
   "feature": {
@@ -460,7 +462,14 @@
         "youtubeUrl": "YouTube URL",
         "youtubeVolume": "個別音量",
         "youtubeTerms": "YouTube 利用規約",
-        "youtubeTermsNotice": "をご確認の上ご利用ください。"
+        "youtubeTermsNotice": "をご確認の上ご利用ください。",
+        "multiDirection": "カットインの多方向表示",
+        "multiDirection_none": "しない",
+        "multiDirection_vertical": "上下",
+        "multiDirection_vertical-right": "上下右",
+        "multiDirection_vertical-left": "上下左",
+        "multiDirection_four-directions": "上下左右",
+        "multiDirectionHint": "卓を真上から見ているあいだだけ、四方に向けて出します。"
       },
       "cutInEditor": {
         "tabBasic": "基本設定",
@@ -1417,8 +1426,7 @@
         "radialDisplay": "表示",
         "radialMove": "移動",
         "radialDisclosure": "公開・所有",
-        "radialObject": "コマ操作",
-        "showVisionRange": "視界範囲を表示"
+        "radialObject": "コマ操作"
       },
       "panel": {
         "sheet": "キャラクターシート",
@@ -1656,15 +1664,6 @@
       }
     },
     "tabletop": {
-      "tabletopDisplaySetting": {
-        "enabled": "卓上ディスプレイモードをオンにする",
-        "localHint": "平行投影表示になります。設定はこのブラウザだけに適用され、他の参加者には同期されません。",
-        "menuAndDisplay": "メニュー・表示",
-        "multiAngleDisplay": "コマの多方向表示",
-        "multiAngleLocalHint": "コマごと回す設定より、このブラウザの周回表示を優先します。",
-        "ticker": "外周ティッカー",
-        "realSize": "実寸表示とビュー固定"
-      },
       "ccfoliaImport": {
         "tableName": "ココフォリアのルーム",
         "imported": "ココフォリアのルームを取り込みました（テーブル {{tables}} 枚 / パネル {{panels}} 件 / コマ {{pieces}} 体）。「{{table}}」を表示しています。",
@@ -1904,12 +1903,6 @@
         "imageBillboard": "画像をカメラに追従",
         "mode2d": "2Dモード（俯瞰固定）",
         "terrainRotationIn2d": "地形の回転を許可（通常は2Dモードでは固定）",
-        "cutInMultiDirection": "カットインの多方向表示",
-        "cutInMultiDirection_none": "しない",
-        "cutInMultiDirection_vertical": "上下",
-        "cutInMultiDirection_vertical-right": "上下右",
-        "cutInMultiDirection_vertical-left": "上下左",
-        "cutInMultiDirection_four-directions": "上下左右",
         "hoverDetailPlacement": "コマの詳細表示",
         "hoverDetailPlacement_piece": "コマの近くに表示（従来）",
         "hoverDetailPlacement_screen-edges": "画面の端に4方向表示（編集不可）",
@@ -2008,7 +2001,14 @@
           "cell": "マス",
           "metre": "メートル",
           "foot": "フィート"
-        }
+        },
+        "sectionFlatTable": "真上から見るとき（2D）",
+        "flatTableHint": "ここから下は卓を真上から見ているあいだだけ効きます。「この画面だけ」を入れると、卓の設定から外れてこのブラウザの設定になります。",
+        "orthographicProjection": "遠近をなくす（画面を寝かせて囲むとき）",
+        "sectionFlatMenu": "メニューの出し方",
+        "sectionMultiAngle": "コマの多方向表示",
+        "sectionRealSize": "実寸表示とビュー固定（この画面）",
+        "realSizeHint": "画面の実測とビュー固定は、このブラウザだけのものです。ほかの参加者には伝わりません。"
       },
       "displayCalibration": {
         "title": "画面の実寸を合わせる",
@@ -2325,7 +2325,7 @@
         "alarmMenuTitle": "アラームタイマ",
         "tabSettingTitle": "チャットタブ設定",
         "tickerEnabled": "外周ティッカーを表示",
-        "tickerTabletopDisplayOnly": "卓上ディスプレイモード専用",
+        "tickerTabletopDisplayOnly": "2Dで卓を見ているあいだに流れます",
         "tickerSpeed": "速度",
         "tickerSpeedUnit": "px/秒",
         "noTarget": "対象が未選択です",
@@ -3446,7 +3446,6 @@
       "chat": "チャット",
       "tableSetting": "テーブル設定",
       "roomSettings": "部屋設定",
-      "tabletopDisplaySetting": "卓上ディスプレイ設定",
       "images": "画像",
       "jukebox": "ジュークボックス",
       "cutIn": "カットイン",

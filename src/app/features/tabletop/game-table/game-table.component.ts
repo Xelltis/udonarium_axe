@@ -256,7 +256,7 @@ export class GameTableComponent {
     });
     effect(() => {
       this.tabletopService.mode2d();
-      this.tabletopService.tabletopDisplayMode();
+      this.tabletopService.orthographicProjection();
       if (this._initialized) untracked(() => this.syncMode2d());
     });
     effect(() => {
@@ -819,16 +819,16 @@ export class GameTableComponent {
   openTableContextMenu(menuPosition: PointerCoordinate, objectPosition: PointerCoordinate): void {
     const menu = this.buildContextMenuModel(objectPosition);
     const table = this.currentTable;
-    const display = this.tabletopService.tabletopDisplaySettings;
-    if (display.enabled()) {
+    const display = this.tabletopService.display();
+    if (this.tabletopService.mode2d()) {
       this.contextMenuService.openRadial(
         menuPosition,
         menu.actions,
         menu.rotatingGroups,
         table.name,
-        display.radialMenuEnabled(),
-        display.radialMenuRotationSpeed(),
-        multiAngleFontScaleFactor(display.multiAngleFontScale())
+        display.radialMenuEnabled,
+        display.radialMenuRotationSpeed,
+        multiAngleFontScaleFactor(display.multiAngleFontScale)
       );
       return;
     }

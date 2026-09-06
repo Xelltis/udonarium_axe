@@ -21,6 +21,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
@@ -93,6 +94,7 @@ export class ChatWindowComponent {
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly activeChatTab = inject(ActiveChatTabService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly tabletopDisplay = inject(TabletopDisplayService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -192,21 +194,29 @@ export class ChatWindowComponent {
   readonly isTickerTab = computed(() => this.chatTab()?.isTickerTab ?? false);
 
   get tickerEnabled(): boolean {
-    return this.tabletopService.tabletopDisplaySettings.multiAngleTickerEnabled();
+    return this.tabletopDisplay.settings().multiAngleTickerEnabled;
   }
   set tickerEnabled(value: boolean) {
-    this.tabletopService.tabletopDisplaySettings.patch({ multiAngleTickerEnabled: value });
+    this.tabletopDisplay.set('ticker', { multiAngleTickerEnabled: value });
+  }
+
+  get tickerOnThisScreenOnly(): boolean {
+    return this.tabletopDisplay.takesOver('ticker');
+  }
+  set tickerOnThisScreenOnly(value: boolean) {
+    if (value) this.tabletopDisplay.takeOver('ticker');
+    else this.tabletopDisplay.handBack('ticker');
   }
 
   get tickerPixelsPerSecond(): number {
-    const value = Number(this.tabletopService.tabletopDisplaySettings.multiAngleTickerPixelsPerSecond());
+    const value = Number(this.tabletopDisplay.settings().multiAngleTickerPixelsPerSecond);
     return Number.isFinite(value)
       ? Math.min(MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, Math.max(MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, value))
       : DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND;
   }
   set tickerPixelsPerSecond(value: number) {
     const numeric = Number(value);
-    this.tabletopService.tabletopDisplaySettings.patch({
+    this.tabletopDisplay.set('ticker', {
       multiAngleTickerPixelsPerSecond: Number.isFinite(numeric)
         ? Math.min(
             MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,

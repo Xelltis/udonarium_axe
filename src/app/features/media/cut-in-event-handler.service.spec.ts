@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { emitSoundOnlyCutIn, emitStartCutIn } from '@axe/core/event/domain-events';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -33,11 +33,10 @@ describe('CutInEventHandlerService', () => {
   let audioStub: { get: ReturnType<typeof vi.fn> };
   let service: CutInEventHandlerService;
 
-  function useTable(mode: CutInMultiDirectionMode, tabletopDisplayEnabled = true): void {
-    TestBed.inject(TabletopDisplaySettingsService).patch({
-      enabled: tabletopDisplayEnabled,
-      cutInMultiDirectionMode: mode,
-    });
+  function useTable(mode: CutInMultiDirectionMode, mode2d = true): void {
+    const table = TestBed.inject(TabletopService).currentTable;
+    table.mode2d = mode2d;
+    table.cutInMultiDirectionMode = mode;
   }
 
   beforeEach(() => {

@@ -273,8 +273,10 @@ export class TooltipDirective {
 
   /** The seats to fill, or null when the detail belongs beside the piece as it always has. */
   private edgeSeats(): EdgeDetailSeat[] | null {
-    const display = this.tabletopService.tabletopDisplaySettings;
-    if (!display.enabled() || asHoverDetailPlacement(display.hoverDetailPlacement()) !== 'screen-edges') return null;
+    const display = this.tabletopService.display();
+    if (!this.tabletopService.mode2d() || asHoverDetailPlacement(display.hoverDetailPlacement) !== 'screen-edges') {
+      return null;
+    }
     return makeEdgeDetailSeats(window.innerWidth, window.innerHeight);
   }
 
@@ -294,8 +296,8 @@ export class TooltipDirective {
 
   private rotationDegreesAt(pointerX: number, pointerY: number): number {
     const object = this.tabletopObject();
-    const display = this.tabletopService.tabletopDisplaySettings;
-    if (!(object instanceof GameCharacter) || !display.enabled() || !display.multiAngleEnabled()) return 0;
+    const display = this.tabletopService.display();
+    if (!(object instanceof GameCharacter) || !this.tabletopService.mode2d() || !display.multiAngleEnabled) return 0;
 
     const host = this.viewContainerRef.element.nativeElement as Element;
     const piece = host.querySelector('[data-testid="piece-body"]') ?? host;

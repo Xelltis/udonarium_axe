@@ -198,16 +198,16 @@ export class TableAmbienceComponent {
     if (this.pieceContextMenu.openForSelection(area, this.gridSize(), menuPosition)) return;
 
     const menu = buildTableAmbienceContextMenuModel(area, this.gridSize(), () => this.openSettings(area), this.t);
-    const display = this.tabletopService.tabletopDisplaySettings;
-    if (display.enabled()) {
+    const display = this.tabletopService.display();
+    if (this.tabletopService.mode2d()) {
       this.contextMenuService.openRadial(
         menuPosition,
         menu.actions,
         menu.radialGroups,
         area.name,
-        display.radialMenuEnabled(),
-        display.radialMenuRotationSpeed(),
-        multiAngleFontScaleFactor(display.multiAngleFontScale())
+        display.radialMenuEnabled,
+        display.radialMenuRotationSpeed,
+        multiAngleFontScaleFactor(display.multiAngleFontScale)
       );
       return;
     }

@@ -4,9 +4,9 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { TabletopDisplaySettingsService } from '@axe/application/ui/tabletop-display-settings.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-counters';
@@ -158,12 +158,12 @@ describe('TerrainComponent', () => {
   });
 
   describe('the turn handle', () => {
-    function rotationDisabledFor2dTerrain(enabled: boolean, sharedMode2d = true, localMode = false): boolean {
+    function rotationDisabledFor2dTerrain(enabled: boolean, sharedMode2d = true, seatFlat = false): boolean {
       const terrain = Terrain.create('2D terrain', 2, 3, 1, '', '');
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = sharedMode2d;
       table.terrainRotationIn2dEnabled = enabled;
-      TestBed.inject(TabletopDisplaySettingsService).patch({ enabled: localMode });
+      TestBed.inject(ViewModePreferenceService).choose(seatFlat ? 'flat' : 'perspective');
       fixture.componentRef.setInput('terrain', terrain);
       fixture.detectChanges();
 
@@ -182,7 +182,7 @@ describe('TerrainComponent', () => {
       expect(rotationDisabledFor2dTerrain(true)).toBe(false);
     });
 
-    it('uses the shared terrain permission when only this browser is in tabletop display mode', () => {
+    it('uses the shared terrain permission for a reader whose own seat lies flat', () => {
       expect(rotationDisabledFor2dTerrain(true, false, true)).toBe(false);
     });
   });
@@ -193,11 +193,8 @@ describe('TerrainComponent', () => {
       fixture.componentRef.setInput('terrain', terrain);
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = mode2d;
-      TestBed.inject(TabletopDisplaySettingsService).patch({
-        enabled: mode2d,
-        radialMenuEnabled,
-        radialMenuRotationSpeed: 9,
-      });
+      table.radialMenuEnabled = radialMenuEnabled;
+      table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
       vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
       vi.spyOn(TestBed.inject(TabletopOverlapService), 'findAt').mockReturnValue([]);

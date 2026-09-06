@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { asViewMode, DEFAULT_VIEW_MODE, ViewMode } from '@axe/domain/ui/view-mode';
 
-const STORAGE_KEY = 'ui-view-mode';
+export const VIEW_MODE_STORAGE_KEY = 'ui-view-mode';
 
 /**
  * Whether this reader looks along the table or straight down on it.
@@ -16,7 +16,7 @@ export class ViewModePreferenceService {
   choose(mode: ViewMode): void {
     this.mode.set(mode);
     try {
-      localStorage.setItem(STORAGE_KEY, mode);
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
     } catch {
       // Private browsing refuses the write; the choice still holds for this session.
     }
@@ -25,7 +25,7 @@ export class ViewModePreferenceService {
 
 function stored(): ViewMode {
   try {
-    return asViewMode(localStorage.getItem(STORAGE_KEY)) ?? DEFAULT_VIEW_MODE;
+    return asViewMode(localStorage.getItem(VIEW_MODE_STORAGE_KEY)) ?? DEFAULT_VIEW_MODE;
   } catch {
     return DEFAULT_VIEW_MODE;
   }

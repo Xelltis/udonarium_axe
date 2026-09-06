@@ -19,7 +19,8 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY } from '@axe/application/ui/tabletop-display-settings.service';
+import { SEAT_DISPLAY_OVERRIDE_STORAGE_KEY } from '@axe/application/ui/seat-display-preference.service';
+import { VIEW_MODE_STORAGE_KEY } from '@axe/application/ui/view-mode-preference.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { provideTranslocoTesting } from '@axe/testing/transloco-testing';
 
@@ -267,10 +268,11 @@ function forgetMyCursor(): void {
   PeerCursor.myCursor = null!;
 }
 
-// Tabletop display preferences are intentionally persistent in the application, but a spec that
-// enables them must not turn the next spec's otherwise ordinary table into a flat display.
+// How this seat looks at the table is intentionally persistent in the application, but a spec that
+// asks for a flat screen must not leave the next one's otherwise ordinary table lying down.
 function forgetTabletopDisplaySettings(): void {
-  localStorage.removeItem(TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY);
+  localStorage.removeItem(SEAT_DISPLAY_OVERRIDE_STORAGE_KEY);
+  localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
 }
 
 beforeEach(async () => {

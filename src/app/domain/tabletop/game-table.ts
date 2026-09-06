@@ -2,9 +2,11 @@ import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-kind';
+import { CutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { DEFAULT_FOG_COLOR, DEFAULT_FOG_MODE, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
+import { HoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import {
   DEFAULT_CELL_DISTANCE,
@@ -12,9 +14,15 @@ import {
   DEFAULT_MOVE_RANGE_ELEMENT_NAMES,
 } from '@axe/domain/tabletop/move/move-cells';
 import { DEFAULT_ZOC_EXTRA_COST, DEFAULT_ZOC_MODE, DEFAULT_ZOC_RANGE } from '@axe/domain/tabletop/move/zone-of-control';
+import { MultiAngleMotionMode } from '@axe/domain/tabletop/multi-angle';
+import { MultiAngleFontScale } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { DEFAULT_TABLE_FACING_MARK, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
+import {
+  DEFAULT_TABLETOP_DISPLAY_SETTINGS as DISPLAY_DEFAULTS,
+  TabletopDisplaySettings,
+} from '@axe/domain/tabletop/tabletop-display';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { DEFAULT_AMBIENT_COLOR } from '@axe/domain/tabletop/vision-types';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
@@ -59,6 +67,21 @@ export class GameTable extends ObjectNode {
   @SyncVar() imageBillboard: boolean = false;
   @SyncVar() mode2d: boolean = false;
   @SyncVar() terrainRotationIn2dEnabled: boolean = false;
+  /** How the flat table is drawn and reached; see {@link TabletopDisplaySettings}. */
+  @SyncVar() orthographicProjection: boolean = DISPLAY_DEFAULTS.orthographicProjection;
+  @SyncVar() radialMenuEnabled: boolean = DISPLAY_DEFAULTS.radialMenuEnabled;
+  @SyncVar() radialMenuRotationSpeed: number = DISPLAY_DEFAULTS.radialMenuRotationSpeed;
+  @SyncVar() hoverDetailPlacement: HoverDetailPlacement = DISPLAY_DEFAULTS.hoverDetailPlacement;
+  @SyncVar() multiAngleEnabled: boolean = DISPLAY_DEFAULTS.multiAngleEnabled;
+  @SyncVar() multiAngleResourceBuffEnabled: boolean = DISPLAY_DEFAULTS.multiAngleResourceBuffEnabled;
+  @SyncVar() multiAngleMotionMode: MultiAngleMotionMode = DISPLAY_DEFAULTS.multiAngleMotionMode;
+  @SyncVar() multiAngleRevolutionSeconds: number = DISPLAY_DEFAULTS.multiAngleRevolutionSeconds;
+  @SyncVar() multiAnglePauseSeconds: number = DISPLAY_DEFAULTS.multiAnglePauseSeconds;
+  @SyncVar() multiAnglePieceRevolutionSeconds: number = DISPLAY_DEFAULTS.multiAnglePieceRevolutionSeconds;
+  @SyncVar() multiAngleFontScale: MultiAngleFontScale = DISPLAY_DEFAULTS.multiAngleFontScale;
+  @SyncVar() multiAngleTickerEnabled: boolean = DISPLAY_DEFAULTS.multiAngleTickerEnabled;
+  @SyncVar() multiAngleTickerPixelsPerSecond: number = DISPLAY_DEFAULTS.multiAngleTickerPixelsPerSecond;
+  @SyncVar() cutInMultiDirectionMode: CutInMultiDirectionMode = DISPLAY_DEFAULTS.cutInMultiDirectionMode;
   /** How a piece shows which way it faces; see {@link TableFacingMark}. */
   @SyncVar() facingMark: TableFacingMark = DEFAULT_TABLE_FACING_MARK;
   /** How wide one square is meant to measure on the glass, for a screen laid flat under miniatures. */
