@@ -227,7 +227,13 @@
         "stepUp": "Move up",
         "stepDown": "Move down",
         "stepDrop": "Remove",
-        "stepGone": "(slot is gone)"
+        "stepGone": "(slot is gone)",
+        "appearanceParts": "What changes",
+        "appearanceImage": "Piece picture",
+        "appearancePortrait": "Portrait",
+        "appearanceSize": "Size",
+        "appearanceKeep": "Leave",
+        "appearanceHint": "A box left empty is left alone. The picture and the portrait are numbered from one, in the order the character carries them. The size is in cells. The portrait reaches this screen alone."
       },
       "kind": {
         "chat": "Chat / dice",
@@ -240,7 +246,8 @@
         "cutIn": "Cut-in",
         "prefill": "Draft into the chat box",
         "turn": "Turn order",
-        "group": "Multi-action"
+        "group": "Multi-action",
+        "appearance": "Change how it looks"
       },
       "mode": {
         "cast": "Cast",
@@ -270,7 +277,8 @@
         "cutIn": "Chosen from the cut-ins the table holds.",
         "prefill": "Puts the text in the chat box without sending it, for a long line you want to finish by hand.",
         "turn": "Moves the turn order on or back.",
-        "group": "Choose other slots and this one fires them in turn. A multi-action cannot hold another."
+        "group": "Choose other slots and this one fires them in turn. A multi-action cannot hold another.",
+        "appearance": "Swaps the piece's picture, the portrait it speaks with, and its size. Put beside an effect in a multi-action, it is a transformation."
       },
       "lock": "Hold it where it stands",
       "pageTitle": "Page {{page}}",

@@ -12,6 +12,7 @@ const KIND_ICONS: Record<HotbarSlotKind, string> = {
   cutIn: 'slideshow',
   prefill: 'edit_note',
   turn: 'skip_next',
+  appearance: 'masks',
   group: 'playlist_play',
 };
 
@@ -26,6 +27,7 @@ const KIND_COLORS: Record<HotbarSlotKind, string> = {
   cutIn: '#ad1457',
   prefill: '#455a64',
   turn: '#ef6c00',
+  appearance: '#00838f',
   group: '#6a1b9a',
 };
 

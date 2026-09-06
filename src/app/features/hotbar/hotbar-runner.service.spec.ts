@@ -12,6 +12,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement } from '@axe/domain/data/data-element';
 import { EffectField } from '@axe/domain/effect/effect-field';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { emptyHotbarSlotDraft, HotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
@@ -553,6 +554,66 @@ describe('HotbarRunnerService', () => {
 
       expect(run(slot, character)).toEqual({ ok: true });
       expect(atTargets).toHaveBeenCalledWith(preset, character);
+    });
+  });
+
+  describe('changing how a piece looks', () => {
+    function picturesOf(count: number): void {
+      const images = character.imageDataElement;
+      if (!images) return;
+      for (let index = images.children.length; index < count; index += 1) {
+        images.appendChild(DataElement.create('imageIdentifier', `picture-${index}`, { type: 'image' }, ''));
+      }
+    }
+
+    function pictureIndex(): number {
+      return Number(character.detailDataElement?.getFirstElementByName('ICON')?.currentValue);
+    }
+
+    it('puts on the picture, the portrait and the size it was given', () => {
+      picturesOf(3);
+
+      const slot = slotOf('appearance', '', { kind: 'appearance', image: 2, portrait: 1, size: 3 });
+
+      expect(run(slot, character)).toEqual({ ok: true });
+      expect(pictureIndex()).toBe(2);
+      expect(character.selectedPortraitIndex).toBe(1);
+      expect(character.size).toBe(3);
+    });
+
+    it('leaves alone every part it was not given', () => {
+      picturesOf(3);
+      character.selectedPortraitIndex = 2;
+      character.size = 4;
+      const slot = slotOf('appearance', '', { kind: 'appearance', image: 1, portrait: -1, size: 0 });
+
+      expect(run(slot, character)).toEqual({ ok: true });
+      expect(pictureIndex()).toBe(1);
+      expect(character.selectedPortraitIndex).toBe(2);
+      expect(character.size).toBe(4);
+    });
+
+    it('holds a picture the character does not have to the last one it does', () => {
+      picturesOf(2);
+
+      expect(run(slotOf('appearance', '', { kind: 'appearance', image: 9, portrait: -1, size: 0 }), character)).toEqual(
+        {
+          ok: true,
+        }
+      );
+      expect(pictureIndex()).toBe(1);
+    });
+
+    it('says so rather than pressing for nothing', () => {
+      const slot = slotOf('appearance', '', { kind: 'appearance', image: -1, portrait: -1, size: 0 });
+
+      expect(run(slot, character)).toEqual({ ok: false, reason: 'empty' });
+    });
+
+    it('needs a character, like the rest of what acts on one', () => {
+      const slot = slotOf('appearance', '', { kind: 'appearance', image: 0, portrait: -1, size: 0 });
+
+      expect(run(slot, null)).toEqual({ ok: false, reason: 'noCharacter' });
     });
   });
 });

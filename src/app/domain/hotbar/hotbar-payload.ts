@@ -45,6 +45,8 @@ export type HotbarPayload =
   | { kind: 'sound'; local: boolean }
   | { kind: 'cutIn'; soundOnly: boolean }
   | { kind: 'turn'; action: TurnAction }
+  /** A piece changing what it looks like. A part left at its "leave it" value is not touched. */
+  | { kind: 'appearance'; image: number; portrait: number; size: number }
   | { kind: 'group'; steps: HotbarStep[] }
   | { kind: 'plain' };
 
@@ -63,6 +65,10 @@ export function sameHotbarStep(
   if (step.slotIdentifier && slot.slotIdentifier && step.slotIdentifier === slot.slotIdentifier) return true;
   return step.page === slot.page && step.slotIndex === slot.slotIndex;
 }
+
+/** What an appearance slot holds for a part it leaves alone: no image chosen, and no size given. */
+export const KEEP_INDEX = -1;
+export const KEEP_SIZE = 0;
 
 export const EFFECT_MODES: readonly EffectCastMode[] = ['cast', 'field', 'preview'];
 export const TURN_ACTIONS: readonly TurnAction[] = ['next', 'prev', 'reset'];
@@ -96,6 +102,8 @@ export function defaultHotbarPayload(kind: HotbarSlotKind): HotbarPayload {
       return { kind: 'cutIn', soundOnly: false };
     case 'turn':
       return { kind: 'turn', action: 'next' };
+    case 'appearance':
+      return { kind: 'appearance', image: KEEP_INDEX, portrait: KEEP_INDEX, size: KEEP_SIZE };
     case 'group':
       return { kind: 'group', steps: [] };
     default:
@@ -145,6 +153,13 @@ export function parseHotbarPayload(kind: HotbarSlotKind, raw: unknown): HotbarPa
       return { kind: 'cutIn', soundOnly: readBoolean(held.soundOnly, fallback.soundOnly) };
     case 'turn':
       return { kind: 'turn', action: readOneOf(held.action, TURN_ACTIONS, fallback.action) };
+    case 'appearance':
+      return {
+        kind: 'appearance',
+        image: readChoice(held.image, fallback.image),
+        portrait: readChoice(held.portrait, fallback.portrait),
+        size: readIndex(held.size, fallback.size),
+      };
     case 'group':
       // A group written before each step had a wait of its own kept one wait for the lot;
       // it is read as that wait before every step but the first, which is what it meant.
@@ -180,6 +195,13 @@ function readString(value: unknown, fallback: string): string {
 
 function readBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+/** An index into the pictures a character carries, or {@link KEEP_INDEX} for the one it has. */
+function readChoice(value: unknown, fallback: number): number {
+  const held = Number(value);
+  if (!Number.isFinite(held)) return fallback;
+  return held < 0 ? KEEP_INDEX : Math.floor(held);
 }
 
 function readIndex(value: unknown, fallback: number): number {

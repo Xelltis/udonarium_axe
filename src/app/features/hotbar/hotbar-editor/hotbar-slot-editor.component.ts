@@ -21,6 +21,8 @@ import {
   encodeHotbarPayload,
   HotbarPayload,
   HotbarStep,
+  KEEP_INDEX,
+  KEEP_SIZE,
   MAX_STEP_DELAY_MS,
   parseHotbarPayload,
   sameHotbarStep,
@@ -391,6 +393,34 @@ export class HotbarSlotEditorComponent {
 
   protected setColor(color: string): void {
     this.draft.update((draft) => ({ ...draft, color }));
+  }
+
+  /**
+   * The parts of a look, counted from one as the sheet counts them.
+   *
+   * An empty box is a part the slot leaves alone, which is what the "leave it" value stands for.
+   */
+  protected readonly appearanceImage = computed<number | null>(() => {
+    const options = this.options();
+    return options.kind === 'appearance' && options.image > KEEP_INDEX ? options.image + 1 : null;
+  });
+
+  protected readonly appearancePortrait = computed<number | null>(() => {
+    const options = this.options();
+    return options.kind === 'appearance' && options.portrait > KEEP_INDEX ? options.portrait + 1 : null;
+  });
+
+  protected readonly appearanceSize = computed<number | null>(() => {
+    const options = this.options();
+    return options.kind === 'appearance' && options.size > KEEP_SIZE ? options.size : null;
+  });
+
+  protected patchAppearanceIndex(field: 'image' | 'portrait', value: number): void {
+    this.patchOptions({ [field]: Number.isFinite(value) && value >= 1 ? Math.floor(value) - 1 : KEEP_INDEX });
+  }
+
+  protected patchAppearanceSize(value: number): void {
+    this.patchOptions({ size: Number.isFinite(value) && value > 0 ? Math.floor(value) : KEEP_SIZE });
   }
 
   /** An empty box means "as the shape comes", which is what a size of none stands for. */

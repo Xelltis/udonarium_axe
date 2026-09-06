@@ -1,6 +1,8 @@
 import {
   defaultHotbarPayload,
   encodeHotbarPayload,
+  KEEP_INDEX,
+  KEEP_SIZE,
   MAX_STEP_DELAY_MS,
   parseHotbarPayload,
 } from '@axe/domain/hotbar/hotbar-payload';
@@ -138,6 +140,32 @@ describe('hotbar slot payloads', () => {
       );
 
       expect(payload.kind === 'group' ? payload.steps[0].delayMs : -1).toBe(MAX_STEP_DELAY_MS);
+    });
+  });
+
+  describe('a look', () => {
+    it('starts with every part left alone', () => {
+      expect(defaultHotbarPayload('appearance')).toEqual({
+        kind: 'appearance',
+        image: KEEP_INDEX,
+        portrait: KEEP_INDEX,
+        size: KEEP_SIZE,
+      });
+    });
+
+    it('reads back what it was told, and takes anything below zero as leaving it', () => {
+      expect(parseHotbarPayload('appearance', JSON.stringify({ image: 2, portrait: 0, size: 3 }))).toEqual({
+        kind: 'appearance',
+        image: 2,
+        portrait: 0,
+        size: 3,
+      });
+      expect(parseHotbarPayload('appearance', JSON.stringify({ image: -5, portrait: 'x', size: -2 }))).toEqual({
+        kind: 'appearance',
+        image: KEEP_INDEX,
+        portrait: KEEP_INDEX,
+        size: KEEP_SIZE,
+      });
     });
   });
 });

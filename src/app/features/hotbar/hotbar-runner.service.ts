@@ -20,7 +20,7 @@ import { decodeRangeShapeField } from '@axe/domain/data/range-shape-field';
 import { EffectField } from '@axe/domain/effect/effect-field';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
-import { HotbarStep, RangeSlotOptions } from '@axe/domain/hotbar/hotbar-payload';
+import { HotbarStep, KEEP_INDEX, KEEP_SIZE, RangeSlotOptions } from '@axe/domain/hotbar/hotbar-payload';
 import { findByReference } from '@axe/domain/hotbar/hotbar-reference';
 import { HotbarCell } from '@axe/domain/hotbar/hotbar-size';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
@@ -99,6 +99,8 @@ export class HotbarRunnerService {
         return this.runPrefill(slot);
       case 'turn':
         return this.runTurn(slot);
+      case 'appearance':
+        return this.runAppearance(slot, character!);
       case 'group':
         return this.runGroup(slot, character);
     }
@@ -384,6 +386,38 @@ export class HotbarRunnerService {
       findSlotActor(slot, this.objectStore.getObjects<GameCharacter>(GameCharacter), PeerCursor.myCursor?.userId ?? '')
         ?.character ?? null
     );
+  }
+
+  /**
+   * A piece changing what it looks like: its picture, the portrait it speaks with, its size.
+   *
+   * Each part is left alone unless the slot names one, so a slot that only grows the piece
+   * leaves the picture as the reader last set it. Put in a multi-action beside an effect, this
+   * is a transformation.
+   */
+  private runAppearance(slot: HotbarSlot, character: GameCharacter): HotbarRunResult {
+    const options = slot.options;
+    if (options.kind !== 'appearance') return failed('empty');
+
+    const pictures = character.imageDataElement?.children.length ?? 0;
+    const wantsPicture = options.image > KEEP_INDEX && pictures > 0;
+    const wantsPortrait = options.portrait > KEEP_INDEX && pictures > 0;
+    const wantsSize = options.size > KEEP_SIZE;
+    if (!wantsPicture && !wantsPortrait && !wantsSize) return failed('empty');
+
+    if (wantsPicture) {
+      character.addExtendData();
+      const icon = character.detailDataElement?.getFirstElementByName('ICON');
+      if (!icon) return failed('notFound');
+      icon.currentValue = Math.min(options.image, pictures - 1);
+      icon.value = pictures - 1;
+    }
+    // The portrait a reader speaks with is theirs alone, so this one reaches no further.
+    if (wantsPortrait) character.selectedPortraitIndex = options.portrait;
+    if (wantsSize) character.size = options.size;
+
+    character.update();
+    return OK;
   }
 
   private runTurn(slot: HotbarSlot): HotbarRunResult {

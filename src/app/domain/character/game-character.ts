@@ -207,6 +207,9 @@ export class GameCharacter extends OwnedTabletopObject {
   get size(): number {
     return this.getCommonValue('size', 1);
   }
+  set size(value: number) {
+    this.setCommonValue('size', value);
+  }
   get chatPalette(): ChatPalette | null {
     for (const child of this.children) {
       if (child instanceof ChatPalette) return child;

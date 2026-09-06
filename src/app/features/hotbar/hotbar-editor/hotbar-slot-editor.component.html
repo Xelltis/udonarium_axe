@@ -366,6 +366,54 @@
     }
   }
 
+  @if (kind() === 'appearance') {
+    <div class="flex flex-col gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.appearanceParts' | transloco }}</span>
+        <label class="flex items-center gap-1">
+          <span class="text-ui-muted text-[11px]">{{ 'feature.hotbar.editor.appearanceImage' | transloco }}</span>
+          <input
+            type="number"
+            min="1"
+            max="99"
+            data-testid="hotbar-editor-appearance-image"
+            class="border-ui-border-panel bg-ui-elevated text-ui-text w-16 rounded-[3px] border border-solid px-1.5 py-1"
+            [value]="appearanceImage()"
+            [attr.placeholder]="'feature.hotbar.editor.appearanceKeep' | transloco"
+            (input)="patchAppearanceIndex('image', $any($event.target).valueAsNumber)"
+          />
+        </label>
+        <label class="flex items-center gap-1">
+          <span class="text-ui-muted text-[11px]">{{ 'feature.hotbar.editor.appearancePortrait' | transloco }}</span>
+          <input
+            type="number"
+            min="1"
+            max="99"
+            data-testid="hotbar-editor-appearance-portrait"
+            class="border-ui-border-panel bg-ui-elevated text-ui-text w-16 rounded-[3px] border border-solid px-1.5 py-1"
+            [value]="appearancePortrait()"
+            [attr.placeholder]="'feature.hotbar.editor.appearanceKeep' | transloco"
+            (input)="patchAppearanceIndex('portrait', $any($event.target).valueAsNumber)"
+          />
+        </label>
+        <label class="flex items-center gap-1">
+          <span class="text-ui-muted text-[11px]">{{ 'feature.hotbar.editor.appearanceSize' | transloco }}</span>
+          <input
+            type="number"
+            min="1"
+            max="99"
+            data-testid="hotbar-editor-appearance-size"
+            class="border-ui-border-panel bg-ui-elevated text-ui-text w-16 rounded-[3px] border border-solid px-1.5 py-1"
+            [value]="appearanceSize()"
+            [attr.placeholder]="'feature.hotbar.editor.appearanceKeep' | transloco"
+            (input)="patchAppearanceSize($any($event.target).valueAsNumber)"
+          />
+        </label>
+      </div>
+      <p class="text-ui-muted m-0 text-[11px]">{{ 'feature.hotbar.editor.appearanceHint' | transloco }}</p>
+    </div>
+  }
+
   @if (needsActor()) {
     <label class="flex items-center gap-2">
       <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.actor' | transloco }}</span>

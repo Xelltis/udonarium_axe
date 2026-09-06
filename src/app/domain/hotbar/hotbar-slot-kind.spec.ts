@@ -22,6 +22,7 @@ describe('hotbar slot kinds', () => {
   it('says which kinds have nothing to act on without a character', () => {
     expect(hotbarSlotNeedsCharacter('chat')).toBe(true);
     expect(hotbarSlotNeedsCharacter('range')).toBe(true);
+    expect(hotbarSlotNeedsCharacter('appearance')).toBe(true);
     expect(hotbarSlotNeedsCharacter('sound')).toBe(false);
     expect(hotbarSlotNeedsCharacter('cutIn')).toBe(false);
   });
