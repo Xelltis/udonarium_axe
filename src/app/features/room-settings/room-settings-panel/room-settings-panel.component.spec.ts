@@ -354,6 +354,13 @@ describe('RoomSettingsPanelComponent', () => {
       expect(TestBed.inject(SeatDisplayPreferenceService).own()).toEqual({});
     });
 
+    it('asks for the turn button on windows, which the panels read from this screen', () => {
+      component.panelRotationEnabled = true;
+
+      expect(TestBed.inject(SeatDisplayPreferenceService).own().panelRotationEnabled).toBe(true);
+      expect(component.panelRotationEnabled).toBe(true);
+    });
+
     it('starts a piece turning by the second the moment it is asked to turn in quarters', () => {
       component.multiAngleMotionMode = 'quarter-turn';
 
@@ -395,6 +402,7 @@ describe('RoomSettingsPanelComponent', () => {
       expect(own?.querySelector('[data-testid="ticker-enabled"]')).not.toBeNull();
       expect(own?.querySelector('[data-testid="cell-mm"]')).not.toBeNull();
       expect(own?.querySelector('[data-testid="real-size-enabled"]')).not.toBeNull();
+      expect(own?.querySelector('[data-testid="panel-rotation-enabled"]')).not.toBeNull();
       expect(own?.querySelector('[data-testid="forget-own-display"]')).not.toBeNull();
       expect(root.querySelector('[data-testid="reset-calibration"]')).toBeNull();
     });

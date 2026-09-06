@@ -11,6 +11,8 @@ export interface ChatOutgoing {
   messBubbleDark?: string;
   replyTo: string;
   quoteOf: string;
+  /** Whether the line is also sent round the edge of everyone's screen. */
+  toTicker: boolean;
 }
 
 export interface ChatOutgoingDraft {
@@ -23,6 +25,7 @@ export interface ChatOutgoingDraft {
   bubbles: { light: string; dark: string };
   replyTo: string;
   quoteOf: string;
+  toTicker: boolean;
 }
 
 /**
@@ -44,5 +47,6 @@ export function composeChatOutgoing(draft: ChatOutgoingDraft): ChatOutgoing {
     messBubbleDark: draft.bubbles.dark,
     replyTo: draft.replyTo,
     quoteOf: draft.quoteOf,
+    toTicker: draft.toTicker,
   };
 }

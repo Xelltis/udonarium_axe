@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -411,7 +412,14 @@ describe('UIPanelComponent', () => {
       return fixture.nativeElement.querySelector('.draggable-panel');
     }
 
-    it('adds a clockwise 90 degree button to ordinary panel title bars', () => {
+    it('keeps the title bar clear of the turn button until this screen asks for it', () => {
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="panel-rotate-90"]')).toBeNull();
+    });
+
+    it('adds a clockwise 90 degree button once this screen asks for it', () => {
+      TestBed.inject(TabletopDisplayService).set({ panelRotationEnabled: true });
       fixture.detectChanges();
 
       const button = fixture.nativeElement.querySelector('[data-testid="panel-rotate-90"]') as HTMLButtonElement;

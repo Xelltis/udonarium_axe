@@ -56,6 +56,8 @@ export interface TabletopDisplaySettings {
   multiAngleTickerEnabled: boolean;
   multiAngleTickerPixelsPerSecond: number;
   cutInMultiDirectionMode: CutInMultiDirectionMode;
+  /** Whether a window carries the button that turns it a quarter at a time. */
+  panelRotationEnabled: boolean;
 }
 
 export type TabletopDisplayKey = keyof TabletopDisplaySettings;
@@ -79,6 +81,7 @@ export const DEFAULT_TABLETOP_DISPLAY_SETTINGS: TabletopDisplaySettings = {
   multiAngleTickerEnabled: false,
   multiAngleTickerPixelsPerSecond: DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
   cutInMultiDirectionMode: DEFAULT_CUT_IN_MULTI_DIRECTION_MODE,
+  panelRotationEnabled: false,
 };
 
 export const MIN_MULTI_ANGLE_REVOLUTION_SECONDS = 1;
@@ -159,6 +162,7 @@ export function normalizeTabletopDisplaySettings(value: unknown): TabletopDispla
       MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND
     ),
     cutInMultiDirectionMode: asCutInMultiDirectionMode(source['cutInMultiDirectionMode']),
+    panelRotationEnabled: booleanOr(source['panelRotationEnabled'], defaults.panelRotationEnabled),
   };
 }
 

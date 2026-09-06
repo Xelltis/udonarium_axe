@@ -6,7 +6,7 @@ import { InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatLogExporter } from '@axe/domain/chat/chat-log-exporter';
 import { ChatMessage, ChatMessageContext } from '@axe/domain/chat/chat-message';
-import { SYSTEM_CHAT_TAB_IDENTIFIER, TICKER_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
+import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 
 const PORTRAIT_SLOT_COUNT = 12;
@@ -19,11 +19,6 @@ export class ChatTab extends ObjectNode implements InnerXml {
   /** Whether it is the tab for the system messages. It cannot be deleted and stays out of an export of every tab. */
   get isSystemTab(): boolean {
     return this.identifier === SYSTEM_CHAT_TAB_IDENTIFIER;
-  }
-
-  /** The dedicated public conversation whose messages feed the four-edge ticker. */
-  get isTickerTab(): boolean {
-    return this.identifier === TICKER_CHAT_TAB_IDENTIFIER;
   }
 
   @SyncVar() plCanView = true;

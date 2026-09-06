@@ -2174,7 +2174,7 @@
       "multiAnglePieceRevolutionSeconds": "Piece rotation (one lap)",
       "multiAnglePauseSeconds": "Pause after each 90°",
       "seconds": "sec",
-      "sectionRealSize": "Real size and view lock (this screen)",
+      "sectionRealSize": "Real size",
       "realSizeHint": "The measurement of the screen and the view lock belong to this browser alone, and reach nobody else.",
       "viewLock": "Lock the view (no panning, zooming or turning)",
       "realSize": "Draw one square at its real width",
@@ -2200,7 +2200,12 @@
       "realSizeCellMm": "Real width of a square",
       "realSizeSummary": "One square = {{mm}}mm ({{inches}} in) = {{distance}} {{unit}}",
       "realSizeSummaryPlain": "One square = {{mm}}mm ({{inches}} in)",
-      "forgetOwnDisplay": "Forget this screen's settings"
+      "forgetOwnDisplay": "Forget this screen's settings",
+      "panelRotation": "Let windows be turned a quarter at a time",
+      "panelRotationHint": "Puts a turn button on the title bar of every common window, so one can be set facing whichever side of the table is reading it.",
+      "tickerEnabled": "Show edge ticker",
+      "tickerSpeed": "Speed",
+      "tickerSpeedUnit": "px/s"
     },
     "lobby": {
       "peerMenu": {
@@ -2332,13 +2337,8 @@
         "voteMenuTitle": "Vote / Roll call",
         "alarmMenuTitle": "Alarm timer",
         "tabSettingTitle": "Chat tab settings",
-        "tickerEnabled": "Show edge ticker",
-        "tickerTabletopDisplayOnly": "Runs while the table is seen from above",
-        "tickerSpeed": "Speed",
-        "tickerSpeedUnit": "px/s",
         "noTarget": "No target selected",
-        "writingOthers": "{{count}} more typing",
-        "tickerWhere": "Whether it runs and how fast is set under the room settings UI part."
+        "writingOthers": "{{count}} more typing"
       },
       "input": {
         "you": " (you)",
@@ -2353,7 +2353,9 @@
         "cancelReply": "Cancel reply",
         "quoting": "Quoting {{name}}",
         "cancelQuote": "Cancel quote",
-        "textareaPlaceholderShort": "Type a message"
+        "textareaPlaceholderShort": "Type a message",
+        "sendToTicker": "Ticker",
+        "sendToTickerHint": "Also run this line around the edge of the screen"
       },
       "tab": {
         "unnamedCharacter": "Unnamed character",

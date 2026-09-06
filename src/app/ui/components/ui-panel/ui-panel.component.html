@@ -110,15 +110,17 @@
           >
             <i class="material-icons text-[14px]!">remove</i>
           </button>
-          <button
-            data-testid="panel-rotate-90"
-            class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
-            [attr.aria-label]="rotate90Title"
-            [title]="rotate90Title"
-            (click)="rotatePanelClockwise()"
-          >
-            <i class="material-icons text-[14px]!">rotate_right</i>
-          </button>
+          @if (showsRotation()) {
+            <button
+              data-testid="panel-rotate-90"
+              class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+              [attr.aria-label]="rotate90Title"
+              [title]="rotate90Title"
+              (click)="rotatePanelClockwise()"
+            >
+              <i class="material-icons text-[14px]!">rotate_right</i>
+            </button>
+          }
           <button
             class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
             [disabled]="isMinimized()"

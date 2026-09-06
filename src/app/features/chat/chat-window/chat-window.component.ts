@@ -17,6 +17,7 @@ import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.serv
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
+import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -42,7 +43,6 @@ import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stre
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTabSettingComponent } from '@axe/features/chat/chat-tab-setting/chat-tab-setting.component';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
-import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -89,7 +89,7 @@ export class ChatWindowComponent {
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly activeChatTab = inject(ActiveChatTabService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly roomPanels = inject(RoomPanelService);
+  private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -185,13 +185,6 @@ export class ChatWindowComponent {
     this.objectChange.versionOf(tab.identifier)();
     return canRoleSpeakTab(tab, PeerCursor.myRole);
   });
-
-  readonly isTickerTab = computed(() => this.chatTab()?.isTickerTab ?? false);
-
-  /** The ticker is set where the rest of how this screen draws the table is set. */
-  openTickerSettings(): void {
-    this.roomPanels.open('roomSettings');
-  }
 
   private isAutoScroll = true;
   readonly hasNewMessage = signal(false);
@@ -516,7 +509,7 @@ export class ChatWindowComponent {
         targetContext.object = null;
         messageTargetContext.push(targetContext);
       }
-      this.chatMessageService.sendMessage(
+      const sent = this.chatMessageService.sendMessage(
         tab,
         outtext,
         value.gameSystem,
@@ -530,6 +523,7 @@ export class ChatWindowComponent {
         value.quoteOf,
         { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
       );
+      if (value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
     }
   }
 }

@@ -187,21 +187,5 @@ describe('ChatTabSettingComponent', () => {
 
       expect(ObjectStore.instance.get(main.identifier)).toBeNull();
     });
-
-    it('keeps the dedicated ticker tab and its fixed name', () => {
-      const list = ChatTabList.instance;
-      const ticker = list.ensureTickerTab();
-      component.selectedTab.set(ticker);
-      component.allowDeleteTab = true;
-
-      component.tabName = '別名';
-      component.delete();
-
-      expect(component.isTickerTabSelected).toBe(true);
-      expect(component.isDeletable).toBe(false);
-      expect(component.isRenamable).toBe(false);
-      expect(ObjectStore.instance.get(ticker.identifier)).toBe(ticker);
-      expect(ticker.name).toBe('ティッカー');
-    });
   });
 });

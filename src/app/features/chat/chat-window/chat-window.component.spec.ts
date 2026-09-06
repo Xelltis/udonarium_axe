@@ -2,6 +2,7 @@ import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
+import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
@@ -12,7 +13,6 @@ import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatWindowComponent } from '@axe/features/chat/chat-window/chat-window.component';
-import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -70,33 +70,54 @@ describe('ChatWindowComponent', () => {
     await expectPanelDragRecovery(ChatWindowComponent);
   });
 
-  it('points at where the ticker is set, and only on the ticker tab', () => {
-    const ticker = ChatTabList.instance.ensureTickerTab();
-    const ordinary = ChatTabList.instance.addChatTab('通常');
+  it('sends a line round the screen when it was marked for the ticker', () => {
+    const tab = ChatTabList.instance.addChatTab('卓上');
     try {
-      component.chatTabidentifier = ticker.identifier;
+      component.chatTabidentifier = tab.identifier;
       fixture.detectChanges();
+      const shown = vi.spyOn(TestBed.inject(ChatTickerSelectionService), 'showMessage');
 
-      expect(component.isTickerTab()).toBe(true);
-      expect(fixture.nativeElement.querySelector('[data-testid="ticker-controls"]')).toBeTruthy();
-      expect(fixture.nativeElement.querySelector('[data-testid="ticker-open-settings"]')).toBeTruthy();
-      expect(fixture.nativeElement.querySelector('[data-testid="ticker-enabled"]')).toBeNull();
+      component.sendChat({
+        text: '第一ラウンド',
+        gameSystem: null as never,
+        sendFrom: PeerCursor.myCursor.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#000000',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: true,
+      });
 
-      component.chatTabidentifier = ordinary.identifier;
-      fixture.detectChanges();
-      expect(fixture.nativeElement.querySelector('[data-testid="ticker-controls"]')).toBeNull();
+      expect(shown).toHaveBeenCalledTimes(1);
     } finally {
-      ticker.destroy();
-      ordinary.destroy();
+      tab.destroy();
     }
   });
 
-  it('opens the room settings, where the ticker is set with the rest of the display', () => {
-    const opened = vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(() => undefined);
+  it('leaves an ordinary line off the ticker', () => {
+    const tab = ChatTabList.instance.addChatTab('普通');
+    try {
+      component.chatTabidentifier = tab.identifier;
+      fixture.detectChanges();
+      const shown = vi.spyOn(TestBed.inject(ChatTickerSelectionService), 'showMessage');
 
-    component.openTickerSettings();
+      component.sendChat({
+        text: 'こんばんは',
+        gameSystem: null as never,
+        sendFrom: PeerCursor.myCursor.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#000000',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+      });
 
-    expect(opened).toHaveBeenCalledWith('roomSettings');
+      expect(shown).not.toHaveBeenCalled();
+    } finally {
+      tab.destroy();
+    }
   });
 
   describe('who is typing', () => {

@@ -187,6 +187,13 @@ export class RoomSettingsPanelComponent {
     };
   });
 
+  get panelRotationEnabled(): boolean {
+    return this.displaySettings.panelRotationEnabled;
+  }
+  set panelRotationEnabled(value: boolean) {
+    this.displaySet({ panelRotationEnabled: value });
+  }
+
   get orthographicProjection(): boolean {
     return this.displaySettings.orthographicProjection;
   }

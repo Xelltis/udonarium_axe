@@ -16,9 +16,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
-import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { TICKER_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import {
   DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
   MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
@@ -67,23 +65,9 @@ export class ChatTickerComponent {
   });
 
   constructor() {
-    const tickerTab = this.chatTabList.ensureTickerTab();
-    this.seedFromHistory(tickerTab);
-
-    this.objectChange.messageAdded$.subscribe((event) => {
-      if (event.tabIdentifier !== TICKER_CHAT_TAB_IDENTIFIER) return;
-      const message = this.objectStore.get<ChatMessage>(event.messageIdentifier);
-      if (message) this.enqueueMessage(message);
-    }, this.destroyRef);
-
     this.chatTickerSelection.selection$.subscribe((event) => {
       const message = this.objectStore.get<ChatMessage>(event.messageIdentifier);
       if (message instanceof ChatMessage) this.replaceMessage(message);
-    }, this.destroyRef);
-
-    this.objectChange.objectDeleted$.subscribe((event) => {
-      if (event.identifier !== TICKER_CHAT_TAB_IDENTIFIER) return;
-      queueMicrotask(() => this.chatTabList.ensureTickerTab());
     }, this.destroyRef);
 
     effect(() => {
@@ -92,24 +76,6 @@ export class ChatTickerComponent {
     });
 
     this.destroyRef.onDestroy(() => this.stopAnimation());
-  }
-
-  private seedFromHistory(tab: ChatTab): void {
-    let latest: string | null = null;
-    for (const message of tab.chatMessages) {
-      this.seenMessageIdentifiers.add(message.identifier);
-      const text = formatChatTickerMessage(message);
-      if (text) latest = text;
-    }
-    if (latest) {
-      this.currentText.set(latest);
-    }
-  }
-
-  private enqueueMessage(message: ChatMessage): void {
-    if (this.seenMessageIdentifiers.has(message.identifier)) return;
-    this.seenMessageIdentifiers.add(message.identifier);
-    this.replaceMessage(message);
   }
 
   private replaceMessage(message: ChatMessage): void {

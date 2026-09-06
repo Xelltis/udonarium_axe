@@ -2174,7 +2174,7 @@
       "multiAnglePieceRevolutionSeconds": "말 본체의 한 바퀴 회전 시간",
       "multiAnglePauseSeconds": "90° 회전 후 정지 시간",
       "seconds": "초",
-      "sectionRealSize": "실측 표시와 화면 고정 (이 화면)",
+      "sectionRealSize": "실제 크기 표시",
       "realSizeHint": "화면 실측과 화면 고정은 이 브라우저에만 적용되며 다른 참가자에게 전달되지 않습니다.",
       "viewLock": "화면 고정 (이동·확대·회전 정지)",
       "realSize": "한 칸을 실제 크기로 표시",
@@ -2200,7 +2200,12 @@
       "realSizeCellMm": "한 칸의 실제 크기",
       "realSizeSummary": "한 칸 = {{mm}}mm ({{inches}}인치) = {{distance}}{{unit}}",
       "realSizeSummaryPlain": "한 칸 = {{mm}}mm ({{inches}}인치)",
-      "forgetOwnDisplay": "이 화면의 설정 지우기"
+      "forgetOwnDisplay": "이 화면의 설정 지우기",
+      "panelRotation": "창을 90°씩 회전할 수 있게 하기",
+      "panelRotationHint": "공통 창의 제목 표시줄에 회전 버튼이 나타납니다. 테이블을 둘러싼 각자의 방향으로 돌려 놓을 수 있습니다.",
+      "tickerEnabled": "가장자리 티커 표시",
+      "tickerSpeed": "속도",
+      "tickerSpeedUnit": "px/초"
     },
     "lobby": {
       "peerMenu": {
@@ -2332,13 +2337,8 @@
         "voteMenuTitle": "점호/투표 설정",
         "alarmMenuTitle": "알람 타이머",
         "tabSettingTitle": "채팅 탭 설정",
-        "tickerEnabled": "가장자리 티커 표시",
-        "tickerTabletopDisplayOnly": "테이블을 위에서 볼 때 흐릅니다",
-        "tickerSpeed": "속도",
-        "tickerSpeedUnit": "px/초",
         "noTarget": "대상이 선택되지 않았습니다",
-        "writingOthers": "외 {{count}}명 입력 중",
-        "tickerWhere": "표시 여부와 속도는 방 설정의 UI에서 정합니다."
+        "writingOthers": "외 {{count}}명 입력 중"
       },
       "input": {
         "you": "(당신)",
@@ -2353,7 +2353,9 @@
         "cancelReply": "답장 취소",
         "quoting": "{{name}} 인용",
         "cancelQuote": "인용 취소",
-        "textareaPlaceholderShort": "메시지를 입력하세요"
+        "textareaPlaceholderShort": "메시지를 입력하세요",
+        "sendToTicker": "티커",
+        "sendToTickerHint": "이 발언을 화면 외곽에도 흘려보냅니다"
       },
       "tab": {
         "unnamedCharacter": "이름 없는 캐릭터",

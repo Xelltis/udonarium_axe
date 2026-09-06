@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
@@ -41,6 +42,7 @@ export class UIPanelComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly viewport = inject(ViewportService);
+  private readonly tabletopDisplay = inject(TabletopDisplayService);
   private readonly panelTransparency = inject(PanelTransparencyService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -195,6 +197,9 @@ export class UIPanelComponent {
 
   readonly isFullScreen = signal(false);
   readonly isMinimized = signal(false);
+  /** The turn button is part of the flat-screen work, so it waits to be asked for. */
+  readonly showsRotation = computed(() => this.tabletopDisplay.settings().panelRotationEnabled);
+
   readonly rotationDegrees = signal<PanelRotationDegrees>(0);
 
   setInitialRotation(degrees: PanelRotationDegrees): void {

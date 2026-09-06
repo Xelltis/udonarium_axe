@@ -3,12 +3,8 @@ import {
   CHAT_TICKER_SELECTION_EVENT_NAME,
   ChatTickerSelectionService,
 } from '@axe/application/chat/chat-ticker-selection.service';
-import { emitMessageAdded } from '@axe/core/event/domain-events';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
-import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { TICKER_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
@@ -17,7 +13,6 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 describe('ChatTickerComponent', () => {
   let fixture: ComponentFixture<ChatTickerComponent>;
   let component: ChatTickerComponent;
-  let tickerTab: ChatTab;
   const messages: ChatMessage[] = [];
   let table: GameTable;
 
@@ -30,7 +25,6 @@ describe('ChatTickerComponent', () => {
     table = new GameTable();
     table.initialize();
     TableSelecter.instance.viewTableIdentifier = table.identifier;
-    tickerTab = ChatTabList.instance.ensureTickerTab();
     fixture = TestBed.createComponent(ChatTickerComponent);
     component = fixture.componentInstance;
   });
@@ -38,22 +32,12 @@ describe('ChatTickerComponent', () => {
   afterEach(() => {
     fixture.destroy();
     for (const message of messages.splice(0)) message.destroy();
-    tickerTab.destroy();
     table.destroy();
   });
 
   /** The table is read through a version signal, which only counts once the change has gone round. */
   async function settle(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-
-  function post(identifier: string, text: string): void {
-    const message = new ChatMessage(identifier);
-    message.initialize();
-    message.name = '案内役';
-    message.text = text;
-    messages.push(message);
-    emitMessageAdded({ tabIdentifier: TICKER_CHAT_TAB_IDENTIFIER, messageIdentifier: message.identifier });
   }
 
   function select(identifier: string, name: string, text: string): ChatMessage {
@@ -71,11 +55,11 @@ describe('ChatTickerComponent', () => {
     return internal.currentText();
   }
 
-  it('replaces the ticker immediately on every consecutive post', () => {
-    post('ticker-first', '最初の案内');
+  it('replaces the ticker immediately on every line sent to it', () => {
+    select('ticker-first', '案内役', '最初の案内');
     expect(currentText()).toBe('案内役：最初の案内　◆');
 
-    post('ticker-second', '次の案内');
+    select('ticker-second', '案内役', '次の案内');
     expect(currentText()).toBe('案内役：次の案内　◆');
   });
 
@@ -93,21 +77,21 @@ describe('ChatTickerComponent', () => {
     expect(internal.cycleStartedAt).toBeNull();
   });
 
-  it('lets the next ticker-tab post take over a manually selected message', () => {
+  it('lets the next line sent to it take over the one before', () => {
     select('manual-before-post', '斥候', '橋を確認中');
     expect(currentText()).toContain('橋を確認中');
 
-    post('ticker-after-manual', 'ラウンド開始');
+    select('ticker-after-manual', '案内役', 'ラウンド開始');
     expect(currentText()).toBe('案内役：ラウンド開始　◆');
   });
 
-  it('keeps using the ticker tab visibility and speed settings for a manual selection', async () => {
+  it('shows nothing until this screen is running a ticker, and then at the speed it asked for', async () => {
     table.mode2d = true;
     table.multiAngleTickerEnabled = false;
     table.multiAngleTickerPixelsPerSecond = 88;
     await settle();
 
-    select('manual-while-hidden', 'GM', '待機してください');
+    select('while-hidden', 'GM', '待機してください');
     expect(currentText()).toBe('GM：待機してください　◆');
     expect(component.isVisible()).toBe(false);
 

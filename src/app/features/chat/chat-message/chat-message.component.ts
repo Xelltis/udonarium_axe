@@ -22,6 +22,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -66,6 +67,7 @@ export class ChatMessageComponent {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly tabletopDisplay = inject(TabletopDisplayService);
   protected readonly theme = inject(ThemeService);
   private readonly systemAvatar = inject(SystemAvatarService);
   private readonly systemAvatarMenu = inject(SystemAvatarMenuService);
@@ -335,6 +337,7 @@ export class ChatMessageComponent {
     // A window that only reads the log offers none of the buttons that act on a line.
     if (this.readOnly()) return false;
 
+    if (!this.tabletopDisplay.settings().multiAngleTickerEnabled) return false;
     const message = this.chatMessageInput();
     if (!message) return false;
     this.objectChange.versionOf(message.identifier)();

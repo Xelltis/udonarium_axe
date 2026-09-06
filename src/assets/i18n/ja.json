@@ -2174,7 +2174,7 @@
       "multiAnglePieceRevolutionSeconds": "コマ本体の一周時間",
       "multiAnglePauseSeconds": "90°後の静止時間",
       "seconds": "秒",
-      "sectionRealSize": "実寸表示とビュー固定（この画面）",
+      "sectionRealSize": "1マスの実寸と実寸表示",
       "realSizeHint": "画面の実測とビュー固定は、このブラウザだけのものです。ほかの参加者には伝わりません。",
       "viewLock": "ビューを固定する（パン・ズーム・回転を止める）",
       "realSize": "1マスを実寸で表示",
@@ -2200,7 +2200,12 @@
       "realSizeCellMm": "1マスの実寸",
       "realSizeSummary": "1マス = {{mm}}mm（{{inches}}インチ）= {{distance}}{{unit}}",
       "realSizeSummaryPlain": "1マス = {{mm}}mm（{{inches}}インチ）",
-      "forgetOwnDisplay": "この画面の設定を消す"
+      "forgetOwnDisplay": "この画面の設定を消す",
+      "panelRotation": "ウィンドウを90°回転できるようにする",
+      "panelRotationHint": "共通ウィンドウのタイトルバーに回転ボタンが出ます。卓を囲む席それぞれの向きへ回して置けます。",
+      "tickerEnabled": "外周ティッカーを表示",
+      "tickerSpeed": "速度",
+      "tickerSpeedUnit": "px/秒"
     },
     "lobby": {
       "peerMenu": {
@@ -2332,13 +2337,8 @@
         "voteMenuTitle": "点呼/投票設定",
         "alarmMenuTitle": "アラームタイマ",
         "tabSettingTitle": "チャットタブ設定",
-        "tickerEnabled": "外周ティッカーを表示",
-        "tickerTabletopDisplayOnly": "2Dで卓を見ているあいだに流れます",
-        "tickerSpeed": "速度",
-        "tickerSpeedUnit": "px/秒",
         "noTarget": "対象が未選択です",
-        "writingOthers": "他 {{count}} 人 入力中",
-        "tickerWhere": "表示と速度は部屋設定の UI にあります。"
+        "writingOthers": "他 {{count}} 人 入力中"
       },
       "input": {
         "you": "（あなた）",
@@ -2353,7 +2353,9 @@
         "cancelReply": "返信をキャンセル",
         "quoting": "{{name}} を引用",
         "cancelQuote": "引用をキャンセル",
-        "textareaPlaceholderShort": "メッセージを入力"
+        "textareaPlaceholderShort": "メッセージを入力",
+        "sendToTicker": "ティッカー",
+        "sendToTickerHint": "この発言を画面の外周にも流します"
       },
       "tab": {
         "unnamedCharacter": "無名のキャラクター",

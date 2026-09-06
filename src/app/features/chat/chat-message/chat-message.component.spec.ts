@@ -10,6 +10,7 @@ import {
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { emitFileLoaded } from '@axe/core/event/domain-events';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
@@ -598,6 +599,21 @@ describe('ChatMessageComponent', () => {
   });
 
   describe('the ticker action', () => {
+    it('stays off a screen that is not running a ticker', () => {
+      const message = new ChatMessage('ticker-action-off');
+      message.initialize();
+      message.from = 'tester';
+      message.name = 'GM';
+      message.text = '扉が開いた';
+      fixture.componentRef.setInput('chatMessage', message);
+
+      fixture.detectChanges();
+
+      expect(component.canShowInTicker()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-message-ticker"]')).toBeNull();
+      message.destroy();
+    });
+
     it('shows after the other actions and broadcasts an ordinary public message', () => {
       const message = new ChatMessage('ticker-action-message');
       message.initialize();
@@ -607,6 +623,7 @@ describe('ChatMessageComponent', () => {
       fixture.componentRef.setInput('chatMessage', message);
       const tickerSelection = TestBed.inject(ChatTickerSelectionService);
       const spy = vi.spyOn(tickerSelection, 'showMessage');
+      TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
 
       fixture.detectChanges();
       const action = fixture.nativeElement.querySelector('[data-testid="chat-message-ticker"]') as HTMLElement | null;

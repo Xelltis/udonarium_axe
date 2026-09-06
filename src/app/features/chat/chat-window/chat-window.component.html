@@ -141,22 +141,6 @@
           </div>
         </details>
       </div>
-      @if (isTickerTab()) {
-        <div
-          data-testid="ticker-controls"
-          class="border-ui-border-panel bg-ui-input/35 text-ui-muted flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-solid px-2 py-1.5 text-[11px]"
-        >
-          <span>{{ 'feature.chat.window.tickerWhere' | transloco }}</span>
-          <button
-            type="button"
-            class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text cursor-pointer border border-solid bg-transparent px-2 py-0.5 text-[11px]"
-            data-testid="ticker-open-settings"
-            (click)="openTickerSettings()"
-          >
-            {{ 'common.panel.roomSettings' | transloco }}
-          </button>
-        </div>
-      }
     </form>
     <chat-input
       [chatTabidentifier]="chatTabidentifier"

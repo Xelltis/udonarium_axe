@@ -433,6 +433,20 @@
           <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.ownHint' | transloco }}</p>
         </div>
 
+        <div class="flex flex-col gap-1.5">
+          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+            <input
+              type="checkbox"
+              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+              [(ngModel)]="panelRotationEnabled"
+              name="panelRotationEnabled"
+              data-testid="panel-rotation-enabled"
+            />
+            {{ 'feature.roomSettings.panelRotation' | transloco }}
+          </label>
+          <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.panelRotationHint' | transloco }}</p>
+        </div>
+
         <div class="border-ui-accent border-l-2 border-solid pl-2">
           <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
             'feature.roomSettings.sectionView2d' | transloco
@@ -441,11 +455,17 @@
         <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.flatTableHint' | transloco }}</p>
 
         <ng-container [ngTemplateOutlet]="projectionBlock" />
-        <ng-container [ngTemplateOutlet]="cellSizeBlock" />
         <ng-container [ngTemplateOutlet]="hoverDetailBlock" />
         <ng-container [ngTemplateOutlet]="menusBlock" />
         <ng-container [ngTemplateOutlet]="pieceLabelsBlock" />
         <ng-container [ngTemplateOutlet]="tickerBlock" />
+
+        <div class="border-ui-accent border-l-2 border-solid pl-2">
+          <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+            'feature.roomSettings.sectionRealSize' | transloco
+          }}</span>
+        </div>
+        <ng-container [ngTemplateOutlet]="cellSizeBlock" />
         <ng-container [ngTemplateOutlet]="realSizeBlock" />
 
         <button
@@ -786,10 +806,10 @@
             name="tickerEnabled"
             data-testid="ticker-enabled"
           />
-          {{ 'feature.chat.window.tickerEnabled' | transloco }}
+          {{ 'feature.roomSettings.tickerEnabled' | transloco }}
         </label>
         <label class="text-ui-muted flex items-center gap-1 text-[11px]">
-          <span>{{ 'feature.chat.window.tickerSpeed' | transloco }}</span>
+          <span>{{ 'feature.roomSettings.tickerSpeed' | transloco }}</span>
           <input
             type="range"
             class="h-1 w-24 p-0 [accent-color:var(--ui-accent)]"
@@ -801,7 +821,7 @@
             [disabled]="!tickerEnabled"
           />
           <span class="min-w-12 text-right"
-            >{{ tickerPixelsPerSecond }} {{ 'feature.chat.window.tickerSpeedUnit' | transloco }}</span
+            >{{ tickerPixelsPerSecond }} {{ 'feature.roomSettings.tickerSpeedUnit' | transloco }}</span
           >
         </label>
       </div>

@@ -20,6 +20,7 @@ import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.se
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -76,6 +77,15 @@ export class ChatInputComponent {
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly tabletopDisplay = inject(TabletopDisplayService);
+
+  /** The ticker is this screen's, so the switch is offered only where one is running. */
+  readonly showsTickerSwitch = computed(() => this.tabletopDisplay.settings().multiAngleTickerEnabled);
+  readonly sendsToTicker = signal(false);
+
+  toggleTickerSend(): void {
+    this.sendsToTicker.update((sends) => !sends);
+  }
   private readonly batchService = inject(BatchService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly objectChange = inject(ObjectChangeService);
@@ -449,6 +459,7 @@ export class ChatInputComponent {
       bubbles: this.chatBubbles(this.colorSelectNo()),
       replyTo: this.replyTarget()?.identifier ?? '',
       quoteOf: this.quoteTarget()?.identifier ?? '',
+      toTicker: this.sendsToTicker(),
     };
     DiceBot.loadGameSystemAsync(this.gameType).then((gameSystem) => {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
