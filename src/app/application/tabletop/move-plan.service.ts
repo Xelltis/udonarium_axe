@@ -169,8 +169,11 @@ export class MovePlanService {
       waypoints: [...plan.waypoints, from],
       ahead: [],
       spent,
+      // A leg that ended on ground an enemy holds ends the move. A reach worked out afresh from
+      // that cell would forget it, since a reach only asks what stops it of the cells it steps
+      // on to, never of the one it sets out from.
       reach:
-        left > 0
+        left > 0 && !terms.options.stopsAt?.(from)
           ? reachableCells(plan.grid, from, left, (index) => terms.blocked.get(index), terms.options)
           : new CellBits(plan.reach.count),
     });

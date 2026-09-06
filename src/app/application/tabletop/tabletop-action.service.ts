@@ -39,6 +39,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { MAX_BOARD_PITCH, WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { laysFlat } from '@axe/domain/ui/view-mode';
 
 /** How wide an ambient effect starts, in cells. One cell reads as nothing, so it arrives with some ground under it. */
 const AMBIENCE_DEFAULT_SIZE = 4;
@@ -165,7 +166,9 @@ export class TabletopActionService {
     textNote.location.x = position.x;
     textNote.location.y = position.y;
     textNote.posZ = position.z;
-    textNote.isUpright = !((this.getViewTable()?.mode2d ?? false) || this.viewMode.mode() === 'flat');
+    // The seat's own view decides, as it does everywhere else: a reader who asked for
+    // perspective on a table that recommends flat is looking at a standing board.
+    textNote.isUpright = !laysFlat(this.viewMode.mode(), this.getViewTable()?.mode2d ?? false);
     this.applyCreationDefaults(textNote);
     return textNote;
   }
