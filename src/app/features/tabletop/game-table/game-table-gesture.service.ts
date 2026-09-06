@@ -3,7 +3,7 @@ import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { selectByRect } from '@axe/application/ui/rect-hit-test';
+import { marqueeApply, selectByRect } from '@axe/application/ui/rect-hit-test';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -295,10 +295,10 @@ export class GameTableGestureService {
     this.selectionSignalService.marqueeState.set(null);
     const candidates = this.collectSelectableObjects();
     const hits = selectByRect(candidates, rect);
-    const togglesSelection = modifiers.ctrl || (modifiers.touch && this.selectionSignalService.selectionSize() > 0);
-    if (modifiers.shift) {
+    const joins = marqueeApply(modifiers, this.selectionSignalService.selectionSize() > 0);
+    if (joins === 'add') {
       for (const id of hits) this.selectionSignalService.addSelection(id);
-    } else if (togglesSelection) {
+    } else if (joins === 'toggle') {
       for (const id of hits) this.selectionSignalService.toggleSelection(id);
     } else {
       this.selectionSignalService.replaceSelection(hits);

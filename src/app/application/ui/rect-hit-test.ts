@@ -69,3 +69,22 @@ export function selectByRect(
   }
   return hits;
 }
+
+/** What a marquee does with what it caught: put it in, take it out, or stand in for the lot. */
+export type MarqueeApply = 'add' | 'toggle' | 'replace';
+
+/**
+ * How a marquee's catch joins what is already picked out.
+ *
+ * A finger has no keys to hold, so a second marquee drawn while something is already picked
+ * out toggles what it catches rather than replacing it. Starting again is a tap on bare
+ * table, which puts the selection down and lets the next marquee stand in for the lot.
+ */
+export function marqueeApply(
+  modifiers: { shift: boolean; ctrl: boolean; touch: boolean },
+  hasSelection: boolean
+): MarqueeApply {
+  if (modifiers.shift) return 'add';
+  if (modifiers.ctrl || (modifiers.touch && hasSelection)) return 'toggle';
+  return 'replace';
+}
