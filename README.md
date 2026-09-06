@@ -1,9 +1,8 @@
-# Udonarium Axe with Table-Top Display
+# Udonarium Axe
 
-> **おことわり** : このリポジトリ/ブランチは [Udonarium Axe](https://github.com/Xelltis/udonarium_axe) のフォークで、卓上ディスプレイに特化した機能を追加しています。このドキュメントはほぼフォーク元の内容なので、特化した追加機能の詳細は [2D多方向閲覧・回転メニュー・外周ティッカー](./docs/multi-angle.md) を参照してください。
-
-[![Latest release](https://img.shields.io/github/v/release/okamichi/udonarium_axe?logo=github)](https://github.com/okamichi/udonarium_axe/releases/latest)
-[![Docs](https://img.shields.io/badge/Docs-機能追加ガイド-5C73E7?logo=vitepress&logoColor=white)](https://github.com/okamichi/udonarium_axe/docs/multi-angle.md)
+[![Latest release](https://img.shields.io/github/v/release/Xelltis/udonarium_axe?logo=github)](https://github.com/Xelltis/udonarium_axe/releases/latest)
+[![Release](https://github.com/Xelltis/udonarium_axe/actions/workflows/release.yml/badge.svg)](https://github.com/Xelltis/udonarium_axe/actions/workflows/release.yml)
+[![Docs](https://img.shields.io/badge/Docs-利用ガイド-5C73E7?logo=vitepress&logoColor=white)](https://xelltis.github.io/udonarium_axe/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Angular](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)](https://angular.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -39,7 +38,7 @@ Secret をブラウザに置くわけにはいきません。そのため、**�
 2. **バックエンド**（トークン発行用。下記から 1 つ選んでデプロイ）
 3. **フロントエンド本体**（この成果物を静的ホスティングに配置）
 
-※ このフォーク版は、サーバ起動時のURLに '?local=1' のクエリを付けて起動すれば、ネットワークには接続できませんが、SkyWayやバックエンドなしに起動は可能です。
+※ URL に `?local=1` を付けて開くと、SkyWay もバックエンドも使わずに単独のブラウザで動きます。他の人とはつながりません。
 
 ## クイックスタート
 
@@ -56,7 +55,7 @@ Secret をブラウザに置くわけにはいきません。そのため、**�
    ブラウザや `curl` で `https://<バックエンドのURL>/v1/status` を開き、`OK` が返れば成功です。
 
 3. **フロントエンドを配置**
-   [Releases](https://github.com/okamichi/udonarium_axe/releases) の `axe_x.y.z.zip` を展開し
+   [Releases](https://github.com/Xelltis/udonarium_axe/releases) の `axe_x.y.z.zip` を展開し
    （または自分でビルドした `dist/` を使い）、中身を任意の静的ホスティング
    （Cloudflare Pages / Amazon S3 / レンタルサーバー など）に置きます。
 
@@ -140,9 +139,12 @@ Lycoris はコードの継承元ではなく、ホットバーの着想を得た
 | **Udonarium**         | TK11235                   | <https://github.com/TK11235/udonarium>          | オリジナル                                   |
 | **Udonarium Lily**    | entyu（円柱）             | <https://github.com/entyu/udonarium_lily>       | 派生・機能拡張版（画像タグ等のコードを継承） |
 | **Udonarium Lycoris** | oron1208                  | <https://github.com/oron1208/udonarium-lycoris> | 着想元（ホットバー）。コードの継承はなし     |
-| **Udonarium Axe**     | SavageChieftain / Xelltis | <https://github.com/Xelltis/udonarium_axe>      | 本リポジトリのフォーク元                     |
+| **Udonarium Axe**     | SavageChieftain / Xelltis | <https://github.com/Xelltis/udonarium_axe>      | 本リポジトリ                                 |
 
-> 注: 上記の機能の切り分けは本リポジトリのフォーク元の LICENSE・コード・公開情報を根拠にした暫定整理です。
+> 注: 上記の機能の切り分けは本リポジトリの LICENSE・コード・公開情報を根拠にした暫定整理です。
+
+卓上ディスプレイ機能（2D 多方向閲覧・回転メニュー・外周ティッカー・実寸表示）は
+okamichi 氏のフォーク <https://github.com/okamichi/udonarium_axe> から取り込みました。
 
 ## 開発
 
@@ -155,9 +157,9 @@ npm run lint       # ESLint
 npm run e2e        # Playwright E2E
 ```
 
-盤面やUIだけをローカルで確認するときは、開発サーバーの起動後に
-`http://localhost:4200/?local=1` を開いてください。ローカル確認モードではSkyWayへ接続しないため、
-バックエンドを用意しなくても単独ブラウザ内で操作できます。通常どおり通信するときは `?local=1` を外します。
+盤面や UI だけを手元で見るときは、開発サーバーを起動してから
+`http://localhost:4200/?local=1` を開いてください。SkyWay へつなぎに行かないので、
+バックエンドを立てなくても 1 つのブラウザの中で操作できます。通信するときは `?local=1` を外します。
 
 開発サーバーは既定で SkyWay バックエンドの URL を `assets/config.json`（`http://localhost:3000`）から読み込みます。
 ローカルで動かす場合はバックエンドをローカル起動するか、`assets/config.json` を公開済みバックエンドに向けてください。
