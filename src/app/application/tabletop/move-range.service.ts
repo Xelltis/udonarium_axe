@@ -12,7 +12,8 @@ import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
-import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
+import { reachableCells, ReachOptions } from '@axe/domain/tabletop/move/reachable-cells';
+import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { isHostileTo, zoneOfControl } from '@axe/domain/tabletop/move/zone-of-control';
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -28,6 +29,13 @@ export interface MoveRangeView {
   showsReach: boolean;
 }
 
+/** What it takes to price a way somebody actually walked, kept from when the piece was lifted. */
+interface WalkTerms {
+  walk: number;
+  blocked: CellBits;
+  options: ReachOptions;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MoveRangeService {
   private readonly tableSelecter = inject(TableSelecter);
@@ -38,6 +46,8 @@ export class MoveRangeService {
 
   private readonly held = signal<MoveRangeView | null>(null);
   private lifted: { identifier: string; x: number; y: number; z: number } | null = null;
+  private terms: WalkTerms | null = null;
+  private walked: number[] = [];
 
   /**
    * What is drawn on the table: the piece in hand, or else the piece the reader has picked.
@@ -77,15 +87,17 @@ export class MoveRangeService {
     const character = this.objectStore.get<GameCharacter>(chosen.identifier);
     if (!(character instanceof GameCharacter)) return null;
 
-    const view = this.build(character);
-    if (!view) return null;
-    return { ...view, held: wantsHeld ? view.held : null, showsReach: wantsReach };
+    const built = this.build(character);
+    if (!built) return null;
+    return { ...built.view, held: wantsHeld ? built.view.held : null, showsReach: wantsReach };
   });
 
   show(character: GameCharacter): void {
-    const view = this.build(character);
-    this.held.set(view);
-    this.lifted = view
+    const built = this.build(character);
+    this.held.set(built?.view ?? null);
+    this.terms = built?.terms ?? null;
+    this.walked = built ? [built.start] : [];
+    this.lifted = built
       ? {
           identifier: character.identifier,
           x: character.location.x,
@@ -95,9 +107,32 @@ export class MoveRangeService {
       : null;
   }
 
+  /**
+   * Takes note of where a piece has got to, so the way it went can be priced when it lands.
+   *
+   * Only a cell it has not just come from is written down, so a hand wavering on a boundary
+   * does not spend the piece's whole move going back and forth across one line.
+   */
+  trace(character: GameCharacter): void {
+    const view = this.held();
+    const table = this.tableSelecter.viewTable;
+    if (!view || !table || view.characterIdentifier !== character.identifier) return;
+    const cell = startCellOf(view.grid, character, table);
+    if (cell < 0) return;
+    const last = this.walked[this.walked.length - 1];
+    if (cell === last) return;
+    if (this.walked.length > 1 && cell === this.walked[this.walked.length - 2]) {
+      this.walked.pop();
+      return;
+    }
+    this.walked.push(cell);
+  }
+
   hide(): void {
     if (this.held() !== null) this.held.set(null);
     this.lifted = null;
+    this.terms = null;
+    this.walked = [];
   }
 
   /**
@@ -118,7 +153,7 @@ export class MoveRangeService {
     const table = this.tableSelecter.viewTable;
     if (!table) return false;
     const landed = startCellOf(view.grid, character, table);
-    if (landed >= 0 && view.cells.get(landed)) return false;
+    if (landed >= 0 && view.cells.get(landed) && this.wayWasWalkable(landed)) return false;
 
     character.location.x = from.x;
     character.location.y = from.y;
@@ -127,12 +162,32 @@ export class MoveRangeService {
     return true;
   }
 
+  /**
+   * Whether the way the piece was actually taken is one it could have walked.
+   *
+   * The reach says where a piece may end up, worked out by the cheapest way round; it says
+   * nothing about the way the hand went. A piece dragged straight over a wall lands somewhere
+   * it could have reached the long way about, and only the way it went shows that it did not.
+   *
+   * A room that has not asked for this takes the reach's word for it.
+   */
+  private wayWasWalkable(landed: number): boolean {
+    if (!this.objectStore.get<Config>('Config')?.moveStrictPath) return true;
+    const terms = this.terms;
+    if (!terms) return true;
+    const view = this.held();
+    if (!view) return true;
+    const way = this.walked[this.walked.length - 1] === landed ? this.walked : [...this.walked, landed];
+    const walk = walkedPath(view.grid, way, (index) => terms.blocked.get(index), terms.options);
+    return walk.walkable && walk.cost <= terms.walk;
+  }
+
   /** What the table is played by, which the room answers for wherever it has been asked. */
   private rulesOf(table: GameTable | null): RoomRules {
     return resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table);
   }
 
-  private build(character: GameCharacter): MoveRangeView | null {
+  private build(character: GameCharacter): { view: MoveRangeView; terms: WalkTerms; start: number } | null {
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
     const rules = this.rulesOf(table);
@@ -161,12 +216,17 @@ export class MoveRangeService {
     if (held && mode === 'block') blocked.or(held);
     const extra = Math.max(0, Math.floor(rules.zocExtraCost));
 
-    const cells = reachableCells(grid, start, walk, (index) => blocked.get(index), {
+    const options: ReachOptions = {
       cutsCorners: rules.moveDiagonally,
       costOf: held && mode === 'cost' ? (index) => (held.get(index) ? 1 + extra : 1) : undefined,
       stopsAt: held && mode === 'stop' ? (index) => held.get(index) : undefined,
-    });
-    return { characterIdentifier: character.identifier, grid, cells, held, showsReach: true };
+    };
+    const cells = reachableCells(grid, start, walk, (index) => blocked.get(index), options);
+    return {
+      view: { characterIdentifier: character.identifier, grid, cells, held, showsReach: true },
+      terms: { walk, blocked, options },
+      start,
+    };
   }
 
   /**

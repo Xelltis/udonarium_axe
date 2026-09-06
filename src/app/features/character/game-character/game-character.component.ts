@@ -923,6 +923,11 @@ export class GameCharacterComponent {
     if (character) this.moveRangeService.show(character);
   }
 
+  onDragging() {
+    const character = this.gameCharacter();
+    if (character) this.moveRangeService.trace(character);
+  }
+
   onPutDown() {
     const character = this.gameCharacter();
     const refused = character ? this.moveRangeService.returnIfOutOfReach(character) : false;

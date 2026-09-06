@@ -2070,7 +2070,8 @@
       "tab_utility": "Utilities",
       "characterImportHint": "Brings a piece in from an outside character sheet service. What comes in is placed on the table and reaches the other players.",
       "moveStrict": "Only let a piece down where it could have walked",
-      "moveStrictHint": "A piece showing a reach goes back where it was lifted from if it is set down outside that reach. A piece with no reach to show is still set down wherever the hand leaves it."
+      "moveStrictHint": "A piece showing a reach goes back where it was lifted from if it is set down outside that reach. A piece with no reach to show is still set down wherever the hand leaves it.",
+      "moveStrictPath": "Count the way it was taken, too"
     },
     "lobby": {
       "peerMenu": {

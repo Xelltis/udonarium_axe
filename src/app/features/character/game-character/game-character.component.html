@@ -8,6 +8,7 @@
     [movable.disable]="isLock"
     [appSelectable]="gameCharacter()"
     (movable.ondragstart)="onPickUp()"
+    (movable.ondrag)="onDragging()"
     (movable.ondragend)="onPutDown()"
     (movable.onend)="onLetGo()"
     (pointerdown)="checkKey($event)"

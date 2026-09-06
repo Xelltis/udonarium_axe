@@ -35,6 +35,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_factionOrder') private _factionOrder: string = '';
   @SyncVar('_factionSkipUnassigned') private _factionSkipUnassigned: string = '';
   @SyncVar('_moveStrict') private _moveStrict: string = '';
+  @SyncVar('_moveStrictPath') private _moveStrictPath: string = '';
 
   // The rules of play the room answers for itself. Each one is left unanswered until the
   // room settings are asked, and whatever is unanswered stays with the table that is out.
@@ -124,6 +125,14 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set moveStrict(strict: boolean) {
     this._moveStrict = strict ? '1' : '';
+  }
+
+  /** Whether the way a piece was taken has to be one it could have walked, not just its end. */
+  get moveStrictPath(): boolean {
+    return this._moveStrictPath === '1';
+  }
+  set moveStrictPath(strict: boolean) {
+    this._moveStrictPath = strict ? '1' : '';
   }
 
   get factionSkipUnassigned(): boolean {

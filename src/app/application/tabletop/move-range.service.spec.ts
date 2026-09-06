@@ -278,6 +278,118 @@ describe('MoveRangeService', () => {
     });
   });
 
+  describe('counting the way a piece was actually taken', () => {
+    afterEach(() => {
+      Config.instance.moveStrict = false;
+      Config.instance.moveStrictPath = false;
+    });
+
+    function dragThrough(character: GameCharacter, cells: readonly [number, number][]): void {
+      for (const [col, row] of cells) {
+        character.location = { name: 'table', x: col * GRID, y: row * GRID };
+        service.trace(character);
+      }
+    }
+
+    it('lets a piece that walked a way it could walk stay where it landed', () => {
+      Config.instance.moveStrict = true;
+      Config.instance.moveStrictPath = true;
+      const piece = pieceAt(5, 5, 2);
+      service.show(piece);
+
+      dragThrough(piece, [
+        [6, 5],
+        [7, 5],
+      ]);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(false);
+      expect(piece.location.x).toBe(7 * GRID);
+    });
+
+    it('puts back a piece dragged straight over ground it may not cross', () => {
+      Config.instance.moveStrict = true;
+      Config.instance.moveStrictPath = true;
+      wallOver(6, 4, 3);
+      const piece = pieceAt(5, 5, 4);
+      service.show(piece);
+
+      dragThrough(piece, [
+        [6, 5],
+        [7, 5],
+      ]);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(true);
+      expect(piece.location.x).toBe(5 * GRID);
+    });
+
+    it('lets the same piece round the wall the long way', () => {
+      Config.instance.moveStrict = true;
+      Config.instance.moveStrictPath = true;
+      wallOver(6, 4, 3);
+      const piece = pieceAt(5, 5, 6);
+      service.show(piece);
+
+      dragThrough(piece, [
+        [5, 6],
+        [5, 7],
+        [6, 7],
+        [7, 7],
+        [7, 6],
+      ]);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(false);
+      expect(piece.location.y).toBe(6 * GRID);
+    });
+
+    it('puts back a piece that wandered further than it could walk', () => {
+      Config.instance.moveStrict = true;
+      Config.instance.moveStrictPath = true;
+      const piece = pieceAt(5, 5, 2);
+      service.show(piece);
+
+      dragThrough(piece, [
+        [5, 6],
+        [5, 7],
+        [5, 6],
+        [6, 6],
+        [6, 5],
+      ]);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(true);
+      expect(piece.location.x).toBe(5 * GRID);
+    });
+
+    it('forgets a step taken straight back the way it came', () => {
+      Config.instance.moveStrict = true;
+      Config.instance.moveStrictPath = true;
+      const piece = pieceAt(5, 5, 1);
+      service.show(piece);
+
+      dragThrough(piece, [
+        [6, 5],
+        [5, 5],
+        [5, 6],
+      ]);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(false);
+      expect(piece.location.y).toBe(6 * GRID);
+    });
+
+    it('takes the reach at its word where the room asks nothing of the way', () => {
+      Config.instance.moveStrict = true;
+      wallOver(6, 4, 3);
+      const piece = pieceAt(5, 5, 4);
+      service.show(piece);
+
+      dragThrough(piece, [
+        [6, 5],
+        [7, 5],
+      ]);
+
+      expect(service.returnIfOutOfReach(piece)).toBe(false);
+    });
+  });
+
   describe('what a picked piece keeps showing', () => {
     function pick(character: GameCharacter): void {
       TestBed.inject(SelectionSignalService).selectObject(character.identifier, 'character');
