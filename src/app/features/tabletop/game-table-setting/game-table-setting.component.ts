@@ -30,6 +30,11 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { encodeCutInIdentifiers, parseCutInIdentifiers } from '@axe/domain/media/table-cut-in';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import {
+  MAX_BACKGROUND_LAYER_SCALE,
+  MAX_BACKGROUND_SCROLL_SPEED,
+  MIN_BACKGROUND_LAYER_SCALE,
+} from '@axe/domain/tabletop/background-scroll';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
@@ -48,6 +53,14 @@ import {
   ZocMode,
 } from '@axe/domain/tabletop/move/zone-of-control';
 import { cellWidthInches, clampCellMm, DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
+import {
+  asTableLayerPlacement,
+  MAX_TABLE_BACKGROUND_LAYERS,
+  moveBackgroundLayer as movedLayerRun,
+  TABLE_LAYER_PLACEMENTS,
+  TableBackgroundLayer,
+  TableLayerPlacement,
+} from '@axe/domain/tabletop/table-background-layer';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
@@ -741,6 +754,153 @@ export class GameTableSettingComponent {
     }
   }
 
+  readonly maxBackgroundScrollSpeed = MAX_BACKGROUND_SCROLL_SPEED;
+  readonly minBackgroundLayerScale = MIN_BACKGROUND_LAYER_SCALE;
+  readonly maxBackgroundLayerScale = MAX_BACKGROUND_LAYER_SCALE;
+  readonly tableLayerPlacements = TABLE_LAYER_PLACEMENTS;
+
+  /** The layers grouped the way they are drawn: everything under the board, then everything over. */
+  get backgroundLayers(): TableBackgroundLayer[] {
+    this.objectChange.versionOf(this.selectedTable?.identifier ?? '')();
+    this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
+    const laid = this.selectedTable?.backgroundLayers ?? [];
+    return [...laid.filter((layer) => !layer.placedOver), ...laid.filter((layer) => layer.placedOver)];
+  }
+
+  /** The run one layer belongs to, which is what moving it up and down happens within. */
+  private backgroundLayerRun(layer: TableBackgroundLayer): TableBackgroundLayer[] {
+    return this.backgroundLayers.filter((laid) => laid.placedOver === layer.placedOver);
+  }
+
+  /** Its place in that run, counted from one, which is what the heading says. */
+  backgroundLayerNumber(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return this.backgroundLayerRun(layer).indexOf(layer) + 1;
+  }
+
+  canMoveBackgroundLayer(layer: TableBackgroundLayer, offset: number): boolean {
+    if (!this.isEditable) return false;
+    const run = this.backgroundLayerRun(layer);
+    const to = run.indexOf(layer) + offset;
+    return 0 <= to && to < run.length;
+  }
+
+  /**
+   * Moves one layer a step through its run.
+   *
+   * The whole run is numbered again afterwards, so an order never drifts into a gap and the two
+   * runs stay tidy however often they are shuffled.
+   */
+  moveBackgroundLayer(layer: TableBackgroundLayer, offset: number): void {
+    if (!this.isEditable) return;
+    const run = this.backgroundLayerRun(layer);
+    const moved = movedLayerRun(run, run.indexOf(layer), offset);
+    moved.forEach((laid, order) => {
+      if (laid.order === order) return;
+      laid.order = order;
+      laid.update();
+    });
+  }
+
+  get canAddBackgroundLayer(): boolean {
+    return this.isEditable && this.backgroundLayers.length < MAX_TABLE_BACKGROUND_LAYERS;
+  }
+
+  /** A new layer goes in front of the ones already laid, which is where the eye expects it. */
+  addBackgroundLayer(): void {
+    if (!this.canAddBackgroundLayer || !this.selectedTable) return;
+    const layer = new TableBackgroundLayer();
+    layer.initialize();
+    layer.order = this.backgroundLayers.reduce((highest, laid) => Math.max(highest, laid.order + 1), 0);
+    this.selectedTable.appendChild(layer);
+  }
+
+  removeBackgroundLayer(layer: TableBackgroundLayer): void {
+    if (!this.isEditable) return;
+    layer.destroy();
+  }
+
+  openBackgroundLayerImage(layer: TableBackgroundLayer): void {
+    if (!this.isEditable) return;
+    void this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
+      if (!value) return;
+      layer.imageIdentifier = value;
+      layer.update();
+    });
+  }
+
+  backgroundLayerImage(layer: TableBackgroundLayer): ImageFile {
+    this.objectChange.fileVersion();
+    this.objectChange.versionOf(layer.identifier)();
+    return this.imageService.getEmptyOr(layer.imageIdentifier);
+  }
+
+  backgroundLayerEnabled(layer: TableBackgroundLayer): boolean {
+    this.objectChange.versionOf(layer.identifier)();
+    return layer.enabled;
+  }
+  setBackgroundLayerEnabled(layer: TableBackgroundLayer, value: boolean): void {
+    this.writeBackgroundLayer(layer, () => (layer.enabled = value));
+  }
+
+  backgroundLayerSpeedX(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return layer.speedX;
+  }
+  setBackgroundLayerSpeedX(layer: TableBackgroundLayer, value: number): void {
+    this.writeBackgroundLayer(layer, () => (layer.speedX = clampScrollSpeed(value)));
+  }
+
+  backgroundLayerSpeedY(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return layer.speedY;
+  }
+  setBackgroundLayerSpeedY(layer: TableBackgroundLayer, value: number): void {
+    this.writeBackgroundLayer(layer, () => (layer.speedY = clampScrollSpeed(value)));
+  }
+
+  backgroundLayerOpacityPercent(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return Math.round(layer.opacity * 100);
+  }
+  setBackgroundLayerOpacityPercent(layer: TableBackgroundLayer, value: number): void {
+    const percent = Number(value);
+    const clamped = Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 100;
+    this.writeBackgroundLayer(layer, () => (layer.opacity = clamped / 100));
+  }
+
+  backgroundLayerScale(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return layer.scale;
+  }
+  setBackgroundLayerScale(layer: TableBackgroundLayer, value: number): void {
+    const scale = Number(value);
+    const clamped = Number.isFinite(scale)
+      ? Math.min(MAX_BACKGROUND_LAYER_SCALE, Math.max(MIN_BACKGROUND_LAYER_SCALE, scale))
+      : 1;
+    this.writeBackgroundLayer(layer, () => (layer.scale = clamped));
+  }
+
+  /** Writing is announced, so the board redraws without waiting for something else to happen. */
+  backgroundLayerPlacement(layer: TableBackgroundLayer): TableLayerPlacement {
+    this.objectChange.versionOf(layer.identifier)();
+    return asTableLayerPlacement(layer.placement);
+  }
+  /** Changing sides puts it at the front of the run it lands in, where the eye expects it. */
+  setBackgroundLayerPlacement(layer: TableBackgroundLayer, value: TableLayerPlacement): void {
+    if (asTableLayerPlacement(layer.placement) === value) return;
+    this.writeBackgroundLayer(layer, () => {
+      layer.placement = value;
+      layer.order = this.backgroundLayers.reduce((highest, laid) => Math.max(highest, laid.order + 1), 0);
+    });
+  }
+
+  private writeBackgroundLayer(layer: TableBackgroundLayer, write: () => void): void {
+    if (!this.isEditable) return;
+    write();
+    layer.update();
+  }
+
   openBgImageModal() {
     if (this.isDeleted) return;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
@@ -819,4 +979,11 @@ function round1(value: number): number {
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/** Held to a pace the eye can follow, whatever the box was typed into. */
+function clampScrollSpeed(value: number): number {
+  const speed = Number(value);
+  if (!Number.isFinite(speed)) return 0;
+  return Math.min(MAX_BACKGROUND_SCROLL_SPEED, Math.max(-MAX_BACKGROUND_SCROLL_SPEED, speed));
 }

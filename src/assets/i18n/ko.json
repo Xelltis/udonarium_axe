@@ -2002,7 +2002,23 @@
           "cell": "칸",
           "metre": "미터",
           "foot": "피트"
-        }
+        },
+        "sectionBackgroundLayers": "레이어",
+        "backgroundLayerHint": "테이블 이미지의 아래, 또는 위를 흐릅니다. 뒤에서부터 겹쳐지며 아래 레이어가 비쳐 보입니다. 이미지는 상하좌우로 이어 붙이며, 판면 밖으로 나간 부분은 잘립니다.",
+        "backgroundLayerAdd": "+ 레이어 추가",
+        "backgroundLayerRemove": "삭제",
+        "backgroundLayerImage": "이미지 선택",
+        "backgroundLayerSpeedX": "가로 속도",
+        "backgroundLayerSpeedY": "세로 속도",
+        "backgroundLayerOpacity": "불투명도",
+        "backgroundLayerScale": "확대율",
+        "backgroundLayerIndexUnder": "배면 {{index}}",
+        "backgroundLayerIndexOver": "전면 {{index}}",
+        "backgroundLayerPlacement": "겹치는 위치",
+        "backgroundLayerPlacement_under": "배면(테이블 이미지 아래)",
+        "backgroundLayerPlacement_over": "전면(테이블 이미지 위·말 아래)",
+        "backgroundLayerMoveUp": "뒤로",
+        "backgroundLayerMoveDown": "앞으로"
       },
       "displayCalibration": {
         "title": "화면 실제 크기 맞추기",

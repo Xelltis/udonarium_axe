@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
+import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import {
   TABLETOP_DISPLAY_SETTINGS_STORAGE_KEY,
@@ -11,10 +12,16 @@ import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import {
+  Z_OFFSET_BACKGROUND_LAYERS_PX,
+  Z_OFFSET_FOREGROUND_LAYERS_PX,
+  Z_OFFSET_MASK_PX,
+} from '@axe/ui/tabletop/z-offset';
 
 describe('GameTableComponent', () => {
   let component: GameTableComponent;
@@ -41,6 +48,280 @@ describe('GameTableComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('what drifts under the board', () => {
+    const layers = (): HTMLElement[] =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="background-layer"]'));
+    const surface = (): HTMLElement =>
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="background-layers"]')
+        ?.nextElementSibling as HTMLElement;
+
+    /** Lays a picture under the board and reports it as measured, the way a load would. */
+    const lay = (
+      options: Partial<{
+        order: number;
+        speedX: number;
+        speedY: number;
+        enabled: boolean;
+        placement: string;
+      }> = {}
+    ) => {
+      const layer = new TableBackgroundLayer();
+      layer.initialize();
+      layer.imageIdentifier = ImageStorage.instance.add('sky.png').identifier;
+      layer.order = options.order ?? 0;
+      layer.speedX = options.speedX ?? 0;
+      layer.speedY = options.speedY ?? 0;
+      if (options.enabled === false) layer.enabled = false;
+      if (options.placement) layer.placement = options.placement;
+      component.currentTable.appendChild(layer);
+      return layer;
+    };
+
+    const measured = (layer: TableBackgroundLayer, width = 200, height = 100) => {
+      (
+        component as unknown as { onBackgroundLayerImageLoad(id: string, event: Event): void }
+      ).onBackgroundLayerImageLoad(layer.identifier, {
+        target: { naturalWidth: width, naturalHeight: height },
+      } as unknown as Event);
+    };
+
+    it('draws nothing while the table has laid nothing', () => {
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="background-layers"]')).toBeNull();
+    });
+
+    it('leaves out a layer that has been turned off', () => {
+      lay({ order: 0 });
+      lay({ order: 1, enabled: false });
+      fixture.detectChanges();
+
+      expect(layers()).toHaveLength(1);
+    });
+
+    it('sinks the whole run below the board, and says so once', () => {
+      lay();
+      fixture.detectChanges();
+
+      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="background-layers"]'
+      ) as HTMLElement;
+
+      expect(wrapper.getAttribute('data-layer-depth')).toBe(`translateZ(${-Z_OFFSET_BACKGROUND_LAYERS_PX}px)`);
+      expect(layers().every((el) => el.getAttribute('data-layer-depth') === null)).toBe(true);
+    });
+
+    it('writes the furthest back first, since a flattened run paints in document order', () => {
+      const far = lay({ order: 0 });
+      const near = lay({ order: 1 });
+      fixture.detectChanges();
+
+      expect(component.underLayerViews().map((view) => view.identifier)).toEqual([far.identifier, near.identifier]);
+    });
+
+    it('leaves the drifting boxes unpromoted, since a drift that never ends promotes itself', () => {
+      const layer = lay({ speedX: 100 });
+      measured(layer);
+      fixture.detectChanges();
+
+      const boxes = (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '[data-testid="background-layer-x"], [data-testid="background-layer-y"]'
+      );
+
+      expect(boxes).toHaveLength(2);
+      expect(Array.from(boxes).every((el) => !el.className.includes('will-change'))).toBe(true);
+    });
+
+    it('draws nothing for a layer that has no picture yet, and leaves the veil on', () => {
+      const layer = new TableBackgroundLayer();
+      layer.initialize();
+      component.currentTable.appendChild(layer);
+      fixture.detectChanges();
+
+      expect(layers()).toHaveLength(0);
+      expect(component.showsTableSurfaceVeil()).toBe(true);
+    });
+
+    it('stands still until the picture has been measured, rather than showing a seam', () => {
+      lay({ speedX: 100 });
+      fixture.detectChanges();
+
+      expect(component.underLayerViews()[0].scrollsX).toBe(false);
+    });
+
+    it('drifts by exactly one tile once the picture has been measured', () => {
+      const layer = lay({ speedX: 100 });
+      measured(layer, 200, 100);
+      fixture.detectChanges();
+
+      const view = component.underLayerViews()[0];
+
+      expect(view.scrollsX).toBe(true);
+      expect(view.outerStyle['animation-duration']).toBe('2s');
+      expect(view.outerStyle['--bg-layer-tile-w']).toBe('200px');
+    });
+
+    it('leaves an axis alone that was not asked to move', () => {
+      const layer = lay({ speedX: 100 });
+      measured(layer);
+      fixture.detectChanges();
+
+      const view = component.underLayerViews()[0];
+
+      expect(view.scrollsX).toBe(true);
+      expect(view.scrollsY).toBe(false);
+    });
+
+    it('runs the other way for a speed that is going backwards', () => {
+      const layer = lay({ speedY: -50 });
+      measured(layer, 200, 100);
+      fixture.detectChanges();
+
+      const view = component.underLayerViews()[0];
+
+      expect(view.innerStyle['animation-direction']).toBe('reverse');
+      expect(view.innerStyle['animation-duration']).toBe('2s');
+    });
+
+    it('holds still for a reader who has asked for less movement', () => {
+      const layer = lay({ speedX: 100 });
+      measured(layer);
+      // The choice is written down, so it has to be put back or the rest of the file inherits it.
+      const motion = TestBed.inject(MotionService);
+      motion.set('off');
+      try {
+        fixture.detectChanges();
+
+        expect(component.underLayerViews()[0].scrollsX).toBe(false);
+      } finally {
+        motion.set('auto');
+      }
+    });
+
+    it('lays the picture edge to edge both ways, since a drift is one tile passing', () => {
+      const layer = lay();
+      measured(layer);
+      fixture.detectChanges();
+
+      expect(component.underLayerViews()[0].innerStyle['background-repeat']).toBe('repeat');
+    });
+
+    it('reaches one tile past the board on the side the drift heads for, and nowhere else', () => {
+      const layer = lay({ speedX: 100 });
+      measured(layer, 200, 100);
+      fixture.detectChanges();
+
+      expect(component.underLayerViews()[0].outerStyle['inset']).toBe('0px -200px 0px 0px');
+    });
+
+    it('sits flush with the board while nothing drifts, so the pattern meets its corner', () => {
+      const layer = lay();
+      measured(layer, 200, 100);
+      fixture.detectChanges();
+
+      expect(component.underLayerViews()[0].outerStyle['inset']).toBe('0px 0px 0px 0px');
+    });
+
+    it('wears the same shape as the board, so a hex table keeps its outline', () => {
+      component.currentTable.gridType = GridType.HEX_VERTICAL;
+      lay();
+      fixture.detectChanges();
+
+      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="background-layers"]'
+      ) as HTMLElement;
+
+      expect(wrapper.style.getPropertyValue('mask')).toBe(component.tableSurfaceStyle()['mask']);
+    });
+
+    it('takes the veil off the board, which would otherwise wash the layers out', () => {
+      expect(component.showsTableSurfaceVeil()).toBe(true);
+
+      lay();
+      fixture.detectChanges();
+
+      expect(component.showsTableSurfaceVeil()).toBe(false);
+      expect(surface().classList.contains('bg-white/15')).toBe(false);
+    });
+
+    it('leaves the veil on for a board with nothing under it, whatever is over it', () => {
+      lay({ placement: 'over' });
+      fixture.detectChanges();
+
+      expect(component.showsTableSurfaceVeil()).toBe(true);
+    });
+  });
+
+  describe('what drifts over the board', () => {
+    const lay = (placement: string) => {
+      const layer = new TableBackgroundLayer();
+      layer.initialize();
+      layer.imageIdentifier = ImageStorage.instance.add('cloud.png').identifier;
+      layer.placement = placement;
+      component.currentTable.appendChild(layer);
+      return layer;
+    };
+    const at = (testid: string): number => {
+      const nodes = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid]'));
+      return nodes.findIndex((el) => el.getAttribute('data-testid') === testid);
+    };
+
+    it('keeps the two runs apart, each on its own side of the board', () => {
+      lay('under');
+      lay('over');
+      fixture.detectChanges();
+
+      expect(component.underLayerViews()).toHaveLength(1);
+      expect(component.overLayerViews()).toHaveLength(1);
+    });
+
+    it('is written after the board, since a flattened wrapper paints in document order', () => {
+      lay('over');
+      fixture.detectChanges();
+
+      const board = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="foreground-layers"]')
+        ?.previousElementSibling as HTMLElement;
+
+      expect(board.style.backgroundImage).toContain('url(');
+      expect(at('foreground-layers')).toBeGreaterThan(-1);
+    });
+
+    it('sits above the board and still short of the first thing laid on it', () => {
+      lay('over');
+      fixture.detectChanges();
+
+      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="foreground-layers"]'
+      ) as HTMLElement;
+
+      expect(wrapper.getAttribute('data-layer-depth')).toBe(`translateZ(${Z_OFFSET_FOREGROUND_LAYERS_PX}px)`);
+      expect(Z_OFFSET_FOREGROUND_LAYERS_PX).toBeLessThan(Z_OFFSET_MASK_PX);
+    });
+
+    it('lets a pointer through, so a piece under it can still be taken hold of', () => {
+      lay('over');
+      fixture.detectChanges();
+
+      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="foreground-layers"]'
+      ) as HTMLElement;
+
+      expect(wrapper.classList.contains('pointer-events-none')).toBe(true);
+    });
+
+    it('wears the same shape as the board, so a hex table keeps its outline', () => {
+      component.currentTable.gridType = GridType.HEX_VERTICAL;
+      lay('over');
+      fixture.detectChanges();
+
+      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="foreground-layers"]'
+      ) as HTMLElement;
+
+      expect(wrapper.style.getPropertyValue('mask')).toBe(component.tableSurfaceStyle()['mask']);
+    });
   });
 
   describe('2D camera', () => {

@@ -2002,7 +2002,23 @@
           "cell": "Cells",
           "metre": "Metres",
           "foot": "Feet"
-        }
+        },
+        "sectionBackgroundLayers": "Layers",
+        "backgroundLayerHint": "These drift under a table drawn on a transparent picture, or over it. They stack from the back, and each shows whatever is beneath it. A picture is laid edge to edge, and whatever reaches past the board is cut off.",
+        "backgroundLayerAdd": "+ Add a layer",
+        "backgroundLayerRemove": "Remove",
+        "backgroundLayerImage": "Choose a picture",
+        "backgroundLayerSpeedX": "Sideways",
+        "backgroundLayerSpeedY": "Up and down",
+        "backgroundLayerOpacity": "Opacity",
+        "backgroundLayerScale": "Scale",
+        "backgroundLayerIndexUnder": "Under {{index}}",
+        "backgroundLayerIndexOver": "Over {{index}}",
+        "backgroundLayerPlacement": "Which side",
+        "backgroundLayerPlacement_under": "Under the table picture",
+        "backgroundLayerPlacement_over": "Over it, under the pieces",
+        "backgroundLayerMoveUp": "Further back",
+        "backgroundLayerMoveDown": "Further forward"
       },
       "displayCalibration": {
         "title": "Measure this screen",

@@ -2002,7 +2002,23 @@
           "cell": "マス",
           "metre": "メートル",
           "foot": "フィート"
-        }
+        },
+        "sectionBackgroundLayers": "レイヤー",
+        "backgroundLayerHint": "テーブル画像の下、または上を流れます。奥から順に重なり、下のレイヤーが透けて見えます。画像は上下左右に敷き詰められ、盤面からはみ出した分は切り取られます。",
+        "backgroundLayerAdd": "＋ レイヤーを追加",
+        "backgroundLayerRemove": "削除",
+        "backgroundLayerImage": "画像を選ぶ",
+        "backgroundLayerSpeedX": "横の速さ",
+        "backgroundLayerSpeedY": "縦の速さ",
+        "backgroundLayerOpacity": "不透明度",
+        "backgroundLayerScale": "拡大率",
+        "backgroundLayerIndexUnder": "背面 {{index}}",
+        "backgroundLayerIndexOver": "前面 {{index}}",
+        "backgroundLayerPlacement": "重ね位置",
+        "backgroundLayerPlacement_under": "背面（テーブル画像の下）",
+        "backgroundLayerPlacement_over": "前面（テーブル画像の上・コマの下）",
+        "backgroundLayerMoveUp": "奥へ",
+        "backgroundLayerMoveDown": "手前へ"
       },
       "displayCalibration": {
         "title": "画面の実寸を合わせる",
