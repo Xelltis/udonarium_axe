@@ -66,15 +66,27 @@ export function backgroundTileSize(
   const clamped = Number.isFinite(scale)
     ? Math.min(MAX_BACKGROUND_LAYER_SCALE, Math.max(MIN_BACKGROUND_LAYER_SCALE, scale))
     : 1;
+  const wide = natural.width * clamped;
+  const tall = natural.height * clamped;
+  const held = holdingRatio(wide, tall, board);
   return {
-    width: heldToBoard(natural.width * clamped, board?.width),
-    height: heldToBoard(natural.height * clamped, board?.height),
+    width: Math.max(1, Math.round(wide * held)),
+    height: Math.max(1, Math.round(tall * held)),
   };
 }
 
-function heldToBoard(size: number, board: number | undefined): number {
-  const held = Number.isFinite(board) && (board as number) >= 1 ? Math.min(size, board as number) : size;
-  return Math.max(1, Math.round(held));
+/**
+ * How much a tile has to be brought in to sit on the board, as one figure for both sides.
+ *
+ * Held per side, a wide picture on a shallow board comes out squashed rather than smaller: the
+ * sky above an airship would be drawn at an aspect nobody chose. The tighter of the two sides
+ * decides, and the other follows it.
+ */
+function holdingRatio(wide: number, tall: number, board: { width: number; height: number } | null | undefined): number {
+  if (!board) return 1;
+  const across = Number.isFinite(board.width) && board.width >= 1 ? board.width / wide : 1;
+  const down = Number.isFinite(board.height) && board.height >= 1 ? board.height / tall : 1;
+  return Math.min(1, across, down);
 }
 
 /**

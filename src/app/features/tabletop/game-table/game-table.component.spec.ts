@@ -264,7 +264,9 @@ describe('GameTableComponent', () => {
 
       const view = component.underLayerViews()[0];
 
-      expect(view.style['background-size']).toBe('1000px 1000px');
+      // Two thousand by one thousand held to a board of a thousand square: the wide side is
+      // the tighter fit, so both sides come in by half and the picture keeps its shape.
+      expect(view.style['background-size']).toBe('1000px 500px');
       expect(view.style['inset']).toBe('0px -1000px 0px 0px');
     });
 

@@ -82,7 +82,17 @@ describe('backgroundTileSize()', () => {
     // bound. Held to the board, the sheet is at worst twice the board.
     const board = { width: 1000, height: 800 };
 
-    expect(backgroundTileSize({ width: 2000, height: 4000 }, 10, board)).toEqual({ width: 1000, height: 800 });
+    const tile = backgroundTileSize({ width: 2000, height: 4000 }, 10, board)!;
+
+    expect(tile.width).toBeLessThanOrEqual(board.width);
+    expect(tile.height).toBeLessThanOrEqual(board.height);
+  });
+
+  it('brings both sides in by the same amount, so the picture keeps its shape', () => {
+    const board = { width: 1000, height: 800 };
+
+    // Twenty thousand by forty thousand: the tighter side is the tall one, at a fiftieth.
+    expect(backgroundTileSize({ width: 2000, height: 4000 }, 10, board)).toEqual({ width: 400, height: 800 });
   });
 
   it('leaves a tile the board has room for at the size it asked for', () => {
@@ -91,10 +101,11 @@ describe('backgroundTileSize()', () => {
     expect(backgroundTileSize({ width: 256, height: 128 }, 2, board)).toEqual({ width: 512, height: 256 });
   });
 
-  it('holds each side to its own, since a board need not be square', () => {
+  it('is held by whichever side of the board is the tighter fit', () => {
     const board = { width: 1000, height: 200 };
 
-    expect(backgroundTileSize({ width: 400, height: 400 }, 1, board)).toEqual({ width: 400, height: 200 });
+    // A square picture on a shallow board comes in by the shallow side, and stays square.
+    expect(backgroundTileSize({ width: 400, height: 400 }, 1, board)).toEqual({ width: 200, height: 200 });
   });
 
   it('holds nothing where no board was named, or where the board measures nothing', () => {

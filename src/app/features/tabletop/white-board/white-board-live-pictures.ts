@@ -100,8 +100,11 @@ function topmostDrawnIndex(layers: readonly MapLayer[]): number {
 function hasContent(layer: MapLayer): boolean {
   switch (layer.kind) {
     case 'cell':
-    case 'function':
       return Object.keys(layer.cells).length > 0;
+    // What a cell does is never painted into the published picture, so it covers nothing and
+    // cannot be the reason a moving picture below it has to be flattened.
+    case 'function':
+      return false;
     case 'freehand':
       return layer.strokes.length > 0;
     default:
