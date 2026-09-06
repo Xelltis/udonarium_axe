@@ -42,3 +42,14 @@ Lily で追加された立ち絵差分・カットイン・バフ／デバフ管
 | **Udonarium Axe**  | SavageChieftain / Xelltis | [Xelltis/udonarium_axe](https://github.com/Xelltis/udonarium_axe) |
 
 > 上記の機能の切り分けは、各リポジトリの LICENSE・コード・公開情報を根拠にした暫定整理です。
+
+### 取り込ませていただいた仕事
+
+系譜とは別に、フォークや提案として作られた機能を本家へ取り込んでいます。
+
+| 機能                                                                                                          | 作者                                          | 出どころ                                                                                              |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **卓上ディスプレイ**（2D 多方向閲覧・回転メニュー・外周ティッカー・多方向カットイン・実寸表示）と**レイヤー** | [okamichi](https://github.com/okamichi)       | [okamichi/udonarium_axe](https://github.com/okamichi/udonarium_axe/tree/2d-multi-view)                |
+| **カード文章**（カードの面に文字を重ねる）                                                                    | [synchro4351](https://github.com/synchro4351) | [synchro4351/udonarium_axe](https://github.com/synchro4351/udonarium_axe/tree/feature/card-face-text) |
+
+取り込みにあたって設定の置き場や保存先を変えたものはありますが、機能そのものは各作者の設計と実装によります。コミットは著者名もハッシュもそのまま残しています。
