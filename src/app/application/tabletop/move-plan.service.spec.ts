@@ -3,6 +3,7 @@ import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -44,6 +45,64 @@ describe('MovePlanService', () => {
   function cell(col: number, row: number): number {
     return cellIndexOf(service.plan()!.grid, col, row);
   }
+
+  describe('what the room is shown of a move being made', () => {
+    /** The effect that tells the room runs when the application flushes its effects. */
+    function flush(): void {
+      TestBed.tick();
+    }
+
+    it('names the piece and the table the moment a move is opened', () => {
+      PeerCursor.createMyCursor();
+      const piece = pieceAt(5, 5, 3);
+
+      service.begin(piece);
+      flush();
+
+      const cursor = PeerCursor.myCursor;
+      expect(cursor.movingCharacterIdentifier).toBe(piece.identifier);
+      expect(cursor.movingTableIdentifier).toBe(table.identifier);
+    });
+
+    it('sends the way as it is drawn, so the table watches it being worked out', () => {
+      PeerCursor.createMyCursor();
+      service.begin(pieceAt(5, 5, 4));
+
+      service.lookAt(7 * GRID + 10, 5 * GRID + 10);
+      service.settle();
+      flush();
+
+      expect(PeerCursor.myCursor.movingWay.split(',').map(Number)).toEqual([cell(5, 5), cell(6, 5), cell(7, 5)]);
+    });
+
+    it('takes the move off the table the moment it is called off', () => {
+      PeerCursor.createMyCursor();
+      service.begin(pieceAt(5, 5, 3));
+      flush();
+      expect(PeerCursor.myCursor.movingCharacterIdentifier).not.toBe('');
+
+      service.cancel();
+      flush();
+
+      expect(PeerCursor.myCursor.movingCharacterIdentifier).toBe('');
+      expect(PeerCursor.myCursor.movingTableIdentifier).toBe('');
+      expect(PeerCursor.myCursor.movingWay).toBe('');
+    });
+
+    it('takes the move off the table once the piece has walked it', async () => {
+      PeerCursor.createMyCursor();
+      service.begin(pieceAt(5, 5, 4));
+      service.lookAt(7 * GRID + 10, 5 * GRID + 10);
+      flush();
+      expect(PeerCursor.myCursor.movingCharacterIdentifier).not.toBe('');
+
+      await service.run();
+      flush();
+
+      expect(PeerCursor.myCursor.movingCharacterIdentifier).toBe('');
+      expect(PeerCursor.myCursor.movingWay).toBe('');
+    });
+  });
 
   it('opens on the cell the piece stands on, with nothing settled and nothing spent', () => {
     const piece = pieceAt(5, 5, 3);
@@ -117,6 +176,48 @@ describe('MovePlanService', () => {
     service.lookAt(9 * GRID + 10, 5 * GRID + 10);
 
     expect(service.plan()!.ahead).toEqual([]);
+  });
+
+  it('takes the corner back up when it is pressed on a second time', () => {
+    service.begin(pieceAt(5, 5, 4));
+    service.lookAt(7 * GRID + 10, 5 * GRID + 10);
+    service.settle();
+
+    // The pointer has not moved off the corner, so nothing is drawn ahead of it.
+    service.lookAt(7 * GRID + 10, 5 * GRID + 10);
+    service.settle();
+
+    const plan = service.plan()!;
+    expect(plan.waypoints).toEqual([]);
+    expect(plan.from).toBe(cell(5, 5));
+    expect(plan.spent).toBe(0);
+    expect(plan.settled).toEqual([cell(5, 5)]);
+  });
+
+  it('takes back only the corner set last, and leaves the ones before it', () => {
+    service.begin(pieceAt(5, 5, 6));
+    service.lookAt(6 * GRID + 10, 5 * GRID + 10);
+    service.settle();
+    service.lookAt(8 * GRID + 10, 5 * GRID + 10);
+    service.settle();
+
+    service.lookAt(8 * GRID + 10, 5 * GRID + 10);
+    service.settle();
+
+    expect(service.plan()!.waypoints).toEqual([cell(6, 5)]);
+    expect(service.plan()!.from).toBe(cell(6, 5));
+  });
+
+  it('gives back what the corner cost, so the reach opens out again', () => {
+    service.begin(pieceAt(5, 5, 3));
+    service.lookAt(7 * GRID + 10, 5 * GRID + 10);
+    service.settle();
+
+    service.lookAt(7 * GRID + 10, 5 * GRID + 10);
+    service.settle();
+    service.lookAt(8 * GRID + 10, 5 * GRID + 10);
+
+    expect(service.plan()!.ahead).toEqual([cell(5, 5), cell(6, 5), cell(7, 5), cell(8, 5)]);
   });
 
   it('settles nothing where nothing is drawn ahead', () => {

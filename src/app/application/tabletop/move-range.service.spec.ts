@@ -192,217 +192,44 @@ describe('MoveRangeService', () => {
     expect(service.range()!.held).toBeNull();
   });
 
-  describe('setting a piece down where it could not have walked', () => {
+  describe('what a reach is, and is not, answerable for', () => {
     // Config outlives a test, so a room that asked for strict moves would ask it of every
     // test that ran afterwards.
     afterEach(() => {
       Config.instance.moveStrict = false;
     });
 
-    function lift(character: GameCharacter): void {
-      service.show(character);
-    }
-
-    function moveTo(character: GameCharacter, col: number, row: number): void {
-      character.location = { name: 'table', x: col * GRID, y: row * GRID };
-    }
-
-    it('puts the piece back where it was lifted from', () => {
-      Config.instance.moveStrict = true;
+    it('shows what the piece can reach while it is carried, and nothing once it is let go', () => {
       const piece = pieceAt(5, 5, 2);
-      lift(piece);
+      service.show(piece);
+      expect(service.range()).not.toBeNull();
 
-      moveTo(piece, 11, 11);
-      const refused = service.returnIfOutOfReach(piece);
-
-      expect(refused).toBe(true);
-      expect(piece.location.x).toBe(5 * GRID);
-      expect(piece.location.y).toBe(5 * GRID);
-    });
-
-    it('leaves a piece set down within its reach where it landed', () => {
-      Config.instance.moveStrict = true;
-      const piece = pieceAt(5, 5, 2);
-      lift(piece);
-
-      moveTo(piece, 6, 5);
-      const refused = service.returnIfOutOfReach(piece);
-
-      expect(refused).toBe(false);
-      expect(piece.location.x).toBe(6 * GRID);
-    });
-
-    it('holds nobody to a reach until the room asks for it', () => {
-      const piece = pieceAt(5, 5, 2);
-      lift(piece);
-
-      moveTo(piece, 11, 11);
-
-      expect(service.returnIfOutOfReach(piece)).toBe(false);
-      expect(piece.location.x).toBe(11 * GRID);
-    });
-
-    it('lets a piece with no reach to show go wherever it is put', () => {
-      Config.instance.moveStrict = true;
-      const piece = pieceAt(5, 5, null);
-      lift(piece);
-
-      moveTo(piece, 11, 11);
-
-      expect(service.returnIfOutOfReach(piece)).toBe(false);
-      expect(piece.location.x).toBe(11 * GRID);
-    });
-
-    it('holds a piece to its own reach and not to the one before it', () => {
-      Config.instance.moveStrict = true;
-      const first = pieceAt(5, 5, 2);
-      const second = pieceAt(1, 1, 2);
-      lift(first);
-
-      moveTo(second, 11, 11);
-
-      expect(service.returnIfOutOfReach(second)).toBe(false);
-      expect(second.location.x).toBe(11 * GRID);
-    });
-
-    it('asks nothing of a piece set down after the reach was let go', () => {
-      Config.instance.moveStrict = true;
-      const piece = pieceAt(5, 5, 2);
-      lift(piece);
       service.hide();
 
-      moveTo(piece, 11, 11);
+      expect(service.range()).toBeNull();
+    });
 
-      expect(service.returnIfOutOfReach(piece)).toBe(false);
+    it('leaves where a piece is set down to the hand, since the way is the plan to answer for', () => {
+      Config.instance.moveStrict = true;
+      const piece = pieceAt(5, 5, 2);
+      service.show(piece);
+
+      piece.location = { name: 'table', x: 11 * GRID, y: 11 * GRID };
+      service.hide();
+
       expect(piece.location.x).toBe(11 * GRID);
     });
-  });
 
-  describe('counting the way a piece was actually taken', () => {
-    afterEach(() => {
+    it('reads a room that answered the old pair of questions as asking for a strict move', () => {
       Config.instance.moveStrict = false;
-      Config.instance.moveStrictPath = false;
-    });
-
-    function dragThrough(character: GameCharacter, cells: readonly [number, number][]): void {
-      for (const [col, row] of cells) {
-        character.location = { name: 'table', x: col * GRID, y: row * GRID };
-        service.trace(character);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (Config.instance as any)._moveStrictPath = '1';
+      try {
+        expect(Config.instance.moveStrict).toBe(true);
+      } finally {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (Config.instance as any)._moveStrictPath = '';
       }
-    }
-
-    it('lets a piece that walked a way it could walk stay where it landed', () => {
-      Config.instance.moveStrict = true;
-      Config.instance.moveStrictPath = true;
-      const piece = pieceAt(5, 5, 2);
-      service.show(piece);
-
-      dragThrough(piece, [
-        [6, 5],
-        [7, 5],
-      ]);
-
-      expect(service.returnIfOutOfReach(piece)).toBe(false);
-      expect(piece.location.x).toBe(7 * GRID);
-    });
-
-    it('follows where the piece is being held rather than where it last wrote itself down', () => {
-      Config.instance.moveStrict = true;
-      Config.instance.moveStrictPath = true;
-      const piece = pieceAt(5, 5, 3);
-      service.show(piece);
-
-      // A hand crossing two cells between one writing and the next: the piece is still
-      // saying it stands where it started, and only the drag knows better.
-      service.trace(piece, { x: 6 * GRID, y: 5 * GRID });
-      service.trace(piece, { x: 7 * GRID, y: 5 * GRID });
-      piece.location = { name: 'table', x: 7 * GRID, y: 5 * GRID };
-
-      expect(service.returnIfOutOfReach(piece)).toBe(false);
-      expect(piece.location.x).toBe(7 * GRID);
-    });
-
-    it('puts back a piece dragged straight over ground it may not cross', () => {
-      Config.instance.moveStrict = true;
-      Config.instance.moveStrictPath = true;
-      wallOver(6, 4, 3);
-      const piece = pieceAt(5, 5, 4);
-      service.show(piece);
-
-      dragThrough(piece, [
-        [6, 5],
-        [7, 5],
-      ]);
-
-      expect(service.returnIfOutOfReach(piece)).toBe(true);
-      expect(piece.location.x).toBe(5 * GRID);
-    });
-
-    it('lets the same piece round the wall the long way', () => {
-      Config.instance.moveStrict = true;
-      Config.instance.moveStrictPath = true;
-      wallOver(6, 4, 3);
-      const piece = pieceAt(5, 5, 6);
-      service.show(piece);
-
-      dragThrough(piece, [
-        [5, 6],
-        [5, 7],
-        [6, 7],
-        [7, 7],
-        [7, 6],
-      ]);
-
-      expect(service.returnIfOutOfReach(piece)).toBe(false);
-      expect(piece.location.y).toBe(6 * GRID);
-    });
-
-    it('puts back a piece that wandered further than it could walk', () => {
-      Config.instance.moveStrict = true;
-      Config.instance.moveStrictPath = true;
-      const piece = pieceAt(5, 5, 2);
-      service.show(piece);
-
-      dragThrough(piece, [
-        [5, 6],
-        [5, 7],
-        [5, 6],
-        [6, 6],
-        [6, 5],
-      ]);
-
-      expect(service.returnIfOutOfReach(piece)).toBe(true);
-      expect(piece.location.x).toBe(5 * GRID);
-    });
-
-    it('forgets a step taken straight back the way it came', () => {
-      Config.instance.moveStrict = true;
-      Config.instance.moveStrictPath = true;
-      const piece = pieceAt(5, 5, 1);
-      service.show(piece);
-
-      dragThrough(piece, [
-        [6, 5],
-        [5, 5],
-        [5, 6],
-      ]);
-
-      expect(service.returnIfOutOfReach(piece)).toBe(false);
-      expect(piece.location.y).toBe(6 * GRID);
-    });
-
-    it('takes the reach at its word where the room asks nothing of the way', () => {
-      Config.instance.moveStrict = true;
-      wallOver(6, 4, 3);
-      const piece = pieceAt(5, 5, 4);
-      service.show(piece);
-
-      dragThrough(piece, [
-        [6, 5],
-        [7, 5],
-      ]);
-
-      expect(service.returnIfOutOfReach(piece)).toBe(false);
     });
   });
 

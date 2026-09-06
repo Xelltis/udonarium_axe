@@ -1,11 +1,13 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
+import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -50,9 +52,40 @@ export class MovePlanService {
   private readonly held = signal<MovePlan | null>(null);
   private terms: ReachTerms | null = null;
   private walking = false;
+  /** How the move stood before each corner was set, so the last one can be taken back up. */
+  private legs: MovePlan[] = [];
 
   readonly plan = this.held.asReadonly();
   readonly isPlanning = computed(() => this.held() !== null);
+
+  constructor() {
+    // A move being worked out is one the whole table waits on, so it is drawn on every screen
+    // rather than only the mover's. It leaves the room's sight the moment the move is over.
+    effect(() => this.tellTheRoom(this.held()));
+  }
+
+  /**
+   * Puts the move being worked out where the rest of the room can see it.
+   *
+   * What is sent is the piece, the table it stands on, and the way drawn so far. The reach is
+   * not: it is shaped by what its owner can see, and the dents an unseen enemy leaves in one
+   * would say where it stands, so each screen works the reach out from what it may know.
+   */
+  private tellTheRoom(plan: MovePlan | null): void {
+    const cursor = PeerCursor.myCursor;
+    if (!cursor) return;
+    const table = this.tableSelecter.viewTable;
+    const piece = plan && table ? plan.characterIdentifier : '';
+    const on = piece ? table!.identifier : '';
+    const way = piece && plan ? this.wholeWay().join(',') : '';
+    if (cursor.movingCharacterIdentifier === piece && cursor.movingTableIdentifier === on && cursor.movingWay === way) {
+      return;
+    }
+    cursor.movingCharacterIdentifier = piece;
+    cursor.movingTableIdentifier = on;
+    cursor.movingWay = way;
+    cursor.update();
+  }
 
   /** Whether the piece is walking a settled way, during which nothing else may be asked of it. */
   get isWalking(): boolean {
@@ -65,6 +98,7 @@ export class MovePlanService {
     const terms = this.moveRange.termsOf(character);
     if (!terms) return false;
     this.terms = terms;
+    this.legs = [];
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
     this.held.set({
@@ -108,11 +142,22 @@ export class MovePlanService {
     this.held.set({ ...plan, ahead: ahead ?? [] });
   }
 
-  /** Settles the way drawn so far, so the next leg is worked out from where it ends. */
+  /**
+   * Settles the way drawn so far, so the next leg is worked out from where it ends.
+   *
+   * Pressing again on the corner just set takes it back up instead. Nothing is drawn ahead
+   * while the pointer rests on the corner it is standing on, which is what says the reader
+   * means that one rather than a new one somewhere else.
+   */
   settle(): void {
     const plan = this.held();
     const terms = this.terms;
-    if (!plan || !terms || this.walking || plan.ahead.length < 2) return;
+    if (!plan || !terms || this.walking) return;
+    if (plan.ahead.length < 2) {
+      this.unsettle();
+      return;
+    }
+    this.legs.push(plan);
     const cost = walkedPath(plan.grid, plan.ahead, (index) => terms.blocked.get(index), terms.options).cost;
     const spent = plan.spent + cost;
     const left = plan.budget - spent;
@@ -129,6 +174,14 @@ export class MovePlanService {
           ? reachableCells(plan.grid, from, left, (index) => terms.blocked.get(index), terms.options)
           : new CellBits(plan.reach.count),
     });
+  }
+
+  /** Takes back the corner set last, and only that one. */
+  unsettle(): void {
+    if (this.walking) return;
+    const previous = this.legs.pop();
+    if (!previous) return;
+    this.held.set({ ...previous, ahead: [] });
   }
 
   /** The whole way the piece would walk if the move were made now. */
@@ -186,18 +239,6 @@ export class MovePlanService {
   private close(): void {
     this.held.set(null);
     this.terms = null;
+    this.legs = [];
   }
-}
-
-/**
- * How far a piece's corner sits from the middle of the cell it stands on.
- *
- * A piece is placed by its corner while a cell is found by its middle, and a piece of an even
- * number of cells straddles a grid line rather than sitting on one.
- */
-function cornerShiftOf(character: GameCharacter, gridSize: number): number {
-  const size = Math.max(1, character.size);
-  const middle = (gridSize * size) / 2;
-  const onACorner = size % 2 === 0 ? gridSize / 2 : 0;
-  return middle - onACorner;
 }

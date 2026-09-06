@@ -73,10 +73,25 @@ describe('buildGameCharacterContextMenu()', () => {
       t
     );
 
-    const planning = menu.find((action) => action.name === '移動を決めて動かす');
+    const planning = menu.find((action) => action.name === '移動');
     expect(planning).toBeDefined();
     planning!.action!();
     expect(onPlanMove).toHaveBeenCalled();
+  });
+
+  it('puts working a move out above everything else the piece is asked', () => {
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onPlanMove: vi.fn() },
+      t
+    );
+
+    const named = menu.filter((action) => action.name).map((action) => action.name);
+
+    expect(named[0]).toBe('移動');
+    expect(named.indexOf('移動')).toBeLessThan(named.indexOf('詳細を表示'));
   });
 
   it('offers nothing of the sort to a piece with no reach', () => {
@@ -88,7 +103,7 @@ describe('buildGameCharacterContextMenu()', () => {
       t
     );
 
-    expect(menu.map((action) => action.name)).not.toContain('移動を決めて動かす');
+    expect(menu.map((action) => action.name)).not.toContain('移動');
   });
 
   describe('aiming without a keyboard', () => {

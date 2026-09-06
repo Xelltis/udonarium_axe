@@ -1262,12 +1262,25 @@ export class GameCharacterComponent {
    * drag puts the piece's transition and its collidable layer aside after saying it has
    * started, and a refusal that arrives first is undone by the very setting up it refused.
    */
+  /**
+   * Working a move out, rather than carrying the piece to where it should end up.
+   *
+   * Shift asks for it in any room. A room that holds pieces to a way they could have walked
+   * asks for it of every move, since being sent back after the fact and being shown the way
+   * beforehand are the same rule, and having them behave differently only depending on which
+   * hand opened the move made two features out of one.
+   */
   onGrab(event: PointerEvent) {
-    if (!event.shiftKey || event.altKey) return;
+    if (event.altKey) return;
+    if (!event.shiftKey && !this.isStrictMove()) return;
     const character = this.gameCharacter();
     if (!character || this.isLock) return;
     if (!this.movePlan.begin(character)) return;
     queueMicrotask(() => this.movableRef()?.cancel());
+  }
+
+  private isStrictMove(): boolean {
+    return this.objectStore.get<Config>('Config')?.moveStrict === true;
   }
 
   onPickUp() {
@@ -1276,17 +1289,8 @@ export class GameCharacterComponent {
     if (character) this.moveRangeService.show(character);
   }
 
-  onDragging() {
-    const character = this.gameCharacter();
-    if (!character) return;
-    const held = this.movableRef();
-    this.moveRangeService.trace(character, held ? { x: held.posX, y: held.posY } : undefined);
-  }
-
   onPutDown() {
-    const character = this.gameCharacter();
-    const refused = character ? this.moveRangeService.returnIfOutOfReach(character) : false;
-    if (!refused) this.onMoved();
+    this.onMoved();
     this.moveRangeService.hide();
   }
 

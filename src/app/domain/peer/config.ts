@@ -119,20 +119,19 @@ export class Config extends ObjectNode implements InnerXml {
     this._factionOrder = order;
   }
 
-  /** Whether a piece may only be set down where it could have walked to. */
+  /**
+   * Whether a piece is walked along a way it could have taken, rather than dropped anywhere.
+   *
+   * A room saved while this was two answers, one for the end and one for the way, is read as
+   * asking for it if either was said: both were ways of asking for a move that holds to the
+   * rules, and the one setting now does both.
+   */
   get moveStrict(): boolean {
-    return this._moveStrict === '1';
+    return this._moveStrict === '1' || this._moveStrictPath === '1';
   }
   set moveStrict(strict: boolean) {
     this._moveStrict = strict ? '1' : '';
-  }
-
-  /** Whether the way a piece was taken has to be one it could have walked, not just its end. */
-  get moveStrictPath(): boolean {
-    return this._moveStrictPath === '1';
-  }
-  set moveStrictPath(strict: boolean) {
-    this._moveStrictPath = strict ? '1' : '';
+    this._moveStrictPath = '';
   }
 
   get factionSkipUnassigned(): boolean {

@@ -354,6 +354,19 @@
 @if (screenFlash()) {
   <div class="animate-effect-flash pointer-events-none absolute inset-0 z-10" [style.background]="screenFlash()"></div>
 }
+<!--
+  Said at the foot of the screen rather than the head of it. The toolbars are pinned to the top
+  at a layer of their own and can be dragged anywhere along it, so a band up there is read by
+  nobody; down here it clears the hotbar and still sits above the table it is talking about.
+-->
+@if (isPlanningMove()) {
+  <div
+    class="bg-ui-panel shadow-ui-md pointer-events-none absolute bottom-28 left-1/2 z-160 max-w-[90vw] -translate-x-1/2 rounded-full px-4 py-1.5 text-center text-sm text-[whitesmoke] opacity-95"
+    data-testid="move-plan-hint"
+  >
+    {{ 'feature.tabletop.movePlan.hint' | transloco }}
+  </div>
+}
 @if (isPickingEffectTarget()) {
   <div
     class="bg-ui-panel pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm text-[whitesmoke] opacity-90"

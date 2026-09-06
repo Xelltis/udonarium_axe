@@ -22,6 +22,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -229,6 +230,7 @@ export class GameTableComponent {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly cardTargetService = inject(CardTargetService);
   private readonly effectTargetingService = inject(EffectTargetingService);
+  private readonly movePlan = inject(MovePlanService);
   private readonly effectPlaybackService = inject(EffectPlaybackService);
   private readonly mobileLayout = inject(MobileLayoutService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -994,6 +996,8 @@ export class GameTableComponent {
 
   readonly isPickingTarget = computed(() => this.cardTargetService.isPicking());
   readonly isPickingEffectTarget = computed(() => this.effectTargetingService.isPicking());
+  /** Whether a move is being worked out, which is when the table says how to work one out. */
+  readonly isPlanningMove = this.movePlan.isPlanning;
 
   onEscapeKey(_e: Event) {
     if (this.effectTargetingService.cancel()) return;

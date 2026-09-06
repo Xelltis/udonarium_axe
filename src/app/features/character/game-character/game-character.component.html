@@ -9,7 +9,6 @@
     [appSelectable]="gameCharacter()"
     (movable.onstart)="onGrab($event)"
     (movable.ondragstart)="onPickUp()"
-    (movable.ondrag)="onDragging()"
     (movable.ondragend)="onPutDown()"
     (movable.onend)="onLetGo()"
     (pointerdown)="onPiecePointerDown($event)"

@@ -157,6 +157,41 @@ describe('GameCharacterComponent', () => {
       movePlan.cancel();
     });
 
+    it('works a move out for every press where the room holds pieces to a way', async () => {
+      Config.instance.moveStrict = true;
+      try {
+        const movePlan = TestBed.inject(MovePlanService);
+        const piece = pieceThatWalks(2);
+        fixture.componentRef.setInput('gameCharacter', piece);
+        fixture.detectChanges();
+
+        movableOf().onstart.emit({} as PointerEvent);
+
+        expect(movePlan.plan()?.characterIdentifier).toBe(piece.identifier);
+        await Promise.resolve();
+        movePlan.cancel();
+      } finally {
+        Config.instance.moveStrict = false;
+      }
+    });
+
+    it('drags a piece with no move to speak of, even where the room holds the others to a way', () => {
+      Config.instance.moveStrict = true;
+      try {
+        const movePlan = TestBed.inject(MovePlanService);
+        const character = GameCharacter.create('コマ', 1, '');
+        DataElement.findElementByReference(character.rootDataElement!, '移動')!.destroy();
+        fixture.componentRef.setInput('gameCharacter', character);
+        fixture.detectChanges();
+
+        movableOf().onstart.emit({} as PointerEvent);
+
+        expect(movePlan.plan()).toBeNull();
+      } finally {
+        Config.instance.moveStrict = false;
+      }
+    });
+
     it('drags as it always did when the press holds nothing', () => {
       const movePlan = TestBed.inject(MovePlanService);
       fixture.componentRef.setInput('gameCharacter', pieceThatWalks(2));

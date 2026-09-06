@@ -486,14 +486,6 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.moveStrict = value;
   }
 
-  get moveStrictPath(): boolean {
-    this.objectChange.versionOf('Config')();
-    return this.config.moveStrictPath;
-  }
-  set moveStrictPath(value: boolean) {
-    if (this.isEditable) this.config.moveStrictPath = value;
-  }
-
   get moveRangeElementNames(): string {
     return this.rules.moveRangeElementNames;
   }

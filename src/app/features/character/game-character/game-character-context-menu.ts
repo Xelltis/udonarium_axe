@@ -124,6 +124,17 @@ export function buildGameCharacterContextMenuModel(
   const heldDice = callbacks.onDeployDice ? heldDiceOf(char) : [];
   const heldDiceCount = heldDice.reduce((total, die) => total + die.count, 0);
 
+  // Working a move out comes before anything else a piece is asked, since it is what a piece
+  // is picked up for; the rest of the move entries are about which pile it belongs in.
+  const planActions: ContextMenuAction[] = callbacks.onPlanMove
+    ? [
+        {
+          name: t('feature.character.contextMenu.planMove'),
+          action: () => callbacks.onPlanMove?.(),
+        } as ContextMenuAction,
+      ]
+    : [];
+
   const basicActions: ContextMenuAction[] = [
     {
       name: t('feature.character.contextMenu.showDetail'),
@@ -332,14 +343,6 @@ export function buildGameCharacterContextMenuModel(
 
   // moving it
   const moveActions: ContextMenuAction[] = [
-    ...(callbacks.onPlanMove
-      ? [
-          {
-            name: t('feature.character.contextMenu.planMove'),
-            action: () => callbacks.onPlanMove?.(),
-          } as ContextMenuAction,
-        ]
-      : []),
     {
       name: t('feature.character.contextMenu.moveCommon'),
       action: () => {
@@ -388,6 +391,7 @@ export function buildGameCharacterContextMenuModel(
 
   const actions: ContextMenuAction[] = [
     ...(overlapEntries.length > 0 ? [...overlapEntries, ContextMenuSeparator] : []),
+    ...(planActions.length > 0 ? [...planActions, ContextMenuSeparator] : []),
     ...openActions,
     ContextMenuSeparator,
     ...displayActions,
@@ -423,7 +427,7 @@ export function buildGameCharacterContextMenuModel(
     {
       name: t('feature.character.contextMenu.radialMove'),
       icon: 'open_with',
-      actions: [...moveActions, ...surfaceEntries],
+      actions: [...planActions, ...moveActions, ...surfaceEntries],
     },
     {
       name: t('feature.character.contextMenu.radialDisclosure'),

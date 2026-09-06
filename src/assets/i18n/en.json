@@ -1401,7 +1401,7 @@
         "showRemoteController": "Show remote controller",
         "editBuff": "Edit buffs",
         "lightSettings": "Vision & light…",
-        "planMove": "Work out a move",
+        "planMove": "Move",
         "invokeRangeShape": "Invoke registered range",
         "hideInventoryOn": "☑ Hide from inventory",
         "hideInventoryOff": "☐ Hide from inventory",
@@ -2110,6 +2110,9 @@
           "1": "Hex (flat top)",
           "2": "Hex (pointy top)"
         }
+      },
+      "movePlan": {
+        "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it"
       }
     },
     "roomSettings": {
@@ -2170,9 +2173,8 @@
       "autoSaveHint": "A copy of the room is kept here once the table settles. It never reaches the other players and never leaves this device. Stopping takes no further copies; the ones already kept stay.",
       "tab_utility": "Utilities",
       "characterImportHint": "Brings a piece in from an outside character sheet service. What comes in is placed on the table and reaches the other players.",
-      "moveStrict": "Only let a piece down where it could have walked",
-      "moveStrictHint": "A piece showing a reach goes back where it was lifted from if it is set down outside that reach. A piece with no reach to show is still set down wherever the hand leaves it.",
-      "moveStrictPath": "Count the way it was taken, too",
+      "moveStrict": "Strict movement",
+      "moveStrictHint": "Lifting a piece draws the cheapest way to the cell under the pointer. The piece walks that line down, so a wavering hand is not counted as going the long way about. Walls and no-entry cells are not crossed, and the line does not reach past what the piece can walk. The whole room sees the move being worked out. A piece with no move to speak of is still set down wherever the hand leaves it.",
       "sectionFlatTable": "Seen from above (2D)",
       "flatTableHint": "These have something to say only while the table is seen from straight above.",
       "orthographicProjection": "Drop the perspective (for a screen laid flat)",
