@@ -75,6 +75,8 @@ export function buildGameCharacterContextMenu(
     onInvokeEffect?: (name: string) => void;
     /** Lays the dice the character keeps onto the table. Left out where nothing can lay them out. */
     onDeployDice?: () => void;
+    /** Opens a move to be worked out. Left out for a piece with no reach to work one out in. */
+    onPlanMove?: () => void;
   },
   t: TranslateFn,
   overlapEntries: ContextMenuAction[] = [],
@@ -113,6 +115,14 @@ export function buildGameCharacterContextMenu(
               action: () => callbacks.onSelectBuffView?.(mode),
             })),
           },
+        ]
+      : []),
+    ...(callbacks.onPlanMove
+      ? [
+          {
+            name: t('feature.character.contextMenu.planMove'),
+            action: () => callbacks.onPlanMove?.(),
+          } as ContextMenuAction,
         ]
       : []),
     {

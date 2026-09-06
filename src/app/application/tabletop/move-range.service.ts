@@ -201,7 +201,13 @@ export class MoveRangeService {
     return resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table);
   }
 
-  private build(character: GameCharacter): { view: MoveRangeView; terms: WalkTerms; start: number } | null {
+  /** Whether a piece has a reach to be had at all, told without working one out. */
+  canPlan(character: GameCharacter): boolean {
+    return this.opening(character) !== null;
+  }
+
+  /** What a reach needs before any ground is walked: a table, the rules for it, and a piece that moves. */
+  private opening(character: GameCharacter): { table: GameTable; rules: RoomRules; walk: number } | null {
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
     const rules = this.rulesOf(table);
@@ -211,6 +217,13 @@ export class MoveRangeService {
 
     const walk = moveCellsOf(character, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
     if (walk === null || walk < 1) return null;
+    return { table, rules, walk };
+  }
+
+  private build(character: GameCharacter): { view: MoveRangeView; terms: WalkTerms; start: number } | null {
+    const opened = this.opening(character);
+    if (!opened) return null;
+    const { table, rules, walk } = opened;
 
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
     const start = startCellOf(grid, character, table);

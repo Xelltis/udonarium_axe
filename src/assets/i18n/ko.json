@@ -1380,6 +1380,7 @@
         "showRemoteController": "리모컨 표시",
         "editBuff": "버프 편집",
         "lightSettings": "시야·광원 설정…",
+        "planMove": "이동을 정해서 움직이기",
         "invokeRangeShape": "등록된 사거리 표시",
         "hideInventoryOn": "☑ 인벤토리 숨김",
         "hideInventoryOff": "☐ 인벤토리 숨김",

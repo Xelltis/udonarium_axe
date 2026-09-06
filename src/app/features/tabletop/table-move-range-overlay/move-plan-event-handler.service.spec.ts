@@ -10,6 +10,7 @@ describe('MovePlanEventHandlerService', () => {
     plan: held.asReadonly(),
     isPlanning: computed(() => held() !== null),
     lookAt: vi.fn(),
+    wholeWay: vi.fn<() => number[]>(() => [1, 2]),
     settle: vi.fn(),
     run: vi.fn(),
     cancel: vi.fn(),
@@ -36,6 +37,7 @@ describe('MovePlanEventHandlerService', () => {
   beforeEach(() => {
     held.set(null);
     for (const spy of [movePlan.lookAt, movePlan.settle, movePlan.run, movePlan.cancel]) spy.mockClear();
+    movePlan.wholeWay.mockReturnValue([1, 2]);
     TestBed.configureTestingModule({
       providers: [
         { provide: MovePlanService, useValue: movePlan },
@@ -86,6 +88,38 @@ describe('MovePlanEventHandlerService', () => {
 
     expect(movePlan.settle).toHaveBeenCalled();
     expect(movePlan.run).not.toHaveBeenCalled();
+  });
+
+  it('puts the move away on a tap that would walk it nowhere', () => {
+    openAMove();
+    letGoOfThePress();
+    movePlan.wholeWay.mockReturnValue([1]);
+
+    clickTheTable();
+
+    expect(movePlan.cancel).toHaveBeenCalled();
+    expect(movePlan.run).not.toHaveBeenCalled();
+  });
+
+  it('settles a leg on a press held down, and keeps the menu shut', () => {
+    openAMove();
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+
+    document.body.dispatchEvent(event);
+
+    expect(movePlan.settle).toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('leaves the menu alone once the move is over', () => {
+    openAMove();
+    held.set(null);
+    TestBed.tick();
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+
+    document.body.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('calls the move off on escape', () => {

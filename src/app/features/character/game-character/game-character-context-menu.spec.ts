@@ -58,6 +58,34 @@ describe('buildGameCharacterContextMenu()', () => {
     PeerCursor.myCursor = null!;
   });
 
+  it('offers to work a move out where the piece has ground to walk', () => {
+    const onPlanMove = vi.fn();
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onPlanMove },
+      t
+    );
+
+    const planning = menu.find((action) => action.name === '移動を決めて動かす');
+    expect(planning).toBeDefined();
+    planning!.action!();
+    expect(onPlanMove).toHaveBeenCalled();
+  });
+
+  it('offers nothing of the sort to a piece with no reach', () => {
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t
+    );
+
+    expect(menu.map((action) => action.name)).not.toContain('移動を決めて動かす');
+  });
+
   it('leads with the sheet, which opens the group at the top', () => {
     const char = makeChar();
     const menu = buildGameCharacterContextMenu(char as unknown as GameCharacter, 50, makeService(), callbacks(), t);

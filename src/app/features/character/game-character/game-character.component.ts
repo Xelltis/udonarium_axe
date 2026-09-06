@@ -860,6 +860,7 @@ export class GameCharacterComponent {
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
         onDeployDice: () => this.characterDice.deploy(char),
+        onPlanMove: this.moveRangeService.canPlan(char) ? () => void this.movePlan.begin(char) : undefined,
       },
       this.translateFn,
       overlapEntries,

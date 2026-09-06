@@ -35,6 +35,7 @@ export class MovePlanEventHandlerService {
     document.addEventListener('pointermove', this.onPointerMove, true);
     document.addEventListener('pointerup', this.onPointerUp, true);
     document.addEventListener('click', this.onClick, true);
+    document.addEventListener('contextmenu', this.onContextMenu, true);
     document.addEventListener('keydown', this.onKeyDown, true);
   }
 
@@ -44,6 +45,7 @@ export class MovePlanEventHandlerService {
     document.removeEventListener('pointermove', this.onPointerMove, true);
     document.removeEventListener('pointerup', this.onPointerUp, true);
     document.removeEventListener('click', this.onClick, true);
+    document.removeEventListener('contextmenu', this.onContextMenu, true);
     document.removeEventListener('keydown', this.onKeyDown, true);
   }
 
@@ -61,8 +63,30 @@ export class MovePlanEventHandlerService {
     if (!this.armed || !this.onTable(event)) return;
     event.preventDefault();
     event.stopPropagation();
-    if (event.shiftKey) this.movePlan.settle();
-    else void this.movePlan.run();
+    if (event.shiftKey) {
+      this.movePlan.settle();
+      return;
+    }
+    // A tap that would walk the piece nowhere is the way out of a move, since a hand with no
+    // keys to hold has nothing else to say "leave it" with.
+    if (this.movePlan.wholeWay().length < 2) {
+      this.movePlan.cancel();
+      return;
+    }
+    void this.movePlan.run();
+  };
+
+  /**
+   * A press held down settles the leg drawn so far, as shift and a click does.
+   *
+   * A long press is the only second button a finger has, and it is already carrying the
+   * context menu, so the menu is kept shut for as long as a move is being worked out.
+   */
+  private readonly onContextMenu = (event: MouseEvent): void => {
+    if (!this.onTable(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.movePlan.settle();
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {

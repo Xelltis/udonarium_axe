@@ -1380,6 +1380,7 @@
         "showRemoteController": "リモコンを表示",
         "editBuff": "バフ編集",
         "lightSettings": "視界・光源設定…",
+        "planMove": "移動を決めて動かす",
         "invokeRangeShape": "登録済み射程を出す",
         "hideInventoryOn": "☑ インベントリ非表示",
         "hideInventoryOff": "☐ インベントリ非表示",
