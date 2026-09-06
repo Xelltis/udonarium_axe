@@ -1,5 +1,6 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
@@ -62,13 +63,19 @@ describe('TabletopService', () => {
     it('carries a change to the table through to everything derived from it', async () => {
       const service = TestBed.inject(TabletopService);
       expect(service.gridSize()).toBe(table.gridSize);
-      expect(service.mode2d()).toBe(false);
 
       table.gridSize = 77;
-      table.mode2d = true;
       await new Promise((resolve) => setTimeout(resolve, 20));
 
       expect(service.gridSize()).toBe(77);
+    });
+
+    it('lies flat only where this reader asked for that, whatever table is out', () => {
+      const service = TestBed.inject(TabletopService);
+      expect(service.mode2d()).toBe(false);
+
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+
       expect(service.mode2d()).toBe(true);
     });
   });

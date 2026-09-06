@@ -437,7 +437,7 @@ export class GameCharacterComponent {
     const table = this.tabletopService.currentTable;
     this.objectChange.versionOf(table.identifier)();
     this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    return table.imageBillboard || table.mode2d;
+    return table.imageBillboard || this.tabletopService.mode2d();
   });
 
   readonly imageView = pieceImageView({
@@ -471,10 +471,7 @@ export class GameCharacterComponent {
 
   readonly mode2dEnabled = computed(() => {
     if (this.isPoster()) return true;
-    const table = this.tabletopService.currentTable;
-    this.objectChange.versionOf(table.identifier)();
-    this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    return table.mode2d;
+    return this.tabletopService.mode2d();
   });
 
   /** What the room asks of a piece that has to show which way it faces. */
@@ -927,7 +924,9 @@ export class GameCharacterComponent {
   }
 
   onPutDown() {
-    this.onMoved();
+    const character = this.gameCharacter();
+    const refused = character ? this.moveRangeService.returnIfOutOfReach(character) : false;
+    if (!refused) this.onMoved();
     this.moveRangeService.hide();
   }
 

@@ -56,7 +56,6 @@ export class GameTable extends ObjectNode {
   @SyncVar() gridSnap: boolean = true;
   @SyncVar() gridSnapStyle: GridSnapStyle = GridSnapStyle.CENTER;
   @SyncVar() imageBillboard: boolean = false;
-  @SyncVar() mode2d: boolean = false;
   /** How a piece shows which way it faces; see {@link TableFacingMark}. */
   @SyncVar() facingMark: TableFacingMark = DEFAULT_TABLE_FACING_MARK;
   @SyncVar() wallHeight: number = 10;

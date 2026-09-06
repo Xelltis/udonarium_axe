@@ -6,6 +6,7 @@ import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -37,7 +38,7 @@ describe('GameCharacterComponent', () => {
 
   const useFlatTable = () => {
     const table = TestBed.inject(TabletopService).currentTable;
-    table.mode2d = false;
+    TestBed.inject(ViewModePreferenceService).choose('perspective');
     table.imageBillboard = false;
   };
 
@@ -181,7 +182,7 @@ describe('GameCharacterComponent', () => {
   describe('which way a piece faces', () => {
     function tableShowing(mark: 'none' | 'turn' | 'arrow', mode2d: boolean): void {
       const table = TestBed.inject(TabletopService).currentTable;
-      table.mode2d = mode2d;
+      TestBed.inject(ViewModePreferenceService).choose(mode2d ? 'flat' : 'perspective');
       table.facingMark = mark;
     }
 
@@ -986,7 +987,7 @@ describe('GameCharacterComponent', () => {
         fixture.detectChanges();
         expect(footOf()).toBeTruthy();
 
-        TestBed.inject(TabletopService).currentTable.mode2d = true;
+        TestBed.inject(ViewModePreferenceService).choose('flat');
         await new Promise<void>((resolve) => queueMicrotask(resolve));
         fixture.detectChanges();
 
@@ -1017,7 +1018,7 @@ describe('GameCharacterComponent', () => {
     it('faces it anyway in the flat mode', async () => {
       const tabletopService = TestBed.inject(TabletopService);
       tabletopService.currentTable.imageBillboard = false;
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.imageBillboardEnabled()).toBe(true);
     });
@@ -1025,15 +1026,13 @@ describe('GameCharacterComponent', () => {
 
   describe('keeping the name above the piece on the screen in the flat mode', () => {
     it('raises the name straight up in three dimensions', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = false;
+      TestBed.inject(ViewModePreferenceService).choose('perspective');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.nameLabelOrbit()).toBe('translateY(-30px)');
     });
 
     it('puts it up the screen in the flat mode', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       const transform = component.nameLabelOrbit();
@@ -1043,8 +1042,7 @@ describe('GameCharacterComponent', () => {
     });
 
     it('puts it across as the view turns a quarter', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 90);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       const transform = component.nameLabelOrbit();
@@ -1054,8 +1052,7 @@ describe('GameCharacterComponent', () => {
     });
 
     it('compensates nothing along the depth in the flat mode', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.billboardTransform()).toContain('translateZ(0.00px)');

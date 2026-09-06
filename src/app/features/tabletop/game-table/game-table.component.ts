@@ -235,6 +235,10 @@ export class GameTableComponent {
       this.gestureService.cancelInput();
     });
     effect(() => {
+      this.tabletopService.mode2d();
+      this.syncMode2d();
+    });
+    effect(() => {
       const focus = this.selectionSignalService.focusCoordinate();
       if (!focus || !this.gameTable) return;
       this.glideTimer = setTimeout(() => {
@@ -306,7 +310,7 @@ export class GameTableComponent {
   }
 
   private syncMode2d(): void {
-    const enabled = this.currentTable.mode2d;
+    const enabled = this.tabletopService.mode2d();
     this.gestureService.tiltLocked = enabled;
     if (enabled) {
       this.gestureService.setTransform(0, 0, 0, 0, 0, 0);

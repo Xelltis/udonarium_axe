@@ -16,6 +16,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -25,6 +26,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/network/network';
@@ -140,6 +142,17 @@ export class AppComponent {
   });
 
   fabOpen = signal(true);
+
+  protected readonly tabletop = inject(TabletopService);
+  private readonly viewMode = inject(ViewModePreferenceService);
+
+  protected viewModeLabel(): string {
+    return this.tabletop.mode2d() ? 'app.fab.viewFlat' : 'app.fab.viewPerspective';
+  }
+
+  protected toggleViewMode(): void {
+    this.viewMode.choose(this.tabletop.mode2d() ? 'perspective' : 'flat');
+  }
 
   protected readonly fabEntries = FAB_ENTRIES;
 

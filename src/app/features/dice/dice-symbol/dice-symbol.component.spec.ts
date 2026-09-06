@@ -4,6 +4,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -30,7 +31,7 @@ describe('DiceSymbolComponent', () => {
 
   const useFlatTable = () => {
     const table = TestBed.inject(TabletopService).currentTable;
-    table.mode2d = false;
+    TestBed.inject(ViewModePreferenceService).choose('perspective');
     table.imageBillboard = false;
   };
 
@@ -127,7 +128,7 @@ describe('DiceSymbolComponent', () => {
       const tabletopService = TestBed.inject(TabletopService);
 
       tabletopService.currentTable.imageBillboard = false;
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.imageBillboardEnabled()).toBe(true);
     });
@@ -137,8 +138,7 @@ describe('DiceSymbolComponent', () => {
     it('raises the name straight up in three dimensions', async () => {
       const diceSymbol = DiceSymbol.create('orbit3dテスト', 1, 1);
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = false;
+      TestBed.inject(ViewModePreferenceService).choose('perspective');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.nameLabelOrbit()).toBe('translateY(-30px)');
     });
@@ -146,8 +146,7 @@ describe('DiceSymbolComponent', () => {
     it('puts it up the screen in the flat mode', async () => {
       const diceSymbol = DiceSymbol.create('orbit2dテスト', 1, 1);
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       const transform = component.nameLabelOrbit();
@@ -157,8 +156,7 @@ describe('DiceSymbolComponent', () => {
     it('keeps that offset the larger of the two', async () => {
       const diceSymbol = DiceSymbol.create('orbit比較テスト', 1, 1);
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       const nameZ = Math.abs(Number(component.nameLabelOrbit().match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0));
@@ -169,8 +167,7 @@ describe('DiceSymbolComponent', () => {
     it('compensates nothing along the depth in the flat mode', async () => {
       const diceSymbol = DiceSymbol.create('compZテスト', 1, 1);
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.billboardTransform()).toContain('translateZ(0.00px)');
