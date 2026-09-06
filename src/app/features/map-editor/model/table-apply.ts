@@ -75,6 +75,17 @@ function maskBlocksOf(scene: MapScene): MaskBlock[] {
   return blocks;
 }
 
+/**
+ * Whether the scene says anything at all about what the table's cells do.
+ *
+ * A plan built from a scene holding none of these is a plan to take away everything the table
+ * has, which is the right answer for somebody who deleted their layers and the wrong one for
+ * somebody who only ever drew a floor.
+ */
+export function sceneCarriesFunctions(scene: MapScene): boolean {
+  return scene.layers.some((layer) => layer.kind === 'function');
+}
+
 function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer[] {
   return scene.layers.filter(
     (layer): layer is FunctionLayer => layer.kind === 'function' && (layer as FunctionLayer).role === role

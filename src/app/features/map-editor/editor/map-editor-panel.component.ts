@@ -87,7 +87,7 @@ import { guessLineWidth, useTextMeasurer } from '@axe/features/map-editor/model/
 import { removeText, updateText } from '@axe/features/map-editor/model/scene-ops';
 import { deserializeScene } from '@axe/features/map-editor/model/serialize';
 import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/features/map-editor/model/shape-points';
-import { planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
+import { planFunctionPaint, sceneCarriesFunctions } from '@axe/features/map-editor/model/table-apply';
 import { sceneFromTable } from '@axe/features/map-editor/model/table-import';
 import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/features/map-editor/model/textures';
 import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
@@ -1620,7 +1620,10 @@ export class MapEditorPanelComponent implements AfterViewInit {
       table.height = scene.rows;
       table.gridSize = scene.cellPx;
       table.gridType = scene.gridType;
-      this.applyFunctions();
+      // Only where the scene has something to say about the cells. A scene drawn from scratch
+      // says nothing, and a plan built from nothing is a plan to take away every wall, mask and
+      // no-entry cell the table already had.
+      if (sceneCarriesFunctions(scene)) this.applyFunctions();
       this.notice.show(this.t('feature.mapEditor.actions.setTableDone'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));

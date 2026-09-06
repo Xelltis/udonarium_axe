@@ -3,7 +3,12 @@ import { DEFAULT_FUNCTION_SPEC, MapFunctionRole, MaskBlock, TerrainBlock } from 
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { createScene, FunctionLayer, MapScene, newId } from '@axe/features/map-editor/model/scene';
-import { cellsForRole, FunctionPaintPlan, planFunctionPaint } from '@axe/features/map-editor/model/table-apply';
+import {
+  cellsForRole,
+  FunctionPaintPlan,
+  planFunctionPaint,
+  sceneCarriesFunctions,
+} from '@axe/features/map-editor/model/table-apply';
 
 function changesNothing(plan: FunctionPaintPlan, table: TableSnapshot): boolean {
   const sameBlocked =
@@ -77,6 +82,20 @@ describe('cellsForRole()', () => {
     const scene = sceneWith(layerOf('mask', ['3,3']), layerOf('mask', ['3,3']));
 
     expect(cellsForRole(scene, 'mask')).toEqual(['3,3']);
+  });
+});
+
+describe('sceneCarriesFunctions()', () => {
+  it('answers for a scene that was told what its cells do', () => {
+    expect(sceneCarriesFunctions(sceneWith(layerOf('terrain', ['1,1'])))).toBe(true);
+  });
+
+  it('answers no for a scene that only ever had a picture drawn on it', () => {
+    expect(sceneCarriesFunctions(createScene(10, 8, 50))).toBe(false);
+  });
+
+  it('answers yes for a layer that was emptied, since emptying it is something to say', () => {
+    expect(sceneCarriesFunctions(sceneWith(layerOf('terrain', [])))).toBe(true);
   });
 });
 
