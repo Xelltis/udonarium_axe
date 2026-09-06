@@ -84,7 +84,6 @@ import { DigitalClockComponent } from '@axe/features/widgets/digital-clock/digit
 import { RenderStatsComponent } from '@axe/features/widgets/render-stats/render-stats.component';
 import { ConfirmDialogComponent } from '@axe/ui/components/confirm-dialog/confirm-dialog.component';
 import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-menu.component';
-import { FourWayRadialMenuComponent } from '@axe/ui/components/four-way-radial-menu/four-way-radial-menu.component';
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -211,6 +210,9 @@ export class AppComponent {
     return viewModeIcon(this.viewMode.mode(), this.tabletop.mode2d());
   }
 
+  /** The ticker is drawn for the screens that asked for it, and not fetched for the rest. */
+  protected readonly tickerWanted = computed(() => this.tabletop.display().multiAngleTickerEnabled);
+
   protected toggleViewMode(): void {
     this.viewMode.choose(nextViewMode(this.viewMode.mode()));
   }
@@ -325,7 +327,10 @@ PanelService.UIPanelComponentClass = UIPanelComponent;
 PanelService.chatPortraitComponentClass = ChatPortraitImageComponent;
 PanelService.cardStackListComponentClass = CardStackListImageComponent;
 ContextMenuService.ContextMenuComponentClass = ContextMenuComponent;
-ContextMenuService.FourWayRadialMenuComponentClass = FourWayRadialMenuComponent;
+ContextMenuService.loadFourWayRadialMenuComponent = () =>
+  import('@axe/ui/components/four-way-radial-menu/four-way-radial-menu.component').then(
+    (m) => m.FourWayRadialMenuComponent
+  );
 ModalService.ModalComponentClass = ModalComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
 TooltipDirective.TooltipPanelComponentClass = OverviewPanelComponent;

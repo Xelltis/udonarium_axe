@@ -46,7 +46,9 @@ type ContextMenuComponentClass = { new (...args: unknown[]): unknown };
 export class ContextMenuService {
   static defaultParentViewContainerRef: ViewContainerRef;
   static ContextMenuComponentClass: ContextMenuComponentClass = null!;
-  static FourWayRadialMenuComponentClass: ContextMenuComponentClass = null!;
+  static FourWayRadialMenuComponentClass: ContextMenuComponentClass | null = null;
+  /** The four-way menu is only ever wanted on a table seen from above, so it is fetched the first time. */
+  static loadFourWayRadialMenuComponent: (() => Promise<ContextMenuComponentClass>) | null = null;
   private readonly rolePermission = inject(RolePermissionService);
   private panelComponentRef: ComponentRef<unknown> | null = null;
 
@@ -128,22 +130,32 @@ export class ContextMenuService {
     parentViewContainerRef?: ViewContainerRef,
     layer = 0
   ) {
-    this.openComponent(
-      ContextMenuService.FourWayRadialMenuComponentClass,
-      position,
-      actions,
-      radialGroups,
-      0,
-      radialMenuEnabled,
-      radialMenuRotationSpeed,
-      fontScale,
-      radialMenuClearanceRadius,
-      radialMenuOcclusionHalfExtent,
-      radialAnchorPosition,
-      title,
-      parentViewContainerRef,
-      layer
-    );
+    const open = (componentClass: ContextMenuComponentClass) =>
+      this.openComponent(
+        componentClass,
+        position,
+        actions,
+        radialGroups,
+        0,
+        radialMenuEnabled,
+        radialMenuRotationSpeed,
+        fontScale,
+        radialMenuClearanceRadius,
+        radialMenuOcclusionHalfExtent,
+        radialAnchorPosition,
+        title,
+        parentViewContainerRef,
+        layer
+      );
+    const loaded = ContextMenuService.FourWayRadialMenuComponentClass;
+    if (loaded) {
+      open(loaded);
+      return;
+    }
+    void ContextMenuService.loadFourWayRadialMenuComponent?.().then((componentClass) => {
+      ContextMenuService.FourWayRadialMenuComponentClass = componentClass;
+      open(componentClass);
+    });
   }
 
   private openComponent(
