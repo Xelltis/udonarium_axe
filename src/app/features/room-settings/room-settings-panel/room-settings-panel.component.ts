@@ -5,19 +5,39 @@ import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
+import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import {
+  asHoverDetailPlacement,
+  HOVER_DETAIL_PLACEMENTS,
+  HoverDetailPlacement,
+} from '@axe/domain/tabletop/hover-detail-placement';
 import { DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
 import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { asZocMode, ZOC_MODES, ZocMode } from '@axe/domain/tabletop/move/zone-of-control';
+import { DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS, MultiAngleMotionMode } from '@axe/domain/tabletop/multi-angle';
+import {
+  asMultiAngleFontScale,
+  MULTI_ANGLE_FONT_SCALES,
+  MultiAngleFontScale,
+} from '@axe/domain/tabletop/multi-angle-font-scale';
 import { isGroupAnswered, resolveRoomRules, RoomRuleGroup, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import {
+  asMultiAngleMotionMode,
+  TabletopDisplaySection,
+  TabletopDisplaySettings,
+} from '@axe/domain/tabletop/tabletop-display';
 import {
   FACTION_PHASE_MODES,
   FactionPhaseMode,
@@ -28,6 +48,7 @@ import { describeSide, encodeFactionOrder, normalizeFactionOrder } from '@axe/do
 import { ROOM_SETTINGS_TABS, RoomSettingsTab } from '@axe/domain/ui/room-settings-tab';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { RoomSnapshotPanelComponent } from '@axe/features/room-archive/room-snapshot-panel/room-snapshot-panel.component';
+import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -50,6 +71,7 @@ export class RoomSettingsPanelComponent {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly panelService = inject(PanelService);
+  private readonly modalService = inject(ModalService);
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly t = inject(TRANSLATE_FN);
@@ -82,6 +104,165 @@ export class RoomSettingsPanelComponent {
 
   constructor() {
     queueMicrotask(() => (this.panelService.title = this.t('feature.roomSettings.title')));
+  }
+
+  /**
+   * How a table seen from straight above is drawn and reached.
+   *
+   * It describes the screen this room is played around rather than any one map, so the room
+   * answers for it. A reader may take a feature over for their own glass, and doing so needs no
+   * permission: what they take over reaches nobody else.
+   */
+  protected readonly display = inject(TabletopDisplayService);
+
+  private get displaySettings(): TabletopDisplaySettings {
+    this.objectChange.versionOf('Config')();
+    this.objectChange.versionOf(this.tableSelecter.identifier)();
+    const table = this.tableSelecter.viewTable;
+    if (table) this.objectChange.versionOf(table.identifier)();
+    return this.display.settingsNow();
+  }
+  protected readonly hoverDetailPlacements = HOVER_DETAIL_PLACEMENTS;
+  protected readonly multiAngleFontScales = MULTI_ANGLE_FONT_SCALES;
+
+  onThisScreenOnly(section: TabletopDisplaySection): boolean {
+    return this.display.takesOver(section);
+  }
+
+  setOnThisScreenOnly(section: TabletopDisplaySection, value: boolean): void {
+    if (value) this.display.takeOver(section);
+    else this.display.handBack(section);
+  }
+
+  /** Whether the room's own answer may be changed from here, which the reader's own copy always may. */
+  displayReadOnly(section: TabletopDisplaySection): boolean {
+    return this.isReadOnly() && !this.display.takesOver(section);
+  }
+
+  private displaySet(section: TabletopDisplaySection, patch: Partial<TabletopDisplaySettings>): void {
+    if (this.displayReadOnly(section)) return;
+    this.display.set(section, patch);
+  }
+
+  get orthographicProjection(): boolean {
+    return this.displaySettings.orthographicProjection;
+  }
+  set orthographicProjection(value: boolean) {
+    this.displaySet('projection', { orthographicProjection: value });
+  }
+
+  get hoverDetailPlacement(): HoverDetailPlacement {
+    return this.displaySettings.hoverDetailPlacement;
+  }
+  set hoverDetailPlacement(value: HoverDetailPlacement) {
+    this.displaySet('hoverDetail', { hoverDetailPlacement: asHoverDetailPlacement(value) });
+  }
+
+  get radialMenuEnabled(): boolean {
+    return this.displaySettings.radialMenuEnabled;
+  }
+  set radialMenuEnabled(value: boolean) {
+    this.displaySet('menus', { radialMenuEnabled: value });
+  }
+
+  get radialMenuRotationSpeed(): number {
+    return this.displaySettings.radialMenuRotationSpeed;
+  }
+  set radialMenuRotationSpeed(value: number) {
+    this.displaySet('menus', { radialMenuRotationSpeed: Number(value) });
+  }
+
+  get multiAngleEnabled(): boolean {
+    return this.displaySettings.multiAngleEnabled;
+  }
+  set multiAngleEnabled(value: boolean) {
+    this.displaySet('pieceLabels', { multiAngleEnabled: value });
+  }
+
+  get multiAngleResourceBuffEnabled(): boolean {
+    return this.displaySettings.multiAngleResourceBuffEnabled;
+  }
+  set multiAngleResourceBuffEnabled(value: boolean) {
+    this.displaySet('pieceLabels', { multiAngleResourceBuffEnabled: value });
+  }
+
+  get multiAngleFontScale(): MultiAngleFontScale {
+    return this.displaySettings.multiAngleFontScale;
+  }
+  set multiAngleFontScale(value: MultiAngleFontScale) {
+    this.displaySet('pieceLabels', { multiAngleFontScale: asMultiAngleFontScale(value) });
+  }
+
+  get multiAngleMotionMode(): MultiAngleMotionMode {
+    return this.displaySettings.multiAngleMotionMode;
+  }
+  set multiAngleMotionMode(value: MultiAngleMotionMode) {
+    const motionMode = asMultiAngleMotionMode(value);
+    this.displaySet('pieceLabels', {
+      multiAngleMotionMode: motionMode,
+      multiAnglePieceRevolutionSeconds: motionMode === 'continuous' ? DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS : 5,
+    });
+  }
+
+  get multiAngleRevolutionSeconds(): number {
+    return this.displaySettings.multiAngleRevolutionSeconds;
+  }
+  set multiAngleRevolutionSeconds(value: number) {
+    this.displaySet('pieceLabels', { multiAngleRevolutionSeconds: Number(value) });
+  }
+
+  get multiAnglePauseSeconds(): number {
+    return this.displaySettings.multiAnglePauseSeconds;
+  }
+  set multiAnglePauseSeconds(value: number) {
+    this.displaySet('pieceLabels', { multiAnglePauseSeconds: Number(value) });
+  }
+
+  get multiAnglePieceRevolutionSeconds(): number {
+    return this.displaySettings.multiAnglePieceRevolutionSeconds;
+  }
+  set multiAnglePieceRevolutionSeconds(value: number) {
+    this.displaySet('pieceLabels', { multiAnglePieceRevolutionSeconds: Number(value) });
+  }
+
+  /** The screen measurement and the lock describe this glass alone, and are never written down. */
+  private readonly displayCalibration = inject(DisplayCalibrationService);
+  private readonly viewLock = inject(ViewLockService);
+  protected readonly isCalibrated = this.displayCalibration.isCalibrated;
+  protected readonly calibrationDpi = this.displayCalibration.dpi;
+  protected readonly needsRecalibration = this.displayCalibration.needsRecalibration;
+
+  get viewLocked(): boolean {
+    return this.viewLock.locked();
+  }
+  set viewLocked(value: boolean) {
+    this.viewLock.set(value);
+  }
+
+  get realSizeEnabled(): boolean {
+    return this.displayCalibration.realSizeEnabled();
+  }
+  set realSizeEnabled(value: boolean) {
+    // Real size means nothing until the screen has been measured, so asking for it asks for that.
+    if (value && !this.displayCalibration.isCalibrated()) {
+      this.openCalibration();
+      return;
+    }
+    this.displayCalibration.setRealSizeEnabled(value);
+  }
+
+  openCalibration(): void {
+    // Without this the shell holds a fixed 800px and clips the frame the card is matched against.
+    void this.modalService.open(DisplayCalibrationComponent, { fitWidth: true });
+  }
+
+  nudgeScale(steps: number): void {
+    this.displayCalibration.nudge(steps);
+  }
+
+  /** Back to an unmeasured screen. The width of a square stays, since the map still asks for it. */
+  resetCalibration(): void {
+    this.displayCalibration.reset();
   }
 
   private get config(): Config {

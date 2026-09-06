@@ -216,7 +216,32 @@ export function withoutSection(
   return next;
 }
 
-/** What the table asks for, with the features this reader has taken over answering for themselves. */
-export function resolveTabletopDisplay(table: unknown, override: TabletopDisplayOverride): TabletopDisplaySettings {
-  return normalizeTabletopDisplaySettings({ ...normalizeTabletopDisplaySettings(table), ...override });
+/** The settings the room has answered for. An empty answer is one the room has not given. */
+export function answeredTabletopDisplay(answers: unknown): Partial<Record<TabletopDisplayKey, unknown>> {
+  const source = answers && typeof answers === 'object' ? (answers as Record<string, unknown>) : {};
+  const answered: Partial<Record<TabletopDisplayKey, unknown>> = {};
+  for (const key of Object.keys(DEFAULT_TABLETOP_DISPLAY_SETTINGS) as TabletopDisplayKey[]) {
+    const held = source[key];
+    if (held === undefined || held === null || held === '') continue;
+    answered[key] = held;
+  }
+  return answered;
+}
+
+/**
+ * What is in force here, read from the furthest away inwards.
+ *
+ * The table answers for anything the room has not, which is how a room saved before the room
+ * was asked keeps looking the way it did, and this reader answers for whatever they took over.
+ */
+export function resolveTabletopDisplay(
+  table: unknown,
+  answers: unknown,
+  override: TabletopDisplayOverride
+): TabletopDisplaySettings {
+  return normalizeTabletopDisplaySettings({
+    ...normalizeTabletopDisplaySettings(table),
+    ...answeredTabletopDisplay(answers),
+    ...override,
+  });
 }

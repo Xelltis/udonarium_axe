@@ -13,6 +13,7 @@ import {
   writeRuleNumber,
   writeRuleText,
 } from '@axe/domain/tabletop/room-rules';
+import { TabletopDisplayKey, TabletopDisplaySettings } from '@axe/domain/tabletop/tabletop-display';
 import {
   asFactionPhaseMode,
   asTurnOrderMode,
@@ -51,6 +52,24 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_zocRange') private _zocRange: number = -1;
   @SyncVar('_zocExtraCost') private _zocExtraCost: number = -1;
   @SyncVar('_facingMark') private _facingMark: string = '';
+
+  // How a table lying flat is drawn and reached. It describes the screen the room is played
+  // around rather than any one map, so it is answered here. Left empty, the table that is out
+  // answers for it, and failing that the quiet defaults do.
+  @SyncVar('_displayOrthographicProjection') private _displayOrthographicProjection: string = '';
+  @SyncVar('_displayRadialMenuEnabled') private _displayRadialMenuEnabled: string = '';
+  @SyncVar('_displayRadialMenuRotationSpeed') private _displayRadialMenuRotationSpeed: string = '';
+  @SyncVar('_displayHoverDetailPlacement') private _displayHoverDetailPlacement: string = '';
+  @SyncVar('_displayMultiAngleEnabled') private _displayMultiAngleEnabled: string = '';
+  @SyncVar('_displayMultiAngleResourceBuffEnabled') private _displayMultiAngleResourceBuffEnabled: string = '';
+  @SyncVar('_displayMultiAngleMotionMode') private _displayMultiAngleMotionMode: string = '';
+  @SyncVar('_displayMultiAngleRevolutionSeconds') private _displayMultiAngleRevolutionSeconds: string = '';
+  @SyncVar('_displayMultiAnglePauseSeconds') private _displayMultiAnglePauseSeconds: string = '';
+  @SyncVar('_displayMultiAnglePieceRevolutionSeconds') private _displayMultiAnglePieceRevolutionSeconds: string = '';
+  @SyncVar('_displayMultiAngleFontScale') private _displayMultiAngleFontScale: string = '';
+  @SyncVar('_displayMultiAngleTickerEnabled') private _displayMultiAngleTickerEnabled: string = '';
+  @SyncVar('_displayMultiAngleTickerPixelsPerSecond') private _displayMultiAngleTickerPixelsPerSecond: string = '';
+  @SyncVar('_displayCutInMultiDirectionMode') private _displayCutInMultiDirectionMode: string = '';
 
   get defaultDiceBot(): string {
     if (this._defaultDiceBot == '') {
@@ -242,6 +261,55 @@ export class Config extends ObjectNode implements InnerXml {
       zocExtraCost: this.zocExtraCost,
       facingMark: this.facingMark,
     };
+  }
+
+  /** What the room has answered about a table seen from above; an empty answer is no answer. */
+  get tabletopDisplayAnswers(): Record<TabletopDisplayKey, string> {
+    return {
+      orthographicProjection: this._displayOrthographicProjection,
+      radialMenuEnabled: this._displayRadialMenuEnabled,
+      radialMenuRotationSpeed: this._displayRadialMenuRotationSpeed,
+      hoverDetailPlacement: this._displayHoverDetailPlacement,
+      multiAngleEnabled: this._displayMultiAngleEnabled,
+      multiAngleResourceBuffEnabled: this._displayMultiAngleResourceBuffEnabled,
+      multiAngleMotionMode: this._displayMultiAngleMotionMode,
+      multiAngleRevolutionSeconds: this._displayMultiAngleRevolutionSeconds,
+      multiAnglePauseSeconds: this._displayMultiAnglePauseSeconds,
+      multiAnglePieceRevolutionSeconds: this._displayMultiAnglePieceRevolutionSeconds,
+      multiAngleFontScale: this._displayMultiAngleFontScale,
+      multiAngleTickerEnabled: this._displayMultiAngleTickerEnabled,
+      multiAngleTickerPixelsPerSecond: this._displayMultiAngleTickerPixelsPerSecond,
+      cutInMultiDirectionMode: this._displayCutInMultiDirectionMode,
+    };
+  }
+
+  /** Writes the room's answer for the settings named, and leaves the rest as they were. */
+  setTabletopDisplay(patch: Partial<TabletopDisplaySettings>): void {
+    if (patch.orthographicProjection !== undefined)
+      this._displayOrthographicProjection = String(patch.orthographicProjection);
+    if (patch.radialMenuEnabled !== undefined) this._displayRadialMenuEnabled = String(patch.radialMenuEnabled);
+    if (patch.radialMenuRotationSpeed !== undefined)
+      this._displayRadialMenuRotationSpeed = String(patch.radialMenuRotationSpeed);
+    if (patch.hoverDetailPlacement !== undefined)
+      this._displayHoverDetailPlacement = String(patch.hoverDetailPlacement);
+    if (patch.multiAngleEnabled !== undefined) this._displayMultiAngleEnabled = String(patch.multiAngleEnabled);
+    if (patch.multiAngleResourceBuffEnabled !== undefined)
+      this._displayMultiAngleResourceBuffEnabled = String(patch.multiAngleResourceBuffEnabled);
+    if (patch.multiAngleMotionMode !== undefined)
+      this._displayMultiAngleMotionMode = String(patch.multiAngleMotionMode);
+    if (patch.multiAngleRevolutionSeconds !== undefined)
+      this._displayMultiAngleRevolutionSeconds = String(patch.multiAngleRevolutionSeconds);
+    if (patch.multiAnglePauseSeconds !== undefined)
+      this._displayMultiAnglePauseSeconds = String(patch.multiAnglePauseSeconds);
+    if (patch.multiAnglePieceRevolutionSeconds !== undefined)
+      this._displayMultiAnglePieceRevolutionSeconds = String(patch.multiAnglePieceRevolutionSeconds);
+    if (patch.multiAngleFontScale !== undefined) this._displayMultiAngleFontScale = String(patch.multiAngleFontScale);
+    if (patch.multiAngleTickerEnabled !== undefined)
+      this._displayMultiAngleTickerEnabled = String(patch.multiAngleTickerEnabled);
+    if (patch.multiAngleTickerPixelsPerSecond !== undefined)
+      this._displayMultiAngleTickerPixelsPerSecond = String(patch.multiAngleTickerPixelsPerSecond);
+    if (patch.cutInMultiDirectionMode !== undefined)
+      this._displayCutInMultiDirectionMode = String(patch.cutInMultiDirectionMode);
   }
 
   // The jukebox keeps the settings of the person listening.

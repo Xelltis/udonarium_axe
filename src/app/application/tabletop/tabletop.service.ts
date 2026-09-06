@@ -13,6 +13,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -84,11 +85,18 @@ export class TabletopService {
   /**
    * How the flat table is drawn and reached, feature by feature.
    *
-   * The table decides, except where this reader has taken a feature over for their own screen.
+   * The room decides, falling back to the table for a room that was never asked, except where
+   * this reader has taken a feature over for their own screen.
    */
-  readonly display: Signal<TabletopDisplaySettings> = computed(() =>
-    resolveTabletopDisplay(this.currentTableVersion(), this.seatDisplay.override())
-  );
+  readonly display: Signal<TabletopDisplaySettings> = computed(() => {
+    this.objectChange.versionOf('Config')();
+    const config = this.objectStore.get<Config>('Config');
+    return resolveTabletopDisplay(
+      this.currentTableVersion(),
+      config?.tabletopDisplayAnswers ?? null,
+      this.seatDisplay.override()
+    );
+  });
   /** Perspective is only ever dropped for a table being looked straight down on. */
   readonly orthographicProjection: Signal<boolean> = computed(
     () => this.mode2d() && this.display().orthographicProjection

@@ -41,7 +41,7 @@ export class CutInListComponent {
   protected readonly multiDirectionModes = CUT_IN_MULTI_DIRECTION_MODES;
 
   get multiDirectionMode(): CutInMultiDirectionMode {
-    return this.display.settings().cutInMultiDirectionMode;
+    return this.display.settingsNow().cutInMultiDirectionMode;
   }
   set multiDirectionMode(value: CutInMultiDirectionMode) {
     this.display.set('cutIn', { cutInMultiDirectionMode: asCutInMultiDirectionMode(value) });

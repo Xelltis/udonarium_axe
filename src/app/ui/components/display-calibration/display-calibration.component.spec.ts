@@ -4,8 +4,8 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { DisplayCalibrationComponent } from '@axe/features/tabletop/display-calibration/display-calibration.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 
 describe('DisplayCalibrationComponent', () => {
   let component: DisplayCalibrationComponent;

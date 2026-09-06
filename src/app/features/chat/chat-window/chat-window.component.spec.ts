@@ -3,13 +3,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatWindowComponent } from '@axe/features/chat/chat-window/chat-window.component';
@@ -91,22 +91,17 @@ describe('ChatWindowComponent', () => {
     }
   });
 
-  it('writes the ticker settings onto the table, which is what the room reads them from', () => {
-    const table = TestBed.inject(TabletopService).currentTable;
-    table.multiAngleTickerEnabled = false;
-    table.multiAngleTickerPixelsPerSecond = 55;
-
+  it('writes the ticker settings to the room, which is where the ticker is read from', () => {
     component.tickerEnabled = true;
     component.tickerPixelsPerSecond = 88;
 
-    expect(table.multiAngleTickerEnabled).toBe(true);
-    expect(table.multiAngleTickerPixelsPerSecond).toBe(88);
+    expect(Config.instance.tabletopDisplayAnswers.multiAngleTickerEnabled).toBe('true');
+    expect(Config.instance.tabletopDisplayAnswers.multiAngleTickerPixelsPerSecond).toBe('88');
   });
 
-  it('leaves the table alone once this reader has taken the ticker over', () => {
-    const table = TestBed.inject(TabletopService).currentTable;
-    table.multiAngleTickerEnabled = false;
-    table.multiAngleTickerPixelsPerSecond = 55;
+  it('leaves the room alone once this reader has taken the ticker over', () => {
+    component.tickerEnabled = false;
+    component.tickerPixelsPerSecond = 55;
 
     component.tickerOnThisScreenOnly = true;
     component.tickerEnabled = true;
@@ -114,8 +109,8 @@ describe('ChatWindowComponent', () => {
 
     expect(component.tickerEnabled).toBe(true);
     expect(component.tickerPixelsPerSecond).toBe(88);
-    expect(table.multiAngleTickerEnabled).toBe(false);
-    expect(table.multiAngleTickerPixelsPerSecond).toBe(55);
+    expect(Config.instance.tabletopDisplayAnswers.multiAngleTickerEnabled).toBe('false');
+    expect(Config.instance.tabletopDisplayAnswers.multiAngleTickerPixelsPerSecond).toBe('55');
 
     component.tickerOnThisScreenOnly = false;
 

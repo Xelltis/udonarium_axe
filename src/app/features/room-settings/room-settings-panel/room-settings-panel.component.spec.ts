@@ -5,6 +5,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { RoomSettingsPanelComponent } from '@axe/features/room-settings/room-settings-panel/room-settings-panel.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -303,6 +304,103 @@ describe('RoomSettingsPanelComponent', () => {
       fixture.detectChanges();
       await fixture.whenStable();
       expect(boxes()).toContain('zocExtraCost');
+    });
+  });
+
+  describe('the way a table lying flat is drawn', () => {
+    it('writes each feature to the room, so everyone around the screen is shown the same thing', () => {
+      component.orthographicProjection = true;
+      component.multiAngleEnabled = true;
+      component.multiAngleFontScale = 'large';
+      component.radialMenuEnabled = true;
+      component.radialMenuRotationSpeed = 9;
+      component.hoverDetailPlacement = 'screen-edges';
+
+      const answers = Config.instance.tabletopDisplayAnswers;
+      expect(answers.orthographicProjection).toBe('true');
+      expect(answers.multiAngleEnabled).toBe('true');
+      expect(answers.multiAngleFontScale).toBe('large');
+      expect(answers.radialMenuEnabled).toBe('true');
+      expect(answers.radialMenuRotationSpeed).toBe('9');
+      expect(answers.hoverDetailPlacement).toBe('screen-edges');
+    });
+
+    it('shows what the table has while the room has not been asked, and the room once it has', () => {
+      table.multiAngleEnabled = true;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+
+      expect(component.multiAngleEnabled).toBe(true);
+
+      component.multiAngleEnabled = false;
+
+      expect(component.multiAngleEnabled).toBe(false);
+      expect(Config.instance.tabletopDisplayAnswers.multiAngleEnabled).toBe('false');
+    });
+
+    it('leaves the room alone for a feature this reader has taken over, and the rest with it', () => {
+      component.multiAngleEnabled = true;
+      component.radialMenuEnabled = true;
+
+      component.setOnThisScreenOnly('pieceLabels', true);
+      component.multiAngleEnabled = false;
+      component.radialMenuEnabled = false;
+
+      expect(component.onThisScreenOnly('pieceLabels')).toBe(true);
+      expect(component.multiAngleEnabled).toBe(false);
+      expect(Config.instance.tabletopDisplayAnswers.multiAngleEnabled).toBe('true');
+      expect(Config.instance.tabletopDisplayAnswers.radialMenuEnabled).toBe('false');
+    });
+
+    it('goes back to what the room asks for once the feature is handed back', () => {
+      component.multiAngleEnabled = true;
+      component.setOnThisScreenOnly('pieceLabels', true);
+      component.multiAngleEnabled = false;
+
+      component.setOnThisScreenOnly('pieceLabels', false);
+
+      expect(component.onThisScreenOnly('pieceLabels')).toBe(false);
+      expect(component.multiAngleEnabled).toBe(true);
+    });
+
+    it('starts a piece turning by the second the moment it is asked to turn in quarters', () => {
+      component.multiAngleMotionMode = 'quarter-turn';
+
+      const answers = Config.instance.tabletopDisplayAnswers;
+      expect(answers.multiAngleMotionMode).toBe('quarter-turn');
+      expect(answers.multiAnglePieceRevolutionSeconds).toBe('5');
+    });
+
+    it('lets a reader who may not edit the room keep their own screen', () => {
+      // Whether it is read-only is a computed, so the role has to be settled before it is asked.
+      PeerCursor.myCursor.role = PeerRole.Guest;
+
+      component.multiAngleEnabled = true;
+      expect(Config.instance.tabletopDisplayAnswers.multiAngleEnabled).toBe('');
+
+      component.setOnThisScreenOnly('pieceLabels', true);
+      component.multiAngleEnabled = true;
+
+      expect(component.multiAngleEnabled).toBe(true);
+      expect(Config.instance.tabletopDisplayAnswers.multiAngleEnabled).toBe('');
+    });
+
+    it('shows the boxes under the part they belong to', async () => {
+      component.tab.set('display');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const root = fixture.nativeElement as HTMLElement;
+
+      expect(root.querySelector('[data-testid="orthographic-projection"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="multi-angle-enabled"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="radial-menu-enabled"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="view-locked"]')).toBeNull();
+
+      component.tab.set('utility');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(root.querySelector('[data-testid="view-locked"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="reset-calibration"]')).not.toBeNull();
     });
   });
 

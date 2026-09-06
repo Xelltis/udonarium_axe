@@ -194,7 +194,7 @@ export class ChatWindowComponent {
   readonly isTickerTab = computed(() => this.chatTab()?.isTickerTab ?? false);
 
   get tickerEnabled(): boolean {
-    return this.tabletopDisplay.settings().multiAngleTickerEnabled;
+    return this.tabletopDisplay.settingsNow().multiAngleTickerEnabled;
   }
   set tickerEnabled(value: boolean) {
     this.tabletopDisplay.set('ticker', { multiAngleTickerEnabled: value });
@@ -209,7 +209,7 @@ export class ChatWindowComponent {
   }
 
   get tickerPixelsPerSecond(): number {
-    const value = Number(this.tabletopDisplay.settings().multiAngleTickerPixelsPerSecond);
+    const value = Number(this.tabletopDisplay.settingsNow().multiAngleTickerPixelsPerSecond);
     return Number.isFinite(value)
       ? Math.min(MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, Math.max(MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, value))
       : DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND;

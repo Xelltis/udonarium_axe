@@ -67,7 +67,12 @@ export class GameTable extends ObjectNode {
   @SyncVar() imageBillboard: boolean = false;
   @SyncVar() mode2d: boolean = false;
   @SyncVar() terrainRotationIn2dEnabled: boolean = false;
-  /** How the flat table is drawn and reached; see {@link TabletopDisplaySettings}. */
+  /**
+   * How the flat table is drawn and reached; see {@link TabletopDisplaySettings}.
+   *
+   * The room answers for these now. A table still carries them so that a room saved before the
+   * room was asked keeps looking the way it did.
+   */
   @SyncVar() orthographicProjection: boolean = DISPLAY_DEFAULTS.orthographicProjection;
   @SyncVar() radialMenuEnabled: boolean = DISPLAY_DEFAULTS.radialMenuEnabled;
   @SyncVar() radialMenuRotationSpeed: number = DISPLAY_DEFAULTS.radialMenuRotationSpeed;
