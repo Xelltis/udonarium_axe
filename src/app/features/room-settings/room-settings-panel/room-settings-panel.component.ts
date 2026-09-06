@@ -15,13 +15,7 @@ import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
 import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { asZocMode, ZOC_MODES, ZocMode } from '@axe/domain/tabletop/move/zone-of-control';
-import {
-  isGroupAnswered,
-  resolveRoomRules,
-  ROOM_RULE_GROUPS,
-  RoomRuleGroup,
-  RoomRules,
-} from '@axe/domain/tabletop/room-rules';
+import { isGroupAnswered, resolveRoomRules, RoomRuleGroup, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
@@ -117,12 +111,6 @@ export class RoomSettingsPanelComponent {
   answersFor(group: RoomRuleGroup): boolean {
     this.objectChange.versionOf('Config')();
     return isGroupAnswered(this.config.roomRuleAnswers, group);
-  }
-
-  /** Hands a whole group back, so every table rules itself by it again. */
-  backToTable(group: RoomRuleGroup): void {
-    if (!this.isEditable) return;
-    this.config.forgetRoomRules(ROOM_RULE_GROUPS[group]);
   }
 
   /** A hex board has no corners to cut, so the question is only put on squares. */
@@ -257,6 +245,14 @@ export class RoomSettingsPanelComponent {
   }
   set piecesShareCells(value: boolean) {
     if (this.isEditable) this.config.piecesShareCells = value;
+  }
+
+  get moveStrict(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.moveStrict;
+  }
+  set moveStrict(value: boolean) {
+    if (this.isEditable) this.config.moveStrict = value;
   }
 
   get moveRangeElementNames(): string {

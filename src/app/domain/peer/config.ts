@@ -34,6 +34,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_factionPhaseMode') private _factionPhaseMode: string = '';
   @SyncVar('_factionOrder') private _factionOrder: string = '';
   @SyncVar('_factionSkipUnassigned') private _factionSkipUnassigned: string = '';
+  @SyncVar('_moveStrict') private _moveStrict: string = '';
 
   // The rules of play the room answers for itself. Each one is left unanswered until the
   // room settings are asked, and whatever is unanswered stays with the table that is out.
@@ -115,6 +116,14 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set factionOrder(order: string) {
     this._factionOrder = order;
+  }
+
+  /** Whether a piece may only be set down where it could have walked to. */
+  get moveStrict(): boolean {
+    return this._moveStrict === '1';
+  }
+  set moveStrict(strict: boolean) {
+    this._moveStrict = strict ? '1' : '';
   }
 
   get factionSkipUnassigned(): boolean {
@@ -206,11 +215,6 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set facingMark(answer: string | null) {
     this._facingMark = writeRuleText(answer);
-  }
-
-  /** Hands rules back to the table, so whatever each table says rules by them again. */
-  forgetRoomRules(rules: readonly (keyof RoomRuleAnswers)[]): void {
-    for (const rule of rules) this[rule] = null;
   }
 
   /** Every rule of play the room has been asked about, answered or not. */

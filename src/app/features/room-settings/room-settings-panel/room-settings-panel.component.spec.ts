@@ -70,34 +70,11 @@ describe('RoomSettingsPanelComponent', () => {
     expect(component.answersFor('moveRange')).toBe(false);
   });
 
-  it('gives a whole group back to the table at once', () => {
-    table.zocMode = 'stop';
-    component.zocMode = 'block';
-    component.zocRange = 2;
-
-    component.backToTable('zoc');
-
-    expect(component.answersFor('zoc')).toBe(false);
-    expect(component.zocMode).toBe('stop');
-    expect(Config.instance.zocRange).toBeNull();
-  });
-
-  it('leaves the other group alone when one is given back', () => {
-    component.zocMode = 'block';
-    component.moveDiagonally = false;
-
-    component.backToTable('zoc');
-
-    expect(component.answersFor('moveRange')).toBe(true);
-    expect(component.moveDiagonally).toBe(false);
-  });
-
   it('writes nothing for a reader who may not edit the table', () => {
     PeerCursor.myCursor.role = PeerRole.Guest;
     table.zocMode = 'stop';
 
     component.zocMode = 'block';
-    component.backToTable('moveRange');
 
     expect(component.isReadOnly()).toBe(true);
     expect(Config.instance.zocMode).toBeNull();
@@ -201,15 +178,6 @@ describe('RoomSettingsPanelComponent', () => {
       table.facingMark = 'compass' as never;
 
       expect(component.facingMark).toBe('none');
-    });
-
-    it('gives the choice back to the table', () => {
-      table.facingMark = 'arrow';
-      component.facingMark = 'turn';
-
-      component.backToTable('facing');
-
-      expect(component.facingMark).toBe('arrow');
     });
   });
 
