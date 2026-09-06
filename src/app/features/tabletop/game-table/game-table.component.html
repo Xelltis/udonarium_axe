@@ -15,22 +15,15 @@
       @for (layer of views; track layer.identifier) {
         <div class="absolute inset-0" [attr.data-testid]="kind + '-layer'">
           <!--
-            No `will-change` on either box: a drift that never ends is promoted by the browser
-            on its own, and saying it again would promote the box that stands still as well.
+            One box, both ways. No `will-change`: a drift that never ends is promoted by the
+            browser on its own, and saying it again would promote the box that stands still too.
           -->
           <div
             class="absolute"
-            [attr.data-testid]="kind + '-layer-x'"
-            [class.animate-bg-layer-x]="layer.scrollsX"
-            [ngStyle]="layer.outerStyle"
-          >
-            <div
-              class="absolute inset-0"
-              [attr.data-testid]="kind + '-layer-y'"
-              [class.animate-bg-layer-y]="layer.scrollsY"
-              [ngStyle]="layer.innerStyle"
-            ></div>
-          </div>
+            [attr.data-testid]="kind + '-layer-sheet'"
+            [class.bg-layer-drift]="layer.drifts"
+            [ngStyle]="layer.style"
+          ></div>
           <!-- Loaded only to be measured: the drift is one tile, and a tile has to have a size. -->
           <img
             class="pointer-events-none absolute size-0 opacity-0"

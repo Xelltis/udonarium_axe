@@ -119,10 +119,8 @@ import { TranslocoModule } from '@jsverse/transloco';
 interface BackgroundLayerView {
   readonly identifier: string;
   readonly imageUrl: string;
-  readonly outerStyle: Record<string, string>;
-  readonly innerStyle: Record<string, string>;
-  readonly scrollsX: boolean;
-  readonly scrollsY: boolean;
+  readonly style: Record<string, string>;
+  readonly drifts: boolean;
 }
 
 interface WallView {
@@ -550,10 +548,22 @@ export class GameTableComponent {
     const table = this.watchCurrentTable();
     return table.backgroundLayers.filter((layer) => {
       this.objectChangeService.versionOf(layer.identifier)();
-      // A layer with no picture yet has nothing to draw, and an empty pane still costs the
-      // machine a surface to composite.
-      return layer.enabled && !!this.imageService.getEmptyOr(layer.imageIdentifier).url;
+      // A layer with nothing to show has nothing to draw, and an empty pane still costs the
+      // machine a surface to composite. No picture and no opacity both count as nothing.
+      return layer.enabled && layer.opacity > 0 && !!this.imageService.getEmptyOr(layer.imageIdentifier).url;
     });
+  });
+
+  /**
+   * How large the board is drawn, which is as large as a tile of a layer is ever worth drawing.
+   *
+   * The same measure the run's wrapper wears, so a tile held to it is held to what can be seen.
+   */
+  private readonly boardPixelSize = computed<{ width: number; height: number }>(() => {
+    const table = this.watchCurrentTable();
+    const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
+    if (geo) return { width: geo.pixelW, height: geo.pixelH };
+    return { width: table.width * table.gridSize, height: table.height * table.gridSize };
   });
 
   readonly underLayers = computed(() => this.laidLayers().filter((layer) => !layer.placedOver));
@@ -568,14 +578,19 @@ export class GameTableComponent {
    * Nothing here says how deep a layer sits. The wrapper hides what overflows it, which flattens
    * everything inside into one plane, so within a run it is document order that decides — and
    * that is already back to front. The run as a whole carries the depth.
+   *
+   * One box a layer, whichever way it drifts. Across runs on `transform` and down runs on
+   * `translate`, so the two never write over each other and a layer going both ways still asks
+   * the machine for the one surface to composite.
    */
   private layerViews(layers: readonly TableBackgroundLayer[]): readonly BackgroundLayerView[] {
     this.objectChangeService.fileVersion();
     const sizes = this.layerNaturalSizes();
     const moving = this.motion.enabled();
+    const board = this.boardPixelSize();
 
     return layers.map((layer) => {
-      const tile = backgroundTileSize(sizes.get(layer.identifier) ?? null, layer.scale);
+      const tile = backgroundTileSize(sizes.get(layer.identifier) ?? null, layer.scale, board);
       const x = moving ? backgroundScrollAnimation(layer.speedX, tile?.width ?? 0) : null;
       const y = moving ? backgroundScrollAnimation(layer.speedY, tile?.height ?? 0) : null;
       const scrollsX = !!x && x.durationSeconds > 0;
@@ -587,33 +602,32 @@ export class GameTableComponent {
       return {
         identifier: layer.identifier,
         imageUrl: image.url,
-        outerStyle: {
+        style: {
           inset: `0px ${-margin.x}px ${-margin.y}px 0px`,
+          'background-image': `url(${image.url})`,
+          'background-repeat': 'repeat',
+          ...(tile ? { 'background-size': `${tile.width}px ${tile.height}px` } : {}),
           // Anything short of whole makes a group of its own to composite, so say it only when
           // the layer actually asked to be seen through.
           ...(layer.opacity < 1 ? { opacity: `${layer.opacity}` } : {}),
           ...(x && scrollsX
             ? {
-                'animation-duration': `${x.durationSeconds}s`,
-                'animation-direction': x.reversed ? 'reverse' : 'normal',
+                '--bg-layer-x-name': 'bgLayerScrollX',
+                '--bg-layer-x-duration': `${x.durationSeconds}s`,
+                '--bg-layer-x-direction': x.reversed ? 'reverse' : 'normal',
                 '--bg-layer-tile-w': `${tile?.width ?? 0}px`,
               }
             : {}),
-        },
-        innerStyle: {
-          'background-image': `url(${image.url})`,
-          'background-repeat': 'repeat',
-          ...(tile ? { 'background-size': `${tile.width}px ${tile.height}px` } : {}),
           ...(y && scrollsY
             ? {
-                'animation-duration': `${y.durationSeconds}s`,
-                'animation-direction': y.reversed ? 'reverse' : 'normal',
+                '--bg-layer-y-name': 'bgLayerScrollY',
+                '--bg-layer-y-duration': `${y.durationSeconds}s`,
+                '--bg-layer-y-direction': y.reversed ? 'reverse' : 'normal',
                 '--bg-layer-tile-h': `${tile?.height ?? 0}px`,
               }
             : {}),
         },
-        scrollsX,
-        scrollsY,
+        drifts: scrollsX || scrollsY,
       };
     });
   }

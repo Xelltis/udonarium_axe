@@ -61,6 +61,8 @@ describe('GameTableComponent', () => {
         speedY: number;
         enabled: boolean;
         placement: string;
+        scale: number;
+        opacity: number;
       }> = {}
     ) => {
       const layer = new TableBackgroundLayer();
@@ -71,6 +73,8 @@ describe('GameTableComponent', () => {
       layer.speedY = options.speedY ?? 0;
       if (options.enabled === false) layer.enabled = false;
       if (options.placement) layer.placement = options.placement;
+      if (options.scale !== undefined) layer.scale = options.scale;
+      if (options.opacity !== undefined) layer.opacity = options.opacity;
       component.currentTable.appendChild(layer);
       return layer;
     };
@@ -117,17 +121,43 @@ describe('GameTableComponent', () => {
       expect(component.underLayerViews().map((view) => view.identifier)).toEqual([far.identifier, near.identifier]);
     });
 
-    it('leaves the drifting boxes unpromoted, since a drift that never ends promotes itself', () => {
+    it('leaves the drifting box unpromoted, since a drift that never ends promotes itself', () => {
       const layer = lay({ speedX: 100 });
       measured(layer);
       fixture.detectChanges();
 
-      const boxes = (fixture.nativeElement as HTMLElement).querySelectorAll(
-        '[data-testid="background-layer-x"], [data-testid="background-layer-y"]'
-      );
+      const boxes = (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="background-layer-sheet"]');
 
-      expect(boxes).toHaveLength(2);
+      expect(boxes).toHaveLength(1);
       expect(Array.from(boxes).every((el) => !el.className.includes('will-change'))).toBe(true);
+    });
+
+    it('writes the drift onto the box itself, since a name that never lands stops it silently', () => {
+      const layer = lay({ speedX: 100, speedY: 40 });
+      measured(layer, 200, 100);
+      fixture.detectChanges();
+
+      const sheet = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="background-layer-sheet"]'
+      ) as HTMLElement;
+
+      expect(sheet.style.getPropertyValue('--bg-layer-x-name')).toBe('bgLayerScrollX');
+      expect(sheet.style.getPropertyValue('--bg-layer-y-name')).toBe('bgLayerScrollY');
+      expect(sheet.style.getPropertyValue('--bg-layer-tile-w')).toBe('200px');
+      expect(sheet.style.getPropertyValue('--bg-layer-tile-h')).toBe('100px');
+    });
+
+    it('asks for one surface a layer, however many ways it drifts', () => {
+      const layer = lay({ speedX: 100, speedY: 40 });
+      measured(layer, 200, 100);
+      fixture.detectChanges();
+
+      const drifting = (fixture.nativeElement as HTMLElement).querySelectorAll('.bg-layer-drift');
+      const view = component.underLayerViews()[0];
+
+      expect(drifting).toHaveLength(1);
+      expect(view.style['--bg-layer-x-name']).toBe('bgLayerScrollX');
+      expect(view.style['--bg-layer-y-name']).toBe('bgLayerScrollY');
     });
 
     it('draws nothing for a layer that has no picture yet, and leaves the veil on', () => {
@@ -144,7 +174,7 @@ describe('GameTableComponent', () => {
       lay({ speedX: 100 });
       fixture.detectChanges();
 
-      expect(component.underLayerViews()[0].scrollsX).toBe(false);
+      expect(component.underLayerViews()[0].drifts).toBe(false);
     });
 
     it('drifts by exactly one tile once the picture has been measured', () => {
@@ -154,9 +184,9 @@ describe('GameTableComponent', () => {
 
       const view = component.underLayerViews()[0];
 
-      expect(view.scrollsX).toBe(true);
-      expect(view.outerStyle['animation-duration']).toBe('2s');
-      expect(view.outerStyle['--bg-layer-tile-w']).toBe('200px');
+      expect(view.drifts).toBe(true);
+      expect(view.style['--bg-layer-x-duration']).toBe('2s');
+      expect(view.style['--bg-layer-tile-w']).toBe('200px');
     });
 
     it('leaves an axis alone that was not asked to move', () => {
@@ -166,8 +196,8 @@ describe('GameTableComponent', () => {
 
       const view = component.underLayerViews()[0];
 
-      expect(view.scrollsX).toBe(true);
-      expect(view.scrollsY).toBe(false);
+      expect(view.style['--bg-layer-x-name']).toBe('bgLayerScrollX');
+      expect(view.style['--bg-layer-y-name']).toBeUndefined();
     });
 
     it('runs the other way for a speed that is going backwards', () => {
@@ -177,8 +207,8 @@ describe('GameTableComponent', () => {
 
       const view = component.underLayerViews()[0];
 
-      expect(view.innerStyle['animation-direction']).toBe('reverse');
-      expect(view.innerStyle['animation-duration']).toBe('2s');
+      expect(view.style['--bg-layer-y-direction']).toBe('reverse');
+      expect(view.style['--bg-layer-y-duration']).toBe('2s');
     });
 
     it('holds still for a reader who has asked for less movement', () => {
@@ -190,7 +220,7 @@ describe('GameTableComponent', () => {
       try {
         fixture.detectChanges();
 
-        expect(component.underLayerViews()[0].scrollsX).toBe(false);
+        expect(component.underLayerViews()[0].drifts).toBe(false);
       } finally {
         motion.set('auto');
       }
@@ -201,7 +231,7 @@ describe('GameTableComponent', () => {
       measured(layer);
       fixture.detectChanges();
 
-      expect(component.underLayerViews()[0].innerStyle['background-repeat']).toBe('repeat');
+      expect(component.underLayerViews()[0].style['background-repeat']).toBe('repeat');
     });
 
     it('reaches one tile past the board on the side the drift heads for, and nowhere else', () => {
@@ -209,7 +239,31 @@ describe('GameTableComponent', () => {
       measured(layer, 200, 100);
       fixture.detectChanges();
 
-      expect(component.underLayerViews()[0].outerStyle['inset']).toBe('0px -200px 0px 0px');
+      expect(component.underLayerViews()[0].style['inset']).toBe('0px -200px 0px 0px');
+    });
+
+    it('draws nothing for a layer that has been turned down to nothing', () => {
+      lay({ opacity: 0 });
+      fixture.detectChanges();
+
+      expect(layers()).toHaveLength(0);
+    });
+
+    it('holds a tile to the board, so the spare a drift needs cannot outgrow it', () => {
+      // Ten times a 200px picture is 2000px of tile, and a drift asks for a tile of spare cloth.
+      // Unheld, the sheet would reach 2000px past a board only 1000px across.
+      const table = component.currentTable;
+      table.width = 20;
+      table.height = 20;
+      table.gridSize = 50;
+      const layer = lay({ speedX: 100, scale: 10 });
+      measured(layer, 200, 100);
+      fixture.detectChanges();
+
+      const view = component.underLayerViews()[0];
+
+      expect(view.style['background-size']).toBe('1000px 1000px');
+      expect(view.style['inset']).toBe('0px -1000px 0px 0px');
     });
 
     it('sits flush with the board while nothing drifts, so the pattern meets its corner', () => {
@@ -217,7 +271,7 @@ describe('GameTableComponent', () => {
       measured(layer, 200, 100);
       fixture.detectChanges();
 
-      expect(component.underLayerViews()[0].outerStyle['inset']).toBe('0px 0px 0px 0px');
+      expect(component.underLayerViews()[0].style['inset']).toBe('0px 0px 0px 0px');
     });
 
     it('wears the same shape as the board, so a hex table keeps its outline', () => {

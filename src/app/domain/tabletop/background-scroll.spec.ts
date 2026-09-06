@@ -3,6 +3,7 @@ import {
   backgroundScrollMargin,
   backgroundTileSize,
   MAX_BACKGROUND_SCROLL_SPEED,
+  MIN_BACKGROUND_SCROLL_SECONDS,
 } from '@axe/domain/tabletop/background-scroll';
 
 describe('backgroundScrollAnimation()', () => {
@@ -34,6 +35,18 @@ describe('backgroundScrollAnimation()', () => {
 
     expect(runaway).toEqual(fastest);
   });
+
+  it('never runs a lap quicker than the eye can follow it', () => {
+    // One pixel of tile at full speed is half a millisecond a lap: two thousand laps a second,
+    // and nothing to read from any of them.
+    const blur = backgroundScrollAnimation(MAX_BACKGROUND_SCROLL_SPEED, 1);
+
+    expect(blur.durationSeconds).toBe(MIN_BACKGROUND_SCROLL_SECONDS);
+  });
+
+  it('leaves a lap the eye can follow at the length it asked for', () => {
+    expect(backgroundScrollAnimation(100, 400).durationSeconds).toBe(4);
+  });
 });
 
 describe('backgroundTileSize()', () => {
@@ -62,6 +75,35 @@ describe('backgroundTileSize()', () => {
 
   it('leaves a pixel to draw on however small the scale', () => {
     expect(backgroundTileSize({ width: 3, height: 3 }, 0.1)).toEqual({ width: 1, height: 1 });
+  });
+
+  it('never draws a tile larger than the board it is laid on', () => {
+    // A drift needs one tile of spare cloth, so a tile past the board grows the sheet without
+    // bound. Held to the board, the sheet is at worst twice the board.
+    const board = { width: 1000, height: 800 };
+
+    expect(backgroundTileSize({ width: 2000, height: 4000 }, 10, board)).toEqual({ width: 1000, height: 800 });
+  });
+
+  it('leaves a tile the board has room for at the size it asked for', () => {
+    const board = { width: 1000, height: 800 };
+
+    expect(backgroundTileSize({ width: 256, height: 128 }, 2, board)).toEqual({ width: 512, height: 256 });
+  });
+
+  it('holds each side to its own, since a board need not be square', () => {
+    const board = { width: 1000, height: 200 };
+
+    expect(backgroundTileSize({ width: 400, height: 400 }, 1, board)).toEqual({ width: 400, height: 200 });
+  });
+
+  it('holds nothing where no board was named, or where the board measures nothing', () => {
+    expect(backgroundTileSize({ width: 2000, height: 2000 }, 1)).toEqual({ width: 2000, height: 2000 });
+    expect(backgroundTileSize({ width: 2000, height: 2000 }, 1, null)).toEqual({ width: 2000, height: 2000 });
+    expect(backgroundTileSize({ width: 2000, height: 2000 }, 1, { width: 0, height: 0 })).toEqual({
+      width: 2000,
+      height: 2000,
+    });
   });
 });
 
