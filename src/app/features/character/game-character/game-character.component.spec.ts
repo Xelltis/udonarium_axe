@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
@@ -119,6 +120,41 @@ describe('GameCharacterComponent', () => {
       movableOf().ondragstart.emit({} as PointerEvent);
 
       expect(moveRange.range()).toBeNull();
+    });
+
+    it('works a move out instead of dragging when the press holds shift', () => {
+      const movePlan = TestBed.inject(MovePlanService);
+      const piece = pieceThatWalks(2);
+      fixture.componentRef.setInput('gameCharacter', piece);
+      fixture.detectChanges();
+      const turnedAway = vi.spyOn(movableOf(), 'cancel');
+
+      movableOf().onstart.emit({ shiftKey: true } as PointerEvent);
+
+      expect(movePlan.plan()?.characterIdentifier).toBe(piece.identifier);
+      expect(component.isPlanningMove()).toBe(true);
+      expect(turnedAway).toHaveBeenCalled();
+      movePlan.cancel();
+    });
+
+    it('drags as it always did when the press holds nothing', () => {
+      const movePlan = TestBed.inject(MovePlanService);
+      fixture.componentRef.setInput('gameCharacter', pieceThatWalks(2));
+      fixture.detectChanges();
+
+      movableOf().onstart.emit({} as PointerEvent);
+
+      expect(movePlan.plan()).toBeNull();
+    });
+
+    it('leaves shift with alt to the gesture that already had it', () => {
+      const movePlan = TestBed.inject(MovePlanService);
+      fixture.componentRef.setInput('gameCharacter', pieceThatWalks(2));
+      fixture.detectChanges();
+
+      movableOf().onstart.emit({ shiftKey: true, altKey: true } as PointerEvent);
+
+      expect(movePlan.plan()).toBeNull();
     });
 
     it('shows nothing for a piece whose sheet says nothing about walking', () => {

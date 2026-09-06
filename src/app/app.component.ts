@@ -69,6 +69,7 @@ import { CcfoliaRoomImportEventHandlerService } from '@axe/features/tabletop/ccf
 import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
+import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
 import { VoteEventHandlerService } from '@axe/features/vote/vote-event-handler.service';
@@ -196,6 +197,7 @@ export class AppComponent {
     inject(RoomArchiveEventHandlerService);
     inject(ReplayEventHandlerService);
     inject(ImageDropEventHandlerService);
+    inject(MovePlanEventHandlerService);
     inject(CcfoliaRoomImportEventHandlerService);
     inject(FogMemoryWriterService);
     inject(CutInService);

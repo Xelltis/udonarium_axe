@@ -30,10 +30,17 @@ export interface MoveRangeView {
 }
 
 /** What it takes to price a way somebody actually walked, kept from when the piece was lifted. */
-interface WalkTerms {
+export interface WalkTerms {
   walk: number;
   blocked: CellBits;
   options: ReachOptions;
+}
+
+/** Everything a walk is worked out from, for anyone who wants to work out a different one. */
+export interface ReachTerms extends WalkTerms {
+  grid: CellGrid;
+  start: number;
+  cells: CellBits;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -160,6 +167,13 @@ export class MoveRangeService {
     character.posZ = from.z;
     character.update();
     return true;
+  }
+
+  /** Everything a piece's reach was worked out from, or nothing where it has none. */
+  termsOf(character: GameCharacter): ReachTerms | null {
+    const built = this.build(character);
+    if (!built) return null;
+    return { ...built.terms, grid: built.view.grid, start: built.start, cells: built.view.cells };
   }
 
   /**

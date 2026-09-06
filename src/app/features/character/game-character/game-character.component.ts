@@ -24,6 +24,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -177,6 +178,7 @@ export class GameCharacterComponent {
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly moveRangeService = inject(MoveRangeService);
+  private readonly movePlan = inject(MovePlanService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
   private readonly effectAutoPlay = inject(EffectAutoPlayService);
@@ -277,6 +279,7 @@ export class GameCharacterComponent {
 
   readonly gameCharacter = input<GameCharacter | null>(null);
   readonly rootElementRef = viewChild<ElementRef<HTMLElement>>('root');
+  private readonly movableRef = viewChild(MovableDirective);
 
   readonly isHiddenByVision = computed(() => {
     const char = this.gameCharacter();
@@ -915,6 +918,27 @@ export class GameCharacterComponent {
 
   onMoved() {
     SoundEffect.play(PresetSound.piecePut);
+  }
+
+  /** Whether this piece is the one whose move is being worked out, and so is not to be dragged. */
+  readonly isPlanningMove = computed(() => {
+    const plan = this.movePlan.plan();
+    return plan != null && plan.characterIdentifier === this.gameCharacter()?.identifier;
+  });
+
+  /**
+   * Opens a planned move instead of a drag, where the hand asked for one by holding shift.
+   *
+   * The press is turned away rather than followed: a planned move leaves the piece standing
+   * while the way is drawn, and a piece that came along with the hand would be standing
+   * somewhere the way was never drawn from.
+   */
+  onGrab(event: PointerEvent) {
+    if (!event.shiftKey || event.altKey) return;
+    const character = this.gameCharacter();
+    if (!character || this.isLock) return;
+    if (!this.movePlan.begin(character)) return;
+    this.movableRef()?.cancel();
   }
 
   onPickUp() {
