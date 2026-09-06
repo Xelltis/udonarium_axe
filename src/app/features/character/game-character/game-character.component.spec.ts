@@ -43,7 +43,7 @@ describe('GameCharacterComponent', () => {
 
   const useFlatTable = () => {
     const table = TestBed.inject(TabletopService).currentTable;
-    TestBed.inject(ViewModePreferenceService).choose('perspective');
+    TestBed.inject(ViewModePreferenceService).choose('auto');
     table.mode2d = false;
     table.facingMark = 'none';
     table.imageBillboard = false;
@@ -1378,7 +1378,7 @@ describe('GameCharacterComponent', () => {
 
   describe('keeping the name above the piece on the screen in the flat mode', () => {
     it('raises the name straight up in three dimensions', async () => {
-      TestBed.inject(ViewModePreferenceService).choose('perspective');
+      TestBed.inject(ViewModePreferenceService).choose('auto');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.nameLabelOrbit()).toBe('translateY(-30px)');
     });

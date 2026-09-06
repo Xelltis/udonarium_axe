@@ -9,8 +9,8 @@ describe('ViewModePreferenceService', () => {
 
   afterEach(() => localStorage.clear());
 
-  it('looks along the table until somebody asks otherwise', () => {
-    expect(TestBed.inject(ViewModePreferenceService).mode()).toBe('perspective');
+  it('follows the table until somebody asks otherwise', () => {
+    expect(TestBed.inject(ViewModePreferenceService).mode()).toBe('auto');
   });
 
   it('remembers the choice for the next window', () => {
@@ -25,6 +25,6 @@ describe('ViewModePreferenceService', () => {
   it('reads a way of looking it does not know as the one it starts on', () => {
     localStorage.setItem('ui-view-mode', 'sideways');
 
-    expect(TestBed.inject(ViewModePreferenceService).mode()).toBe('perspective');
+    expect(TestBed.inject(ViewModePreferenceService).mode()).toBe('auto');
   });
 });

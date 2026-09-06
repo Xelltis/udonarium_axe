@@ -177,12 +177,17 @@ export class GameTableSettingComponent {
     triggerUpdateGameObject(this.selectedTable.toContext());
   }
 
-  get tableMode2d(): boolean {
-    return this.selectedTable?.mode2d ?? false;
+  /**
+   * The view this table is best read in, which a reader following the table is given.
+   *
+   * It recommends rather than decides: a reader who has picked a view of their own keeps it.
+   */
+  get tableRecommendedView(): 'perspective' | 'flat' {
+    return this.selectedTable?.mode2d ? 'flat' : 'perspective';
   }
-  set tableMode2d(value: boolean) {
+  set tableRecommendedView(value: 'perspective' | 'flat') {
     if (!this.selectedTable) return;
-    this.selectedTable.mode2d = value;
+    this.selectedTable.mode2d = value === 'flat';
     triggerUpdateGameObject(this.selectedTable.toContext());
   }
 

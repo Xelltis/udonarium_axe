@@ -100,7 +100,7 @@
             data-testid="fab-view-mode"
             (click)="toggleViewMode()"
           >
-            <i class="material-icons">{{ tabletop.mode2d() ? 'grid_view' : 'view_in_ar' }}</i>
+            <i class="material-icons">{{ viewModeIcon() }}</i>
           </div>
           @if (viewport.isCompact() && mobile.prefersDesktop()) {
             <div

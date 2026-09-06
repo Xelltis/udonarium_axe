@@ -28,6 +28,7 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { laysFlat } from '@axe/domain/ui/view-mode';
 /** What a table carries with it, so that looking at another table brings its own along. */
 const TABLE_CHILD_ALIASES = [
   GameTableMask.aliasName,
@@ -75,10 +76,11 @@ export class TabletopService {
     { equal: () => false }
   );
 
-  /** What this seat asked for, whatever table is out. */
-  readonly seatMode2d: Signal<boolean> = computed(() => this.viewMode.mode() === 'flat');
-  readonly sharedMode2d: Signal<boolean> = computed(() => this.currentTableVersion().mode2d);
-  readonly mode2d: Signal<boolean> = computed(() => this.seatMode2d() || this.sharedMode2d());
+  /** The view the table is best read in, which a reader following the table is given. */
+  readonly recommendsFlat: Signal<boolean> = computed(() => this.currentTableVersion().mode2d);
+  /** What this seat asked for, which is 'auto' until a reader takes the choice from the table. */
+  readonly seatViewMode = this.viewMode.mode;
+  readonly mode2d: Signal<boolean> = computed(() => laysFlat(this.seatViewMode(), this.recommendsFlat()));
   /**
    * How the flat table is drawn and reached, feature by feature.
    *

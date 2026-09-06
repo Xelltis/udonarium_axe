@@ -31,7 +31,7 @@ describe('DiceSymbolComponent', () => {
 
   const useFlatTable = () => {
     const table = TestBed.inject(TabletopService).currentTable;
-    TestBed.inject(ViewModePreferenceService).choose('perspective');
+    TestBed.inject(ViewModePreferenceService).choose('auto');
     table.imageBillboard = false;
   };
 
@@ -138,7 +138,7 @@ describe('DiceSymbolComponent', () => {
     it('raises the name straight up in three dimensions', async () => {
       const diceSymbol = DiceSymbol.create('orbit3dテスト', 1, 1);
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      TestBed.inject(ViewModePreferenceService).choose('perspective');
+      TestBed.inject(ViewModePreferenceService).choose('auto');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.nameLabelOrbit()).toBe('translateY(-30px)');
     });

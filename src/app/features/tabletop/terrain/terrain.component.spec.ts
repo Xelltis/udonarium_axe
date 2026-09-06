@@ -163,7 +163,7 @@ describe('TerrainComponent', () => {
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = sharedMode2d;
       table.terrainRotationIn2dEnabled = enabled;
-      TestBed.inject(ViewModePreferenceService).choose(seatFlat ? 'flat' : 'perspective');
+      TestBed.inject(ViewModePreferenceService).choose(seatFlat ? 'flat' : 'auto');
       fixture.componentRef.setInput('terrain', terrain);
       fixture.detectChanges();
 

@@ -73,7 +73,7 @@ describe('TabletopService', () => {
       expect(service.gridSize()).toBe(77);
     });
 
-    it('lies flat where this reader asked for that, whatever table is out', () => {
+    it('lies flat where this reader asked for that, whatever the table recommends', () => {
       const service = TestBed.inject(TabletopService);
       expect(service.mode2d()).toBe(false);
 
@@ -83,20 +83,22 @@ describe('TabletopService', () => {
     });
 
     it.each([
-      [false, false, false],
-      [true, false, true],
-      [false, true, true],
-      [true, true, true],
-    ])(
-      'combines a shared 2D of %s and a seat asking %s into an effective 2D of %s',
-      async (shared, seat, effective) => {
+      ['auto', false, false],
+      ['auto', true, true],
+      ['perspective', false, false],
+      ['perspective', true, false],
+      ['flat', false, true],
+      ['flat', true, true],
+    ] as const)(
+      'gives a seat asking for %s over a table recommending flat %s an effective 2D of %s',
+      async (seat, recommendsFlat, effective) => {
         const service = TestBed.inject(TabletopService);
-        table.mode2d = shared;
-        TestBed.inject(ViewModePreferenceService).choose(seat ? 'flat' : 'perspective');
+        table.mode2d = recommendsFlat;
+        TestBed.inject(ViewModePreferenceService).choose(seat);
         await new Promise((resolve) => setTimeout(resolve, 20));
 
-        expect(service.sharedMode2d()).toBe(shared);
-        expect(service.seatMode2d()).toBe(seat);
+        expect(service.recommendsFlat()).toBe(recommendsFlat);
+        expect(service.seatViewMode()).toBe(seat);
         expect(service.mode2d()).toBe(effective);
       }
     );

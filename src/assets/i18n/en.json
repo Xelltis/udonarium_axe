@@ -1901,7 +1901,6 @@
         "snapAll": "Cell + vertex + edge",
         "sectionDisplay": "Display mode",
         "imageBillboard": "Billboard piece images",
-        "mode2d": "2D mode (top-down)",
         "terrainRotationIn2d": "Allow terrain rotation (normally fixed in 2D mode)",
         "hoverDetailPlacement": "Hover detail of a piece",
         "hoverDetailPlacement_piece": "Beside the piece (classic)",
@@ -2008,7 +2007,11 @@
         "sectionFlatMenu": "How menus open",
         "sectionMultiAngle": "Piece labels for every side",
         "sectionRealSize": "Real size and view lock (this screen)",
-        "realSizeHint": "The measurement of the screen and the view lock belong to this browser alone, and reach nobody else."
+        "realSizeHint": "The measurement of the screen and the view lock belong to this browser alone, and reach nobody else.",
+        "recommendedView": "Recommended view",
+        "recommendedView_perspective": "3D (seen along the table)",
+        "recommendedView_flat": "2D (seen from above)",
+        "recommendedViewHint": "How this table is best read. Readers whose view is set to auto are given it; readers who picked 3D or 2D keep what they picked."
       },
       "displayCalibration": {
         "title": "Measure this screen",
@@ -3474,7 +3477,9 @@
       "fogOn": "Fog of war: on (click to turn off)",
       "fogOff": "Fog of war: off (click to turn on)",
       "viewFlat": "Flat view (click for depth)",
-      "viewPerspective": "Table in depth (click to flatten)"
+      "viewPerspective": "Table in depth (click to flatten)",
+      "viewAutoFlat": "View: auto (2D)",
+      "viewAutoPerspective": "View: auto (3D)"
     },
     "roomDataDefault": "Room data"
   },

@@ -39,6 +39,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { FAB_ENTRIES, FabEntry } from '@axe/domain/ui/fab-menu';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
+import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
@@ -201,12 +202,17 @@ export class AppComponent {
   protected readonly tabletop = inject(TabletopService);
   private readonly viewMode = inject(ViewModePreferenceService);
 
+  /** Auto, then each of the two a reader may hold the table to. */
   protected viewModeLabel(): string {
-    return this.tabletop.mode2d() ? 'app.fab.viewFlat' : 'app.fab.viewPerspective';
+    return viewModeLabelKey(this.viewMode.mode(), this.tabletop.mode2d());
+  }
+
+  protected viewModeIcon(): string {
+    return viewModeIcon(this.viewMode.mode(), this.tabletop.mode2d());
   }
 
   protected toggleViewMode(): void {
-    this.viewMode.choose(this.tabletop.mode2d() ? 'perspective' : 'flat');
+    this.viewMode.choose(nextViewMode(this.viewMode.mode()));
   }
 
   protected readonly fabEntries = FAB_ENTRIES;

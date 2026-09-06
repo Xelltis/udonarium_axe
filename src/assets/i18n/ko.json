@@ -1901,7 +1901,6 @@
         "snapAll": "셀＋교차점＋변",
         "sectionDisplay": "표시 모드",
         "imageBillboard": "이미지를 카메라를 향하게",
-        "mode2d": "2D 모드(부감 고정)",
         "terrainRotationIn2d": "지형 회전 허용(일반적으로 2D 모드에서는 고정)",
         "hoverDetailPlacement": "말 상세 표시",
         "hoverDetailPlacement_piece": "말 근처에 표시(기존)",
@@ -2008,7 +2007,11 @@
         "sectionFlatMenu": "메뉴가 열리는 방식",
         "sectionMultiAngle": "사방에서 읽는 말 이름",
         "sectionRealSize": "실측 표시와 화면 고정 (이 화면)",
-        "realSizeHint": "화면 실측과 화면 고정은 이 브라우저에만 적용되며 다른 참가자에게 전달되지 않습니다."
+        "realSizeHint": "화면 실측과 화면 고정은 이 브라우저에만 적용되며 다른 참가자에게 전달되지 않습니다.",
+        "recommendedView": "권장 뷰",
+        "recommendedView_perspective": "3D (비스듬히 보기)",
+        "recommendedView_flat": "2D (위에서 보기)",
+        "recommendedViewHint": "이 테이블을 어느 쪽으로 보는 것이 좋은지를 나타냅니다. FAB의 시점이 \"자동\"인 사람은 이를 따르고, 직접 3D/2D를 고른 사람은 그대로 유지됩니다."
       },
       "displayCalibration": {
         "title": "화면 실제 크기 맞추기",
@@ -3709,7 +3712,9 @@
       "fogOn": "전장의 안개: 켬(클릭하면 끔)",
       "fogOff": "전장의 안개: 끔(클릭하면 켬)",
       "viewFlat": "2D 표시(클릭하면 3D)",
-      "viewPerspective": "3D 표시(클릭하면 2D)"
+      "viewPerspective": "3D 표시(클릭하면 2D)",
+      "viewAutoFlat": "시점: 자동 (2D)",
+      "viewAutoPerspective": "시점: 자동 (3D)"
     },
     "roomDataDefault": "룸 데이터"
   },

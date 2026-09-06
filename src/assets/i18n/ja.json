@@ -1901,7 +1901,6 @@
         "snapAll": "セル＋交差点＋辺",
         "sectionDisplay": "表示モード",
         "imageBillboard": "画像をカメラに追従",
-        "mode2d": "2Dモード（俯瞰固定）",
         "terrainRotationIn2d": "地形の回転を許可（通常は2Dモードでは固定）",
         "hoverDetailPlacement": "コマの詳細表示",
         "hoverDetailPlacement_piece": "コマの近くに表示（従来）",
@@ -2008,7 +2007,11 @@
         "sectionFlatMenu": "メニューの出し方",
         "sectionMultiAngle": "コマの多方向表示",
         "sectionRealSize": "実寸表示とビュー固定（この画面）",
-        "realSizeHint": "画面の実測とビュー固定は、このブラウザだけのものです。ほかの参加者には伝わりません。"
+        "realSizeHint": "画面の実測とビュー固定は、このブラウザだけのものです。ほかの参加者には伝わりません。",
+        "recommendedView": "推奨ビュー",
+        "recommendedView_perspective": "3D（斜めから見る）",
+        "recommendedView_flat": "2D（真上から見る）",
+        "recommendedViewHint": "この卓をどちらで見るのが良いかを示します。FABの視点が「自動」の人はこれに従い、自分で3D／2Dを選んだ人はその選択のままです。"
       },
       "displayCalibration": {
         "title": "画面の実寸を合わせる",
@@ -3474,7 +3477,9 @@
       "fogOn": "戦場の霧: オン（クリックでオフ）",
       "fogOff": "戦場の霧: オフ（クリックでオン）",
       "viewFlat": "2D 表示（クリックで 3D）",
-      "viewPerspective": "3D 表示（クリックで 2D）"
+      "viewPerspective": "3D 表示（クリックで 2D）",
+      "viewAutoFlat": "視点: 自動（2D）",
+      "viewAutoPerspective": "視点: 自動（3D）"
     },
     "roomDataDefault": "ルームデータ"
   },
