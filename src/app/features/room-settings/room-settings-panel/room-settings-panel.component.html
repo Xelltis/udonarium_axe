@@ -195,17 +195,20 @@
             </label>
 
             @if (showsDiagonalOption) {
-              <label
-                class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
-              >
-                <input
-                  type="checkbox"
-                  class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-                  [(ngModel)]="moveDiagonally"
-                  name="moveDiagonally"
-                />
-                {{ 'feature.roomSettings.moveDiagonally' | transloco }}
+              <label class="text-ui-text flex flex-col gap-1 text-[13px] select-none">
+                <span>{{ 'feature.roomSettings.diagonalMove' | transloco }}</span>
+                <select
+                  class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  [(ngModel)]="diagonalMove"
+                  name="diagonalMove"
+                  data-testid="room-settings-diagonal-move"
+                >
+                  @for (move of diagonalMoves; track move) {
+                    <option [value]="move">{{ 'feature.roomSettings.diagonalMove_' + move | transloco }}</option>
+                  }
+                </select>
               </label>
+              <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.diagonalMoveHint' | transloco }}</span>
             }
 
             <label

@@ -58,11 +58,18 @@ describe('cheapestPath()', () => {
   it('takes the long way round ground that costs more to cross', () => {
     const dear = at(2, 1);
     const way = cheapestPath(GRID, at(1, 1), at(3, 1), 8, open, {
-      cutsCorners: false,
+      diagonals: 'none',
       costOf: (index) => (index === dear ? 9 : 1),
     })!;
 
     expect(way).not.toContain(dear);
+  });
+
+  it('counts on from the corners a settled leg already cut', () => {
+    const owed = { diagonals: 'alternating', cornersCut: 1 } as const;
+
+    expect(cheapestPath(GRID, at(1, 1), at(2, 2), 1, open, owed)).toBeNull();
+    expect(cheapestPath(GRID, at(1, 1), at(2, 2), 2, open, owed)).toEqual([at(1, 1), at(2, 2)]);
   });
 
   it('may end on ground that ends a walk, but never carries on through it', () => {

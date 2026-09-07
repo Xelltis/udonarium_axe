@@ -23,6 +23,12 @@ import {
   HOVER_DETAIL_PLACEMENTS,
   HoverDetailPlacement,
 } from '@axe/domain/tabletop/hover-detail-placement';
+import {
+  asDiagonalMove,
+  DEFAULT_DIAGONAL_MOVE,
+  DIAGONAL_MOVES,
+  DiagonalMove,
+} from '@axe/domain/tabletop/move/diagonal-move';
 import { DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
 import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { asZocMode, ZOC_MODES, ZocMode } from '@axe/domain/tabletop/move/zone-of-control';
@@ -102,6 +108,7 @@ export class RoomSettingsPanelComponent {
   readonly moveUnits = MOVE_UNITS;
   readonly facingMarks = TABLE_FACING_MARKS;
   readonly zocModes = ZOC_MODES;
+  readonly diagonalMoves = DIAGONAL_MOVES;
 
   readonly isReadOnly = computed(() => {
     this.objectChange.trackMyCursor();
@@ -464,11 +471,11 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.moveRangeAlways = value;
   }
 
-  get moveDiagonally(): boolean {
-    return this.rules.moveDiagonally;
+  get diagonalMove(): DiagonalMove {
+    return this.rules.diagonalMove;
   }
-  set moveDiagonally(value: boolean) {
-    if (this.isEditable) this.config.moveDiagonally = value;
+  set diagonalMove(value: DiagonalMove) {
+    if (this.isEditable) this.config.diagonalMove = asDiagonalMove(value) ?? DEFAULT_DIAGONAL_MOVE;
   }
 
   get piecesShareCells(): boolean {

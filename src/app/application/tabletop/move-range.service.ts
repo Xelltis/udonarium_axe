@@ -9,6 +9,7 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
+import { allowsDiagonal } from '@axe/domain/tabletop/move/diagonal-move';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
@@ -159,7 +160,7 @@ export class MoveRangeService {
     const extra = Math.max(0, Math.floor(rules.zocExtraCost));
 
     const options: ReachOptions = {
-      cutsCorners: rules.moveDiagonally,
+      diagonals: rules.diagonalMove,
       costOf: held && mode === 'cost' ? (index) => (held.get(index) ? 1 + extra : 1) : undefined,
       stopsAt: held && mode === 'stop' ? (index) => held.get(index) : undefined,
     };
@@ -185,7 +186,7 @@ export class MoveRangeService {
     rules: RoomRules
   ): CellBits | null {
     const foes = standing.filter((piece) => isHostileTo(piece, mover) && this.vision.isTokenVisible(piece));
-    const held = zoneOfControl(grid, foes, rules.zocRange, rules.moveDiagonally);
+    const held = zoneOfControl(grid, foes, rules.zocRange, allowsDiagonal(rules.diagonalMove));
     return held.isEmpty ? null : held;
   }
 }

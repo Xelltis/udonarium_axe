@@ -4,6 +4,7 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { allowsDiagonal, asDiagonalMove, DiagonalMove } from '@axe/domain/tabletop/move/diagonal-move';
 import {
   readRuleFlag,
   readRuleNumber,
@@ -42,6 +43,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_moveRangeEnabled') private _moveRangeEnabled: string = '';
   @SyncVar('_moveRangeElementNames') private _moveRangeElementNames: string = '';
   @SyncVar('_moveDiagonally') private _moveDiagonally: string = '';
+  @SyncVar('_diagonalMove') private _diagonalMove: string = '';
   @SyncVar('_piecesShareCells') private _piecesShareCells: string = '';
   @SyncVar('_moveRangeAlways') private _moveRangeAlways: string = '';
   @SyncVar('_zocAlways') private _zocAlways: string = '';
@@ -158,6 +160,19 @@ export class Config extends ObjectNode implements InnerXml {
   get moveDiagonally(): boolean | null {
     return readRuleFlag(this._moveDiagonally);
   }
+  /**
+   * How a corner is counted, or nothing where the room has not said.
+   *
+   * Written alongside the older yes-or-no, never instead of it: a peer on a version that only
+   * knows the older question still has to be told whether corners may be cut at all.
+   */
+  get diagonalMove(): DiagonalMove | null {
+    return asDiagonalMove(readRuleText(this._diagonalMove));
+  }
+  set diagonalMove(answer: DiagonalMove | null) {
+    this._diagonalMove = writeRuleText(answer);
+    this._moveDiagonally = writeRuleFlag(answer === null ? null : allowsDiagonal(answer));
+  }
   set moveDiagonally(answer: boolean | null) {
     this._moveDiagonally = writeRuleFlag(answer);
   }
@@ -231,6 +246,7 @@ export class Config extends ObjectNode implements InnerXml {
       moveRangeEnabled: this.moveRangeEnabled,
       moveRangeElementNames: this.moveRangeElementNames,
       moveDiagonally: this.moveDiagonally,
+      diagonalMove: this.diagonalMove,
       piecesShareCells: this.piecesShareCells,
       moveRangeAlways: this.moveRangeAlways,
       zocAlways: this.zocAlways,

@@ -100,6 +100,7 @@ describe('Config', () => {
         moveRangeEnabled: null,
         moveRangeElementNames: null,
         moveDiagonally: null,
+        diagonalMove: null,
         piecesShareCells: null,
         moveRangeAlways: null,
         zocAlways: null,
@@ -118,6 +119,25 @@ describe('Config', () => {
 
       expect(Config.instance.moveDiagonally).toBe(false);
       expect(Config.instance.piecesShareCells).toBe(false);
+    });
+
+    it('tells an older peer whether a corner may be cut at all', () => {
+      Config.instance.diagonalMove = 'double';
+
+      expect(Config.instance.diagonalMove).toBe('double');
+      expect(Config.instance.moveDiagonally).toBe(true);
+
+      Config.instance.diagonalMove = 'none';
+
+      expect(Config.instance.moveDiagonally).toBe(false);
+    });
+
+    it('gives the corner rule back to the table together with the older answer', () => {
+      Config.instance.diagonalMove = 'alternating';
+      Config.instance.diagonalMove = null;
+
+      expect(Config.instance.diagonalMove).toBeNull();
+      expect(Config.instance.moveDiagonally).toBeNull();
     });
 
     it('holds on to a count of nought', () => {

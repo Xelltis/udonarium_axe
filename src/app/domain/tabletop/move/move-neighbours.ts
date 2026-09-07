@@ -74,18 +74,25 @@ function stepsFor(gridType: GridType, col: number, row: number, cutsCorners: boo
   return Math.abs(row % 2) === 1 ? POINTY_TOP_ODD_ROW_STEPS : POINTY_TOP_EVEN_ROW_STEPS;
 }
 
+/**
+ * Every way out of a cell, and whether each one crosses a corner.
+ *
+ * A hex board answers no to that for all six: every one of its steps is along a side, however
+ * the column and row numbers happen to move.
+ */
 export function forEachMoveNeighbour(
   grid: CellGrid,
   index: number,
-  visit: (neighbour: number) => void,
+  visit: (neighbour: number, acrossCorner: boolean) => void,
   cutsCorners = true
 ): void {
   if (grid.cols <= 0 || grid.rows <= 0) return;
   if (index < 0 || index >= grid.cols * grid.rows) return;
   const { col, row } = cellColRow(grid, index);
+  const hex = isHexGrid(grid.type);
   for (const [dx, dy] of stepsFor(grid.type, col, row, cutsCorners)) {
     const neighbour = cellIndexOf(grid, col + dx, row + dy);
-    if (neighbour >= 0) visit(neighbour);
+    if (neighbour >= 0) visit(neighbour, !hex && dx !== 0 && dy !== 0);
   }
 }
 

@@ -3,6 +3,7 @@ import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -176,6 +177,40 @@ describe('MovePlanService', () => {
     service.lookAt(9 * GRID + 10, 5 * GRID + 10);
 
     expect(service.plan()!.ahead).toEqual([]);
+  });
+
+  describe('on a table that counts corners one, then two, by turns', () => {
+    beforeEach(() => {
+      Config.instance.diagonalMove = 'alternating';
+    });
+
+    afterEach(() => {
+      Config.instance.diagonalMove = null;
+    });
+
+    it('goes on counting into the next leg, since the legs are one move', () => {
+      service.begin(pieceAt(5, 5, 4));
+      service.lookAt(6 * GRID + 10, 6 * GRID + 10);
+      service.settle();
+
+      expect(service.plan()!.spent).toBe(1);
+      expect(service.plan()!.cornersCut).toBe(1);
+
+      service.lookAt(7 * GRID + 10, 7 * GRID + 10);
+      service.settle();
+
+      // The second corner of the move costs two, wherever the reader chose to break the way.
+      expect(service.plan()!.spent).toBe(3);
+    });
+
+    it('gives the count back with the corner when a leg is taken up again', () => {
+      service.begin(pieceAt(5, 5, 4));
+      service.lookAt(6 * GRID + 10, 6 * GRID + 10);
+      service.settle();
+      service.unsettle();
+
+      expect(service.plan()!.cornersCut).toBe(0);
+    });
   });
 
   it('takes the corner back up when it is pressed on a second time', () => {

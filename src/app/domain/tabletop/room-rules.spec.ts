@@ -16,6 +16,7 @@ const table: RoomRules = {
   moveRangeEnabled: false,
   moveRangeElementNames: '駆け足',
   moveDiagonally: false,
+  diagonalMove: 'none',
   piecesShareCells: false,
   moveRangeAlways: true,
   zocAlways: true,
@@ -124,6 +125,24 @@ describe('resolveRoomRules()', () => {
 
     expect(settled.zocMode).toBe('block');
     expect(settled.cellDistance).toBe(ROOM_RULE_DEFAULTS.cellDistance);
+  });
+
+  it('reads a table that only ever said corners may be cut as counting one apiece', () => {
+    const older = { moveDiagonally: true };
+
+    expect(resolveRoomRules(null, older).diagonalMove).toBe('equal');
+    expect(resolveRoomRules(null, { moveDiagonally: false }).diagonalMove).toBe('none');
+  });
+
+  it('lets the room say how a corner is counted over a table that only said whether', () => {
+    const settled = resolveRoomRules({ diagonalMove: 'alternating' }, { ...table, moveDiagonally: true });
+
+    expect(settled.diagonalMove).toBe('alternating');
+  });
+
+  it('holds a room to a way of counting the table knows', () => {
+    expect(resolveRoomRules({ diagonalMove: 'sideways' }, table).diagonalMove).toBe(table.diagonalMove);
+    expect(resolveRoomRules({ diagonalMove: 'sideways' }, { moveDiagonally: true }).diagonalMove).toBe('equal');
   });
 
   it('holds a room to a mode the table knows', () => {
