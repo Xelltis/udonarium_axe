@@ -20,6 +20,7 @@ import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.se
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -78,9 +79,19 @@ export class ChatInputComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly tabletopDisplay = inject(TabletopDisplayService);
+  private readonly tabletopService = inject(TabletopService);
 
   /** The ticker is this screen's, so the switch is offered only where one is running. */
-  readonly showsTickerSwitch = computed(() => this.tabletopDisplay.settings().multiAngleTickerEnabled);
+  /**
+   * Whether this seat has a ticker to send a line to.
+   *
+   * The band only runs along the edge of a table being looked straight down on, so a seat in
+   * perspective has none. Offered there all the same, the switch sent a line to everybody
+   * else's band and left the sender's own screen with nothing to show for it.
+   */
+  readonly showsTickerSwitch = computed(
+    () => this.tabletopService.mode2d() && this.tabletopDisplay.settings().multiAngleTickerEnabled
+  );
   readonly sendsToTicker = signal(false);
 
   toggleTickerSend(): void {

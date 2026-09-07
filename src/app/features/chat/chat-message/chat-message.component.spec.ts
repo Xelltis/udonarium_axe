@@ -12,6 +12,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { emitFileLoaded } from '@axe/core/event/domain-events';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -623,6 +624,8 @@ describe('ChatMessageComponent', () => {
       fixture.componentRef.setInput('chatMessage', message);
       const tickerSelection = TestBed.inject(ChatTickerSelectionService);
       const spy = vi.spyOn(tickerSelection, 'showMessage');
+      // The band runs along the edge of a table looked straight down on, and nowhere else.
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
 
       fixture.detectChanges();

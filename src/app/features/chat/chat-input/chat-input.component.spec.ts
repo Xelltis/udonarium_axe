@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -89,6 +90,11 @@ describe('ChatInputComponent', () => {
       expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
 
       TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
+      fixture.detectChanges();
+      // The room runs one, but this seat is in perspective and has no band of its own.
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeTruthy();
 

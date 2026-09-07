@@ -337,6 +337,8 @@ export class ChatMessageComponent {
     // A window that only reads the log offers none of the buttons that act on a line.
     if (this.readOnly()) return false;
 
+    // Only where the band is actually drawn, which is a table looked straight down on.
+    if (!this.tabletopService.mode2d()) return false;
     if (!this.tabletopDisplay.settings().multiAngleTickerEnabled) return false;
     const message = this.chatMessageInput();
     if (!message) return false;
