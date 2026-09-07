@@ -1,3 +1,5 @@
+import { CellKey, parseCellKey } from '@axe/domain/tabletop/cell-key';
+
 /**
  * Painted cells gathered into as few blocks as they will go.
  *
@@ -31,13 +33,10 @@ export function rectCells(rect: CellRect): string[] {
   return cells;
 }
 
-function parseCell(key: string): { col: number; row: number } | null {
-  const comma = key.indexOf(',');
-  if (comma < 1) return null;
-  const col = Number(key.slice(0, comma));
-  const row = Number(key.slice(comma + 1));
-  if (!Number.isInteger(col) || !Number.isInteger(row) || col < 0 || row < 0) return null;
-  return { col, row };
+/** A key read the one way keys are read, and only where it names a cell of the board. */
+function parseCell(key: string): CellKey | null {
+  const cell = parseCellKey(key);
+  return cell && cell.col >= 0 && cell.row >= 0 ? cell : null;
 }
 
 /**

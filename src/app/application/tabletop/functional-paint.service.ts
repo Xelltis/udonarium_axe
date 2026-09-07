@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
 import { DataElement } from '@axe/domain/data/data-element';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
-import { CellRect } from '@axe/domain/tabletop/cell-rectangles';
+import { cellKeyOf, CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, CellGrid, cellGridOf, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
@@ -24,10 +24,6 @@ import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { Terrain, TERRAIN_FACES } from '@axe/domain/tabletop/terrain';
-
-function cellKeyOf(col: number, row: number): string {
-  return `${col},${row}`;
-}
 
 function terrainsOn(table: GameTable): Terrain[] {
   return table.children.filter((child): child is Terrain => child instanceof Terrain);
