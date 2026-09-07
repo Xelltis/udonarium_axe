@@ -152,6 +152,29 @@ describe('ContextMenuComponent', () => {
     expect(list.contains(submenu)).toBe(false);
   });
 
+  it('lets a submenu open a submenu of its own, clear of the list it scrolls', () => {
+    const grandchild = { name: 'Torch', action: vi.fn() };
+    const child = { name: 'Preset', subActions: [grandchild] };
+    component.contextMenuService.actions = [{ name: 'Light', subActions: [child] }];
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('li') as HTMLLIElement).click();
+    fixture.detectChanges();
+    const submenu = fixture.nativeElement.querySelector('context-menu') as HTMLElement;
+    (submenu.querySelector('li') as HTMLLIElement).click();
+    fixture.detectChanges();
+
+    const deepest = submenu.querySelector('context-menu') as HTMLElement;
+    expect(deepest).toBeTruthy();
+    expect(deepest.textContent).toContain('Torch');
+    // A list that scrolls clips whatever leans out of it, and a submenu leans out to the side.
+    const list = submenu.querySelector('[data-context-menu-list]') as HTMLElement;
+    expect(list.contains(deepest)).toBe(false);
+    expect(list.classList.contains('overflow-y-auto')).toBe(true);
+    const root = submenu.querySelector('[data-context-menu-root]') as HTMLElement;
+    expect(root.classList.contains('overflow-y-auto')).toBe(false);
+  });
+
   it('inherits detached rows in recursively opened descendants', () => {
     const parent = {
       name: 'Display',
