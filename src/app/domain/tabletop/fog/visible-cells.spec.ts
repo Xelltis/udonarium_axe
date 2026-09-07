@@ -168,6 +168,36 @@ describe('computeVisibleCellsFor', () => {
     expect(short.get(far)).toBe(false);
   });
 
+  describe('an eye standing on the roof of a block', () => {
+    /** Four cells square and a cell high, with the lamp up on the roof beside the eye. */
+    function roof(): VisibleCellsOptions {
+      const edges = rectangleSegments(200, 200, 200, 200, 0).map((edge) => ({ ...edge, heightPx: 50 }));
+      const built = scene({ sightSegments: edges, lightSegments: edges, lights: [{ ...torch(), z: 75 }] });
+      const blocking = new CellBits(cellCount(GRID));
+      const tops = new Float32Array(cellCount(GRID));
+      for (let col = 4; col < 8; col++) {
+        for (let row = 4; row < 8; row++) {
+          const cell = cellIndexOf(GRID, col, row);
+          blocking.set(cell);
+          tops[cell] = 50;
+        }
+      }
+      return { ...optionsFor(built, blocking), blockingTops: tops };
+    }
+
+    it('reaches the roof under its own feet', () => {
+      const cells = computeVisibleCellsFor(eyes({ x: 300, y: 300, z: 75 }), roof());
+
+      expect(cells.get(INSIDE)).toBe(true);
+    });
+
+    it('still reads a block it is standing beside at the open sides of it', () => {
+      const cells = computeVisibleCellsFor(eyes({ x: 300, y: 300, z: 25 }), roof());
+
+      expect(cells.get(INSIDE)).toBe(false);
+    });
+  });
+
   describe('a block of wall standing between the eye and the rest of the board', () => {
     /** Three cells by three, from (250, 250) to (400, 400). */
     const PILLAR = rectangleSegments(250, 250, 150, 150, 0).map((edge) => ({ ...edge, heightPx: WALL_HEIGHT }));

@@ -8,7 +8,14 @@ import {
   forEachNeighbourCell,
 } from '@axe/domain/tabletop/fog/cell-grid';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
-import { isLit, lightFloorPool, SceneVisionSource, seesInDark, VisionScene } from '@axe/domain/tabletop/vision-scene';
+import {
+  EYE_HEIGHT_CELLS,
+  isLit,
+  lightFloorPool,
+  SceneVisionSource,
+  seesInDark,
+  VisionScene,
+} from '@axe/domain/tabletop/vision-scene';
 import { maxLobeScale, visionLobeScale } from '@axe/domain/tabletop/vision-shape';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 
@@ -18,6 +25,8 @@ export interface VisibleCellsOptions {
   indexes: SegmentIndexes;
   /** The cells a wall stands on, so that one is asked about at its face and not its middle. */
   blocking?: CellBits;
+  /** How high each of those walls stands, so an eye above one is answered on its roof. */
+  blockingTops?: Float32Array;
   /** A guard against a board so large that one pass would stall the display. */
   maxCells?: number;
 }
@@ -40,16 +49,18 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
 
   const blocking = options.blocking;
 
-  const reaches = (x: number, y: number): boolean => {
+  const reaches = (x: number, y: number, z = 0): boolean => {
     const scale = visionLobeScale(source.lobes, source.direction, source.x, source.y, x, y);
     if (scale <= 0) return false;
     const withinRange = source.rangePx > 0 && Math.hypot(x - source.x, y - source.y) <= source.rangePx * scale;
     if (!scene.darknessEnabled && source.rangePx > 0 && !withinRange) return false;
     if (source.type === VisionType.TRUESIGHT && withinRange) return true;
-    if (!index.clearBetween(source.x, source.y, source.z, x, y, 0)) return false;
-    if (!scene.darknessEnabled || isLit(scene, x, y, true, 0)) return true;
+    if (!index.clearBetween(source.x, source.y, source.z, x, y, z)) return false;
+    if (!scene.darknessEnabled || isLit(scene, x, y, true, z)) return true;
     return seesInDark(source.type) && withinRange;
   };
+
+  const tops = options.blockingTops;
 
   const consider = (cell: number, cx: number, cy: number): void => {
     if (spent >= budget) return;
@@ -59,6 +70,14 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
 
     if (!blocking?.get(cell)) {
       if (reaches(cx, cy)) bits.set(cell);
+      return;
+    }
+    // A roof an eye stands level with or above is ground to it, read where it lies. Asked at
+    // its open sides instead, the middle of the building somebody was standing on came out
+    // unreached, and the fog stayed lying over their own feet.
+    const top = tops ? tops[cell] : 0;
+    if (top > 0 && top <= source.z) {
+      if (reaches(cx, cy, top)) bits.set(cell);
       return;
     }
     if (wallFaceIsReached(options.grid, blocking, cell, cx, cy, reaches)) bits.set(cell);
@@ -131,17 +150,23 @@ function forEachCandidate(
     return;
   }
 
+  // On the floor, and again on whatever the eye has climbed onto: a lamp carried up there has
+  // spent most of its reach by the time it comes back down to the ground.
+  const raised = source.z > EYE_HEIGHT_CELLS * scene.gridSize;
+  const planes = raised ? [0, source.z] : [0];
   for (const light of scene.lights) {
-    const pool = lightFloorPool(light);
-    if (!pool) continue;
-    forEachCellInBox(
-      grid,
-      pool.cx - pool.dimPx,
-      pool.cy - pool.dimPx,
-      pool.cx + pool.dimPx,
-      pool.cy + pool.dimPx,
-      visit
-    );
+    for (const plane of planes) {
+      const pool = lightFloorPool(light, plane);
+      if (!pool) continue;
+      forEachCellInBox(
+        grid,
+        pool.cx - pool.dimPx,
+        pool.cy - pool.dimPx,
+        pool.cx + pool.dimPx,
+        pool.cy + pool.dimPx,
+        visit
+      );
+    }
   }
 
   if (seesInDark(source.type) && source.rangePx > 0) {

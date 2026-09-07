@@ -284,18 +284,24 @@ export class VisionService {
    * Kept with the walls rather than with the scene, so that a piece walking about does not
    * cut every terrain on the table into cells again.
    */
-  private readonly blockingCells = computed<CellBits | null>(() => {
+  /** The cells a wall stands on, with how high the tallest wall on each of them reaches. */
+  private readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array } | null>(() => {
     this.standingEpoch();
     const grid = this.cellGrid();
     const table = this.currentTable();
     if (!grid || !table) return null;
-    const bits = new CellBits(cellCount(grid));
+    const cells = new CellBits(cellCount(grid));
+    const tops = new Float32Array(cellCount(grid));
     for (const terrain of table.terrains) {
       if (!terrain.hasWall || !terrain.blocksSightNow || surfaceOf(terrain) !== 'floor') continue;
       const box = this.terrainBox(terrain, grid.sizePx);
-      forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => bits.set(cell));
+      const top = (terrain.altitude + terrain.height) * grid.sizePx;
+      forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => {
+        cells.set(cell);
+        if (top > tops[cell]) tops[cell] = top;
+      });
     }
-    return bits;
+    return { cells, tops };
   });
 
   private terrainBox(terrain: Terrain, gridSize: number): { minX: number; minY: number; maxX: number; maxY: number } {
@@ -340,7 +346,14 @@ export class VisionService {
     const table = this.currentTable();
     if (!scene || !grid || !indexes || !table || !this.active()) return null;
     return perfTimed('cells', () => {
-      const options: VisibleCellsOptions = { scene, grid, indexes, blocking: this.blockingCells() ?? undefined };
+      const standing = this.blockingCells();
+      const options: VisibleCellsOptions = {
+        scene,
+        grid,
+        indexes,
+        blocking: standing?.cells,
+        blockingTops: standing?.tops,
+      };
       const perSource = new Map<string, CellBits>();
       const shared = new CellBits(cellCount(grid));
       const players = this.partyOwnerIds(scene.visionSources);
@@ -554,7 +567,7 @@ export class VisionService {
 
     const scene = this.scene();
     const viewer = this.viewer();
-    const blocking = this.blockingCells();
+    const blocking = this.blockingCells()?.cells ?? null;
     // The game master sees every cell; a reader sees what the fog says they see.
     // Nothing to ask where the table keeps no fog: an empty set answers "nowhere is in sight",
     // which held every face of every block at the bare darkness however well a lamp lit it.
@@ -570,10 +583,16 @@ export class VisionService {
         const x = centreX + localX * cos - localY * sin;
         const y = centreY + localX * sin + localY * cos;
         const cell = cellIndexAt(grid, x, y);
-        const shown = cell >= 0 && (explored?.get(cell) ?? true);
+        // The fog is the table's record of its own ground and has nothing to say about what
+        // lies over the edge of it. Held as unwalked, the part of a block that overhangs the
+        // table wore the fog's colour across itself and took its texture with it.
+        const offTable = cell < 0;
+        const shown = offTable || (explored?.get(cell) ?? true);
         cleared.push(shown);
         brightness.push(
-          shown && scene ? this.cellBrightness(scene, viewer, grid, blocking, visible, cell, x, y, planeZ) : dark
+          shown && scene && !offTable
+            ? this.cellBrightness(scene, viewer, grid, blocking, visible, cell, x, y, planeZ)
+            : dark
         );
       }
     }

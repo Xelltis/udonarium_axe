@@ -7,7 +7,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCount, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -198,6 +198,91 @@ describe('VisionService', () => {
       const brightness = service.terrainTopBrightness(terrain, 250, 250, 50);
 
       expect(brightness).toBeGreaterThan(0.5);
+    });
+  });
+
+  describe('a reader standing on the roof of a building', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function settle(): Promise<void> {
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    }
+
+    it('clears the fog from the roof it is standing on', async () => {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      table.fogEnabled = true;
+
+      // Six cells across, so the middle of the roof is nowhere near an open side.
+      const building = Terrain.create('building', 6, 6, 1, 'wall.png', 'floor.png');
+      building.location.x = 200;
+      building.location.y = 200;
+      table.appendChild(building);
+
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 350;
+      pc.location.y = 350;
+      pc.posZ = 50;
+      pc.visionRange = 4;
+      pc.lightEnabled = true;
+      pc.lightBrightRadius = 2;
+      pc.lightDimRadius = 4;
+      table.appendChild(pc);
+      await settle();
+
+      const shared = service.sharedVisibleCells()!;
+      const underfoot = cellIndexAt(shared.grid, 375, 375);
+
+      expect(shared.cells.get(underfoot)).toBe(true);
+    });
+  });
+
+  describe('a block hanging over the edge of the table', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function settle(): Promise<void> {
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    }
+
+    it('lays no fog over the part of it that overhangs', async () => {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      table.fogEnabled = true;
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 500;
+      pc.location.y = 500;
+      table.appendChild(pc);
+
+      // Two of its four cells stand off the west edge of the board.
+      const terrain = Terrain.create('ledge', 4, 1, 1, 'wall.png', 'floor.png');
+      terrain.location.x = -100;
+      terrain.location.y = 200;
+      table.appendChild(terrain);
+      await settle();
+
+      const cover = service.terrainFogCover(terrain)!;
+
+      expect(cover.cleared.slice(0, 2)).toEqual([true, true]);
     });
   });
 
