@@ -110,6 +110,8 @@ describe('Config', () => {
         zocRange: null,
         zocExtraCost: null,
         zocEngages: null,
+        breakOutMode: null,
+        breakOutCost: null,
         engagementCountsSize: null,
         facingMark: null,
       });

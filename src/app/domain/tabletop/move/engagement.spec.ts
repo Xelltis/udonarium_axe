@@ -2,11 +2,13 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
-  breakOutCost,
+  asBreakOutMode,
+  breakOutToll,
   engagementOf,
   engagementsOn,
-  engagementWeight,
-  sidesOf,
+  fightsByCell,
+  leavesFight,
+  NO_FIGHT,
 } from '@axe/domain/tabletop/move/engagement';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -118,71 +120,109 @@ describe('the engagement a piece is caught in', () => {
   });
 });
 
-describe('what a body of pieces weighs', () => {
-  it('counts the ground they take up', () => {
-    expect(engagementWeight([pieceAt(4, 4, true, 3), pieceAt(8, 8, true)], true)).toBe(4);
+describe('the fight on each cell, and what leaving it costs', () => {
+  function fightsFor(mover: GameCharacter, others: GameCharacter[], countsSize = true) {
+    const fights = fightsByCell(grid, mover, others, countsSize);
+    const at = (col: number, row: number) => cellIndexOf(grid, col, row);
+    return {
+      priceAt: (col: number, row: number) => fights.prices[at(col, row)],
+      leaves: (from: [number, number], to: [number, number]) => leavesFight(fights, at(...from), at(...to)),
+    };
+  }
+
+  it('holds no fight on ground nobody is near', () => {
+    const fights = fightsFor(pieceAt(0, 0, false), [pieceAt(5, 5, true)]);
+
+    expect(fights.priceAt(9, 9)).toBe(NO_FIGHT);
+    expect(fights.priceAt(5, 4)).not.toBe(NO_FIGHT);
   });
 
-  it('counts a body apiece where the table says size is not to decide it', () => {
-    expect(engagementWeight([pieceAt(4, 4, true, 3), pieceAt(8, 8, true)], false)).toBe(2);
+  it('prices a step out of a fight against one enemy at one', () => {
+    expect(fightsFor(pieceAt(0, 0, false), [pieceAt(5, 5, true)]).priceAt(4, 5)).toBe(1);
   });
 
-  it('weighs nothing at all for nobody', () => {
-    expect(engagementWeight([], true)).toBe(0);
+  it('prices nothing where standing there would put the leaver in the heavier side', () => {
+    const fights = fightsFor(pieceAt(0, 0, false), [pieceAt(5, 5, true), pieceAt(6, 5, false)]);
+
+    expect(fights.priceAt(4, 5)).toBe(0);
+  });
+
+  it('runs two fights together for a piece that would stand between them', () => {
+    expect(fightsFor(pieceAt(0, 0, false), [pieceAt(3, 5, true), pieceAt(5, 5, true)]).priceAt(4, 5)).toBe(2);
+  });
+
+  it('weighs an enemy by the ground it covers, unless the table says one apiece', () => {
+    const golem = pieceAt(5, 5, true, 3);
+
+    expect(fightsFor(pieceAt(0, 0, false), [golem]).priceAt(4, 5)).toBe(3);
+    expect(fightsFor(pieceAt(0, 0, false), [golem], false).priceAt(4, 5)).toBe(1);
+  });
+
+  it('weighs the piece leaving as it weighs the rest', () => {
+    const hero = pieceAt(0, 0, false, 3);
+
+    expect(fightsFor(hero, [pieceAt(5, 5, true)]).priceAt(4, 5)).toBe(0);
+    expect(fightsFor(hero, [pieceAt(5, 5, true)], false).priceAt(4, 5)).toBe(1);
+  });
+
+  it('leaves the piece being moved out of the reckoning, wherever it is standing', () => {
+    const hero = pieceAt(4, 5, false);
+
+    expect(fightsFor(hero, [hero, pieceAt(5, 5, true)]).priceAt(4, 5)).toBe(1);
+  });
+
+  it('calls a step out of the fight one, and a step within it none', () => {
+    const fights = fightsFor(pieceAt(0, 0, false), [pieceAt(5, 5, true)]);
+
+    expect(fights.leaves([4, 5], [3, 5])).toBe(true);
+    expect(fights.leaves([4, 5], [4, 4])).toBe(false);
+    expect(fights.leaves([3, 5], [2, 5])).toBe(false);
+  });
+
+  it('calls a step from one fight straight into another a leaving all the same', () => {
+    const fights = fightsFor(pieceAt(0, 0, false), [pieceAt(3, 5, true), pieceAt(6, 5, true)]);
+
+    // Two enemies three cells apart: neither cell between them touches both.
+    expect(fights.priceAt(4, 5)).toBe(1);
+    expect(fights.priceAt(5, 5)).toBe(1);
+    expect(fights.leaves([4, 5], [5, 5])).toBe(true);
+  });
+
+  it('holds a piece still in the fight where it steps away from only part of one', () => {
+    const fights = fightsFor(pieceAt(0, 0, false), [pieceAt(3, 5, true), pieceAt(5, 5, true)]);
+
+    expect(fights.leaves([4, 5], [4, 4])).toBe(false);
+    expect(fights.priceAt(4, 4)).toBe(2);
+  });
+
+  it('walks out of a fight it stood in alongside an enemy it no longer touches', () => {
+    const fights = fightsFor(pieceAt(0, 0, false), [pieceAt(3, 5, true)]);
+
+    expect(fights.leaves([4, 4], [5, 4])).toBe(true);
   });
 });
 
-describe('what it costs to walk out of an engagement', () => {
-  function knotOf(...pieces: GameCharacter[]) {
-    return engagementsOn(grid, pieces)[0];
-  }
-
-  it('tells the two sides apart as the piece leaving sees them', () => {
-    const hero = pieceAt(4, 4, false);
-    const ally = pieceAt(3, 4, false);
-    const foe = pieceAt(5, 4, true);
-
-    const sides = sidesOf(knotOf(hero, ally, foe), hero);
-
-    expect(sides.own.length).toBe(2);
-    expect(sides.against.map((piece) => piece.identifier)).toEqual([foe.identifier]);
+describe('what a table does to a piece walking out of a fight', () => {
+  it('takes the weighing where it is the weighing that decides', () => {
+    expect(breakOutToll('weighed', 3, 9)).toBe(3);
+    expect(breakOutToll('weighed', 0, 9)).toBe(0);
   });
 
-  it('costs a step to break away from an enemy standing one to one', () => {
-    const hero = pieceAt(4, 4, false);
-
-    expect(breakOutCost(knotOf(hero, pieceAt(5, 4, true)), hero, true)).toBe(1);
+  it('charges the same for every leaving where the table says a number', () => {
+    expect(breakOutToll('cost', 3, 2)).toBe(2);
+    expect(breakOutToll('cost', 0, 2)).toBe(2);
   });
 
-  it('costs nothing where the side walking out outweighs the other', () => {
-    const hero = pieceAt(4, 4, false);
-    const knot = knotOf(hero, pieceAt(3, 4, false), pieceAt(5, 4, true));
-
-    expect(breakOutCost(knot, hero, true)).toBe(0);
+  it('prices a leaving beyond any reach where the table allows none', () => {
+    expect(breakOutToll('block', 0, 0)).toBe(Number.POSITIVE_INFINITY);
   });
 
-  it('costs what that side is short by, counted from standing level', () => {
-    const hero = pieceAt(4, 4, false);
-    const knot = knotOf(hero, pieceAt(5, 4, true), pieceAt(3, 4, true), pieceAt(4, 5, true));
-
-    expect(breakOutCost(knot, hero, true)).toBe(3);
+  it('charges nothing where a fight holds nobody', () => {
+    expect(breakOutToll('free', 3, 2)).toBe(0);
   });
 
-  it('weighs a piece by the ground it covers, unless the table says one apiece', () => {
-    const hero = pieceAt(4, 7, false);
-    const knot = knotOf(hero, pieceAt(4, 4, true, 3));
-
-    expect(breakOutCost(knot, hero, true)).toBe(3);
-    expect(breakOutCost(knot, hero, false)).toBe(1);
-  });
-
-  it('is the same reckoning taken from the other side of the knot', () => {
-    const hero = pieceAt(4, 4, false);
-    const foe = pieceAt(5, 4, true);
-    const ally = pieceAt(3, 4, false);
-    const knot = knotOf(hero, ally, foe);
-
-    expect(breakOutCost(knot, hero, true)).toBe(0);
-    expect(breakOutCost(knot, foe, true)).toBe(2);
+  it('reads a mode it does not know as the weighing', () => {
+    expect(asBreakOutMode('sideways')).toBe('weighed');
+    expect(asBreakOutMode('block')).toBe('block');
   });
 });

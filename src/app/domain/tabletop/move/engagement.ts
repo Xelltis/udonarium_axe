@@ -23,9 +23,73 @@ export interface Engagement {
   cells: CellBits;
 }
 
+/**
+ * What a table does to a piece walking out of a fight.
+ *
+ * - `weighed` — the two sides are weighed against one another, and the heavier walks out free
+ * - `cost` — leaving costs the same wherever it is done and whoever is doing it
+ * - `block` — a fight is not walked out of at all
+ * - `free` — a fight holds nobody who wants to leave it
+ */
+export const BREAK_OUT_MODES = ['weighed', 'cost', 'block', 'free'] as const;
+
+export type BreakOutMode = (typeof BREAK_OUT_MODES)[number];
+
+export const DEFAULT_BREAK_OUT_MODE: BreakOutMode = 'weighed';
+export const DEFAULT_BREAK_OUT_COST = 1;
+
+export function asBreakOutMode(value: unknown): BreakOutMode {
+  return typeof value === 'string' && (BREAK_OUT_MODES as readonly string[]).includes(value)
+    ? (value as BreakOutMode)
+    : DEFAULT_BREAK_OUT_MODE;
+}
+
+/**
+ * What the step out of a fight costs, in steps, as this table has it.
+ *
+ * The weighing is one way of pricing it rather than the price itself: a table that charges the
+ * same for every leaving never weighs the sides at all, and one that lets nobody leave prices
+ * the step at more than any piece has.
+ */
+export function breakOutToll(mode: BreakOutMode, weighed: number, flat: number): number {
+  switch (mode) {
+    case 'free':
+      return 0;
+    case 'block':
+      return Number.POSITIVE_INFINITY;
+    case 'cost':
+      return Math.max(0, flat);
+    default:
+      return weighed;
+  }
+}
+
+/** What ground holding no fight is priced at, which is no price at all. */
+export const NO_FIGHT = -1;
+
+/**
+ * The fight a piece would be in wherever it went, and what walking out of it would cost.
+ *
+ * Which fight a piece is in follows from where it stands, so both answers belong to the ground
+ * rather than to the piece: one that breaks out of a fight and comes to stand beside another
+ * enemy is in a fight again, and owes that one whatever the new weighing comes to.
+ */
+export interface Fights {
+  /** What leaving the fight on each cell would cost, or {@link NO_FIGHT} where none holds it. */
+  readonly prices: Float64Array;
+  /** The knots caught up on each cell, by which two cells are told to hold the same fight. */
+  readonly knots: readonly (readonly number[] | undefined)[];
+}
+
 interface Standing {
   piece: GameCharacter;
   cells: number[];
+}
+
+interface Knotted {
+  standing: Standing[];
+  rootOf: (index: number) => number;
+  knots: Map<number, number[]>;
 }
 
 /**
@@ -35,58 +99,15 @@ interface Standing {
  * touches any member of a knot is in the knot, however far from an enemy it happens to be.
  */
 export function engagementsOn(grid: CellGrid, characters: readonly GameCharacter[], cutsCorners = true): Engagement[] {
-  const standing = standingOn(grid, characters);
-  if (standing.length < 2) return [];
-
-  const on = new Map<number, number[]>();
-  standing.forEach((held, index) => {
-    for (const cell of held.cells) {
-      const already = on.get(cell);
-      if (already) already.push(index);
-      else on.set(cell, [index]);
-    }
-  });
-
-  const parent = standing.map((_, index) => index);
-  const rootOf = (index: number): number => {
-    let held = index;
-    while (parent[held] !== held) held = parent[held] = parent[parent[held]];
-    return held;
-  };
-  const join = (one: number, other: number): void => {
-    const left = rootOf(one);
-    const right = rootOf(other);
-    if (left !== right) parent[right] = left;
-  };
-  const meet = (index: number, cell: number): void => {
-    for (const other of on.get(cell) ?? []) {
-      if (other !== index) join(index, other);
-    }
-  };
-
-  standing.forEach((held, index) => {
-    for (const cell of held.cells) {
-      meet(index, cell);
-      forEachMoveNeighbour(grid, cell, (neighbour) => meet(index, neighbour), cutsCorners);
-    }
-  });
-
-  const knots = new Map<number, number[]>();
-  standing.forEach((_, index) => {
-    const root = rootOf(index);
-    const already = knots.get(root);
-    if (already) already.push(index);
-    else knots.set(root, [index]);
-  });
-
+  const knotted = knotsOn(grid, characters, cutsCorners);
   const total = cellCount(grid);
   const engagements: Engagement[] = [];
-  for (const knot of knots.values()) {
-    const members = knot.map((index) => standing[index].piece);
+  for (const knot of knotted.knots.values()) {
+    const members = knot.map((index) => knotted.standing[index].piece);
     if (!members.some((piece) => members.some((other) => isHostileTo(piece, other)))) continue;
     const cells = new CellBits(total);
     for (const index of knot) {
-      for (const cell of standing[index].cells) cells.set(cell);
+      for (const cell of knotted.standing[index].cells) cells.set(cell);
     }
     engagements.push({ members, cells });
   }
@@ -101,39 +122,137 @@ export function engagementOf(engagements: readonly Engagement[], piece: GameChar
   );
 }
 
-/** The two sides of an engagement as they stand to one piece: its own, and the one against it. */
-export function sidesOf(
-  engagement: Engagement,
-  piece: GameCharacter
-): { own: readonly GameCharacter[]; against: readonly GameCharacter[] } {
-  const against = engagement.members.filter((member) => isHostileTo(member, piece));
-  const own = engagement.members.filter((member) => !isHostileTo(member, piece));
-  return { own, against };
+/**
+ * What a side owes for walking out of a fight, given what the two sides weigh.
+ *
+ * The sides are weighed against one another rather than added up: a side that outweighs the one
+ * across from it walks out where it likes and owes nothing, and a side that does not owes what
+ * it is short by. Standing level is not enough to walk out of, so the shortfall is counted from
+ * level rather than from behind.
+ */
+export function breakOutPrice(against: number, own: number): number {
+  return Math.max(0, against - own + 1);
+}
+
+/** The fight on every cell of the table, as it would stand to the piece being moved. */
+export function fightsByCell(
+  grid: CellGrid,
+  mover: GameCharacter,
+  others: readonly GameCharacter[],
+  countsSize: boolean,
+  cutsCorners = true
+): Fights {
+  const total = cellCount(grid);
+  const prices = new Float64Array(total).fill(NO_FIGHT);
+  const knots: (number[] | undefined)[] = new Array(total);
+  const knotted = knotsOn(
+    grid,
+    others.filter((piece) => piece.identifier !== mover.identifier),
+    cutsCorners
+  );
+  if (knotted.standing.length < 1) return { prices, knots };
+
+  const own = new Map<number, number>();
+  const against = new Map<number, number>();
+  const standingOn = new Map<number, number[]>();
+  knotted.standing.forEach((held, index) => {
+    const root = knotted.rootOf(index);
+    const side = isHostileTo(held.piece, mover) ? against : own;
+    side.set(root, (side.get(root) ?? 0) + weightOf(held.piece, countsSize));
+    for (const cell of held.cells) {
+      const already = standingOn.get(cell);
+      if (already) already.push(index);
+      else standingOn.set(cell, [index]);
+    }
+  });
+
+  const mine = weightOf(mover, countsSize);
+  for (let cell = 0; cell < total; cell++) {
+    const touched: number[] = [];
+    const gather = (met: number): void => {
+      for (const index of standingOn.get(met) ?? []) {
+        const root = knotted.rootOf(index);
+        if (!touched.includes(root)) touched.push(root);
+      }
+    };
+    gather(cell);
+    forEachMoveNeighbour(grid, cell, (neighbour) => gather(neighbour), cutsCorners);
+    if (touched.length < 1) continue;
+    let theirs = 0;
+    let ours = mine;
+    for (const root of touched) {
+      theirs += against.get(root) ?? 0;
+      ours += own.get(root) ?? 0;
+    }
+    if (theirs < 1) continue;
+    prices[cell] = breakOutPrice(theirs, ours);
+    knots[cell] = touched;
+  }
+  return { prices, knots };
 }
 
 /**
- * What it costs a piece to walk out of the engagement it is caught in, in steps.
+ * Whether a step walks out of a fight rather than staying in one.
  *
- * The two sides are weighed against one another rather than added up: a side that outweighs
- * the one across from it walks out where it likes and owes nothing, and a side that does not
- * owes what it is short by. Standing level is not enough to walk out of, so the shortfall is
- * counted from level rather than from behind.
+ * Staying is having somebody in common: a piece that steps away from half of what it was
+ * fighting is still fighting the other half and has broken out of nothing. Walking from one
+ * fight straight into another leaves the first, which is owed for like any other leaving.
  */
-export function breakOutCost(engagement: Engagement, piece: GameCharacter, countsSize: boolean): number {
-  const { own, against } = sidesOf(engagement, piece);
-  const short = engagementWeight(against, countsSize) - engagementWeight(own, countsSize);
-  return Math.max(0, short + 1);
+export function leavesFight(fights: Fights, from: number, to: number): boolean {
+  const left = fights.knots[from];
+  if (!left || fights.prices[from] === NO_FIGHT) return false;
+  const into = fights.prices[to] === NO_FIGHT ? undefined : fights.knots[to];
+  return !into || !left.some((knot) => into.includes(knot));
 }
 
-/**
- * What a body of pieces weighs, which is what a table counts a break-out against.
- *
- * Counted in the ground they take up, so a piece standing three cells across weighs three of a
- * piece standing on one. A table that would rather not have the size of a piece decide how hard
- * it is to get away from counts a body instead, one apiece.
- */
-export function engagementWeight(pieces: readonly GameCharacter[], countsSize: boolean): number {
-  return pieces.reduce((weight, piece) => weight + (countsSize ? Math.max(1, piece.size) : 1), 0);
+/** What one piece weighs: the ground it covers, or one where size is not to decide it. */
+function weightOf(piece: GameCharacter, countsSize: boolean): number {
+  return countsSize ? Math.max(1, piece.size) : 1;
+}
+
+/** Every piece run together with the ones it touches, whichever side any of them is on. */
+function knotsOn(grid: CellGrid, characters: readonly GameCharacter[], cutsCorners: boolean): Knotted {
+  const standing = standingOn(grid, characters);
+  const parent = standing.map((_, index) => index);
+  const rootOf = (index: number): number => {
+    let held = index;
+    while (parent[held] !== held) held = parent[held] = parent[parent[held]];
+    return held;
+  };
+  const join = (one: number, other: number): void => {
+    const left = rootOf(one);
+    const right = rootOf(other);
+    if (left !== right) parent[right] = left;
+  };
+
+  const on = new Map<number, number[]>();
+  standing.forEach((held, index) => {
+    for (const cell of held.cells) {
+      const already = on.get(cell);
+      if (already) already.push(index);
+      else on.set(cell, [index]);
+    }
+  });
+  const meet = (index: number, cell: number): void => {
+    for (const other of on.get(cell) ?? []) {
+      if (other !== index) join(index, other);
+    }
+  };
+  standing.forEach((held, index) => {
+    for (const cell of held.cells) {
+      meet(index, cell);
+      forEachMoveNeighbour(grid, cell, (neighbour) => meet(index, neighbour), cutsCorners);
+    }
+  });
+
+  const knots = new Map<number, number[]>();
+  standing.forEach((_, index) => {
+    const root = rootOf(index);
+    const already = knots.get(root);
+    if (already) already.push(index);
+    else knots.set(root, [index]);
+  });
+  return { standing, rootOf, knots };
 }
 
 function standingOn(grid: CellGrid, characters: readonly GameCharacter[]): Standing[] {

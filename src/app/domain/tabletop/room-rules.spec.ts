@@ -26,6 +26,8 @@ const table: RoomRules = {
   zocRange: 2,
   zocExtraCost: 3,
   zocEngages: false,
+  breakOutMode: 'weighed',
+  breakOutCost: 1,
   engagementCountsSize: true,
   facingMark: 'arrow',
 };

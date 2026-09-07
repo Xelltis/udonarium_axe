@@ -29,6 +29,7 @@ import {
   DIAGONAL_MOVES,
   DiagonalMove,
 } from '@axe/domain/tabletop/move/diagonal-move';
+import { asBreakOutMode, BREAK_OUT_MODES, BreakOutMode } from '@axe/domain/tabletop/move/engagement';
 import { DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
 import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { asZocMode, ZOC_MODES, ZocMode } from '@axe/domain/tabletop/move/zone-of-control';
@@ -109,6 +110,7 @@ export class RoomSettingsPanelComponent {
   readonly facingMarks = TABLE_FACING_MARKS;
   readonly zocModes = ZOC_MODES;
   readonly diagonalMoves = DIAGONAL_MOVES;
+  readonly breakOutModes = BREAK_OUT_MODES;
 
   readonly isReadOnly = computed(() => {
     this.objectChange.trackMyCursor();
@@ -549,6 +551,20 @@ export class RoomSettingsPanelComponent {
   }
   set zocEngages(value: boolean) {
     if (this.isEditable) this.config.zocEngages = value;
+  }
+
+  get breakOutMode(): BreakOutMode {
+    return this.rules.breakOutMode;
+  }
+  set breakOutMode(value: BreakOutMode) {
+    if (this.isEditable) this.config.breakOutMode = asBreakOutMode(value);
+  }
+
+  get breakOutCost(): number {
+    return this.rules.breakOutCost;
+  }
+  set breakOutCost(value: number) {
+    if (this.isEditable) this.config.breakOutCost = wholeCells(value);
   }
 
   get engagementCountsSize(): boolean {

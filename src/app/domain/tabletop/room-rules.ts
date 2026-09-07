@@ -1,5 +1,11 @@
 import { asDiagonalMove, DEFAULT_DIAGONAL_MOVE, DiagonalMove } from '@axe/domain/tabletop/move/diagonal-move';
 import {
+  asBreakOutMode,
+  BreakOutMode,
+  DEFAULT_BREAK_OUT_COST,
+  DEFAULT_BREAK_OUT_MODE,
+} from '@axe/domain/tabletop/move/engagement';
+import {
   DEFAULT_CELL_DISTANCE,
   DEFAULT_CELL_DISTANCE_UNIT,
   DEFAULT_MOVE_RANGE_ELEMENT_NAMES,
@@ -37,15 +43,20 @@ export interface RoomRules {
    * is weighed side against side rather than enemy by enemy.
    */
   zocEngages: boolean;
+  /** What a piece has to do to walk out of a fight: see {@link BreakOutMode}. */
+  breakOutMode: BreakOutMode;
+  /** What leaving costs where the table charges the same for every leaving. */
+  breakOutCost: number;
   /** Whether a piece weighs what it covers in that reckoning, rather than one apiece. */
   engagementCountsSize: boolean;
   facingMark: string;
 }
 
 /** The same rules in the looser terms a table holds them and an attribute carries them. */
-export type RoomRuleValues = Omit<RoomRules, 'zocMode' | 'diagonalMove'> & {
+export type RoomRuleValues = Omit<RoomRules, 'zocMode' | 'diagonalMove' | 'breakOutMode'> & {
   zocMode: string;
   diagonalMove: string;
+  breakOutMode: string;
 };
 
 /** The same questions as the room hears them, where null is one it has not answered. */
@@ -65,6 +76,8 @@ export const ROOM_RULE_DEFAULTS: RoomRules = {
   zocRange: DEFAULT_ZOC_RANGE,
   zocExtraCost: DEFAULT_ZOC_EXTRA_COST,
   zocEngages: false,
+  breakOutMode: DEFAULT_BREAK_OUT_MODE,
+  breakOutCost: DEFAULT_BREAK_OUT_COST,
   engagementCountsSize: true,
   facingMark: DEFAULT_TABLE_FACING_MARK,
 };
@@ -81,7 +94,16 @@ export const ROOM_RULE_GROUPS = {
     'cellDistance',
     'cellDistanceUnit',
   ],
-  zoc: ['zocMode', 'zocRange', 'zocAlways', 'zocExtraCost', 'zocEngages', 'engagementCountsSize'],
+  zoc: [
+    'zocMode',
+    'zocRange',
+    'zocAlways',
+    'zocExtraCost',
+    'zocEngages',
+    'breakOutMode',
+    'breakOutCost',
+    'engagementCountsSize',
+  ],
   facing: ['facingMark'],
 } as const satisfies Record<string, readonly (keyof RoomRules)[]>;
 
@@ -173,6 +195,8 @@ export function resolveRoomRules(
     zocRange: settled('zocRange'),
     zocExtraCost: settled('zocExtraCost'),
     zocEngages: settled('zocEngages'),
+    breakOutMode: asBreakOutMode(settled('breakOutMode')),
+    breakOutCost: settled('breakOutCost'),
     engagementCountsSize: settled('engagementCountsSize'),
     facingMark: settled('facingMark'),
   };

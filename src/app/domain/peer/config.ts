@@ -53,6 +53,8 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_zocRange') private _zocRange: number = -1;
   @SyncVar('_zocExtraCost') private _zocExtraCost: number = -1;
   @SyncVar('_zocEngages') private _zocEngages: string = '';
+  @SyncVar('_breakOutMode') private _breakOutMode: string = '';
+  @SyncVar('_breakOutCost') private _breakOutCost: number = -1;
   @SyncVar('_engagementCountsSize') private _engagementCountsSize: string = '';
   @SyncVar('_facingMark') private _facingMark: string = '';
 
@@ -242,6 +244,20 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocEngages = writeRuleFlag(answer);
   }
 
+  get breakOutMode(): string | null {
+    return readRuleText(this._breakOutMode);
+  }
+  set breakOutMode(answer: string | null) {
+    this._breakOutMode = writeRuleText(answer);
+  }
+
+  get breakOutCost(): number | null {
+    return readRuleNumber(this._breakOutCost);
+  }
+  set breakOutCost(answer: number | null) {
+    this._breakOutCost = writeRuleNumber(answer);
+  }
+
   get engagementCountsSize(): boolean | null {
     return readRuleFlag(this._engagementCountsSize);
   }
@@ -272,6 +288,8 @@ export class Config extends ObjectNode implements InnerXml {
       zocRange: this.zocRange,
       zocExtraCost: this.zocExtraCost,
       zocEngages: this.zocEngages,
+      breakOutMode: this.breakOutMode,
+      breakOutCost: this.breakOutCost,
       engagementCountsSize: this.engagementCountsSize,
       facingMark: this.facingMark,
     };
