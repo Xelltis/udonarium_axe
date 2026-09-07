@@ -67,6 +67,94 @@ describe('VisionService', () => {
     vi.clearAllMocks();
   });
 
+  describe('a lamp standing on top of a block', () => {
+    /** A block three cells tall, with a lamp on top of it and a player watching. */
+    function tableWithLampOnBlock(lampAltitudeCells: number): Terrain {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      const terrain = Terrain.create('building', 2, 2, 5, 'wall.png', 'floor.png');
+      terrain.location.x = 200;
+      terrain.location.y = 200;
+      table.appendChild(terrain);
+
+      const lamp = LightSource.create('torch');
+      lamp.lightBrightRadius = 2;
+      lamp.lightDimRadius = 4;
+      lamp.location.x = 250;
+      lamp.location.y = 250;
+      lamp.posZ = lampAltitudeCells * 50;
+      table.appendChild(lamp);
+
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 250;
+      pc.location.y = 250;
+      pc.posZ = lampAltitudeCells * 50;
+      table.appendChild(pc);
+      return terrain;
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** The scene is rebuilt on a throttle, so nothing is measured until it has caught up. */
+    async function settleScene(service: VisionService): Promise<void> {
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    }
+
+    /** A wide, low box with a torch standing in the middle of its roof, as a reader would see. */
+    function tableWithTorchOnWideRoof(): Terrain {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      // Six cells across: the middle of its roof is nowhere near an open side.
+      const terrain = Terrain.create('crate', 6, 6, 1, 'wall.png', 'floor.png');
+      terrain.location.x = 200;
+      terrain.location.y = 200;
+      table.appendChild(terrain);
+
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      // Standing on the middle of the roof, one cell up.
+      pc.location.x = 350;
+      pc.location.y = 350;
+      pc.posZ = 50;
+      pc.lightEnabled = true;
+      pc.lightBrightRadius = 2;
+      pc.lightDimRadius = 4;
+      table.appendChild(pc);
+      return terrain;
+    }
+
+    it('lights the middle of a wide roof it is standing on, not only its open edges', async () => {
+      const terrain = tableWithTorchOnWideRoof();
+      await settleScene(service);
+
+      const cover = service.terrainTopCover(terrain)!;
+      const middle = cover.brightness[2 * cover.cols + 2];
+
+      expect(middle).toBeGreaterThan(0.5);
+    });
+
+    it('lights the top it is standing on, as it would light the ground', async () => {
+      // Five cells up with four cells of reach: the sphere no longer touches the floor at all,
+      // so read on the floor the lamp lights nothing anywhere, itself included.
+      const terrain = tableWithLampOnBlock(5);
+      await settleScene(service);
+
+      const brightness = service.terrainTopBrightness(terrain, 250, 250, 50);
+
+      expect(brightness).toBeGreaterThan(0.5);
+    });
+  });
+
   describe('the walls it cuts from what stands on the table', () => {
     async function announce(aliasName: string, identifier: string): Promise<void> {
       objectChanged$.emit({ aliasName, identifier, isSendFromSelf: true });

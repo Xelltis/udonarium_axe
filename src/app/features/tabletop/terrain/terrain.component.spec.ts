@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
@@ -60,6 +61,160 @@ describe('TerrainComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('a block that reaches past the edge of the table', () => {
+    /** Darkness on, fog off, read by a player: what the reader in the report was looking at. */
+    function darkTable(): GameTable {
+      const table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.gridSize = 50;
+      table.darknessEnabled = true;
+      table.fogEnabled = false;
+      table.initialize();
+
+      const cursor = new PeerCursor();
+      cursor.userId = 'p1';
+      cursor.role = PeerRole.Player;
+      cursor.initialize();
+      PeerCursor.myCursor = cursor;
+      return table;
+    }
+
+    it('is no brighter for being tall', () => {
+      const table = darkTable();
+      const low = Terrain.create('low', 1, 1, 1, 'floor.png', 'wall.png');
+      low.location.x = 5 * 50;
+      low.location.y = 5 * 50;
+      table.appendChild(low);
+      const tall = Terrain.create('tall', 1, 1, 6, 'floor.png', 'wall.png');
+      tall.location.x = 8 * 50;
+      tall.location.y = 5 * 50;
+      table.appendChild(tall);
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 2 * 50;
+      pc.location.y = 2 * 50;
+      table.appendChild(pc);
+
+      fixture.componentRef.setInput('terrain', low);
+      fixture.detectChanges();
+      const lowAlphas = alphasOfImage((component as unknown as { topShade: () => { image: string } }).topShade().image);
+
+      fixture.componentRef.setInput('terrain', tall);
+      fixture.detectChanges();
+      const tallAlphas = alphasOfImage(
+        (component as unknown as { topShade: () => { image: string } }).topShade().image
+      );
+
+      // Height is not a light. A block six cells up is as dark as the one beside it.
+      expect(Math.min(...tallAlphas)).toBeGreaterThanOrEqual(Math.min(...lowAlphas) - 0.01);
+    });
+
+    it('is no brighter past the edge than it is inside it', () => {
+      const table = darkTable();
+      // Two cells wide from the last column, so one cell is on the table and one is past it.
+      const terrain = Terrain.create('wall', 2, 1, 2, 'floor.png', 'wall.png');
+      terrain.location.x = 19 * 50;
+      terrain.location.y = 5 * 50;
+      table.appendChild(terrain);
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 18 * 50;
+      pc.location.y = 5 * 50;
+      table.appendChild(pc);
+      fixture.componentRef.setInput('terrain', terrain);
+      fixture.detectChanges();
+
+      const alphas = alphasOfImage((component as unknown as { topShade: () => { image: string } }).topShade().image);
+
+      // Nothing here is lit, so every part of it is held back by the dark. A face left bright
+      // is a face the dark never reached.
+      expect(alphas.length).toBeGreaterThan(0);
+      for (const alpha of alphas) expect(alpha).toBeGreaterThan(0.5);
+    });
+  });
+
+  /** The dark is laid in whatever colour the table paints it with; what is read here is how much. */
+  function alphasOfImage(image: string): number[] {
+    return [...image.matchAll(/rgba\(\d+,\d+,\d+,([0-9.]+)\)/g)].map((m) => Number(m[1]));
+  }
+
+  describe('the colour a block is darkened with', () => {
+    it('wears the colour the table paints its dark with, not a grey of its own', () => {
+      vi.spyOn(TestBed.inject(VisionService), 'ambientShade').mockReturnValue({ color: '#204080', alpha: 0.9 });
+      vi.spyOn(TestBed.inject(VisionService), 'terrainBrightness').mockReturnValue(0.5);
+      vi.spyOn(TestBed.inject(VisionService), 'terrainTopBrightness').mockReturnValue(0.5);
+      vi.spyOn(TestBed.inject(VisionService), 'terrainTopCover').mockReturnValue(null);
+      fixture.componentRef.setInput('terrain', Terrain.create('block', 1, 1, 1, 'floor.png', 'wall.png'));
+      fixture.detectChanges();
+
+      const shade = (component as unknown as { topShade: () => { image: string } }).topShade();
+
+      expect(shade.image).toContain('rgba(32,64,128,');
+      expect(shade.image).not.toContain('rgba(0,0,0,');
+    });
+
+    it('falls back to black on a table with no dark of its own', () => {
+      vi.spyOn(TestBed.inject(VisionService), 'ambientShade').mockReturnValue(null);
+      vi.spyOn(TestBed.inject(VisionService), 'terrainBrightness').mockReturnValue(0.5);
+      vi.spyOn(TestBed.inject(VisionService), 'terrainTopBrightness').mockReturnValue(0.5);
+      vi.spyOn(TestBed.inject(VisionService), 'terrainTopCover').mockReturnValue(null);
+      fixture.componentRef.setInput('terrain', Terrain.create('block', 1, 1, 1, 'floor.png', 'wall.png'));
+      fixture.detectChanges();
+
+      expect((component as unknown as { topShade: () => { image: string } }).topShade().image).toContain('rgba(0,0,0,');
+    });
+  });
+
+  describe('the roof of a raised block', () => {
+    /** A cover whose cells are all at one brightness, as terrainTopCover would report. */
+    function evenCover(brightness: number) {
+      return {
+        cols: 2,
+        rows: 2,
+        cleared: [true, true, true, true],
+        brightness: [brightness, brightness, brightness, brightness],
+      };
+    }
+
+    function roofImage(topCover: ReturnType<typeof evenCover> | null): string {
+      const vision = TestBed.inject(VisionService);
+      vi.spyOn(vision, 'ambientShade').mockReturnValue(null);
+      vi.spyOn(vision, 'terrainTopCover').mockReturnValue(topCover);
+      vi.spyOn(vision, 'terrainTopBrightness').mockReturnValue(0);
+      // A block two cells tall, so its top is a surface raised above the floor.
+      fixture.componentRef.setInput('terrain', Terrain.create('building', 2, 2, 2, 'floor.png', 'wall.png'));
+      fixture.detectChanges();
+      return (component as unknown as { topShade: () => { image: string } }).topShade().image;
+    }
+
+    it('renders the roof bright where a lamp standing on it lights it', () => {
+      // The whole roof is lit: no shade is laid over the picture at all.
+      expect(roofImage(evenCover(1))).not.toContain('rgba(');
+    });
+
+    it('renders the roof dark where nothing up there lights it', () => {
+      // Barely lit: the picture is nearly blacked out.
+      expect(roofImage(evenCover(0.08))).toContain('0.92');
+    });
+
+    it('reads the roof cell by cell, so a half-lit roof is half bright and half dark', () => {
+      const cover = { cols: 2, rows: 1, cleared: [true, true], brightness: [1, 0.08] };
+      const vision = TestBed.inject(VisionService);
+      vi.spyOn(vision, 'ambientShade').mockReturnValue(null);
+      vi.spyOn(vision, 'terrainTopCover').mockReturnValue(cover);
+      vi.spyOn(vision, 'terrainTopBrightness').mockReturnValue(0);
+      fixture.componentRef.setInput('terrain', Terrain.create('building', 2, 1, 2, 'floor.png', 'wall.png'));
+      fixture.detectChanges();
+
+      const image = (component as unknown as { topShade: () => { image: string } }).topShade().image;
+
+      // A per-cell gradient runs left to right: the lit cell near clear, the dark cell near black.
+      expect(image).toContain('linear-gradient(to right');
+      expect(image).toContain('0.92');
+    });
   });
 
   describe('viewRotateZ computed signal', () => {
@@ -645,8 +800,9 @@ describe('TerrainComponent', () => {
       expect(alphas[alphas.length - 1]).toBeGreaterThan(0.8);
     });
 
+    /** The dark is laid in whatever colour the table paints it with; what is read here is how much. */
     function alphasOf(image: string): number[] {
-      return [...image.matchAll(/rgba\(0,0,0,([0-9.]+)\)/g)].map((m) => Number(m[1]));
+      return [...image.matchAll(/rgba\(\d+,\d+,\d+,([0-9.]+)\)/g)].map((m) => Number(m[1]));
     }
 
     /**

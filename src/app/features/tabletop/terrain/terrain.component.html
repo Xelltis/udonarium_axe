@@ -71,6 +71,7 @@
         } @else {
           <div
             class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+            data-testid="terrain-top"
             [class.blinking-animation]="!isLocked()"
             [ngStyle]="{
               'backface-visibility': isSlope() ? 'visible' : 'hidden',

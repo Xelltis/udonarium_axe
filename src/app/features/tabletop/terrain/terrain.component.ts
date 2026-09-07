@@ -68,6 +68,7 @@ import {
   ShadedBackground,
   shadedBackgroundGrid,
   shadedBackgroundImage,
+  shadeRgbOf,
   STRETCHED_TEXTURE,
   TextureLayout,
 } from '@axe/ui/tabletop/shaded-background';
@@ -840,8 +841,25 @@ export class TerrainComponent {
   private shadedTop(url: string): ShadedBackground {
     const cover = this.fogCover();
     const texture = this.textureLayout();
+    // A roof standing above the floor is a surface of its own, lit cell by cell by whatever is
+    // up there with it rather than by what reaches the ground below.
+    const roof = this.topIsRaised() ? this.topCover() : null;
+    if (roof && !this.isHex() && !this.isSlope()) {
+      const shade = this.floorShade();
+      return shadedBackgroundGrid(
+        url,
+        roof.brightness.map((brightness) => shade * brightness),
+        roof.cols,
+        roof.rows,
+        texture,
+        this.shadeRgb()
+      );
+    }
+    if (this.topIsRaised()) {
+      return shadedBackgroundGrid(url, [this.floorShade() * this.topBrightness()], 1, 1, texture, this.shadeRgb());
+    }
     if (!cover || this.isHex() || this.isSlope()) {
-      return shadedBackgroundGrid(url, [this.floorBrightness()], 1, 1, texture);
+      return shadedBackgroundGrid(url, [this.floorBrightness()], 1, 1, texture, this.shadeRgb());
     }
     const shade = this.floorShade();
     return shadedBackgroundGrid(
@@ -849,16 +867,17 @@ export class TerrainComponent {
       cover.brightness.map((brightness) => shade * brightness),
       cover.cols,
       cover.rows,
-      texture
+      texture,
+      this.shadeRgb()
     );
   }
 
   private shadedFace(url: string, base: number, side: WallSide): ShadedBackground {
     const cover = this.fogCover();
     const texture = this.textureLayout();
-    if (!cover) return shadedBackgroundGrid(url, [base * this.ambientBrightness()], 1, 1, texture);
+    if (!cover) return shadedBackgroundGrid(url, [base * this.ambientBrightness()], 1, 1, texture, this.shadeRgb());
     const along = this.edgeIndexes(cover, side).map((i) => base * cover.brightness[i]);
-    return shadedBackgroundGrid(url, along, along.length, 1, texture);
+    return shadedBackgroundGrid(url, along, along.length, 1, texture, this.shadeRgb());
   }
 
   private faceFogStyle(side: WallSide): Record<string, string> | null {
@@ -899,13 +918,46 @@ export class TerrainComponent {
 
   readonly floorBrightness = computed(() => this.floorShade() * this.centerBrightness());
 
+  /** Whether this block's top stands above the floor, and so is lit as its own surface. */
+  private readonly topIsRaised = computed(() => this.altitude() + this.height() > 0);
+
+  /** The roof's cells, each read at the height the roof stands at. */
+  private readonly topCover = computed(() => {
+    const terrain = this.terrain();
+    this.objectChange.versionOf(terrain.identifier)();
+    return this.visionService.terrainTopCover(terrain);
+  });
+
+  /** How brightly the top of this block is lit, read at the height it actually stands at. */
+  private readonly topBrightness = computed(() => {
+    const terrain = this.terrain();
+    this.objectChange.versionOf(terrain.identifier)();
+    const w = this.width() * this.gridSize;
+    const d = this.depth() * this.gridSize;
+    return this.visionService.terrainTopBrightness(
+      terrain,
+      terrain.location.x + w / 2,
+      terrain.location.y + d / 2,
+      Math.max(w, d) / 2
+    );
+  });
+
   protected wallShade(base: number): number {
     return base * this.centerBrightness();
   }
 
   protected shaded(url: string, brightness: number): string {
-    return shadedBackgroundImage(url, brightness);
+    return shadedBackgroundImage(url, brightness, this.shadeRgb());
   }
+
+  /**
+   * The colour this table paints its dark in, for the faces of a block.
+   *
+   * The darkness is one sheet lying on the floor, so nothing standing on the table is covered
+   * by it and every face darkens itself. Doing that in black left a building grey while the
+   * floor around it wore the table's own colour.
+   */
+  private readonly shadeRgb = computed(() => shadeRgbOf(this.visionService.ambientShade()?.color));
 
   private faceOf(side: WallSide): WallFace {
     const terrain = this.terrain();

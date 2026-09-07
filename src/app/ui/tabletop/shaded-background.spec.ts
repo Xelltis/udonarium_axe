@@ -1,4 +1,9 @@
-import { shadedBackgroundGrid, shadedBackgroundImage } from '@axe/ui/tabletop/shaded-background';
+import {
+  shadedBackgroundGrid,
+  shadedBackgroundImage,
+  shadeRgbOf,
+  STRETCHED_TEXTURE,
+} from '@axe/ui/tabletop/shaded-background';
 
 describe('shadedBackgroundImage', () => {
   it('lays nothing over a texture that is already as bright as it gets', () => {
@@ -69,5 +74,37 @@ describe('shadedBackgroundGrid', () => {
 
   it('hands the texture back untouched when there is nothing to read', () => {
     expect(shadedBackgroundGrid('a.png', [], 0, 0).image).toBe('url(a.png)');
+  });
+});
+
+describe('the colour a face is darkened with', () => {
+  it('reads a colour written six digits at a time', () => {
+    expect(shadeRgbOf('#05060a')).toBe('5,6,10');
+    expect(shadeRgbOf('05060a')).toBe('5,6,10');
+  });
+
+  it('reads a colour written three digits at a time', () => {
+    expect(shadeRgbOf('#abc')).toBe('170,187,204');
+  });
+
+  it('falls back to black for anything it cannot read', () => {
+    expect(shadeRgbOf('')).toBe('0,0,0');
+    expect(shadeRgbOf(null)).toBe('0,0,0');
+    expect(shadeRgbOf('rebeccapurple')).toBe('0,0,0');
+  });
+
+  it('darkens a face in the colour the table paints its dark with', () => {
+    expect(shadedBackgroundImage('a.png', 0.5, '5,6,10')).toContain('rgba(5,6,10,0.500)');
+  });
+
+  it('darkens in black where the table has said nothing', () => {
+    expect(shadedBackgroundImage('a.png', 0.5)).toContain('rgba(0,0,0,0.500)');
+  });
+
+  it('carries the colour into a face shaded a cell at a time', () => {
+    const shaded = shadedBackgroundGrid('a.png', [0.2, 0.8], 2, 1, STRETCHED_TEXTURE, '5,6,10');
+
+    expect(shaded.image).toContain('rgba(5,6,10,0.800)');
+    expect(shaded.image).toContain('rgba(5,6,10,0.200)');
   });
 });
