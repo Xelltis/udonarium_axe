@@ -74,7 +74,10 @@ export class TurnOrderService {
    */
   get currentSide(): string {
     if (this.turnOrderMode !== 'faction') return '';
-    const held = this.turnState.currentSide;
+    // A peer that predates the side being written down sends a turn with no such field, and
+    // applying it replaces the whole record rather than merging into it, so what comes back
+    // here is nothing at all rather than an empty string.
+    const held = this.turnState.currentSide ?? '';
     if (held.length < 1) return '';
     return resolveCurrentSide(held, this.orderedSides(), (group) => this.hasUnacted(group));
   }

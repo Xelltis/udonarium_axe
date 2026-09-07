@@ -530,6 +530,15 @@ describe('TurnOrderService', () => {
       expect(saidTo()).toContain('feature.turnOrder.sidePhaseStart');
     });
 
+    it('answers for a turn sent by a peer that has never heard of sides', () => {
+      // Applying a context replaces the whole record, so a field the sender does not have
+      // comes back as nothing rather than as an empty string.
+      (turnState as unknown as { currentSide: string | undefined }).currentSide = undefined;
+
+      expect(() => service.currentSide).not.toThrow();
+      expect(service.currentSide).toBe('');
+    });
+
     it('goes round the pieces of a side before it leaves for the next', () => {
       service.next();
       service.next();
