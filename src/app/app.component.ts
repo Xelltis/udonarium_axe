@@ -135,6 +135,9 @@ const FAB_MARGIN_PX = 12;
     WidgetPlaceDirective,
     TranslocoModule,
   ],
+  // The drawer opens toward whichever side of the screen has room for it, and a window that
+  // changes shape can leave the button on the other side without anybody touching it.
+  host: { '(window:resize)': 'measureFabSides()' },
 })
 export class AppComponent {
   readonly theme = inject(ThemeService);
