@@ -133,6 +133,52 @@ describe('VisionService', () => {
       return terrain;
     }
 
+    /** A crate with a lamp on its roof, shut away behind a wall the reader cannot see past. */
+    function tableWithTorchOnRoofBehindAWall(): Terrain {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+
+      // The reader's own piece, up in the north-west corner with eyes but no lamp.
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 75;
+      pc.location.y = 75;
+      pc.visionRange = 4;
+      table.appendChild(pc);
+
+      // A wall right across the room, tall enough to stop the look.
+      const wall = Terrain.create('wall', 20, 1, 3, 'wall.png', 'floor.png');
+      wall.location.x = 0;
+      wall.location.y = 250;
+      table.appendChild(wall);
+
+      // Far beyond it, a crate with a torch standing on its roof.
+      const crate = Terrain.create('crate', 6, 6, 1, 'wall.png', 'floor.png');
+      crate.location.x = 200;
+      crate.location.y = 500;
+      table.appendChild(crate);
+
+      const lamp = GameCharacter.create('NPC', 1, '');
+      lamp.location.x = 350;
+      lamp.location.y = 650;
+      lamp.posZ = 50;
+      lamp.lightEnabled = true;
+      lamp.lightBrightRadius = 2;
+      lamp.lightDimRadius = 4;
+      table.appendChild(lamp);
+      return crate;
+    }
+
+    it('leaves a roof dark where the lamp lighting it is one the reader cannot see', async () => {
+      const crate = tableWithTorchOnRoofBehindAWall();
+      await settleScene(service);
+
+      const cover = service.terrainTopCover(crate)!;
+      const middle = cover.brightness[3 * cover.cols + 3];
+
+      expect(middle).toBeLessThan(0.2);
+    });
+
     it('lights the middle of a wide roof it is standing on, not only its open edges', async () => {
       const terrain = tableWithTorchOnWideRoof();
       await settleScene(service);

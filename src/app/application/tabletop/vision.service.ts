@@ -616,7 +616,15 @@ export class VisionService {
     // detour below is for a wall met from the floor, whose middle is inside the wall itself;
     // taken on a roof it read the middle of a wide one from the open ground beyond its edges,
     // and the middle of a crate a torch was standing on came out as dark as the yard outside.
-    if (planeZ > 0 || !blocking?.get(cell)) {
+    //
+    // Only by the lamps this reader can see. The fog cannot answer for a roof — the building
+    // itself stops the look, so its own top is never among the cells in sight — and dropping
+    // the question altogether lit the roof of every lamplit room on the map for somebody
+    // standing outside all of them.
+    if (planeZ > 0) {
+      return objectBrightnessFor(this.seenScene() ?? scene, viewer, x, y, grid.sizePx / 2, true, planeZ);
+    }
+    if (!blocking?.get(cell)) {
       return objectBrightnessFor(scene, viewer, x, y, grid.sizePx / 2, true, planeZ);
     }
     let best = dark;
