@@ -69,6 +69,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import {
@@ -1252,31 +1253,42 @@ export class GameCharacterComponent {
   });
 
   /**
-   * Opens a planned move instead of a drag, where the hand asked for one by holding shift.
+   * Working a move out, rather than carrying the piece to where it should end up.
    *
    * The press is turned away rather than followed: a planned move leaves the piece standing
    * while the way is drawn, and a piece that came along with the hand would be standing
-   * somewhere the way was never drawn from.
+   * somewhere the way was never drawn from. Turned away once the press has finished being
+   * taken up, not in the middle of it: the drag puts the piece's transition and its
+   * collidable layer aside after saying it has started, and a refusal that arrives first is
+   * undone by the very setting up it refused.
    *
-   * Turned away once the press has finished being taken up, not in the middle of it: the
-   * drag puts the piece's transition and its collidable layer aside after saying it has
-   * started, and a refusal that arrives first is undone by the very setting up it refused.
-   */
-  /**
-   * Working a move out, rather than carrying the piece to where it should end up.
+   * A room that holds pieces to a way they could have walked works out every move, since
+   * being sent back after the fact and being shown the way beforehand are the same rule, and
+   * having them behave differently only depending on which hand opened the move made two
+   * features out of one.
    *
-   * Shift asks for it in any room. A room that holds pieces to a way they could have walked
-   * asks for it of every move, since being sent back after the fact and being shown the way
-   * beforehand are the same rule, and having them behave differently only depending on which
-   * hand opened the move made two features out of one.
+   * Shift asks for the other kind of move to the room's own: the way drawn out beforehand
+   * where a press would carry the piece, and the piece carried where a press would draw it.
    */
   onGrab(event: PointerEvent) {
     if (event.altKey) return;
-    if (!event.shiftKey && !this.isStrictMove()) return;
+    if (this.asksForTheOtherMove(event) === this.isStrictMove()) return;
     const character = this.gameCharacter();
     if (!character || this.isLock) return;
     if (!this.movePlan.begin(character)) return;
     queueMicrotask(() => this.movableRef()?.cancel());
+  }
+
+  /**
+   * Whether the press asks for the other kind of move to the one the room works in.
+   *
+   * Shift asks for it. In a room that holds pieces to a way they could have walked, it is the
+   * game master's to ask: a rule anybody at the table could step out of by holding a key down
+   * is not a rule the table is held to.
+   */
+  private asksForTheOtherMove(event: PointerEvent): boolean {
+    if (!event.shiftKey) return false;
+    return !this.isStrictMove() || PeerCursor.isMyselfGameMaster;
   }
 
   private isStrictMove(): boolean {

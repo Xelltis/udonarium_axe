@@ -20,6 +20,8 @@ import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -172,6 +174,52 @@ describe('GameCharacterComponent', () => {
         movePlan.cancel();
       } finally {
         Config.instance.moveStrict = false;
+      }
+    });
+
+    /** Who the reader is at the table, since the room's rule is the game master's to set aside. */
+    function beAt(role: PeerRole): void {
+      const cursor = new PeerCursor();
+      cursor.userId = 'me';
+      cursor.role = role;
+      cursor.initialize();
+      PeerCursor.myCursor = cursor;
+    }
+
+    it('carries the piece where the game master holds shift and the room holds pieces to a way', () => {
+      Config.instance.moveStrict = true;
+      beAt(PeerRole.GameMaster);
+      try {
+        const movePlan = TestBed.inject(MovePlanService);
+        fixture.componentRef.setInput('gameCharacter', pieceThatWalks(2));
+        fixture.detectChanges();
+
+        movableOf().onstart.emit({ shiftKey: true } as PointerEvent);
+
+        expect(movePlan.plan()).toBeNull();
+      } finally {
+        Config.instance.moveStrict = false;
+        PeerCursor.myCursor = null!;
+      }
+    });
+
+    it('draws the way all the same where a player holds shift in such a room', async () => {
+      Config.instance.moveStrict = true;
+      beAt(PeerRole.Player);
+      try {
+        const movePlan = TestBed.inject(MovePlanService);
+        const piece = pieceThatWalks(2);
+        fixture.componentRef.setInput('gameCharacter', piece);
+        fixture.detectChanges();
+
+        movableOf().onstart.emit({ shiftKey: true } as PointerEvent);
+
+        expect(movePlan.plan()?.characterIdentifier).toBe(piece.identifier);
+        await Promise.resolve();
+        movePlan.cancel();
+      } finally {
+        Config.instance.moveStrict = false;
+        PeerCursor.myCursor = null!;
       }
     });
 
