@@ -713,6 +713,28 @@ describe('GameTableComponent', () => {
       expect(component.gestureService.viewPositionZ).toBeGreaterThan(before);
     });
 
+    it('follows the width a square is meant to measure being changed', async () => {
+      component.currentTable.mode2d = true;
+      component.currentTable.gridSize = 50;
+      const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
+      vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
+      internals._initialized = true;
+      component.currentTable.orthographicProjection = true;
+      const calibration = TestBed.inject(DisplayCalibrationService);
+      calibration.calibrateFromCardRun(274, 1);
+      calibration.setRealSizeEnabled(true);
+      await fixture.whenStable();
+      const before = component.gestureService.viewPositionZ;
+      expect(before).toBeGreaterThan(0);
+
+      // A wider square means a nearer camera; the setting is this screen's, so no table event
+      // announces it.
+      TestBed.inject(TabletopDisplayService).set({ cellMm: 40 });
+      await fixture.whenStable();
+
+      expect(component.gestureService.viewPositionZ).toBeGreaterThan(before);
+    });
+
     it('hears the lock being set from the settings panel, not only from the menus', async () => {
       component.currentTable.mode2d = true;
       // Settle the table first: otherwise its own pending event would carry the lock across,

@@ -325,13 +325,15 @@ export class GameTableComponent {
       if (this._resizeFrame !== null) cancelAnimationFrame(this._resizeFrame);
     });
 
-    // The calibration and the lock are kept on the device rather than on the table, so no table
-    // event announces them. Without this, measuring the screen would change nothing until
-    // something else happened to redraw the board.
+    // The calibration, the lock and the width a square is meant to measure are all kept on the
+    // device rather than on the table, so no table event announces them. Without this, measuring
+    // the screen or asking for a wider square would change nothing until something else
+    // happened to redraw the board.
     effect(() => {
       this.displayCalibration.realSizeEnabled();
       this.viewLock.locked();
       this.displayCalibration.pxPerMm();
+      this.tabletopService.cellMm();
       untracked(() => {
         this.syncViewLock();
         this.snapToRealSize();
