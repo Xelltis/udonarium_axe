@@ -55,8 +55,19 @@ export class MovePlanService {
   /** How the move stood before each corner was set, so the last one can be taken back up. */
   private legs: MovePlan[] = [];
 
+  /** Which move this is, counted up as each one opens. */
+  private readonly opened = signal(0);
+
   readonly plan = this.held.asReadonly();
   readonly isPlanning = computed(() => this.held() !== null);
+  /**
+   * How many moves have been opened.
+   *
+   * A move opened while another is already open is still a move of its own, and the press
+   * that opened it has yet to finish. Nothing else says as much: the plan is a new object on
+   * every step of the pointer, and a second move of the same piece reads the same as the first.
+   */
+  readonly openings = this.opened.asReadonly();
 
   constructor() {
     // A move being worked out is one the whole table waits on, so it is drawn on every screen
@@ -101,6 +112,7 @@ export class MovePlanService {
     this.legs = [];
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
+    this.opened.update((count) => count + 1);
     this.held.set({
       characterIdentifier: character.identifier,
       grid: terms.grid,

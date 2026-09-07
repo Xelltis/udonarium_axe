@@ -19,16 +19,26 @@ export class MovePlanEventHandlerService {
 
   private listening = false;
   private armed = false;
+  /** The move the press in hand belongs to, so a press cannot answer for the move after it. */
+  private armedFor = 0;
 
   constructor() {
     effect(() => {
-      if (this.movePlan.isPlanning()) this.listen();
+      const opening = this.movePlan.openings();
+      if (this.movePlan.isPlanning()) this.listen(opening);
       else this.stop();
     });
     this.destroyRef.onDestroy(() => this.stop());
   }
 
-  private listen(): void {
+  private listen(opening: number): void {
+    // Every move opens on a press that has yet to finish, this one included: a move opened
+    // while another was already open was closed by the very press that opened it, since the
+    // click that press ends with was taken for a choice.
+    if (this.armedFor !== opening) {
+      this.armedFor = opening;
+      this.armed = false;
+    }
     if (this.listening) return;
     this.listening = true;
     this.armed = false;

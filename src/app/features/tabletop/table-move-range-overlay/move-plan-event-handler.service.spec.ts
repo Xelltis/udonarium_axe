@@ -6,9 +6,11 @@ import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-r
 
 describe('MovePlanEventHandlerService', () => {
   const held = signal<MovePlan | null>(null);
+  const opened = signal(0);
   const movePlan = {
     plan: held.asReadonly(),
     isPlanning: computed(() => held() !== null),
+    openings: opened.asReadonly(),
     lookAt: vi.fn(),
     wholeWay: vi.fn<() => number[]>(() => [1, 2]),
     settle: vi.fn(),
@@ -20,8 +22,9 @@ describe('MovePlanEventHandlerService', () => {
     calcTabletopLocalCoordinate: vi.fn(() => ({ x: 120, y: 340, z: 0 })),
   };
 
-  function openAMove(): void {
-    held.set({ characterIdentifier: 'piece' } as MovePlan);
+  function openAMove(piece = 'piece'): void {
+    opened.update((count) => count + 1);
+    held.set({ characterIdentifier: piece } as MovePlan);
     TestBed.tick();
   }
 
@@ -42,6 +45,7 @@ describe('MovePlanEventHandlerService', () => {
 
   beforeEach(() => {
     held.set(null);
+    opened.set(0);
     for (const spy of [movePlan.lookAt, movePlan.settle, movePlan.run, movePlan.cancel]) spy.mockClear();
     movePlan.wholeWay.mockReturnValue([1, 2]);
     TestBed.configureTestingModule({
@@ -75,6 +79,18 @@ describe('MovePlanEventHandlerService', () => {
 
     expect(movePlan.run).not.toHaveBeenCalled();
     expect(movePlan.cancel).not.toHaveBeenCalled();
+  });
+
+  it('passes over the press that opens a second move while the first is still open', () => {
+    openAMove();
+    // The press that takes up another piece, which opens a move of its own and then finishes.
+    pressTheTable();
+    openAMove('another piece');
+
+    clickTheTable();
+
+    expect(movePlan.cancel).not.toHaveBeenCalled();
+    expect(movePlan.run).not.toHaveBeenCalled();
   });
 
   it('walks the way on a click of its own', () => {
