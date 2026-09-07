@@ -257,8 +257,18 @@ export class MapEditorState {
     this.functionSpec.set(spec);
     const active = this.activeLayer();
     if (active && active.kind === 'function' && active.role === this.functionRole() && !active.locked) {
-      active.spec = { ...spec };
-      this.bump();
+      // Through the same door as every other edit of a layer: retexturing one is a step of the
+      // work like any other, and one that goes round the outside is stepped over by an undo,
+      // which then lands past the painting the retexture was made for.
+      // Through the same door as every other edit of a layer: retexturing one is a step of the
+      // work like any other, and one that goes round the outside is stepped over by an undo,
+      // which then lands past the painting the retexture was made for.
+      // Through the same door as every other edit of a layer: retexturing one is a step of the
+      // work like any other, and one that goes round the outside is stepped over by an undo,
+      // which then lands past the painting the retexture was made for.
+      this.applyCommitted(() => {
+        active.spec = { ...spec };
+      });
     }
   }
 
@@ -314,7 +324,7 @@ export class MapEditorState {
       if (lookKey(layer.spec) === look) return layer;
     }
 
-    const created = createLayer('function', role) as FunctionLayer;
+    const created = createLayer('function', this.autoLayerName('function')) as FunctionLayer;
     created.role = role;
     created.spec = { ...this.functionSpec() };
     addLayer(this.scene, created);

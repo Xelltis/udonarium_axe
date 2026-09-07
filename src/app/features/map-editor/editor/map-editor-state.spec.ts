@@ -6,6 +6,7 @@ import {
   DEFAULT_SCENE_BACKGROUND,
   DEFAULT_SCENE_GRID_COLOR,
   FreehandLayer,
+  FunctionLayer,
   ImageItem,
   ImageLayer,
   ShapeLayer,
@@ -82,6 +83,32 @@ describe('MapEditorState', () => {
     expect(state.canRedo()).toBe(false);
     const layer = state.current.layers[0] as CellLayer;
     expect(Object.keys(layer.cells).length).toBe(1);
+  });
+
+  it('takes a retexture of a painted layer back on its own, without the painting with it', () => {
+    state.beginGesture();
+    state.paintFunctionCell(0, 0);
+    state.endGesture();
+    const painted = state.current.layers[0] as FunctionLayer;
+    const first = painted.spec.terrain.name;
+
+    state.setFunctionSpec({ ...state.functionSpec(), terrain: { ...state.functionSpec().terrain, name: '石壁' } });
+    expect((state.current.layers[0] as FunctionLayer).spec.terrain.name).toBe('石壁');
+
+    state.undo();
+
+    expect((state.current.layers[0] as FunctionLayer).spec.terrain.name).toBe(first);
+    expect(Object.keys((state.current.layers[0] as FunctionLayer).cells)).toEqual(['0,0']);
+  });
+
+  it('names a layer it starts for a painted cell rather than calling it by its role', () => {
+    state.functionRole.set('terrain');
+    state.beginGesture();
+    state.paintFunctionCell(0, 0);
+    state.endGesture();
+
+    // Two layers of wall in different stone read as two 'terrain' rows in the drawer otherwise.
+    expect(state.current.layers[0].name).not.toBe('terrain');
   });
 
   it('clears the history for a new scene', () => {
