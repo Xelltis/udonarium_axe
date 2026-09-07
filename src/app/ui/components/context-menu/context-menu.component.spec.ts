@@ -134,6 +134,24 @@ describe('ContextMenuComponent', () => {
     expect(outerAction).not.toHaveBeenCalled();
   });
 
+  it('keeps the list scrolling while a submenu is up, and lays the submenu outside it', () => {
+    const parent = { name: 'Display', subActions: [{ name: 'Hide name', action: vi.fn() }] };
+    component.contextMenuService.actions = [parent];
+    fixture.detectChanges();
+    const list = fixture.nativeElement.querySelector('[data-context-menu-list]') as HTMLElement;
+    expect(list.classList.contains('overflow-y-auto')).toBe(true);
+
+    (fixture.nativeElement.querySelector('li') as HTMLLIElement).click();
+    fixture.detectChanges();
+
+    // A list that stops scrolling loses where it was scrolled to, and takes the rest of a long
+    // menu out of reach for as long as the submenu is up.
+    expect(list.classList.contains('overflow-y-auto')).toBe(true);
+    // Laid outside the list, since a list that scrolls clips whatever leans out of it.
+    const submenu = fixture.nativeElement.querySelector('context-menu') as HTMLElement;
+    expect(list.contains(submenu)).toBe(false);
+  });
+
   it('inherits detached rows in recursively opened descendants', () => {
     const parent = {
       name: 'Display',

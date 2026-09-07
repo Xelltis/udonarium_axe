@@ -57,6 +57,15 @@ export class ContextMenuComponent {
   readonly rootElementRef = viewChild.required<ElementRef<HTMLElement>>('root');
 
   readonly isSubmenu = input(false);
+  /**
+   * How far down the menu the row this submenu belongs to sits, in pixels.
+   *
+   * A submenu is laid outside the list rather than inside the row it opens from: a list that
+   * scrolls clips whatever leans out of it, so a submenu nested in a row could only be shown
+   * by taking the scrolling away, which sent a long menu back to its first item and put the
+   * rest of it out of reach.
+   */
+  readonly anchorTop = input<number | null>(null);
   readonly detachedItems = input(false);
 
   /** Where this menu sits, for one opened by something that lives above where menus usually go. */
@@ -82,6 +91,8 @@ export class ContextMenuComponent {
 
   readonly parentMenu = signal<ContextMenuAction | undefined>(undefined);
   readonly subMenu = signal<ContextMenuAction[] | undefined>(undefined);
+  /** Where the row a submenu belongs to sits, read as it opens rather than while it is up. */
+  readonly subMenuAnchorTop = signal<number | null>(null);
 
   private showSubMenuTimer: ReturnType<typeof setTimeout> | undefined;
   private hideSubMenuTimer: ReturnType<typeof setTimeout> | undefined;
@@ -183,7 +194,7 @@ export class ContextMenuComponent {
     const submenu: HTMLElement = this.rootElementRef().nativeElement;
 
     let left = parent.offsetWidth - SUBMENU_OVERLAP_PX;
-    let top = -SUBMENU_RISE_PX;
+    let top = (this.anchorTop() ?? 0) - SUBMENU_RISE_PX;
     submenu.style.left = `${left}px`;
     submenu.style.top = `${top}px`;
 
@@ -208,6 +219,15 @@ export class ContextMenuComponent {
     submenu.style.top = `${top}px`;
   }
 
+  /** How far the list this row sits in has been scrolled, which its own offset knows nothing of. */
+  private listScrollTop(row: HTMLElement): number | null {
+    for (let held = row.parentElement; held; held = held.parentElement) {
+      if (held.scrollHeight > held.clientHeight && held.scrollTop > 0) return held.scrollTop;
+      if (held.hasAttribute('data-context-menu-root')) return null;
+    }
+    return null;
+  }
+
   onListScroll(): void {
     if (this.subMenu()) this.subMenu.set(undefined);
   }
@@ -216,8 +236,8 @@ export class ContextMenuComponent {
     this.uiSignalService.requestJumpIndex(id, indexline);
   }
 
-  doAction(action: ContextMenuAction) {
-    this.showSubMenu(action, true);
+  doAction(action: ContextMenuAction, row?: HTMLElement) {
+    this.showSubMenu(action, true, row);
     if (action.action != null) {
       const rotationDegrees = this.contextMenuService.rotationDegrees;
       this.panelService.runWithInitialRotation(rotationDegrees, () =>
@@ -227,12 +247,13 @@ export class ContextMenuComponent {
     }
   }
 
-  showSubMenu(action: ContextMenuAction, immediately = false) {
+  showSubMenu(action: ContextMenuAction, immediately = false, row?: HTMLElement) {
     this.hideSubMenu();
     clearTimeout(this.showSubMenuTimer);
     if (action.subActions == null || action.subActions.length === 0) return;
     const open = () => {
       this.parentMenu.set(action);
+      this.subMenuAnchorTop.set(row ? row.offsetTop - (this.listScrollTop(row) ?? 0) : null);
       this.subMenu.set(action.subActions ?? []);
       clearTimeout(this.hideSubMenuTimer);
     };

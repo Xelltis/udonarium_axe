@@ -10,7 +10,7 @@
   [style.zIndex]="layer() > 0 ? layer() : null"
   [style.--menu-font-scale]="fontScale()"
   [ngClass]="{
-    'max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain': isSubmenu() && !subMenu(),
+    'max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain': isSubmenu(),
     'max-h-full max-w-full': !isSubmenu(),
     'pointer-events-none': isPointerDragging,
   }"
@@ -40,8 +40,9 @@
     </div>
   }
   <div
+    data-context-menu-list
     class="flex items-start"
-    [ngClass]="isSubmenu() || subMenu() ? '' : 'max-h-[calc(100dvh-2.5rem)] overflow-y-auto overscroll-contain'"
+    [ngClass]="isSubmenu() ? '' : 'max-h-[calc(100dvh-2.5rem)] overflow-y-auto overscroll-contain'"
     (scroll)="onListScroll()"
   >
     @if (altitudeHandle) {
@@ -133,6 +134,15 @@
       </ul>
     </div>
   </div>
+  @if (subMenu(); as actions) {
+    <context-menu
+      [title]="parentMenu()?.name ?? ''"
+      [actions]="actions"
+      [isSubmenu]="true"
+      [detachedItems]="detachedItems()"
+      [anchorTop]="subMenuAnchorTop()"
+    ></context-menu>
+  }
 </div>
 
 <ng-template #indexMenu let-action="action">
@@ -163,8 +173,9 @@
     [class.border-solid]="detachedItems()"
     [class.hover:bg-ui-menu-hover]="!detachedItems()"
     [class.mx-1]="!detachedItems()"
-    (click)="doAction(action)"
-    (mouseenter)="showSubMenu(action)"
+    (click)="doAction(action, row)"
+    (mouseenter)="showSubMenu(action, false, row)"
+    #row
   >
     <div class="inline-flex items-center gap-1">
       @if (action.name && action.name.indexOf('☑') === 0) {
@@ -185,14 +196,6 @@
       <div class="absolute top-0.5 right-px bottom-0 inline-block">
         <i class="material-icons align-bottom text-[1em]!">arrow_forward_ios</i>
       </div>
-    }
-    @if (subMenu() && parentMenu() === action) {
-      <context-menu
-        [title]="action.name"
-        [actions]="subMenu()!"
-        [isSubmenu]="true"
-        [detachedItems]="detachedItems()"
-      ></context-menu>
     }
   </li>
 </ng-template>
