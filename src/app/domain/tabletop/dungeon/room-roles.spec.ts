@@ -16,6 +16,7 @@ function build(overrides: Partial<RoomsAndMazesParams> = {}): DungeonLayout {
     extraConnectorChance: 0.06,
     wallBreakChance: 0,
     shapes: ['rect'],
+    corridorWidth: 1,
     seed: 1,
     ...overrides,
   };

@@ -2061,7 +2061,8 @@
           "fieldSize": "Map size",
           "density": "Undergrowth",
           "gridType": "Cell shape",
-          "hexNote": "Hexes cannot be gathered up, so a block is placed per cell and the board is made smaller to pay for it."
+          "hexNote": "Hexes cannot be gathered up, so a block is placed per cell and the board is made smaller to pay for it.",
+          "corridorWidth": "Passage width"
         },
         "actions": {
           "generate": "Generate",
@@ -2079,7 +2080,8 @@
           "heavy": "Over {{limit}} terrains. Building will take a moment",
           "built": "Made \"{{name}}\"",
           "roomsDiffer": "{{found}} rooms fitted. Caverns run together, so a cave ends up with fewer than asked",
-          "squareOnly": "A generated table always uses a square grid"
+          "squareOnly": "A generated table always uses a square grid",
+          "corridorWidth": "Wider passages take a wider lattice, so fewer rooms fit on the board"
         },
         "entrance": {
           "stair": "Stairway down",

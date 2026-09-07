@@ -30,10 +30,16 @@ import {
 } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import {
   clampRoomCount,
+  defaultCorridorWidth,
   MAX_ROOM_COUNT,
   MIN_ROOM_COUNT,
   planDungeon,
 } from '@axe/domain/tabletop/dungeon/dungeon-generator';
+import {
+  clampCorridorWidth,
+  MAX_CORRIDOR_WIDTH,
+  MIN_CORRIDOR_WIDTH,
+} from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import {
   clampFieldDensity,
   clampFieldSize,
@@ -99,6 +105,8 @@ export class DungeonGeneratorComponent {
   protected readonly maxDensity = MAX_FIELD_DENSITY;
   protected readonly minWallHeight = MIN_WALL_HEIGHT;
   protected readonly maxWallHeight = MAX_WALL_HEIGHT;
+  protected readonly minCorridorWidth = MIN_CORRIDOR_WIDTH;
+  protected readonly maxCorridorWidth = MAX_CORRIDOR_WIDTH;
 
   protected readonly kind = signal<MapKind>('dungeon');
   protected readonly atmosphere = signal<DungeonAtmosphereId>('stoneDungeon');
@@ -115,6 +123,7 @@ export class DungeonGeneratorComponent {
   private readonly floorOverride = signal<DungeonMaterial | null>(null);
   private readonly heightOverride = signal<number | null>(null);
   private readonly entranceOverride = signal<DungeonEntranceStyle | null>(null);
+  private readonly corridorOverride = signal<number | null>(null);
 
   protected readonly busy = signal(false);
   protected readonly progress = signal(0);
@@ -153,12 +162,17 @@ export class DungeonGeneratorComponent {
   protected readonly entrance = computed<DungeonEntranceStyle>(
     () => this.entranceOverride() ?? atmosphereById(this.atmosphere()).entrance
   );
+  /** How wide the passages are cut, which each atmosphere has its own idea of. */
+  protected readonly corridorWidth = computed(() =>
+    clampCorridorWidth(this.corridorOverride() ?? defaultCorridorWidth(atmosphereById(this.atmosphere())))
+  );
   protected readonly usingDefaults = computed(
     () =>
       this.wallOverride() === null &&
       this.floorOverride() === null &&
       this.heightOverride() === null &&
-      this.entranceOverride() === null
+      this.entranceOverride() === null &&
+      this.corridorOverride() === null
   );
 
   /**
@@ -179,6 +193,7 @@ export class DungeonGeneratorComponent {
         roomCount: this.roomCount(),
         seed: this.seed(),
         entrance: this.entrance(),
+        corridorWidth: this.corridorWidth(),
         gridType: this.gridType(),
       },
       { placeDoors: this.placeDoors(), placeStairs: this.placeStairs() }
@@ -268,11 +283,16 @@ export class DungeonGeneratorComponent {
     this.entranceOverride.set(style);
   }
 
+  protected setCorridorWidth(width: number): void {
+    this.corridorOverride.set(clampCorridorWidth(width));
+  }
+
   protected resetMaterials(): void {
     this.wallOverride.set(null);
     this.floorOverride.set(null);
     this.heightOverride.set(null);
     this.entranceOverride.set(null);
+    this.corridorOverride.set(null);
   }
 
   protected reroll(): void {

@@ -186,6 +186,41 @@
     </div>
 
     <div>
+      <label
+        class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase"
+        for="corridor-width"
+      >
+        {{ 'feature.tabletop.dungeonGenerator.props.corridorWidth' | transloco }}
+      </label>
+      <div class="flex items-center gap-2">
+        <input
+          class="min-w-0 flex-1"
+          id="corridor-width"
+          name="corridor-width"
+          type="range"
+          [min]="minCorridorWidth"
+          [max]="maxCorridorWidth"
+          step="1"
+          [ngModel]="corridorWidth()"
+          (ngModelChange)="setCorridorWidth($event)"
+        />
+        <input
+          class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm w-16 shrink-0 border border-solid px-2 py-1.5 text-center text-[13px] outline-none"
+          name="corridor-width-number"
+          type="number"
+          [min]="minCorridorWidth"
+          [max]="maxCorridorWidth"
+          step="1"
+          [ngModel]="corridorWidth()"
+          (ngModelChange)="setCorridorWidth($event)"
+        />
+      </div>
+      <div class="text-ui-muted mt-1 text-[0.75rem]">
+        {{ 'feature.tabletop.dungeonGenerator.status.corridorWidth' | transloco }}
+      </div>
+    </div>
+
+    <div>
       <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase">
         {{ 'feature.tabletop.dungeonGenerator.props.entrance' | transloco }}
       </label>
