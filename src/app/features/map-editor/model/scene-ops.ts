@@ -211,11 +211,16 @@ export function resizeScene(scene: MapScene, cols: number, rows: number): void {
   scene.cols = cols;
   scene.rows = rows;
   for (const layer of scene.layers) {
-    if (layer.kind !== 'cell') continue;
-    for (const key of Object.keys(layer.cells)) {
+    // Painted function cells are trimmed with the drawn ones. Left outside the scene they are
+    // still built when it is set as the table, so a board that had been made smaller put walls
+    // and cover off the edge of it: sent to every peer, stopping sight and light out there,
+    // and nowhere to be seen in the editor that made them.
+    if (layer.kind !== 'cell' && layer.kind !== 'function') continue;
+    const cells: Record<string, unknown> = layer.cells;
+    for (const key of Object.keys(cells)) {
       const { col, row } = parseCellKey(key);
       if (col < 0 || col >= cols || row < 0 || row >= rows) {
-        delete layer.cells[key];
+        delete cells[key];
       }
     }
   }
