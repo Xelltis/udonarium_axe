@@ -98,8 +98,6 @@ export function viewPositionZToZoom(viewPositionZ: number): number {
   return clampZoom(TABLE_PERSPECTIVE_PX / (TABLE_PERSPECTIVE_PX - viewPositionZ));
 }
 
-/** Whether the view is close enough to real size that snapping again would do nothing. */
-
 /** The last of the accuracy is settled by eye, against a base sitting on a square. */
 export function nudgePxPerMm(pxPerMm: number, steps: number): number {
   if (!Number.isFinite(steps)) return clampPxPerMm(pxPerMm);

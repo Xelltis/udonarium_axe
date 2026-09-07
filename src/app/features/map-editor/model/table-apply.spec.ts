@@ -156,18 +156,36 @@ describe('planFunctionPaint()', () => {
     expect(planFunctionPaint(sceneWith(), snapshot({ gridType: GridType.HEX_VERTICAL }))).toBeNull();
   });
 
-  it('takes away everything the editor painted where the scene has nothing left', () => {
+  it('takes away what a layer that has been emptied used to hold', () => {
     const plan = planFunctionPaint(
-      sceneWith(),
+      sceneWith(layerOf('terrain', []), layerOf('mask', []), layerOf('moveBlock', [])),
       snapshot({
         terrainBlocks: [terrainBlock({ col: 0, row: 0, width: 1, height: 1 })],
         maskBlocks: [maskBlock({ col: 1, row: 1, width: 1, height: 1 })],
+        blockedCells: ['2,2'],
       })
     )!;
 
     expect(plan.terrain.remove.map(rectKey)).toEqual(['0,0,1,1']);
     expect(plan.mask.remove.map(rectKey)).toEqual(['1,1,1,1']);
     expect(plan.blocked).toEqual([]);
+  });
+
+  it('leaves alone what the scene has no layer for, since it has said nothing about it', () => {
+    // Somebody who only ever painted walls has not asked for the table's masks to go.
+    const plan = planFunctionPaint(
+      sceneWith(layerOf('terrain', ['0,0'])),
+      snapshot({
+        terrainBlocks: [terrainBlock({ col: 5, row: 5, width: 1, height: 1 })],
+        maskBlocks: [maskBlock({ col: 1, row: 1, width: 1, height: 1 })],
+        blockedCells: ['2,2'],
+      })
+    )!;
+
+    expect(plan.terrain.remove.map(rectKey)).toEqual(['5,5,1,1']);
+    expect(plan.mask.remove).toEqual([]);
+    expect(plan.mask.add).toEqual([]);
+    expect(plan.blocked).toEqual(['2,2']);
   });
 });
 

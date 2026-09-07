@@ -124,8 +124,12 @@ export class ChatTickerComponent {
     const context = canvas.getContext('2d');
     const fontSize = this.fontSizePx();
     const path = makeChatTickerPath(width, height, fontSize);
-    if (!context || !path) {
-      this.startAnimation();
+    if (!context) return;
+    // A window too short to hold the margins has nowhere to run the line. Leaving the last
+    // frame up while asking for the next one spins at the frame rate showing stale text.
+    if (!path) {
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, width, height);
       return;
     }
     context.setTransform(ratio, 0, 0, ratio, 0, 0);

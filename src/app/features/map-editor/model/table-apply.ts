@@ -82,8 +82,10 @@ function maskBlocksOf(scene: MapScene): MaskBlock[] {
  * has, which is the right answer for somebody who deleted their layers and the wrong one for
  * somebody who only ever drew a floor.
  */
-export function sceneCarriesFunctions(scene: MapScene): boolean {
-  return scene.layers.some((layer) => layer.kind === 'function');
+export function sceneCarriesFunctions(scene: MapScene, role?: MapFunctionRole): boolean {
+  return scene.layers.some(
+    (layer) => layer.kind === 'function' && (role === undefined || (layer as FunctionLayer).role === role)
+  );
 }
 
 function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer[] {
@@ -105,9 +107,16 @@ function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer
 export function planFunctionPaint(scene: MapScene, table: TableSnapshot): FunctionPaintPlan | null {
   if (scene.cols !== table.cols || scene.rows !== table.rows || scene.gridType !== table.gridType) return null;
 
+  // A role the scene has no layer for is a role it has said nothing about, and saying nothing
+  // is not the same as saying none. Emptying a layer still speaks — the layer is there — but a
+  // scene that only ever had walls painted on it must not take the table's masks away with them.
   return {
-    blocked: cellsForRole(scene, 'moveBlock'),
-    terrain: blockChange(terrainBlocksOf(scene, table.cellPx), table.terrainBlocks),
-    mask: blockChange(maskBlocksOf(scene), table.maskBlocks),
+    blocked: sceneCarriesFunctions(scene, 'moveBlock') ? cellsForRole(scene, 'moveBlock') : [...table.blockedCells],
+    terrain: sceneCarriesFunctions(scene, 'terrain')
+      ? blockChange(terrainBlocksOf(scene, table.cellPx), table.terrainBlocks)
+      : { add: [], remove: [] },
+    mask: sceneCarriesFunctions(scene, 'mask')
+      ? blockChange(maskBlocksOf(scene), table.maskBlocks)
+      : { add: [], remove: [] },
   };
 }

@@ -54,6 +54,7 @@ export class DisplayCalibrationService {
 
   constructor() {
     this.watchPixelRatio();
+    this.destroyRef.onDestroy(() => this.stopWatchingPixelRatio());
   }
 
   /** Called when the window is resized, so the warning above can appear. */
@@ -80,8 +81,13 @@ export class DisplayCalibrationService {
       this.watchPixelRatio();
     };
     query.addEventListener('change', listener);
-    this.destroyRef.onDestroy(() => query.removeEventListener('change', listener));
+    // One place to let go of whichever query is current, rather than a fresh promise to let go
+    // laid down every time the ratio changes and none of them ever collected.
+    this.stopWatchingPixelRatio = () => query.removeEventListener('change', listener);
   }
+
+  /** Lets go of the ratio being watched, whichever one it has moved on to. */
+  private stopWatchingPixelRatio: () => void = () => undefined;
 
   /** The zoom at which one square measures the width the table asks for. */
   zoomFor(cellMm: number, gridSize: number): number | null {

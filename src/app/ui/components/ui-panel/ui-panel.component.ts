@@ -377,7 +377,8 @@ export class UIPanelComponent {
     const panel = this.draggablePanel().nativeElement;
     this.rotationDegrees.set(next);
 
-    // Angular の次回描画を待たず、直後の getBoundingClientRect() に新しい向きを反映する。
+    // Written straight onto the element so the measurement below reads the new orientation,
+    // rather than the one Angular has yet to paint.
     panel.style.rotate = `${next}deg`;
     if (this.isFullScreen()) {
       this.applyFullScreenLayout(panel);
