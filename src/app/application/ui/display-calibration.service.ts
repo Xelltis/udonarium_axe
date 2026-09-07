@@ -15,7 +15,10 @@ import {
  * nothing identifies a screen well enough to know it is the same one next time - carrying it to
  * an external display would make it a lie. Real size and the lock are states rather than
  * settings, and a state that outlives the session comes back in a room where it makes no sense.
- * How wide a square is meant to be belongs to the map, so the table carries that instead.
+ *
+ * How wide a square is meant to measure is not held here but alongside, in this seat's own
+ * display settings: it is the one part of real size that is worth keeping between sessions,
+ * and it belongs to the screen the miniatures are standing on rather than to the room.
  */
 @Injectable({ providedIn: 'root' })
 export class DisplayCalibrationService {

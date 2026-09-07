@@ -2201,7 +2201,7 @@
       "multiAnglePauseSeconds": "90° 회전 후 정지 시간",
       "seconds": "초",
       "sectionRealSize": "실제 크기 표시",
-      "realSizeHint": "화면 실측과 화면 고정은 이 브라우저에만 적용되며 다른 참가자에게 전달되지 않습니다.",
+      "realSizeHint": "화면 실측과 한 칸의 실제 크기, 화면 고정은 이 브라우저에만 적용되며 다른 참가자에게 전달되지 않습니다.",
       "viewLock": "화면 고정 (이동·확대·회전 정지)",
       "realSize": "한 칸을 실제 크기로 표시",
       "realSizeCalibrate": "실측 재조정",

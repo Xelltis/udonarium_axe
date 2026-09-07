@@ -5,6 +5,7 @@ import { DisplayCalibrationService } from '@axe/application/ui/display-calibrati
 import { ModalService } from '@axe/application/ui/modal.service';
 import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 
@@ -212,16 +213,17 @@ describe('DisplayCalibrationComponent', () => {
     expect(component.framePx()).toBe(40);
   });
 
-  it('keeps the measurement here and the square on the table', () => {
+  it('keeps the measurement and the width of a square on this screen alone', () => {
     component.onFrameInput('274');
-    component.onCellMmInput('25.4');
+    component.onCellMmInput('30');
 
     component.confirm();
 
     expect(calibration.pxPerMm()).toBeCloseTo(3.201, 3);
     expect(calibration.realSizeEnabled()).toBe(true);
-    // The width of a square is the map's, so it goes where the map is shared from.
-    expect(table.cellMm).toBe(25.4);
+    expect(TestBed.inject(TabletopDisplayPreferenceService).own().cellMm).toBe(30);
+    // Nothing of it reaches the room: another screen measures itself and says its own width.
+    expect(table.cellMm).toBe(DEFAULT_CELL_MM);
   });
 
   it('writes a square that is not an inch to this screen, which is the one being measured', () => {

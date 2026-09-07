@@ -2201,7 +2201,7 @@
       "multiAnglePauseSeconds": "Pause after each 90°",
       "seconds": "sec",
       "sectionRealSize": "Real size",
-      "realSizeHint": "The measurement of the screen and the view lock belong to this browser alone, and reach nobody else.",
+      "realSizeHint": "The measurement of the screen, the width of a square and the view lock belong to this browser alone, and reach nobody else.",
       "viewLock": "Lock the view (no panning, zooming or turning)",
       "realSize": "Draw one square at its real width",
       "realSizeCalibrate": "Recalibrate",
