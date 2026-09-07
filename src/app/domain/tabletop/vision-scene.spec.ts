@@ -857,6 +857,25 @@ describe('vision-scene', () => {
       expect(pool!.brightPx / pool!.dimPx).toBeCloseTo(lamp.brightPx / lamp.dimPx, 3);
     });
 
+    it('leaves a roof above it alone for a narrow light pointed at the floor', () => {
+      // Pointed down and narrow: the highest ray it throws still goes down, so a surface
+      // over the lamp catches nothing of it.
+      const down = light({ x: 500, y: 500, z: 100, angle: 60, pitch: -30, brightPx: 150, dimPx: 300 });
+
+      expect(lightFloorPool(down, 200)).toBeNull();
+    });
+
+    it('lays the pool a cone throws on a roof in front of it, never behind', () => {
+      // Wide enough that its highest ray points up, so a roof above is lit - along the way
+      // the lamp faces.
+      const wide = light({ x: 500, y: 500, z: 100, angle: 200, pitch: 10, brightPx: 150, dimPx: 300 });
+
+      const pool = lightFloorPool(wide, 200);
+
+      expect(pool).not.toBeNull();
+      expect(pool!.cx).toBeGreaterThanOrEqual(500);
+    });
+
     it('leaves the floor alone for a narrow light pointed at the ceiling', () => {
       const upward = light({ x: 500, y: 500, z: 150, angle: 60, pitch: 80 });
 

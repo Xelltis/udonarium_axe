@@ -295,13 +295,16 @@ export function lightFloorPool(
   if (dimFloor < 1) return null;
   if (light.angle >= 360) return { cx: light.x, cy: light.y, brightPx: brightFloor, dimPx: dimFloor };
 
-  // A wide cone reaches the floor whichever way its axis is turned: what settles it is the
-  // lowest ray, which is the axis tilted down by half the spread.
-  if (light.pitch >= light.angle / 2) return null;
+  // A wide cone reaches a surface whichever way its axis is turned: what settles it is the ray
+  // on that side of the spread. The floor below is reached by the lowest ray, which is the axis
+  // tilted down by half of it; a roof above by the highest, tilted up by the same.
+  const above = planeZ > light.z;
+  if (above ? light.pitch + light.angle / 2 <= 0 : light.pitch >= light.angle / 2) return null;
   const axis = lightAxis(light);
-  // Where the axis meets the floor, when it meets it in front of the light; otherwise the pool
-  // lies about the spot below the lamp, which is where a sconce throws it.
-  const t = axis.z < -0.05 ? -(light.z - planeZ) / axis.z : 0;
+  // Where the axis meets the surface, when it meets it in front of the light; otherwise the
+  // pool lies about the spot below the lamp, which is where a sconce throws it.
+  const towards = above ? axis.z > 0.05 : axis.z < -0.05;
+  const t = towards ? -(light.z - planeZ) / axis.z : 0;
   const ratio = light.dimPx > 0 ? light.brightPx / light.dimPx : 1;
   return {
     cx: light.x + axis.x * t,
