@@ -25,6 +25,8 @@ const table: RoomRules = {
   zocMode: 'stop',
   zocRange: 2,
   zocExtraCost: 3,
+  zocEngages: false,
+  engagementCountsSize: true,
   facingMark: 'arrow',
 };
 

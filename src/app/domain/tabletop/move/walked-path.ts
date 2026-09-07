@@ -68,7 +68,7 @@ export function walkedPath(
     const stepped = stepBetween(grid, from, to, allowsDiagonal(diagonals));
     if (!stepped.walkable) return { walkable: false, cost, corners: cut };
     if (isBlocked(to)) return { walkable: false, cost, corners: cut };
-    const price = costOf ? costOf(to) : 1;
+    const price = costOf ? costOf(to, from) : 1;
     if (!Number.isFinite(price)) return { walkable: false, cost, corners: cut };
     const corner = stepped.acrossCorner ? diagonalCost(diagonals, cut++) : 1;
     if (!Number.isFinite(corner)) return { walkable: false, cost, corners: cut };

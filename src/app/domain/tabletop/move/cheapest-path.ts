@@ -67,7 +67,7 @@ export function cheapestPath(
         cell,
         (neighbour, acrossCorner) => {
           if (isBlocked(neighbour)) return;
-          const ground = costOf ? costOf(neighbour) : 1;
+          const ground = costOf ? costOf(neighbour, cell) : 1;
           if (!Number.isFinite(ground)) return;
           const corner = acrossCorner ? diagonalCost(diagonals, cut) : 1;
           if (!Number.isFinite(corner)) return;

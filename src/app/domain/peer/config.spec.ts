@@ -109,6 +109,8 @@ describe('Config', () => {
         zocMode: null,
         zocRange: null,
         zocExtraCost: null,
+        zocEngages: null,
+        engagementCountsSize: null,
         facingMark: null,
       });
     });

@@ -336,6 +336,37 @@
               </label>
             }
 
+            @if (showsZocOptions) {
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.roomSettings.zocEngages' | transloco
+              }}</label>
+              <label class="text-ui-text col-span-2 flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+                <input
+                  type="checkbox"
+                  class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                  [(ngModel)]="zocEngages"
+                  name="zocEngages"
+                  data-testid="room-settings-zoc-engages"
+                />
+                {{ 'feature.roomSettings.zocEngagesHint' | transloco }}
+              </label>
+
+              @if (zocEngages) {
+                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                  'feature.roomSettings.engagementCountsSize' | transloco
+                }}</label>
+                <label class="text-ui-text col-span-2 flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+                  <input
+                    type="checkbox"
+                    class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                    [(ngModel)]="engagementCountsSize"
+                    name="engagementCountsSize"
+                  />
+                  {{ 'feature.roomSettings.engagementCountsSizeHint' | transloco }}
+                </label>
+              }
+            }
+
             @if (showsZocExtraCost) {
               <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
                 'feature.roomSettings.zocExtraCost' | transloco

@@ -52,6 +52,8 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_zocMode') private _zocMode: string = '';
   @SyncVar('_zocRange') private _zocRange: number = -1;
   @SyncVar('_zocExtraCost') private _zocExtraCost: number = -1;
+  @SyncVar('_zocEngages') private _zocEngages: string = '';
+  @SyncVar('_engagementCountsSize') private _engagementCountsSize: string = '';
   @SyncVar('_facingMark') private _facingMark: string = '';
 
   get defaultDiceBot(): string {
@@ -233,6 +235,20 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocExtraCost = writeRuleNumber(answer);
   }
 
+  get zocEngages(): boolean | null {
+    return readRuleFlag(this._zocEngages);
+  }
+  set zocEngages(answer: boolean | null) {
+    this._zocEngages = writeRuleFlag(answer);
+  }
+
+  get engagementCountsSize(): boolean | null {
+    return readRuleFlag(this._engagementCountsSize);
+  }
+  set engagementCountsSize(answer: boolean | null) {
+    this._engagementCountsSize = writeRuleFlag(answer);
+  }
+
   get facingMark(): string | null {
     return readRuleText(this._facingMark);
   }
@@ -255,6 +271,8 @@ export class Config extends ObjectNode implements InnerXml {
       zocMode: this.zocMode,
       zocRange: this.zocRange,
       zocExtraCost: this.zocExtraCost,
+      zocEngages: this.zocEngages,
+      engagementCountsSize: this.engagementCountsSize,
       facingMark: this.facingMark,
     };
   }

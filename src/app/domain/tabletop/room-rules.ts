@@ -29,6 +29,16 @@ export interface RoomRules {
   zocMode: ZocMode;
   zocRange: number;
   zocExtraCost: number;
+  /**
+   * Whether pieces standing against one another are held as one fight rather than as pairs.
+   *
+   * Left off, every enemy holds its own ground and nothing joins up. Turned on, whoever stands
+   * beside a piece already fighting is in the same fight, and what it costs to get out of one
+   * is weighed side against side rather than enemy by enemy.
+   */
+  zocEngages: boolean;
+  /** Whether a piece weighs what it covers in that reckoning, rather than one apiece. */
+  engagementCountsSize: boolean;
   facingMark: string;
 }
 
@@ -54,6 +64,8 @@ export const ROOM_RULE_DEFAULTS: RoomRules = {
   zocMode: DEFAULT_ZOC_MODE,
   zocRange: DEFAULT_ZOC_RANGE,
   zocExtraCost: DEFAULT_ZOC_EXTRA_COST,
+  zocEngages: false,
+  engagementCountsSize: true,
   facingMark: DEFAULT_TABLE_FACING_MARK,
 };
 
@@ -69,7 +81,7 @@ export const ROOM_RULE_GROUPS = {
     'cellDistance',
     'cellDistanceUnit',
   ],
-  zoc: ['zocMode', 'zocRange', 'zocAlways', 'zocExtraCost'],
+  zoc: ['zocMode', 'zocRange', 'zocAlways', 'zocExtraCost', 'zocEngages', 'engagementCountsSize'],
   facing: ['facingMark'],
 } as const satisfies Record<string, readonly (keyof RoomRules)[]>;
 
@@ -160,6 +172,8 @@ export function resolveRoomRules(
     zocMode: asZocMode(settled('zocMode')),
     zocRange: settled('zocRange'),
     zocExtraCost: settled('zocExtraCost'),
+    zocEngages: settled('zocEngages'),
+    engagementCountsSize: settled('engagementCountsSize'),
     facingMark: settled('facingMark'),
   };
 }

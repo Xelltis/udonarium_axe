@@ -543,4 +543,18 @@ export class RoomSettingsPanelComponent {
   set zocExtraCost(value: number) {
     if (this.isEditable) this.config.zocExtraCost = wholeCells(value);
   }
+
+  get zocEngages(): boolean {
+    return this.rules.zocEngages;
+  }
+  set zocEngages(value: boolean) {
+    if (this.isEditable) this.config.zocEngages = value;
+  }
+
+  get engagementCountsSize(): boolean {
+    return this.rules.engagementCountsSize;
+  }
+  set engagementCountsSize(value: boolean) {
+    if (this.isEditable) this.config.engagementCountsSize = value;
+  }
 }

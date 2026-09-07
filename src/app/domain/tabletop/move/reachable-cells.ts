@@ -16,8 +16,14 @@ export interface ReachOptions {
   budget?: number;
   /** How a step across a corner is counted. A hex board has no corners to cut. */
   diagonals?: DiagonalMove;
-  /** What entering a cell costs, in steps. One by default, and Infinity for one nobody enters. */
-  costOf?: (index: number) => number;
+  /**
+   * What entering a cell costs, in steps. One by default, and Infinity for one nobody enters.
+   *
+   * The cell stepped off is given as well, since a table may charge for the step rather than
+   * for the ground: what it costs to break out of a fight is owed by the step that leaves it,
+   * not by every cell beyond.
+   */
+  costOf?: (index: number, from: number) => number;
   /** Whether entering a cell ends the walk there: it is reached, and nothing beyond it is. */
   stopsAt?: (index: number) => boolean;
   /**
@@ -101,7 +107,7 @@ export function reachableCells(
         cell,
         (neighbour, acrossCorner) => {
           if (isBlocked(neighbour)) return;
-          const ground = costOf ? costOf(neighbour) : 1;
+          const ground = costOf ? costOf(neighbour, cell) : 1;
           if (!Number.isFinite(ground)) return;
           const corner = acrossCorner ? diagonalCost(diagonals, cut) : 1;
           if (!Number.isFinite(corner)) return;

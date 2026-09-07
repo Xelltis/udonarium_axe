@@ -496,6 +496,102 @@ describe('MoveRangeService and the ground an enemy holds', () => {
     expect(reached(4, 5)).toBe(true);
   });
 
+  describe('a table that holds a fight as one place', () => {
+    beforeEach(() => {
+      Config.instance.zocEngages = true;
+    });
+
+    afterEach(() => {
+      Config.instance.zocEngages = null;
+      Config.instance.engagementCountsSize = null;
+    });
+
+    function heroBeside(): void {
+      service.show(pieceAt(5, 5, 5));
+    }
+
+    /** Two against two, so neither side may walk out of it as though it were not there. */
+    function evenFight(): void {
+      pieceAt(3, 5, 1);
+      monsterAt(4, 5);
+      monsterAt(5, 5);
+    }
+
+    it('has an ally in the fight hold ground of its own against the piece leaving', () => {
+      table.zocMode = 'block';
+      evenFight();
+
+      service.show(pieceAt(2, 5, 5));
+
+      expect(reached(2, 4)).toBe(false);
+    });
+
+    it('leaves that ground open where the table holds fights as pairs', () => {
+      Config.instance.zocEngages = false;
+      table.zocMode = 'block';
+      evenFight();
+
+      service.show(pieceAt(2, 5, 5));
+
+      expect(reached(2, 4)).toBe(true);
+    });
+
+    it('holds nothing against a side that outweighs the one across from it', () => {
+      table.zocMode = 'block';
+      monsterAt(6, 5);
+      pieceAt(4, 5, 1);
+
+      heroBeside();
+
+      expect(reached(3, 5)).toBe(true);
+      expect(reached(0, 5)).toBe(true);
+    });
+
+    it('charges for the step that leaves the fight, and only for that one', () => {
+      table.zocMode = 'cost';
+      table.zocExtraCost = 0;
+      monsterAt(6, 5);
+
+      heroBeside();
+
+      // Five to spend: one to (4,5), two for the step out to (3,5), one for each after it.
+      expect(reached(1, 5)).toBe(true);
+      expect(reached(0, 5)).toBe(false);
+    });
+
+    it('lets a piece walk clean away where no fight holds it', () => {
+      table.zocMode = 'cost';
+      table.zocExtraCost = 0;
+      monsterAt(9, 9);
+
+      heroBeside();
+
+      expect(reached(0, 5)).toBe(true);
+    });
+
+    it('weighs an enemy by the ground it covers', () => {
+      table.zocMode = 'cost';
+      table.zocExtraCost = 0;
+      monsterAt(6, 5).size = 3;
+
+      heroBeside();
+
+      expect(reached(3, 5)).toBe(true);
+      expect(reached(2, 5)).toBe(false);
+    });
+
+    it('weighs it as one where the table says size is not to decide it', () => {
+      table.zocMode = 'cost';
+      table.zocExtraCost = 0;
+      Config.instance.engagementCountsSize = false;
+      monsterAt(6, 5).size = 3;
+
+      heroBeside();
+
+      expect(reached(1, 5)).toBe(true);
+    });
+  });
+
   describe('the rules the room answers for', () => {
     afterEach(() => {
       (Config as unknown as { _instance: Config | undefined })._instance = undefined;
