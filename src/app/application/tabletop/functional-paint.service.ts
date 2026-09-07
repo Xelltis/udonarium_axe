@@ -4,7 +4,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellColRow, CellGrid, cellGridOf, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
   blockKey,
   BlockPlacement,
@@ -18,6 +18,8 @@ import {
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { blockOrigin as gridBlockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
 import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
@@ -36,8 +38,7 @@ function masksOn(table: GameTable): GameTableMask[] {
 }
 
 /** Lays one block of terrain wearing everything the block carries. */
-function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number): Terrain {
-  const placed = spec.placement;
+function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number, placed: BlockPlacement | null): Terrain {
   const terrain = Terrain.create(
     spec.name,
     placed ? placed.width : width,
@@ -79,12 +80,36 @@ function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number): 
   return terrain;
 }
 
-/** Where a block goes: exactly where it was, or the corner of the cell the brush painted. */
-function blockOrigin(spec: { placement: BlockPlacement | null }, rect: CellRect, gridSize: number) {
+/**
+ * The exact placement a block is to wear, where this is the very cell it was read from.
+ *
+ * A placement belongs to one block standing on one cell, but it is carried on the spec, and a
+ * spec is what tells one painted layer from another. Painting more cells into the layer an
+ * imported wall made handed every one of them that wall's own position, so the new cells came
+ * out stacked on top of it and nothing at all stood where the brush had been.
+ */
+function placementFor(
+  spec: { placement: BlockPlacement | null },
+  rect: CellRect,
+  grid: CellGrid
+): BlockPlacement | null {
   const placed = spec.placement;
-  return placed
-    ? { name: 'table', x: placed.x, y: placed.y }
-    : { name: 'table', x: rect.col * gridSize, y: rect.row * gridSize };
+  if (!placed) return null;
+  const stood = blockFootprintOf(
+    { location: { x: placed.x, y: placed.y }, rotate: placed.rotate },
+    placed.width,
+    placed.depth,
+    grid
+  );
+  if (!stood) return null;
+  return stood.rect.col === rect.col && stood.rect.row === rect.row ? placed : null;
+}
+
+/** Where a block goes: exactly where it was, or the corner of the cell the brush painted. */
+function blockOrigin(placed: BlockPlacement | null, rect: CellRect, grid: CellGrid) {
+  if (placed) return { name: 'table', x: placed.x, y: placed.y };
+  const corner = gridBlockOrigin({ x: rect.col, y: rect.row, w: rect.width, h: rect.height }, grid);
+  return { name: 'table', x: corner.x, y: corner.y };
 }
 
 /** A mask counts its opacity out of this, so the fraction it shows is the current value over it. */
@@ -201,10 +226,12 @@ export function blockFootprintOf(
   object: { location: { x: number; y: number }; rotate?: number },
   width: number,
   depth: number,
-  gridSize: number
+  grid: CellGrid
 ): { rect: CellRect; placement: BlockPlacement | null } | null {
+  const gridSize = grid.sizePx;
   if (gridSize <= 0) return null;
   const rotate = object.rotate ?? 0;
+  if (isHexGrid(grid.type)) return hexFootprintOf(object, width, depth, grid, rotate);
   const exactCol = object.location.x / gridSize;
   const exactRow = object.location.y / gridSize;
   if (!Number.isFinite(exactCol) || !Number.isFinite(exactRow)) return null;
@@ -229,6 +256,39 @@ export function blockFootprintOf(
   };
 }
 
+/**
+ * The cell a block stands on, on a board of hexes.
+ *
+ * A hex board has no corner to divide by: a block sits in the middle of its cell, and every
+ * other column is dropped half a row. One that is not a single cell standing squarely in the
+ * middle of one keeps its exact placement, as a turned or half-placed block does on squares.
+ */
+function hexFootprintOf(
+  object: { location: { x: number; y: number } },
+  width: number,
+  depth: number,
+  grid: CellGrid,
+  rotate: number
+): { rect: CellRect; placement: BlockPlacement | null } | null {
+  const half = grid.sizePx / 2;
+  const centreX = object.location.x + half;
+  const centreY = object.location.y + half;
+  const index = cellIndexAt(grid, centreX, centreY);
+  if (index < 0) return null;
+  const { col, row } = cellColRow(grid, index);
+  const middle = cellCentre({ x: col, y: row }, grid);
+  const square =
+    rotate % 360 === 0 &&
+    width === 1 &&
+    depth === 1 &&
+    Math.abs(middle.x - centreX) < 0.5 &&
+    Math.abs(middle.y - centreY) < 0.5;
+  return {
+    rect: { col, row, width: 1, height: 1 },
+    placement: square ? null : { x: object.location.x, y: object.location.y, width, depth, rotate },
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class FunctionalPaintService {
   private readonly tableSelecter = inject(TableSelecter);
@@ -242,8 +302,8 @@ export class FunctionalPaintService {
 
     GameObject.batch(() => {
       this.closeCells(table, grid, plan.blocked);
-      this.layTerrain(table, plan);
-      this.layMasks(table, plan);
+      this.layTerrain(table, grid, plan);
+      this.layMasks(table, grid, plan);
     });
     return true;
   }
@@ -260,33 +320,34 @@ export class FunctionalPaintService {
     ensureMoveBlockMapOn(table).write(grid, bits);
   }
 
-  private layTerrain(table: GameTable, plan: FunctionPaintPlan): void {
+  private layTerrain(table: GameTable, grid: CellGrid, plan: FunctionPaintPlan): void {
     this.takeAway(
       terrainsOn(table).map((held) => {
-        const stood = blockFootprintOf(held, held.width, held.depth, table.gridSize);
+        const stood = blockFootprintOf(held, held.width, held.depth, grid);
         return { object: held, key: stood ? blockKey(stood.rect, terrainSpecOf(held, stood.placement)) : null };
       }),
       plan.terrain.remove
     );
 
     for (const block of plan.terrain.add) {
-      const terrain = layTerrainBlock(block.spec, block.width, block.height);
-      terrain.location = blockOrigin(block.spec, block, table.gridSize);
+      const placed = placementFor(block.spec, block, grid);
+      const terrain = layTerrainBlock(block.spec, block.width, block.height, placed);
+      terrain.location = blockOrigin(placed, block, grid);
       table.appendChild(terrain);
     }
   }
 
-  private layMasks(table: GameTable, plan: FunctionPaintPlan): void {
+  private layMasks(table: GameTable, grid: CellGrid, plan: FunctionPaintPlan): void {
     this.takeAway(
       masksOn(table).map((held) => {
-        const stood = blockFootprintOf(held, held.width, held.height, table.gridSize);
+        const stood = blockFootprintOf(held, held.width, held.height, grid);
         return { object: held, key: stood ? blockKey(stood.rect, maskSpecOf(held, stood.placement)) : null };
       }),
       plan.mask.remove
     );
 
     for (const block of plan.mask.add) {
-      const placed = block.spec.placement;
+      const placed = placementFor(block.spec, block, grid);
       const mask = GameTableMask.create(
         block.spec.name,
         placed ? placed.width : block.width,
@@ -302,7 +363,7 @@ export class FunctionalPaintService {
       mask.scratchingGrids = block.spec.scratchingGrids;
       mask.isPreview = block.spec.preview;
       mask.posZ = block.spec.altitude;
-      mask.location = blockOrigin(block.spec, block, table.gridSize);
+      mask.location = blockOrigin(placed, block, grid);
       table.appendChild(mask);
     }
   }
@@ -339,13 +400,13 @@ export class FunctionalPaintService {
       blockedCells: blockedCellKeysOn(table, grid),
       terrainBlocks: terrainsOn(table)
         .map((held) => {
-          const stood = blockFootprintOf(held, held.width, held.depth, table.gridSize);
+          const stood = blockFootprintOf(held, held.width, held.depth, grid);
           return stood ? { ...stood.rect, spec: terrainSpecOf(held, stood.placement) } : null;
         })
         .filter((block): block is TerrainBlock => block !== null),
       maskBlocks: masksOn(table)
         .map((held) => {
-          const stood = blockFootprintOf(held, held.width, held.height, table.gridSize);
+          const stood = blockFootprintOf(held, held.width, held.height, grid);
           return stood ? { ...stood.rect, spec: maskSpecOf(held, stood.placement) } : null;
         })
         .filter((block): block is MaskBlock => block !== null),

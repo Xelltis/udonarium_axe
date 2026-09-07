@@ -121,6 +121,14 @@ describe('planFunctionPaint()', () => {
     expect(plan.terrain.remove.map(rectKey).sort()).toEqual(['1,0,1,1', '2,0,1,1']);
   });
 
+  it('cuts a run of hexes into a block apiece, since one hex block paints one cell', () => {
+    const hexScene = { ...sceneWith(layerOf('terrain', ['0,0', '1,0', '2,0'])), gridType: GridType.HEX_VERTICAL };
+
+    const plan = planFunctionPaint(hexScene, snapshot({ gridType: GridType.HEX_VERTICAL }))!;
+
+    expect(plan.terrain.add.map(rectKey).sort()).toEqual(['0,0,1,1', '1,0,1,1', '2,0,1,1']);
+  });
+
   it('leaves a cell that was already there alone', () => {
     const plan = planFunctionPaint(
       sceneWith(layerOf('mask', ['4,4'])),

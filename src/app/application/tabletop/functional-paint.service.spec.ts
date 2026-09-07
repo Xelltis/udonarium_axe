@@ -12,8 +12,9 @@ import {
   TerrainBlock,
   TerrainPaintSpec,
 } from '@axe/domain/tabletop/function-paint';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { cellCentre } from '@axe/domain/tabletop/map-grid';
 import { ensureMoveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -215,6 +216,38 @@ describe('FunctionalPaintService', () => {
       expect(laid.location.y).toBe(75);
       expect(laid.width).toBe(2);
       expect(laid.depth).toBe(1);
+    });
+
+    it('lays a wall painted elsewhere in the same layer at the cell it was painted on', () => {
+      // A turned wall carries its exact placement, and that placement is part of what tells one
+      // painted layer from another, so every cell painted into its layer arrives carrying it.
+      const turned = Terrain.create('回した壁', 1, 1, 2, '', '');
+      turned.location = { name: 'table', x: 25, y: 75 };
+      turned.rotate = 45;
+      table.appendChild(turned);
+      const read = service.snapshot()!.terrainBlocks[0];
+      turned.destroy();
+
+      service.apply(plan({ terrain: { add: [read, { ...read, col: 5, row: 4, width: 1, height: 1 }], remove: [] } }));
+
+      const laid = terrainOn().sort((a, b) => a.location.x - b.location.x);
+      expect(laid).toHaveLength(2);
+      // The one it was read from stands exactly where it stood; the other on the cell painted.
+      expect([laid[0].location.x, laid[0].location.y]).toEqual([25, 75]);
+      expect([laid[1].location.x, laid[1].location.y]).toEqual([5 * 50, 4 * 50]);
+      expect(laid[1].rotate).toBe(0);
+    });
+
+    it('lays a wall in the middle of its cell on a board of hexes, and reads it back there', () => {
+      table.gridType = GridType.HEX_VERTICAL;
+
+      service.apply(plan({ terrain: { add: [wall({ col: 0, row: 3, width: 1, height: 1 })], remove: [] } }));
+
+      const middle = cellCentre({ x: 0, y: 3 }, { type: table.gridType, sizePx: table.gridSize });
+      const laid = terrainOn()[0];
+      expect(laid.location.x).toBeCloseTo(middle.x - table.gridSize / 2, 5);
+      expect(laid.location.y).toBeCloseTo(middle.y - table.gridSize / 2, 5);
+      expect(service.snapshot()!.terrainBlocks.map(rectKey)).toEqual(['0,3,1,1']);
     });
 
     it('lays a door back as a door', () => {

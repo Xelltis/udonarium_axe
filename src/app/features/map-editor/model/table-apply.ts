@@ -1,4 +1,5 @@
-import { largestRectangles } from '@axe/domain/tabletop/cell-rectangles';
+import { parseCellKey } from '@axe/domain/tabletop/cell-key';
+import { CellRect, largestRectangles } from '@axe/domain/tabletop/cell-rectangles';
 import {
   BlockChange,
   blockChange,
@@ -7,6 +8,7 @@ import {
   MaskBlock,
   TerrainBlock,
 } from '@axe/domain/tabletop/function-paint';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { FunctionLayer, MapScene } from '@axe/features/map-editor/model/scene';
 
@@ -40,7 +42,24 @@ export function cellsForRole(scene: MapScene, role: MapFunctionRole): string[] {
  * standing inside one another. Cells of a layer that start at different heights are cut
  * apart, since one block can only begin at one height.
  */
-function terrainBlocksOf(scene: MapScene, cellPx: number): TerrainBlock[] {
+/**
+ * The cells of a layer, gathered into as few blocks as will stand for them.
+ *
+ * On squares a run of cells is a rectangle and one block stands for a dozen. A terrain on a
+ * hex board is drawn as a flower of `min(width, depth)` cells across, so a block standing for
+ * a run of five would paint one and leave four bare: there, every cell is its own block.
+ */
+function blockRectsOf(cells: readonly string[], hex: boolean): CellRect[] {
+  if (!hex) return largestRectangles(cells);
+  const rects: CellRect[] = [];
+  for (const key of cells) {
+    const cell = parseCellKey(key);
+    if (cell) rects.push({ col: cell.col, row: cell.row, width: 1, height: 1 });
+  }
+  return rects;
+}
+
+function terrainBlocksOf(scene: MapScene, cellPx: number, hex: boolean): TerrainBlock[] {
   const blocks: TerrainBlock[] = [];
   const standing = new Map<string, number>();
   for (const layer of functionLayersOf(scene, 'terrain')) {
@@ -55,7 +74,7 @@ function terrainBlocksOf(scene: MapScene, cellPx: number): TerrainBlock[] {
     }
     for (const level of [...byLevel.keys()].sort((a, b) => a - b)) {
       const raised = level === 0 ? spec : { ...spec, altitude: spec.altitude + level * cellPx };
-      for (const rect of largestRectangles(byLevel.get(level) ?? [])) {
+      for (const rect of blockRectsOf(byLevel.get(level) ?? [], hex)) {
         blocks.push({ ...rect, spec: raised });
       }
     }
@@ -65,10 +84,10 @@ function terrainBlocksOf(scene: MapScene, cellPx: number): TerrainBlock[] {
   return blocks;
 }
 
-function maskBlocksOf(scene: MapScene): MaskBlock[] {
+function maskBlocksOf(scene: MapScene, hex: boolean): MaskBlock[] {
   const blocks: MaskBlock[] = [];
   for (const layer of functionLayersOf(scene, 'mask')) {
-    for (const rect of largestRectangles(Object.keys(layer.cells))) {
+    for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
       blocks.push({ ...rect, spec: layer.spec.mask });
     }
   }
@@ -106,6 +125,7 @@ function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer
  */
 export function planFunctionPaint(scene: MapScene, table: TableSnapshot): FunctionPaintPlan | null {
   if (scene.cols !== table.cols || scene.rows !== table.rows || scene.gridType !== table.gridType) return null;
+  const hex = isHexGrid(table.gridType);
 
   // A role the scene has no layer for is a role it has said nothing about, and saying nothing
   // is not the same as saying none. Emptying a layer still speaks — the layer is there — but a
@@ -113,10 +133,10 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
   return {
     blocked: sceneCarriesFunctions(scene, 'moveBlock') ? cellsForRole(scene, 'moveBlock') : [...table.blockedCells],
     terrain: sceneCarriesFunctions(scene, 'terrain')
-      ? blockChange(terrainBlocksOf(scene, table.cellPx), table.terrainBlocks)
+      ? blockChange(terrainBlocksOf(scene, table.cellPx, hex), table.terrainBlocks)
       : { add: [], remove: [] },
     mask: sceneCarriesFunctions(scene, 'mask')
-      ? blockChange(maskBlocksOf(scene), table.maskBlocks)
+      ? blockChange(maskBlocksOf(scene, hex), table.maskBlocks)
       : { add: [], remove: [] },
   };
 }
