@@ -75,6 +75,9 @@ import {
 } from '@axe/ui/tabletop/shaded-background';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
+/** What is left of a face the fog covers end to end. */
+const HIDDEN_FACE: Record<string, string> = { display: 'none' };
+
 interface TerrainGridBounds {
   left: number;
   top: number;
@@ -775,6 +778,10 @@ export class TerrainComponent {
    */
   private fogMaskStyle(cleared: readonly boolean[], cols: number, rows: number): Record<string, string> | null {
     if (this.isHex() || this.isSlope() || cleared.every((cell) => cell)) return null;
+    // A face standing wholly in ground nobody has reached is not drawn at all. A mask made of
+    // one reading cannot say this: a gradient with nothing kept anywhere is no gradient, and a
+    // face left without a mask is a face shown whole.
+    if (!cleared.some((cell) => cell)) return HIDDEN_FACE;
     const mask = cellGradient(
       cleared.map((cell) => (cell ? 1 : 0)),
       cols,

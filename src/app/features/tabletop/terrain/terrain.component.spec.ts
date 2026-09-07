@@ -768,6 +768,20 @@ describe('TerrainComponent', () => {
       expect(component.isHiddenByFog()).toBe(false);
     });
 
+    it('hides a face the party has reached no cell of', () => {
+      const table = foggyTable();
+      const terrain = Terrain.create('wall', 2, 1, 2, '', '');
+      terrain.location.x = 200;
+      terrain.location.y = 200;
+      table.appendChild(terrain);
+      fixture.componentRef.setInput('terrain', terrain);
+
+      // The east cap stands on the far cell, which nobody has walked to.
+      expect(component['faceFogStyle']('east')).toEqual({ display: 'none' });
+      // The west cap stands on the cell they have, and is drawn as it is.
+      expect(component['faceFogStyle']('west')).toBeNull();
+    });
+
     it('lights the cell a lamp stands against and not the far end of the same wall', () => {
       const table = foggyTable();
       // Ten cells of wall, cleared at both ends, with a lamp against the near one only.
