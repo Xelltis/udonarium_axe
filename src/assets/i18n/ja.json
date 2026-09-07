@@ -2322,7 +2322,8 @@
         "skywayServer": "SkyWayのバックエンドサーバに接続できません。ネットワーク設定を確認してください。",
         "tokenExpired": "SkyWayの認証トークンが期限切れになりました。再接続します。",
         "generic": "ネットワークエラーが発生しました。({{errorType}})",
-        "reconnecting": "再接続を試みます..."
+        "reconnecting": "再接続を試みます...",
+        "lastReconnect": "再接続はこれで最後です。つながらないときは、しばらく置いてから入り直してください。"
       },
       "peerCursor": {
         "noSignal": "{{name}} さんからあなたへの接続確認信号が{{seconds}}秒以上受信できません。通信障害の可能性があります。",

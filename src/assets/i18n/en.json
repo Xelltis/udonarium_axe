@@ -2322,7 +2322,8 @@
         "skywayServer": "Cannot reach the SkyWay backend server. Check your network settings.",
         "tokenExpired": "The SkyWay auth token has expired. Reconnecting...",
         "generic": "A network error occurred. ({{errorType}})",
-        "reconnecting": "Attempting to reconnect..."
+        "reconnecting": "Attempting to reconnect...",
+        "lastReconnect": "This is the last attempt. If it does not connect, leave it a while and come back in."
       },
       "peerCursor": {
         "noSignal": "No keepalive signal from {{name}} for over {{seconds}}s. Connection may be unstable.",

@@ -180,6 +180,25 @@ describe('NetworkEventHandlerService', () => {
     }
   });
 
+  it('leaves the server backoff where it was when another error has been through', async () => {
+    vi.useFakeTimers();
+    try {
+      const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      // Two token errors before anything has opened, which is how a stale identity starts.
+      stubChange.networkError$.emit({ errorType: 'token-expired', errorMessage: '' });
+      stubChange.networkError$.emit({ errorType: 'token-expired', errorMessage: '' });
+      openStandbySpy.mockClear();
+
+      stubChange.networkError$.emit({ errorType: 'server-error', errorMessage: 'cold start' });
+
+      // The first wait of the server's own backoff, not the last of it.
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(openStandbySpy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('reports an expired token and reconnects', () => {
     const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
 

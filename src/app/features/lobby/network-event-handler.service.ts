@@ -26,6 +26,7 @@ export class NetworkEventHandlerService {
     failed: 'feature.lobby.peerReconnect.failed',
   };
   private serverErrorReconnectAttempts = 0;
+  private otherErrorReconnectAttempts = 0;
   private serverErrorReconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private localMode = false;
 
@@ -64,13 +65,20 @@ export class NetworkEventHandlerService {
       }
 
       // Any error can repeat without end - a token the cloud will not accept fails again the
-      // moment it is retried - so the same limit that bounds a server error bounds these too.
-      // Without it the chat fills with the same pair of lines and the reconnects become traffic.
-      if (this.serverErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) return;
-      this.serverErrorReconnectAttempts++;
+      // moment it is retried - so a limit of the same size bounds these too. Counted apart from
+      // the server's: sharing the one count made a server error take its wait from wherever the
+      // other errors had left off, and three tries of three, eight and fifteen seconds came out
+      // as a single wait of fifteen.
+      if (this.otherErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) return;
+      this.otherErrorReconnectAttempts++;
 
       this.chatMessageService.sendSystemMessage(this.resolveNetworkErrorMessage(errorType, errorMessage));
-      this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.reconnecting'));
+      if (this.otherErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) {
+        // The last try. Said now rather than on the next error, which may never come.
+        this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.lastReconnect'));
+      } else {
+        this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.reconnecting'));
+      }
       Network.openStandby(loadIdentity()?.userId);
     }, this.destroyRef);
     this.objectChange.peerConnect$.subscribe(() => {
@@ -122,6 +130,7 @@ export class NetworkEventHandlerService {
 
   private resetServerErrorReconnect(): void {
     this.serverErrorReconnectAttempts = 0;
+    this.otherErrorReconnectAttempts = 0;
     if (this.serverErrorReconnectTimer != null) {
       clearTimeout(this.serverErrorReconnectTimer);
       this.serverErrorReconnectTimer = null;
