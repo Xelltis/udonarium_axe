@@ -52,7 +52,6 @@ export class MoveRangeService {
   private readonly objectChange = inject(ObjectChangeService);
 
   private readonly held = signal<MoveRangeView | null>(null);
-  private terms: WalkTerms | null = null;
 
   /**
    * What is drawn on the table: the piece in hand, or else the piece the reader has picked.
@@ -98,14 +97,11 @@ export class MoveRangeService {
   });
 
   show(character: GameCharacter): void {
-    const built = this.build(character);
-    this.held.set(built?.view ?? null);
-    this.terms = built?.terms ?? null;
+    this.held.set(this.build(character)?.view ?? null);
   }
 
   hide(): void {
     if (this.held() !== null) this.held.set(null);
-    this.terms = null;
   }
 
   /** Everything a piece's reach was worked out from, or nothing where it has none. */
