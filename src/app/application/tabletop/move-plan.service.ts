@@ -206,20 +206,28 @@ export class MovePlanService {
     const way = this.wholeWay();
     if (way.length < 2) return false;
     const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
-    if (!(character instanceof GameCharacter)) return false;
     const table = this.tableSelecter.viewTable;
-    if (!table) return false;
+    // A piece that is no longer on the table cannot walk anywhere, and neither can the move be
+    // left standing: while one is open the table's clicks are all taken by it, so a move whose
+    // piece has been deleted out from under it would leave nothing on the board answering.
+    if (!(character instanceof GameCharacter) || !table) {
+      this.close();
+      return false;
+    }
 
     this.walking = true;
-    const corner = cornerShiftOf(character, table.gridSize);
-    for (const cell of way.slice(1)) {
-      const centre = cellCenterOf(plan.grid, cell);
-      character.location.x = centre.x - corner;
-      character.location.y = centre.y - corner;
-      character.update();
-      await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
+    try {
+      const corner = cornerShiftOf(character, table.gridSize);
+      for (const cell of way.slice(1)) {
+        const centre = cellCenterOf(plan.grid, cell);
+        character.location.x = centre.x - corner;
+        character.location.y = centre.y - corner;
+        character.update();
+        await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
+      }
+    } finally {
+      this.walking = false;
     }
-    this.walking = false;
     SoundEffect.play(PresetSound.piecePut);
     this.close();
     return true;

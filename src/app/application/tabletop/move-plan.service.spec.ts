@@ -255,6 +255,18 @@ describe('MovePlanService', () => {
     expect(piece.location.y).toBe(7 * GRID);
   });
 
+  it('closes a move whose piece has gone from the table', async () => {
+    const piece = pieceAt(5, 5, 4);
+    service.begin(piece);
+    service.lookAt(7 * GRID + 10, 5 * GRID + 10);
+    piece.destroy();
+
+    const walked = await service.run();
+
+    expect(walked).toBe(false);
+    expect(service.plan()).toBeNull();
+  });
+
   it('puts the piece back where it began when the move is called off', () => {
     const piece = pieceAt(5, 5, 4);
     service.begin(piece);
