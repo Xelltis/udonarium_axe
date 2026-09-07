@@ -23,6 +23,7 @@ export const ROOM_PANELS = [
   'dungeonGenerator',
   'roomSnapshot',
   'replay',
+  'tabletopDisplay',
 ] as const;
 
 export type CharacterPanelName = (typeof CHARACTER_PANELS)[number];
@@ -57,6 +58,7 @@ const LABEL_KEYS: Record<PanelName, string> = {
   dungeonGenerator: 'feature.tabletop.dungeonGenerator.title',
   roomSnapshot: 'common.panel.roomSnapshot',
   replay: 'common.panel.replay',
+  tabletopDisplay: 'feature.tabletop.displaySetting.title',
 };
 
 /** Anything unknown reads as the chat palette, which is where a panel slot starts. */

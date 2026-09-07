@@ -2115,6 +2115,26 @@
       },
       "movePlan": {
         "hint": "クリックで移動 / 右クリックで経由地点（同じ場所をもう一度で取り消し）/ Enter で確定 / Esc で中止"
+      },
+      "displaySetting": {
+        "title": "卓上ディスプレイ",
+        "intro": "卓を真上から見て使うための設定です。同じ項目は部屋設定とテーブル設定にも残してあります。",
+        "sectionView": "視点",
+        "seatView": "自分の視点",
+        "viewMode_auto": "自動（卓に従う）",
+        "viewMode_perspective": "3D（斜めから）",
+        "viewMode_flat": "2D（真上から）",
+        "nowFlat": "いまは 2D（真上から）で見ています",
+        "nowPerspective": "いまは 3D（斜めから）で見ています",
+        "tableRecommend": "このテーブルの推奨",
+        "tableRecommendsFlat": "2D（真上から見る）を勧める",
+        "sectionPieces": "コマの見せ方",
+        "sectionAround": "多方向表示",
+        "sectionReach": "メニューと操作",
+        "sectionRealSize": "実寸表示",
+        "scopeOwn": "この画面だけ",
+        "scopeRoom": "部屋・GM",
+        "scopeTable": "テーブル・GM"
       }
     },
     "roomSettings": {
@@ -3539,7 +3559,8 @@
       "viewFlat": "2D 表示（クリックで 3D）",
       "viewPerspective": "3D 表示（クリックで 2D）",
       "viewAutoFlat": "視点: 自動（2D）",
-      "viewAutoPerspective": "視点: 自動（3D）"
+      "viewAutoPerspective": "視点: 自動（3D）",
+      "tabletopDisplay": "卓上ディスプレイ"
     },
     "roomDataDefault": "ルームデータ"
   },

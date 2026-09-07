@@ -2115,6 +2115,26 @@
       },
       "movePlan": {
         "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it"
+      },
+      "displaySetting": {
+        "title": "Tabletop display",
+        "intro": "Everything for playing on a table seen from above. The same controls are still in the room and table settings.",
+        "sectionView": "View",
+        "seatView": "This screen",
+        "viewMode_auto": "As the table asks",
+        "viewMode_perspective": "3D (from an angle)",
+        "viewMode_flat": "2D (from above)",
+        "nowFlat": "Looking straight down on the table",
+        "nowPerspective": "Looking along the table",
+        "tableRecommend": "What this table recommends",
+        "tableRecommendsFlat": "Recommend 2D, seen from above",
+        "sectionPieces": "Pieces",
+        "sectionAround": "All-round display",
+        "sectionReach": "Menus and controls",
+        "sectionRealSize": "Real size",
+        "scopeOwn": "this screen",
+        "scopeRoom": "room, master",
+        "scopeTable": "table, master"
       }
     },
     "roomSettings": {
@@ -3539,7 +3559,8 @@
       "viewFlat": "Flat view (click for depth)",
       "viewPerspective": "Table in depth (click to flatten)",
       "viewAutoFlat": "View: auto (2D)",
-      "viewAutoPerspective": "View: auto (3D)"
+      "viewAutoPerspective": "View: auto (3D)",
+      "tabletopDisplay": "Tabletop display"
     },
     "roomDataDefault": "Room data"
   },

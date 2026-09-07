@@ -174,6 +174,14 @@ export class RoomPanelService {
             ),
           option: { width: 900, height: 640, minWidth: 600, minHeight: 420 },
         };
+      case 'tabletopDisplay':
+        return {
+          load: () =>
+            import('@axe/features/tabletop/tabletop-display-setting/tabletop-display-setting.component').then(
+              (m) => m.TabletopDisplaySettingComponent
+            ),
+          option: { width: 480, height: 640, minWidth: 380, minHeight: 420 },
+        };
     }
   }
 }
