@@ -119,6 +119,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 /** One picture drifting under the board, ready to be drawn. */
 interface BackgroundLayerView {
   readonly identifier: string;
+  readonly imageIdentifier: string;
   readonly imageUrl: string;
   readonly style: Record<string, string>;
   readonly drifts: boolean;
@@ -532,6 +533,13 @@ export class GameTableComponent {
    * anything other than exactly one tile leaves a seam. So the size is read off the loaded
    * picture, and until it arrives the layer stands still rather than guessing.
    */
+  /**
+   * How large each background picture really is, kept by the picture rather than by the layer.
+   *
+   * A size belongs to the image, so two layers wearing the same one ask the same question. Kept
+   * by the layer it was measured on, the table would gather an entry for every layer ever laid
+   * down and never let one go, since nothing here hears about a layer being taken away.
+   */
   private readonly layerNaturalSizes = signal<ReadonlyMap<string, { width: number; height: number }>>(new Map());
 
   protected onBackgroundLayerImageLoad(identifier: string, event: Event): void {
@@ -594,7 +602,7 @@ export class GameTableComponent {
     const board = this.boardPixelSize();
 
     return layers.map((layer) => {
-      const tile = backgroundTileSize(sizes.get(layer.identifier) ?? null, layer.scale, board);
+      const tile = backgroundTileSize(sizes.get(layer.imageIdentifier) ?? null, layer.scale, board);
       const x = moving ? backgroundScrollAnimation(layer.speedX, tile?.width ?? 0) : null;
       const y = moving ? backgroundScrollAnimation(layer.speedY, tile?.height ?? 0) : null;
       const scrollsX = !!x && x.durationSeconds > 0;
@@ -605,6 +613,7 @@ export class GameTableComponent {
 
       return {
         identifier: layer.identifier,
+        imageIdentifier: layer.imageIdentifier,
         imageUrl: image.url,
         style: {
           inset: `0px ${-margin.x}px ${-margin.y}px 0px`,

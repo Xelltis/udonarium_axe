@@ -30,7 +30,7 @@
             alt=""
             [attr.data-testid]="kind + '-layer-probe'"
             [src]="layer.imageUrl | safe: 'resourceUrl'"
-            (load)="onBackgroundLayerImageLoad(layer.identifier, $event)"
+            (load)="onBackgroundLayerImageLoad(layer.imageIdentifier, $event)"
           />
         </div>
       }

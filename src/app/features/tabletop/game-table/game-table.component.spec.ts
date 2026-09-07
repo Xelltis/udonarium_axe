@@ -84,7 +84,7 @@ describe('GameTableComponent', () => {
     const measured = (layer: TableBackgroundLayer, width = 200, height = 100) => {
       (
         component as unknown as { onBackgroundLayerImageLoad(id: string, event: Event): void }
-      ).onBackgroundLayerImageLoad(layer.identifier, {
+      ).onBackgroundLayerImageLoad(layer.imageIdentifier, {
         target: { naturalWidth: width, naturalHeight: height },
       } as unknown as Event);
     };
