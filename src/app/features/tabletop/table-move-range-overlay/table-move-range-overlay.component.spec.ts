@@ -1,6 +1,7 @@
 import { WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MoveRangeService, MoveRangeView } from '@axe/application/tabletop/move-range.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -116,6 +117,18 @@ describe('TableMoveRangeOverlayComponent', () => {
     fixture.detectChanges();
 
     expect(filled).toContain(MOVE_RANGE_OTHERS_FILL);
+  });
+
+  it('leaves out somebody walking a piece the fog keeps from this reader', () => {
+    const table = tableOf();
+    const piece = pieceAt(1, 1, 3);
+    otherWalking(table.identifier, piece.identifier, [cellIndexOf(grid, 1, 1), cellIndexOf(grid, 2, 1)]);
+    vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockReturnValue(false);
+
+    fixture.detectChanges();
+
+    expect(stroked).not.toContain(MOVE_WAY_OTHERS);
+    expect(filled).not.toContain(MOVE_RANGE_OTHERS_FILL);
   });
 
   it('leaves out somebody walking on a table this reader is not looking at', () => {

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, injec
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MovePlan, MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -47,6 +48,7 @@ export class TableMoveRangeOverlayComponent {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly vision = inject(VisionService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('rangeCanvas');
 
   protected readonly view = this.moveRange.range;
@@ -79,6 +81,10 @@ export class TableMoveRangeOverlayComponent {
       const piece = this.objectStore.get<GameCharacter>(cursor.movingCharacterIdentifier);
       if (!(piece instanceof GameCharacter)) continue;
       this.objectChange.versionOf(piece.identifier)();
+      // A piece the reader cannot see is not drawn walking either. The piece's own picture is
+      // taken off the board by the fog, and a reach and a way laid down from its cells would
+      // say where it stands and where it is going just as plainly.
+      if (!this.vision.isTokenVisible(piece)) continue;
 
       // Worked out here rather than sent: a reach is shaped by what its owner can see, and
       // the dents an unseen enemy leaves in one would say where it stands.
