@@ -14,7 +14,6 @@ import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-displ
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { emitFileLoaded } from '@axe/core/event/domain-events';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -24,6 +23,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-message.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatMessageComponent', () => {
@@ -846,7 +846,7 @@ describe('ChatMessageComponent', () => {
       const message = new ChatMessage();
       message.initialize();
       // What `changeable` compares against, so an edit is allowed whatever ran before this.
-      message.from = getPeerContext().userId;
+      message.from = beMyself().userId;
       message.to = '';
       message.name = 'アリス';
       message.tag = '';
