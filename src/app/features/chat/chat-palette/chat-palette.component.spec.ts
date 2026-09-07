@@ -1,11 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
+import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { childrenChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatPaletteComponent } from '@axe/features/chat/chat-palette/chat-palette.component';
@@ -114,6 +116,34 @@ describe('ChatPaletteComponent', () => {
       expect(send.mock.calls[0][2]).toEqual(
         expect.objectContaining({ bubbles: { light: '#ffeeee', dark: '#332211' } })
       );
+    });
+  });
+
+  describe('sending a line to the ticker', () => {
+    it('shows the line on the ticker where the switch is on, as the chat window does', () => {
+      const speaker = createChar('術者');
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.character.set(speaker);
+      component.chatTabidentifier.set(tab.identifier);
+      const said = { identifier: 'said-line' } as ChatMessage;
+      vi.spyOn(TestBed.inject(CharacterMacroService), 'send').mockReturnValue(said);
+      const shown = vi
+        .spyOn(TestBed.inject(ChatTickerSelectionService), 'showMessage')
+        .mockImplementation(() => undefined);
+
+      component.sendChat({
+        text: 'こんにちは',
+        gameSystem: null as unknown as GameSystemClass,
+        sendFrom: speaker.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#112233',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: true,
+      });
+
+      expect(shown).toHaveBeenCalledWith('said-line');
     });
   });
 

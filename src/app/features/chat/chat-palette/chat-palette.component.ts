@@ -13,6 +13,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -62,6 +63,7 @@ export class ChatPaletteComponent {
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
   private readonly characterMacro = inject(CharacterMacroService);
+  private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
@@ -295,7 +297,7 @@ export class ChatPaletteComponent {
     const character = this.character();
     if (!this.chatTab || !character || !this.palette) return;
 
-    this.characterMacro.send(character, value.text, {
+    const sent = this.characterMacro.send(character, value.text, {
       tab: this.chatTab,
       gameSystem: value.gameSystem,
       sendFrom: value.sendFrom,
@@ -306,6 +308,9 @@ export class ChatPaletteComponent {
       quoteOf: value.quoteOf,
       bubbles: { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' },
     });
+    // The palette carries the same input as the chat window, ticker switch and all, so a line
+    // sent from it goes to the ticker on the same terms.
+    if (sent && value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
   }
 
   onClickPaletteRow(row: PaletteRow): void {
