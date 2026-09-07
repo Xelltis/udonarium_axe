@@ -78,13 +78,11 @@
               transform: 'translateZ(' + (height() / (isSlope() ? 2 : 1)) * gridSize + 'px)' + floorModCss(),
               ...hexFloorDimStyle(),
               ...topShade().style,
+              ...(topFog() ?? {}),
             }"
             [style.background-image]="topShade().image | safe: 'style'"
             [style.clip-path]="hexFloorClipPath()"
           ></div>
-          @if (topFog(); as veil) {
-            <div class="backface-hidden transform-3d" [ngStyle]="veil"></div>
-          }
         }
       }
       @if (showsGrid()) {
@@ -170,15 +168,13 @@
                 class="absolute top-0 left-0 size-full origin-[50%_100%] transform-[translateY(-100%)_rotateX(90deg)_rotateZ(180deg)_scaleX(-1)] backface-hidden transform-3d"
                 [style.width.px]="width() * gridSize"
                 [style.height.px]="height() * gridSize"
+                [ngStyle]="northFog() ?? {}"
               >
                 <div
                   class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
                   [ngStyle]="northShade().style"
                   [style.background-image]="northShade().image | safe: 'style'"
                 ></div>
-                @if (northFog(); as veil) {
-                  <div class="backface-hidden" [ngStyle]="veil"></div>
-                }
                 @if (visionService.active()) {
                   <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
                     @for (pool of northLights(); track $index) {
@@ -209,15 +205,13 @@
                 class="absolute bottom-0 left-0 size-full origin-[50%_100%] transform-[rotateX(-90deg)] backface-hidden transform-3d"
                 [style.width.px]="width() * gridSize"
                 [style.height.px]="height() * gridSize"
+                [ngStyle]="southFog() ?? {}"
               >
                 <div
                   class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
                   [ngStyle]="southShade().style"
                   [style.background-image]="southShade().image | safe: 'style'"
                 ></div>
-                @if (southFog(); as veil) {
-                  <div class="backface-hidden" [ngStyle]="veil"></div>
-                }
                 @if (visionService.active()) {
                   <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
                     @for (pool of southLights(); track $index) {
@@ -248,15 +242,13 @@
                 class="absolute top-0 left-0 size-full origin-[0%_0%] transform-[rotateZ(90deg)_rotateX(-90deg)_scaleX(-1)_translateX(-100%)_translateY(-100%)] backface-hidden transform-3d"
                 [style.width.px]="depth() * gridSize"
                 [style.height.px]="height() * gridSize"
+                [ngStyle]="westFog() ?? {}"
               >
                 <div
                   class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
                   [ngStyle]="westShade().style"
                   [style.background-image]="westShade().image | safe: 'style'"
                 ></div>
-                @if (westFog(); as veil) {
-                  <div class="backface-hidden" [ngStyle]="veil"></div>
-                }
                 @if (visionService.active()) {
                   <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
                     @for (pool of westLights(); track $index) {
@@ -287,15 +279,13 @@
                 class="absolute top-0 right-0 size-full origin-[100%_0%] transform-[rotateZ(-90deg)_rotateX(-90deg)_translateY(-100%)] backface-hidden transform-3d"
                 [style.width.px]="depth() * gridSize"
                 [style.height.px]="height() * gridSize"
+                [ngStyle]="eastFog() ?? {}"
               >
                 <div
                   class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
                   [ngStyle]="eastShade().style"
                   [style.background-image]="eastShade().image | safe: 'style'"
                 ></div>
-                @if (eastFog(); as veil) {
-                  <div class="backface-hidden" [ngStyle]="veil"></div>
-                }
                 @if (visionService.active()) {
                   <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
                     @for (pool of eastLights(); track $index) {

@@ -61,10 +61,11 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { allCleared, fogClipPath, FogClipRect, fogClipRuns } from '@axe/ui/tabletop/fog-clip';
 import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import {
+  cellGradient,
+  DEFAULT_SHADE_RGB,
   ShadedBackground,
   shadedBackgroundGrid,
   shadedBackgroundImage,
@@ -762,28 +763,36 @@ export class TerrainComponent {
   });
 
   /**
-   * The part of a face the fog covers.
+   * What the fog leaves of a face, as a mask over it.
    *
-   * Covered rather than cut away: a wall is a box, and a box with its faces cut is a shell
-   * with holes in it, which from a low angle is seen straight through. The fog is laid over
-   * the part nobody has reached instead, and the box stays closed.
+   * A block standing in ground nobody has walked to is not there to be seen. Painted over in
+   * the colour of the fog it stood up out of the mist as a solid slab of it, and the shape of
+   * the slab told the party the wall was there. Taken away instead, the face thins out across
+   * the cell at the edge of what has been reached, the way the mist on the floor does, and the
+   * rest of the block is simply gone.
    *
-   * A hex board and a slope carry a clip of their own, and two cannot be laid on the one
-   * element, so those are left to be shown or hidden whole as they were.
+   * A hex board and a slope carry a clip of their own and are shown or hidden whole.
    */
-  private fogClip(rects: FogClipRect[], cover: TerrainFogCover | null): string | null {
-    if (!cover || this.isHex() || this.isSlope() || allCleared(cover.cleared) || rects.length === 0) return null;
-    return fogClipPath(rects);
-  }
-
-  private fogVeilStyle(clip: string | null): Record<string, string> | null {
-    if (!clip) return null;
+  private fogMaskStyle(cleared: readonly boolean[], cols: number, rows: number): Record<string, string> | null {
+    if (this.isHex() || this.isSlope() || cleared.every((cell) => cell)) return null;
+    const mask = cellGradient(
+      cleared.map((cell) => (cell ? 1 : 0)),
+      cols,
+      rows,
+      DEFAULT_SHADE_RGB
+    );
+    if (!mask) return null;
     return {
-      position: 'absolute',
-      inset: '0',
-      'clip-path': clip,
-      'background-color': this.visionService.fogColor(),
-      'pointer-events': 'none',
+      'mask-image': mask.image,
+      '-webkit-mask-image': mask.image,
+      'mask-size': mask.size,
+      '-webkit-mask-size': mask.size,
+      'mask-position': mask.position,
+      '-webkit-mask-position': mask.position,
+      'mask-repeat': 'no-repeat',
+      '-webkit-mask-repeat': 'no-repeat',
+      'mask-composite': 'add',
+      '-webkit-mask-composite': 'source-over',
     };
   }
 
@@ -883,24 +892,14 @@ export class TerrainComponent {
   private faceFogStyle(side: WallSide): Record<string, string> | null {
     const cover = this.fogCover();
     if (!cover) return null;
-    const height = this.height() * this.gridSize;
-    const covered = this.edgeCells(cover, side).map((cell) => !cell);
-    return this.fogVeilStyle(this.fogClip(fogClipRuns(covered, this.gridSize, 0, height), cover));
+    const cleared = this.edgeCells(cover, side);
+    return this.fogMaskStyle(cleared, cleared.length, 1);
   }
 
   private topFogStyle(): Record<string, string> | null {
     const cover = this.fogCover();
     if (!cover) return null;
-    const rects: FogClipRect[] = [];
-    for (let row = 0; row < cover.rows; row++) {
-      const line = cover.cleared.slice(row * cover.cols, (row + 1) * cover.cols).map((cell) => !cell);
-      rects.push(...fogClipRuns(line, this.gridSize, row * this.gridSize, this.gridSize));
-    }
-    const style = this.fogVeilStyle(this.fogClip(rects, cover));
-    if (!style) return null;
-    // The top face is lifted to the height of the block, and its veil rides with it.
-    const lift = (this.height() / (this.isSlope() ? 2 : 1)) * this.gridSize;
-    return { ...style, transform: `translateZ(${lift}px)` + this.floorModCss() };
+    return this.fogMaskStyle(cover.cleared, cover.cols, cover.rows);
   }
 
   readonly centerBrightness = computed(() => {

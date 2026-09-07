@@ -718,7 +718,7 @@ describe('TerrainComponent', () => {
     });
   });
 
-  describe('the fog laid over the part of it nobody has reached', () => {
+  describe('the fog taking away the part of it nobody has reached', () => {
     /** Where a cell at (200, 200) falls on the twenty cell board these tests use. */
     const REACHED_CELL = 4 * 20 + 4;
 
@@ -761,8 +761,10 @@ describe('TerrainComponent', () => {
 
       const veil = component['topFogStyle']() as Record<string, string> | null;
       expect(veil).not.toBeNull();
-      expect(veil!['clip-path']).toBe('path("M 50 0 H 100 V 50 H 50 Z")');
-      expect(veil!['background-color']).toBe('#aeb9c4');
+      expect(veil!['mask-image']).toContain('linear-gradient(to right');
+      expect(veil!['-webkit-mask-image']).toBe(veil!['mask-image']);
+      // Kept over the cell the party reached, taken away over the one it has not.
+      expect(alphasOf(veil!['mask-image'])).toEqual([1, 0]);
       expect(component.isHiddenByFog()).toBe(false);
     });
 
@@ -873,9 +875,11 @@ describe('TerrainComponent', () => {
       table.appendChild(terrain);
       fixture.componentRef.setInput('terrain', terrain);
 
-      expect(component['topFogStyle']()!['clip-path']).toBe('path("M 0 50 H 50 V 100 H 0 Z")');
-      expect(component['faceFogStyle']('east')!['clip-path']).toBe('path("M 0 0 H 50 V 100 H 0 Z")');
-      expect(component['faceFogStyle']('west')!['clip-path']).toBe('path("M 0 0 H 50 V 100 H 0 Z")');
+      const top = component['topFogStyle']()!;
+      expect(top['mask-size']).toBe('100% 50%, 100% 50%');
+      expect(alphasOf(top['mask-image'])).toEqual([1, 0]);
+      expect(alphasOf(component['faceFogStyle']('east')!['mask-image'])).toEqual([0, 1]);
+      expect(alphasOf(component['faceFogStyle']('west')!['mask-image'])).toEqual([0, 1]);
     });
 
     it('measures a pool and a silhouette on a side face from the south end', () => {
