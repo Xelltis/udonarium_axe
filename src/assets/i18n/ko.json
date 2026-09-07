@@ -2219,7 +2219,7 @@
       "sectionView3d": "3D 표시",
       "sectionView2d": "2D 표시",
       "imageBillboard": "말 이미지를 항상 카메라 쪽으로",
-      "tickerHint": "채팅의 \"티커\" 탭에 올린 글을 화면 네 변으로 흘려보냅니다.",
+      "tickerHint": "채팅 입력란의 \"티커\" 버튼을 켜고 보낸 발언을 화면 네 변으로 흘려보냅니다.",
       "sectionMeasure": "화면 실측",
       "measureHint": "ID-1 규격 카드를 자로 삼아 이 화면의 실제 크기를 측정합니다. 측정값은 이 화면의 이번 세션에만 남습니다.",
       "realSizeWhere": "실제 크기로 표시하려면 먼저 유틸리티에서 화면을 측정해 주세요.",

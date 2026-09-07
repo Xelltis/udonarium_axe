@@ -2219,7 +2219,7 @@
       "sectionView3d": "Seen along the table",
       "sectionView2d": "Seen from above",
       "imageBillboard": "Keep piece images facing the reader",
-      "tickerHint": "Runs what is posted to the chat ticker tab around the four edges of the screen.",
+      "tickerHint": "Runs a line sent with the ticker button in the chat input around the four edges of the screen.",
       "sectionMeasure": "Measuring this screen",
       "measureHint": "Measures this screen against an ID-1 card. What is measured stays on this screen for this session alone.",
       "realSizeWhere": "Measure the screen under Utility first, then a square can be drawn at its real size.",
