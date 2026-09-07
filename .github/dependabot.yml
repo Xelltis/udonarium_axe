@@ -25,6 +25,15 @@ updates:
       # 全 spec が落ちる。22.1.4 に固定しているので、上がってくる提案も止める。
       - dependency-name: '@angular/build'
       - dependency-name: '@angular/cli'
+      # vitest 5 は @angular/build が受け付けない（peer は vitest ^4.0.8。22.1.7 でも同じ）。
+      # ng test はそのビルダー越しに走るので、上げると npm install の時点で解決しない。
+      # Angular 側が vitest 5 を受けるまでは提案も止める。
+      - dependency-name: vitest
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@vitest/coverage-v8'
+        update-types:
+          - version-update:semver-major
     groups:
       angular:
         patterns:
