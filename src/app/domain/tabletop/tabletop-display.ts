@@ -184,6 +184,9 @@ export function normalizeTabletopDisplayOwn(value: unknown): TabletopDisplayOwn 
  * The table is read first so that a room saved while these were still the table's own keeps
  * looking the way it did until this screen says otherwise.
  */
-export function resolveTabletopDisplay(table: unknown, own: TabletopDisplayOwn): TabletopDisplaySettings {
+export function resolveTabletopDisplay(
+  table: Partial<TabletopDisplaySettings> | null | undefined,
+  own: TabletopDisplayOwn
+): TabletopDisplaySettings {
   return normalizeTabletopDisplaySettings({ ...normalizeTabletopDisplaySettings(table), ...own });
 }
