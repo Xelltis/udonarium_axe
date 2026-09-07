@@ -24,7 +24,11 @@ test.describe('セッション進行まわり', () => {
   });
 
   test('自動保存はまだ世代が無いことを伝え、その場で保存できること', async ({ page }) => {
-    await openPanel(page, '自動保存 / 復元');
+    // 自動保存は部屋設定の「自動保存」タブに入っている。
+    await openPanel(page, '部屋設定');
+    const settings = page.locator('room-settings-panel');
+    await expect(settings).toBeVisible({ timeout: 15000 });
+    await settings.locator('[data-testid="room-settings-tab-archive"]').click();
 
     const snapshot = page.locator('app-room-snapshot-panel');
     await expect(snapshot).toBeVisible({ timeout: 15000 });
