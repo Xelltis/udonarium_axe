@@ -138,6 +138,31 @@ describe('ObjectSerializer', () => {
     });
   });
 
+  describe('an attribute a number or a flag cannot be read from', () => {
+    function parsed(xml: string): Record<string, unknown> {
+      const element = new DOMParser().parseFromString(xml, 'text/xml').documentElement;
+      const syncData: Record<string, unknown> = { count: 7, ready: true, name: 'kept' };
+      ObjectSerializer.parseAttributes(syncData, element.attributes);
+      return syncData;
+    }
+
+    it('leaves the field at what it already held, rather than failing the whole object', () => {
+      expect(parsed('<node count="" ready="" name="" />')).toEqual({ count: 7, ready: true, name: '' });
+    });
+
+    it('still reads everything the attribute does say', () => {
+      expect(parsed('<node count="3" ready="false" name="written" />')).toEqual({
+        count: 3,
+        ready: false,
+        name: 'written',
+      });
+    });
+
+    it('passes over a word where a number was written down', () => {
+      expect(parsed('<node count="many" />').count).toBe(7);
+    });
+  });
+
   describe('the xml round trip', () => {
     it('writing a data element out and reading it back', () => {
       const original = DataElement.create('testName', 'testValue', {}, 'round-trip-id');

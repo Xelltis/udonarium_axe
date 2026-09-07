@@ -4,15 +4,18 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { CellGrid, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
-import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
-import { asZocMode, isHostileTo, zoneOfControl } from '@axe/domain/tabletop/move/zone-of-control';
+import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { reachableCells, ReachOptions } from '@axe/domain/tabletop/move/reachable-cells';
+import { isHostileTo, zoneOfControl } from '@axe/domain/tabletop/move/zone-of-control';
+import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 
@@ -24,6 +27,20 @@ export interface MoveRangeView {
   held: CellBits | null;
   /** Whether the reach itself is drawn, or only the ground held against the piece. */
   showsReach: boolean;
+}
+
+/** What it takes to price a way somebody actually walked, kept from when the piece was lifted. */
+export interface WalkTerms {
+  walk: number;
+  blocked: CellBits;
+  options: ReachOptions;
+}
+
+/** Everything a walk is worked out from, for anyone who wants to work out a different one. */
+export interface ReachTerms extends WalkTerms {
+  grid: CellGrid;
+  start: number;
+  cells: CellBits;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -53,6 +70,7 @@ export class MoveRangeService {
     // Everything this answer turns on is read before any of it can send us away early, or a
     // computed that says no once would go on saying it however the table changed afterwards.
     this.objectChange.versionOf(this.tableSelecter.identifier)();
+    this.objectChange.versionOf('Config')();
     const table = this.tableSelecter.viewTable;
     if (table) this.objectChange.versionOf(table.identifier)();
     const chosen = this.selection.selectedObject();
@@ -64,38 +82,66 @@ export class MoveRangeService {
     for (const piece of standing) this.objectChange.versionOf(piece.identifier)();
 
     if (!table) return null;
-    const wantsReach = table.moveRangeAlways;
-    const wantsHeld = table.zocAlways;
+    const rules = this.rulesOf(table);
+    const wantsReach = rules.moveRangeAlways;
+    const wantsHeld = rules.zocAlways;
     if (!wantsReach && !wantsHeld) return null;
     if (!chosen) return null;
 
     const character = this.objectStore.get<GameCharacter>(chosen.identifier);
     if (!(character instanceof GameCharacter)) return null;
 
-    const view = this.build(character);
-    if (!view) return null;
-    return { ...view, held: wantsHeld ? view.held : null, showsReach: wantsReach };
+    const built = this.build(character);
+    if (!built) return null;
+    return { ...built.view, held: wantsHeld ? built.view.held : null, showsReach: wantsReach };
   });
 
   show(character: GameCharacter): void {
-    this.held.set(this.build(character));
+    this.held.set(this.build(character)?.view ?? null);
   }
 
   hide(): void {
     if (this.held() !== null) this.held.set(null);
   }
 
-  private build(character: GameCharacter): MoveRangeView | null {
+  /** Everything a piece's reach was worked out from, or nothing where it has none. */
+  termsOf(character: GameCharacter): ReachTerms | null {
+    const built = this.build(character);
+    if (!built) return null;
+    return { ...built.terms, grid: built.view.grid, start: built.start, cells: built.view.cells };
+  }
+
+  /** What the table is played by, which the room answers for wherever it has been asked. */
+  private rulesOf(table: GameTable | null): RoomRules {
+    return resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table);
+  }
+
+  /** Whether a piece has a reach to be had at all, told without working one out. */
+  canPlan(character: GameCharacter): boolean {
+    return this.opening(character) !== null;
+  }
+
+  /** What a reach needs before any ground is walked: a table, the rules for it, and a piece that moves. */
+  private opening(character: GameCharacter): { table: GameTable; rules: RoomRules; walk: number } | null {
     const table = this.tableSelecter.viewTable;
-    if (!table || !table.moveRangeEnabled) return null;
+    if (!table) return null;
+    const rules = this.rulesOf(table);
+    if (!rules.moveRangeEnabled) return null;
     if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return null;
     if (surfaceOf(character) !== 'floor') return null;
 
-    const walk = moveCellsOf(character, table.moveRangeElementNames, table.cellDistance, table.cellDistanceUnit);
+    const walk = moveCellsOf(character, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
     if (walk === null || walk < 1) return null;
+    return { table, rules, walk };
+  }
+
+  private build(character: GameCharacter): { view: MoveRangeView; terms: WalkTerms; start: number } | null {
+    const opened = this.opening(character);
+    if (!opened) return null;
+    const { table, rules, walk } = opened;
 
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
-    const start = startCellOf(grid, character, table);
+    const start = pieceCellOf(grid, character, table.gridSize);
     if (start < 0) return null;
 
     const blocked = blockedByTerrain(grid, table.terrains);
@@ -105,19 +151,24 @@ export class MoveRangeService {
     const standing = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     // Two pieces that may not share a cell may not pass through one either: the ground
     // somebody stands on is in the way, and a reach has to go round it.
-    if (!table.piecesShareCells) blocked.or(occupiedCells(grid, standing, character.identifier));
+    if (!rules.piecesShareCells) blocked.or(occupiedCells(grid, standing, character.identifier));
 
-    const mode = asZocMode(table.zocMode);
-    const held = mode === 'none' ? null : this.heldGroundAround(grid, character, standing, table);
+    const mode = rules.zocMode;
+    const held = mode === 'none' ? null : this.heldGroundAround(grid, character, standing, rules);
     if (held && mode === 'block') blocked.or(held);
-    const extra = Math.max(0, Math.floor(table.zocExtraCost));
+    const extra = Math.max(0, Math.floor(rules.zocExtraCost));
 
-    const cells = reachableCells(grid, start, walk, (index) => blocked.get(index), {
-      cutsCorners: table.moveDiagonally,
+    const options: ReachOptions = {
+      cutsCorners: rules.moveDiagonally,
       costOf: held && mode === 'cost' ? (index) => (held.get(index) ? 1 + extra : 1) : undefined,
       stopsAt: held && mode === 'stop' ? (index) => held.get(index) : undefined,
-    });
-    return { characterIdentifier: character.identifier, grid, cells, held, showsReach: true };
+    };
+    const cells = reachableCells(grid, start, walk, (index) => blocked.get(index), options);
+    return {
+      view: { characterIdentifier: character.identifier, grid, cells, held, showsReach: true },
+      terms: { walk, blocked, options },
+      start,
+    };
   }
 
   /**
@@ -131,25 +182,10 @@ export class MoveRangeService {
     grid: CellGrid,
     mover: GameCharacter,
     standing: readonly GameCharacter[],
-    table: GameTable
+    rules: RoomRules
   ): CellBits | null {
     const foes = standing.filter((piece) => isHostileTo(piece, mover) && this.vision.isTokenVisible(piece));
-    const held = zoneOfControl(grid, foes, table.zocRange, table.moveDiagonally);
+    const held = zoneOfControl(grid, foes, rules.zocRange, rules.moveDiagonally);
     return held.isEmpty ? null : held;
   }
-}
-
-/**
- * The cell a piece walks out of.
- *
- * A piece an odd number of cells across has a middle cell to start from. One an even number
- * across has its middle on the corner where four cells meet, and asking which cell that
- * point is in answers with the one down and to the right, which throws the whole reach a
- * cell that way. It steps back half a cell to the one up and to the left instead.
- */
-function startCellOf(grid: CellGrid, character: GameCharacter, table: GameTable): number {
-  const size = Math.max(1, character.size);
-  const middle = (table.gridSize * size) / 2;
-  const onACorner = size % 2 === 0 ? table.gridSize / 2 : 0;
-  return cellIndexAt(grid, character.location.x + middle - onACorner, character.location.y + middle - onACorner);
 }

@@ -25,6 +25,35 @@ describe('ModalService', () => {
   });
 
   describe('open lifecycle', () => {
+    it('passes an action direction to the modal it opens', async () => {
+      const service = TestBed.inject(ModalService);
+      const rootInjector = TestBed.inject(Injector);
+      let destroyCallback: (() => void) | undefined;
+      let childInjector: Injector | undefined;
+      const panelComponentRef = {
+        instance: { content: () => ({ createComponent: () => ({ instance: {} }) }) },
+        destroy: () => destroyCallback?.(),
+        onDestroy: (callback: () => void) => (destroyCallback = callback),
+      };
+      const parentViewContainerRef = {
+        injector: rootInjector,
+        length: 0,
+        createComponent: (_component: unknown, options: { injector: Injector }) => {
+          childInjector = options.injector;
+          return panelComponentRef;
+        },
+      } as unknown as ViewContainerRef;
+
+      const promise = service.runWithInitialRotation(270, () =>
+        service.open(class {}, undefined, parentViewContainerRef)
+      );
+      const childService = childInjector!.get(ModalService);
+      expect(childService.rotationDegrees()).toBe(270);
+
+      childService.resolve('done');
+      await expect(promise).resolves.toBe('done');
+    });
+
     it('shows again after resolving, since the count is only decremented once', async () => {
       const service = TestBed.inject(ModalService);
       const rootInjector = TestBed.inject(Injector);

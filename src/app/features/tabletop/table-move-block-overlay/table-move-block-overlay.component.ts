@@ -2,18 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, injec
 import { MoveBlockService } from '@axe/application/tabletop/move-block.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { CellGrid, cellGridOf, cellIndexAt, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
+import { CellGrid, cellGridOf, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
 import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
 import { overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
-import { translateZCss, Z_OFFSET_MASK_PX, Z_OFFSET_TALL_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
+import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
 export const MOVE_BLOCK_RESTING_FILL = 'rgba(220, 60, 60, 0.16)';
-export const MOVE_BLOCK_PAINTING_FILL = 'rgba(220, 60, 60, 0.45)';
 
 interface MoveBlockView {
   grid: CellGrid;
   cells: CellBits;
-  painting: boolean;
 }
 
 @Component({
@@ -27,20 +25,15 @@ export class TableMoveBlockOverlayComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('blockCanvas');
 
-  protected readonly zTransform = computed(() =>
-    translateZCss(this.view()?.painting ? Z_OFFSET_TALL_OBJECT_PX : Z_OFFSET_MASK_PX)
-  );
+  protected readonly zTransform = computed(() => translateZCss(Z_OFFSET_MASK_PX));
 
   protected readonly view = computed<MoveBlockView | null>(() => {
-    if (!this.moveBlock.canPaint()) return null;
-
     const table = this.tabletopService.currentTableVersion();
     if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return null;
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
-    const painting = this.moveBlock.isPainting();
-    const cells = this.moveBlock.paintedOn(grid);
-    if (!cells && !painting) return null;
-    return { grid, cells: cells ?? new CellBits(grid.cols * grid.rows), painting };
+    const cells = this.moveBlock.blockedOn(grid);
+    if (!cells || cells.isEmpty) return null;
+    return { grid, cells };
   });
 
   constructor() {
@@ -50,36 +43,6 @@ export class TableMoveBlockOverlayComponent {
       if (!view || !canvas) return;
       this.paint(canvas, view);
     });
-  }
-
-  protected onPointerDown(event: PointerEvent): void {
-    if (!this.view()?.painting) return;
-    event.stopPropagation();
-    event.preventDefault();
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
-    this.paintFrom(event);
-  }
-
-  protected onPointerMove(event: PointerEvent): void {
-    if (!this.view()?.painting || event.buttons < 1) return;
-    event.stopPropagation();
-    event.preventDefault();
-    this.paintFrom(event);
-  }
-
-  protected onPointerUp(event: PointerEvent): void {
-    if (!this.view()?.painting) return;
-    event.stopPropagation();
-    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
-    this.moveBlock.endStroke();
-  }
-
-  private paintFrom(event: PointerEvent): void {
-    const view = this.view();
-    if (!view) return;
-    const extent = gridExtentPx(view.grid);
-    const cell = cellIndexAt(view.grid, event.offsetX + extent.minX, event.offsetY + extent.minY);
-    this.moveBlock.paintAt(view.grid, cell);
   }
 
   private paint(canvas: HTMLCanvasElement, view: MoveBlockView): void {
@@ -107,7 +70,7 @@ export class TableMoveBlockOverlayComponent {
       for (let corner = 1; corner < polygon.length; corner++) area.lineTo(polygon[corner].x, polygon[corner].y);
       area.closePath();
     }
-    context.fillStyle = view.painting ? MOVE_BLOCK_PAINTING_FILL : MOVE_BLOCK_RESTING_FILL;
+    context.fillStyle = MOVE_BLOCK_RESTING_FILL;
     context.fill(area);
     context.setTransform(1, 0, 0, 1, 0, 0);
   }

@@ -1,6 +1,7 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { hexCircumradius, hexStartAngle, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { catmullRomSegments } from '@axe/features/map-editor/model/curve-geometry';
+import { FUNCTION_ROLE_INK } from '@axe/features/map-editor/model/function-layer';
 import { cellCenter, pointToCell } from '@axe/features/map-editor/model/grid-cells';
 import {
   FillStyle,
@@ -29,6 +30,13 @@ export interface RenderHelpers {
 export interface RenderOptions {
   drawGrid?: boolean;
   hideTextId?: string;
+  /**
+   * Whether the cells painted for what they do are drawn.
+   *
+   * Off unless asked, so a map exported without a thought about it comes out as the picture
+   * alone rather than with the workings hatched across it.
+   */
+  drawFunctionLayers?: boolean;
 }
 
 function resolveFill(fill: FillStyle, helpers: RenderHelpers, cellPx: number): string | CanvasPattern | null {
@@ -478,6 +486,23 @@ export function renderScene(
       case 'image':
         for (const item of layer.items) drawImageItem(ctx, item, helpers, layer.opacity, scene);
         break;
+      case 'function': {
+        if (!options?.drawFunctionLayers) break;
+        const hex = isHexGrid(scene.gridType);
+        const s = hex ? hexCircumradius(scene.cellPx) : 0;
+        const startAngle = hex ? hexStartAngle(isFlatTopGrid(scene.gridType)) : 0;
+        ctx.fillStyle = FUNCTION_ROLE_INK[layer.role];
+        for (const key of Object.keys(layer.cells)) {
+          const { col, row } = parseCellKey(key);
+          if (hex) {
+            const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
+            fillHexCell(ctx, x, y, s, startAngle);
+          } else {
+            ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
+          }
+        }
+        break;
+      }
     }
   }
 

@@ -1,16 +1,19 @@
 import { inject, Injectable } from '@angular/core';
 import { LoggerService } from '@axe/application/logging/logger.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { emitLoadConfig } from '@axe/core/event/domain-events';
 
 export interface AppConfig {
   backend: {
     url: string;
   };
+  localMode: boolean;
 }
 
 @Injectable()
 export class AppConfigService {
   private readonly logger = inject(LoggerService);
+  private readonly localMode = inject(LocalModePreferenceService);
 
   constructor() {}
 
@@ -21,6 +24,7 @@ export class AppConfigService {
     backend: {
       url: '',
     },
+    localMode: false,
   };
 
   initialize() {
@@ -28,6 +32,14 @@ export class AppConfigService {
   }
 
   private async initAppConfig() {
+    if (this.localMode.enabled()) {
+      AppConfigService.appConfig.localMode = true;
+      this.logger.info('ローカル確認モードで起動します。ネットワーク接続は行いません。');
+      emitLoadConfig({ config: AppConfigService.appConfig });
+      return;
+    }
+
+    AppConfigService.appConfig.localMode = false;
     try {
       const response = await fetch('./assets/config.json');
       if (response.ok) {

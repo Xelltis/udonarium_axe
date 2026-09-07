@@ -88,6 +88,27 @@
             <i class="material-icons align-middle text-[13px]! @max-[320px]:m-0 @max-[320px]:text-[14px]!">settings</i
             >{{ 'feature.chat.input.colorSetting' | transloco }}
           </button>
+          @if (showsTickerSwitch()) {
+            <button
+              data-testid="chat-send-to-ticker"
+              class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none @max-[320px]:h-6 @max-[320px]:w-6.5 @max-[320px]:p-0 @max-[320px]:text-[0px]"
+              [class.border-ui-accent]="sendsToTicker()"
+              [class.bg-ui-accent]="sendsToTicker()"
+              [class.text-white]="sendsToTicker()"
+              [class.hover:text-white]="sendsToTicker()"
+              [class.hover:bg-ui-accent]="sendsToTicker()"
+              [class.hover:brightness-110]="sendsToTicker()"
+              type="button"
+              [attr.aria-pressed]="sendsToTicker()"
+              [title]="'feature.chat.input.sendToTickerHint' | transloco"
+              (click)="toggleTickerSend()"
+            >
+              <i class="material-icons align-middle text-[13px]! @max-[320px]:m-0 @max-[320px]:text-[14px]!">{{
+                sendsToTicker() ? 'check' : 'animation'
+              }}</i
+              >{{ 'feature.chat.input.sendToTicker' | transloco }}
+            </button>
+          }
         </div>
       }
       @if (isCompact()) {

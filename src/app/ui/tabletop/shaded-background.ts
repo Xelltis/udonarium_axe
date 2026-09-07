@@ -8,10 +8,10 @@
  *
  * The layer is one flat colour, so whatever size and repeat the texture is given suits it too.
  */
-export function shadedBackgroundImage(url: string, brightness: number): string {
-  const black = shadeOf(brightness);
-  if (!black) return `url(${url})`;
-  return `linear-gradient(${black}, ${black}), url(${url})`;
+export function shadedBackgroundImage(url: string, brightness: number, shade?: string): string {
+  const dark = shadeOf(brightness, shade);
+  if (!dark) return `url(${url})`;
+  return `linear-gradient(${dark}, ${dark}), url(${url})`;
 }
 
 /** How the texture itself is laid on the face: stretched over it, or tiled at a cell a piece. */
@@ -54,41 +54,109 @@ export function shadedBackgroundGrid(
   brightnesses: readonly number[],
   cols: number,
   rows: number,
-  texture: TextureLayout = STRETCHED_TEXTURE
+  texture: TextureLayout = STRETCHED_TEXTURE,
+  shade?: string
 ): ShadedBackground {
-  if (brightnesses.length < 1) return assemble([], url, texture);
-  const first = brightnesses[0];
-  if (brightnesses.every((value) => Math.abs(value - first) <= SAME_SHADE_EPSILON)) {
-    const black = shadeOf(first);
-    if (!black) return assemble([], url, texture);
-    return assemble(
-      [{ image: `linear-gradient(${black}, ${black})`, size: '100% 100%', position: '0 0' }],
-      url,
-      texture
-    );
+  const alphas = brightnesses.map((brightness) => 1 - brightness);
+  return assemble(coverLayers(alphas, cols, rows, shade ?? DEFAULT_SHADE_RGB), url, texture);
+}
+
+export interface CellGradient {
+  image: string;
+  size: string;
+  position: string;
+}
+
+/**
+ * A reading to the cell, laid across a face as one image.
+ *
+ * Cell by cell rather than by the face, and by a gradient rather than by a step: the fog on
+ * the floor is drawn blurred, so it thins out across the cell at its edge instead of stopping
+ * at a line, and a face standing off the floor wears the same thinning of its own.
+ *
+ * The three parts are given apart so the same image serves as a mask as well as a background.
+ */
+export function cellGradient(
+  alphas: readonly number[],
+  cols: number,
+  rows: number,
+  color: string
+): CellGradient | null {
+  const layers = coverLayers(alphas, cols, rows, color);
+  if (layers.length === 0) return null;
+  return {
+    image: layers.map((layer) => layer.image).join(', '),
+    size: layers.map((layer) => layer.size).join(', '),
+    position: layers.map((layer) => layer.position).join(', '),
+  };
+}
+
+/**
+ * The gradient layers one colour is laid on in, a reading to the cell.
+ *
+ * Each reading stands for its own stretch of a row and is placed in the middle of it, so the
+ * first and the last hold out to the ends of their own accord: a gradient keeps its first
+ * colour before the first stop and its last after the last. A gradient runs one way only, so
+ * more than one row is laid a row at a time, each across its own band of the face.
+ */
+function coverLayers(alphas: readonly number[], cols: number, rows: number, color: string): ShadeLayer[] {
+  if (alphas.length < 1) return [];
+  const first = alphas[0];
+  if (alphas.every((alpha) => Math.abs(alpha - first) <= SAME_SHADE_EPSILON)) {
+    if (!(first > 0.0005)) return [];
+    const flat = `rgba(${color},${clampAlpha(first)})`;
+    return [{ image: `linear-gradient(${flat}, ${flat})`, size: '100% 100%', position: '0 0' }];
   }
   const across = Math.max(1, cols);
   const down = Math.max(1, rows);
   const layers: ShadeLayer[] = [];
   for (let row = 0; row < down; row++) {
-    const line = brightnesses.slice(row * across, (row + 1) * across);
-    const stops = line.map((brightness, index) => {
-      const alpha = Math.max(0, Math.min(1, 1 - brightness));
-      return `rgba(0,0,0,${alpha.toFixed(3)}) ${percent(((index + 0.5) / across) * 100)}`;
-    });
+    const line = alphas.slice(row * across, (row + 1) * across);
+    const stops = line.map(
+      (alpha, index) => `rgba(${color},${clampAlpha(alpha)}) ${percent(((index + 0.5) / across) * 100)}`
+    );
     layers.push({
       image: `linear-gradient(to right, ${stops.join(', ')})`,
       size: down > 1 ? `100% ${percent(100 / down)}` : '100% 100%',
       position: down > 1 ? `0 ${percent((row / (down - 1)) * 100)}` : '0 0',
     });
   }
-  return assemble(layers, url, texture);
+  return layers;
 }
 
-function shadeOf(brightness: number): string | null {
+function clampAlpha(alpha: number): string {
+  return Math.max(0, Math.min(1, alpha)).toFixed(3);
+}
+
+/**
+ * The colour a face is darkened with, or nothing where it is not darkened at all.
+ *
+ * Black by default, since that is what dimming means anywhere the table has no dark of its own.
+ * A table that paints its dark in a colour hands that colour in, so a wall wears the same shade
+ * as the floor beside it rather than a grey one.
+ */
+function shadeOf(brightness: number, shade: string = DEFAULT_SHADE_RGB): string | null {
   const alpha = 1 - brightness;
   if (!(alpha > 0.0005)) return null;
-  return `rgba(0,0,0,${alpha.toFixed(3)})`;
+  return `rgba(${shade},${alpha.toFixed(3)})`;
+}
+
+/** Black, written the way `rgba()` wants its first three parts. */
+export const DEFAULT_SHADE_RGB = '0,0,0';
+
+/**
+ * A colour written `#rrggbb` or `#rgb`, as the three parts `rgba()` takes.
+ *
+ * Anything it cannot read comes back as black, which is what dimming meant before a table
+ * could say otherwise.
+ */
+export function shadeRgbOf(color: string | null | undefined): string {
+  if (!color) return DEFAULT_SHADE_RGB;
+  const hex = color.trim().replace(/^#/, '');
+  const full = hex.length === 3 ? [...hex].map((part) => part + part).join('') : hex;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return DEFAULT_SHADE_RGB;
+  const value = parseInt(full, 16);
+  return `${(value >> 16) & 255},${(value >> 8) & 255},${value & 255}`;
 }
 
 function percent(value: number): string {

@@ -192,6 +192,7 @@ export default defineConfig({
           text: 'テーブル',
           items: [
             { text: '視点とテーブル操作', link: '/manual/tabletop' },
+            { text: '部屋設定', link: '/manual/room-settings' },
             { text: 'テーブル設定', link: '/manual/table-setting' },
             { text: '暗闇・視界・光源', link: '/manual/vision-lighting' },
             { text: '移動範囲', link: '/manual/move-range' },
@@ -254,6 +255,7 @@ export default defineConfig({
           text: 'リリースノート',
           items: [
             { text: '一覧', link: '/release-notes/' },
+            { text: 'v1.49.0', link: '/release-notes/v1.49.0' },
             { text: 'v1.48.0', link: '/release-notes/v1.48.0' },
             { text: 'v1.47.0', link: '/release-notes/v1.47.0' },
             { text: 'v1.46.1', link: '/release-notes/v1.46.1' },

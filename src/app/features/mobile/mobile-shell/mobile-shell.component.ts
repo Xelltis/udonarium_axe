@@ -12,6 +12,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -19,6 +20,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
+import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
 import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { MobileChatPaneComponent } from '@axe/features/mobile/mobile-chat-pane/mobile-chat-pane.component';
 import {
@@ -57,6 +59,7 @@ export class MobileShellComponent {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly theme = inject(ThemeService);
   protected readonly motion = inject(MotionService);
+  protected readonly viewMode = inject(ViewModePreferenceService);
   protected readonly language = inject(LanguageService);
   protected readonly layout = inject(MobileLayoutService);
   protected readonly keyboardInset = inject(KeyboardInsetService).inset;
@@ -84,6 +87,16 @@ export class MobileShellComponent {
     if (theme === 'light') return this.t('common.theme.light');
     return this.t('common.theme.auto');
   });
+
+  protected readonly viewModeLabel = computed(() => {
+    this.language.currentLang();
+    return this.t(viewModeLabelKey(this.viewMode.mode(), this.tabletopService.mode2d()));
+  });
+  protected readonly viewModeIcon = computed(() => viewModeIcon(this.viewMode.mode(), this.tabletopService.mode2d()));
+
+  cycleViewMode(): void {
+    this.viewMode.choose(nextViewMode(this.viewMode.mode()));
+  }
 
   protected readonly motionLabel = computed(() => {
     this.language.currentLang();
@@ -227,6 +240,8 @@ export class MobileShellComponent {
         return 'peerMenu';
       case 'tableSetting':
         return 'tableSetting';
+      case 'roomSettings':
+        return 'roomSettings';
       case 'images':
         return 'fileStorage';
       case 'jukebox':

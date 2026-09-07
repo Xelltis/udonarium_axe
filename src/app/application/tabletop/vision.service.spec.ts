@@ -7,7 +7,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCount, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -65,6 +65,225 @@ describe('VisionService', () => {
     perfCounters.enabled = false;
     perfCounters.clear();
     vi.clearAllMocks();
+  });
+
+  describe('a lamp standing on top of a block', () => {
+    /** A block three cells tall, with a lamp on top of it and a player watching. */
+    function tableWithLampOnBlock(lampAltitudeCells: number): Terrain {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      const terrain = Terrain.create('building', 2, 2, 5, 'wall.png', 'floor.png');
+      terrain.location.x = 200;
+      terrain.location.y = 200;
+      table.appendChild(terrain);
+
+      const lamp = LightSource.create('torch');
+      lamp.lightBrightRadius = 2;
+      lamp.lightDimRadius = 4;
+      lamp.location.x = 250;
+      lamp.location.y = 250;
+      lamp.posZ = lampAltitudeCells * 50;
+      table.appendChild(lamp);
+
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 250;
+      pc.location.y = 250;
+      pc.posZ = lampAltitudeCells * 50;
+      table.appendChild(pc);
+      return terrain;
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** The scene is rebuilt on a throttle, so nothing is measured until it has caught up. */
+    async function settleScene(service: VisionService): Promise<void> {
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    }
+
+    /** A wide, low box with a torch standing in the middle of its roof, as a reader would see. */
+    function tableWithTorchOnWideRoof(): Terrain {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      // Six cells across: the middle of its roof is nowhere near an open side.
+      const terrain = Terrain.create('crate', 6, 6, 1, 'wall.png', 'floor.png');
+      terrain.location.x = 200;
+      terrain.location.y = 200;
+      table.appendChild(terrain);
+
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      // Standing on the middle of the roof, one cell up.
+      pc.location.x = 350;
+      pc.location.y = 350;
+      pc.posZ = 50;
+      pc.lightEnabled = true;
+      pc.lightBrightRadius = 2;
+      pc.lightDimRadius = 4;
+      table.appendChild(pc);
+      return terrain;
+    }
+
+    /** A crate with a lamp on its roof, shut away behind a wall the reader cannot see past. */
+    function tableWithTorchOnRoofBehindAWall(): Terrain {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+
+      // The reader's own piece, up in the north-west corner with eyes but no lamp.
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 75;
+      pc.location.y = 75;
+      pc.visionRange = 4;
+      table.appendChild(pc);
+
+      // A wall right across the room, tall enough to stop the look.
+      const wall = Terrain.create('wall', 20, 1, 3, 'wall.png', 'floor.png');
+      wall.location.x = 0;
+      wall.location.y = 250;
+      table.appendChild(wall);
+
+      // Far beyond it, a crate with a torch standing on its roof.
+      const crate = Terrain.create('crate', 6, 6, 1, 'wall.png', 'floor.png');
+      crate.location.x = 200;
+      crate.location.y = 500;
+      table.appendChild(crate);
+
+      const lamp = GameCharacter.create('NPC', 1, '');
+      lamp.location.x = 350;
+      lamp.location.y = 650;
+      lamp.posZ = 50;
+      lamp.lightEnabled = true;
+      lamp.lightBrightRadius = 2;
+      lamp.lightDimRadius = 4;
+      table.appendChild(lamp);
+      return crate;
+    }
+
+    it('leaves a roof dark where the lamp lighting it is one the reader cannot see', async () => {
+      const crate = tableWithTorchOnRoofBehindAWall();
+      await settleScene(service);
+
+      const cover = service.terrainTopCover(crate)!;
+      const middle = cover.brightness[3 * cover.cols + 3];
+
+      expect(middle).toBeLessThan(0.2);
+    });
+
+    it('lights the middle of a wide roof it is standing on, not only its open edges', async () => {
+      const terrain = tableWithTorchOnWideRoof();
+      await settleScene(service);
+
+      const cover = service.terrainTopCover(terrain)!;
+      const middle = cover.brightness[2 * cover.cols + 2];
+
+      expect(middle).toBeGreaterThan(0.5);
+    });
+
+    it('lights the top it is standing on, as it would light the ground', async () => {
+      // Five cells up with four cells of reach: the sphere no longer touches the floor at all,
+      // so read on the floor the lamp lights nothing anywhere, itself included.
+      const terrain = tableWithLampOnBlock(5);
+      await settleScene(service);
+
+      const brightness = service.terrainTopBrightness(terrain, 250, 250, 50);
+
+      expect(brightness).toBeGreaterThan(0.5);
+    });
+  });
+
+  describe('a reader standing on the roof of a building', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function settle(): Promise<void> {
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    }
+
+    it('clears the fog from the roof it is standing on', async () => {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      table.fogEnabled = true;
+
+      // Six cells across, so the middle of the roof is nowhere near an open side.
+      const building = Terrain.create('building', 6, 6, 1, 'wall.png', 'floor.png');
+      building.location.x = 200;
+      building.location.y = 200;
+      table.appendChild(building);
+
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 350;
+      pc.location.y = 350;
+      pc.posZ = 50;
+      pc.visionRange = 4;
+      pc.lightEnabled = true;
+      pc.lightBrightRadius = 2;
+      pc.lightDimRadius = 4;
+      table.appendChild(pc);
+      await settle();
+
+      const shared = service.sharedVisibleCells()!;
+      const underfoot = cellIndexAt(shared.grid, 375, 375);
+
+      expect(shared.cells.get(underfoot)).toBe(true);
+    });
+  });
+
+  describe('a block hanging over the edge of the table', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function settle(): Promise<void> {
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    }
+
+    it('lays no fog over the part of it that overhangs', async () => {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      table.fogEnabled = true;
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 500;
+      pc.location.y = 500;
+      table.appendChild(pc);
+
+      // Two of its four cells stand off the west edge of the board.
+      const terrain = Terrain.create('ledge', 4, 1, 1, 'wall.png', 'floor.png');
+      terrain.location.x = -100;
+      terrain.location.y = 200;
+      table.appendChild(terrain);
+      await settle();
+
+      const cover = service.terrainFogCover(terrain)!;
+
+      expect(cover.cleared.slice(0, 2)).toEqual([true, true]);
+    });
   });
 
   describe('the walls it cuts from what stands on the table', () => {

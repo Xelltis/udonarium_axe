@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
-import { buildTableAmbienceContextMenu } from '@axe/features/tabletop/table-ambience/table-ambience-context-menu';
+import {
+  buildTableAmbienceContextMenu,
+  buildTableAmbienceContextMenuModel,
+} from '@axe/features/tabletop/table-ambience/table-ambience-context-menu';
 
 const t = ((key: string) => key) as Parameters<typeof buildTableAmbienceContextMenu>[3];
 
@@ -103,6 +106,22 @@ describe('buildTableAmbienceContextMenu', () => {
     const menu = buildTableAmbienceContextMenu(makeAmbience(), 50, () => (opened += 1), t);
     (findByName(menu, 'settings') as { action: () => void }).action();
     expect(opened).toBe(1);
+  });
+
+  it('groups every action for the rotating menu without changing the ordinary menu order', () => {
+    const model = buildTableAmbienceContextMenuModel(makeAmbience(), 50, () => undefined, t);
+    const ordinaryActions = model.actions.filter((action) => action.type !== 'separator');
+    const radialActions = model.radialGroups.flatMap((group) => group.actions);
+
+    expect(model.radialGroups.map((group) => group.name)).toEqual([
+      'feature.ambience.contextMenu.radialAppearance',
+      'feature.ambience.contextMenu.radialObject',
+    ]);
+    expect(radialActions).toEqual(expect.arrayContaining(ordinaryActions));
+    expect(radialActions).toHaveLength(ordinaryActions.length);
+    expect(model.actions.map((action) => action.name)).toEqual(
+      buildTableAmbienceContextMenu(makeAmbience(), 50, () => undefined, t).map((action) => action.name)
+    );
   });
 
   it('takes it out of the store on delete', () => {

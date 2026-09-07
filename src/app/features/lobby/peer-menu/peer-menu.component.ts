@@ -6,6 +6,8 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
@@ -30,6 +32,10 @@ import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-sel
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** How this browser takes part: with the others over the network, or alone. */
+export const CONNECTION_MODES = ['online', 'offline'] as const;
+export type ConnectionMode = (typeof CONNECTION_MODES)[number];
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'peer-menu',
@@ -40,6 +46,36 @@ export class PeerMenuComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly tabletopActionService = inject(TabletopActionService);
   private readonly modalService = inject(ModalService);
+  private readonly localModePreference = inject(LocalModePreferenceService);
+
+  private readonly confirm = inject(ConfirmService);
+
+  /**
+   * Whether this browser plays on its own, with nobody else to reach, or over the network.
+   *
+   * The two are set up at the start, so moving from one to the other means starting again:
+   * the choice is written down and the page reloads into it.
+   */
+  readonly isOffline = this.localModePreference.enabled;
+  readonly connectionModes = CONNECTION_MODES;
+
+  connectionMode(): ConnectionMode {
+    return this.isOffline() ? 'offline' : 'online';
+  }
+
+  async chooseConnectionMode(mode: ConnectionMode): Promise<void> {
+    if (mode === this.connectionMode()) return;
+    const asked = await this.confirm.ask(
+      this.t(mode === 'offline' ? 'feature.lobby.peerMenu.confirmOffline' : 'feature.lobby.peerMenu.confirmOnline')
+    );
+    if (!asked) return;
+    this.localModePreference.set(mode === 'offline');
+    this.reload();
+  }
+
+  protected reload(): void {
+    location.reload();
+  }
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
   private readonly tableSelecter = inject(TableSelecter);

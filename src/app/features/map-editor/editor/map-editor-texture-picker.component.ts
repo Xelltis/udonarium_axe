@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -13,10 +12,7 @@ import {
   TextureId,
 } from '@axe/domain/media/texture-catalog';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
-import {
-  TextureCropDialogComponent,
-  TextureCropDialogOption,
-} from '@axe/features/map-editor/editor/texture-crop-dialog.component';
+import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -29,7 +25,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class MapEditorTexturePickerComponent {
   protected readonly state = inject(MapEditorState);
   private readonly imageStorage = inject(ImageStorage);
-  private readonly modalService = inject(ModalService);
+  private readonly textureIntake = inject(TextureIntakeService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
 
@@ -68,16 +64,8 @@ export class MapEditorTexturePickerComponent {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    const objectUrl = URL.createObjectURL(file);
-    const blob = await this.modalService
-      .open<Blob | null>(TextureCropDialogComponent, { objectUrl } as TextureCropDialogOption)
-      .catch(() => null);
-    URL.revokeObjectURL(objectUrl);
-    if (!blob) return;
-    const imageFile = await this.imageStorage.addAsync(blob);
-    const tag = ImageTag.create(imageFile.identifier);
-    tag.tag = TEXTURE_IMAGE_TAG;
-    this.objectChange.notifyCollectionChanged('image-tag');
+    const imageFile = await this.textureIntake.takeIn(file);
+    if (!imageFile) return;
     this.state.fillMode.set('texture');
     this.state.textureId.set('image:' + imageFile.identifier);
   }

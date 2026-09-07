@@ -1,6 +1,7 @@
 import { DestroyRef, effect, inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -28,6 +29,7 @@ export class FogMemoryWriterService {
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly localMode = inject(LocalModePreferenceService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -100,13 +102,24 @@ export class FogMemoryWriterService {
   /**
    * Whoever writes it down: the game master when one is at the table, and otherwise the first
    * player by name, which every client works out the same way.
+   *
+   * The exception is the local mode a room is tried out in, which never opens a connection and
+   * so never gives anybody a name. Nobody would be chosen and the fog would go unwritten, so
+   * the one client there does the writing. Everywhere else the rule is untouched.
    */
   private isScribe(): boolean {
+    if (this.isLocalMode()) return PeerCursor.myCursor !== null;
+
     const mine = PeerCursor.myCursor?.userId;
     if (!mine) return false;
     const peers = this.objectStore.getObjects<PeerCursor>(PeerCursor).filter((peer) => peer.userId.length > 0);
     const masters = peers.filter((peer) => peer.isGameMaster).map((peer) => peer.userId);
     const pool = masters.length > 0 ? masters : peers.filter((peer) => peer.isPlayer).map((peer) => peer.userId);
     return pool.length > 0 && pool.sort()[0] === mine;
+  }
+
+  /** The same flag the room is started with. */
+  private isLocalMode(): boolean {
+    return this.localMode.enabled();
   }
 }

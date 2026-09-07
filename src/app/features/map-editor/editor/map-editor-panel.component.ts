@@ -16,6 +16,8 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { DungeonBuildService } from '@axe/application/tabletop/dungeon-build.service';
+import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -23,10 +25,29 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
+import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { isTextureId, TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
+import { ImageTag } from '@axe/domain/media/image-tag';
+import {
+  isTextureId,
+  TEXTURE_ASSET_URLS,
+  TEXTURE_BASE_COLOR,
+  TEXTURE_IDS,
+  TEXTURE_IMAGE_TAG,
+  WALL_TEXTURE_ASSET_URLS,
+  WALL_TEXTURE_BASE_COLOR,
+  WALL_TEXTURE_IDS,
+} from '@axe/domain/media/texture-catalog';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import {
+  MAP_FUNCTION_ROLES,
+  MaskPaintSpec,
+  TERRAIN_FACE_KEYS,
+  TerrainFaceImages,
+  TerrainPaintSpec,
+} from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
 import { getStampById, STAMPS } from '@axe/features/map-editor/assets/stamps';
@@ -41,6 +62,7 @@ import {
   ShapeGeneratorKind,
 } from '@axe/features/map-editor/editor/map-editor-state';
 import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
+import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import {
   curveAnchorAt,
   fitImageSize,
@@ -65,6 +87,8 @@ import { guessLineWidth, useTextMeasurer } from '@axe/features/map-editor/model/
 import { removeText, updateText } from '@axe/features/map-editor/model/scene-ops';
 import { deserializeScene } from '@axe/features/map-editor/model/serialize';
 import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/features/map-editor/model/shape-points';
+import { planFunctionPaint, sceneCarriesFunctions } from '@axe/features/map-editor/model/table-apply';
+import { sceneFromTable } from '@axe/features/map-editor/model/table-import';
 import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/features/map-editor/model/textures';
 import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
 import { getRasterImage, loadRasterImage } from '@axe/features/map-editor/render/raster-image';
@@ -121,6 +145,10 @@ interface ToolDef {
   icon: string;
   key: string;
   svg?: SafeHtml;
+  /** The name to show, where the tool stands on the rail for more than itself. */
+  label?: string;
+  /** The tools this one stands for, so that the rail stays lit while they are in hand. */
+  covers?: readonly EditorTool[];
 }
 
 @Component({
@@ -153,6 +181,8 @@ export class MapEditorPanelComponent implements AfterViewInit {
   }
   private readonly panelService = inject(PanelService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly dungeonBuild = inject(DungeonBuildService);
+  private readonly textureIntake = inject(TextureIntakeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -160,14 +190,105 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
+  private readonly functionalPaint = inject(FunctionalPaintService);
 
   private readonly exportFn = exportSceneToBlob;
   private readonly loadImageFn = loadRasterImage;
 
   private readonly board = viewChild<ElementRef<HTMLCanvasElement>>('board');
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+  private readonly faceTextureInput = viewChild<ElementRef<HTMLInputElement>>('faceTextureInput');
   protected readonly textEditor = viewChild<ElementRef<HTMLElement>>('textEditor');
   private readonly stage = viewChild<ElementRef<HTMLDivElement>>('stage');
+
+  protected readonly functionRoles = MAP_FUNCTION_ROLES;
+
+  protected setTerrainPaint(patch: Partial<TerrainPaintSpec>): void {
+    const spec = this.state.functionSpec();
+    this.state.setFunctionSpec({ ...spec, terrain: { ...spec.terrain, ...patch } });
+  }
+
+  protected setMaskPaint(patch: Partial<MaskPaintSpec>): void {
+    const spec = this.state.functionSpec();
+    this.state.setFunctionSpec({ ...spec, mask: { ...spec.mask, ...patch } });
+  }
+
+  protected readonly terrainFaces = TERRAIN_FACE_KEYS;
+
+  protected readonly terrainModes = [
+    { mode: TerrainViewState.ALL, key: 'both' },
+    { mode: TerrainViewState.WALL, key: 'wall' },
+    { mode: TerrainViewState.FLOOR, key: 'floor' },
+  ];
+
+  protected faceImageUrl(face: keyof TerrainFaceImages): string | null {
+    const id = this.state.functionSpec().terrain.images[face];
+    return id ? (this.imageStorage.get(id)?.url ?? null) : null;
+  }
+
+  /** Picks the picture one face of a painted wall wears from the whole image library. */
+  protected async chooseFaceImage(face: keyof TerrainFaceImages): Promise<void> {
+    const id = await this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).catch(() => null);
+    if (id === null) return;
+    this.wearFaceImage(face, id);
+  }
+
+  protected clearFaceImage(face: keyof TerrainFaceImages): void {
+    this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: '' } });
+  }
+
+  protected readonly wallTextureIds = WALL_TEXTURE_IDS;
+  protected readonly wallTextureAssetUrls = WALL_TEXTURE_ASSET_URLS;
+  protected readonly wallTextureBaseColor = WALL_TEXTURE_BASE_COLOR;
+  protected readonly groundTextureIds = TEXTURE_IDS;
+  protected readonly textureAssetUrls = TEXTURE_ASSET_URLS;
+  protected readonly textureBaseColor = TEXTURE_BASE_COLOR;
+
+  protected readonly faceTexturesOpen = signal<string>('');
+  private faceTextureAwaiting: keyof TerrainFaceImages | null = null;
+
+  protected toggleFaceTextures(face: keyof TerrainFaceImages): void {
+    this.faceTexturesOpen.update((held) => (held === face ? '' : face));
+  }
+
+  /** Dresses one face in a picture that ships with the room, the way the dungeons are built. */
+  protected chooseFaceTexture(face: keyof TerrainFaceImages, url: string): void {
+    const identifier = this.dungeonBuild.registerAsset(url);
+    if (identifier.length < 1) return;
+    this.wearFaceImage(face, identifier);
+  }
+
+  protected readonly faceTextures = computed<ImageFile[]>(() => {
+    this.objectChange.fileVersion();
+    this.objectChange.collectionOf('image-tag')();
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden);
+  });
+
+  protected chooseFaceImageTexture(face: keyof TerrainFaceImages, file: ImageFile): void {
+    this.wearFaceImage(face, file.identifier);
+  }
+
+  protected addFaceTexture(face: keyof TerrainFaceImages): void {
+    this.faceTextureAwaiting = face;
+    this.faceTextureInput()?.nativeElement.click();
+  }
+
+  protected async onFaceTextureFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const face = this.faceTextureAwaiting;
+    this.faceTextureAwaiting = null;
+    if (!file || !face) return;
+    const imageFile = await this.textureIntake.takeIn(file);
+    if (!imageFile) return;
+    this.wearFaceImage(face, imageFile.identifier);
+  }
+
+  private wearFaceImage(face: keyof TerrainFaceImages, identifier: string): void {
+    this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: identifier } });
+    this.faceTexturesOpen.set('');
+  }
 
   protected readonly settingsTool: ToolDef = { tool: 'settings', icon: 'settings', key: '' };
 
@@ -188,7 +309,25 @@ export class MapEditorPanelComponent implements AfterViewInit {
     { tool: 'text', icon: 'title', key: 'T' },
     { tool: 'stamp', icon: 'approval', key: 'S' },
     { tool: 'image', icon: 'image', key: 'I' },
+    {
+      tool: 'functionPaint',
+      icon: 'dashboard_customize',
+      key: 'K',
+      label: 'feature.mapEditor.tools.function',
+      covers: ['functionErase'],
+    },
   ];
+
+  protected readonly functionTools: EditorTool[] = ['functionPaint', 'functionErase'];
+
+  protected toolLabelKey(def: ToolDef): string {
+    return def.label ?? 'feature.mapEditor.tools.' + def.tool;
+  }
+
+  protected isToolInHand(def: ToolDef): boolean {
+    const held = this.state.tool();
+    return held === def.tool || (def.covers?.includes(held) ?? false);
+  }
 
   protected readonly dashKinds: StrokeDash[] = ['solid', 'dashed', 'dotted', 'dashdot', 'longdash'];
   protected readonly lineKinds: LineKind[] = ['straight', 'polyline', 'curve', 'closedCurve'];
@@ -455,7 +594,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const helpers = this.buildHelpers(ctx);
-    renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined });
+    renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined, drawFunctionLayers: true });
     this.drawOverlay(ctx);
   }
 
@@ -602,6 +741,9 @@ export class MapEditorPanelComponent implements AfterViewInit {
         return 'select';
       case 'cellPaint':
         return 'paint';
+      case 'functionPaint':
+      case 'functionErase':
+        return 'paint';
       case 'cellErase':
         return this.isVectorEraseTarget() ? 'vectorErase' : 'paint';
       case 'fill':
@@ -708,7 +850,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
       case 'vectorErase':
         return this.eraseVectorAlong(pos);
       case 'paint':
-        return this.paintAt(pos, this.state.tool() === 'cellErase' ? 'cellErase' : 'cellPaint');
+        return this.paintAt(pos, this.state.tool());
       case 'box':
         return this.boxMove(pos);
       case 'freehand':
@@ -827,7 +969,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     this.state.beginGesture();
     this.gesture.lastPaintedCell = null;
     this.gesture.lastPaintPx = null;
-    this.paintAt(pos, this.state.tool() === 'cellErase' ? 'cellErase' : 'cellPaint');
+    this.paintAt(pos, this.state.tool());
   }
 
   private paintUp(): void {
@@ -1068,7 +1210,9 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const key = cellKey(col, row);
     if (key === this.gesture.lastPaintedCell) return;
     this.gesture.lastPaintedCell = key;
-    if (tool === 'cellPaint') this.state.paintCell(col, row);
+    if (tool === 'functionPaint') this.state.paintFunctionCell(col, row);
+    else if (tool === 'functionErase') this.state.eraseFunctionCellAt(col, row);
+    else if (tool === 'cellPaint') this.state.paintCell(col, row);
     else this.state.eraseCellAt(col, row);
   }
 
@@ -1343,7 +1487,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     if (!ctx) return '';
     const single: MapScene = { ...scene, gridVisible: false, background: 'transparent', layers: [layer] };
     ctx.scale(scale, scale);
-    renderScene(ctx, single, this.buildHelpers(ctx), { drawGrid: false });
+    renderScene(ctx, single, this.buildHelpers(ctx), { drawGrid: false, drawFunctionLayers: true });
     try {
       return canvas.toDataURL();
     } catch {
@@ -1411,6 +1555,54 @@ export class MapEditorPanelComponent implements AfterViewInit {
     }
   }
 
+  /**
+   * Brings the table that is out into the editor.
+   *
+   * The floor arrives as a picture, since it was baked into one the moment it was laid down.
+   * Everything else arrives as cells and comes under the editor from then on.
+   */
+  protected async importTable(): Promise<void> {
+    if (this.busy()) return;
+    const snapshot = this.functionalPaint.snapshot();
+    if (!snapshot) {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+      return;
+    }
+    if (!(await this.confirm.ask(this.t('feature.mapEditor.actions.importTableConfirm')))) return;
+
+    this.state.loadScene(sceneFromTable(snapshot));
+    this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
+  }
+
+  /**
+   * Lays what was painted on the table, and leaves the floor as it is.
+   *
+   * Baking the picture again to add a closed cell would cost the floor its quality and its
+   * identity both, and neither has anything to do with what was painted.
+   */
+  protected applyFunctions(): boolean {
+    const snapshot = this.functionalPaint.snapshot();
+    if (!snapshot) {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+      return false;
+    }
+    const plan = planFunctionPaint(this.state.current, snapshot);
+    if (!plan) {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.applyFunctionsGridMismatch'));
+      return false;
+    }
+    if (!this.functionalPaint.apply(plan)) {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+      return false;
+    }
+    return true;
+  }
+
+  protected applyFunctionsOnly(): void {
+    if (this.busy()) return;
+    if (this.applyFunctions()) this.notice.show(this.t('feature.mapEditor.actions.applyFunctionsDone'));
+  }
+
   protected async setAsTable(): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
@@ -1428,6 +1620,10 @@ export class MapEditorPanelComponent implements AfterViewInit {
       table.height = scene.rows;
       table.gridSize = scene.cellPx;
       table.gridType = scene.gridType;
+      // Only where the scene has something to say about the cells. A scene drawn from scratch
+      // says nothing, and a plan built from nothing is a plan to take away every wall, mask and
+      // no-entry cell the table already had.
+      if (sceneCarriesFunctions(scene)) this.applyFunctions();
       this.notice.show(this.t('feature.mapEditor.actions.setTableDone'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));

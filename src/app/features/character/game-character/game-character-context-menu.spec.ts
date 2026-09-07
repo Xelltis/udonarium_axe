@@ -2,7 +2,10 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { buildGameCharacterContextMenu } from '@axe/features/character/game-character/game-character-context-menu';
+import {
+  buildGameCharacterContextMenu,
+  buildGameCharacterContextMenuModel,
+} from '@axe/features/character/game-character/game-character-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
@@ -18,6 +21,7 @@ interface MutableChar {
   hideBuff: boolean;
   isNpc: boolean;
   isLock: boolean;
+  targeted: boolean;
   setLocation: ReturnType<typeof vi.fn>;
   clone: ReturnType<typeof vi.fn>;
 }
@@ -38,6 +42,7 @@ function makeChar(overrides: Partial<MutableChar> = {}): MutableChar {
     hideBuff: false,
     isNpc: false,
     isLock: false,
+    targeted: false,
     setLocation: vi.fn(),
     clone: vi.fn(() => ({ location: { x: 0, y: 0 }, update: vi.fn() })),
     ...overrides,
@@ -58,10 +63,127 @@ describe('buildGameCharacterContextMenu()', () => {
     PeerCursor.myCursor = null!;
   });
 
+  it('offers to work a move out where the piece has ground to walk', () => {
+    const onPlanMove = vi.fn();
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onPlanMove },
+      t
+    );
+
+    const planning = menu.find((action) => action.name === '移動');
+    expect(planning).toBeDefined();
+    planning!.action!();
+    expect(onPlanMove).toHaveBeenCalled();
+  });
+
+  it('puts working a move out above everything else the piece is asked', () => {
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onPlanMove: vi.fn() },
+      t
+    );
+
+    const named = menu.filter((action) => action.name).map((action) => action.name);
+
+    expect(named[0]).toBe('移動');
+    expect(named.indexOf('移動')).toBeLessThan(named.indexOf('詳細を表示'));
+  });
+
+  it('offers nothing of the sort to a piece with no reach', () => {
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t
+    );
+
+    expect(menu.map((action) => action.name)).not.toContain('移動');
+  });
+
+  describe('aiming without a keyboard', () => {
+    it('offers to aim at the piece, ticked by whether it already is', () => {
+      const onToggleTarget = vi.fn();
+      const aimed = buildGameCharacterContextMenu(
+        makeChar({ targeted: true }) as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), onToggleTarget },
+        t
+      );
+      expect(names(aimed)).toContain('✔ ターゲット');
+
+      const plain = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), onToggleTarget },
+        t
+      );
+      expect(names(plain)).toContain('ターゲット');
+      plain.find((action) => action.name === 'ターゲット')!.action!();
+      expect(onToggleTarget).toHaveBeenCalled();
+    });
+
+    it('offers to stop aiming at everything only while something is aimed at', () => {
+      const onClearTargets = vi.fn();
+      const withAim = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), onClearTargets },
+        t
+      );
+      expect(names(withAim)).toContain('ターゲットを全部外す');
+
+      const without = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        callbacks(),
+        t
+      );
+      expect(names(without)).not.toContain('ターゲットを全部外す');
+    });
+  });
+
   it('leads with the sheet, which opens the group at the top', () => {
     const char = makeChar();
     const menu = buildGameCharacterContextMenu(char as unknown as GameCharacter, 50, makeService(), callbacks(), t);
     expect(menu[0].name).toBe('詳細を表示');
+  });
+
+  it('groups the existing actions for the radial menu without dropping surface actions', () => {
+    const surfaceAction = { name: 'Move to reverse side', action: vi.fn() };
+    const overlapAction = { name: 'Overlapping piece', action: vi.fn() };
+    const model = buildGameCharacterContextMenuModel(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t,
+      [overlapAction],
+      'icon',
+      [surfaceAction]
+    );
+
+    expect(model.radialGroups.map((group) => group.name)).toEqual([
+      '基本情報',
+      'チャット',
+      'バフ・演出',
+      '表示',
+      '移動',
+      '公開・所有',
+      'コマ操作',
+    ]);
+    expect(model.radialGroups.find((group) => group.name === '移動')!.actions).toContain(surfaceAction);
+    expect(model.radialGroups.find((group) => group.name === 'コマ操作')!.actions).toContain(overlapAction);
+    expect(model.actions).toContain(surfaceAction);
   });
 
   it('puts the altitude submenu into the display group', () => {

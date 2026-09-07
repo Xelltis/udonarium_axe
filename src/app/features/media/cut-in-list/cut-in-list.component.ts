@@ -2,10 +2,16 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
+import {
+  asCutInMultiDirectionMode,
+  CUT_IN_MULTI_DIRECTION_MODES,
+  CutInMultiDirectionMode,
+} from '@axe/domain/tabletop/cut-in-multi-direction';
 import { CutInSceneEditorComponent } from '@axe/features/media/cut-in-editor/cut-in-scene-editor.component';
 import { CutInEditorComponent } from '@axe/features/media/cut-in-list/cut-in-editor.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -24,6 +30,22 @@ export class CutInListComponent {
   private readonly t = inject(TRANSLATE_FN);
 
   selectedCutIn: CutIn | null = null;
+
+  /**
+   * How many ways a cut-in faces on a table seen from above.
+   *
+   * It belongs to the screen this reader is watching, so a cut-in reaches the people sitting
+   * around a flat screen from four sides, and everyone else the way it always did.
+   */
+  private readonly display = inject(TabletopDisplayService);
+  protected readonly multiDirectionModes = CUT_IN_MULTI_DIRECTION_MODES;
+
+  get multiDirectionMode(): CutInMultiDirectionMode {
+    return this.display.settingsNow().cutInMultiDirectionMode;
+  }
+  set multiDirectionMode(value: CutInMultiDirectionMode) {
+    this.display.set({ cutInMultiDirectionMode: asCutInMultiDirectionMode(value) });
+  }
 
   /** The settings a cut-in has always had, and the layers it may now be built from. */
   readonly tabs = ['Basic', 'Scene'] as const;

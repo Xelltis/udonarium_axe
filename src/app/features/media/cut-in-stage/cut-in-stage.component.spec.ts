@@ -16,6 +16,10 @@ describe('CutInStageComponent', () => {
   });
 
   beforeEach(() => {
+    // Each test says for itself whether the browser can animate, by calling stubAnimate or
+    // not. Taken away here as well as afterwards, since the one that runs first would
+    // otherwise be the only one to meet a browser that can.
+    Reflect.deleteProperty(Element.prototype, 'animate');
     fixture = TestBed.createComponent(CutInStageComponent);
   });
 
@@ -39,12 +43,13 @@ describe('CutInStageComponent', () => {
     return layer;
   }
 
-  function show(scene: CutInScene | null, playing = true, playheadMs = 0): void {
+  function show(scene: CutInScene | null, playing = true, playheadMs = 0, startOffsetMs = 0): void {
     fixture.componentRef.setInput('scene', scene);
     fixture.componentRef.setInput('sceneWidth', 640);
     fixture.componentRef.setInput('sceneHeight', 360);
     fixture.componentRef.setInput('playing', playing);
     fixture.componentRef.setInput('playheadMs', playheadMs);
+    fixture.componentRef.setInput('startOffsetMs', startOffsetMs);
     fixture.detectChanges();
   }
 
@@ -136,6 +141,17 @@ describe('CutInStageComponent', () => {
 
     const [, options] = animate.mock.calls[0] as [unknown, KeyframeAnimationOptions];
     expect(options.iterations).toBe(Infinity);
+  });
+
+  it('starts a replicated scene at the shared playback offset', () => {
+    const animate = stubAnimate();
+    const scene = makeScene();
+    addLayer(scene);
+
+    show(scene, true, 0, 125);
+
+    const [, options] = animate.mock.calls[0] as [unknown, KeyframeAnimationOptions];
+    expect(options.delay).toBe(-125);
   });
 
   it('holds the animation at the scrubber rather than playing it', () => {

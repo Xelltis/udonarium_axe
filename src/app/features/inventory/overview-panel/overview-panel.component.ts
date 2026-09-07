@@ -53,6 +53,7 @@ import { CardFacePreviewComponent } from '@axe/ui/components/card-face-preview/c
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { edgeDetailAnchor, EdgeDetailSeat } from '@axe/ui/tabletop/edge-detail-layout';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -113,6 +114,11 @@ export class OverviewPanelComponent {
 
   left: number = 0;
   top: number = 0;
+  rotationDegrees: number = 0;
+  /** Set when this panel is one of the details pinned around the screen; null beside a piece. */
+  edgeSeat: EdgeDetailSeat | null = null;
+  /** Told whenever a pinned detail has been placed, so its owner can see what it now covers. */
+  placementListener: (() => void) | null = null;
 
   readonly imageUrl = computed(() => {
     this.objectChange.fileVersion();
@@ -401,16 +407,69 @@ export class OverviewPanelComponent {
   }
 
   get pointerEventsStyle(): Record<string, boolean> {
-    return { 'pointer-events-auto': !this.isPointerDragging, 'pointer-events-none': this.isPointerDragging };
+    // A detail pinned to an edge is for reading from across the table, so it takes no input at all.
+    const interactive = !this.isPointerDragging && this.edgeSeat === null;
+    return { 'pointer-events-auto': interactive, 'pointer-events-none': !interactive };
   }
 
   isOpenImageView: boolean = false;
 
   constructor() {
     afterNextRender(() => {
+      if (this.edgeSeat) {
+        this.applyEdgePlacement();
+        this.followOwnSize();
+        return;
+      }
       this.initPanelPosition();
       this.adjustPositionRoot();
     });
+  }
+
+  /**
+   * Places a pinned detail against its edge.
+   *
+   * Everything else that moves the panel — the first render, a picture that finished
+   * loading, a window resized under it — ends here, so this is the last word on where a
+   * pinned detail sits.
+   */
+  applyEdgePlacement(): void {
+    const seat = this.edgeSeat;
+    if (!seat) return;
+
+    const panel: HTMLElement = this.draggablePanel().nativeElement;
+    const anchor = edgeDetailAnchor(seat, panel.offsetWidth, panel.offsetHeight, window.innerWidth, window.innerHeight);
+    panel.style.left = anchor.left + 'px';
+    panel.style.top = anchor.top + 'px';
+    this.placementListener?.();
+  }
+
+  /** Whether a pinned detail lies over the given point on the screen. */
+  coversPoint(x: number, y: number): boolean {
+    if (!this.edgeSeat) return false;
+
+    const rect = this.draggablePanel().nativeElement.getBoundingClientRect();
+    if (!(rect.width > 0) || !(rect.height > 0)) return false;
+    return rect.left <= x && x <= rect.right && rect.top <= y && y <= rect.bottom;
+  }
+
+  /**
+   * Takes a pinned detail out of sight without taking it apart.
+   *
+   * Hiding it rather than removing it keeps its size measurable, which is what the
+   * placement and the size watch both read.
+   */
+  setPointerHidden(hidden: boolean): void {
+    this.draggablePanel().nativeElement.style.visibility = hidden ? 'hidden' : '';
+  }
+
+  /** A detail grows as its picture and its numbers arrive, and has to keep its distance from the edge. */
+  private followOwnSize(): void {
+    if (typeof ResizeObserver !== 'function') return;
+
+    const observer = new ResizeObserver(() => this.applyEdgePlacement());
+    observer.observe(this.draggablePanel().nativeElement);
+    this.destroyRef.onDestroy(() => observer.disconnect());
   }
 
   private initPanelPosition() {

@@ -4,6 +4,8 @@
     "deny": ["Read(./.env)", "Read(./.env.*)"],
     "ask": ["Bash(git push *)", "Bash(git commit *)", "WebFetch"],
     "allow": [
+      "Bash(grep *)",
+      "Bash(ls *)",
       "Bash(npx vitest *)",
       "Bash(npx tsc *)",
       "Bash(npx eslint *)",

@@ -42,6 +42,9 @@ export const DOOR_STYLES: readonly DoorStyle[] = [DoorStyle.SWING, DoorStyle.SLI
 
 export type TerrainFace = 'top' | 'bottom' | 'north' | 'south' | 'east' | 'west';
 
+/** Every picture a terrain holds: its faces, the two that stand in for them, and its own. */
+export type TerrainImageSlot = TerrainFace | 'wall' | 'floor' | 'imageIdentifier';
+
 export const TERRAIN_FACES: readonly TerrainFace[] = ['top', 'bottom', 'north', 'south', 'east', 'west'] as const;
 
 @SyncObject('terrain')
@@ -176,7 +179,31 @@ export class Terrain extends TabletopObject {
     }
   }
 
-  setFaceImage(face: TerrainFace, imageIdentifier: string): void {
+  /** The name written down for one picture, empty where none was. */
+  faceImageIdentifier(face: TerrainImageSlot): string {
+    const images = this.imageDataElement;
+    if (!images) return '';
+    const element = this.getElement(face, images);
+    return element ? `${element.value ?? ''}` : '';
+  }
+
+  /**
+   * Whether any face has been given a picture, whether or not that picture is to hand.
+   *
+   * Asked of the name written down rather than of the image it names: a picture that has not
+   * arrived from another table yet is still a picture somebody chose, and a wall must not
+   * turn to glass while it is on its way.
+   */
+  get hasFaceImage(): boolean {
+    const images = this.imageDataElement;
+    if (!images) return false;
+    for (const name of ['wall', 'floor', ...TERRAIN_FACES] as const) {
+      if (this.faceImageIdentifier(name).length > 0) return true;
+    }
+    return false;
+  }
+
+  setFaceImage(face: TerrainImageSlot, imageIdentifier: string): void {
     const imageEl = this.imageDataElement;
     if (!imageEl) return;
     const existing = this.getElement(face, imageEl);

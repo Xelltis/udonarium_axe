@@ -11,11 +11,13 @@ describe('buildTurnIndicator', () => {
       round: 3,
       statusKey: 'feature.turnOrder.beforeRound',
       name: '',
+      sideName: '',
     });
     expect(buildTurnIndicator('roundEnd', 3, '')).toEqual({
       round: 3,
       statusKey: 'feature.turnOrder.afterRound',
       name: '',
+      sideName: '',
     });
   });
 
@@ -24,6 +26,7 @@ describe('buildTurnIndicator', () => {
       round: 2,
       statusKey: null,
       name: 'エクィテス',
+      sideName: '',
     });
   });
 
@@ -32,6 +35,29 @@ describe('buildTurnIndicator', () => {
       round: 2,
       statusKey: 'feature.turnOrder.noTurn',
       name: '',
+      sideName: '',
     });
+  });
+
+  it('names the side whose phase it is alongside the character', () => {
+    expect(buildTurnIndicator('acting', 2, 'エクィテス', '味方')).toEqual({
+      round: 2,
+      statusKey: null,
+      name: 'エクィテス',
+      sideName: '味方',
+    });
+  });
+
+  it("reads a side with nobody up yet as that side's turn rather than nobody's", () => {
+    expect(buildTurnIndicator('acting', 2, '', '味方')).toEqual({
+      round: 2,
+      statusKey: null,
+      name: '',
+      sideName: '味方',
+    });
+  });
+
+  it('carries the side through the start and end of a round', () => {
+    expect(buildTurnIndicator('roundStart', 1, '', '味方')?.sideName).toBe('味方');
   });
 });

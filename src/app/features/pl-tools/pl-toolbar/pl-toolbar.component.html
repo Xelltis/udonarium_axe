@@ -101,6 +101,12 @@
         <span class="text-ui-accent shrink-0 font-semibold">{{
           'feature.turnOrder.roundShort' | transloco: { n: turn.round }
         }}</span>
+        @if (turn.sideName) {
+          <span
+            class="rounded-ui-sm bg-ui-accent-bg text-ui-accent shrink-0 truncate px-1.5 py-0.5 text-[11px] font-semibold"
+            >{{ turn.sideName }}</span
+          >
+        }
         @if (turn.statusKey) {
           <span class="truncate">{{ turn.statusKey | transloco }}</span>
         } @else {

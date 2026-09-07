@@ -263,8 +263,16 @@ export function lightAxis(light: SceneLight): { x: number; y: number; z: number 
   return { x: Math.cos(dir) * cp, y: Math.sin(dir) * cp, z: Math.sin(pit) };
 }
 
-export function floorRadii(light: SceneLight): { brightFloor: number; dimFloor: number } {
-  const z2 = light.z * light.z;
+/**
+ * How far a light carries across a level surface, once the climb down to it is paid for.
+ *
+ * `planeZ` is the height of the surface being lit, which is the ground for most of a table and
+ * the top of a wall for whatever has climbed onto one. A lamp hung level with a walkway reaches
+ * along it, and reading that walkway against the pool on the ground far below said otherwise.
+ */
+export function floorRadii(light: SceneLight, planeZ = 0): { brightFloor: number; dimFloor: number } {
+  const drop = light.z - planeZ;
+  const z2 = drop * drop;
   return {
     brightFloor: Math.sqrt(Math.max(0, light.brightPx * light.brightPx - z2)),
     dimFloor: Math.sqrt(Math.max(0, light.dimPx * light.dimPx - z2)),
@@ -279,18 +287,24 @@ export function floorRadii(light: SceneLight): { brightFloor: number; dimFloor: 
  * wall is nearer to the block beside it than to the floor below, so the block came out lit
  * over a floor that was left dark. Both now read the pool from here.
  */
-export function lightFloorPool(light: SceneLight): { cx: number; cy: number; brightPx: number; dimPx: number } | null {
-  const { brightFloor, dimFloor } = floorRadii(light);
+export function lightFloorPool(
+  light: SceneLight,
+  planeZ = 0
+): { cx: number; cy: number; brightPx: number; dimPx: number } | null {
+  const { brightFloor, dimFloor } = floorRadii(light, planeZ);
   if (dimFloor < 1) return null;
   if (light.angle >= 360) return { cx: light.x, cy: light.y, brightPx: brightFloor, dimPx: dimFloor };
 
-  // A wide cone reaches the floor whichever way its axis is turned: what settles it is the
-  // lowest ray, which is the axis tilted down by half the spread.
-  if (light.pitch >= light.angle / 2) return null;
+  // A wide cone reaches a surface whichever way its axis is turned: what settles it is the ray
+  // on that side of the spread. The floor below is reached by the lowest ray, which is the axis
+  // tilted down by half of it; a roof above by the highest, tilted up by the same.
+  const above = planeZ > light.z;
+  if (above ? light.pitch + light.angle / 2 <= 0 : light.pitch >= light.angle / 2) return null;
   const axis = lightAxis(light);
-  // Where the axis meets the floor, when it meets it in front of the light; otherwise the pool
-  // lies about the spot below the lamp, which is where a sconce throws it.
-  const t = axis.z < -0.05 ? -light.z / axis.z : 0;
+  // Where the axis meets the surface, when it meets it in front of the light; otherwise the
+  // pool lies about the spot below the lamp, which is where a sconce throws it.
+  const towards = above ? axis.z > 0.05 : axis.z < -0.05;
+  const t = towards ? -(light.z - planeZ) / axis.z : 0;
   const ratio = light.dimPx > 0 ? light.brightPx / light.dimPx : 1;
   return {
     cx: light.x + axis.x * t,
@@ -808,7 +822,8 @@ export function objectLightLevel(
 ): number {
   let level = clamp01(scene.globalIllumination);
   for (const light of scene.lights) {
-    const pool = lightFloorPool(light);
+    // The surface the thing is standing on, which is what the light has to reach across.
+    const pool = lightFloorPool(light, pz);
     if (!pool) continue;
     const dx = pool.cx - x;
     const dy = pool.cy - y;
@@ -834,17 +849,18 @@ export function objectBrightnessFor(
   x: number,
   y: number,
   radiusPx: number,
-  ignoreShadowCasters = false
+  ignoreShadowCasters = false,
+  pz = 0
 ): number {
   const base = 1 - darknessAlphaFor(scene, viewer);
   // Nothing below can come out under the base, so a table with no dark in it is at full
   // brightness wherever the light and the sight lines happen to fall.
   if (base >= 1) return 1;
-  const level = objectLightLevel(scene, x, y, radiusPx, ignoreShadowCasters);
+  const level = objectLightLevel(scene, x, y, radiusPx, ignoreShadowCasters, pz);
   if (level >= 1) return 1;
   // Lit or merely in sight, a thing is worth four tenths before any light is added to it, and
   // the light carries it the rest of the way. Nothing in between is a step.
-  const lit = level > 0 || isPointVisible(scene, x, y, viewer);
+  const lit = level > 0 || isPointVisible(scene, x, y, viewer, pz);
   const floor = lit ? SEEN_BRIGHTNESS : base;
   return Math.max(base, floor + (1 - floor) * level);
 }

@@ -9,6 +9,8 @@ interface Type<T> {
   new (...args: unknown[]): T;
 }
 
+export type PanelRotationDegrees = 0 | 90 | 180 | 270;
+
 function panelKindOf(childComponent: Type<unknown>): string {
   const selector = reflectComponentType(childComponent as never)?.selector;
   return selector && selector.length > 0 ? selector : '';
@@ -37,6 +39,7 @@ export interface PanelOption {
   height?: number;
   minWidth?: number;
   minHeight?: number;
+  rotationDegrees?: PanelRotationDegrees;
 
   isCutIn?: boolean;
   cutInIdentifier?: string;
@@ -62,6 +65,7 @@ export interface PanelOption {
 
 interface UIPanelInstance {
   content: () => ViewContainerRef;
+  setInitialRotation: (degrees: PanelRotationDegrees) => void;
 }
 
 type PanelServiceAssignableKey =
@@ -86,6 +90,7 @@ export class PanelService {
   static chatPortraitComponentClass: Type<unknown> | null = null;
   static cardStackListComponentClass: Type<unknown> | null = null;
   private panelComponentRef: ComponentRef<UIPanelInstance> | null = null;
+  private actionRotationDegrees: PanelRotationDegrees = 0;
   private static readonly singles = new Map<string, ComponentRef<UIPanelInstance>>();
   /** Names spoken for by a panel whose code is still being fetched. */
   private static readonly opening = new Set<string>();
@@ -211,7 +216,8 @@ export class PanelService {
 
     childPanelService.panelComponentRef = panelComponentRef;
     childPanelService.panelKind.set(panelKindOf(childComponent));
-    if (option) this.applyPanelOption(panelComponentRef, childPanelService, option);
+    const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
+    if (inheritedOption) this.applyPanelOption(panelComponentRef, childPanelService, inheritedOption);
     const single = option?.single;
     if (single) {
       PanelService.singles.set(single, panelComponentRef);
@@ -234,6 +240,7 @@ export class PanelService {
     setup?: (instance: T) => void,
     parentViewContainerRef?: ViewContainerRef
   ): void {
+    const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
     // A panel that fails to arrive says nothing for itself: the promise rejects into nowhere
     // and the reader is left looking at a menu item that appears to do nothing.
     const single = option?.single;
@@ -247,7 +254,7 @@ export class PanelService {
         // Asked to close while it was being fetched, it never opens at all.
         if (single && !PanelService.opening.delete(single)) return;
 
-        const instance = this.open(childComponent, option, parentViewContainerRef);
+        const instance = this.open(childComponent, inheritedOption, parentViewContainerRef);
         setup?.(instance);
       })
       .catch((reason) => {
@@ -258,6 +265,16 @@ export class PanelService {
       .finally(() => {
         if (single) PanelService.noteSingles();
       });
+  }
+
+  runWithInitialRotation<T>(rotationDegrees: PanelRotationDegrees, action: () => T): T {
+    const previous = this.actionRotationDegrees;
+    this.actionRotationDegrees = rotationDegrees;
+    try {
+      return action();
+    } finally {
+      this.actionRotationDegrees = previous;
+    }
   }
 
   private applyPanelOption(
@@ -280,6 +297,17 @@ export class PanelService {
       if (value === undefined) continue;
       this.setPanelServiceValue(childPanelService, key, value);
     }
+    if (adjusted.rotationDegrees !== undefined) {
+      panelComponentRef.instance.setInitialRotation(adjusted.rotationDegrees);
+    }
+  }
+
+  private withInheritedRotation(
+    option: PanelOption | undefined,
+    rotationDegrees: PanelRotationDegrees
+  ): PanelOption | undefined {
+    if (option?.rotationDegrees !== undefined || rotationDegrees === 0) return option;
+    return { ...option, rotationDegrees };
   }
 
   static clampPanelOptionToViewport(option: PanelOption, fallback: PanelService): PanelOption {
@@ -289,6 +317,24 @@ export class PanelService {
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
     const adjusted: PanelOption = { ...option };
+    const sideways = option.rotationDegrees === 90 || option.rotationDegrees === 270;
+    if (sideways && option.left !== undefined && option.top !== undefined) {
+      const visualWidth = height;
+      const visualHeight = width;
+      const centerX = option.left + width / 2;
+      const centerY = option.top + height / 2;
+      const clampedCenterX =
+        visualWidth >= viewportW
+          ? viewportW / 2
+          : Math.max(visualWidth / 2, Math.min(centerX, viewportW - visualWidth / 2));
+      const clampedCenterY =
+        visualHeight >= viewportH
+          ? viewportH / 2
+          : Math.max(visualHeight / 2, Math.min(centerY, viewportH - visualHeight / 2));
+      adjusted.left = clampedCenterX - width / 2;
+      adjusted.top = clampedCenterY - height / 2;
+      return adjusted;
+    }
     if (option.left !== undefined) {
       const maxLeft = Math.max(0, viewportW - width);
       adjusted.left = Math.max(0, Math.min(option.left, maxLeft));

@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -10,6 +10,7 @@ import {
   inject,
   Signal,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CardTargetService } from '@axe/application/card/card-target.service';
@@ -21,23 +22,41 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuAction, ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import {
+  ContextMenuAction,
+  ContextMenuRadialGroup,
+  ContextMenuSeparator,
+  ContextMenuService,
+} from '@axe/application/ui/context-menu.service';
+import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { buildToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import {
+  backgroundScrollAnimation,
+  backgroundScrollMargin,
+  backgroundTileSize,
+} from '@axe/domain/tabletop/background-scroll';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
+import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
+import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { boardSurfaceOf, surfaceOf, TABLE_SURFACES, TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
@@ -93,9 +112,19 @@ import {
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { translateZCss, Z_OFFSET_BACKGROUND_LAYERS_PX, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** Whether something is being typed into a field, so the board does not steal the key. */
+/** One picture drifting under the board, ready to be drawn. */
+interface BackgroundLayerView {
+  readonly identifier: string;
+  readonly imageIdentifier: string;
+  readonly imageUrl: string;
+  readonly style: Record<string, string>;
+  readonly drifts: boolean;
+}
+
 interface WallView {
   readonly wall: ActiveWall;
   readonly pools: readonly { readonly style: Record<string, string> }[];
@@ -143,6 +172,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
   providers: [GameTableGestureService],
   imports: [
     NgClass,
+    NgTemplateOutlet,
     TerrainComponent,
     WhiteBoardComponent,
     GameTableMaskComponent,
@@ -182,6 +212,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     '(document:contextmenu)': 'onDocumentContextMenu($event)',
     '(document:keydown.escape)': 'onEscapeKey($event)',
     '(document:keydown.enter)': 'onEnterKey($event)',
+    '(window:resize)': 'onWindowResize()',
   },
 })
 export class GameTableComponent {
@@ -189,6 +220,7 @@ export class GameTableComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly coordinateService = inject(CoordinateService);
   private readonly imageService = inject(ImageService);
+  private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly tabletopActionService = inject(TabletopActionService);
   protected readonly visionService = inject(VisionService);
@@ -199,14 +231,23 @@ export class GameTableComponent {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly cardTargetService = inject(CardTargetService);
   private readonly effectTargetingService = inject(EffectTargetingService);
+  private readonly movePlan = inject(MovePlanService);
   private readonly effectPlaybackService = inject(EffectPlaybackService);
   private readonly mobileLayout = inject(MobileLayoutService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChangeService = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly displayCalibration = inject(DisplayCalibrationService);
+  private readonly viewLock = inject(ViewLockService);
+  protected readonly isOrthographicProjection = computed(
+    () => this.tabletopService.mode2d() && this.tabletopService.orthographicProjection()
+  );
   private _initialized = false;
+  /** A resize fires many times over one drag; only the last of them has to reach the camera. */
+  private _resizeFrame: number | null = null;
   private _lastTableId: string | null = null;
+  private _lastMode2dTableId: string | null = null;
   readonly gestureService = inject(GameTableGestureService);
 
   constructor() {
@@ -233,6 +274,11 @@ export class GameTableComponent {
     effect(() => {
       this.selectionSignalService.cancelTableGestureVersion();
       this.gestureService.cancelInput();
+    });
+    effect(() => {
+      this.tabletopService.mode2d();
+      this.tabletopService.orthographicProjection();
+      if (this._initialized) untracked(() => this.syncMode2d());
     });
     effect(() => {
       const focus = this.selectionSignalService.focusCoordinate();
@@ -276,6 +322,24 @@ export class GameTableComponent {
       },
       this.destroyRef
     );
+    this.destroyRef.onDestroy(() => {
+      if (this._resizeFrame !== null) cancelAnimationFrame(this._resizeFrame);
+    });
+
+    // The calibration, the lock and the width a square is meant to measure are all kept on the
+    // device rather than on the table, so no table event announces them. Without this, measuring
+    // the screen or asking for a wider square would change nothing until something else
+    // happened to redraw the board.
+    effect(() => {
+      this.displayCalibration.realSizeEnabled();
+      this.viewLock.locked();
+      this.displayCalibration.pxPerMm();
+      this.tabletopService.cellMm();
+      untracked(() => {
+        this.syncViewLock();
+        this.snapToRealSize();
+      });
+    });
     this.tabletopActionService.makeDefaultTable();
     this.tabletopActionService.makeDefaultTabletopObjects();
     this.tabletopActionService.initAprilDiceImage();
@@ -305,12 +369,69 @@ export class GameTableComponent {
     });
   }
 
+  /**
+   * Whether a square could measure its real width right now.
+   *
+   * Perspective stretches the far edge of the screen, so a board drawn under it has no single
+   * scale to set. The test lives here rather than at each caller, so no way in can skip it.
+   */
+  private canShowRealSize(): boolean {
+    return (
+      this._initialized &&
+      this.tabletopService.mode2d() &&
+      this.gestureService.orthographicProjection &&
+      this.displayCalibration.realSizeEnabled()
+    );
+  }
+
+  /**
+   * The camera goes where a square measures the width it is meant to.
+   *
+   * The gestures stop at life size, so this reaches past them by setting the depth outright.
+   * Real size only holds still under the lock, which is why turning it on takes the lock with it.
+   */
+  private snapToRealSize(): void {
+    if (!this.canShowRealSize()) return;
+    const zoom = this.displayCalibration.zoomFor(this.tabletopService.cellMm(), this.currentTable.gridSize);
+    if (zoom === null) return;
+    this.gestureService.snapToViewPositionZ(zoomToViewPositionZ(zoom));
+  }
+
+  /**
+   * A resize is the one moment the camera is written to while locked.
+   *
+   * Real size is a property of the glass rather than of the window, so it survives the window
+   * changing shape - but only if it is put back afterwards.
+   */
+  onWindowResize(): void {
+    // The warning is wanted at once; the camera can wait for the frame the drag settles on.
+    this.displayCalibration.refreshScreenScale();
+    if (!this.viewLock.locked() || !this.canShowRealSize()) return;
+    if (this._resizeFrame !== null) return;
+    this._resizeFrame = requestAnimationFrame(() => {
+      this._resizeFrame = null;
+      this.snapToRealSize();
+    });
+  }
+
+  private syncViewLock(): void {
+    this.gestureService.viewLocked = this.viewLock.locked() && this.tabletopService.mode2d();
+  }
+
   private syncMode2d(): void {
-    const enabled = this.currentTable.mode2d;
+    const enabled = this.tabletopService.mode2d();
+    const enteredMode2d = enabled && this._lastMode2dTableId !== this.currentTable.identifier;
+    this._lastMode2dTableId = enabled ? this.currentTable.identifier : null;
+    const orthographicProjection = enabled && this.tabletopService.orthographicProjection();
+    const projectionChanged = this.gestureService.orthographicProjection !== orthographicProjection;
     this.gestureService.tiltLocked = enabled;
-    if (enabled) {
-      this.gestureService.setTransform(0, 0, 0, 0, 0, 0);
+    this.gestureService.orthographicProjection = orthographicProjection;
+    if (enabled || projectionChanged) {
+      const rotateZ = enteredMode2d ? -this.gestureService.viewRotateZ : 0;
+      this.gestureService.setTransform(0, 0, 0, 0, 0, rotateZ);
     }
+    this.syncViewLock();
+    this.snapToRealSize();
   }
 
   readonly rootElementRef = viewChild.required<ElementRef<HTMLElement>>('root');
@@ -404,6 +525,137 @@ export class GameTableComponent {
   wallBackground(imageUrl: string, gridUrl: string): WallBackground {
     return wallBackground(imageUrl, gridUrl);
   }
+
+  /**
+   * What each layer's picture measures, once the browser has loaded it.
+   *
+   * Nothing in the image store reports a size, and the drift is measured in tiles: sliding by
+   * anything other than exactly one tile leaves a seam. So the size is read off the loaded
+   * picture, and until it arrives the layer stands still rather than guessing.
+   */
+  /**
+   * How large each background picture really is, kept by the picture rather than by the layer.
+   *
+   * A size belongs to the image, so two layers wearing the same one ask the same question. Kept
+   * by the layer it was measured on, the table would gather an entry for every layer ever laid
+   * down and never let one go, since nothing here hears about a layer being taken away.
+   */
+  private readonly layerNaturalSizes = signal<ReadonlyMap<string, { width: number; height: number }>>(new Map());
+
+  protected onBackgroundLayerImageLoad(identifier: string, event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
+    const known = this.layerNaturalSizes().get(identifier);
+    if (known?.width === img.naturalWidth && known?.height === img.naturalHeight) return;
+    const next = new Map(this.layerNaturalSizes());
+    next.set(identifier, { width: img.naturalWidth, height: img.naturalHeight });
+    this.layerNaturalSizes.set(next);
+  }
+
+  private readonly laidLayers = computed(() => {
+    // Laying one down and taking one away come through the collection; what each says about
+    // itself comes through its own version.
+    this.objectChangeService.collectionOf(TableBackgroundLayer.aliasName)();
+    this.objectChangeService.fileVersion();
+    const table = this.watchCurrentTable();
+    return table.backgroundLayers.filter((layer) => {
+      this.objectChangeService.versionOf(layer.identifier)();
+      // A layer with nothing to show has nothing to draw, and an empty pane still costs the
+      // machine a surface to composite. No picture and no opacity both count as nothing.
+      return layer.enabled && layer.opacity > 0 && !!this.imageService.getEmptyOr(layer.imageIdentifier).url;
+    });
+  });
+
+  /**
+   * How large the board is drawn, which is as large as a tile of a layer is ever worth drawing.
+   *
+   * The same measure the run's wrapper wears, so a tile held to it is held to what can be seen.
+   */
+  private readonly boardPixelSize = computed<{ width: number; height: number }>(() => {
+    const table = this.watchCurrentTable();
+    const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
+    if (geo) return { width: geo.pixelW, height: geo.pixelH };
+    return { width: table.width * table.gridSize, height: table.height * table.gridSize };
+  });
+
+  readonly underLayers = computed(() => this.laidLayers().filter((layer) => !layer.placedOver));
+  readonly overLayers = computed(() => this.laidLayers().filter((layer) => layer.placedOver));
+
+  readonly underLayerViews = computed<readonly BackgroundLayerView[]>(() => this.layerViews(this.underLayers()));
+  readonly overLayerViews = computed<readonly BackgroundLayerView[]>(() => this.layerViews(this.overLayers()));
+
+  /**
+   * What one run of layers is drawn as.
+   *
+   * Nothing here says how deep a layer sits. The wrapper hides what overflows it, which flattens
+   * everything inside into one plane, so within a run it is document order that decides — and
+   * that is already back to front. The run as a whole carries the depth.
+   *
+   * One box a layer, whichever way it drifts. Across runs on `transform` and down runs on
+   * `translate`, so the two never write over each other and a layer going both ways still asks
+   * the machine for the one surface to composite.
+   */
+  private layerViews(layers: readonly TableBackgroundLayer[]): readonly BackgroundLayerView[] {
+    this.objectChangeService.fileVersion();
+    const sizes = this.layerNaturalSizes();
+    const moving = this.motion.enabled();
+    const board = this.boardPixelSize();
+
+    return layers.map((layer) => {
+      const tile = backgroundTileSize(sizes.get(layer.imageIdentifier) ?? null, layer.scale, board);
+      const x = moving ? backgroundScrollAnimation(layer.speedX, tile?.width ?? 0) : null;
+      const y = moving ? backgroundScrollAnimation(layer.speedY, tile?.height ?? 0) : null;
+      const scrollsX = !!x && x.durationSeconds > 0;
+      const scrollsY = !!y && y.durationSeconds > 0;
+      // Spare cloth for the drift to pull in, on the side it is heading for and nowhere else.
+      const margin = backgroundScrollMargin(tile, scrollsX, scrollsY);
+      const image = this.imageService.getEmptyOr(layer.imageIdentifier);
+
+      return {
+        identifier: layer.identifier,
+        imageIdentifier: layer.imageIdentifier,
+        imageUrl: image.url,
+        style: {
+          inset: `0px ${-margin.x}px ${-margin.y}px 0px`,
+          'background-image': `url(${image.url})`,
+          'background-repeat': 'repeat',
+          ...(tile ? { 'background-size': `${tile.width}px ${tile.height}px` } : {}),
+          // Anything short of whole makes a group of its own to composite, so say it only when
+          // the layer actually asked to be seen through.
+          ...(layer.opacity < 1 ? { opacity: `${layer.opacity}` } : {}),
+          ...(x && scrollsX
+            ? {
+                '--bg-layer-x-name': 'bgLayerScrollX',
+                '--bg-layer-x-duration': `${x.durationSeconds}s`,
+                '--bg-layer-x-direction': x.reversed ? 'reverse' : 'normal',
+                '--bg-layer-tile-w': `${tile?.width ?? 0}px`,
+              }
+            : {}),
+          ...(y && scrollsY
+            ? {
+                '--bg-layer-y-name': 'bgLayerScrollY',
+                '--bg-layer-y-duration': `${y.durationSeconds}s`,
+                '--bg-layer-y-direction': y.reversed ? 'reverse' : 'normal',
+                '--bg-layer-tile-h': `${tile?.height ?? 0}px`,
+              }
+            : {}),
+        },
+        drifts: scrollsX || scrollsY,
+      };
+    });
+  }
+
+  /**
+   * Where each run sits as a whole.
+   *
+   * The wrapper hides what overflows it, which flattens the layers inside; so a run needs a
+   * depth of its own rather than leaning on document order to clear the board.
+   */
+  protected readonly backgroundLayerTransform = translateZCss(-Z_OFFSET_BACKGROUND_LAYERS_PX);
+  protected readonly foregroundLayerTransform = translateZCss(Z_OFFSET_FOREGROUND_LAYERS_PX);
+
+  /** A board drawn on a transparent picture must not be washed out by the veil over it. */
+  readonly showsTableSurfaceVeil = computed(() => this.underLayers().length === 0);
 
   readonly tableSurfaceStyle = computed<Record<string, string>>(() => {
     const table = this.watchCurrentTable();
@@ -611,31 +863,100 @@ export class GameTableComponent {
   }
 
   buildContextMenuActions(objectPosition: PointerCoordinate): ContextMenuAction[] {
-    const menuActions: ContextMenuAction[] = [];
+    return this.buildContextMenuModel(objectPosition).actions;
+  }
 
-    Array.prototype.push.apply(menuActions, this.tabletopActionService.makeDefaultContextMenuActions(objectPosition));
-    menuActions.push({
+  buildContextMenuModel(objectPosition: PointerCoordinate): {
+    actions: ContextMenuAction[];
+    rotatingGroups: ContextMenuRadialGroup[];
+  } {
+    const [primaryCreateActions, secondaryCreateActions] =
+      this.tabletopActionService.makeDefaultContextMenuActionGroups(objectPosition);
+    secondaryCreateActions.push({
       name: this.t('feature.tabletop.action.createDeck'),
       action: () => {
         void this.openDeckBuilder(objectPosition);
       },
     });
     if (this.mobileLayout.isActive()) {
-      menuActions.push({
+      secondaryCreateActions.push({
         name: this.t('feature.tabletop.contextMenu.createWithOptions'),
         action: () => {
           this.roomPanels.open('characterGenerator', { width: 460, height: 420 });
         },
       });
     }
-    menuActions.push(ContextMenuSeparator);
-    menuActions.push({
+    const tableSettingAction: ContextMenuAction = {
       name: this.t('feature.tabletop.tableSetting.title'),
       action: () => {
         void this.openTableSetting();
       },
-    });
-    return menuActions;
+    };
+    const tableSettingActions = [tableSettingAction, ...this.buildViewLockActions()];
+    return {
+      actions: [
+        ...primaryCreateActions,
+        ContextMenuSeparator,
+        ...secondaryCreateActions,
+        ContextMenuSeparator,
+        ...tableSettingActions,
+      ],
+      rotatingGroups: [
+        {
+          name: this.t('feature.tabletop.contextMenu.createObject1'),
+          icon: 'add_circle',
+          actions: primaryCreateActions,
+        },
+        {
+          name: this.t('feature.tabletop.contextMenu.createObject2'),
+          icon: 'add_box',
+          actions: secondaryCreateActions,
+        },
+        {
+          name: this.t('feature.tabletop.tableSetting.title'),
+          icon: 'tune',
+          actions: tableSettingActions,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Holding the view still, and putting it back on real size.
+   *
+   * Only in 2D, where a screen is laid flat and the miniatures sit on it. The entries go into
+   * both menus because the flat one is what the four-way hamburger opens when the rotating
+   * menu is off, and a table using that would otherwise have no way to reach them.
+   */
+  private buildViewLockActions(): ContextMenuAction[] {
+    if (!this.tabletopService.mode2d()) return [];
+    const actions: ContextMenuAction[] = [
+      buildToggleAction(
+        this.viewLock.locked(),
+        (next) => {
+          this.viewLock.set(next);
+          this.syncViewLock();
+        },
+        {
+          on: this.t('feature.tabletop.contextMenu.viewLockOn'),
+          off: this.t('feature.tabletop.contextMenu.viewLockOff'),
+        }
+      ),
+    ];
+    // Offered only where it would do something: under perspective there is no one scale to set,
+    // and an entry that quietly does nothing is worse than one that is not there.
+    if (this.displayCalibration.isCalibrated() && this.tabletopService.orthographicProjection()) {
+      actions.push({
+        name: this.t('feature.tabletop.contextMenu.snapToRealSize'),
+        action: () => {
+          // Real size brings the lock with it; the service settles that for every way in.
+          this.displayCalibration.setRealSizeEnabled(true);
+          this.snapToRealSize();
+          this.syncViewLock();
+        },
+      });
+    }
+    return actions;
   }
 
   onContextMenu(e: MouseEvent) {
@@ -646,7 +967,26 @@ export class GameTableComponent {
 
     const menuPosition = this.pointerDeviceService.pointers[0];
     const objectPosition = this.coordinateService.calcTabletopLocalCoordinate();
-    this.contextMenuService.open(menuPosition, this.buildContextMenuActions(objectPosition), this.currentTable.name);
+    this.openTableContextMenu(menuPosition, objectPosition);
+  }
+
+  openTableContextMenu(menuPosition: PointerCoordinate, objectPosition: PointerCoordinate): void {
+    const menu = this.buildContextMenuModel(objectPosition);
+    const table = this.currentTable;
+    const display = this.tabletopService.display();
+    if (this.tabletopService.mode2d()) {
+      this.contextMenuService.openRadial(
+        menuPosition,
+        menu.actions,
+        menu.rotatingGroups,
+        table.name,
+        display.radialMenuEnabled,
+        display.radialMenuRotationSpeed,
+        multiAngleFontScaleFactor(display.multiAngleFontScale)
+      );
+      return;
+    }
+    this.contextMenuService.open(menuPosition, menu.actions, table.name);
   }
   onDocumentMouseDown(_e: MouseEvent) {
     this.gestureService.isTableTransformed = false;
@@ -667,6 +1007,8 @@ export class GameTableComponent {
 
   readonly isPickingTarget = computed(() => this.cardTargetService.isPicking());
   readonly isPickingEffectTarget = computed(() => this.effectTargetingService.isPicking());
+  /** Whether a move is being worked out, which is when the table says how to work one out. */
+  readonly isPlanningMove = this.movePlan.isPlanning;
 
   onEscapeKey(_e: Event) {
     if (this.effectTargetingService.cancel()) return;

@@ -17,9 +17,11 @@ import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.serv
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
+import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
@@ -86,6 +88,8 @@ export class ChatWindowComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly activeChatTab = inject(ActiveChatTabService);
+  private readonly tabletopService = inject(TabletopService);
+  private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -505,7 +509,7 @@ export class ChatWindowComponent {
         targetContext.object = null;
         messageTargetContext.push(targetContext);
       }
-      this.chatMessageService.sendMessage(
+      const sent = this.chatMessageService.sendMessage(
         tab,
         outtext,
         value.gameSystem,
@@ -519,6 +523,7 @@ export class ChatWindowComponent {
         value.quoteOf,
         { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
       );
+      if (value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
     }
   }
 }

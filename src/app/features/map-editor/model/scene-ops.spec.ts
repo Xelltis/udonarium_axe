@@ -5,6 +5,7 @@ import {
   createLayer,
   createScene,
   FreehandLayer,
+  FunctionLayer,
   ImageLayer,
   MapScene,
   ShapeLayer,
@@ -482,6 +483,18 @@ describe('resizeScene', () => {
     resizeScene(scene, 3, 3);
     expect(getCell(layer, 4, 4)).toBeNull();
     expect(getCell(layer, 1, 1)).toEqual(solidBlue);
+  });
+
+  it('drops out-of-bounds cells from function layers too, since those are built on', () => {
+    const scene = makeScene(5, 5);
+    const layer = createLayer('function', 'walls') as FunctionLayer;
+    addLayer(scene, layer);
+    layer.cells['4,4'] = true;
+    layer.cells['1,1'] = true;
+
+    resizeScene(scene, 3, 3);
+
+    expect(Object.keys(layer.cells)).toEqual(['1,1']);
   });
 
   it('leaves px-based items on other layers untouched', () => {

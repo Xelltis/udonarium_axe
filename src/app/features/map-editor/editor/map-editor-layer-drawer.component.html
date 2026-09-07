@@ -22,6 +22,15 @@
               {{ 'feature.mapEditor.layers.kinds.' + kind | transloco }}
             </button>
           }
+          <span class="border-ui-border-panel my-1 border-0 border-t border-solid"></span>
+          @for (role of functionRoles; track role) {
+            <button
+              class="hover:bg-ui-hover px-3 py-1 text-left whitespace-nowrap"
+              (click)="addFunctionLayerOfRole(role)"
+            >
+              {{ functionRoleLabelKey(role) | transloco }}
+            </button>
+          }
         </div>
       }
     </div>

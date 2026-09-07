@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
+import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import {
   DEFAULT_SYSTEM_AVATAR_URL,
   DEFAULT_SYSTEM_DICE_AVATAR_URL,
@@ -8,9 +9,11 @@ import {
 } from '@axe/application/chat/system-avatar.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { emitFileLoaded } from '@axe/core/event/domain-events';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -20,6 +23,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-message.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatMessageComponent', () => {
@@ -473,6 +477,28 @@ describe('ChatMessageComponent', () => {
       }
     });
 
+    it('lays a note shared from chat flat in 2D mode', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.from = 'tester';
+      message.name = '勇者';
+      message.text = '地図に置くメモ';
+      fixture.componentRef.setInput('chatMessage', message);
+      const tabletop = TestBed.inject(TabletopService);
+      tabletop.currentTable.mode2d = true;
+      const beforeNotes = ObjectStore.instance.getObjects(TextNote);
+
+      try {
+        component.clickShareAsMemo();
+        const created = ObjectStore.instance.getObjects(TextNote).find((note) => !beforeNotes.includes(note));
+        expect(created?.isUpright).toBe(false);
+      } finally {
+        tabletop.currentTable.mode2d = false;
+        const created = ObjectStore.instance.getObjects(TextNote).find((note) => !beforeNotes.includes(note));
+        created?.destroy();
+      }
+    });
+
     it('offers nothing to a guest, who is at the table to watch', () => {
       const message = new ChatMessage();
       message.initialize();
@@ -570,6 +596,67 @@ describe('ChatMessageComponent', () => {
           .find((n, idx) => idx >= before && n.text === '2D6 → 7');
         created?.destroy();
       }
+    });
+  });
+
+  describe('the ticker action', () => {
+    it('stays off a screen that is not running a ticker', () => {
+      const message = new ChatMessage('ticker-action-off');
+      message.initialize();
+      message.from = 'tester';
+      message.name = 'GM';
+      message.text = '扉が開いた';
+      fixture.componentRef.setInput('chatMessage', message);
+
+      fixture.detectChanges();
+
+      expect(component.canShowInTicker()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-message-ticker"]')).toBeNull();
+      message.destroy();
+    });
+
+    it('shows after the other actions and broadcasts an ordinary public message', () => {
+      const message = new ChatMessage('ticker-action-message');
+      message.initialize();
+      message.from = 'tester';
+      message.name = 'GM';
+      message.text = '扉が開いた';
+      fixture.componentRef.setInput('chatMessage', message);
+      const tickerSelection = TestBed.inject(ChatTickerSelectionService);
+      const spy = vi.spyOn(tickerSelection, 'showMessage');
+      // The band runs along the edge of a table looked straight down on, and nowhere else.
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
+
+      fixture.detectChanges();
+      const action = fixture.nativeElement.querySelector('[data-testid="chat-message-ticker"]') as HTMLElement | null;
+
+      expect(component.canShowInTicker()).toBe(true);
+      expect(action?.title).toBe('ティッカー');
+      expect(action?.textContent?.trim()).toBe('campaign');
+      expect(Array.from(action?.parentElement?.querySelectorAll('.material-icons') ?? []).at(-1)).toBe(action);
+      action?.click();
+      expect(spy).toHaveBeenCalledWith(message.identifier);
+    });
+
+    it.each([
+      { label: 'a direct message', to: 'other-user', tag: '', text: '秘密会話' },
+      { label: 'a secret message', to: '', tag: 'secret', text: '秘匿情報' },
+      { label: 'a system message', to: '', tag: 'system', text: 'システム通知' },
+      { label: 'an empty message', to: '', tag: '', text: '   \n  ' },
+    ])('does not offer $label to the public ticker', ({ to, tag, text }) => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.from = 'tester';
+      message.to = to;
+      message.tag = tag;
+      message.text = text;
+      fixture.componentRef.setInput('chatMessage', message);
+
+      fixture.detectChanges();
+
+      expect(component.canShowInTicker()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-message-ticker"]')).toBeNull();
     });
   });
 
@@ -759,7 +846,7 @@ describe('ChatMessageComponent', () => {
       const message = new ChatMessage();
       message.initialize();
       // What `changeable` compares against, so an edit is allowed whatever ran before this.
-      message.from = getPeerContext().userId;
+      message.from = beMyself().userId;
       message.to = '';
       message.name = 'アリス';
       message.tag = '';

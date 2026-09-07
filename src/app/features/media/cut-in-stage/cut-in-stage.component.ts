@@ -63,6 +63,8 @@ export class CutInStageComponent {
   readonly sceneWidth = input(0);
   readonly sceneHeight = input(0);
   readonly playing = input(true);
+  /** Where a shared playback clock already stood when this copy was mounted. */
+  readonly startOffsetMs = input(0);
   /** Where the scrubber stands, in ms. Read only while it is not playing. */
   readonly playheadMs = input(0);
   /** How far the stage is leaned into, past the scale that fits the scene in. */
@@ -131,11 +133,12 @@ export class CutInStageComponent {
       const elements = this.layerElements();
       const durationMs = this.durationMs();
       const loops = this.loops();
+      const startOffsetMs = this.startOffsetMs();
       // Every layer's own version, so a keyframe moved while the editor is open is picked up.
       for (const layer of layers) this.objectChange.versionOf(layer.identifier)();
 
-      this.build(layers, elements, this.wipeElements(), this.crumbleElements(), durationMs, loops);
-      this.runTo(untracked(this.playing), untracked(this.playheadMs), layers, elements, durationMs);
+      this.build(layers, elements, this.wipeElements(), this.crumbleElements(), durationMs, loops, startOffsetMs);
+      this.runTo(untracked(this.playing), untracked(this.playheadMs), layers, elements, durationMs, startOffsetMs);
     });
 
     afterRenderEffect(() => {
@@ -144,7 +147,8 @@ export class CutInStageComponent {
         this.playheadMs(),
         untracked(this.layers),
         untracked(this.layerElements),
-        untracked(this.durationMs)
+        untracked(this.durationMs),
+        this.startOffsetMs()
       );
     });
 
@@ -209,7 +213,8 @@ export class CutInStageComponent {
     wipes: readonly ElementRef<HTMLElement>[],
     crumbles: readonly ElementRef<HTMLElement>[],
     durationMs: number,
-    loops: boolean
+    loops: boolean,
+    startOffsetMs: number
   ): void {
     this.clearHandles();
     if (durationMs < 1) return;
@@ -219,6 +224,7 @@ export class CutInStageComponent {
       fill: 'both',
       iterations: loops ? Infinity : 1,
     };
+    if (startOffsetMs > 0) options.delay = -startOffsetMs;
 
     for (let at = 0; at < layers.length; at++) {
       const element = elements[at]?.nativeElement;
@@ -248,7 +254,8 @@ export class CutInStageComponent {
     playheadMs: number,
     layers: readonly CutInLayer[],
     elements: readonly ElementRef<HTMLElement>[],
-    durationMs: number
+    durationMs: number,
+    startOffsetMs: number
   ): void {
     for (let at = 0; at < layers.length; at++) {
       const layer = layers[at];
@@ -256,7 +263,7 @@ export class CutInStageComponent {
 
       if (!handle) {
         const element = elements[at]?.nativeElement;
-        if (element) this.paintStill(element, layer, playing ? 0 : playheadMs, durationMs);
+        if (element) this.paintStill(element, layer, playing ? startOffsetMs : playheadMs, durationMs);
         continue;
       }
 

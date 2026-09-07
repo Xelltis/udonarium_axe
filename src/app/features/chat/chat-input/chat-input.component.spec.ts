@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -78,8 +80,31 @@ describe('ChatInputComponent', () => {
         messBubbleDark: '#616161',
         replyTo: '',
         quoteOf: '',
+        toTicker: false,
       });
       expect(component.text).toBe('');
+    });
+
+    it('offers the ticker only where this screen runs one, and marks the line when it is asked to', async () => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+
+      TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
+      fixture.detectChanges();
+      // The room runs one, but this seat is in perspective and has no band of its own.
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeTruthy();
+
+      component.toggleTickerSend();
+      component.text = 'ラウンド開始';
+      const outgoing = sent();
+
+      component.sendChat(null);
+
+      expect((await outgoing).toTicker).toBe(true);
     });
 
     it('sends as the character that was picked with its own colours', async () => {

@@ -16,6 +16,7 @@ import {
 } from '@axe/application/tabletop/tabletop-default-setup';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -38,6 +39,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { MAX_BOARD_PITCH, WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { laysFlat } from '@axe/domain/ui/view-mode';
 
 /** How wide an ambient effect starts, in cells. One cell reads as nothing, so it arrives with some ground under it. */
 const AMBIENCE_DEFAULT_SIZE = 4;
@@ -54,6 +56,7 @@ export class TabletopActionService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly viewMode = inject(ViewModePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
 
   constructor() {}
@@ -163,6 +166,9 @@ export class TabletopActionService {
     textNote.location.x = position.x;
     textNote.location.y = position.y;
     textNote.posZ = position.z;
+    // The seat's own view decides, as it does everywhere else: a reader who asked for
+    // perspective on a table that recommends flat is looking at a standing board.
+    textNote.isUpright = !laysFlat(this.viewMode.mode(), this.getViewTable()?.mode2d ?? false);
     this.applyCreationDefaults(textNote);
     return textNote;
   }
@@ -325,19 +331,29 @@ export class TabletopActionService {
   }
 
   makeDefaultContextMenuActions(position: PointerCoordinate): ContextMenuAction[] {
+    return this.makeDefaultContextMenuActionGroups(position).flat();
+  }
+
+  // The create items come in two halves so a rotating menu can spread them over two spokes
+  // instead of piling every one of them onto a single group.
+  makeDefaultContextMenuActionGroups(position: PointerCoordinate): ContextMenuAction[][] {
     return [
-      this.getCreateCharacterMenu(position),
-      this.getCreateTableMaskMenu(position),
-      this.getCreateTerrainMenu(position),
-      this.getCreateTextNoteMenu(position),
-      this.getCreateBlankCardMenu(position),
-      this.getCreateTrumpMenu(position),
-      this.getCreateDiceSymbolMenu(position),
-      this.getCreateCoinMenu(position),
-      this.getCreateRangeMenu(position),
-      this.getCreateLightSourceMenu(position),
-      this.getCreateWhiteBoardMenu(position),
-      this.getCreateAmbienceMenu(position),
+      [
+        this.getCreateCharacterMenu(position),
+        this.getCreateTableMaskMenu(position),
+        this.getCreateTerrainMenu(position),
+        this.getCreateTextNoteMenu(position),
+        this.getCreateBlankCardMenu(position),
+        this.getCreateTrumpMenu(position),
+        this.getCreateDiceSymbolMenu(position),
+      ],
+      [
+        this.getCreateCoinMenu(position),
+        this.getCreateRangeMenu(position),
+        this.getCreateLightSourceMenu(position),
+        this.getCreateWhiteBoardMenu(position),
+        this.getCreateAmbienceMenu(position),
+      ],
     ];
   }
 

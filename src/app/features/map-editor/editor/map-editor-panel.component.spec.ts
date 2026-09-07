@@ -12,6 +12,8 @@ import {
   buildShapeKindPoints,
   MapEditorPanelComponent,
 } from '@axe/features/map-editor/editor/map-editor-panel.component';
+import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
+import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import { pointToCell } from '@axe/features/map-editor/model/grid-cells';
 import {
   cellKey,
@@ -83,6 +85,116 @@ describe('MapEditorPanelComponent', () => {
     fixture.detectChanges();
     expect((component as unknown as { isGameMaster: () => boolean }).isGameMaster()).toBe(true);
     expect(fixture.nativeElement.querySelector('canvas')).not.toBeNull();
+  });
+
+  describe('the one tool the function pen and eraser live under', () => {
+    interface Railed {
+      tools: { tool: string; key: string; label?: string; covers?: readonly string[] }[];
+      toolLabelKey: (def: { tool: string; label?: string }) => string;
+      isToolInHand: (def: { tool: string; covers?: readonly string[] }) => boolean;
+      state: MapEditorState;
+    }
+
+    function railed(): Railed {
+      return component as unknown as Railed;
+    }
+
+    it('puts one entry on the rail rather than two', () => {
+      const functions = railed().tools.filter((def) => def.tool.startsWith('function'));
+
+      expect(functions.map((def) => def.tool)).toEqual(['functionPaint']);
+    });
+
+    it('names that entry for the tool rather than for the pen', () => {
+      const def = railed().tools.find((held) => held.tool === 'functionPaint')!;
+
+      expect(railed().toolLabelKey(def)).toBe('feature.mapEditor.tools.function');
+    });
+
+    it('leaves no tool on the rail without a key to reach it by', () => {
+      expect(railed().tools.every((def) => def.key.length > 0)).toBe(true);
+    });
+
+    it('keeps the rail lit while the eraser is the one in hand', () => {
+      const def = railed().tools.find((held) => held.tool === 'functionPaint')!;
+      railed().state.tool.set('functionErase');
+
+      expect(railed().isToolInHand(def)).toBe(true);
+    });
+
+    it('does not light the rail for a tool of another kind', () => {
+      const def = railed().tools.find((held) => held.tool === 'functionPaint')!;
+      railed().state.tool.set('cellErase');
+
+      expect(railed().isToolInHand(def)).toBe(false);
+    });
+  });
+
+  describe('dressing a wall in a picture that ships with the room', () => {
+    interface Dresser {
+      chooseFaceTexture: (face: 'wall', url: string) => void;
+      state: MapEditorState;
+    }
+
+    function dresser(): Dresser {
+      return component as unknown as Dresser;
+    }
+
+    it('wears the texture as an image the terrain can hold', () => {
+      imageStorage.get.mockReturnValue(undefined);
+      const add = vi.fn().mockReturnValue({ identifier: 'wall-asset' });
+      (imageStorage as unknown as { add: unknown }).add = add;
+
+      dresser().chooseFaceTexture('wall', 'assets/images/walls/wall_brick.webp');
+
+      expect(add).toHaveBeenCalledWith('assets/images/walls/wall_brick.webp');
+      expect(dresser().state.functionSpec().terrain.images.wall).toBe('wall-asset');
+    });
+
+    it('wears a texture that was added by hand', async () => {
+      const dressed = component as unknown as {
+        addFaceTexture: (face: 'wall') => void;
+        onFaceTextureFileSelected: (event: Event) => Promise<void>;
+        state: MapEditorState;
+      };
+      const intake = TestBed.inject(TextureIntakeService);
+      vi.spyOn(intake, 'takeIn').mockResolvedValue({ identifier: 'added-texture' } as never);
+      dressed.addFaceTexture('wall');
+
+      await dressed.onFaceTextureFileSelected({
+        target: { files: [new File([new Uint8Array([1])], 'x.png')], value: 'x' },
+      } as unknown as Event);
+
+      expect(dressed.state.functionSpec().terrain.images.wall).toBe('added-texture');
+    });
+
+    it('wears nothing where the crop was left unfinished', async () => {
+      const dressed = component as unknown as {
+        addFaceTexture: (face: 'wall') => void;
+        onFaceTextureFileSelected: (event: Event) => Promise<void>;
+        state: MapEditorState;
+      };
+      const intake = TestBed.inject(TextureIntakeService);
+      vi.spyOn(intake, 'takeIn').mockResolvedValue(null);
+      dressed.addFaceTexture('wall');
+
+      await dressed.onFaceTextureFileSelected({
+        target: { files: [new File([new Uint8Array([1])], 'x.png')], value: 'x' },
+      } as unknown as Event);
+
+      expect(dressed.state.functionSpec().terrain.images.wall).toBe('');
+    });
+
+    it('takes up a picture already kept rather than keeping it twice', () => {
+      imageStorage.get.mockReturnValue({ identifier: 'already-kept' });
+      const add = vi.fn();
+      (imageStorage as unknown as { add: unknown }).add = add;
+
+      dresser().chooseFaceTexture('wall', 'assets/images/walls/wall_brick.webp');
+
+      expect(add).not.toHaveBeenCalled();
+      expect(dresser().state.functionSpec().terrain.images.wall).toBe('already-kept');
+    });
   });
 
   it('sets the exported image as the table background', async () => {

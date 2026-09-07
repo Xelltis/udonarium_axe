@@ -1,8 +1,13 @@
 <div
   class="text-ui-text animate-fade-in pointer-events-none absolute z-9000 box-border max-h-full max-w-full overflow-visible overscroll-contain"
   appDraggable
+  [draggable.disable]="edgeSeat !== null"
   #draggablePanel
   [attr.data-v]="objectVersion()"
+  [attr.data-tooltip-rotation]="rotationDegrees"
+  [attr.inert]="edgeSeat ? '' : null"
+  [style.transform]="'rotateZ(' + rotationDegrees + 'deg)'"
+  style="transform-origin: top left"
 >
   @if (tabletopObject && canViewObject()) {
     @switch (tabletopObject.aliasName) {

@@ -55,6 +55,119 @@ describe('Config', () => {
     });
   });
 
+  describe('how the round is taken', () => {
+    it('takes the round one piece at a time until it is told otherwise', () => {
+      expect(Config.instance.turnOrderMode).toBe('initiative');
+      expect(Config.instance.factionPhaseMode).toBe('free');
+      expect(Config.instance.factionOrder).toBe('');
+      expect(Config.instance.factionSkipUnassigned).toBe(false);
+    });
+
+    it('returns the modes it is given', () => {
+      Config.instance.turnOrderMode = 'faction';
+      Config.instance.factionPhaseMode = 'initiative';
+
+      expect(Config.instance.turnOrderMode).toBe('faction');
+      expect(Config.instance.factionPhaseMode).toBe('initiative');
+    });
+
+    it('holds the order of the sides as it is written', () => {
+      Config.instance.factionOrder = 'p-a,p-b';
+
+      expect(Config.instance.factionOrder).toBe('p-a,p-b');
+    });
+
+    it('reads a mode it does not know as the one it starts on', () => {
+      Config.instance.setAttribute('_turnOrderMode', 'sides');
+
+      expect(Config.instance.turnOrderMode).toBe('initiative');
+    });
+
+    it('reads the flag back the way a loaded room writes it', () => {
+      Config.instance.factionSkipUnassigned = true;
+      Config.instance.setAttribute(
+        '_factionSkipUnassigned',
+        `${Config.instance.getAttribute('_factionSkipUnassigned')}`
+      );
+
+      expect(Config.instance.factionSkipUnassigned).toBe(true);
+    });
+  });
+
+  describe('the rules of play', () => {
+    it('answers nothing at all until it is asked', () => {
+      expect(Config.instance.roomRuleAnswers).toEqual({
+        moveRangeEnabled: null,
+        moveRangeElementNames: null,
+        moveDiagonally: null,
+        piecesShareCells: null,
+        moveRangeAlways: null,
+        zocAlways: null,
+        cellDistance: null,
+        cellDistanceUnit: null,
+        zocMode: null,
+        zocRange: null,
+        zocExtraCost: null,
+        facingMark: null,
+      });
+    });
+
+    it('holds on to an answer of no rather than forgetting it was asked', () => {
+      Config.instance.moveDiagonally = false;
+      Config.instance.piecesShareCells = false;
+
+      expect(Config.instance.moveDiagonally).toBe(false);
+      expect(Config.instance.piecesShareCells).toBe(false);
+    });
+
+    it('holds on to a count of nought', () => {
+      Config.instance.zocExtraCost = 0;
+
+      expect(Config.instance.zocExtraCost).toBe(0);
+    });
+
+    it('gives an answer back to the table when it is taken away', () => {
+      Config.instance.zocMode = 'stop';
+      Config.instance.zocRange = 2;
+
+      Config.instance.zocMode = null;
+      Config.instance.zocRange = null;
+
+      expect(Config.instance.zocMode).toBeNull();
+      expect(Config.instance.zocRange).toBeNull();
+    });
+
+    it('answers nothing where the attributes were never written, rather than answering nought', () => {
+      // What an older build hands over carries none of these, and a bag with nothing in it
+      // is what is left. A count read as 0 there would rule that a cell stands for nothing.
+      Config.instance.cellDistance = 5;
+      Config.instance.zocMode = 'stop';
+      Config.instance.moveDiagonally = false;
+
+      for (const attribute of ['_cellDistance', '_zocMode', '_moveDiagonally']) {
+        Config.instance.removeAttribute(attribute);
+      }
+
+      expect(Config.instance.cellDistance).toBeNull();
+      expect(Config.instance.zocMode).toBeNull();
+      expect(Config.instance.moveDiagonally).toBeNull();
+      expect(Config.instance.turnOrderMode).toBe('initiative');
+      expect(Config.instance.factionSkipUnassigned).toBe(false);
+    });
+
+    it('reads an answer back out of the text an attribute carries', () => {
+      Config.instance.moveRangeEnabled = false;
+      Config.instance.cellDistance = 5;
+
+      for (const attribute of ['_moveRangeEnabled', '_cellDistance']) {
+        Config.instance.setAttribute(attribute, `${Config.instance.getAttribute(attribute)}`);
+      }
+
+      expect(Config.instance.moveRangeEnabled).toBe(false);
+      expect(Config.instance.cellDistance).toBe(5);
+    });
+  });
+
   describe('system avatar', () => {
     it('starts with no picture of its own', () => {
       expect(Config.instance.systemAvatarIdentifier).toBe('');

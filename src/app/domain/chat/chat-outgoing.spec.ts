@@ -14,6 +14,7 @@ describe('composeChatOutgoing', () => {
     bubbles: { light: '#fee', dark: '#300' },
     replyTo: 'message-9',
     quoteOf: 'message-4',
+    toTicker: false,
   };
 
   it('lays the draft out as the line that goes on the wire', () => {
@@ -28,6 +29,7 @@ describe('composeChatOutgoing', () => {
       messBubbleDark: '#300',
       replyTo: 'message-9',
       quoteOf: 'message-4',
+      toTicker: false,
     });
   });
 

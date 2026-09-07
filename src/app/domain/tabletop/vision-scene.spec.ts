@@ -119,6 +119,24 @@ describe('vision-scene', () => {
       expect(lightLevelAt(s, 120, 0)).toBe(0);
     });
 
+    it('carries along the surface it is level with, not only along the ground', () => {
+      // A lamp 120px up reaches 160px across the floor of a 200px sphere, and the whole 200
+      // along a walkway at its own height.
+      const lamp = light({ x: 0, y: 0, z: 120, dimPx: 200, brightPx: 200 });
+
+      expect(floorRadii(lamp).dimFloor).toBeCloseTo(160);
+      expect(floorRadii(lamp, 120).dimFloor).toBeCloseTo(200);
+    });
+
+    it('lights a thing standing level with it as it lights the ground beneath itself', () => {
+      const s = scene({ lights: [light({ x: 0, y: 0, z: 200, dimPx: 200, brightPx: 200 })] });
+
+      // The sphere only grazes the floor, so nothing on the floor is lit by it.
+      expect(objectLightLevel(s, 100, 0, 0, true, 0)).toBe(0);
+      // A walkway at the lamp's own height is well inside it.
+      expect(objectLightLevel(s, 100, 0, 0, true, 200)).toBeGreaterThan(0);
+    });
+
     it('a high enough one reaches none of it', () => {
       const s = scene({ lights: [light({ x: 0, y: 0, z: 250, dimPx: 200 })] });
       expect(lightLevelAt(s, 0, 0)).toBe(0);
@@ -837,6 +855,25 @@ describe('vision-scene', () => {
       expect(plan.reveals[0].x).toBeCloseTo(pool!.cx, 0);
       expect(plan.reveals[0].y).toBeCloseTo(pool!.cy, 0);
       expect(pool!.brightPx / pool!.dimPx).toBeCloseTo(lamp.brightPx / lamp.dimPx, 3);
+    });
+
+    it('leaves a roof above it alone for a narrow light pointed at the floor', () => {
+      // Pointed down and narrow: the highest ray it throws still goes down, so a surface
+      // over the lamp catches nothing of it.
+      const down = light({ x: 500, y: 500, z: 100, angle: 60, pitch: -30, brightPx: 150, dimPx: 300 });
+
+      expect(lightFloorPool(down, 200)).toBeNull();
+    });
+
+    it('lays the pool a cone throws on a roof in front of it, never behind', () => {
+      // Wide enough that its highest ray points up, so a roof above is lit - along the way
+      // the lamp faces.
+      const wide = light({ x: 500, y: 500, z: 100, angle: 200, pitch: 10, brightPx: 150, dimPx: 300 });
+
+      const pool = lightFloorPool(wide, 200);
+
+      expect(pool).not.toBeNull();
+      expect(pool!.cx).toBeGreaterThanOrEqual(500);
     });
 
     it('leaves the floor alone for a narrow light pointed at the ceiling', () => {

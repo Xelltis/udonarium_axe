@@ -31,6 +31,12 @@ describe('TabletopOverlapService', () => {
     service = TestBed.inject(TabletopOverlapService);
   });
 
+  // Several of these look at the browser through a spy. Left standing, the next test's spy
+  // is the same one, carrying the calls the last test made into an assertion about its own.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('returns nothing without looking when the coordinates are not numbers', () => {
     const elementsFromPoint = vi.spyOn(document, 'elementsFromPoint').mockReturnValue([]);
 

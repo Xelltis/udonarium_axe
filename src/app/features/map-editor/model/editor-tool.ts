@@ -16,7 +16,9 @@ export type EditorTool =
   | 'freehand'
   | 'text'
   | 'stamp'
-  | 'image';
+  | 'image'
+  | 'functionPaint'
+  | 'functionErase';
 
 export type LineKind = 'straight' | 'polyline' | 'curve' | 'closedCurve';
 

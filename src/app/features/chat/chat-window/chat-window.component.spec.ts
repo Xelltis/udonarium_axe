@@ -2,6 +2,7 @@ import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
+import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
@@ -67,6 +68,56 @@ describe('ChatWindowComponent', () => {
 
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(ChatWindowComponent);
+  });
+
+  it('sends a line round the screen when it was marked for the ticker', () => {
+    const tab = ChatTabList.instance.addChatTab('卓上');
+    try {
+      component.chatTabidentifier = tab.identifier;
+      fixture.detectChanges();
+      const shown = vi.spyOn(TestBed.inject(ChatTickerSelectionService), 'showMessage');
+
+      component.sendChat({
+        text: '第一ラウンド',
+        gameSystem: null as never,
+        sendFrom: PeerCursor.myCursor.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#000000',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: true,
+      });
+
+      expect(shown).toHaveBeenCalledTimes(1);
+    } finally {
+      tab.destroy();
+    }
+  });
+
+  it('leaves an ordinary line off the ticker', () => {
+    const tab = ChatTabList.instance.addChatTab('普通');
+    try {
+      component.chatTabidentifier = tab.identifier;
+      fixture.detectChanges();
+      const shown = vi.spyOn(TestBed.inject(ChatTickerSelectionService), 'showMessage');
+
+      component.sendChat({
+        text: 'こんばんは',
+        gameSystem: null as never,
+        sendFrom: PeerCursor.myCursor.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#000000',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+      });
+
+      expect(shown).not.toHaveBeenCalled();
+    } finally {
+      tab.destroy();
+    }
   });
 
   describe('who is typing', () => {
@@ -487,6 +538,7 @@ describe('ChatWindowComponent', () => {
         messColor: '#000000',
         replyTo: '',
         quoteOf: '',
+        toTicker: false,
       });
     }
 

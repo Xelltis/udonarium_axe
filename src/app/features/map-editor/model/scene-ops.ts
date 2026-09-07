@@ -5,6 +5,7 @@ import {
   FillStyle,
   FreehandLayer,
   FreehandStroke,
+  FunctionLayer,
   ImageItem,
   ImageLayer,
   MapLayer,
@@ -39,6 +40,15 @@ export function eraseCell(layer: CellLayer, col: number, row: number): void {
 
 export function getCell(layer: CellLayer, col: number, row: number): FillStyle | null {
   return layer.cells[cellKey(col, row)] ?? null;
+}
+
+/** Paints one cell for what it does. The key alone is the record; there is no fill to keep. */
+export function setFunctionCell(layer: FunctionLayer, col: number, row: number): void {
+  layer.cells[cellKey(col, row)] = true;
+}
+
+export function eraseFunctionCell(layer: FunctionLayer, col: number, row: number): void {
+  delete layer.cells[cellKey(col, row)];
 }
 
 export function floodFill(scene: MapScene, layer: CellLayer, col: number, row: number, fill: FillStyle): void {
@@ -201,11 +211,16 @@ export function resizeScene(scene: MapScene, cols: number, rows: number): void {
   scene.cols = cols;
   scene.rows = rows;
   for (const layer of scene.layers) {
-    if (layer.kind !== 'cell') continue;
-    for (const key of Object.keys(layer.cells)) {
+    // Painted function cells are trimmed with the drawn ones. Left outside the scene they are
+    // still built when it is set as the table, so a board that had been made smaller put walls
+    // and cover off the edge of it: sent to every peer, stopping sight and light out there,
+    // and nowhere to be seen in the editor that made them.
+    if (layer.kind !== 'cell' && layer.kind !== 'function') continue;
+    const cells: Record<string, unknown> = layer.cells;
+    for (const key of Object.keys(cells)) {
       const { col, row } = parseCellKey(key);
       if (col < 0 || col >= cols || row < 0 || row >= rows) {
-        delete layer.cells[key];
+        delete cells[key];
       }
     }
   }

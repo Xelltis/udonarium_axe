@@ -13,11 +13,13 @@ import {
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
+import { Config } from '@axe/domain/peer/config';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 
 describe('save and load round trip', () => {
@@ -33,6 +35,58 @@ describe('save and load round trip', () => {
 
   afterEach(() => {
     (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+  });
+
+  describe("the room's own rules", () => {
+    afterEach(() => {
+      (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    });
+
+    it('carries every answer through a save and a load', () => {
+      const config = Config.instance;
+      config.moveRangeEnabled = false;
+      config.moveDiagonally = false;
+      config.zocExtraCost = 0;
+      config.cellDistance = 5;
+      config.cellDistanceUnit = 'foot';
+      config.zocMode = 'stop';
+
+      const xml = serializer.toXml(config);
+      serializer.parseXml(xml);
+
+      expect(Config.instance.moveRangeEnabled).toBe(false);
+      expect(Config.instance.moveDiagonally).toBe(false);
+      expect(Config.instance.zocExtraCost).toBe(0);
+      expect(Config.instance.cellDistance).toBe(5);
+      expect(Config.instance.cellDistanceUnit).toBe('foot');
+      expect(Config.instance.zocMode).toBe('stop');
+    });
+
+    it('carries how the round is taken through a save and a load', () => {
+      const config = Config.instance;
+      config.turnOrderMode = 'faction';
+      config.factionPhaseMode = 'initiative';
+      config.factionOrder = 'p-a,p-b';
+      config.factionSkipUnassigned = true;
+
+      const xml = serializer.toXml(config);
+      serializer.parseXml(xml);
+
+      expect(Config.instance.turnOrderMode).toBe('faction');
+      expect(Config.instance.factionPhaseMode).toBe('initiative');
+      expect(Config.instance.factionOrder).toBe('p-a,p-b');
+      expect(Config.instance.factionSkipUnassigned).toBe(true);
+    });
+
+    it('reads a room that was saved before it had rules to answer for', () => {
+      const xml = '<config identifier="Config" _defaultDiceBot="DiceBot"></config>';
+
+      serializer.parseXml(xml);
+
+      expect(Config.instance.roomRuleAnswers.zocMode).toBeNull();
+      expect(Config.instance.roomRuleAnswers.cellDistance).toBeNull();
+      expect(Config.instance.roomRuleAnswers.moveRangeEnabled).toBeNull();
+    });
   });
 
   describe('terrain serialisation', () => {
@@ -129,6 +183,46 @@ describe('save and load round trip', () => {
       expect(xml).toContain('<game-table');
       expect(xml).toContain('<terrain');
       expect(xml).toContain('>丘</data>');
+    });
+  });
+
+  describe('shared tabletop-display table settings', () => {
+    it('keeps the view the table recommends in the room data', () => {
+      const table = new GameTable('shared-tabletop-settings');
+      table.mode2d = true;
+      table.initialize();
+
+      const xml = serializer.toXml(table);
+      const restored = serializer.parseXml(xml) as GameTable;
+
+      expect(xml).toContain('mode2d="true"');
+      expect(restored.mode2d).toBe(true);
+    });
+
+    it('keeps what drifts under the board in the room data', () => {
+      const table = new GameTable('background-layers');
+      table.initialize();
+      const layer = new TableBackgroundLayer();
+      layer.initialize();
+      layer.order = 2;
+      layer.speedX = -40;
+      layer.speedY = 15;
+      layer.opacity = 0.6;
+      layer.scale = 1.5;
+      layer.placement = 'over';
+      table.appendChild(layer);
+
+      const xml = serializer.toXml(table);
+      const restored = serializer.parseXml(xml) as GameTable;
+
+      const back = restored.backgroundLayers;
+      expect(back).toHaveLength(1);
+      expect(back[0].order).toBe(2);
+      expect(back[0].speedX).toBe(-40);
+      expect(back[0].speedY).toBe(15);
+      expect(back[0].opacity).toBe(0.6);
+      expect(back[0].scale).toBe(1.5);
+      expect(back[0].placedOver).toBe(true);
     });
   });
 

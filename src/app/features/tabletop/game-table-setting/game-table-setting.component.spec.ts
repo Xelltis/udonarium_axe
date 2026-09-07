@@ -75,177 +75,6 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
-  describe('how a piece shows which way it faces', () => {
-    it('shows nothing for a table that has never been asked', () => {
-      component.selectedTable = null;
-      expect(component.tableFacingMark).toBe('none');
-    });
-
-    it('writes the choice onto the table', () => {
-      const table = new GameTable();
-      table.initialize();
-      component.selectedTable = table;
-
-      component.tableFacingMark = 'arrow';
-
-      expect(table.facingMark).toBe('arrow');
-      expect(component.tableFacingMark).toBe('arrow');
-      table.destroy();
-    });
-
-    it('reads a table carrying something it does not know as showing nothing', () => {
-      const table = new GameTable();
-      table.initialize();
-      table.facingMark = 'compass' as never;
-      component.selectedTable = table;
-
-      expect(component.tableFacingMark).toBe('none');
-      table.destroy();
-    });
-  });
-
-  describe('how far a piece may walk', () => {
-    it('hands back the defaults with no table selected', () => {
-      component.selectedTable = null;
-      expect(component.tableMoveRangeEnabled).toBe(true);
-      expect(component.tableMoveRangeElementNames).toBe('移動,移動力,Speed,速度');
-      expect(component.tableCellDistance).toBe(1);
-      expect(component.tableCellDistanceUnit).toBe('cell');
-    });
-
-    it('puts the question of corners only to a square board', () => {
-      const table = new GameTable();
-      table.initialize();
-      component.selectedTable = table;
-
-      table.gridType = GridType.SQUARE;
-      expect(component.showsDiagonalOption).toBe(true);
-
-      table.gridType = GridType.HEX_VERTICAL;
-      expect(component.showsDiagonalOption).toBe(false);
-
-      table.destroy();
-    });
-
-    it('writes all four onto the table', () => {
-      const table = new GameTable();
-      table.initialize();
-      component.selectedTable = table;
-
-      component.tableMoveRangeEnabled = false;
-      component.tableMoveRangeElementNames = 'Speed';
-      component.tableCellDistance = 5;
-      component.tableCellDistanceUnit = 'foot';
-
-      expect(table.moveRangeEnabled).toBe(false);
-      expect(table.moveRangeElementNames).toBe('Speed');
-      expect(table.cellDistance).toBe(5);
-      expect(table.cellDistanceUnit).toBe('foot');
-      table.destroy();
-    });
-
-    it('takes a distance that is not a number as no conversion at all', () => {
-      const table = new GameTable();
-      table.initialize();
-      component.selectedTable = table;
-
-      component.tableCellDistance = Number.NaN;
-
-      expect(table.cellDistance).toBe(0);
-      table.destroy();
-    });
-  });
-
-  describe('the ground an enemy holds', () => {
-    let table: GameTable;
-
-    beforeEach(() => {
-      table = new GameTable();
-      table.initialize();
-      component.selectedTable = table;
-    });
-
-    afterEach(() => {
-      table.destroy();
-    });
-
-    it('hands back the defaults with no table selected', () => {
-      component.selectedTable = null;
-
-      expect(component.tableZocMode).toBe('none');
-      expect(component.tableZocRange).toBe(1);
-      expect(component.tableZocExtraCost).toBe(1);
-    });
-
-    it('asks nothing more of a table where an enemy holds no ground', () => {
-      component.tableZocMode = 'none';
-
-      expect(component.showsZocOptions).toBe(false);
-      expect(component.showsZocExtraCost).toBe(false);
-    });
-
-    it('asks how far the ground reaches, and what it costs only where it is charged for', () => {
-      component.tableZocMode = 'stop';
-      expect(component.showsZocOptions).toBe(true);
-      expect(component.showsZocExtraCost).toBe(false);
-
-      component.tableZocMode = 'block';
-      expect(component.showsZocExtraCost).toBe(false);
-
-      component.tableZocMode = 'cost';
-      expect(component.showsZocOptions).toBe(true);
-      expect(component.showsZocExtraCost).toBe(true);
-    });
-
-    it('writes all three onto the table', () => {
-      component.tableZocMode = 'cost';
-      component.tableZocRange = 2;
-      component.tableZocExtraCost = 3;
-
-      expect(table.zocMode).toBe('cost');
-      expect(table.zocRange).toBe(2);
-      expect(table.zocExtraCost).toBe(3);
-    });
-
-    it('reads a table carrying something it does not know as holding no ground', () => {
-      table.zocMode = 'engagement';
-
-      expect(component.tableZocMode).toBe('none');
-    });
-
-    it('takes a reach that is not a whole count as none at all', () => {
-      component.tableZocRange = Number.NaN;
-      component.tableZocExtraCost = -2;
-
-      expect(table.zocRange).toBe(0);
-      expect(table.zocExtraCost).toBe(0);
-    });
-
-    it('shows the boxes only once an enemy holds ground', async () => {
-      function boxes(): string[] {
-        return [...fixture.nativeElement.querySelectorAll('input[type="number"]')].map(
-          (node: Element) => node.getAttribute('name') ?? ''
-        );
-      }
-
-      component.tableZocMode = 'none';
-      fixture.detectChanges();
-      await fixture.whenStable();
-      expect(boxes()).not.toContain('tableZocRange');
-
-      component.tableZocMode = 'stop';
-      fixture.detectChanges();
-      await fixture.whenStable();
-      expect(boxes()).toContain('tableZocRange');
-      expect(boxes()).not.toContain('tableZocExtraCost');
-
-      component.tableZocMode = 'cost';
-      fixture.detectChanges();
-      await fixture.whenStable();
-      expect(boxes()).toContain('tableZocExtraCost');
-    });
-  });
-
   describe('signal-driven CD', () => {
     it('reads the deleted flag through a collection signal', () => {
       const objectChangeService = TestBed.inject(ObjectChangeService);
@@ -273,6 +102,29 @@ describe('GameTableSettingComponent', () => {
       void component.tableDistanceviewImage;
       expect(spy).toHaveBeenCalledWith(table.identifier);
     });
+  });
+
+  it('offers the recommended view, and none of what the room now answers for', async () => {
+    const table = new GameTable();
+    table.initialize();
+    component.selectedTable = table;
+
+    try {
+      expect(component.tableRecommendedView).toBe('perspective');
+      component.tableRecommendedView = 'flat';
+      expect(table.mode2d).toBe(true);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const root = fixture.nativeElement as HTMLElement;
+
+      expect(root.querySelector('[data-testid="recommended-view"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="orthographic-projection"]')).toBeNull();
+      expect(root.querySelector('[data-testid="multi-angle-enabled"]')).toBeNull();
+      expect(root.querySelector('[data-testid="view-locked"]')).toBeNull();
+    } finally {
+      table.destroy();
+    }
   });
 
   describe('choosing a table from the list', () => {
@@ -354,5 +206,180 @@ describe('GameTableSettingComponent', () => {
 
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(GameTableSettingComponent);
+  });
+  describe('what drifts under the board', () => {
+    const withTable = (): GameTable => {
+      const table = new GameTable();
+      table.initialize();
+      component.selectedTable = table;
+      return table;
+    };
+
+    it('lays a layer, and puts each new one in front of the last', () => {
+      const table = withTable();
+      try {
+        component.addBackgroundLayer();
+        component.addBackgroundLayer();
+
+        expect(table.backgroundLayers.map((layer) => layer.order)).toEqual([0, 1]);
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('stops at six between the two sides of the board', () => {
+      const table = withTable();
+      try {
+        for (let laid = 0; laid < 6; laid++) component.addBackgroundLayer();
+        expect(component.canAddBackgroundLayer).toBe(false);
+
+        component.addBackgroundLayer();
+        expect(table.backgroundLayers).toHaveLength(6);
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('takes one away again', () => {
+      const table = withTable();
+      try {
+        component.addBackgroundLayer();
+        component.removeBackgroundLayer(table.backgroundLayers[0]);
+
+        expect(table.backgroundLayers).toEqual([]);
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('writes what it is asked onto the table, which the room shares', () => {
+      const table = withTable();
+      try {
+        component.addBackgroundLayer();
+        const layer = table.backgroundLayers[0];
+
+        component.setBackgroundLayerSpeedX(layer, -120);
+        component.setBackgroundLayerSpeedY(layer, 40);
+        component.setBackgroundLayerOpacityPercent(layer, 60);
+        component.setBackgroundLayerScale(layer, 2);
+        component.setBackgroundLayerEnabled(layer, false);
+        component.setBackgroundLayerPlacement(layer, 'over');
+
+        expect(layer.placedOver).toBe(true);
+        expect(layer.speedX).toBe(-120);
+        expect(layer.speedY).toBe(40);
+        expect(layer.opacity).toBeCloseTo(0.6, 5);
+        expect(layer.scale).toBe(2);
+        expect(layer.enabled).toBe(false);
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('holds a runaway speed and an unreadable scale to what the board can show', () => {
+      const table = withTable();
+      try {
+        component.addBackgroundLayer();
+        const layer = table.backgroundLayers[0];
+
+        component.setBackgroundLayerSpeedX(layer, 999999);
+        component.setBackgroundLayerScale(layer, 999);
+        component.setBackgroundLayerOpacityPercent(layer, 500);
+
+        expect(layer.speedX).toBe(component.maxBackgroundScrollSpeed);
+        expect(layer.scale).toBe(component.maxBackgroundLayerScale);
+        expect(layer.opacity).toBe(1);
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('writes nothing to a table that is no longer there to be edited', () => {
+      const table = withTable();
+      component.addBackgroundLayer();
+      const layer = table.backgroundLayers[0];
+      // A table taken out of the store counts as deleted, and a deleted one is not editable.
+      ObjectStore.instance.remove(table);
+
+      expect(component.isEditable).toBe(false);
+
+      component.setBackgroundLayerSpeedX(layer, 100);
+      component.setBackgroundLayerPlacement(layer, 'over');
+      component.moveBackgroundLayer(layer, -1);
+      component.removeBackgroundLayer(layer);
+
+      expect(layer.speedX).toBe(0);
+      expect(layer.placedOver).toBe(false);
+      expect(table.backgroundLayers).toHaveLength(1);
+
+      layer.destroy();
+    });
+
+    it('shows the two sides apart, everything under the board before everything over it', () => {
+      const table = withTable();
+      try {
+        component.addBackgroundLayer();
+        component.addBackgroundLayer();
+        component.setBackgroundLayerPlacement(table.backgroundLayers[0], 'over');
+        const shown = component.backgroundLayers;
+
+        expect(shown.map((layer) => layer.placedOver)).toEqual([false, true]);
+        expect(component.backgroundLayerNumber(shown[0])).toBe(1);
+        expect(component.backgroundLayerNumber(shown[1])).toBe(1);
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('moves one a step through its run and numbers the run again', () => {
+      const table = withTable();
+      try {
+        component.addBackgroundLayer();
+        component.addBackgroundLayer();
+        component.addBackgroundLayer();
+        const [first, second, third] = component.backgroundLayers;
+
+        component.moveBackgroundLayer(third, -1);
+
+        expect(component.backgroundLayers).toEqual([first, third, second]);
+        expect(component.backgroundLayers.map((layer) => layer.order)).toEqual([0, 1, 2]);
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('will not move one past either end of its run', () => {
+      const table = withTable();
+      try {
+        component.addBackgroundLayer();
+        component.addBackgroundLayer();
+        const [first, second] = component.backgroundLayers;
+
+        expect(component.canMoveBackgroundLayer(first, -1)).toBe(false);
+        expect(component.canMoveBackgroundLayer(second, 1)).toBe(false);
+        expect(component.canMoveBackgroundLayer(first, 1)).toBe(true);
+
+        component.moveBackgroundLayer(first, -1);
+        expect(component.backgroundLayers).toEqual([first, second]);
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('counts only its own side of the board when moving, since the runs are drawn apart', () => {
+      const table = withTable();
+      try {
+        component.addBackgroundLayer();
+        component.addBackgroundLayer();
+        const over = component.backgroundLayers[1];
+        component.setBackgroundLayerPlacement(over, 'over');
+
+        // Alone on its side, so there is nowhere for it to go.
+        expect(component.canMoveBackgroundLayer(over, -1)).toBe(false);
+        expect(component.canMoveBackgroundLayer(over, 1)).toBe(false);
+      } finally {
+        table.destroy();
+      }
+    });
   });
 });

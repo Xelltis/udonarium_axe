@@ -1,6 +1,8 @@
 import { computed, DestroyRef, inject, Injectable, Signal } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
@@ -21,10 +23,12 @@ import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { resolveTabletopDisplay, TabletopDisplaySettings } from '@axe/domain/tabletop/tabletop-display';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { laysFlat } from '@axe/domain/ui/view-mode';
 /** What a table carries with it, so that looking at another table brings its own along. */
 const TABLE_CHILD_ALIASES = [
   GameTableMask.aliasName,
@@ -45,7 +49,9 @@ export class TabletopService {
   private readonly objectSerializer = inject(ObjectSerializer);
   private readonly chatTabList = inject(ChatTabList);
   readonly tableSelecter = inject(TableSelecter);
+  private readonly viewMode = inject(ViewModePreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly seatDisplay = inject(TabletopDisplayPreferenceService);
   private readonly destroyRef = inject(DestroyRef);
 
   private _emptyTable: GameTable = new GameTable('');
@@ -70,8 +76,27 @@ export class TabletopService {
     { equal: () => false }
   );
 
-  readonly mode2d: Signal<boolean> = computed(() => this.currentTableVersion().mode2d);
+  /** The view the table is best read in, which a reader following the table is given. */
+  readonly recommendsFlat: Signal<boolean> = computed(() => this.currentTableVersion().mode2d);
+  /** What this seat asked for, which is 'auto' until a reader takes the choice from the table. */
+  readonly seatViewMode = this.viewMode.mode;
+  readonly mode2d: Signal<boolean> = computed(() => laysFlat(this.seatViewMode(), this.recommendsFlat()));
+  /**
+   * How the flat table is drawn and reached, feature by feature.
+   *
+   * The screen in front of this reader decides, falling back to the table for whatever it has
+   * never been told.
+   */
+  readonly display: Signal<TabletopDisplaySettings> = computed(() =>
+    resolveTabletopDisplay(this.currentTableVersion(), this.seatDisplay.own())
+  );
+  /** Perspective is only ever dropped for a table being looked straight down on. */
+  readonly orthographicProjection: Signal<boolean> = computed(
+    () => this.mode2d() && this.display().orthographicProjection
+  );
   readonly imageBillboard: Signal<boolean> = computed(() => this.currentTableVersion().imageBillboard);
+  /** How wide one square is meant to measure on the glass. */
+  readonly cellMm: Signal<number> = computed(() => this.display().cellMm);
   readonly gridSize: Signal<number> = computed(() => this.currentTableVersion().gridSize);
 
   private locationMap: Map<ObjectIdentifier, LocationName> = new Map();

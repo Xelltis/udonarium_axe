@@ -29,6 +29,15 @@ export class PeerCursor extends GameObject {
   @SyncVar() lastControlSendFrom = '';
 
   // The answer given to a vote or a roll call, and which vote it was.
+  // The move this peer is working out under strict play, so the table watches it being made
+  // rather than only seeing where the piece ended up. Cleared the moment the piece is set down.
+  /** The piece being walked, or nothing where this peer is not walking one. */
+  @SyncVar() movingCharacterIdentifier = '';
+  /** The table it is being walked on, since a cell means nothing without the grid it is in. */
+  @SyncVar() movingTableIdentifier = '';
+  /** The way it is being walked, as cell numbers separated by commas. */
+  @SyncVar() movingWay = '';
+
   @SyncVar() voteAnswer = -1; // 投票選択肢のindex値、-2:棄権
   @SyncVar() voteId = -1; // 回答した投票のID
 

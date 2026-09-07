@@ -1,7 +1,6 @@
 import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
@@ -16,7 +15,6 @@ import { emitSelectGameTable, triggerUpdateGameObject } from '@axe/core/event/do
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { DiceBot } from '@axe/domain/dice/dice-bot';
 import {
   ambienceColorOf,
   ambienceDensityOf,
@@ -28,27 +26,25 @@ import {
 } from '@axe/domain/effect/ambience/ambience-kind';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { encodeCutInIdentifiers, parseCutInIdentifiers } from '@axe/domain/media/table-cut-in';
-import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import {
+  MAX_BACKGROUND_LAYER_SCALE,
+  MAX_BACKGROUND_SCROLL_SPEED,
+  MIN_BACKGROUND_LAYER_SCALE,
+} from '@axe/domain/tabletop/background-scroll';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
-import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import {
-  DEFAULT_CELL_DISTANCE,
-  DEFAULT_CELL_DISTANCE_UNIT,
-  DEFAULT_MOVE_RANGE_ELEMENT_NAMES,
-} from '@axe/domain/tabletop/move/move-cells';
-import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
-import {
-  asZocMode,
-  DEFAULT_ZOC_EXTRA_COST,
-  DEFAULT_ZOC_RANGE,
-  ZOC_MODES,
-  ZocMode,
-} from '@axe/domain/tabletop/move/zone-of-control';
-import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
+  asTableLayerPlacement,
+  MAX_TABLE_BACKGROUND_LAYERS,
+  moveBackgroundLayer as movedLayerRun,
+  TABLE_LAYER_PLACEMENTS,
+  TableBackgroundLayer,
+  TableLayerPlacement,
+} from '@axe/domain/tabletop/table-background-layer';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import {
   MapImageGridAdjusterComponent,
   MapImageGridAdjusterResult,
@@ -74,40 +70,26 @@ export class GameTableSettingComponent {
     this.objectChange.trackMyCursor();
     return !this.rolePermission.canEditTabletop;
   });
-  private readonly modalService = inject(ModalService);
   private readonly saveDataService = inject(SaveDataService);
   private readonly imageService = inject(ImageService);
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectSerializer = inject(ObjectSerializer);
   private readonly tableSelecter = inject(TableSelecter);
+  private readonly modalService = inject(ModalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
   private readonly cutInService = inject(CutInService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly roomPanels = inject(RoomPanelService);
 
-  get gameType(): string {
-    return this.config.defaultDiceBot;
-  }
-  set gameType(gameType: string) {
-    this.config.defaultDiceBot = gameType;
-  }
-  loadDiceBot(gameType: string) {
-    DiceBot.getHelpMessage(gameType).then(() => {});
-  }
-
-  get config(): Config {
-    return this.objectStore.get<Config>('Config')!;
+  /** The room holds the rules of play and the dice bot it starts everyone on. */
+  openRoomSettings(): void {
+    this.roomPanels.open('roomSettings');
   }
 
   minSize: number = 1;
   maxSize: number = 100;
-
-  private readonly diceBotCatalog = inject(DiceBotCatalogService);
-
-  get diceBotInfos() {
-    return this.diceBotCatalog.infos();
-  }
 
   get tableBackgroundImage(): ImageFile {
     this.objectChange.fileVersion();
@@ -174,32 +156,17 @@ export class GameTableSettingComponent {
     this.selectedTable.gridSnap = tableGridSnap;
   }
 
-  get tableImageBillboard(): boolean {
-    return this.selectedTable?.imageBillboard ?? false;
+  /**
+   * The view this table is best read in, which a reader following the table is given.
+   *
+   * It recommends rather than decides: a reader who has picked a view of their own keeps it.
+   */
+  get tableRecommendedView(): 'perspective' | 'flat' {
+    return this.selectedTable?.mode2d ? 'flat' : 'perspective';
   }
-  set tableImageBillboard(value: boolean) {
+  set tableRecommendedView(value: 'perspective' | 'flat') {
     if (!this.selectedTable) return;
-    this.selectedTable.imageBillboard = value;
-    triggerUpdateGameObject(this.selectedTable.toContext());
-  }
-
-  get tableMode2d(): boolean {
-    return this.selectedTable?.mode2d ?? false;
-  }
-  set tableMode2d(value: boolean) {
-    if (!this.selectedTable) return;
-    this.selectedTable.mode2d = value;
-    triggerUpdateGameObject(this.selectedTable.toContext());
-  }
-
-  readonly facingMarks = TABLE_FACING_MARKS;
-
-  get tableFacingMark(): TableFacingMark {
-    return asTableFacingMark(this.selectedTable?.facingMark);
-  }
-  set tableFacingMark(value: TableFacingMark) {
-    if (!this.selectedTable) return;
-    this.selectedTable.facingMark = asTableFacingMark(value);
+    this.selectedTable.mode2d = value === 'flat';
     triggerUpdateGameObject(this.selectedTable.toContext());
   }
 
@@ -275,111 +242,6 @@ export class GameTableSettingComponent {
     const table = this.selectedTable;
     if (!this.isEditable || !table) return;
     ensureFogMemoryOn(table).reset();
-  }
-
-  get tableMoveRangeEnabled(): boolean {
-    return this.selectedTable?.moveRangeEnabled ?? true;
-  }
-  set tableMoveRangeEnabled(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.moveRangeEnabled = value;
-  }
-
-  get tableMoveRangeElementNames(): string {
-    return this.selectedTable?.moveRangeElementNames ?? DEFAULT_MOVE_RANGE_ELEMENT_NAMES;
-  }
-  set tableMoveRangeElementNames(value: string) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.moveRangeElementNames = value;
-  }
-
-  /** A hex board has no corners to cut, so the question is only put on squares. */
-  get showsDiagonalOption(): boolean {
-    return !isHexGrid(this.tableGridType);
-  }
-
-  get tableMoveDiagonally(): boolean {
-    return this.selectedTable?.moveDiagonally ?? true;
-  }
-  set tableMoveDiagonally(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.moveDiagonally = value;
-  }
-
-  /** A cell standing for so many cells says nothing, so the distance is only asked for lengths. */
-  get showsCellDistance(): boolean {
-    return this.tableCellDistanceUnit !== 'cell';
-  }
-
-  get tableMoveRangeAlways(): boolean {
-    return this.selectedTable?.moveRangeAlways ?? false;
-  }
-  set tableMoveRangeAlways(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.moveRangeAlways = value;
-  }
-
-  get tableZocAlways(): boolean {
-    return this.selectedTable?.zocAlways ?? false;
-  }
-  set tableZocAlways(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.zocAlways = value;
-  }
-
-  get tablePiecesShareCells(): boolean {
-    return this.selectedTable?.piecesShareCells ?? true;
-  }
-  set tablePiecesShareCells(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.piecesShareCells = value;
-  }
-
-  get tableCellDistance(): number {
-    return this.selectedTable?.cellDistance ?? DEFAULT_CELL_DISTANCE;
-  }
-  set tableCellDistance(value: number) {
-    if (!this.isEditable || !this.selectedTable) return;
-    const amount = Number(value);
-    this.selectedTable.cellDistance = Number.isFinite(amount) && amount > 0 ? amount : 0;
-  }
-
-  readonly moveUnits = MOVE_UNITS;
-
-  get tableCellDistanceUnit(): MoveUnit {
-    return parseMoveUnit(this.selectedTable?.cellDistanceUnit) ?? DEFAULT_CELL_DISTANCE_UNIT;
-  }
-  set tableCellDistanceUnit(value: MoveUnit) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.cellDistanceUnit = value;
-  }
-
-  readonly zocModes = ZOC_MODES;
-
-  get tableZocMode(): ZocMode {
-    return asZocMode(this.selectedTable?.zocMode);
-  }
-  set tableZocMode(value: ZocMode) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.zocMode = asZocMode(value);
-  }
-
-  /** A table where an enemy holds no ground is asked nothing about how much of it. */
-  get showsZocOptions(): boolean {
-    return this.tableZocMode !== 'none';
-  }
-
-  /** What it costs on top is a question only for a table that charges for the ground. */
-  get showsZocExtraCost(): boolean {
-    return this.tableZocMode === 'cost';
-  }
-
-  get tableZocRange(): number {
-    return this.selectedTable?.zocRange ?? DEFAULT_ZOC_RANGE;
-  }
-  set tableZocRange(value: number) {
-    if (!this.isEditable || !this.selectedTable) return;
-    this.selectedTable.zocRange = wholeCells(value);
-  }
-
-  get tableZocExtraCost(): number {
-    return this.selectedTable?.zocExtraCost ?? DEFAULT_ZOC_EXTRA_COST;
-  }
-  set tableZocExtraCost(value: number) {
-    if (!this.isEditable || !this.selectedTable) return;
-    this.selectedTable.zocExtraCost = wholeCells(value);
   }
 
   protected readonly weatherKinds = SKY_AMBIENCE_KINDS;
@@ -703,6 +565,153 @@ export class GameTableSettingComponent {
     }
   }
 
+  readonly maxBackgroundScrollSpeed = MAX_BACKGROUND_SCROLL_SPEED;
+  readonly minBackgroundLayerScale = MIN_BACKGROUND_LAYER_SCALE;
+  readonly maxBackgroundLayerScale = MAX_BACKGROUND_LAYER_SCALE;
+  readonly tableLayerPlacements = TABLE_LAYER_PLACEMENTS;
+
+  /** The layers grouped the way they are drawn: everything under the board, then everything over. */
+  get backgroundLayers(): TableBackgroundLayer[] {
+    this.objectChange.versionOf(this.selectedTable?.identifier ?? '')();
+    this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
+    const laid = this.selectedTable?.backgroundLayers ?? [];
+    return [...laid.filter((layer) => !layer.placedOver), ...laid.filter((layer) => layer.placedOver)];
+  }
+
+  /** The run one layer belongs to, which is what moving it up and down happens within. */
+  private backgroundLayerRun(layer: TableBackgroundLayer): TableBackgroundLayer[] {
+    return this.backgroundLayers.filter((laid) => laid.placedOver === layer.placedOver);
+  }
+
+  /** Its place in that run, counted from one, which is what the heading says. */
+  backgroundLayerNumber(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return this.backgroundLayerRun(layer).indexOf(layer) + 1;
+  }
+
+  canMoveBackgroundLayer(layer: TableBackgroundLayer, offset: number): boolean {
+    if (!this.isEditable) return false;
+    const run = this.backgroundLayerRun(layer);
+    const to = run.indexOf(layer) + offset;
+    return 0 <= to && to < run.length;
+  }
+
+  /**
+   * Moves one layer a step through its run.
+   *
+   * The whole run is numbered again afterwards, so an order never drifts into a gap and the two
+   * runs stay tidy however often they are shuffled.
+   */
+  moveBackgroundLayer(layer: TableBackgroundLayer, offset: number): void {
+    if (!this.isEditable) return;
+    const run = this.backgroundLayerRun(layer);
+    const moved = movedLayerRun(run, run.indexOf(layer), offset);
+    moved.forEach((laid, order) => {
+      if (laid.order === order) return;
+      laid.order = order;
+      laid.update();
+    });
+  }
+
+  get canAddBackgroundLayer(): boolean {
+    return this.isEditable && this.backgroundLayers.length < MAX_TABLE_BACKGROUND_LAYERS;
+  }
+
+  /** A new layer goes in front of the ones already laid, which is where the eye expects it. */
+  addBackgroundLayer(): void {
+    if (!this.canAddBackgroundLayer || !this.selectedTable) return;
+    const layer = new TableBackgroundLayer();
+    layer.initialize();
+    layer.order = this.backgroundLayers.reduce((highest, laid) => Math.max(highest, laid.order + 1), 0);
+    this.selectedTable.appendChild(layer);
+  }
+
+  removeBackgroundLayer(layer: TableBackgroundLayer): void {
+    if (!this.isEditable) return;
+    layer.destroy();
+  }
+
+  openBackgroundLayerImage(layer: TableBackgroundLayer): void {
+    if (!this.isEditable) return;
+    void this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
+      if (!value) return;
+      layer.imageIdentifier = value;
+      layer.update();
+    });
+  }
+
+  backgroundLayerImage(layer: TableBackgroundLayer): ImageFile {
+    this.objectChange.fileVersion();
+    this.objectChange.versionOf(layer.identifier)();
+    return this.imageService.getEmptyOr(layer.imageIdentifier);
+  }
+
+  backgroundLayerEnabled(layer: TableBackgroundLayer): boolean {
+    this.objectChange.versionOf(layer.identifier)();
+    return layer.enabled;
+  }
+  setBackgroundLayerEnabled(layer: TableBackgroundLayer, value: boolean): void {
+    this.writeBackgroundLayer(layer, () => (layer.enabled = value));
+  }
+
+  backgroundLayerSpeedX(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return layer.speedX;
+  }
+  setBackgroundLayerSpeedX(layer: TableBackgroundLayer, value: number): void {
+    this.writeBackgroundLayer(layer, () => (layer.speedX = clampScrollSpeed(value)));
+  }
+
+  backgroundLayerSpeedY(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return layer.speedY;
+  }
+  setBackgroundLayerSpeedY(layer: TableBackgroundLayer, value: number): void {
+    this.writeBackgroundLayer(layer, () => (layer.speedY = clampScrollSpeed(value)));
+  }
+
+  backgroundLayerOpacityPercent(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return Math.round(layer.opacity * 100);
+  }
+  setBackgroundLayerOpacityPercent(layer: TableBackgroundLayer, value: number): void {
+    const percent = Number(value);
+    const clamped = Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 100;
+    this.writeBackgroundLayer(layer, () => (layer.opacity = clamped / 100));
+  }
+
+  backgroundLayerScale(layer: TableBackgroundLayer): number {
+    this.objectChange.versionOf(layer.identifier)();
+    return layer.scale;
+  }
+  setBackgroundLayerScale(layer: TableBackgroundLayer, value: number): void {
+    const scale = Number(value);
+    const clamped = Number.isFinite(scale)
+      ? Math.min(MAX_BACKGROUND_LAYER_SCALE, Math.max(MIN_BACKGROUND_LAYER_SCALE, scale))
+      : 1;
+    this.writeBackgroundLayer(layer, () => (layer.scale = clamped));
+  }
+
+  /** Writing is announced, so the board redraws without waiting for something else to happen. */
+  backgroundLayerPlacement(layer: TableBackgroundLayer): TableLayerPlacement {
+    this.objectChange.versionOf(layer.identifier)();
+    return asTableLayerPlacement(layer.placement);
+  }
+  /** Changing sides puts it at the front of the run it lands in, where the eye expects it. */
+  setBackgroundLayerPlacement(layer: TableBackgroundLayer, value: TableLayerPlacement): void {
+    if (asTableLayerPlacement(layer.placement) === value) return;
+    this.writeBackgroundLayer(layer, () => {
+      layer.placement = value;
+      layer.order = this.backgroundLayers.reduce((highest, laid) => Math.max(highest, laid.order + 1), 0);
+    });
+  }
+
+  private writeBackgroundLayer(layer: TableBackgroundLayer, write: () => void): void {
+    if (!this.isEditable) return;
+    write();
+    layer.update();
+  }
+
   openBgImageModal() {
     if (this.isDeleted) return;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
@@ -769,8 +778,9 @@ export class GameTableSettingComponent {
   }
 }
 
-/** A count of cells written into a box, taken as none where it is not a whole one above zero. */
-function wholeCells(value: number): number {
-  const cells = Math.floor(Number(value));
-  return Number.isFinite(cells) && cells > 0 ? cells : 0;
+/** Held to a pace the eye can follow, whatever the box was typed into. */
+function clampScrollSpeed(value: number): number {
+  const speed = Number(value);
+  if (!Number.isFinite(speed)) return 0;
+  return Math.min(MAX_BACKGROUND_SCROLL_SPEED, Math.max(-MAX_BACKGROUND_SCROLL_SPEED, speed));
 }

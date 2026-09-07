@@ -3,20 +3,37 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ExpiredBuffEntry, formatExpiredBuffs } from '@axe/domain/character/buff-expiry';
 import { BuffSnapshotEntry } from '@axe/domain/character/buff-manager';
 import { BuffTiming, BuffTurnActor } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Party } from '@axe/domain/party/party';
+import { Config } from '@axe/domain/peer/config';
 import { changedBuffs, parseTurnHistory, stringifyTurnHistory, TurnStep } from '@axe/domain/tabletop/turn-history';
+import { FactionPhaseMode, TurnOrderMode } from '@axe/domain/tabletop/turn-order-mode';
+import {
+  describeSide,
+  groupBySide,
+  nextSide,
+  normalizeFactionOrder,
+  resolveCurrentSide,
+  SideGroup,
+  sideOfPiece,
+} from '@axe/domain/tabletop/turn-side';
 import { TurnPhase, TurnState } from '@axe/domain/tabletop/turn-state';
+
+/** How many of the pieces still waiting are named before the rest are counted. */
+const UNACTED_NAMES_SHOWN = 8;
 
 @Injectable({ providedIn: 'root' })
 export class TurnOrderService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly inventory = inject(GameObjectInventoryService);
+  private readonly confirm = inject(ConfirmService);
   private readonly chat = inject(ChatMessageService);
   private readonly selection = inject(SelectionSignalService);
   private readonly destroyRef = inject(DestroyRef);
@@ -35,6 +52,63 @@ export class TurnOrderService {
 
   private get turnState(): TurnState {
     return this.objectStore.get<TurnState>('TurnState') ?? TurnState.instance;
+  }
+
+  private get config(): Config {
+    return this.objectStore.get<Config>('Config') ?? Config.instance;
+  }
+
+  get turnOrderMode(): TurnOrderMode {
+    return this.config.turnOrderMode;
+  }
+
+  get factionPhaseMode(): FactionPhaseMode {
+    return this.config.factionPhaseMode;
+  }
+
+  /**
+   * The side whose phase it is, worked out afresh rather than taken as written.
+   *
+   * A party taken away in the middle of a fight would otherwise leave the round standing on
+   * a side no piece is on, with nobody to hand the turn to and no way out of it.
+   */
+  get currentSide(): string {
+    if (this.turnOrderMode !== 'faction') return '';
+    // A peer that predates the side being written down sends a turn with no such field, and
+    // applying it replaces the whole record rather than merging into it, so what comes back
+    // here is nothing at all rather than an empty string.
+    const held = this.turnState.currentSide ?? '';
+    if (held.length < 1) return '';
+    return resolveCurrentSide(held, this.orderedSides(), (group) => this.hasUnacted(group));
+  }
+
+  /** The sides the round goes round, each with the pieces on it. Empty unless it is taken side by side. */
+  orderedSides(includeHidden = false): SideGroup<GameCharacter>[] {
+    if (this.turnOrderMode !== 'faction') return [];
+    return groupBySide(this.turnPieces(includeHidden), this.sideOrder());
+  }
+
+  /** What a side is called and the colour it is shown in. */
+  sideName(side: string): string {
+    return describeSide(side, this.parties(), this.t('feature.turnOrder.unassignedSide')).name;
+  }
+
+  sideColor(side: string): string {
+    return describeSide(side, this.parties(), '').color;
+  }
+
+  private sideOrder(): string[] {
+    return normalizeFactionOrder(this.config.factionOrder, this.parties(), {
+      skipUnassigned: this.config.factionSkipUnassigned,
+    });
+  }
+
+  private parties(): Party[] {
+    return this.objectStore.getObjects<Party>(Party);
+  }
+
+  private hasUnacted(group: SideGroup<GameCharacter>): boolean {
+    return group.members.some((member) => !this.isActed(member.identifier));
   }
 
   get currentIdentifier(): string {
@@ -71,8 +145,19 @@ export class TurnOrderService {
     return this.turnState.actedIdentifiers.includes(identifier);
   }
 
-  /** The pieces the turn goes round, in the order the inventory lists them. */
+  /**
+   * The pieces the turn goes round, in the order the inventory lists them.
+   *
+   * Taken side by side, the same pieces come back gathered under their sides and in the
+   * order the sides are taken, so walking the list walks the round.
+   */
   orderedCharacters(includeHidden = false): GameCharacter[] {
+    const pieces = this.turnPieces(includeHidden);
+    if (this.turnOrderMode !== 'faction') return pieces;
+    return groupBySide(pieces, this.sideOrder()).flatMap((group) => group.members);
+  }
+
+  private turnPieces(includeHidden: boolean): GameCharacter[] {
     return this.allCharacters().filter((character) => !character.noTurn && (includeHidden || !character.hideInventory));
   }
 
@@ -81,10 +166,25 @@ export class TurnOrderService {
     return this.inventory.tableInventory.tabletopObjects as GameCharacter[];
   }
 
+  /**
+   * Gives the turn to one piece.
+   *
+   * Taken side by side, this is how a piece takes its turn rather than a way of pointing at
+   * one: whoever was up is closed off first and the piece named is opened, so every piece
+   * gets its start and its end exactly once however freely the side moves.
+   */
   setCurrent(identifier: string): void {
+    if (this.turnOrderMode === 'faction' && this.turnState.currentIdentifier === identifier) return;
     this.step(() => {
       const turnState = this.turnState;
       if (turnState.round < 1) turnState.round = 1;
+      if (this.turnOrderMode === 'faction') {
+        this.closeCurrentPiece();
+        const piece = this.objectStore.get<GameCharacter>(identifier);
+        if (piece) turnState.currentSide = sideOfPiece(piece, this.sideOrder());
+        this.takeTurn(identifier);
+        return;
+      }
       turnState.phase = 'acting';
       turnState.currentIdentifier = identifier;
       this.announceCharacter(identifier);
@@ -94,6 +194,10 @@ export class TurnOrderService {
   next(): void {
     this.step(() => {
       const turnState = this.turnState;
+      if (this.turnOrderMode === 'faction') {
+        this.nextSideStep();
+        return;
+      }
       const order = this.orderedCharacters();
 
       if (turnState.phase === 'idle' || turnState.phase === 'roundEnd') {
@@ -111,12 +215,102 @@ export class TurnOrderService {
     });
   }
 
-  /** Closes the round wherever it stands and opens the next one. */
-  advanceRound(): void {
+  /**
+   * One press of the round, taken side by side.
+   *
+   * The press hands the turn on within the side and only leaves it once nobody on it is
+   * waiting, whichever way the side moves through its phase. A press that closed the whole
+   * phase would take the turn away from everyone who had not moved yet, which is the one
+   * thing a press of the round should never do quietly.
+   */
+  private nextSideStep(): void {
+    const turnState = this.turnState;
+    if (turnState.phase === 'idle' || turnState.phase === 'roundEnd') {
+      this.beginRound(turnState.round + 1);
+      return;
+    }
+    if (turnState.phase === 'roundStart') {
+      this.openSide(nextSide('', this.orderedSides(), (group) => this.hasUnacted(group)));
+      return;
+    }
+
+    this.closeCurrentPiece();
+    const side = this.currentSide;
+    const waiting = this.firstUnacted(this.membersOfSide(side));
+    if (waiting) {
+      this.takeTurn(waiting.identifier);
+      return;
+    }
+    this.openSide(nextSide(side, this.orderedSides(), (group) => this.hasUnacted(group)));
+  }
+
+  private membersOfSide(side: string): GameCharacter[] {
+    return this.orderedSides().find((group) => group.side === side)?.members ?? [];
+  }
+
+  /** Closes off whoever was up, so no piece is left holding a turn it has finished. */
+  private closeCurrentPiece(): void {
+    const held = this.turnState.currentIdentifier;
+    if (held.length < 1) return;
+    this.markActed(held);
+    this.expireBuffs('turnEnd', this.actorOf(held));
+  }
+
+  /** Opens a side's phase, or closes the round where there is no side left to open. */
+  private openSide(side: string): void {
+    if (side.length < 1) {
+      this.finishRound();
+      return;
+    }
+    const turnState = this.turnState;
+    turnState.currentSide = side;
+    turnState.phase = 'acting';
+    turnState.currentIdentifier = '';
+    this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.sidePhaseStart', { name: this.sideName(side) }));
+    if (this.factionPhaseMode !== 'initiative') return;
+    const first = this.firstUnacted(this.membersOfSide(side));
+    if (first) this.takeTurn(first.identifier);
+  }
+
+  /**
+   * The pieces that have not had their turn, in the order the round would reach them.
+   *
+   * Only the ones it would reach: a piece kept out of the inventory is never given a turn,
+   * so counting it as waiting would leave the round asking to leave behind somebody who was
+   * never coming.
+   */
+  unactedCharacters(): GameCharacter[] {
+    if (this.turnState.phase === 'idle' || this.turnState.phase === 'roundEnd') return [];
+    return this.orderedCharacters().filter((piece) => !this.isActed(piece.identifier));
+  }
+
+  /**
+   * Moves the round on, once whoever is still to move has been accounted for.
+   *
+   * A round pressed on while pieces are still waiting takes their turn away without ever
+   * showing it happening, so the ones being left behind are named and the press has to be
+   * made a second time.
+   */
+  async advanceRound(): Promise<void> {
+    if (!(await this.mayLeaveTheseBehind())) return;
     this.step(() => {
       const turnState = this.turnState;
       if (turnState.phase === 'acting' || turnState.phase === 'roundStart') this.finishRound();
       this.beginRound(this.turnState.round + 1);
+    });
+  }
+
+  private async mayLeaveTheseBehind(): Promise<boolean> {
+    const waiting = this.unactedCharacters();
+    if (waiting.length < 1) return true;
+    const shown = waiting.slice(0, UNACTED_NAMES_SHOWN).map((piece) => piece.name);
+    if (waiting.length > shown.length) {
+      shown.push(this.t('feature.turnOrder.unactedMore', { n: waiting.length - shown.length }));
+    }
+    return this.confirm.ask({
+      title: this.t('feature.turnOrder.unactedTitle'),
+      message: `${this.t('feature.turnOrder.unactedMessage')}\n\n${shown.join('\n')}`,
+      okLabel: this.t('feature.turnOrder.unactedProceed'),
     });
   }
 
@@ -192,6 +386,7 @@ export class TurnOrderService {
       round: turnState.round,
       phase: turnState.phase,
       currentIdentifier: turnState.currentIdentifier,
+      currentSide: turnState.currentSide,
       acted: [...turnState.actedIdentifiers],
       buffs: [],
     };
@@ -218,6 +413,7 @@ export class TurnOrderService {
     turnState.round = step.round;
     turnState.phase = step.phase;
     turnState.currentIdentifier = step.currentIdentifier;
+    turnState.currentSide = step.currentSide;
     turnState.actedIdentifiers = [...step.acted];
     for (const entry of step.buffs) {
       this.objectStore.get<GameCharacter>(entry.identifier)?.buffs.restore(entry.buffs);
@@ -229,6 +425,7 @@ export class TurnOrderService {
     turnState.round = Math.max(1, round);
     turnState.phase = 'roundStart';
     turnState.currentIdentifier = '';
+    turnState.currentSide = '';
     turnState.actedIdentifiers = [];
     this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.roundStart', { n: turnState.round }));
   }
@@ -285,6 +482,7 @@ export class TurnOrderService {
     turnState.round = Math.max(1, round);
     turnState.phase = 'roundEnd';
     turnState.currentIdentifier = '';
+    turnState.currentSide = '';
     this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.roundEnd', { n: turnState.round }));
   }
 
@@ -293,6 +491,7 @@ export class TurnOrderService {
     turnState.round = 0;
     turnState.phase = 'idle';
     turnState.currentIdentifier = '';
+    turnState.currentSide = '';
     turnState.actedIdentifiers = [];
   }
 

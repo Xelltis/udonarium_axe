@@ -7,6 +7,10 @@
     class="animate-fly-in border-ui-border-panel bg-ui-panel text-ui-text box-border h-auto max-h-[calc(100%-10px)] max-w-full overflow-hidden border border-solid"
     [class.w-200]="!isFitWidth"
     [class.w-fit]="isFitWidth"
+    [style.max-height]="isSideways ? 'calc(100vw - 10px)' : null"
+    [style.max-width]="isSideways ? 'calc(100dvh - 10px)' : null"
+    [style.rotate]="modalService.rotationDegrees() + 'deg'"
+    [attr.data-modal-rotation]="modalService.rotationDegrees()"
   >
     <div
       class="bg-ui-elevated text-ui-text relative box-border h-6.25 w-full overflow-hidden px-1.25 py-0.5 text-[12px] whitespace-nowrap"
@@ -21,7 +25,10 @@
       </div>
       <span class="block truncate pr-7.5" [appTextTooltip]="titleTooltip">{{ title }}</span>
     </div>
-    <div class="box-border max-h-[calc(100dvh-41px)] w-full overflow-auto p-2">
+    <div
+      class="box-border max-h-[calc(100dvh-41px)] w-full overflow-auto p-2"
+      [style.max-height]="isSideways ? 'calc(100vw - 41px)' : null"
+    >
       <ng-content></ng-content>
       <div #content></div>
     </div>

@@ -17,8 +17,11 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { LoggerService } from '@axe/application/logging/logger.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-display-preference.service';
+import { VIEW_MODE_STORAGE_KEY } from '@axe/application/ui/view-mode-preference.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { provideTranslocoTesting } from '@axe/testing/transloco-testing';
 
@@ -266,9 +269,18 @@ function forgetMyCursor(): void {
   PeerCursor.myCursor = null!;
 }
 
+// How this seat looks at the table is intentionally persistent in the application, but a spec that
+// asks for a flat screen must not leave the next one's otherwise ordinary table lying down.
+function forgetTabletopDisplaySettings(): void {
+  localStorage.removeItem(TABLETOP_DISPLAY_STORAGE_KEY);
+  localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
+  localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+}
+
 beforeEach(async () => {
   emptyObjectStore();
   forgetMyCursor();
+  forgetTabletopDisplaySettings();
   resetPeerContextProvider();
   await resolveComponentResources(resourceResolver as Parameters<typeof resolveComponentResources>[0]);
   applyConfigureTestingModuleWrapper();

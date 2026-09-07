@@ -1,4 +1,4 @@
-@if (view()) {
+@if (view() || plan() || others().length) {
   <canvas
     #rangeCanvas
     class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"

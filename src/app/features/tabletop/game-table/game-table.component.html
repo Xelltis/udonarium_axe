@@ -1,3 +1,42 @@
+<!--
+  One run of drifting pictures. The wrapper wears the same shape as the board, so a hex table
+  keeps its outline, and it carries the depth for the whole run: hiding what overflows flattens
+  everything inside into one plane, where document order — already back to front — decides.
+-->
+<ng-template #tableLayerStack let-views let-kind="kind" let-wrapperTransform="wrapperTransform">
+  @if (views.length) {
+    <div
+      class="pointer-events-none absolute top-0 left-0 size-full overflow-hidden backface-hidden"
+      [attr.data-testid]="kind + '-layers'"
+      [attr.data-layer-depth]="wrapperTransform"
+      [style.transform]="wrapperTransform"
+      [ngStyle]="tableSurfaceStyle()"
+    >
+      @for (layer of views; track layer.identifier) {
+        <div class="absolute inset-0" [attr.data-testid]="kind + '-layer'">
+          <!--
+            One box, both ways. No `will-change`: a drift that never ends is promoted by the
+            browser on its own, and saying it again would promote the box that stands still too.
+          -->
+          <div
+            class="absolute"
+            [attr.data-testid]="kind + '-layer-sheet'"
+            [class.bg-layer-drift]="layer.drifts"
+            [ngStyle]="layer.style"
+          ></div>
+          <!-- Loaded only to be measured: the drift is one tile, and a tile has to have a size. -->
+          <img
+            class="pointer-events-none absolute size-0 opacity-0"
+            alt=""
+            [attr.data-testid]="kind + '-layer-probe'"
+            [src]="layer.imageUrl | safe: 'resourceUrl'"
+            (load)="onBackgroundLayerImageLoad(layer.imageIdentifier, $event)"
+          />
+        </div>
+      }
+    </div>
+  }
+</ng-template>
 <div
   class="pointer-events-none absolute inset-0 -m-1.25 bg-cover bg-center bg-no-repeat [&.is-filter]:filter-[blur(5px)] [&.is-filter]:will-change-[filter] [&.is-filter]:after:block [&.is-filter]:after:size-full [&.is-filter]:after:content-[''] [&.is-filter.black]:after:bg-[hsl(0,0%,10%)] [&.is-filter.black]:after:filter-[opacity(0.3)] [&.is-filter.white]:after:bg-[hsl(0,0%,97%)] [&.is-filter.white]:after:filter-[opacity(0.2)]"
   [ngClass]="[backgroundFilterType ? 'is-filter' : '', backgroundFilterType]"
@@ -5,6 +44,7 @@
 ></div>
 <div
   class="absolute inset-0 m-auto block size-full touch-manipulation overflow-hidden select-none [-moz-user-drag:none] [-webkit-user-drag:none] perspective-[3000px]"
+  [style.perspective]="isOrthographicProjection() ? 'none' : null"
   [class.cursor-grabbing]="isPointerDragging"
   [class.animate-effect-shake-soft]="screenShake() === 'soft'"
   [class.animate-effect-shake-hard]="screenShake() === 'hard'"
@@ -12,8 +52,18 @@
 >
   <div class="absolute inset-0 m-auto block size-1500 backface-hidden transform-3d" #gameTable>
     <div id="app-game-table" class="absolute size-full backface-hidden transform-3d" data-surface="floor" #gameObjects>
+      <!-- What drifts under the board. -->
+      <ng-container
+        [ngTemplateOutlet]="tableLayerStack"
+        [ngTemplateOutletContext]="{
+          $implicit: underLayerViews(),
+          kind: 'background',
+          wrapperTransform: backgroundLayerTransform,
+        }"
+      ></ng-container>
       <div
-        class="pointer-events-none absolute top-0 left-0 size-full overflow-hidden bg-white/15 bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+        class="pointer-events-none absolute top-0 left-0 size-full overflow-hidden bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+        [class.bg-white/15]="showsTableSurfaceVeil()"
         [ngStyle]="tableSurfaceStyle()"
         [style.background-image]="'url(' + tableImage().url + ')' | safe: 'style'"
       >
@@ -26,6 +76,15 @@
           [ngStyle]="tableSurfaceBorderStyle()"
         ></div>
       </div>
+      <!-- What drifts over it, above the board's own picture and still under everything on it. -->
+      <ng-container
+        [ngTemplateOutlet]="tableLayerStack"
+        [ngTemplateOutletContext]="{
+          $implicit: overLayerViews(),
+          kind: 'foreground',
+          wrapperTransform: foregroundLayerTransform,
+        }"
+      ></ng-container>
       @for (view of wallViews(); track view.wall.surface) {
         @let wall = view.wall;
         <div
@@ -294,6 +353,19 @@
 <table-weather-overlay></table-weather-overlay>
 @if (screenFlash()) {
   <div class="animate-effect-flash pointer-events-none absolute inset-0 z-10" [style.background]="screenFlash()"></div>
+}
+<!--
+  Said at the foot of the screen rather than the head of it. The toolbars are pinned to the top
+  at a layer of their own and can be dragged anywhere along it, so a band up there is read by
+  nobody; down here it clears the hotbar and still sits above the table it is talking about.
+-->
+@if (isPlanningMove()) {
+  <div
+    class="bg-ui-panel shadow-ui-md pointer-events-none absolute bottom-28 left-1/2 z-160 max-w-[90vw] -translate-x-1/2 rounded-full px-4 py-1.5 text-center text-sm text-[whitesmoke] opacity-95"
+    data-testid="move-plan-hint"
+  >
+    {{ 'feature.tabletop.movePlan.hint' | transloco }}
+  </div>
 }
 @if (isPickingEffectTarget()) {
   <div

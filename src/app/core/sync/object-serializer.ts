@@ -127,7 +127,8 @@ export class ObjectSerializer {
 
       const type = typeof (obj as Record<string, unknown>)[key as string];
       if (type !== 'string' && (obj as Record<string, unknown>)[key as string] != null) {
-        (obj as Record<string, unknown>)[key as string] = JSON.parse(value);
+        const parsed = parseAttributeValue(value);
+        if (parsed !== undefined) (obj as Record<string, unknown>)[key as string] = parsed;
       } else {
         (obj as Record<string, unknown>)[key as string] = value;
       }
@@ -164,5 +165,19 @@ export class ObjectSerializer {
       }
     }
     return { obj, key };
+  }
+}
+
+/**
+ * What an attribute says, or nothing where it says something a number or a flag cannot be.
+ *
+ * An empty attribute is the usual way a room ends up carrying one, and reading it as a value
+ * would fail the whole room rather than leave the one field at its default.
+ */
+function parseAttributeValue(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
   }
 }

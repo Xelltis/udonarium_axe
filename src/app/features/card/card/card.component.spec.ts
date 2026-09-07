@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { Card, CardState } from '@axe/domain/card/card';
 import { CardComponent } from '@axe/features/card/card/card.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CardComponent', () => {
@@ -43,9 +43,10 @@ describe('CardComponent', () => {
     });
 
     it('aligns the private text plane to portrait front pixels inside a taller back image', () => {
+      const me = beMyself();
       const card = Card.create('peek layout', 'front', 'back');
       card.state = CardState.BACK;
-      card.owner = getPeerContext().userId;
+      card.owner = me.userId;
       fixture.componentRef.setInput('card', card);
       component.onImageLoad({ target: { naturalWidth: 100, naturalHeight: 150 } } as unknown as Event);
       component.onPeekImageLoad({ target: { naturalWidth: 100, naturalHeight: 120 } } as unknown as Event);

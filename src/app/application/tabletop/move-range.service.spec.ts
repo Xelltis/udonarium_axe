@@ -6,6 +6,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { Config } from '@axe/domain/peer/config';
 import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { countCells } from '@axe/domain/tabletop/move/reachable-cells';
@@ -189,6 +190,47 @@ describe('MoveRangeService', () => {
     service.show(pieceAt(5, 5, 3));
 
     expect(service.range()!.held).toBeNull();
+  });
+
+  describe('what a reach is, and is not, answerable for', () => {
+    // Config outlives a test, so a room that asked for strict moves would ask it of every
+    // test that ran afterwards.
+    afterEach(() => {
+      Config.instance.moveStrict = false;
+    });
+
+    it('shows what the piece can reach while it is carried, and nothing once it is let go', () => {
+      const piece = pieceAt(5, 5, 2);
+      service.show(piece);
+      expect(service.range()).not.toBeNull();
+
+      service.hide();
+
+      expect(service.range()).toBeNull();
+    });
+
+    it('leaves where a piece is set down to the hand, since the way is the plan to answer for', () => {
+      Config.instance.moveStrict = true;
+      const piece = pieceAt(5, 5, 2);
+      service.show(piece);
+
+      piece.location = { name: 'table', x: 11 * GRID, y: 11 * GRID };
+      service.hide();
+
+      expect(piece.location.x).toBe(11 * GRID);
+    });
+
+    it('reads a room that answered the old pair of questions as asking for a strict move', () => {
+      Config.instance.moveStrict = false;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (Config.instance as any)._moveStrictPath = '1';
+      try {
+        expect(Config.instance.moveStrict).toBe(true);
+      } finally {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (Config.instance as any)._moveStrictPath = '';
+      }
+    });
   });
 
   describe('what a picked piece keeps showing', () => {
@@ -452,5 +494,59 @@ describe('MoveRangeService and the ground an enemy holds', () => {
 
     expect(reached(3, 5)).toBe(true);
     expect(reached(4, 5)).toBe(true);
+  });
+
+  describe('the rules the room answers for', () => {
+    afterEach(() => {
+      (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    });
+
+    it('leaves a table that the room has never been asked about ruling itself', () => {
+      expect(Config.instance.roomRuleAnswers.zocMode).toBeNull();
+      table.zocMode = 'block';
+      monsterAt(6, 5);
+      walkHero();
+
+      expect(reached(6, 5)).toBe(false);
+    });
+
+    it("takes the room's answer over the table's", () => {
+      table.zocMode = 'block';
+      Config.instance.zocMode = 'none';
+      monsterAt(6, 5);
+      walkHero();
+
+      expect(reached(6, 5)).toBe(true);
+    });
+
+    it('hears an answer of no from the room', () => {
+      table.moveRangeEnabled = true;
+      Config.instance.moveRangeEnabled = false;
+
+      service.show(pieceAt(5, 5, 2));
+
+      expect(service.range()).toBeNull();
+    });
+
+    it('answers again once the room changes its mind', () => {
+      const picked = pieceAt(5, 5, 2);
+      TestBed.inject(SelectionSignalService).selectObject(picked.identifier, 'character');
+      expect(service.range()).toBeNull();
+
+      Config.instance.moveRangeAlways = true;
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+
+      expect(service.range()).not.toBeNull();
+    });
+
+    it('gives the rule back to the table when the answer is taken away', () => {
+      table.zocMode = 'block';
+      Config.instance.zocMode = 'none';
+      Config.instance.zocMode = null;
+      monsterAt(6, 5);
+      walkHero();
+
+      expect(reached(6, 5)).toBe(false);
+    });
   });
 });

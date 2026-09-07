@@ -29,6 +29,23 @@
         </li>
       }
     </ul>
+
+    <div class="border-ui-border-panel flex shrink-0 flex-col gap-1 border-t border-solid px-2.5 py-2 text-[11px]">
+      <label class="text-ui-muted flex flex-col gap-1">
+        <span>{{ 'feature.media.cutIn.multiDirection' | transloco }}</span>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[12px]"
+          data-testid="cut-in-multi-direction"
+          name="cutInMultiDirectionMode"
+          [(ngModel)]="multiDirectionMode"
+        >
+          @for (mode of multiDirectionModes; track mode) {
+            <option [value]="mode">{{ 'feature.media.cutIn.multiDirection_' + mode | transloco }}</option>
+          }
+        </select>
+      </label>
+      <span class="text-ui-dim">{{ 'feature.media.cutIn.multiDirectionHint' | transloco }}</span>
+    </div>
   </aside>
 
   <main

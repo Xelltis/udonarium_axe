@@ -210,10 +210,7 @@ export class DiceSymbolComponent {
 
   readonly imageBillboardEnabled = computed(() => {
     if (this.isPoster()) return true;
-    const table = this.tabletopService.currentTable;
-    this.objectChange.versionOf(table.identifier)();
-    this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    return table.imageBillboard || table.mode2d;
+    return this.tabletopService.imageBillboard() || this.tabletopService.mode2d();
   });
 
   readonly imageView = pieceImageView({
@@ -227,10 +224,7 @@ export class DiceSymbolComponent {
 
   readonly mode2dEnabled = computed(() => {
     if (this.isPoster()) return true;
-    const table = this.tabletopService.currentTable;
-    this.objectChange.versionOf(table.identifier)();
-    this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    return table.mode2d;
+    return this.tabletopService.mode2d();
   });
 
   private labelOrbitTransform(distance3d: number, distance2d: number): string {

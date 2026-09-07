@@ -16,6 +16,8 @@ export class TurnState extends GameObject {
   }
 
   @SyncVar() currentIdentifier: string = '';
+  /** The side whose phase it is, where the round is taken side by side. */
+  @SyncVar() currentSide: string = '';
   @SyncVar() round: number = 0;
   @SyncVar() phase: TurnPhase = 'idle';
   @SyncVar() buffDecay: boolean = true;

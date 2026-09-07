@@ -6,6 +6,11 @@
     <span class="text-[0.8rem] font-semibold text-amber-300">{{
       'feature.turnOrder.roundShort' | transloco: { n: turn.round }
     }}</span>
+    @if (turn.sideName) {
+      <span class="rounded-sm bg-white/20 px-1.5 py-0.5 text-[0.8rem] font-semibold text-amber-100">{{
+        turn.sideName
+      }}</span>
+    }
     @if (turn.statusKey) {
       <span class="text-[0.95rem]">{{ turn.statusKey | transloco }}</span>
     } @else {

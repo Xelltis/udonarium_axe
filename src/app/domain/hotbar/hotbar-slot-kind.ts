@@ -9,6 +9,7 @@ export const HOTBAR_SLOT_KINDS = [
   'cutIn',
   'prefill',
   'turn',
+  'appearance',
   'group',
 ] as const;
 
@@ -23,6 +24,7 @@ const CHARACTER_BOUND_KINDS: ReadonlySet<HotbarSlotKind> = new Set<HotbarSlotKin
   'diceDeploy',
   'panel',
   'focus',
+  'appearance',
 ]);
 
 export function isHotbarSlotKind(value: unknown): value is HotbarSlotKind {

@@ -1,11 +1,17 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -13,6 +19,9 @@ import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -36,8 +45,18 @@ describe('GameCharacterComponent', () => {
 
   const useFlatTable = () => {
     const table = TestBed.inject(TabletopService).currentTable;
+    TestBed.inject(ViewModePreferenceService).choose('auto');
     table.mode2d = false;
+    table.facingMark = 'none';
     table.imageBillboard = false;
+    table.radialMenuEnabled = false;
+    table.radialMenuRotationSpeed = 5;
+    table.multiAngleEnabled = false;
+    table.multiAngleResourceBuffEnabled = false;
+    table.multiAngleMotionMode = 'continuous';
+    table.multiAngleRevolutionSeconds = 12;
+    table.multiAnglePauseSeconds = 4;
+    table.multiAnglePieceRevolutionSeconds = 60;
   };
 
   beforeEach(useFlatTable);
@@ -119,6 +138,128 @@ describe('GameCharacterComponent', () => {
       expect(moveRange.range()).toBeNull();
     });
 
+    it('works a move out instead of dragging when the press holds shift', async () => {
+      const movePlan = TestBed.inject(MovePlanService);
+      const piece = pieceThatWalks(2);
+      fixture.componentRef.setInput('gameCharacter', piece);
+      fixture.detectChanges();
+      const turnedAway = vi.spyOn(movableOf(), 'cancel');
+
+      movableOf().onstart.emit({ shiftKey: true } as PointerEvent);
+
+      expect(movePlan.plan()?.characterIdentifier).toBe(piece.identifier);
+      expect(component.isPlanningMove()).toBe(true);
+      // The drag is still taking the press up; refusing it now would be undone by the rest
+      // of that setting up, which puts the piece's transition and layer aside.
+      expect(turnedAway).not.toHaveBeenCalled();
+
+      await Promise.resolve();
+
+      expect(turnedAway).toHaveBeenCalled();
+      movePlan.cancel();
+    });
+
+    it('works a move out for every press where the room holds pieces to a way', async () => {
+      Config.instance.moveStrict = true;
+      try {
+        const movePlan = TestBed.inject(MovePlanService);
+        const piece = pieceThatWalks(2);
+        fixture.componentRef.setInput('gameCharacter', piece);
+        fixture.detectChanges();
+
+        movableOf().onstart.emit({} as PointerEvent);
+
+        expect(movePlan.plan()?.characterIdentifier).toBe(piece.identifier);
+        await Promise.resolve();
+        movePlan.cancel();
+      } finally {
+        Config.instance.moveStrict = false;
+      }
+    });
+
+    /** Who the reader is at the table, since the room's rule is the game master's to set aside. */
+    function beAt(role: PeerRole): void {
+      const cursor = new PeerCursor();
+      cursor.userId = 'me';
+      cursor.role = role;
+      cursor.initialize();
+      PeerCursor.myCursor = cursor;
+    }
+
+    it('carries the piece where the game master holds shift and the room holds pieces to a way', () => {
+      Config.instance.moveStrict = true;
+      beAt(PeerRole.GameMaster);
+      try {
+        const movePlan = TestBed.inject(MovePlanService);
+        fixture.componentRef.setInput('gameCharacter', pieceThatWalks(2));
+        fixture.detectChanges();
+
+        movableOf().onstart.emit({ shiftKey: true } as PointerEvent);
+
+        expect(movePlan.plan()).toBeNull();
+      } finally {
+        Config.instance.moveStrict = false;
+        PeerCursor.myCursor = null!;
+      }
+    });
+
+    it('draws the way all the same where a player holds shift in such a room', async () => {
+      Config.instance.moveStrict = true;
+      beAt(PeerRole.Player);
+      try {
+        const movePlan = TestBed.inject(MovePlanService);
+        const piece = pieceThatWalks(2);
+        fixture.componentRef.setInput('gameCharacter', piece);
+        fixture.detectChanges();
+
+        movableOf().onstart.emit({ shiftKey: true } as PointerEvent);
+
+        expect(movePlan.plan()?.characterIdentifier).toBe(piece.identifier);
+        await Promise.resolve();
+        movePlan.cancel();
+      } finally {
+        Config.instance.moveStrict = false;
+        PeerCursor.myCursor = null!;
+      }
+    });
+
+    it('drags a piece with no move to speak of, even where the room holds the others to a way', () => {
+      Config.instance.moveStrict = true;
+      try {
+        const movePlan = TestBed.inject(MovePlanService);
+        const character = GameCharacter.create('コマ', 1, '');
+        DataElement.findElementByReference(character.rootDataElement!, '移動')!.destroy();
+        fixture.componentRef.setInput('gameCharacter', character);
+        fixture.detectChanges();
+
+        movableOf().onstart.emit({} as PointerEvent);
+
+        expect(movePlan.plan()).toBeNull();
+      } finally {
+        Config.instance.moveStrict = false;
+      }
+    });
+
+    it('drags as it always did when the press holds nothing', () => {
+      const movePlan = TestBed.inject(MovePlanService);
+      fixture.componentRef.setInput('gameCharacter', pieceThatWalks(2));
+      fixture.detectChanges();
+
+      movableOf().onstart.emit({} as PointerEvent);
+
+      expect(movePlan.plan()).toBeNull();
+    });
+
+    it('leaves shift with alt to the gesture that already had it', () => {
+      const movePlan = TestBed.inject(MovePlanService);
+      fixture.componentRef.setInput('gameCharacter', pieceThatWalks(2));
+      fixture.detectChanges();
+
+      movableOf().onstart.emit({ shiftKey: true, altKey: true } as PointerEvent);
+
+      expect(movePlan.plan()).toBeNull();
+    });
+
     it('shows nothing for a piece whose sheet says nothing about walking', () => {
       const moveRange = TestBed.inject(MoveRangeService);
       const character = GameCharacter.create('コマ', 1, '');
@@ -177,10 +318,238 @@ describe('GameCharacterComponent', () => {
     expect(() => fixture.detectChanges()).not.toThrow();
   });
 
+  describe('character context menu display', () => {
+    function pointerEvent(type: string, x: number, y: number): PointerEvent {
+      return new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 7,
+        button: 2,
+        buttons: type === 'pointerup' ? 0 : 2,
+        clientX: x,
+        clientY: y,
+      });
+    }
+
+    function openMenu(tableMode2d: boolean, radialMenuEnabled: boolean, size = 1, showRotatingName = false) {
+      const character = GameCharacter.create('menu-piece', size, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = tableMode2d;
+      table.radialMenuEnabled = radialMenuEnabled;
+      table.radialMenuRotationSpeed = 7;
+      table.multiAngleEnabled = showRotatingName;
+      fixture.detectChanges();
+      const diameter = size * 50;
+      vi.spyOn(component.rootElementRef()!.nativeElement, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        right: 100 + diameter,
+        bottom: 100 + diameter,
+        left: 100,
+        width: diameter,
+        height: diameter,
+        x: 100,
+        y: 100,
+      } as DOMRect);
+      TestBed.inject(PointerDeviceService).primeForContextMenu(120, 160);
+      vi.spyOn(TestBed.inject(TabletopOverlapService), 'findAt').mockReturnValue([]);
+
+      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+      return character;
+    }
+
+    it('uses the ordinary downward menu outside 2D mode', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const character = openMenu(false, true);
+
+      try {
+        expect(open).toHaveBeenCalled();
+        expect(openRadial).not.toHaveBeenCalled();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it.each([true, false])('opens the 2D menu interface with rotating display %s', (enabled) => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const character = openMenu(true, enabled);
+
+      try {
+        expect(openRadial).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.any(Array),
+          expect.any(Array),
+          'menu-piece',
+          enabled,
+          7,
+          1,
+          0,
+          25
+        );
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it.each([true, false])('keeps the same large-piece clearance with rotating names %s', (showRotatingName) => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const character = openMenu(true, true, 3, showRotatingName);
+
+      try {
+        const clearanceRadius = openRadial.mock.calls[0]?.[7];
+        expect(clearanceRadius).toBeCloseTo(100.05);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('keeps the original 1x1 distance and passes its rendered half extent', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const character = openMenu(true, true, 1, true);
+
+      try {
+        expect(openRadial.mock.calls[0]?.[7]).toBe(0);
+        expect(openRadial.mock.calls[0]?.[8]).toBe(25);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('opens a 2D piece menu at the release point of a right drag', () => {
+      const character = GameCharacter.create('drag-menu-piece', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.radialMenuEnabled = false;
+      fixture.detectChanges();
+      const root = component.rootElementRef()!.nativeElement;
+      vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        right: 150,
+        bottom: 150,
+        left: 100,
+        width: 50,
+        height: 50,
+        x: 100,
+        y: 100,
+      } as DOMRect);
+      vi.spyOn(TestBed.inject(TabletopOverlapService), 'findAt').mockReturnValue([]);
+      const openRadial = vi.spyOn(TestBed.inject(ContextMenuService), 'openRadial').mockImplementation(() => undefined);
+
+      try {
+        root.dispatchEvent(pointerEvent('pointerdown', 120, 120));
+        root.dispatchEvent(pointerEvent('pointermove', 360, 280));
+        const centerMarker = document.querySelector<HTMLElement>('[data-piece-right-drag-center]');
+        expect(centerMarker?.classList.contains('piece-right-drag-center')).toBe(true);
+        expect(centerMarker?.style.left).toBe('360px');
+        expect(centerMarker?.style.top).toBe('280px');
+        root.dispatchEvent(pointerEvent('pointerup', 360, 280));
+        const nativeMenu = new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+          clientX: 360,
+          clientY: 280,
+        });
+        root.dispatchEvent(nativeMenu);
+
+        expect(openRadial).toHaveBeenCalledWith(
+          { x: 360, y: 280, z: 0 },
+          expect.any(Array),
+          expect.any(Array),
+          'drag-menu-piece',
+          false,
+          expect.any(Number),
+          1,
+          0,
+          25,
+          { x: 125, y: 125 }
+        );
+        expect(openRadial).toHaveBeenCalledTimes(1);
+        expect(nativeMenu.defaultPrevented).toBe(true);
+        expect(document.querySelector('[data-piece-right-drag-center]')).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('leaves an unmoved right click on the existing menu path', () => {
+      const character = GameCharacter.create('click-menu-piece', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      fixture.detectChanges();
+      const root = component.rootElementRef()!.nativeElement;
+      vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        right: 150,
+        bottom: 150,
+        left: 100,
+        width: 50,
+        height: 50,
+        x: 100,
+        y: 100,
+      } as DOMRect);
+      vi.spyOn(TestBed.inject(TabletopOverlapService), 'findAt').mockReturnValue([]);
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+
+      try {
+        root.dispatchEvent(pointerEvent('pointerdown', 120, 120));
+        root.dispatchEvent(pointerEvent('pointerup', 120, 120));
+        expect(openRadial).not.toHaveBeenCalled();
+        expect(document.querySelector('[data-piece-right-drag-center]')).toBeNull();
+
+        TestBed.inject(PointerDeviceService).primeForContextMenu(120, 120);
+        component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+        expect(openRadial).toHaveBeenCalledWith(
+          { x: 125, y: 125 },
+          expect.any(Array),
+          expect.any(Array),
+          'click-menu-piece',
+          false,
+          5,
+          1,
+          0,
+          25
+        );
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('does not replace the 3D table right drag with a piece menu', () => {
+      const character = GameCharacter.create('3d-menu-piece', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      TestBed.inject(TabletopService).currentTable.mode2d = false;
+      fixture.detectChanges();
+      const root = component.rootElementRef()!.nativeElement;
+      const menus = TestBed.inject(ContextMenuService);
+      const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+
+      try {
+        root.dispatchEvent(pointerEvent('pointerdown', 120, 120));
+        root.dispatchEvent(pointerEvent('pointermove', 360, 280));
+        root.dispatchEvent(pointerEvent('pointerup', 360, 280));
+
+        expect(open).not.toHaveBeenCalled();
+        expect(openRadial).not.toHaveBeenCalled();
+      } finally {
+        character.destroy();
+      }
+    });
+  });
+
   describe('which way a piece faces', () => {
     function tableShowing(mark: 'none' | 'turn' | 'arrow', mode2d: boolean): void {
       const table = TestBed.inject(TabletopService).currentTable;
-      table.mode2d = mode2d;
+      TestBed.inject(ViewModePreferenceService).choose(mode2d ? 'flat' : 'perspective');
       table.facingMark = mark;
     }
 
@@ -195,6 +564,21 @@ describe('GameCharacterComponent', () => {
     function arrow(): SVGElement | null {
       return (fixture.nativeElement as HTMLElement).querySelector<SVGElement>('[data-testid="facing-arrow"]');
     }
+
+    it('takes the room over the table where the room has said which way it shows', () => {
+      tableShowing('none', true);
+      Config.instance.facingMark = 'arrow';
+      place(90);
+
+      expect(component.facingMark()).toBe('arrow');
+      expect(arrow()).not.toBeNull();
+
+      Config.instance.facingMark = null;
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+      fixture.detectChanges();
+
+      expect(component.facingMark()).toBe('none');
+    });
 
     it('holds a piece still from above while the table shows nothing', () => {
       tableShowing('none', true);
@@ -211,14 +595,26 @@ describe('GameCharacterComponent', () => {
       expect(component.canTurn()).toBe(true);
     });
 
+    it('suppresses whole-piece turning only in this browser while its name orbit is enabled', () => {
+      tableShowing('turn', true);
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.multiAngleEnabled = true;
+      place();
+
+      expect(component.facingMark()).toBe('none');
+      expect(component.canTurn()).toBe(false);
+      expect(table.facingMark).toBe('turn');
+    });
+
     it('turns the picture with the piece from above', () => {
       tableShowing('turn', true);
       place(90);
 
       expect(component.imageTurnsWithPiece()).toBe(true);
-      // The frame above the pedestal holds the turn back; the picture alone puts it on again.
-      expect(component.standTransform().startsWith('rotateZ(-90deg)')).toBe(true);
-      expect(component.billboardTransformImage()).toContain('rotateZ(90deg)');
+      // The shared frame stays compatible with the multi-angle renderer, and this picture alone
+      // declines to cancel the turn supplied by the piece.
+      expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
+      expect(component.billboardTransformImage()).toContain('rotateZ(0deg)');
     });
 
     it('leaves the picture square to the reader where a mark shows the facing instead', () => {
@@ -226,8 +622,8 @@ describe('GameCharacterComponent', () => {
       place(90);
 
       expect(component.imageTurnsWithPiece()).toBe(false);
-      expect(component.standTransform().startsWith('rotateZ(-90deg)')).toBe(true);
-      expect(component.billboardTransformImage()).toContain('rotateZ(0deg)');
+      expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
+      expect(component.billboardTransformImage()).toContain('rotateZ(-90deg)');
       expect(arrow()).not.toBeNull();
     });
 
@@ -235,9 +631,9 @@ describe('GameCharacterComponent', () => {
       tableShowing('turn', true);
       place(180);
 
-      // Held still once above the pedestal, so nothing hanging there turns with the piece.
-      expect(component.standTransform().startsWith('rotateZ(-180deg)')).toBe(true);
-      expect(component.billboardTransform()).toContain('rotateZ(0deg)');
+      // Each billboard cancels the piece turn, keeping everything above it on the same side.
+      expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
+      expect(component.billboardTransform()).toContain('rotateZ(-180deg)');
     });
 
     it('leaves a table seen from the side to turn its pieces as it always did', () => {
@@ -255,6 +651,19 @@ describe('GameCharacterComponent', () => {
       expect(component.showFacingArrow()).toBe(true);
       expect(arrow()).not.toBeNull();
       expect(component.canTurn()).toBe(true);
+    });
+
+    it('moves the arrow outside the rotating resource gauge', () => {
+      tableShowing('arrow', true);
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.multiAngleEnabled = true;
+      table.multiAngleResourceBuffEnabled = true;
+      place();
+
+      const baseOffset = Math.round(component.gridSize * 0.06);
+      const gauge = component.multiAngleResourceGaugeLayout();
+      expect(gauge.segments.length).toBeGreaterThan(0);
+      expect(component.facingArrowOffsetPx()).toBe(baseOffset + gauge.strokeWidth);
     });
 
     it('turns the picture only from above, a turned billboard being no help from the side', () => {
@@ -970,7 +1379,7 @@ describe('GameCharacterComponent', () => {
         fixture.detectChanges();
         expect(footOf()).toBeTruthy();
 
-        TestBed.inject(TabletopService).currentTable.mode2d = true;
+        TestBed.inject(ViewModePreferenceService).choose('flat');
         await new Promise<void>((resolve) => queueMicrotask(resolve));
         fixture.detectChanges();
 
@@ -1001,23 +1410,64 @@ describe('GameCharacterComponent', () => {
     it('faces it anyway in the flat mode', async () => {
       const tabletopService = TestBed.inject(TabletopService);
       tabletopService.currentTable.imageBillboard = false;
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.imageBillboardEnabled()).toBe(true);
     });
+
+    it('faces it in flat mode when only this browser enables tabletop display mode', () => {
+      const tabletopService = TestBed.inject(TabletopService);
+      tabletopService.currentTable.mode2d = false;
+      tabletopService.currentTable.imageBillboard = false;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+
+      expect(component.mode2dEnabled()).toBe(true);
+      expect(component.imageBillboardEnabled()).toBe(true);
+    });
+
+    it.each(['none', 'turn', 'arrow'] as const)(
+      'keeps the character image renderable in 2D multi-angle mode with facing mark %s',
+      (facingMark) => {
+        const imageUrl = `2d-facing-${facingMark}.png`;
+        ImageStorage.instance.add(imageUrl);
+        const character = GameCharacter.create('2D image', 1, imageUrl);
+        character.rotate = 90;
+        fixture.componentRef.setInput('gameCharacter', character);
+        const table = TestBed.inject(TabletopService).currentTable;
+        table.mode2d = true;
+        table.multiAngleEnabled = true;
+        table.facingMark = facingMark;
+
+        try {
+          fixture.detectChanges();
+          const image = (fixture.nativeElement as HTMLElement).querySelector<HTMLImageElement>(
+            'img.image.chrome-smooth-image-trick'
+          );
+
+          expect(image).not.toBeNull();
+          expect(image?.style.transform).not.toBe('');
+          expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
+          expect(component.billboardTransformImage()).toContain(
+            facingMark === 'turn' ? 'rotateZ(0deg)' : 'rotateZ(-90deg)'
+          );
+          expect(component.imageView.pieceTransform()).toContain('rotateZ(var(--multi-angle-piece-angle, 0deg))');
+        } finally {
+          character.destroy();
+          ImageStorage.instance.delete(imageUrl);
+        }
+      }
+    );
   });
 
   describe('keeping the name above the piece on the screen in the flat mode', () => {
     it('raises the name straight up in three dimensions', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = false;
+      TestBed.inject(ViewModePreferenceService).choose('auto');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.nameLabelOrbit()).toBe('translateY(-30px)');
     });
 
     it('puts it up the screen in the flat mode', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       const transform = component.nameLabelOrbit();
@@ -1027,8 +1477,7 @@ describe('GameCharacterComponent', () => {
     });
 
     it('puts it across as the view turns a quarter', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 90);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       const transform = component.nameLabelOrbit();
@@ -1038,12 +1487,319 @@ describe('GameCharacterComponent', () => {
     });
 
     it('compensates nothing along the depth in the flat mode', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = true;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(component.billboardTransform()).toContain('translateZ(0.00px)');
       expect(component.billboardTransformBuff()).toContain('translateZ(0.00px)');
+    });
+
+    it('keeps the stationary name while the clockwise orbit is disabled', async () => {
+      const tabletopService = TestBed.inject(TabletopService);
+      tabletopService.currentTable.mode2d = true;
+      tabletopService.currentTable.multiAngleEnabled = false;
+      const character = GameCharacter.create('停止名', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+
+        expect(component.multiAngleNameOrbitEnabled()).toBe(false);
+        expect(root.querySelector('[data-testid="multi-angle-name-orbit"]')).toBeNull();
+        expect(root.querySelectorAll('[data-testid="piece-name"]')).toHaveLength(1);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('curves a short label four times around the clockwise orbit', async () => {
+      const tabletopService = TestBed.inject(TabletopService);
+      tabletopService.currentTable.mode2d = true;
+      tabletopService.currentTable.multiAngleEnabled = true;
+      const character = GameCharacter.create('周回名', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const orbit = root.querySelector<HTMLElement>('[data-testid="multi-angle-name-orbit"]');
+
+        expect(component.multiAngleNameOrbitEnabled()).toBe(true);
+        expect(orbit?.dataset['orbitDirection']).toBe('clockwise');
+        expect(orbit?.classList.contains('animate-multi-angle-name-orbit')).toBe(true);
+        expect(root.querySelectorAll('[data-testid="piece-name"]')).toHaveLength(1);
+        expect(root.querySelectorAll('[data-testid="multi-angle-name-text-path"]')).toHaveLength(4);
+        const seamContinuation = root.querySelector<SVGTextPathElement>(
+          '[data-testid="multi-angle-name-seam-continuation"]'
+        );
+        expect(seamContinuation?.getAttribute('startOffset')).toBe('100%');
+        expect(seamContinuation?.textContent?.trim()).toBe('周回名');
+        expect(root.querySelectorAll('[data-testid="multi-angle-name-separator"]')).toHaveLength(4);
+        expect(root.querySelector('[data-testid="multi-angle-name-separator"]')?.textContent?.trim()).toBe('◆');
+        expect(root.querySelector('textPath')?.getAttribute('startOffset')).toBe('75%');
+        expect(root.querySelector('textPath')?.textContent?.trim()).toBe('周回名');
+        expect(root.querySelector('[data-multi-angle-seat]')).toBeNull();
+        expect(component.multiAngleCurvedNameLayout().path.match(/ A /g)).toHaveLength(2);
+        expect(component.multiAngleCurvedNameLayout().startOffsets).toEqual(['75%', '0%', '25%', '50%']);
+        expect(component.multiAngleNameOrbitAnimation()).toEqual({
+          durationSeconds: 12,
+          timingFunction: 'linear',
+        });
+
+        const pieceRotation = root.querySelector<HTMLElement>('[data-testid="multi-angle-piece-motion-source"]');
+        expect(pieceRotation?.classList.contains('animate-multi-angle-piece-spin')).toBe(true);
+        expect(pieceRotation?.style.animationDuration).toBe('60s');
+        expect(pieceRotation?.style.animationTimingFunction).toBe('linear');
+        expect(component.multiAnglePieceRotationAnimation()).toEqual({
+          durationSeconds: 60,
+          timingFunction: 'linear',
+        });
+        expect(component.multiAnglePieceRotationDelaySeconds()).toBeLessThanOrEqual(0);
+        expect(root.querySelector<HTMLElement>('[data-testid="multi-angle-rotating-pedestal"]')?.style.transform).toBe(
+          'rotateZ(var(--multi-angle-piece-angle, 0deg))'
+        );
+        expect(component.multiAnglePieceImageRotation()).toBe('rotateZ(var(--multi-angle-piece-angle, 0deg))');
+        expect(component.imageView.pieceTransform()).toMatch(
+          /rotateY\(90deg\).*rotateZ\(var\(--multi-angle-piece-angle, 0deg\)\)$/
+        );
+        expect(component.imageView.pieceTransform()).not.toContain('rotateX(var(--multi-angle-piece-angle');
+        expect(component.imageView.pieceTransform()).not.toContain('rotateY(var(--multi-angle-piece-angle');
+        expect(root.querySelector<HTMLElement>('[data-testid="piece-gauge"]')?.style.transform ?? '').not.toContain(
+          '--multi-angle-piece-angle'
+        );
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('replaces the linear resource bars with equal rotating pedestal arcs', () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.multiAngleEnabled = true;
+      table.multiAngleResourceBuffEnabled = true;
+      const character = GameCharacter.create('円形ゲージ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const nameOrbit = root.querySelector<HTMLElement>('[data-testid="multi-angle-name-orbit"]')!;
+        const resourceBuffOrbit = root.querySelector<HTMLElement>('[data-testid="multi-angle-resource-buff-orbit"]')!;
+        const segments = Array.from(
+          root.querySelectorAll<SVGCircleElement>('[data-testid="multi-angle-resource-segment"]')
+        );
+        const labels = Array.from(root.querySelectorAll<SVGTextElement>('[data-testid="multi-angle-resource-label"]'));
+        const separators = Array.from(
+          root.querySelectorAll<SVGLineElement>('[data-testid="multi-angle-resource-separator"]')
+        );
+
+        expect(component.multiAngleResourceBuffOrbitEnabled()).toBe(true);
+        expect(root.querySelectorAll('[data-testid="piece-gauge"]')).toHaveLength(0);
+        expect(segments).toHaveLength(2);
+        expect(segments.map((segment) => segment.dataset['segmentDegrees'])).toEqual(['180', '180']);
+        expect(labels.map((label) => label.textContent?.trim())).toEqual(['H', 'M']);
+        expect(separators.map((separator) => separator.dataset['separatorAngle'])).toEqual(['-90', '90']);
+        expect(root.querySelector('[data-testid="multi-angle-resource-gauge"]')?.textContent).not.toContain('200');
+        expect(nameOrbit.style.animationDuration).toBe('12s');
+        expect(resourceBuffOrbit.classList.contains('animate-multi-angle-name-orbit')).toBe(true);
+        expect(resourceBuffOrbit.style.animationDuration).toBe('15s');
+        expect(resourceBuffOrbit.style.animationTimingFunction).toBe('linear');
+        expect(resourceBuffOrbit.style.animationDelay).toBe(`${component.multiAngleResourceBuffOrbitDelaySeconds()}s`);
+        expect(component.multiAngleResourceBuffOrbitAnimation()).toEqual({
+          durationSeconds: 15,
+          timingFunction: 'linear',
+        });
+        expect(resourceBuffOrbit.parentElement).toBe(nameOrbit.parentElement);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('switches between stationary and rotating resource and buff displays', () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.multiAngleEnabled = true;
+      table.multiAngleResourceBuffEnabled = false;
+      const display = TestBed.inject(TabletopDisplayService);
+      const character = GameCharacter.create('表示切替', 1, '');
+      const buff = DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE });
+      character.buffDataElement!.appendChild(buff);
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelectorAll('[data-testid="piece-gauge"]')).toHaveLength(2);
+        expect(root.querySelector('[data-testid="buff-badge"]')).toBeTruthy();
+        expect(root.querySelector('[data-testid="multi-angle-resource-buff-orbit"]')).toBeNull();
+
+        display.set({ multiAngleResourceBuffEnabled: true });
+        fixture.detectChanges();
+        expect(root.querySelector('[data-testid="piece-gauge"]')).toBeNull();
+        expect(root.querySelector('[data-testid="buff-badge"]')).toBeNull();
+        expect(root.querySelectorAll('[data-testid="multi-angle-resource-segment"]')).toHaveLength(2);
+        expect(root.querySelector('[data-testid="multi-angle-buff-icon"]')).toBeTruthy();
+
+        display.set({ multiAngleResourceBuffEnabled: false });
+        fixture.detectChanges();
+        expect(root.querySelectorAll('[data-testid="piece-gauge"]')).toHaveLength(2);
+        expect(root.querySelector('[data-testid="buff-badge"]')).toBeTruthy();
+        expect(root.querySelector('[data-testid="multi-angle-resource-buff-orbit"]')).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('shows at most four configured resources in ninety-degree segments', () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.multiAngleEnabled = true;
+      table.multiAngleResourceBuffEnabled = true;
+      const character = GameCharacter.create('四分割', 1, '');
+      const group = character.detailDataElement!.getFirstElementByName('基本')!;
+      for (const name of ['AP', 'BP', 'CP']) {
+        const resource = DataElement.create(name, 10, {
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: '5',
+        });
+        resource.setAttribute(DataElementAttribute.PIECE_GAUGE, 'true');
+        group.appendChild(resource);
+      }
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const segments = Array.from(
+          (fixture.nativeElement as HTMLElement).querySelectorAll<SVGCircleElement>(
+            '[data-testid="multi-angle-resource-segment"]'
+          )
+        );
+
+        expect(component.pieceGauges()).toHaveLength(5);
+        expect(segments).toHaveLength(4);
+        expect(segments.map((segment) => segment.dataset['resourceName'])).toEqual(['HP', 'MP', 'AP', 'BP']);
+        expect(segments.every((segment) => segment.dataset['segmentDegrees'] === '90')).toBe(true);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('moves buff icons onto the same rotating outer orbit', () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.multiAngleEnabled = true;
+      table.multiAngleResourceBuffEnabled = true;
+      const character = GameCharacter.create('外周バフ', 1, '');
+      const buff = DataElement.create('毒', 3, {
+        type: DataElementType.NUMBER_RESOURCE,
+        currentValue: 'ダメージ2',
+      });
+      buff.setAttribute(DataElementAttribute.BUFF_ICON, '☠️');
+      character.buffDataElement!.appendChild(buff);
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const icon = root.querySelector<HTMLElement>('[data-testid="multi-angle-buff-icon"]');
+        const position = root.querySelector<HTMLElement>('[data-testid="multi-angle-buff-position"]');
+
+        expect(root.querySelector('[data-testid="buff-badge"]')).toBeNull();
+        expect(icon?.textContent?.trim()).toBe('☠️');
+        expect(icon?.title).toBe('毒');
+        expect(position?.style.transform).toContain('rotate(0deg)');
+        expect(position?.closest('[data-testid="multi-angle-resource-buff-orbit"]')).toBeTruthy();
+        expect(position?.closest('[data-testid="multi-angle-name-orbit"]')).toBeNull();
+        expect(component.multiAngleLabelText()).toBe('外周バフ');
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('uses smooth quarter turns separated by the configured pause', () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.multiAngleEnabled = true;
+      table.multiAngleMotionMode = 'quarter-turn';
+      table.multiAngleRevolutionSeconds = 8;
+      table.multiAnglePauseSeconds = 2;
+      table.multiAnglePieceRevolutionSeconds = 90;
+      const character = GameCharacter.create('間欠回転', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const orbit = root.querySelector<HTMLElement>('[data-testid="multi-angle-name-orbit"]');
+        const pieceRotation = root.querySelector<HTMLElement>('[data-testid="multi-angle-piece-motion-source"]');
+
+        expect(component.multiAngleNameOrbitAnimation().durationSeconds).toBe(16);
+        expect(component.multiAngleNameOrbitAnimation().timingFunction).toContain('0.25 12.5%');
+        expect(orbit?.style.animationDuration).toBe('16s');
+        expect(orbit?.style.animationTimingFunction).toContain('linear(');
+        expect(component.multiAnglePieceRotationAnimation().durationSeconds).toBe(98);
+        expect(component.multiAnglePieceRotationAnimation().timingFunction).toContain('0.25 22.9592%');
+        expect(component.multiAnglePieceRotationAnimation().timingFunction).toContain('0.25 25%');
+        expect(pieceRotation?.style.animationDuration).toBe('98s');
+        expect(pieceRotation?.style.animationTimingFunction).toContain('linear(');
+        expect(pieceRotation?.style.animationDelay).toBe(`${component.multiAnglePieceRotationDelaySeconds()}s`);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('keeps the name continuous while only the piece pauses after quarter turns', () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.multiAngleEnabled = true;
+      table.multiAngleMotionMode = 'piece-quarter-turn';
+      table.multiAngleRevolutionSeconds = 8;
+      table.multiAnglePauseSeconds = 2;
+      table.multiAnglePieceRevolutionSeconds = 90;
+      const character = GameCharacter.create('コマだけ間欠回転', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const orbit = root.querySelector<HTMLElement>('[data-testid="multi-angle-name-orbit"]');
+        const pieceRotation = root.querySelector<HTMLElement>('[data-testid="multi-angle-piece-motion-source"]');
+
+        expect(component.multiAngleNameOrbitAnimation()).toEqual({
+          durationSeconds: 8,
+          timingFunction: 'linear',
+        });
+        expect(orbit?.style.animationDuration).toBe('8s');
+        expect(orbit?.style.animationTimingFunction).toBe('linear');
+        expect(component.multiAnglePieceRotationAnimation().durationSeconds).toBe(98);
+        expect(component.multiAnglePieceRotationAnimation().timingFunction).toContain('0.25 22.9592%');
+        expect(pieceRotation?.style.animationDuration).toBe('98s');
+        expect(pieceRotation?.style.animationTimingFunction).toContain('linear(');
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('adds only the leading buff characters to the repeated label', () => {
+      const character = GameCharacter.create('勇者', 1, '');
+      character.addExtendData();
+      const buff = DataElement.create('攻撃強化状態', 3, {
+        type: DataElementType.NUMBER_RESOURCE,
+        currentValue: '+2',
+      });
+      character.buffDataElement!.appendChild(buff);
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        expect(component.multiAngleLabelText()).toBe('勇者/攻撃強化状');
+
+        character.hideBuff = true;
+        TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+        expect(component.multiAngleLabelText()).toBe('勇者');
+      } finally {
+        character.destroy();
+      }
     });
   });
 
@@ -1096,8 +1852,7 @@ describe('GameCharacterComponent', () => {
   });
 
   describe('the hop a piece makes when it arrives', () => {
-    const bodyWrapper = () =>
-      (fixture.nativeElement.querySelector('[data-testid="piece-body"]') as HTMLElement).parentElement!;
+    const bodyWrapper = () => fixture.nativeElement.querySelector('[data-testid="piece-entry-bounce"]') as HTMLElement;
 
     it('hops once and then stays put, so re-ordering the table does not set it off again', () => {
       const character = GameCharacter.create('bounce', 1, '');

@@ -55,6 +55,27 @@ describe('GameTableGestureService', () => {
     });
   });
 
+  describe('orthographicProjection', () => {
+    it('keeps the perspective transform unchanged by default', async () => {
+      service.viewPositionZ = -3000;
+      callSetTransform(0, 0, 0);
+      await nextFrame();
+
+      expect(gameTableEl.style.transform).not.toContain('scale(');
+      expect(gameTableEl.style.transform).toContain('translateZ(-3000.0000px)');
+    });
+
+    it('replaces perspective zoom with an equivalent scale', async () => {
+      service.viewPositionZ = -3000;
+      service.orthographicProjection = true;
+      callSetTransform(0, 0, 0);
+      await nextFrame();
+
+      expect(gameTableEl.style.transform).toContain('scale(0.500000)');
+      expect(gameTableEl.style.transform).toContain('translateZ(-3000.0000px)');
+    });
+  });
+
   describe('showing the view', () => {
     it('writes it out once for a run of moves, on the frame after them', async () => {
       callSetTransform(0, 0, 10);
@@ -117,6 +138,96 @@ describe('GameTableGestureService', () => {
       await nextFrame();
 
       expect(gameTableEl.style.transform).toBe('');
+    });
+  });
+
+  describe('viewLocked', () => {
+    /** What a drag or a pinch on the board arrives as. */
+    const dragTable = (tX: number, tY: number, tZ: number, rZ: number): void => {
+      service.isTableTransformMode = true;
+      const gesture = service as unknown as {
+        onTableTouchTransform(
+          tX: number,
+          tY: number,
+          tZ: number,
+          rX: number,
+          rY: number,
+          rZ: number,
+          event: unknown,
+          srcEvent: unknown
+        ): void;
+        onTableMouseTransform(
+          tX: number,
+          tY: number,
+          tZ: number,
+          rX: number,
+          rY: number,
+          rZ: number,
+          event: unknown,
+          srcEvent: unknown
+        ): void;
+      };
+      const srcEvent = { cancelable: false, preventDefault: () => undefined };
+      gesture.onTableTouchTransform(tX, tY, tZ, 0, 0, rZ, {}, srcEvent);
+      gesture.onTableMouseTransform(tX, tY, tZ, 0, 0, rZ, {}, srcEvent);
+    };
+
+    beforeEach(() => {
+      // The gestures only answer to the board itself, never to a focused field.
+      document.body.focus();
+    });
+
+    it('moves the view while it is unlocked', () => {
+      dragTable(40, 30, -20, 15);
+
+      expect(service.viewPositionX).not.toBe(100);
+      expect(service.viewPositionY).not.toBe(0);
+      expect(service.viewRotateZ).not.toBe(10);
+    });
+
+    it('holds the view still against panning, zooming and turning', () => {
+      service.viewLocked = true;
+      const before = {
+        x: service.viewPositionX,
+        y: service.viewPositionY,
+        z: service.viewPositionZ,
+        rotateZ: service.viewRotateZ,
+      };
+
+      dragTable(40, 30, -20, 15);
+
+      expect(service.viewPositionX).toBe(before.x);
+      expect(service.viewPositionY).toBe(before.y);
+      expect(service.viewPositionZ).toBe(before.z);
+      expect(service.viewRotateZ).toBe(before.rotateZ);
+    });
+
+    it('still lets the view be set outright, which is how real size is reached', () => {
+      service.viewLocked = true;
+
+      service.snapToViewPositionZ(1155);
+
+      expect(service.viewPositionZ).toBe(1155);
+    });
+  });
+
+  describe('snapToViewPositionZ', () => {
+    it('lands on the depth asked for, wherever the camera was', () => {
+      service.viewPositionZ = -800;
+
+      service.snapToViewPositionZ(1155);
+
+      expect(service.viewPositionZ).toBe(1155);
+    });
+
+    it('goes past the zoom the gestures stop at, which real size needs', async () => {
+      service.orthographicProjection = true;
+
+      // 3000 * (1 - 1/1.626), the depth one inch per square asks for on a 4K panel.
+      service.snapToViewPositionZ(1155.0);
+      await nextFrame();
+
+      expect(gameTableEl.style.transform).toContain('scale(1.626016)');
     });
   });
 });

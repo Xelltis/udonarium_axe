@@ -20,6 +20,8 @@ import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.se
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -76,6 +78,25 @@ export class ChatInputComponent {
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly tabletopDisplay = inject(TabletopDisplayService);
+  private readonly tabletopService = inject(TabletopService);
+
+  /** The ticker is this screen's, so the switch is offered only where one is running. */
+  /**
+   * Whether this seat has a ticker to send a line to.
+   *
+   * The band only runs along the edge of a table being looked straight down on, so a seat in
+   * perspective has none. Offered there all the same, the switch sent a line to everybody
+   * else's band and left the sender's own screen with nothing to show for it.
+   */
+  readonly showsTickerSwitch = computed(
+    () => this.tabletopService.mode2d() && this.tabletopDisplay.settings().multiAngleTickerEnabled
+  );
+  readonly sendsToTicker = signal(false);
+
+  toggleTickerSend(): void {
+    this.sendsToTicker.update((sends) => !sends);
+  }
   private readonly batchService = inject(BatchService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly objectChange = inject(ObjectChangeService);
@@ -449,6 +470,7 @@ export class ChatInputComponent {
       bubbles: this.chatBubbles(this.colorSelectNo()),
       replyTo: this.replyTarget()?.identifier ?? '',
       quoteOf: this.quoteTarget()?.identifier ?? '',
+      toTicker: this.showsTickerSwitch() && this.sendsToTicker(),
     };
     DiceBot.loadGameSystemAsync(this.gameType).then((gameSystem) => {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));

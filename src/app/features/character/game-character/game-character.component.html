@@ -5,12 +5,16 @@
     [style.height.px]="size() * gridSize"
     appMovable
     [movable.option]="movableOption()"
-    [movable.disable]="isLock"
+    [movable.disable]="isLock || isPlanningMove()"
     [appSelectable]="gameCharacter()"
+    (movable.onstart)="onGrab($event)"
     (movable.ondragstart)="onPickUp()"
     (movable.ondragend)="onPutDown()"
     (movable.onend)="onLetGo()"
-    (pointerdown)="checkKey($event)"
+    (pointerdown)="onPiecePointerDown($event)"
+    (pointermove)="onPiecePointerMove($event)"
+    (pointerup)="onPiecePointerUp($event)"
+    (pointercancel)="onPiecePointerCancel($event)"
     #root
   >
     @if (hitFlash() === 'damage') {
@@ -35,6 +39,7 @@
       ></div>
     }
     <div
+      data-testid="piece-entry-bounce"
       class="size-full [-webkit-transform-style:preserve-3d] transform-3d"
       [class.animate-bounce-in]="entryBounce()"
       (animationend)="onEntryBounceEnd($event)"
@@ -48,7 +53,12 @@
         [class.animate-defeat-flinch]="defeatReaction() === 'flinch'"
       >
         <div
+          data-testid="multi-angle-piece-motion-source"
           class="pointer-events-auto size-full [-webkit-transform-style:preserve-3d] transform-3d"
+          [class.animate-multi-angle-piece-spin]="multiAngleNameOrbitEnabled()"
+          [style.animation-duration.s]="multiAnglePieceRotationAnimation().durationSeconds"
+          [style.animation-timing-function]="multiAnglePieceRotationAnimation().timingFunction"
+          [style.animation-delay.s]="multiAnglePieceRotationDelaySeconds()"
           appRotable
           [rotable.option]="rotableOption()"
           [rotable.disable]="!canTurn()"
@@ -59,17 +69,21 @@
             <div
               class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ffcc80] [-webkit-transform-style:preserve-3d] backface-hidden transform-3d"
               [ngStyle]="pedestalStyleShown()"
+              [style.transform]="multiAnglePiecePedestalRotation()"
             ></div>
           }
           @if (this.gameCharacter()!.hideInventory) {
             <div
               class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#A0E0FF] [-webkit-transform-style:preserve-3d] backface-hidden transform-3d"
               [ngStyle]="pedestalStyleHidden()"
+              [style.transform]="multiAnglePiecePedestalRotation()"
             ></div>
           }
           <div
+            data-testid="multi-angle-rotating-pedestal"
             class="absolute box-border size-full rounded-[25px] border-2 border-solid border-[#212121] backface-hidden"
             [ngStyle]="pedestalOuterStyle()"
+            [style.transform]="multiAnglePiecePedestalRotation()"
           ></div>
           @if (isTargeted()) {
             <div
@@ -110,7 +124,12 @@
                 height: komaImageHeightSignal() + 'px',
                 width: 'auto',
                 maxWidth: 'none',
-                transform: 'translateX(-50%) scaleY(0.5) translateY(-150%) translateY(' + size() * gridSize + 'px)',
+                transform:
+                  'translateX(-50%) ' +
+                  multiAnglePiecePedestalRotation() +
+                  ' scaleY(0.5) translateY(-150%) translateY(' +
+                  size() * gridSize +
+                  'px)',
               }"
               [src]="imageFile().url | safe: 'resourceUrl'"
             />
@@ -123,7 +142,9 @@
                 transform:
                   'translateX(-50%) translateX(' +
                   (size() * gridSize) / 2 +
-                  'px) scaleY(0.5) translateY(-150%) translateY(' +
+                  'px) ' +
+                  multiAnglePiecePedestalRotation() +
+                  ' scaleY(0.5) translateY(-150%) translateY(' +
                   size() * gridSize +
                   'px)',
               }"
@@ -164,7 +185,7 @@
                 [style.height.px]="imageView.boxHeightPx()"
               >
                 @let buffEl = this.gameCharacter()!.buffDataElement;
-                @if (buffEl && buffNum() > 0 && !hideBuff()) {
+                @if (buffEl && buffNum() > 0 && !hideBuff() && !multiAngleResourceBuffOrbitEnabled()) {
                   <div class="[-webkit-transform-style:preserve-3d] transform-3d">
                     <div
                       class="absolute m-auto [-webkit-transform-style:preserve-3d] transform-3d"
@@ -289,7 +310,7 @@
                     </div>
                   </div>
                 }
-                @if (pieceGauges().length > 0) {
+                @if (pieceGauges().length > 0 && !multiAngleResourceBuffOrbitEnabled()) {
                   <div
                     class="absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [ngStyle]="{
@@ -329,7 +350,7 @@
                     </div>
                   </div>
                 }
-                @if (name() && !hideName()) {
+                @if (name() && !hideName() && !multiAngleNameOrbitEnabled()) {
                   <div
                     class="absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [style.font-size.px]="nameFontSizePx"
@@ -495,6 +516,209 @@
             </svg>
           }
         </div>
+        @if (multiAngleOrbitVisible()) {
+          <div
+            class="pointer-events-none absolute inset-0 z-20 [-webkit-transform-style:preserve-3d] transform-3d"
+            [style.transform]="'translateZ(4px)'"
+          >
+            @if (multiAngleResourceBuffOrbitEnabled()) {
+              <div
+                data-testid="multi-angle-resource-buff-orbit"
+                data-orbit-direction="clockwise"
+                class="animate-multi-angle-name-orbit absolute inset-0 origin-center"
+                [style.animation-duration.s]="multiAngleResourceBuffOrbitAnimation().durationSeconds"
+                [style.animation-timing-function]="multiAngleResourceBuffOrbitAnimation().timingFunction"
+                [style.animation-delay.s]="multiAngleResourceBuffOrbitDelaySeconds()"
+              >
+                @let gaugeLayout = multiAngleResourceGaugeLayout();
+                @if (gaugeLayout.segments.length > 0) {
+                  <svg
+                    data-testid="multi-angle-resource-gauge"
+                    class="absolute overflow-visible"
+                    [style.top.px]="gaugeLayout.offset"
+                    [style.left.px]="gaugeLayout.offset"
+                    [style.width.px]="gaugeLayout.svgSize"
+                    [style.height.px]="gaugeLayout.svgSize"
+                    [attr.viewBox]="'0 0 ' + gaugeLayout.svgSize + ' ' + gaugeLayout.svgSize"
+                    aria-hidden="true"
+                  >
+                    @for (segment of gaugeLayout.segments; track segment.gauge.identifier) {
+                      <circle
+                        class="stroke-black/65"
+                        [attr.cx]="gaugeLayout.center"
+                        [attr.cy]="gaugeLayout.center"
+                        [attr.r]="gaugeLayout.radius"
+                        fill="none"
+                        [attr.stroke-width]="gaugeLayout.strokeWidth"
+                        pathLength="360"
+                        [attr.stroke-dasharray]="segment.trackDashArray"
+                        [attr.transform]="
+                          'rotate(' +
+                          segment.rotationDegrees +
+                          ' ' +
+                          gaugeLayout.center +
+                          ' ' +
+                          gaugeLayout.center +
+                          ')'
+                        "
+                      ></circle>
+                      <circle
+                        data-testid="multi-angle-resource-segment"
+                        [attr.data-resource-name]="segment.gauge.name"
+                        [attr.data-segment-degrees]="segment.segmentDegrees"
+                        [attr.cx]="gaugeLayout.center"
+                        [attr.cy]="gaugeLayout.center"
+                        [attr.r]="gaugeLayout.radius"
+                        fill="none"
+                        [attr.stroke]="segment.gauge.color"
+                        [attr.stroke-width]="gaugeLayout.strokeWidth"
+                        pathLength="360"
+                        [attr.stroke-dasharray]="segment.fillDashArray"
+                        [attr.transform]="
+                          'rotate(' +
+                          segment.rotationDegrees +
+                          ' ' +
+                          gaugeLayout.center +
+                          ' ' +
+                          gaugeLayout.center +
+                          ')'
+                        "
+                      >
+                        <title>{{ segment.gauge.name }}</title>
+                      </circle>
+                      <text
+                        data-testid="multi-angle-resource-label"
+                        class="font-sans font-bold"
+                        [attr.x]="segment.labelX"
+                        [attr.y]="segment.labelY"
+                        [attr.font-size]="gaugeLayout.fontSize"
+                        fill="#ffffff"
+                        stroke="rgba(0,0,0,0.9)"
+                        stroke-width="2"
+                        stroke-linejoin="round"
+                        paint-order="stroke fill"
+                        text-anchor="middle"
+                        dominant-baseline="central"
+                        [attr.transform]="
+                          'rotate(' + segment.labelRotationDegrees + ' ' + segment.labelX + ' ' + segment.labelY + ')'
+                        "
+                      >
+                        {{ segment.gauge.initial }}
+                      </text>
+                    }
+                    @for (separator of gaugeLayout.separators; track separator.angleDegrees) {
+                      <line
+                        data-testid="multi-angle-resource-separator"
+                        [attr.data-separator-angle]="separator.angleDegrees"
+                        [attr.x1]="separator.x1"
+                        [attr.y1]="separator.y1"
+                        [attr.x2]="separator.x2"
+                        [attr.y2]="separator.y2"
+                        stroke="rgba(0,0,0,0.95)"
+                        [attr.stroke-width]="gaugeLayout.separatorStrokeWidth"
+                        stroke-linecap="round"
+                      ></line>
+                    }
+                  </svg>
+                }
+
+                @if (!hideBuff() && buffBadges().length > 0) {
+                  @let buffOrbit = multiAngleBuffOrbitLayout();
+                  @for (badge of buffBadges(); track badge.identifier; let index = $index) {
+                    <div
+                      data-testid="multi-angle-buff-position"
+                      class="absolute top-1/2 left-1/2 size-0"
+                      [style.transform]="multiAngleBuffOrbitTransform(buffOrbit.angles[index] ?? 0, buffOrbit.radius)"
+                    >
+                      <span
+                        data-testid="multi-angle-buff-icon"
+                        class="absolute flex -translate-1/2 items-center justify-center rounded-full border border-solid border-white/35 leading-none shadow-[0_1px_3px_rgba(0,0,0,0.75)]"
+                        [style.width.px]="buffOrbit.iconSize"
+                        [style.height.px]="buffOrbit.iconSize"
+                        [style.font-size.px]="buffOrbit.iconSize * 0.68"
+                        [style.background]="badge.color"
+                        [title]="badge.name"
+                      >
+                        {{ badge.icon }}
+                      </span>
+                    </div>
+                  }
+                }
+              </div>
+            }
+
+            @if (name() && !hideName()) {
+              <div
+                data-testid="multi-angle-name-orbit"
+                data-orbit-direction="clockwise"
+                class="animate-multi-angle-name-orbit absolute inset-0 origin-center"
+                [style.animation-duration.s]="multiAngleNameOrbitAnimation().durationSeconds"
+                [style.animation-timing-function]="multiAngleNameOrbitAnimation().timingFunction"
+                [style.animation-delay.s]="multiAngleNameOrbitDelaySeconds()"
+              >
+                @let curvedName = multiAngleCurvedNameLayout();
+                <svg
+                  data-testid="piece-name"
+                  class="absolute overflow-visible"
+                  [style.top.px]="curvedName.offset"
+                  [style.left.px]="curvedName.offset"
+                  [style.width.px]="curvedName.svgSize"
+                  [style.height.px]="curvedName.svgSize"
+                  [attr.viewBox]="'0 0 ' + curvedName.svgSize + ' ' + curvedName.svgSize"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <path [attr.id]="multiAngleCurvedNamePathId()" [attr.d]="curvedName.path"></path>
+                  </defs>
+                  <text
+                    class="font-sans font-bold"
+                    [attr.fill]="this.gameCharacter()!.nonTalkFlag ? '#333' : '#fff'"
+                    [attr.stroke]="this.gameCharacter()!.nonTalkFlag ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.88)'"
+                    [attr.stroke-width]="curvedName.strokeWidth"
+                    [attr.font-size]="curvedName.fontSize"
+                    [attr.letter-spacing]="curvedName.letterSpacing"
+                    stroke-linejoin="round"
+                    paint-order="stroke fill"
+                  >
+                    @for (startOffset of curvedName.startOffsets; track startOffset) {
+                      <textPath
+                        data-testid="multi-angle-name-text-path"
+                        [attr.data-label-copy]="$index + 1"
+                        [attr.href]="'#' + multiAngleCurvedNamePathId()"
+                        [attr.startOffset]="startOffset"
+                        text-anchor="middle"
+                      >
+                        {{ curvedName.paddedText }}{{ isLock ? ' 🔒' : '' }}
+                      </textPath>
+                      @if (startOffset === '0%') {
+                        <textPath
+                          data-testid="multi-angle-name-seam-continuation"
+                          [attr.data-label-copy]="$index + 1"
+                          [attr.href]="'#' + multiAngleCurvedNamePathId()"
+                          startOffset="100%"
+                          text-anchor="middle"
+                        >
+                          {{ curvedName.paddedText }}{{ isLock ? ' 🔒' : '' }}
+                        </textPath>
+                      }
+                    }
+                    @for (separatorOffset of curvedName.separatorOffsets; track separatorOffset) {
+                      <textPath
+                        data-testid="multi-angle-name-separator"
+                        [attr.href]="'#' + multiAngleCurvedNamePathId()"
+                        [attr.startOffset]="separatorOffset"
+                        text-anchor="middle"
+                        opacity="0.82"
+                      >
+                        ◆
+                      </textPath>
+                    }
+                  </text>
+                </svg>
+              </div>
+            }
+          </div>
+        }
         @if (isAltitudeIndicate && (altitude() <= -0.5 || 0.5 <= altitude())) {
           <div
             class="flex origin-top-left flex-col justify-between border-l-2 border-dashed border-l-black [-webkit-transform-style:preserve-3d] transform-3d"

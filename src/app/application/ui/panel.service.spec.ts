@@ -14,11 +14,13 @@ function setupOpenMocks(initialChildState?: Partial<PanelService>) {
 
   const bodyInstance = new DummyBodyComponent();
   const setInput = vi.fn();
+  const setInitialRotation = vi.fn();
   const destroy = vi.fn();
   let destroyCallback: (() => void) | undefined;
 
   const panelComponentRef = {
     instance: {
+      setInitialRotation,
       content: () =>
         ({
           createComponent: () => ({ instance: bodyInstance }) as ComponentRef<DummyBodyComponent>,
@@ -46,6 +48,7 @@ function setupOpenMocks(initialChildState?: Partial<PanelService>) {
     panelComponentRef,
     parentViewContainerRef,
     setInput,
+    setInitialRotation,
     destroy,
     bodyInstance,
     runDestroyCallback: () => destroyCallback?.(),
@@ -129,6 +132,31 @@ describe('PanelService', () => {
 
     expect(childPanelService.frameless).toBe(true);
     expect(setInput).not.toHaveBeenCalledWith('frameless', true);
+  });
+
+  it('applies an explicit initial panel rotation', () => {
+    const { service, parentViewContainerRef, setInitialRotation } = setupOpenMocks();
+
+    service.open(DummyBodyComponent, { rotationDegrees: 180 }, parentViewContainerRef);
+
+    expect(setInitialRotation).toHaveBeenCalledWith(180);
+  });
+
+  it('inherits the direction while a context-menu action opens a panel', () => {
+    const { service, parentViewContainerRef, setInitialRotation } = setupOpenMocks();
+
+    service.runWithInitialRotation(90, () => service.open(DummyBodyComponent, undefined, parentViewContainerRef));
+
+    expect(setInitialRotation).toHaveBeenCalledWith(90);
+  });
+
+  it('keeps the inherited direction until a lazy panel has loaded', async () => {
+    const { service, parentViewContainerRef, setInitialRotation } = setupOpenMocks();
+
+    service.runWithInitialRotation(270, () =>
+      service.openLazy(() => Promise.resolve(DummyBodyComponent), undefined, undefined, parentViewContainerRef)
+    );
+    await vi.waitFor(() => expect(setInitialRotation).toHaveBeenCalledWith(270));
   });
 
   it('falls back to the default container when none is given', () => {
@@ -244,6 +272,28 @@ describe('PanelService', () => {
       const adjusted = PanelService.clampPanelOptionToViewport({ width: 400, height: 300 }, fallback);
       expect(adjusted.left).toBeUndefined();
       expect(adjusted.top).toBeUndefined();
+    });
+
+    it('clamps a sideways panel by its rotated outer bounds', () => {
+      const fallback = new PanelService();
+      const adjusted = PanelService.clampPanelOptionToViewport(
+        { left: -100, top: 250, width: 400, height: 200, rotationDegrees: 90 },
+        fallback
+      );
+
+      expect(adjusted.left).toBe(-100);
+      expect(adjusted.top).toBe(250);
+    });
+
+    it('moves a sideways panel only when its rotated bounds leave the viewport', () => {
+      const fallback = new PanelService();
+      const adjusted = PanelService.clampPanelOptionToViewport(
+        { left: -250, top: 650, width: 400, height: 200, rotationDegrees: 270 },
+        fallback
+      );
+
+      expect(adjusted.left).toBe(-100);
+      expect(adjusted.top).toBe(420);
     });
   });
 

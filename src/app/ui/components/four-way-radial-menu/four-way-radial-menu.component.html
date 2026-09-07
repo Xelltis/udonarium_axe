@@ -1,0 +1,328 @@
+<div
+  class="fixed inset-0 z-9900 bg-black/15 select-none"
+  [style.--menu-font-scale]="fontScale()"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="title || ('ui.contextMenu.radial.menuTitle' | transloco)"
+  (pointerdown)="onBackdropPointerDown($event)"
+  (contextmenu)="onContextMenu($event)"
+  (keydown)="onKeyDown($event)"
+>
+  @if (connectorVisible()) {
+    <svg class="pointer-events-none fixed inset-0 size-full" aria-hidden="true">
+      <line
+        class="stroke-ui-accent"
+        [attr.x1]="anchor.x"
+        [attr.y1]="anchor.y"
+        [attr.x2]="center().x"
+        [attr.y2]="center().y"
+        stroke-width="2"
+        stroke-dasharray="4 5"
+      ></line>
+    </svg>
+  }
+
+  @if (contextMenuService.radialAnchorPosition) {
+    <div
+      data-piece-right-drag-center
+      class="piece-right-drag-center"
+      [style.left.px]="center().x"
+      [style.top.px]="center().y"
+      aria-hidden="true"
+    ></div>
+  }
+
+  @if (!contextMenuService.radialMenuEnabled && !selectedSeat()) {
+    <button
+      type="button"
+      data-radial-control
+      class="border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg hover:bg-ui-menu-hover pointer-events-auto fixed flex size-13 items-center justify-center rounded-full border border-solid transition-[background-color,transform] hover:scale-110"
+      [style.left.px]="center().x"
+      [style.top.px]="center().y"
+      [style.transform]="'translate(-50%, -50%)'"
+      [attr.aria-label]="'common.button.close' | transloco"
+      [title]="'common.button.close' | transloco"
+      (pointerdown)="$event.stopPropagation()"
+      (click)="close()"
+    >
+      <i class="material-icons" aria-hidden="true">close</i>
+    </button>
+
+    @for (seat of seatOptions; track seat) {
+      <button
+        type="button"
+        data-radial-control
+        class="border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg hover:bg-ui-menu-hover hover:text-ui-accent pointer-events-auto fixed flex size-14 items-center justify-center rounded-full border border-solid transition-[background-color,color,transform]"
+        [style.left.px]="center().x + launcherPoint(seat).x"
+        [style.top.px]="center().y + launcherPoint(seat).y"
+        [style.transform]="launcherTransform(seat)"
+        [attr.aria-label]="seatLabel(seat)"
+        [title]="seatLabel(seat)"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="chooseSeat(seat)"
+      >
+        <i class="material-icons text-[28px]!" aria-hidden="true">menu</i>
+      </button>
+    }
+  } @else {
+    @if (contextMenuService.radialMenuEnabled) {
+      <svg
+        data-radial-direction-guide
+        class="pointer-events-none fixed overflow-visible"
+        [style.left.px]="center().x"
+        [style.top.px]="center().y"
+        [style.width.px]="ringRadius() * 2"
+        [style.height.px]="ringRadius() * 2"
+        [style.transform]="'translate(-50%, -50%)'"
+        [attr.viewBox]="'0 0 ' + ringRadius() * 2 + ' ' + ringRadius() * 2"
+        aria-hidden="true"
+      >
+        <defs>
+          <mask
+            id="radial-guide-piece-mask"
+            maskUnits="userSpaceOnUse"
+            x="0"
+            y="0"
+            [attr.width]="ringRadius() * 2"
+            [attr.height]="ringRadius() * 2"
+          >
+            <rect x="0" y="0" [attr.width]="ringRadius() * 2" [attr.height]="ringRadius() * 2" fill="white"></rect>
+            @if (guideOcclusionHalfExtent() > 0) {
+              <rect
+                data-radial-guide-piece-occlusion
+                [attr.x]="ringRadius() - guideOcclusionHalfExtent()"
+                [attr.y]="ringRadius() - guideOcclusionHalfExtent()"
+                [attr.width]="guideOcclusionHalfExtent() * 2"
+                [attr.height]="guideOcclusionHalfExtent() * 2"
+                fill="black"
+              ></rect>
+            }
+          </mask>
+        </defs>
+
+        <g mask="url(#radial-guide-piece-mask)">
+          @for (angle of guideBoundaryAngles; track angle) {
+            <line
+              data-radial-guide-boundary
+              class="stroke-ui-accent"
+              [attr.x1]="ringRadius()"
+              [attr.y1]="ringRadius()"
+              [attr.x2]="guideBoundaryPoint(angle).x"
+              [attr.y2]="guideBoundaryPoint(angle).y"
+              stroke-width="2"
+              stroke-dasharray="4 5"
+              stroke-linecap="round"
+            ></line>
+          }
+        </g>
+
+        @for (angle of directionGuideAngles; track angle) {
+          <g
+            data-radial-guide-direction
+            [attr.data-panel-rotation]="guidePanelRotation(angle)"
+            [attr.transform]="guideArrowTransform(angle)"
+          >
+            <circle
+              class="stroke-ui-accent"
+              cx="0"
+              cy="0"
+              r="12"
+              fill="var(--ui-menu-bg)"
+              fill-opacity="0.74"
+              stroke-width="1.5"
+              opacity="0.9"
+            ></circle>
+            <path
+              class="stroke-ui-accent"
+              d="M -7 0 H 7 M 2 -5 L 7 0 L 2 5"
+              fill="none"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ></path>
+          </g>
+        }
+      </svg>
+    }
+
+    <div
+      data-radial-ring
+      class="animate-radial-orbit pointer-events-none fixed transition-[rotate] duration-180 ease-out will-change-[rotate] motion-reduce:animate-none motion-reduce:transition-none"
+      [style.left.px]="center().x"
+      [style.top.px]="center().y"
+      [style.animation-duration]="ringDurationSeconds() + 's'"
+      [style.animation-play-state]="ringPaused() ? 'paused' : 'running'"
+      [style.rotate]="manualRotationStyleDegrees() + 'deg'"
+      [style.transition]="manualRotationTransitionEnabled() ? null : 'none'"
+      [attr.data-radial-paused]="ringPaused() ? 'true' : null"
+      (transitionend)="onManualRotationTransitionEnd($event)"
+      aria-live="polite"
+    >
+      @for (group of radialGroups(); track group.name; let parentIndex = $index) {
+        <button
+          type="button"
+          data-radial-control
+          data-radial-parent
+          class="radial-menu-sector bg-ui-menu text-ui-text pointer-events-auto absolute m-0 border-0 p-0"
+          [class.radial-menu-sector-active]="pausedParentIndex() === parentIndex"
+          [style.left.px]="0"
+          [style.top.px]="0"
+          [style.width.px]="rootSectorSize()"
+          [style.height.px]="rootSectorSize()"
+          [style.transform]="'translate(-50%, -50%)'"
+          [style.clip-path]="rootSectorClipPath(parentIndex)"
+          [attr.aria-label]="group.name"
+          [attr.aria-pressed]="pausedParentIndex() === parentIndex"
+          [title]="group.name"
+          (pointerdown)="$event.stopPropagation()"
+          (click)="pauseAtGroup(parentIndex)"
+        >
+          <span
+            data-radial-parent-label
+            class="pointer-events-none absolute flex items-center justify-center gap-1 overflow-hidden px-1 text-[calc(11px*var(--menu-font-scale,1))] font-semibold whitespace-nowrap"
+            [style.height.px]="rootLabelHeight()"
+            [style.left.px]="rootLabelPoint(parentIndex).x"
+            [style.top.px]="rootLabelPoint(parentIndex).y"
+            [style.width.px]="rootLabelWidth()"
+            [style.transform]="itemTransform(parentIndex)"
+          >
+            <i class="material-icons shrink-0 text-[calc(18px*var(--menu-font-scale,1))]!" aria-hidden="true">{{
+              group.icon
+            }}</i>
+            <span class="min-w-0 truncate">{{ group.name }}</span>
+          </span>
+        </button>
+
+        <div
+          data-radial-child-list
+          class="pointer-events-none absolute size-0"
+          [style.left.px]="childListAnchorPoint(parentIndex).x"
+          [style.top.px]="childListAnchorPoint(parentIndex).y"
+          [style.rotate]="childListRotation(parentIndex) + 'deg'"
+          [style.transform-origin]="'0 0'"
+          [attr.data-parent-index]="parentIndex"
+        >
+          <div
+            data-radial-child-items
+            class="text-ui-text pointer-events-auto absolute top-0 left-0 flex -translate-x-1/2 flex-col"
+            [class.rounded-ui]="!detachedBranchItemsEnabled"
+            [class.border-ui-border-menu]="!detachedBranchItemsEnabled"
+            [class.bg-ui-menu]="!detachedBranchItemsEnabled"
+            [class.shadow-ui-lg]="!detachedBranchItemsEnabled"
+            [class.overflow-hidden]="!detachedBranchItemsEnabled"
+            [class.border]="!detachedBranchItemsEnabled"
+            [class.border-solid]="!detachedBranchItemsEnabled"
+            [class.py-1]="!detachedBranchItemsEnabled"
+            [style.width.px]="childListWidth()"
+          >
+            @for (action of groupActions(group); track action; let childIndex = $index) {
+              @if (detachedBranchItemsEnabled && !$first) {
+                <span
+                  data-radial-child-item-gap
+                  class="pointer-events-none block shrink-0 bg-transparent"
+                  [style.height.px]="2"
+                  aria-hidden="true"
+                ></span>
+              }
+              @let presentation = actionPresentation(action);
+              <button
+                type="button"
+                data-radial-control
+                data-radial-child
+                class="radial-child-menu-item text-ui-text hover:text-ui-accent relative flex w-full items-center gap-1 px-2 text-left text-[calc(11px*var(--menu-font-scale,1))] font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                [style.min-height.px]="childItemHeight()"
+                [class.rounded-ui-sm]="detachedBranchItemsEnabled"
+                [class.radial-child-menu-item-detached]="detachedBranchItemsEnabled"
+                [class.border-ui-border-menu]="detachedBranchItemsEnabled"
+                [class.bg-ui-menu]="detachedBranchItemsEnabled"
+                [class.m-0]="detachedBranchItemsEnabled"
+                [class.border]="detachedBranchItemsEnabled"
+                [class.border-solid]="detachedBranchItemsEnabled"
+                [class.border-0]="!detachedBranchItemsEnabled"
+                [class.bg-transparent]="!detachedBranchItemsEnabled"
+                [class.radial-child-menu-item-active]="isFlyoutAction(action)"
+                [disabled]="!actionEnabled(action)"
+                [attr.aria-label]="presentation.label"
+                [attr.aria-pressed]="presentation.checked"
+                [attr.data-parent-index]="parentIndex"
+                [attr.data-child-index]="childIndex"
+                [title]="presentation.label"
+                (pointerdown)="$event.stopPropagation()"
+                (click)="chooseAction(action, parentIndex, $event)"
+              >
+                @if (presentation.icon) {
+                  <i
+                    data-radial-state-icon
+                    class="material-icons shrink-0 text-[calc(15px*var(--menu-font-scale,1))]!"
+                    aria-hidden="true"
+                    >{{ presentation.icon }}</i
+                  >
+                }
+                <span class="min-w-0 grow truncate">{{ presentation.label }}</span>
+                @if (hasSubActions(action)) {
+                  <i
+                    data-radial-submenu-icon
+                    class="material-icons shrink-0 text-[calc(13px*var(--menu-font-scale,1))]!"
+                    aria-hidden="true"
+                    >arrow_forward_ios</i
+                  >
+                }
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <button
+        type="button"
+        data-radial-control
+        data-radial-return
+        class="radial-menu-sector bg-ui-menu text-ui-text pointer-events-auto absolute m-0 border-0 p-0"
+        [style.left.px]="0"
+        [style.top.px]="0"
+        [style.width.px]="rootSectorSize()"
+        [style.height.px]="rootSectorSize()"
+        [style.transform]="'translate(-50%, -50%)'"
+        [style.clip-path]="rootSectorClipPath(ringItemCount() - 1)"
+        [attr.aria-label]="returnTitle()"
+        [title]="returnTitle()"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="close()"
+      >
+        <span
+          data-radial-parent-label
+          class="pointer-events-none absolute flex items-center justify-center gap-1 overflow-hidden px-1 text-[calc(11px*var(--menu-font-scale,1))] font-semibold whitespace-nowrap"
+          [style.height.px]="rootLabelHeight()"
+          [style.left.px]="rootLabelPoint(ringItemCount() - 1).x"
+          [style.top.px]="rootLabelPoint(ringItemCount() - 1).y"
+          [style.width.px]="rootLabelWidth()"
+          [style.transform]="itemTransform(ringItemCount() - 1)"
+        >
+          <i class="material-icons shrink-0 text-[calc(18px*var(--menu-font-scale,1))]!" aria-hidden="true">close</i>
+          <span class="min-w-0 truncate">{{ 'common.button.close' | transloco }}</span>
+        </span>
+      </button>
+    </div>
+
+    @for (menu of flyoutItems(); track menu.action) {
+      <div
+        data-radial-flyout-anchor
+        class="pointer-events-auto fixed z-10000 size-1"
+        [style.left.px]="menu.left"
+        [style.top.px]="menu.top"
+        [style.rotate]="menu.rotation + 'deg'"
+        [style.transform-origin]="'top left'"
+        [attr.data-menu-rotation]="menu.rotation"
+        (pointerdown)="$event.stopPropagation()"
+        (contextmenu)="$event.preventDefault(); $event.stopPropagation()"
+      >
+        <context-menu
+          [title]="actionName(menu.action)"
+          [actions]="menu.actions"
+          [isSubmenu]="true"
+          [detachedItems]="detachedBranchItemsEnabled"
+        ></context-menu>
+      </div>
+    }
+  }
+</div>

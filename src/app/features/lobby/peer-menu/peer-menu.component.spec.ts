@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PeerMenuComponent } from '@axe/features/lobby/peer-menu/peer-menu.component';
@@ -168,6 +170,58 @@ describe('PeerMenuComponent', () => {
       cursor.totalTimeSignNum = 7;
 
       expect(component.findPeerDegreeOfSuccess('peer-loss')).toBe('7/10');
+    });
+  });
+
+  describe('online or offline', () => {
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+    });
+
+    function segment(mode: string): HTMLButtonElement {
+      return fixture.nativeElement.querySelector(`[data-testid="connection-mode-${mode}"]`) as HTMLButtonElement;
+    }
+
+    it('shows the two as one choice, with the network settings under online alone', () => {
+      fixture.detectChanges();
+
+      expect(segment('online').getAttribute('aria-checked')).toBe('true');
+      expect(segment('offline').getAttribute('aria-checked')).toBe('false');
+      expect(fixture.nativeElement.querySelector('[data-testid="online-settings"]')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="offline-note"]')).toBeNull();
+
+      TestBed.inject(LocalModePreferenceService).set(true);
+      fixture.detectChanges();
+
+      expect(segment('offline').getAttribute('aria-checked')).toBe('true');
+      expect(fixture.nativeElement.querySelector('[data-testid="online-settings"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="offline-note"]')).not.toBeNull();
+    });
+
+    it('asks before it starts again, and writes the choice down only once it is confirmed', async () => {
+      const reload = vi.spyOn(component as unknown as { reload(): void }, 'reload').mockImplementation(() => undefined);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+
+      await component.chooseConnectionMode('offline');
+
+      expect(ask).toHaveBeenCalledTimes(1);
+      expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(false);
+      expect(reload).not.toHaveBeenCalled();
+
+      ask.mockResolvedValue(true);
+      await component.chooseConnectionMode('offline');
+
+      expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(true);
+      expect(localStorage.getItem(LOCAL_MODE_STORAGE_KEY)).toBe('1');
+      expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing when the mode it is already in is chosen again', async () => {
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask');
+
+      await component.chooseConnectionMode('online');
+
+      expect(ask).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,4 +1,5 @@
 import { emitMessageAdded } from '@axe/core/event/domain-events';
+import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
@@ -212,6 +213,22 @@ export class ChatTab extends ObjectNode implements InnerXml {
     chat.initialize();
     this.appendChild(chat);
     return chat;
+  }
+
+  /** Reserved tabs keep their identity through room save/load instead of becoming ordinary tabs. */
+  override toAttributes(): Attributes {
+    const attributes = { ...ObjectSerializer.toAttributes(this.attributes as Attributes) };
+    attributes['identifier'] = this.identifier;
+    return attributes;
+  }
+
+  override parseAttributes(attributes: NamedNodeMap): void {
+    ObjectSerializer.parseAttributes(this.attributes, attributes);
+    const persistedIdentifier = this.attributes['identifier'];
+    if (typeof persistedIdentifier === 'string' && persistedIdentifier.length > 0) {
+      (this as unknown as { context: { identifier: string } }).context.identifier = persistedIdentifier;
+      delete (this.attributes as Record<string, unknown>)['identifier'];
+    }
   }
 
   markForRead() {

@@ -29,6 +29,7 @@ export class RoomArchiveEventHandlerService {
   async flush(): Promise<void> {
     this.clearTimers();
     if (!this.isDirty) return;
+    if (!this.roomSnapshot.isKeeping()) return;
     if (!this.rolePermission.canEditTabletop) return;
     if (this.roomSnapshot.isRestoring() || this.isBusy()) {
       this.retryLater();
@@ -60,7 +61,7 @@ export class RoomArchiveEventHandlerService {
   }
 
   private markDirty(): void {
-    if (!this.roomSnapshot.isSupported) return;
+    if (!this.roomSnapshot.isSupported || !this.roomSnapshot.isKeeping()) return;
     this.isDirty = true;
     const { idle, max } = snapshotDelays(this.roomSnapshot.lastCaptureMs());
     if (this.idleTimer !== null) clearTimeout(this.idleTimer);

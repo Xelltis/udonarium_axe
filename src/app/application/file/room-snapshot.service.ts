@@ -7,6 +7,8 @@ import { RoomSnapshotMeta, RoomSnapshotStore, selectExpiredSnapshots } from '@ax
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
+const STOPPED_KEY = 'room-snapshot-stopped';
+
 @Injectable({ providedIn: 'root' })
 export class RoomSnapshotService {
   private readonly store = inject(RoomSnapshotStore);
@@ -25,6 +27,23 @@ export class RoomSnapshotService {
 
   private readonly _lastCaptureMs = signal(0);
   readonly lastCaptureMs = this._lastCaptureMs.asReadonly();
+
+  /**
+   * Whether the room is being kept as it goes.
+   *
+   * Written down here rather than in the room, since the snapshots are this browser's own:
+   * one seat turning the keeping off is not a decision to make for everybody else's.
+   */
+  readonly isKeeping = signal(!storedStopped());
+
+  setKeeping(keeping: boolean): void {
+    this.isKeeping.set(keeping);
+    try {
+      localStorage.setItem(STOPPED_KEY, keeping ? '' : '1');
+    } catch {
+      // Private browsing refuses the write; the choice still holds for this session.
+    }
+  }
 
   get isSupported(): boolean {
     return this.store.isAvailable();
@@ -102,5 +121,13 @@ export class RoomSnapshotService {
 
   private currentRoomName(): string {
     return Network.peerContext?.roomName ?? '';
+  }
+}
+
+function storedStopped(): boolean {
+  try {
+    return localStorage.getItem(STOPPED_KEY) === '1';
+  } catch {
+    return false;
   }
 }

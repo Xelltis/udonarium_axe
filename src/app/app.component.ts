@@ -1,8 +1,10 @@
+import { NgClass } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   inject,
   signal,
   viewChild,
@@ -16,6 +18,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -25,14 +28,18 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { WIDGET_FAB } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
+import { FAB_ENTRIES, FabEntry } from '@axe/domain/ui/fab-menu';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
+import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
@@ -40,6 +47,7 @@ import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.compon
 import { ChatPortraitImageComponent } from '@axe/features/chat/chat-portrait-img/chat-portrait-img.component';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
+import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
@@ -66,6 +74,7 @@ import { CcfoliaRoomImportEventHandlerService } from '@axe/features/tabletop/ccf
 import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
+import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
 import { VoteEventHandlerService } from '@axe/features/vote/vote-event-handler.service';
@@ -77,9 +86,21 @@ import { ConfirmDialogComponent } from '@axe/ui/components/confirm-dialog/confir
 import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-menu.component';
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
+import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
+import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
+import {
+  FAB_COLUMN_CLASSES,
+  fabDrawerPlaceClasses,
+  FabDrawerSide,
+  fabDrawerSide,
+  fabLabelSideClasses,
+} from '@axe/ui/fab-drawer';
 import { TranslocoModule } from '@jsverse/transloco';
 import { version as APP_VERSION } from '@pkg';
+
+/** How far from the corner the button starts, before anybody has put it anywhere. */
+const FAB_MARGIN_PX = 12;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -106,10 +127,17 @@ import { version as APP_VERSION } from '@pkg';
     ReplayBoardBannerComponent,
     InviteJoinComponent,
     StreamingOverlayComponent,
+    ChatTickerComponent,
     LanguageSelectorComponent,
     VisualNovelOverlayComponent,
+    NgClass,
+    DraggableDirective,
+    WidgetPlaceDirective,
     TranslocoModule,
   ],
+  // The drawer opens toward whichever side of the screen has room for it, and a window that
+  // changes shape can leave the button on the other side without anybody touching it.
+  host: { '(window:resize)': 'measureFabSides()' },
 })
 export class AppComponent {
   readonly theme = inject(ThemeService);
@@ -139,6 +167,65 @@ export class AppComponent {
   });
 
   fabOpen = signal(true);
+
+  protected readonly fabWidget = WIDGET_FAB;
+  protected readonly fabFallback = () => ({ left: FAB_MARGIN_PX, top: FAB_MARGIN_PX });
+  private readonly fabMenuRef = viewChild<ElementRef<HTMLElement>>('fabMenu');
+  private readonly fabSide = signal<FabDrawerSide>({ up: false, left: false });
+
+  /**
+   * Where the drawer hangs from the button, which is wherever there is room for it.
+   *
+   * The order of what is in it never turns round with the drawer: the first thing on the
+   * list is at the top whichever way it opens, so a menu learnt in one corner is the same
+   * menu in another.
+   */
+  protected readonly fabDrawerPlace = computed(() => fabDrawerPlaceClasses(this.fabSide()));
+
+  /** Which side of an item its name is written on, so it is never written off the screen. */
+  protected readonly fabLabelSide = computed(() => fabLabelSideClasses(this.fabSide()));
+
+  protected readonly fabColumns = FAB_COLUMN_CLASSES;
+
+  protected toggleFab(): void {
+    this.measureFabSides();
+    this.fabOpen.set(!this.fabOpen());
+  }
+
+  /** Reads where the button has been put, which is what settles the way the drawer opens. */
+  protected measureFabSides(): void {
+    const element = this.fabMenuRef()?.nativeElement;
+    if (!element) return;
+    const box = element.getBoundingClientRect();
+    if (box.width < 1 && box.height < 1) return;
+    this.fabSide.set(fabDrawerSide(box, { width: window.innerWidth, height: window.innerHeight }));
+  }
+
+  protected readonly tabletop = inject(TabletopService);
+  private readonly viewMode = inject(ViewModePreferenceService);
+
+  /** Auto, then each of the two a reader may hold the table to. */
+  protected viewModeLabel(): string {
+    return viewModeLabelKey(this.viewMode.mode(), this.tabletop.mode2d());
+  }
+
+  protected viewModeIcon(): string {
+    return viewModeIcon(this.viewMode.mode(), this.tabletop.mode2d());
+  }
+
+  /** The ticker is drawn for the screens that asked for it, and not fetched for the rest. */
+  protected readonly tickerWanted = computed(() => this.tabletop.display().multiAngleTickerEnabled);
+
+  protected toggleViewMode(): void {
+    this.viewMode.choose(nextViewMode(this.viewMode.mode()));
+  }
+
+  protected readonly fabEntries = FAB_ENTRIES;
+
+  protected chooseFab(entry: FabEntry): void {
+    if (entry.action.kind === 'panel') this.open(entry.action.panel);
+    else if (entry.action.kind === 'visualNovel') this.visualNovel.toggle();
+  }
   isSaving = signal(false);
   progressPercent = signal(0);
   readonly themeLabel = computed(() => {
@@ -175,6 +262,7 @@ export class AppComponent {
     inject(RoomArchiveEventHandlerService);
     inject(ReplayEventHandlerService);
     inject(ImageDropEventHandlerService);
+    inject(MovePlanEventHandlerService);
     inject(CcfoliaRoomImportEventHandlerService);
     inject(FogMemoryWriterService);
     inject(CutInService);
@@ -182,6 +270,7 @@ export class AppComponent {
     inject(TurnOrderService);
 
     afterNextRender(() => {
+      this.measureFabSides();
       PanelService.defaultParentViewContainerRef =
         ModalService.defaultParentViewContainerRef =
         ContextMenuService.defaultParentViewContainerRef =
@@ -241,6 +330,10 @@ PanelService.UIPanelComponentClass = UIPanelComponent;
 PanelService.chatPortraitComponentClass = ChatPortraitImageComponent;
 PanelService.cardStackListComponentClass = CardStackListImageComponent;
 ContextMenuService.ContextMenuComponentClass = ContextMenuComponent;
+ContextMenuService.loadFourWayRadialMenuComponent = () =>
+  import('@axe/ui/components/four-way-radial-menu/four-way-radial-menu.component').then(
+    (m) => m.FourWayRadialMenuComponent
+  );
 ModalService.ModalComponentClass = ModalComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
 TooltipDirective.TooltipPanelComponentClass = OverviewPanelComponent;

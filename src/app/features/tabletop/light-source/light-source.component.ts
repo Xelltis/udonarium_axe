@@ -16,8 +16,9 @@ import { ImageTag } from '@axe/domain/media/image-tag';
 import { LIGHT_IMAGE_TAG, LIGHT_SKIN_ASSET_URLS, LightSkinId } from '@axe/domain/media/light-skins';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
-import { buildLightSourceContextMenu } from '@axe/features/tabletop/light-source/light-source-context-menu';
+import { buildLightSourceContextMenuModel } from '@axe/features/tabletop/light-source/light-source-context-menu';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -185,7 +186,7 @@ export class LightSourceComponent {
       .getObjects(GameCharacter)
       .filter((character) => character.isVisibleOnTable)
       .map((character) => ({ identifier: character.identifier, name: character.name }));
-    const menu = buildLightSourceContextMenu(
+    const menu = buildLightSourceContextMenuModel(
       light,
       this.gridSize,
       characters,
@@ -193,7 +194,20 @@ export class LightSourceComponent {
       this.translateFn,
       (skin) => this.applySkin(light, skin)
     );
-    this.contextMenuService.open(menuPosition, menu, light.name);
+    const display = this.tabletopService.display();
+    if (this.tabletopService.mode2d()) {
+      this.contextMenuService.openRadial(
+        menuPosition,
+        menu.actions,
+        menu.radialGroups,
+        light.name,
+        display.radialMenuEnabled,
+        display.radialMenuRotationSpeed,
+        multiAngleFontScaleFactor(display.multiAngleFontScale)
+      );
+      return;
+    }
+    this.contextMenuService.open(menuPosition, menu.actions, light.name);
   }
 
   private openSettings(light: LightSource) {

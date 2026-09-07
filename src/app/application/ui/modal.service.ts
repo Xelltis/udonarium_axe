@@ -1,4 +1,5 @@
 import { ComponentRef, Injectable, Injector, signal, ViewContainerRef } from '@angular/core';
+import type { PanelRotationDegrees } from '@axe/application/ui/panel.service';
 
 class ModalContext {
   constructor(
@@ -20,6 +21,9 @@ class ModalContext {
 export class ModalService {
   private modalContext: ModalContext | null = null;
   private count = 0;
+  private actionRotationDegrees: PanelRotationDegrees = 0;
+
+  readonly rotationDegrees = signal<PanelRotationDegrees>(0);
 
   private readonly _title = signal('');
   get title(): string {
@@ -74,6 +78,9 @@ export class ModalService {
 
       const childModalService: ModalService = new ModalService();
       childModalService.modalContext = new ModalContext(_resolve as (val: unknown) => void, _reject, option);
+      const rotationDegrees = this.optionRotationDegrees(option) ?? this.actionRotationDegrees;
+      childModalService.rotationDegrees.set(rotationDegrees);
+      childModalService.actionRotationDegrees = rotationDegrees;
       if (option != null && typeof option === 'object' && 'title' in option) {
         childModalService.title = ((option as Record<string, unknown>).title as string) ?? '';
       }
@@ -93,6 +100,22 @@ export class ModalService {
 
       this.count++;
     });
+  }
+
+  runWithInitialRotation<T>(rotationDegrees: PanelRotationDegrees, action: () => T): T {
+    const previous = this.actionRotationDegrees;
+    this.actionRotationDegrees = rotationDegrees;
+    try {
+      return action();
+    } finally {
+      this.actionRotationDegrees = previous;
+    }
+  }
+
+  private optionRotationDegrees(option: unknown): PanelRotationDegrees | undefined {
+    if (option == null || typeof option !== 'object' || !('rotationDegrees' in option)) return undefined;
+    const degrees = (option as { rotationDegrees?: unknown }).rotationDegrees;
+    return degrees === 0 || degrees === 90 || degrees === 180 || degrees === 270 ? degrees : undefined;
   }
 
   resolve(value?: unknown) {

@@ -1,4 +1,4 @@
-import { normalizeRect, selectByRect } from '@axe/application/ui/rect-hit-test';
+import { marqueeApply, normalizeRect, selectByRect } from '@axe/application/ui/rect-hit-test';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { makeFakeTabletopObject } from '@axe/testing/factories/tabletop-object.factory';
 
@@ -74,5 +74,39 @@ describe('selectByRect', () => {
   it('judges the same rectangle given corner-first or corner-last', () => {
     const objects: TabletopObject[] = [makeObject({ id: 'a', alias: 'character', x: 0, y: 0, size: 1 })];
     expect(selectByRect(objects, { x1: 100, y1: 100, x2: -100, y2: -100 })).toEqual(['a']);
+  });
+});
+
+describe('marqueeApply()', () => {
+  const keys = (over: Partial<{ shift: boolean; ctrl: boolean; touch: boolean }> = {}) => ({
+    shift: false,
+    ctrl: false,
+    touch: false,
+    ...over,
+  });
+
+  it('stands in for the whole selection by default', () => {
+    expect(marqueeApply(keys(), false)).toBe('replace');
+    expect(marqueeApply(keys(), true)).toBe('replace');
+  });
+
+  it('adds to it while shift is held', () => {
+    expect(marqueeApply(keys({ shift: true }), true)).toBe('add');
+  });
+
+  it('toggles what it catches while ctrl is held', () => {
+    expect(marqueeApply(keys({ ctrl: true }), false)).toBe('toggle');
+  });
+
+  it('toggles for a finger once something is already picked out', () => {
+    expect(marqueeApply(keys({ touch: true }), true)).toBe('toggle');
+  });
+
+  it('stands in for the lot for a finger with nothing picked out yet', () => {
+    expect(marqueeApply(keys({ touch: true }), false)).toBe('replace');
+  });
+
+  it('lets shift win over a finger, for a pen or a keyboard beside the screen', () => {
+    expect(marqueeApply(keys({ shift: true, touch: true }), true)).toBe('add');
   });
 });

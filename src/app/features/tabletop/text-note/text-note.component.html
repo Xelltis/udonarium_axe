@@ -10,7 +10,7 @@
     class="[-webkit-transform-style:preserve-3d] transform-3d"
     appRotable
     [rotable.option]="rotableOption()"
-    [rotable.disable]="tabletopService.mode2d()"
+    [rotable.disable]="tabletopService.mode2d() && isUpright"
     (rotable.ondragstart)="onMove()"
     (rotable.ondragend)="onMoved()"
   >

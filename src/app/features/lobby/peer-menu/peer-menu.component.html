@@ -57,165 +57,212 @@
   </div>
 </div>
 
-@if (networkService.peerContext.isRoom) {
-  <hr class="mx-3 border-(--ui-panel-border)" />
-  <div class="space-y-1 px-3 py-2 text-sm text-(--ui-text-muted)">
-    <div>
-      {{ 'feature.lobby.peerMenu.roomName' | transloco }}
-      @if (networkService.isOpen) {
-        <span class="font-bold text-(--ui-text)"
-          >{{ networkService.peerContext.roomName }}/{{ networkService.peerContext.roomId }}</span
-        >
-      }
-    </div>
-    @if (networkService.peerContext.hasPassword) {
-      <div class="flex items-center gap-2">
-        <span>{{ 'feature.lobby.peerMenu.password' | transloco }}</span>
-        @if (networkService.isOpen) {
-          <span class="font-bold text-(--ui-text)">{{
-            isPasswordVisible() ? networkService.peerContext.password : '●●●●●●●●'
-          }}</span>
-        }
-        <button class="p-0.5 text-(--ui-text-muted)" (click)="togglePasswordVisibility()">
-          <span class="material-icons align-text-bottom text-[1em]!">{{
-            isPasswordVisible() ? 'visibility' : 'visibility_off'
-          }}</span>
-        </button>
-      </div>
-    }
-    <div class="space-y-1.5 pt-1">
-      <div class="flex flex-wrap items-center gap-1.5">
-        <span>{{ 'feature.lobby.peerMenu.inviteLabel' | transloco }}</span>
-        @for (role of inviteRoles; track role) {
-          <button
-            class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
-            [class]="
-              inviteRole() === role ? roleBadgeClass(role) : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
-            "
-            (click)="inviteRole.set(role)"
-          >
-            {{ roleShortLabelKey(role) | transloco }}
-          </button>
-        }
-        @if (networkService.peerContext.hasPassword) {
-          <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-            <input
-              name="invite-include-password"
-              type="checkbox"
-              [ngModel]="includePasswordInInvite()"
-              (ngModelChange)="includePasswordInInvite.set($event)"
-            />
-            <span>{{ 'feature.lobby.peerMenu.inviteIncludePassword' | transloco }}</span>
-          </label>
-        }
-        <label
-          class="flex cursor-pointer items-center gap-1.5 text-xs"
-          [title]="'feature.lobby.peerMenu.inviteOverlayHint' | transloco"
-        >
-          <input
-            name="invite-overlay"
-            type="checkbox"
-            [ngModel]="inviteOverlay()"
-            (ngModelChange)="inviteOverlay.set($event)"
-          />
-          <span>{{ 'feature.lobby.peerMenu.inviteOverlay' | transloco }}</span>
-        </label>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <input
-          class="min-w-0 flex-1 text-[0.7rem]"
-          readonly
-          [value]="inviteLink()"
-          (focus)="selectInviteLink($event)"
-        />
-        <button class="shrink-0 text-xs" (click)="copyInviteLink()">
-          {{
-            (isInviteCopied() ? 'feature.lobby.peerMenu.inviteCopied' : 'feature.lobby.peerMenu.inviteCopy') | transloco
-          }}
-        </button>
-      </div>
-    </div>
-    @if (canRequestFullSync) {
-      <button (click)="requestFullSync()">{{ 'feature.lobby.peerMenu.fullSync' | transloco }}</button>
-      <p class="px-1 text-xs text-(--ui-text-muted)">{{ 'feature.lobby.peerMenu.fullSyncHint' | transloco }}</p>
-    }
-    @if (shouldShowReconnectButton) {
-      <button (click)="showReConnect()" class="danger">{{ 'feature.lobby.peerMenu.reconnect' | transloco }}</button>
-    }
-  </div>
-}
-
 <hr class="mx-3 border-(--ui-panel-border)" />
 
-<div class="space-y-2 px-3 py-2 text-xs text-(--ui-text-muted)">
-  <label class="flex items-center gap-2">
-    <input class="w-16" name="peer-timeout" [(ngModel)]="myPeer.timeout" type="number" min="1" max="600" />
-    <span>{{ 'feature.lobby.peerMenu.timeoutLabel' | transloco }}</span>
-  </label>
-  <label class="flex cursor-pointer items-center gap-2">
-    <input
-      name="disp-detail-flag"
-      type="checkbox"
-      value="dispDetailFlag"
-      [ngModel]="dispDetailFlag()"
-      (ngModelChange)="dispDetailFlag.set($event)"
-    />
-    <span>{{ 'feature.lobby.peerMenu.showDetail' | transloco }}</span>
-  </label>
-</div>
-
-@for (context of networkService.peerContexts; track context) {
-  <div class="border-t border-(--ui-panel-border) px-3 py-1 text-xs text-(--ui-text-muted)">
-    <div class="flex items-center gap-2">
-      @if (!context.isOpen) {
-        <span class="shrink-0 text-(--ui-accent)">{{ 'feature.lobby.peerMenu.connecting' | transloco }}</span>
-      }
-      <span class="min-w-0 flex-1 truncate" [title]="findUserId(context.peerId)">{{
-        findPeerName(context.peerId) || shortId(context.peerId)
-      }}</span>
-      @if (isMyselfGameMaster) {
-        <select
-          class="shrink-0 text-[0.7rem]"
-          [ngModel]="findPeerRole(context.peerId)"
-          (ngModelChange)="reassignRole(context.peerId, $event)"
-          [name]="'peer-role-' + context.peerId"
-        >
-          @for (role of assignableRoles; track role) {
-            <option [ngValue]="role">{{ roleShortLabelKey(role) | transloco }}</option>
-          }
-        </select>
-      } @else {
-        <span
-          class="shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-bold"
-          [class]="roleBadgeClass(findPeerRole(context.peerId))"
-          >{{ roleShortLabelKey(findPeerRole(context.peerId)) | transloco }}</span
-        >
-      }
-      @if (findPeerTimeReceive(context.peerId) <= 0) {
-        <span class="shrink-0 text-(--ui-text-dim)">[-:--:--]</span>
-      } @else {
-        <span class="shrink-0 text-(--ui-text-dim)">{{ findPeerTimeReceive(context.peerId) | date: 'HH:mm:ss' }}</span>
-      }
-    </div>
-    <div class="text-[0.65rem] text-(--ui-text-dim)" [title]="findUserId(context.peerId)">
-      {{ shortId(context.peerId) }}
-    </div>
-    @if (dispDetailFlag() && findPeerTimeReceive(context.peerId) > 0) {
-      <span class="text-(--ui-text-dim)"
-        >{{ 'feature.lobby.peerMenu.latency' | transloco }}{{ findPeerTimeLatency(context.peerId)
-        }}{{ 'feature.lobby.peerMenu.latencyUnit' | transloco }}</span
+<div class="space-y-1.5 px-3 py-2">
+  <div
+    class="flex rounded-(--ui-radius) border border-(--ui-panel-border) bg-(--ui-elevated) p-0.5"
+    role="radiogroup"
+    [attr.aria-label]="'feature.lobby.peerMenu.connectionMode' | transloco"
+    data-testid="connection-mode"
+  >
+    @for (mode of connectionModes; track mode) {
+      <button
+        type="button"
+        role="radio"
+        class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-sm border-0 px-2 py-1.5 text-xs font-semibold transition-[background,color]"
+        [class.bg-ui-accent]="connectionMode() === mode"
+        [class.text-white]="connectionMode() === mode"
+        [class.bg-transparent]="connectionMode() !== mode"
+        [class.text-ui-muted]="connectionMode() !== mode"
+        [class.hover:bg-ui-hover]="connectionMode() !== mode"
+        [attr.aria-checked]="connectionMode() === mode"
+        [attr.data-testid]="'connection-mode-' + mode"
+        (click)="chooseConnectionMode(mode)"
       >
+        <i class="material-icons text-[15px]!">{{ mode === 'online' ? 'wifi' : 'wifi_off' }}</i>
+        {{ 'feature.lobby.peerMenu.mode_' + mode | transloco }}
+      </button>
     }
   </div>
-}
-
-<div class="px-3 py-2">
-  @if (networkService.peerIds.length <= 1) {
-    <button class="w-full" (click)="showLobby()" [disabled]="!networkService.isOpen">
-      {{ 'feature.lobby.peerMenu.showLobby' | transloco }}
-    </button>
-  }
+  <p class="m-0 text-[11px] text-(--ui-text-muted)" data-testid="connection-mode-hint">
+    {{ 'feature.lobby.peerMenu.modeHint_' + connectionMode() | transloco }}
+  </p>
 </div>
+
+@if (!isOffline()) {
+  @if (networkService.peerContext.isRoom) {
+    <hr class="mx-3 border-(--ui-panel-border)" />
+    <div class="space-y-1 px-3 py-2 text-sm text-(--ui-text-muted)">
+      <div>
+        {{ 'feature.lobby.peerMenu.roomName' | transloco }}
+        @if (networkService.isOpen) {
+          <span class="font-bold text-(--ui-text)"
+            >{{ networkService.peerContext.roomName }}/{{ networkService.peerContext.roomId }}</span
+          >
+        }
+      </div>
+      @if (networkService.peerContext.hasPassword) {
+        <div class="flex items-center gap-2">
+          <span>{{ 'feature.lobby.peerMenu.password' | transloco }}</span>
+          @if (networkService.isOpen) {
+            <span class="font-bold text-(--ui-text)">{{
+              isPasswordVisible() ? networkService.peerContext.password : '●●●●●●●●'
+            }}</span>
+          }
+          <button class="p-0.5 text-(--ui-text-muted)" (click)="togglePasswordVisibility()">
+            <span class="material-icons align-text-bottom text-[1em]!">{{
+              isPasswordVisible() ? 'visibility' : 'visibility_off'
+            }}</span>
+          </button>
+        </div>
+      }
+      <div class="space-y-1.5 pt-1">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span>{{ 'feature.lobby.peerMenu.inviteLabel' | transloco }}</span>
+          @for (role of inviteRoles; track role) {
+            <button
+              class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
+              [class]="
+                inviteRole() === role
+                  ? roleBadgeClass(role)
+                  : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
+              "
+              (click)="inviteRole.set(role)"
+            >
+              {{ roleShortLabelKey(role) | transloco }}
+            </button>
+          }
+          @if (networkService.peerContext.hasPassword) {
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+              <input
+                name="invite-include-password"
+                type="checkbox"
+                [ngModel]="includePasswordInInvite()"
+                (ngModelChange)="includePasswordInInvite.set($event)"
+              />
+              <span>{{ 'feature.lobby.peerMenu.inviteIncludePassword' | transloco }}</span>
+            </label>
+          }
+          <label
+            class="flex cursor-pointer items-center gap-1.5 text-xs"
+            [title]="'feature.lobby.peerMenu.inviteOverlayHint' | transloco"
+          >
+            <input
+              name="invite-overlay"
+              type="checkbox"
+              [ngModel]="inviteOverlay()"
+              (ngModelChange)="inviteOverlay.set($event)"
+            />
+            <span>{{ 'feature.lobby.peerMenu.inviteOverlay' | transloco }}</span>
+          </label>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <input
+            class="min-w-0 flex-1 text-[0.7rem]"
+            readonly
+            [value]="inviteLink()"
+            (focus)="selectInviteLink($event)"
+          />
+          <button class="shrink-0 text-xs" (click)="copyInviteLink()">
+            {{
+              (isInviteCopied() ? 'feature.lobby.peerMenu.inviteCopied' : 'feature.lobby.peerMenu.inviteCopy')
+                | transloco
+            }}
+          </button>
+        </div>
+      </div>
+      @if (canRequestFullSync) {
+        <button (click)="requestFullSync()">{{ 'feature.lobby.peerMenu.fullSync' | transloco }}</button>
+        <p class="px-1 text-xs text-(--ui-text-muted)">{{ 'feature.lobby.peerMenu.fullSyncHint' | transloco }}</p>
+      }
+      @if (shouldShowReconnectButton) {
+        <button (click)="showReConnect()" class="danger">{{ 'feature.lobby.peerMenu.reconnect' | transloco }}</button>
+      }
+    </div>
+  }
+
+  <hr class="mx-3 border-(--ui-panel-border)" />
+
+  <div class="space-y-2 px-3 py-2 text-xs text-(--ui-text-muted)" data-testid="online-settings">
+    <label class="flex items-center gap-2">
+      <input class="w-16" name="peer-timeout" [(ngModel)]="myPeer.timeout" type="number" min="1" max="600" />
+      <span>{{ 'feature.lobby.peerMenu.timeoutLabel' | transloco }}</span>
+    </label>
+    <label class="flex cursor-pointer items-center gap-2">
+      <input
+        name="disp-detail-flag"
+        type="checkbox"
+        value="dispDetailFlag"
+        [ngModel]="dispDetailFlag()"
+        (ngModelChange)="dispDetailFlag.set($event)"
+      />
+      <span>{{ 'feature.lobby.peerMenu.showDetail' | transloco }}</span>
+    </label>
+  </div>
+
+  @for (context of networkService.peerContexts; track context) {
+    <div class="border-t border-(--ui-panel-border) px-3 py-1 text-xs text-(--ui-text-muted)">
+      <div class="flex items-center gap-2">
+        @if (!context.isOpen) {
+          <span class="shrink-0 text-(--ui-accent)">{{ 'feature.lobby.peerMenu.connecting' | transloco }}</span>
+        }
+        <span class="min-w-0 flex-1 truncate" [title]="findUserId(context.peerId)">{{
+          findPeerName(context.peerId) || shortId(context.peerId)
+        }}</span>
+        @if (isMyselfGameMaster) {
+          <select
+            class="shrink-0 text-[0.7rem]"
+            [ngModel]="findPeerRole(context.peerId)"
+            (ngModelChange)="reassignRole(context.peerId, $event)"
+            [name]="'peer-role-' + context.peerId"
+          >
+            @for (role of assignableRoles; track role) {
+              <option [ngValue]="role">{{ roleShortLabelKey(role) | transloco }}</option>
+            }
+          </select>
+        } @else {
+          <span
+            class="shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-bold"
+            [class]="roleBadgeClass(findPeerRole(context.peerId))"
+            >{{ roleShortLabelKey(findPeerRole(context.peerId)) | transloco }}</span
+          >
+        }
+        @if (findPeerTimeReceive(context.peerId) <= 0) {
+          <span class="shrink-0 text-(--ui-text-dim)">[-:--:--]</span>
+        } @else {
+          <span class="shrink-0 text-(--ui-text-dim)">{{
+            findPeerTimeReceive(context.peerId) | date: 'HH:mm:ss'
+          }}</span>
+        }
+      </div>
+      <div class="text-[0.65rem] text-(--ui-text-dim)" [title]="findUserId(context.peerId)">
+        {{ shortId(context.peerId) }}
+      </div>
+      @if (dispDetailFlag() && findPeerTimeReceive(context.peerId) > 0) {
+        <span class="text-(--ui-text-dim)"
+          >{{ 'feature.lobby.peerMenu.latency' | transloco }}{{ findPeerTimeLatency(context.peerId)
+          }}{{ 'feature.lobby.peerMenu.latencyUnit' | transloco }}</span
+        >
+      }
+    </div>
+  }
+
+  <div class="px-3 py-2">
+    @if (networkService.peerIds.length <= 1) {
+      <button class="w-full" (click)="showLobby()" [disabled]="!networkService.isOpen">
+        {{ 'feature.lobby.peerMenu.showLobby' | transloco }}
+      </button>
+    }
+  </div>
+} @else {
+  <div
+    class="mx-3 my-2 rounded-(--ui-radius) border border-(--ui-panel-border) bg-(--ui-elevated) px-3 py-2 text-xs text-(--ui-text-muted)"
+    data-testid="offline-note"
+  >
+    <p class="m-0">{{ 'feature.lobby.peerMenu.offlineNote' | transloco }}</p>
+  </div>
+}
 <div class="px-3 pb-2">
   <span class="text-xs text-(--ui-text-dim)">{{ help() }}</span>
 </div>

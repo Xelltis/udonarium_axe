@@ -398,7 +398,18 @@ describe('reading the turns, the votes, the look of the table and the roles', ()
     });
     expect(draft?.kind).toBe(ReplayEventKind.TurnChange);
     expect(draft?.targetIdentifier).toBe('c2');
-    expect(draft?.detail).toEqual({ round: 2, phase: 'roundStart' });
+    expect(draft?.detail).toEqual({ round: 2, phase: 'roundStart', side: '' });
+  });
+
+  it('reads a side taking over the phase, with nobody up yet', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'TurnState',
+      identifier: 'TurnState',
+      before: { round: 2, phase: 'acting', currentIdentifier: '', currentSide: 'p-heroes' },
+      after: { round: 2, phase: 'acting', currentIdentifier: '', currentSide: 'p-monsters' },
+    });
+    expect(draft?.kind).toBe(ReplayEventKind.TurnChange);
+    expect(draft?.detail).toEqual({ round: 2, phase: 'acting', side: 'p-monsters' });
   });
 
   it('passes over a change that touches neither', () => {

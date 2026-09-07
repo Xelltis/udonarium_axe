@@ -14,7 +14,7 @@ export class RoomPanelService {
   private readonly t = inject(TRANSLATE_FN);
   private opened = 0;
 
-  open(name: RoomPanelName, extra: PanelOption = {}): void {
+  open<T = unknown>(name: RoomPanelName, extra: PanelOption = {}, setup?: (instance: T) => void): void {
     const panel = this.panelOf(name);
     const option: PanelOption = {
       title: this.t(panelLabelKey(name)),
@@ -24,7 +24,8 @@ export class RoomPanelService {
       ...extra,
     };
     this.opened += 1;
-    this.panelService.openLazy(panel.load, option);
+    if (setup) this.panelService.openLazy(panel.load, option, setup as (instance: unknown) => void);
+    else this.panelService.openLazy(panel.load, option);
   }
 
   private panelOf(name: RoomPanelName): RoomPanel {
@@ -46,6 +47,14 @@ export class RoomPanelService {
               (m) => m.GameTableSettingComponent
             ),
           option: { width: 630, height: 500 },
+        };
+      case 'roomSettings':
+        return {
+          load: () =>
+            import('@axe/features/room-settings/room-settings-panel/room-settings-panel.component').then(
+              (m) => m.RoomSettingsPanelComponent
+            ),
+          option: { width: 560, height: 620 },
         };
       case 'inventory':
         return {

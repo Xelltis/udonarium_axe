@@ -284,18 +284,24 @@ export class VisionService {
    * Kept with the walls rather than with the scene, so that a piece walking about does not
    * cut every terrain on the table into cells again.
    */
-  private readonly blockingCells = computed<CellBits | null>(() => {
+  /** The cells a wall stands on, with how high the tallest wall on each of them reaches. */
+  private readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array } | null>(() => {
     this.standingEpoch();
     const grid = this.cellGrid();
     const table = this.currentTable();
     if (!grid || !table) return null;
-    const bits = new CellBits(cellCount(grid));
+    const cells = new CellBits(cellCount(grid));
+    const tops = new Float32Array(cellCount(grid));
     for (const terrain of table.terrains) {
       if (!terrain.hasWall || !terrain.blocksSightNow || surfaceOf(terrain) !== 'floor') continue;
       const box = this.terrainBox(terrain, grid.sizePx);
-      forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => bits.set(cell));
+      const top = (terrain.altitude + terrain.height) * grid.sizePx;
+      forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => {
+        cells.set(cell);
+        if (top > tops[cell]) tops[cell] = top;
+      });
     }
-    return bits;
+    return { cells, tops };
   });
 
   private terrainBox(terrain: Terrain, gridSize: number): { minX: number; minY: number; maxX: number; maxY: number } {
@@ -340,7 +346,14 @@ export class VisionService {
     const table = this.currentTable();
     if (!scene || !grid || !indexes || !table || !this.active()) return null;
     return perfTimed('cells', () => {
-      const options: VisibleCellsOptions = { scene, grid, indexes, blocking: this.blockingCells() ?? undefined };
+      const standing = this.blockingCells();
+      const options: VisibleCellsOptions = {
+        scene,
+        grid,
+        indexes,
+        blocking: standing?.cells,
+        blockingTops: standing?.tops,
+      };
       const perSource = new Map<string, CellBits>();
       const shared = new CellBits(cellCount(grid));
       const players = this.partyOwnerIds(scene.visionSources);
@@ -500,7 +513,7 @@ export class VisionService {
    * not at all, so the faces are cut to this instead. That keeps a wall gathered from a dozen
    * cells in one piece and still lets the fog lie across the part of it nobody has reached.
    */
-  terrainFogCover(terrain: Terrain): TerrainFogCover | null {
+  terrainFogCover(terrain: Terrain, planeZ = 0): TerrainFogCover | null {
     if (!this.active()) return null;
     const scene = this.scene();
     const cells = this.visionCells();
@@ -527,10 +540,10 @@ export class VisionService {
       byTerrain = new Map();
       this.coverMemo.set(memoKey, byTerrain);
     }
-    const key = `${terrain.identifier}:${terrain.location.x}:${terrain.location.y}:${terrain.rotate}:${cols}x${rows}`;
+    const key = `${terrain.identifier}:${terrain.location.x}:${terrain.location.y}:${terrain.rotate}:${cols}x${rows}:${planeZ}`;
     const held = byTerrain.get(key);
     if (held) return held;
-    const built = this.coverOf(terrain, grid, explored, cols, rows);
+    const built = this.coverOf(terrain, grid, explored, cols, rows, planeZ);
     byTerrain.set(key, built);
     return built;
   }
@@ -542,7 +555,8 @@ export class VisionService {
     grid: CellGrid,
     explored: CellBits | null,
     cols: number,
-    rows: number
+    rows: number,
+    planeZ = 0
   ): TerrainFogCover {
     const size = grid.sizePx;
     const centreX = terrain.location.x + (cols * size) / 2;
@@ -553,9 +567,11 @@ export class VisionService {
 
     const scene = this.scene();
     const viewer = this.viewer();
-    const blocking = this.blockingCells();
+    const blocking = this.blockingCells()?.cells ?? null;
     // The game master sees every cell; a reader sees what the fog says they see.
-    const visible = viewer.isGameMaster ? null : (this.overlayVision()?.visible ?? new CellBits(0));
+    // Nothing to ask where the table keeps no fog: an empty set answers "nowhere is in sight",
+    // which held every face of every block at the bare darkness however well a lamp lit it.
+    const visible = viewer.isGameMaster ? null : (this.overlayVision()?.visible ?? null);
     const dark = scene ? 1 - darknessAlphaFor(scene, viewer) : 1;
 
     const cleared: boolean[] = [];
@@ -567,10 +583,16 @@ export class VisionService {
         const x = centreX + localX * cos - localY * sin;
         const y = centreY + localX * sin + localY * cos;
         const cell = cellIndexAt(grid, x, y);
-        const shown = cell >= 0 && (explored?.get(cell) ?? true);
+        // The fog is the table's record of its own ground and has nothing to say about what
+        // lies over the edge of it. Held as unwalked, the part of a block that overhangs the
+        // table wore the fog's colour across itself and took its texture with it.
+        const offTable = cell < 0;
+        const shown = offTable || (explored?.get(cell) ?? true);
         cleared.push(shown);
         brightness.push(
-          shown && scene ? this.cellBrightness(scene, viewer, grid, blocking, visible, cell, x, y) : dark
+          shown && scene && !offTable
+            ? this.cellBrightness(scene, viewer, grid, blocking, visible, cell, x, y, planeZ)
+            : dark
         );
       }
     }
@@ -591,7 +613,8 @@ export class VisionService {
     visible: CellBits | null,
     cell: number,
     x: number,
-    y: number
+    y: number,
+    planeZ = 0
   ): number {
     const dark = 1 - darknessAlphaFor(scene, viewer);
     // Ground the party has taken is held at full light, which is what the easy fog promises:
@@ -602,9 +625,26 @@ export class VisionService {
     // open sides - and it falls back to the party's shared sight for a reader with no piece
     // of their own. Asking the sight lines again here answered that reader with 'anything a
     // lamp touches', which lit the walls of rooms nobody could see into.
-    if (visible && !visible.get(cell)) return dark;
+    // The fog is worked out along the floor and has nothing to say about a roof above it: the
+    // building itself stops the look, so its own roof is never among the cells in sight. A lamp
+    // standing up there lights the roof it stands on, and reading that roof against cells lying
+    // in the building's own shadow left it dark under the lamp's feet. Ground nobody has reached
+    // is still held back, by the cleared list this fills in beside the brightness.
+    if (planeZ <= 0 && visible && !visible.get(cell)) return dark;
+    // A roof is ground, walked on at the height it stands at, so it is read where it lies. The
+    // detour below is for a wall met from the floor, whose middle is inside the wall itself;
+    // taken on a roof it read the middle of a wide one from the open ground beyond its edges,
+    // and the middle of a crate a torch was standing on came out as dark as the yard outside.
+    //
+    // Only by the lamps this reader can see. The fog cannot answer for a roof — the building
+    // itself stops the look, so its own top is never among the cells in sight — and dropping
+    // the question altogether lit the roof of every lamplit room on the map for somebody
+    // standing outside all of them.
+    if (planeZ > 0) {
+      return objectBrightnessFor(this.seenScene() ?? scene, viewer, x, y, grid.sizePx / 2, true, planeZ);
+    }
     if (!blocking?.get(cell)) {
-      return objectBrightnessFor(scene, viewer, x, y, grid.sizePx / 2, true);
+      return objectBrightnessFor(scene, viewer, x, y, grid.sizePx / 2, true, planeZ);
     }
     let best = dark;
     forEachNeighbourCell(grid, cell, (neighbour) => {
@@ -616,7 +656,8 @@ export class VisionService {
         x + (open.x - x) * FACE_READ_STEP,
         y + (open.y - y) * FACE_READ_STEP,
         0,
-        true
+        true,
+        planeZ
       );
       if (brightness > best) best = brightness;
     });
@@ -647,12 +688,50 @@ export class VisionService {
    * middle of such a wall is usually neither reached nor lit: read there, the one cell of it
    * standing beside a torch came out as black as the ten behind it.
    */
+  /**
+   * How brightly the top of a block comes out.
+   *
+   * A roof is a surface of its own, level with whatever is standing on it. The fog and the
+   * light are both worked out along the floor, so a lamp carried onto a building lit nothing up
+   * there: its pool on the ground had shrunk away by the time it climbed, and the roof was read
+   * against cells lying in the building's own shadow. Asked at the roof's own height, a lamp on
+   * a roof lights it exactly as it would light the ground.
+   *
+   * A block flat on the floor is read the way every other surface is.
+   */
+  terrainTopBrightness(terrain: Terrain, centreX: number, centreY: number, radiusPx: number): number {
+    if (!this.active()) return 1;
+    const scene = this.scene();
+    if (!scene) return 1;
+    const top = this.terrainTopZ(terrain);
+    if (top <= 0) return this.terrainBrightness(terrain, centreX, centreY, radiusPx);
+    const cover = this.terrainFogCover(terrain, top);
+    if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true, top);
+    return this.brightestCleared(cover);
+  }
+
+  /** How high the top of a block stands, in pixels above the floor. */
+  terrainTopZ(terrain: Terrain): number {
+    const scene = this.scene();
+    return scene ? (terrain.altitude + terrain.height) * scene.gridSize : 0;
+  }
+
+  /** The cells of a block's roof, each read at the height the roof stands at. */
+  terrainTopCover(terrain: Terrain): TerrainFogCover | null {
+    const top = this.terrainTopZ(terrain);
+    return top > 0 ? this.terrainFogCover(terrain, top) : this.terrainFogCover(terrain);
+  }
+
   terrainBrightness(terrain: Terrain, centreX: number, centreY: number, radiusPx: number): number {
     if (!this.active()) return 1;
     const scene = this.scene();
     if (!scene) return 1;
     const cover = this.terrainFogCover(terrain);
-    if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true);
+    // The top of a wall is a surface of its own, and a lamp level with it lights along it. Read
+    // at the ground the wall stands on, a walkway beside a torch came out as dark as the floor
+    // ten feet below, and so did whatever had climbed onto it.
+    const top = (terrain.altitude + terrain.height) * scene.gridSize;
+    if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true, top);
 
     return this.brightestCleared(cover);
   }
@@ -672,17 +751,24 @@ export class VisionService {
     return best;
   }
 
-  objectBrightness(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false): number {
+  /**
+   * How bright a thing standing on the table comes out.
+   *
+   * `standingZ` is the surface it is standing on, not its own top: the ground for most of a
+   * table, and the top of a wall for whatever has climbed onto one. Read against the ground
+   * far below, a piece on a walkway level with a lamp came out dark beside it.
+   */
+  objectBrightness(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false, standingZ = 0): number {
     if (!this.active()) return 1;
     const scene = this.scene();
     if (!scene) return 1;
-    return this.recall(`bright:${x}:${y}:${radiusPx}:${ignoreShadowCasters}`, () =>
-      objectBrightnessFor(scene, this.viewer(), x, y, radiusPx, ignoreShadowCasters)
+    return this.recall(`bright:${x}:${y}:${radiusPx}:${ignoreShadowCasters}:${standingZ}`, () =>
+      objectBrightnessFor(scene, this.viewer(), x, y, radiusPx, ignoreShadowCasters, standingZ)
     );
   }
 
-  objectFilter(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false): string | null {
-    const brightness = this.objectBrightness(x, y, radiusPx, ignoreShadowCasters);
+  objectFilter(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false, standingZ = 0): string | null {
+    const brightness = this.objectBrightness(x, y, radiusPx, ignoreShadowCasters, standingZ);
     return brightness < 1 ? `brightness(${brightness.toFixed(3)})` : null;
   }
 
@@ -732,6 +818,20 @@ export class VisionService {
     const scene = this.scene();
     if (!scene) return 1;
     return 1 - darknessAlphaFor(scene, this.viewer());
+  }
+
+  /**
+   * The colour the dark is painted in, for anything the darkness canvas cannot reach.
+   *
+   * That canvas is one sheet laid on the floor. A building stands above it, so the top of one
+   * is never covered by it and has to wear the same colour itself.
+   */
+  ambientShade(): { color: string; alpha: number } | null {
+    if (!this.active()) return null;
+    const scene = this.scene();
+    if (!scene) return null;
+    const alpha = darknessAlphaFor(scene, this.viewer());
+    return alpha > 0 ? { color: scene.ambientColor, alpha } : null;
   }
 
   private emissiveLights(): { lights: SceneLight[]; gridSize: number } {

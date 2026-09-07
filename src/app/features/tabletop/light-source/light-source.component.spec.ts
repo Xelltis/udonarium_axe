@@ -1,4 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
@@ -24,7 +28,9 @@ describe('LightSourceComponent', () => {
   });
 
   afterEach(() => {
+    fixture.destroy();
     light.destroy();
+    vi.restoreAllMocks();
   });
 
   it('stands the picture on the middle of its cell, facing the camera', () => {
@@ -39,5 +45,56 @@ describe('LightSourceComponent', () => {
     light.altitude = 1;
 
     expect(component.skinTransform()).toContain('translateZ(75px)');
+  });
+
+  describe('context menu display', () => {
+    function openMenu(mode2d: boolean, radialMenuEnabled: boolean): void {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = mode2d;
+      table.radialMenuEnabled = radialMenuEnabled;
+      table.radialMenuRotationSpeed = 9;
+      fixture.detectChanges();
+      vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
+      TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);
+
+      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+    }
+
+    it.each([false, true])('uses the 2D menu interface with rotating display %s', (enabled) => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      openMenu(true, enabled);
+
+      expect(openRadial).toHaveBeenCalledWith(
+        expect.objectContaining({ x: 240, y: 180 }),
+        expect.any(Array),
+        expect.any(Array),
+        'lantern',
+        enabled,
+        9,
+        1
+      );
+      expect(openRadial.mock.calls[0]?.[2].map((group) => group.name)).toEqual([
+        '光源・見た目',
+        '位置・追従',
+        'オブジェクト操作',
+      ]);
+      expect(openOrdinary).not.toHaveBeenCalled();
+    });
+
+    it('keeps the ordinary menu outside 2D mode', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      openMenu(false, true);
+
+      expect(openOrdinary).toHaveBeenCalledWith(
+        expect.objectContaining({ x: 240, y: 180 }),
+        expect.any(Array),
+        'lantern'
+      );
+      expect(openRadial).not.toHaveBeenCalled();
+    });
   });
 });
