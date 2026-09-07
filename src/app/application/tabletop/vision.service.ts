@@ -652,7 +652,11 @@ export class VisionService {
     const scene = this.scene();
     if (!scene) return 1;
     const cover = this.terrainFogCover(terrain);
-    if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true);
+    // The top of a wall is a surface of its own, and a lamp level with it lights along it. Read
+    // at the ground the wall stands on, a walkway beside a torch came out as dark as the floor
+    // ten feet below, and so did whatever had climbed onto it.
+    const top = (terrain.altitude + terrain.height) * scene.gridSize;
+    if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true, top);
 
     return this.brightestCleared(cover);
   }
@@ -672,17 +676,24 @@ export class VisionService {
     return best;
   }
 
-  objectBrightness(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false): number {
+  /**
+   * How bright a thing standing on the table comes out.
+   *
+   * `standingZ` is the surface it is standing on, not its own top: the ground for most of a
+   * table, and the top of a wall for whatever has climbed onto one. Read against the ground
+   * far below, a piece on a walkway level with a lamp came out dark beside it.
+   */
+  objectBrightness(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false, standingZ = 0): number {
     if (!this.active()) return 1;
     const scene = this.scene();
     if (!scene) return 1;
-    return this.recall(`bright:${x}:${y}:${radiusPx}:${ignoreShadowCasters}`, () =>
-      objectBrightnessFor(scene, this.viewer(), x, y, radiusPx, ignoreShadowCasters)
+    return this.recall(`bright:${x}:${y}:${radiusPx}:${ignoreShadowCasters}:${standingZ}`, () =>
+      objectBrightnessFor(scene, this.viewer(), x, y, radiusPx, ignoreShadowCasters, standingZ)
     );
   }
 
-  objectFilter(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false): string | null {
-    const brightness = this.objectBrightness(x, y, radiusPx, ignoreShadowCasters);
+  objectFilter(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false, standingZ = 0): string | null {
+    const brightness = this.objectBrightness(x, y, radiusPx, ignoreShadowCasters, standingZ);
     return brightness < 1 ? `brightness(${brightness.toFixed(3)})` : null;
   }
 

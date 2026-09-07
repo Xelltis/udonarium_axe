@@ -119,6 +119,24 @@ describe('vision-scene', () => {
       expect(lightLevelAt(s, 120, 0)).toBe(0);
     });
 
+    it('carries along the surface it is level with, not only along the ground', () => {
+      // A lamp 120px up reaches 160px across the floor of a 200px sphere, and the whole 200
+      // along a walkway at its own height.
+      const lamp = light({ x: 0, y: 0, z: 120, dimPx: 200, brightPx: 200 });
+
+      expect(floorRadii(lamp).dimFloor).toBeCloseTo(160);
+      expect(floorRadii(lamp, 120).dimFloor).toBeCloseTo(200);
+    });
+
+    it('lights a thing standing level with it as it lights the ground beneath itself', () => {
+      const s = scene({ lights: [light({ x: 0, y: 0, z: 200, dimPx: 200, brightPx: 200 })] });
+
+      // The sphere only grazes the floor, so nothing on the floor is lit by it.
+      expect(objectLightLevel(s, 100, 0, 0, true, 0)).toBe(0);
+      // A walkway at the lamp's own height is well inside it.
+      expect(objectLightLevel(s, 100, 0, 0, true, 200)).toBeGreaterThan(0);
+    });
+
     it('a high enough one reaches none of it', () => {
       const s = scene({ lights: [light({ x: 0, y: 0, z: 250, dimPx: 200 })] });
       expect(lightLevelAt(s, 0, 0)).toBe(0);
