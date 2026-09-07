@@ -75,8 +75,11 @@ export class TableMoveRangeOverlayComponent {
     const drawn: { grid: CellGrid; reach: CellBits | null; way: number[] }[] = [];
     for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
       if (cursor.identifier === mine) continue;
-      this.objectChange.versionOf(cursor.identifier)();
       if (!cursor.movingCharacterIdentifier || cursor.movingTableIdentifier !== table.identifier) continue;
+      // Read after the question of whether this peer is moving anything, not before it: a
+      // cursor's own place is on the cursor, so listening to every one of them redrew the
+      // board and worked every reach out again each time anybody moved a mouse.
+      this.objectChange.versionOf(cursor.identifier)();
 
       const piece = this.objectStore.get<GameCharacter>(cursor.movingCharacterIdentifier);
       if (!(piece instanceof GameCharacter)) continue;
