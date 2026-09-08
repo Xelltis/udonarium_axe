@@ -7,9 +7,9 @@ import { withBase } from 'vitepress';
  * `startup.webp` is captured with a different layout.
  */
 const spots = [
-  { x: 3.4, y: 4.2, name: 'FAB メニュー', body: '各種パネルを開くメインメニュー。', link: '/manual/#fab-メニュー' },
+  { x: 2.8, y: 3.9, name: 'FAB メニュー', body: '各種パネルを開くメインメニュー。', link: '/manual/#fab-メニュー' },
   {
-    x: 36.8,
+    x: 33.8,
     y: 3.4,
     name: 'ツールバー',
     body: 'ロールに応じて GM / PL のツールが並びます。',
@@ -24,7 +24,7 @@ const spots = [
   },
   { x: 16, y: 21, name: '接続パネル', body: 'ニックネーム・アイコン・ロール・ロビー。', link: '/manual/roles' },
   { x: 78, y: 30, name: 'テーブル', body: 'ドラッグで視点移動、ホイールでズーム。', link: '/manual/tabletop' },
-  { x: 52, y: 52, name: 'コマ', body: '右クリックで詳細・バフ・公開範囲などの操作。', link: '/manual/objects' },
+  { x: 63.5, y: 68.5, name: 'コマ', body: '右クリックで詳細・バフ・公開範囲などの操作。', link: '/manual/objects' },
   { x: 21, y: 56, name: 'チャットウィンドウ', body: '発言・ダイス・各種設定への入口。', link: '/manual/chat' },
 ];
 
