@@ -7,9 +7,7 @@ import {
   rgbToCss,
   rgbToLch,
 } from '@axe/core/util/tonal-color';
-
-/** The background every other panel on the page has: `--ui-elevated`, per theme. */
-const BASE_HEX = { light: '#e8dded', dark: '#21262d' };
+import { chatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 
 /** What the bubble aims for when it is worked out: the reading standard for body text. */
 export const CHAT_TARGET_RATIO = 4.5;
@@ -31,10 +29,6 @@ const TONE_STEP = 0.5;
 const TONE_FLOOR = 6;
 const TONE_CEILING = 98;
 
-function baseToneOf(theme: 'light' | 'dark'): number {
-  return rgbToLch(parseHexColor(BASE_HEX[theme])!).tone;
-}
-
 /**
  * The bubble nearest the page's own background that the chosen colour can be read on.
  *
@@ -49,7 +43,7 @@ export function autoChatBubble(color: string, theme: 'light' | 'dark'): string {
   const { chroma, hue } = rgbToLch(rgb);
   const tint = Math.min(chroma, BUBBLE_CHROMA);
   const textLum = relativeLuminance(rgb);
-  const baseTone = baseToneOf(theme);
+  const baseTone = chatBubbleBaseTone(theme);
   // Measured on the colour as it will be written out, so what is returned is what was tested:
   // a tone that clears the standard as a float can fall a hair under it once it is a byte.
   const shown = (tone: number) => parseHexColor(cssToHex(rgbToCss(lchToRgb({ tone, chroma: tint, hue }))))!;
