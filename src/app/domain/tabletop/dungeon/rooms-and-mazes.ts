@@ -25,8 +25,9 @@ export interface RoomsAndMazesParams {
   extraConnectorChance: number;
   wallBreakChance: number;
   shapes: readonly RoomShape[];
-  /** How many cells across a passage is cut. One is what the maze was written for. */
-  corridorWidth: number;
+  /** The narrowest and the widest a passage is cut, in cells. One apiece is a plain maze. */
+  minCorridor: number;
+  maxCorridor: number;
   seed: number;
 }
 
@@ -67,7 +68,8 @@ export function fitBoardTo(value: number, corridorWidth: number): number {
  * already open, so a wall always stands between a passage and a room it does not serve.
  */
 export function generateRoomsAndMazes(params: RoomsAndMazesParams, rng: () => number): DungeonLayout {
-  const wide = clampCorridorWidth(params.corridorWidth);
+  const wide = clampCorridorWidth(params.maxCorridor);
+  const narrow = Math.min(wide, clampCorridorWidth(params.minCorridor));
   // The maze steps a passage and a wall at a time, so the board has to end where a wall does.
   const width = fitBoardTo(params.width, wide);
   const height = fitBoardTo(params.height, wide);
@@ -105,7 +107,7 @@ export function generateRoomsAndMazes(params: RoomsAndMazesParams, rng: () => nu
     x >= 0 && y >= 0 && x < width && y < height && regions[y * width + x] === -1 && reserved[y * width + x] === 0;
 
   regionCount = placeRooms(layout, regions, reserved, wide, params, rng, regionCount);
-  regionCount = growMazes(layout, regions, wide, params, rng, regionCount, carve, isSolid);
+  regionCount = growMazes(layout, regions, { narrow, wide }, params, rng, regionCount, carve, isSolid);
   layout.doors = joinRegions(layout, regions, params, rng, regionCount);
   pruneDeadEnds(layout, wide);
   crumble(layout, params, wide, rng);
@@ -219,10 +221,16 @@ function spanBetween(
   };
 }
 
+/** The narrowest and the widest a passage may be cut on this table. */
+interface CorridorWidths {
+  narrow: number;
+  wide: number;
+}
+
 function growMazes(
   layout: DungeonLayout,
   regions: Int32Array,
-  wide: number,
+  widths: CorridorWidths,
   params: RoomsAndMazesParams,
   rng: () => number,
   regionCount: number,
@@ -230,6 +238,7 @@ function growMazes(
   isSolid: (x: number, y: number) => boolean
 ): number {
   let region = regionCount;
+  const wide = widths.wide;
   const step = mazeStep(wide);
   const solidSquare = (x: number, y: number) => {
     if (x + wide > layout.width - 1 || y + wide > layout.height - 1) return false;
@@ -242,7 +251,7 @@ function growMazes(
   for (let y = 1; y + wide <= layout.height - 1; y += step) {
     for (let x = 1; x + wide <= layout.width - 1; x += step) {
       if (!solidSquare(x, y)) continue;
-      growOneMaze(layout, wide, params, rng, region, { x, y }, carve, solidSquare);
+      growOneMaze(layout, widths, params, rng, region, { x, y }, carve, solidSquare);
       region++;
     }
   }
@@ -250,9 +259,17 @@ function growMazes(
   return region;
 }
 
+/**
+ * One maze, cut a square of the lattice at a time.
+ *
+ * A passage may be cut anywhere between the narrowest and the widest the table allows, and the
+ * lattice is spaced for the widest of them whatever this one turns out to be. Every passage is
+ * laid against the same corner of the square it crosses, so a narrow one meeting a wide one
+ * always meets it: they share the corner, and what they share is a way through.
+ */
 function growOneMaze(
   layout: DungeonLayout,
-  wide: number,
+  widths: CorridorWidths,
   params: RoomsAndMazesParams,
   rng: () => number,
   region: number,
@@ -260,14 +277,17 @@ function growOneMaze(
   carve: (x: number, y: number, kind: number, region: number) => void,
   solidSquare: (x: number, y: number) => boolean
 ): void {
+  const wide = widths.wide;
   const step = mazeStep(wide);
+  const cutWidth = () => widths.narrow + Math.floor(rng() * (widths.wide - widths.narrow + 1));
   const stack: { x: number; y: number }[] = [start];
   const open = (rect: { x: number; y: number; w: number; h: number }) => {
     for (let dy = 0; dy < rect.h; dy++) {
       for (let dx = 0; dx < rect.w; dx++) carve(rect.x + dx, rect.y + dy, DungeonCell.Corridor, region);
     }
   };
-  open({ x: start.x, y: start.y, w: wide, h: wide });
+  const first = cutWidth();
+  open({ x: start.x, y: start.y, w: first, h: first });
   let lastDir: [number, number] | null = null;
 
   while (stack.length > 0) {
@@ -297,7 +317,7 @@ function growOneMaze(
     const [dx, dy] = chosen;
     const next = { x: cell.x + dx * step, y: cell.y + dy * step };
 
-    open(spanBetween(cell, next, wide));
+    open(spanBetween(cell, next, cutWidth()));
     stack.push(next);
     lastDir = [dx, dy];
   }
@@ -470,17 +490,18 @@ function pruneWideDeadEnds(layout: DungeonLayout, wide: number): void {
     for (let y = 1; y + wide <= layout.height - 1; y += step) {
       for (let x = 1; x + wide <= layout.width - 1; x += step) {
         const square = { x, y, w: wide, h: wide };
-        if (!allCells(layout, square, (cell) => cell === DungeonCell.Corridor)) continue;
+        // A square holds a passage rather than being one: a narrow passage leaves the rest of
+        // the square as stone, and a room standing on the lattice is nobody's stub to trim.
+        if (someCell(layout, square, (cell) => cell === DungeonCell.Room)) continue;
+        if (!someCell(layout, square, (cell) => cell === DungeonCell.Corridor)) continue;
         const ways = DIRECTIONS.filter(([dx, dy]) => someCell(layout, gapBeside(x, y, dx, dy, wide), open));
-        // A door is how a room is reached, so a square with a door in the one way out of it is
-        // that room's porch rather than a stub of passage.
+        // A door is how a room is reached, so a square whose one way out carries a door, or
+        // holds up one beside it, is that room's porch rather than a stub of passage. Trimming
+        // it would leave the door opening onto stone, or onto a nub of way one cell across.
         const gaps = ways.map(([dx, dy]) => gapBeside(x, y, dx, dy, wide));
-        if (ways.length > 1 || gaps.some((gap) => someCell(layout, gap, (cell) => cell === DungeonCell.Door))) {
-          continue;
-        }
+        if (ways.length > 1 || gaps.some((gap) => holdsUpADoor(gap))) continue;
         fillRect(layout, square, DungeonCell.Rock);
-        // The way itself stays where a door opens onto it, or the door would open onto stone.
-        for (const gap of gaps) if (!holdsUpADoor(gap)) fillRect(layout, gap, DungeonCell.Rock);
+        for (const gap of gaps) fillRect(layout, gap, DungeonCell.Rock);
         trimmed = true;
       }
     }
@@ -528,7 +549,7 @@ function crumbleWideWalls(layout: DungeonLayout, params: RoomsAndMazesParams, wi
 
   for (let y = 1; y + wide <= layout.height - 1; y += step) {
     for (let x = 1; x + wide <= layout.width - 1; x += step) {
-      if (!allCells(layout, { x, y, w: wide, h: wide }, isOpen)) continue;
+      if (!someCell(layout, { x, y, w: wide, h: wide }, isOpen)) continue;
       for (const [dx, dy] of [
         [1, 0],
         [0, 1],
@@ -536,17 +557,41 @@ function crumbleWideWalls(layout: DungeonLayout, params: RoomsAndMazesParams, wi
         const gap = gapBeside(x, y, dx, dy, wide);
         const beyond = { x: x + dx * step, y: y + dy * step, w: wide, h: wide };
         if (beyond.x + wide > layout.width - 1 || beyond.y + wide > layout.height - 1) continue;
-        if (!allCells(layout, gap, isRock) || !allCells(layout, beyond, isOpen)) continue;
+        if (!allCells(layout, gap, isRock) || !someCell(layout, beyond, isOpen)) continue;
         const besideARoom = layout.rooms.some(
           (room) => gap.x >= room.x - 1 && gap.x <= room.x + room.w && gap.y >= room.y - 1 && gap.y <= room.y + room.h
         );
         if (besideARoom) continue;
-        if (rng() < params.wallBreakChance) doomed.push(gap);
+        // Only where both sides are open does a hole become a way, so the wall falls in exactly
+        // as far as the two passages meeting through it are wide.
+        const through = sharedRun(layout, { x, y }, [dx, dy], wide);
+        if (through.w > 0 && through.h > 0 && rng() < params.wallBreakChance) doomed.push(through);
       }
     }
   }
 
   for (const gap of doomed) fillRect(layout, gap, DungeonCell.Corridor);
+}
+
+/** The stretch of a wall that has a passage open on both sides of it, which is what may fall in. */
+function sharedRun(layout: DungeonLayout, at: { x: number; y: number }, way: readonly [number, number], wide: number) {
+  const step = mazeStep(wide);
+  const [dx, dy] = way;
+  const gap = gapBeside(at.x, at.y, dx, dy, wide);
+  const along: number[] = [];
+  for (let offset = 0; offset < wide; offset++) {
+    const near = dx !== 0 ? { x: at.x + wide - 1, y: at.y + offset } : { x: at.x + offset, y: at.y + wide - 1 };
+    const far = dx !== 0 ? { x: at.x + step, y: at.y + offset } : { x: at.x + offset, y: at.y + step };
+    const open =
+      cellAt(layout, near.x, near.y) !== DungeonCell.Rock && cellAt(layout, far.x, far.y) !== DungeonCell.Rock;
+    if (open) along.push(offset);
+    else if (along.length > 0) break;
+  }
+  if (along.length < 1) return { x: gap.x, y: gap.y, w: 0, h: 0 };
+  const from = along[0];
+  return dx !== 0
+    ? { x: gap.x, y: gap.y + from, w: 1, h: along.length }
+    : { x: gap.x + from, y: gap.y, w: along.length, h: 1 };
 }
 
 /** Which rooms a party can walk between without crossing a third, read off the finished map. */

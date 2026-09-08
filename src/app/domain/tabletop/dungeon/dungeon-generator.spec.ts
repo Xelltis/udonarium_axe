@@ -381,7 +381,12 @@ describe('passages cut to the width the room asked for', () => {
 
   it('opens a passage the width it was asked for', () => {
     for (const wide of [2, 3, 4]) {
-      const layout = generateDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 7, corridorWidth: wide });
+      const layout = generateDungeon({
+        atmosphere: 'stoneDungeon',
+        roomCount: 8,
+        seed: 7,
+        corridorWidth: { least: wide, most: wide },
+      });
       const step = wide + 1;
       let squares = 0;
       for (let y = 1; y + wide <= layout.height - 1; y += step) {
@@ -405,7 +410,12 @@ describe('passages cut to the width the room asked for', () => {
   it('leaves every open cell reachable however wide the passages are', () => {
     for (const wide of [1, 2, 3, 4]) {
       for (const seed of SEEDS) {
-        const layout = generateDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed, corridorWidth: wide });
+        const layout = generateDungeon({
+          atmosphere: 'stoneDungeon',
+          roomCount: 8,
+          seed,
+          corridorWidth: { least: wide, most: wide },
+        });
 
         expect(reachableCells(layout, layout.entrance).size).toBe(countOpenCells(layout));
       }
@@ -413,8 +423,13 @@ describe('passages cut to the width the room asked for', () => {
   });
 
   it('digs a cave its tunnels at the width asked for as well', () => {
-    const narrow = generateDungeon({ atmosphere: 'cavern', roomCount: 8, seed: 7, corridorWidth: 1 });
-    const wide = generateDungeon({ atmosphere: 'cavern', roomCount: 8, seed: 7, corridorWidth: 4 });
+    const narrow = generateDungeon({
+      atmosphere: 'cavern',
+      roomCount: 8,
+      seed: 7,
+      corridorWidth: { least: 1, most: 1 },
+    });
+    const wide = generateDungeon({ atmosphere: 'cavern', roomCount: 8, seed: 7, corridorWidth: { least: 4, most: 4 } });
 
     expect(countOpenCells(wide)).toBeGreaterThan(countOpenCells(narrow));
   });
@@ -432,7 +447,12 @@ describe('passages cut to the width the room asked for', () => {
 
   it('stays inside what a table may hold', () => {
     for (const wide of [1, 2, 3, 4]) {
-      const plan = planDungeon({ atmosphere: 'stoneDungeon', roomCount: 20, seed: 3, corridorWidth: wide });
+      const plan = planDungeon({
+        atmosphere: 'stoneDungeon',
+        roomCount: 20,
+        seed: 3,
+        corridorWidth: { least: wide, most: wide },
+      });
 
       expect(plan.blocks.blocks.length).toBeLessThanOrEqual(MAP_MAX_TERRAINS);
     }

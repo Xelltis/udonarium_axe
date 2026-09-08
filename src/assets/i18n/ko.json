@@ -2062,7 +2062,12 @@
           "density": "초목 밀도",
           "gridType": "칸 모양",
           "hexNote": "헥스는 하나로 묶을 수 없어 칸마다 지형을 놓습니다. 그만큼 판이 작아집니다.",
-          "corridorWidth": "통로의 폭"
+          "corridorWidth": "통로의 폭",
+          "corridorLeast": "최소",
+          "corridorMost": "최대",
+          "muster": "입구에 모을 파티",
+          "musterNobody": "모으지 않음",
+          "fog": "전장의 안개를 씌운 상태로 시작"
         },
         "actions": {
           "generate": "생성",
@@ -2081,7 +2086,8 @@
           "built": "\"{{name}}\"을(를) 만들었습니다",
           "roomsDiffer": "배치된 방은 {{found}}개입니다. 동굴은 공동이 이어지므로 요청보다 적어집니다",
           "squareOnly": "생성되는 테이블은 정사각 그리드 고정입니다",
-          "corridorWidth": "넓힐수록 방과 간격도 커져서 놓을 수 있는 방이 줄어듭니다"
+          "corridorWidth": "넓힐수록 방과 간격도 커져서 놓을 수 있는 방이 줄어듭니다",
+          "muster": "선택한 파티의 말을 입구 근처에 세웁니다. 다른 말은 움직이지 않습니다"
         },
         "entrance": {
           "stair": "계단(지하로)",

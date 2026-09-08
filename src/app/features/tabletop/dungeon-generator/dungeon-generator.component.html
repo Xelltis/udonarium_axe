@@ -188,37 +188,100 @@
     <div>
       <label
         class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase"
-        for="corridor-width"
+        for="corridor-width-least"
       >
         {{ 'feature.tabletop.dungeonGenerator.props.corridorWidth' | transloco }}
       </label>
       <div class="flex items-center gap-2">
+        <span class="text-ui-muted shrink-0 text-[0.75rem]">{{
+          'feature.tabletop.dungeonGenerator.props.corridorLeast' | transloco
+        }}</span>
         <input
           class="min-w-0 flex-1"
-          id="corridor-width"
-          name="corridor-width"
+          id="corridor-width-least"
+          name="corridor-width-least"
           type="range"
           [min]="minCorridorWidth"
           [max]="maxCorridorWidth"
           step="1"
-          [ngModel]="corridorWidth()"
-          (ngModelChange)="setCorridorWidth($event)"
+          [ngModel]="corridorWidth().least"
+          (ngModelChange)="setCorridorLeast($event)"
         />
         <input
           class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm w-16 shrink-0 border border-solid px-2 py-1.5 text-center text-[13px] outline-none"
-          name="corridor-width-number"
+          name="corridor-width-least-number"
           type="number"
           [min]="minCorridorWidth"
           [max]="maxCorridorWidth"
           step="1"
-          [ngModel]="corridorWidth()"
-          (ngModelChange)="setCorridorWidth($event)"
+          [ngModel]="corridorWidth().least"
+          (ngModelChange)="setCorridorLeast($event)"
+        />
+      </div>
+      <div class="mt-1 flex items-center gap-2">
+        <span class="text-ui-muted shrink-0 text-[0.75rem]">{{
+          'feature.tabletop.dungeonGenerator.props.corridorMost' | transloco
+        }}</span>
+        <input
+          class="min-w-0 flex-1"
+          id="corridor-width-most"
+          name="corridor-width-most"
+          type="range"
+          [min]="minCorridorWidth"
+          [max]="maxCorridorWidth"
+          step="1"
+          [ngModel]="corridorWidth().most"
+          (ngModelChange)="setCorridorMost($event)"
+        />
+        <input
+          class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm w-16 shrink-0 border border-solid px-2 py-1.5 text-center text-[13px] outline-none"
+          name="corridor-width-most-number"
+          type="number"
+          [min]="minCorridorWidth"
+          [max]="maxCorridorWidth"
+          step="1"
+          [ngModel]="corridorWidth().most"
+          (ngModelChange)="setCorridorMost($event)"
         />
       </div>
       <div class="text-ui-muted mt-1 text-[0.75rem]">
         {{ 'feature.tabletop.dungeonGenerator.status.corridorWidth' | transloco }}
       </div>
     </div>
+
+    <div>
+      <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase" for="muster">
+        {{ 'feature.tabletop.dungeonGenerator.props.muster' | transloco }}
+      </label>
+      <select
+        class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm box-border w-full border border-solid px-2 py-1.5 text-[13px] outline-none"
+        id="muster"
+        name="muster"
+        data-testid="dungeon-muster-party"
+        [ngModel]="musterParty()"
+        (ngModelChange)="setMusterParty($event)"
+      >
+        <option value="">{{ 'feature.tabletop.dungeonGenerator.props.musterNobody' | transloco }}</option>
+        @for (party of parties(); track party.identifier) {
+          <option [value]="party.identifier">{{ party.name }}</option>
+        }
+      </select>
+      <div class="text-ui-muted mt-1 text-[0.75rem]">
+        {{ 'feature.tabletop.dungeonGenerator.status.muster' | transloco }}
+      </div>
+    </div>
+
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        name="fog-enabled"
+        data-testid="dungeon-fog-enabled"
+        [ngModel]="fogEnabled()"
+        (ngModelChange)="fogEnabled.set($event)"
+      />
+      {{ 'feature.tabletop.dungeonGenerator.props.fog' | transloco }}
+    </label>
 
     <div>
       <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase">

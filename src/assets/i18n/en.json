@@ -2062,7 +2062,12 @@
           "density": "Undergrowth",
           "gridType": "Cell shape",
           "hexNote": "Hexes cannot be gathered up, so a block is placed per cell and the board is made smaller to pay for it.",
-          "corridorWidth": "Passage width"
+          "corridorWidth": "Passage width",
+          "corridorLeast": "Narrowest",
+          "corridorMost": "Widest",
+          "muster": "Party at the way in",
+          "musterNobody": "Nobody",
+          "fog": "Start with the fog of war drawn"
         },
         "actions": {
           "generate": "Generate",
@@ -2081,7 +2086,8 @@
           "built": "Made \"{{name}}\"",
           "roomsDiffer": "{{found}} rooms fitted. Caverns run together, so a cave ends up with fewer than asked",
           "squareOnly": "A generated table always uses a square grid",
-          "corridorWidth": "Wider passages take a wider lattice, so fewer rooms fit on the board"
+          "corridorWidth": "Wider passages take a wider lattice, so fewer rooms fit on the board",
+          "muster": "Stands that party by the way in. No other piece is moved"
         },
         "entrance": {
           "stair": "Stairway down",

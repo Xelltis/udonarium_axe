@@ -17,7 +17,9 @@ export interface CaveParams {
   iterations: number;
   birth: number;
   survive: number;
-  tunnelWidth: number;
+  /** The narrowest and the widest a tunnel is dug, in cells. */
+  minTunnel: number;
+  maxTunnel: number;
   hazardPools: number;
   seed: number;
 }
@@ -97,6 +99,8 @@ function paintTunnel(layout: DungeonLayout, x: number, y: number, thickness: num
 }
 
 function digTunnels(layout: DungeonLayout, chambers: readonly DungeonRoom[], params: CaveParams, rng: () => number) {
+  const narrow = Math.max(1, Math.min(params.minTunnel, params.maxTunnel));
+  const wide = Math.max(narrow, params.maxTunnel);
   const centers = chambers.map(roomCenter);
   const tree = spanningTree(centers);
   const loops = extraLinks(centers, tree, Math.floor(chambers.length / 4));
@@ -107,25 +111,27 @@ function digTunnels(layout: DungeonLayout, chambers: readonly DungeonRoom[], par
     const end = centers[to];
     const step = (value: number, target: number) => (value === target ? 0 : value < target ? 1 : -1);
     let { x, y } = start;
+    // One thickness for the whole run, so a tunnel does not swell and pinch along its length.
+    const thickness = narrow + Math.floor(rng() * (wide - narrow + 1));
     const horizontalFirst = rng() < 0.5;
 
     if (horizontalFirst) {
       while (x !== end.x) {
         x += step(x, end.x);
-        paintTunnel(layout, x, y, params.tunnelWidth);
+        paintTunnel(layout, x, y, thickness);
       }
       while (y !== end.y) {
         y += step(y, end.y);
-        paintTunnel(layout, x, y, params.tunnelWidth);
+        paintTunnel(layout, x, y, thickness);
       }
     } else {
       while (y !== end.y) {
         y += step(y, end.y);
-        paintTunnel(layout, x, y, params.tunnelWidth);
+        paintTunnel(layout, x, y, thickness);
       }
       while (x !== end.x) {
         x += step(x, end.x);
-        paintTunnel(layout, x, y, params.tunnelWidth);
+        paintTunnel(layout, x, y, thickness);
       }
     }
   }

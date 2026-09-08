@@ -1,7 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { DUNGEON_GRID_SIZE } from '@axe/application/tabletop/dungeon-build.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { DungeonGeneratorComponent } from '@axe/features/tabletop/dungeon-generator/dungeon-generator.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -38,8 +41,15 @@ type Panel = DungeonGeneratorComponent & {
   chooseAtmosphere(id: string): void;
   reroll(): void;
   nameFor(): string;
+  plan(): { layout: { entrance: { x: number; y: number }; mouth: { x: number; y: number } | null } };
   generate(): Promise<void>;
   discardPrevious(): void;
+  corridorWidth(): { least: number; most: number };
+  setCorridorLeast(width: number): void;
+  setCorridorMost(width: number): void;
+  fogEnabled: { (): boolean; set(value: boolean): void };
+  musterParty: { (): string; set(value: string): void };
+  setMusterParty(identifier: string): void;
 };
 
 const PAINTED = 'painted-ground';
@@ -323,5 +333,96 @@ describe('DungeonGeneratorComponent', () => {
 
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(DungeonGeneratorComponent);
+  });
+});
+
+describe('DungeonGeneratorComponent and what a dungeon is asked for', () => {
+  let component: Panel;
+  let fixture: ComponentFixture<DungeonGeneratorComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [DungeonGeneratorComponent],
+      providers: [...TEST_PROVIDERS],
+    }).compileComponents();
+    fixture = TestBed.createComponent(DungeonGeneratorComponent);
+    component = fixture.componentInstance as Panel;
+    (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
+  });
+
+  afterEach(() => {
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+    vi.restoreAllMocks();
+  });
+
+  it('cuts every passage one width until it is asked for two', () => {
+    expect(component.corridorWidth()).toEqual({ least: 1, most: 1 });
+
+    component.chooseAtmosphere('cavern');
+
+    expect(component.corridorWidth()).toEqual({ least: 2, most: 2 });
+  });
+
+  it('widens the widest to make room for a narrowest asked past it', () => {
+    component.setCorridorLeast(3);
+
+    expect(component.corridorWidth()).toEqual({ least: 3, most: 3 });
+  });
+
+  it('narrows the narrowest to keep it inside a widest asked under it', () => {
+    component.setCorridorLeast(4);
+    component.setCorridorMost(2);
+
+    expect(component.corridorWidth()).toEqual({ least: 2, most: 2 });
+  });
+
+  it('leaves the table uncovered until the fog is asked for', async () => {
+    component.roomCount.set(3);
+
+    await component.generate();
+
+    expect(component.builtTable()!.fogEnabled).toBe(false);
+  });
+
+  it('draws the fog over the table it builds when it is asked to', async () => {
+    component.roomCount.set(3);
+    component.fogEnabled.set(true);
+
+    await component.generate();
+
+    expect(component.builtTable()!.fogEnabled).toBe(true);
+  });
+
+  it('stands the party it was given by the way in', async () => {
+    const party = TestBed.inject(PartyService).create('冒険者');
+    const hero = GameCharacter.create('英雄', 1, '');
+    const friend = GameCharacter.create('相棒', 1, '');
+    for (const piece of [hero, friend]) {
+      piece.partyIdentifier = party.identifier;
+      piece.location = { name: 'graveyard', x: 0, y: 0 };
+    }
+    component.roomCount.set(3);
+    component.setMusterParty(party.identifier);
+
+    await component.generate();
+
+    const layout = component.plan().layout;
+    const way = layout.mouth ?? layout.entrance;
+    for (const piece of [hero, friend]) {
+      expect(piece.location.name).toBe('table');
+      expect(Math.abs(piece.location.x / DUNGEON_GRID_SIZE - way.x)).toBeLessThanOrEqual(4);
+      expect(Math.abs(piece.location.y / DUNGEON_GRID_SIZE - way.y)).toBeLessThanOrEqual(4);
+    }
+    expect(hero.location.x !== friend.location.x || hero.location.y !== friend.location.y).toBe(true);
+  });
+
+  it('leaves every piece where it stands while no party is picked', async () => {
+    const stray = GameCharacter.create('野良', 1, '');
+    stray.location = { name: 'graveyard', x: 0, y: 0 };
+    component.roomCount.set(3);
+
+    await component.generate();
+
+    expect(stray.location.name).toBe('graveyard');
   });
 });

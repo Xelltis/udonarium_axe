@@ -2062,7 +2062,12 @@
           "density": "茂みの多さ",
           "gridType": "マスの形",
           "hexNote": "ヘクスはまとめられないため、1 マスごとに地形を置きます。盤面はその分小さくなります。",
-          "corridorWidth": "通路の幅"
+          "corridorWidth": "通路の幅",
+          "corridorLeast": "最小",
+          "corridorMost": "最大",
+          "muster": "入口に集めるパーティ",
+          "musterNobody": "集めない",
+          "fog": "戦場の霧をかけた状態にする"
         },
         "actions": {
           "generate": "生成する",
@@ -2081,7 +2086,8 @@
           "built": "「{{name}}」を作成しました",
           "roomsDiffer": "置けた部屋は {{found}} 個です。洞窟は空洞どうしがつながるため要求より少なくなります",
           "squareOnly": "生成するテーブルは正方グリッド固定です",
-          "corridorWidth": "広くするほど部屋も間隔も大きくなり、置ける部屋は減ります"
+          "corridorWidth": "広くするほど部屋も間隔も大きくなり、置ける部屋は減ります",
+          "muster": "選んだパーティのコマを入口の近くに並べます。ほかのコマは動かしません"
         },
         "entrance": {
           "stair": "階段（地下へ降りる）",

@@ -21,7 +21,8 @@ function build(overrides: Partial<RoomsAndMazesParams> = {}): DungeonLayout {
     extraConnectorChance: 0.06,
     wallBreakChance: 0,
     shapes: ['rect'],
-    corridorWidth: 1,
+    minCorridor: 1,
+    maxCorridor: 1,
     seed: 1,
     ...overrides,
   };
@@ -225,6 +226,25 @@ describe('passages cut wider than one cell', () => {
     return pieces;
   }
 
+  /** Whether this ground carries a door, or is what one opens onto. */
+  function opensADoor(layout: DungeonLayout, piece: { x: number; y: number; w: number; h: number }): boolean {
+    for (let dy = 0; dy < piece.h; dy++) {
+      for (let dx = 0; dx < piece.w; dx++) {
+        const x = piece.x + dx;
+        const y = piece.y + dy;
+        const around = [
+          [0, 0],
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ];
+        if (around.some(([ox, oy]) => cellAt(layout, x + ox, y + oy) === DungeonCell.Door)) return true;
+      }
+    }
+    return false;
+  }
+
   function cellsOf(layout: DungeonLayout, piece: { x: number; y: number; w: number; h: number }) {
     const cells: number[] = [];
     for (let dy = 0; dy < piece.h; dy++) {
@@ -236,7 +256,7 @@ describe('passages cut wider than one cell', () => {
   it('opens a passage across its whole width, never a cell of it', () => {
     for (const wide of WIDTHS) {
       for (const seed of SEEDS) {
-        const layout = build({ corridorWidth: wide, seed, width: 45, height: 33 });
+        const layout = build({ minCorridor: wide, maxCorridor: wide, seed, width: 45, height: 33 });
         for (const piece of latticePieces(layout, wide)) {
           const cells = cellsOf(layout, piece);
           if (!cells.includes(DungeonCell.Corridor)) continue;
@@ -251,7 +271,9 @@ describe('passages cut wider than one cell', () => {
   it('keeps the outer ring solid', () => {
     for (const wide of WIDTHS) {
       for (const seed of SEEDS) {
-        expect(borderIsAllRock(build({ corridorWidth: wide, seed, width: 45, height: 33 }))).toBe(true);
+        expect(borderIsAllRock(build({ minCorridor: wide, maxCorridor: wide, seed, width: 45, height: 33 }))).toBe(
+          true
+        );
       }
     }
   });
@@ -259,7 +281,7 @@ describe('passages cut wider than one cell', () => {
   it('leaves every open cell reachable from the entrance', () => {
     for (const wide of WIDTHS) {
       for (const seed of SEEDS) {
-        const layout = build({ corridorWidth: wide, seed, width: 45, height: 33 });
+        const layout = build({ minCorridor: wide, maxCorridor: wide, seed, width: 45, height: 33 });
 
         expect(reachableCells(layout, layout.entrance).size).toBe(countOpenCells(layout));
       }
@@ -269,25 +291,26 @@ describe('passages cut wider than one cell', () => {
   it("leaves a stub of passage standing only where it is a room's porch", () => {
     for (const wide of WIDTHS) {
       for (const seed of SEEDS) {
-        const layout = build({ corridorWidth: wide, seed, width: 45, height: 33 });
+        const layout = build({ minCorridor: wide, maxCorridor: wide, seed, width: 45, height: 33 });
         const step = wide + 1;
         for (let y = 1; y + wide <= layout.height - 1; y += step) {
           for (let x = 1; x + wide <= layout.width - 1; x += step) {
             const square = cellsOf(layout, { x, y, w: wide, h: wide });
-            if (!square.every((cell) => cell === DungeonCell.Corridor)) continue;
+            if (!square.some((cell) => cell === DungeonCell.Corridor)) continue;
+            if (square.some((cell) => cell === DungeonCell.Room)) continue;
             const ways = [
               { x: x + wide, y, w: 1, h: wide },
               { x: x - 1, y, w: 1, h: wide },
               { x, y: y + wide, w: wide, h: 1 },
               { x, y: y - 1, w: wide, h: 1 },
             ]
-              .map((gap) => cellsOf(layout, gap))
-              .filter((gap) => gap.some((cell) => cell !== DungeonCell.Rock));
+              .map((gap) => ({ cells: cellsOf(layout, gap), opensADoor: opensADoor(layout, gap) }))
+              .filter((gap) => gap.cells.some((cell) => cell !== DungeonCell.Rock));
 
             expect(ways.length).toBeGreaterThan(0);
             if (ways.length > 1) continue;
 
-            expect(ways[0]).toContain(DungeonCell.Door);
+            expect(ways[0].opensADoor).toBe(true);
           }
         }
       }
@@ -295,15 +318,15 @@ describe('passages cut wider than one cell', () => {
   });
 
   it('opens more of the board the wider the passages are', () => {
-    const narrow = countOpenCells(build({ corridorWidth: 1, width: 45, height: 33 }));
-    const wide = countOpenCells(build({ corridorWidth: 3, width: 45, height: 33 }));
+    const narrow = countOpenCells(build({ minCorridor: 1, maxCorridor: 1, width: 45, height: 33 }));
+    const wide = countOpenCells(build({ minCorridor: 3, maxCorridor: 3, width: 45, height: 33 }));
 
     expect(wide).toBeGreaterThan(narrow);
   });
 
   it('keeps a wall between every pair of rooms', () => {
     for (const wide of WIDTHS) {
-      const layout = build({ corridorWidth: wide, seed: 42, width: 45, height: 33 });
+      const layout = build({ minCorridor: wide, maxCorridor: wide, seed: 42, width: 45, height: 33 });
       for (const room of layout.rooms) {
         for (const other of layout.rooms) {
           if (other.index <= room.index) continue;
@@ -317,5 +340,76 @@ describe('passages cut wider than one cell', () => {
         }
       }
     }
+  });
+});
+
+describe('passages cut anywhere between two widths', () => {
+  /** Whether a cell sits in a block of open ground that many cells on a side. */
+  function standsInABlock(layout: DungeonLayout, x: number, y: number, side: number): boolean {
+    for (let oy = -side + 1; oy <= 0; oy++) {
+      for (let ox = -side + 1; ox <= 0; ox++) {
+        let whole = true;
+        for (let dy = 0; dy < side && whole; dy++) {
+          for (let dx = 0; dx < side && whole; dx++) {
+            if (cellAt(layout, x + ox + dx, y + oy + dy) === DungeonCell.Rock) whole = false;
+          }
+        }
+        if (whole) return true;
+      }
+    }
+    return false;
+  }
+
+  it('never cuts one narrower than the table allows', () => {
+    for (const [narrow, wide] of [
+      [2, 4],
+      [3, 4],
+      [2, 3],
+    ]) {
+      for (const seed of SEEDS) {
+        const layout = build({ minCorridor: narrow, maxCorridor: wide, seed, width: 45, height: 33 });
+        for (let y = 0; y < layout.height; y++) {
+          for (let x = 0; x < layout.width; x++) {
+            if (cellAt(layout, x, y) !== DungeonCell.Corridor) continue;
+
+            expect(standsInABlock(layout, x, y, narrow)).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it('leaves every open cell reachable where the widths are mixed', () => {
+    for (const seed of SEEDS) {
+      const layout = build({ minCorridor: 1, maxCorridor: 4, seed, width: 45, height: 33 });
+
+      expect(reachableCells(layout, layout.entrance).size).toBe(countOpenCells(layout));
+    }
+  });
+
+  it('cuts more than one width where more than one is allowed', () => {
+    const widths = new Set<number>();
+    for (const seed of SEEDS) {
+      const layout = build({ minCorridor: 1, maxCorridor: 4, seed, width: 45, height: 33 });
+      const step = 5;
+      for (let y = 1; y + 4 <= layout.height - 1; y += step) {
+        for (let x = 1; x + 4 <= layout.width - 1; x += step) {
+          let across = 0;
+          for (let dy = 0; dy < 4; dy++) {
+            if (cellAt(layout, x, y + dy) === DungeonCell.Corridor) across++;
+          }
+          if (across > 0) widths.add(across);
+        }
+      }
+    }
+
+    expect(widths.size).toBeGreaterThan(1);
+  });
+
+  it('takes one width for both ends as a single width', () => {
+    const asked = build({ minCorridor: 3, maxCorridor: 3, seed: 7, width: 45, height: 33 });
+    const swapped = build({ minCorridor: 5, maxCorridor: 3, seed: 7, width: 45, height: 33 });
+
+    expect(Array.from(swapped.cells)).toEqual(Array.from(asked.cells));
   });
 });
