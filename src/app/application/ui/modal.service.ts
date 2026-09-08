@@ -1,4 +1,5 @@
 import { ComponentRef, Injectable, Injector, signal, ViewContainerRef } from '@angular/core';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import type { PanelRotationDegrees } from '@axe/application/ui/panel.service';
 
 class ModalContext {
@@ -57,7 +58,7 @@ export class ModalService {
     parentViewContainerRef?: ViewContainerRef
   ): Promise<T> {
     if (!parentViewContainerRef) {
-      parentViewContainerRef = ModalService.defaultParentViewContainerRef;
+      parentViewContainerRef = OverlayLayers.current() ?? ModalService.defaultParentViewContainerRef;
     }
     let panelComponentRef: ComponentRef<unknown>;
     return new Promise<T>((resolve, reject) => {

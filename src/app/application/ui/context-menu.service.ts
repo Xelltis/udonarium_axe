@@ -1,5 +1,6 @@
 import { ComponentRef, inject, Injectable, ViewContainerRef } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelRotationDegrees } from '@axe/application/ui/panel.service';
 import { DEFAULT_RADIAL_MENU_ROTATION_SPEED } from '@axe/domain/tabletop/radial-menu';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -181,7 +182,8 @@ export class ContextMenuService {
     this.close();
     if (!this.rolePermission.canEditTabletop) return;
 
-    const parent = parentViewContainerRef ?? ContextMenuService.defaultParentViewContainerRef;
+    const parent =
+      parentViewContainerRef ?? OverlayLayers.current() ?? ContextMenuService.defaultParentViewContainerRef;
     const injector = parent.injector;
 
     const panelComponentRef = parent.createComponent(componentClass, {
