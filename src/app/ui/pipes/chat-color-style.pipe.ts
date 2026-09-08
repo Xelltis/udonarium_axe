@@ -71,10 +71,10 @@ export function autoChatBubble(color: string, theme: 'light' | 'dark', base?: nu
 }
 
 /** How well a colour reads on a given bubble, or on the one it would be given. */
-export function chatColorContrast(color: string, bubble: string, theme: 'light' | 'dark'): number {
+export function chatColorContrast(color: string, bubble: string, theme: 'light' | 'dark', base?: number): number {
   const text = parseHexColor(color);
   if (!text) return 0;
-  const shown = parseHexColor(bubble) ?? parseHexColor(cssToHex(autoChatBubble(color, theme)));
+  const shown = parseHexColor(bubble) ?? parseHexColor(cssToHex(autoChatBubble(color, theme, base)));
   if (!shown) return 0;
   return contrastRatio(relativeLuminance(text), relativeLuminance(shown));
 }

@@ -1,11 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { SkinService } from '@axe/application/ui/skin.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   ChatColorSettingComponent,
   PRESET_COLUMNS,
 } from '@axe/features/chat/chat-color-setting/chat-color-setting.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { autoChatBubble } from '@axe/ui/pipes/chat-color-style.pipe';
 
 describe('ChatColorSettingComponent', () => {
   let fixture: ComponentFixture<ChatColorSettingComponent>;
@@ -119,6 +121,28 @@ describe('ChatColorSettingComponent', () => {
     component.autoAdjust(0, 'light');
 
     expect(component.isHardToRead(0, 'light')).toBe(false);
+  });
+
+  describe('a ladder that is not the one on screen', () => {
+    it('works the bubble out against that ladder, not against whichever is showing', () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [ChatColorSettingComponent],
+        providers: [
+          ...TEST_PROVIDERS,
+          { provide: ModalService, useValue: { option: {} } },
+          { provide: SkinService, useValue: { toneOf: (mode: 'light' | 'dark') => (mode === 'light' ? 40 : 62) } },
+        ],
+      });
+      PeerCursor.createMyCursor().name = 'Somebody';
+      const scoped = TestBed.createComponent(ChatColorSettingComponent).componentInstance;
+      scoped.myPeer.chatColorCode[0] = '#000000';
+
+      expect(autoChatBubble('#000000', 'dark', 62)).not.toBe(autoChatBubble('#000000', 'dark'));
+      expect(autoChatBubble('#000000', 'light', 40)).not.toBe(autoChatBubble('#000000', 'light'));
+      expect(scoped.shownBubble(0, 'light')).toBe(autoChatBubble('#000000', 'light', 40));
+      expect(scoped.shownBubble(0, 'dark')).toBe(autoChatBubble('#000000', 'dark', 62));
+    });
   });
 
   it('gives the bubble back to being worked out', () => {
