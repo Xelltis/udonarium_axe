@@ -15,6 +15,7 @@ import {
   TERRAIN_FACE_KEYS,
   TerrainBlock,
   TerrainPaintSpec,
+  TriggerPaintSpec,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -23,6 +24,7 @@ import { blockOrigin as gridBlockOrigin, cellCentre } from '@axe/domain/tabletop
 import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
+import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
 import { Terrain, TERRAIN_FACES } from '@axe/domain/tabletop/terrain';
 
 function terrainsOn(table: GameTable): Terrain[] {
@@ -285,6 +287,20 @@ function hexFootprintOf(
   };
 }
 
+/** What one piece of trigger ground looks like to the editor, which is everything but its state. */
+function triggerSpecOf(trigger: TableTrigger): TriggerPaintSpec {
+  return {
+    name: trigger.name,
+    moment: trigger.firesOn,
+    targets: trigger.catches,
+    once: trigger.once,
+    open: trigger.open,
+    color: trigger.color,
+    element: trigger.element,
+    amount: trigger.amount,
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class FunctionalPaintService {
   private readonly tableSelecter = inject(TableSelecter);
@@ -300,6 +316,7 @@ export class FunctionalPaintService {
       this.closeCells(table, grid, plan.blocked);
       this.layTerrain(table, grid, plan);
       this.layMasks(table, grid, plan);
+      this.layTriggers(table, plan);
     });
     return true;
   }
@@ -380,6 +397,37 @@ export class FunctionalPaintService {
     }
   }
 
+  /**
+   * Lays the ground that goes off under a piece, which is the table's rather than the drawing's.
+   *
+   * A trigger already sprung stays sprung when it is painted over with the same look: the
+   * blocks are told apart by where they are and what they do, and being spent is neither.
+   */
+  private layTriggers(table: GameTable, plan: FunctionPaintPlan): void {
+    this.takeAway(
+      triggersOn(table).map((held) => ({ object: held, key: blockKey(held.rect, triggerSpecOf(held)) })),
+      plan.trigger.remove
+    );
+
+    for (const block of plan.trigger.add) {
+      const trigger = new TableTrigger();
+      trigger.col = block.col;
+      trigger.row = block.row;
+      trigger.width = block.width;
+      trigger.height = block.height;
+      trigger.name = block.spec.name;
+      trigger.moment = block.spec.moment;
+      trigger.targets = block.spec.targets;
+      trigger.once = block.spec.once;
+      trigger.open = block.spec.open;
+      trigger.color = block.spec.color;
+      trigger.element = block.spec.element;
+      trigger.amount = block.spec.amount;
+      trigger.initialize();
+      table.appendChild(trigger);
+    }
+  }
+
   /** The table the editor would be reading, or nothing where none is out. */
   snapshot(): TableSnapshot | null {
     const table = this.tableSelecter.viewTable;
@@ -406,6 +454,7 @@ export class FunctionalPaintService {
           return stood ? { ...stood.rect, spec: maskSpecOf(held, stood.placement) } : null;
         })
         .filter((block): block is MaskBlock => block !== null),
+      triggerBlocks: triggersOn(table).map((held) => ({ ...held.rect, spec: triggerSpecOf(held) })),
     };
   }
 }

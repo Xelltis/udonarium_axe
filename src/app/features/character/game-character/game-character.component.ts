@@ -28,6 +28,7 @@ import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -202,6 +203,7 @@ export class GameCharacterComponent {
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly moveRangeService = inject(MoveRangeService);
+  private readonly triggerFire = inject(TriggerFireService);
   private readonly movePlan = inject(MovePlanService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
@@ -1304,12 +1306,16 @@ export class GameCharacterComponent {
   onPickUp() {
     this.onMove();
     const character = this.gameCharacter();
-    if (character) this.moveRangeService.show(character);
+    if (!character) return;
+    this.moveRangeService.show(character);
+    this.triggerFire.pickedUp(character);
   }
 
   onPutDown() {
     this.onMoved();
     this.moveRangeService.hide();
+    const character = this.gameCharacter();
+    if (character) this.triggerFire.putDown(character);
   }
 
   onLetGo() {

@@ -1,5 +1,6 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
+import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -48,6 +49,7 @@ export interface MovePlan {
 @Injectable({ providedIn: 'root' })
 export class MovePlanService {
   private readonly moveRange = inject(MoveRangeService);
+  private readonly triggerFire = inject(TriggerFireService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
 
@@ -249,6 +251,7 @@ export class MovePlanService {
       this.walking = false;
     }
     SoundEffect.play(PresetSound.piecePut);
+    this.triggerFire.walked(character, plan.grid, way);
     this.close();
     return true;
   }

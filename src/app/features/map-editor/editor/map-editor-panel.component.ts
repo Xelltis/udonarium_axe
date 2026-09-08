@@ -45,9 +45,11 @@ import {
   TERRAIN_FACE_KEYS,
   TerrainFaceImages,
   TerrainPaintSpec,
+  TriggerPaintSpec,
 } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { TRIGGER_MOMENTS, TRIGGER_TARGETS } from '@axe/domain/tabletop/trigger-event';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
 import { getStampById, STAMPS } from '@axe/features/map-editor/assets/stamps';
@@ -212,6 +214,14 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const spec = this.state.functionSpec();
     this.state.setFunctionSpec({ ...spec, mask: { ...spec.mask, ...patch } });
   }
+
+  protected setTriggerPaint(patch: Partial<TriggerPaintSpec>): void {
+    const spec = this.state.functionSpec();
+    this.state.setFunctionSpec({ ...spec, trigger: { ...spec.trigger, ...patch } });
+  }
+
+  protected readonly triggerMoments = TRIGGER_MOMENTS;
+  protected readonly triggerTargets = TRIGGER_TARGETS;
 
   protected readonly terrainFaces = TERRAIN_FACE_KEYS;
 

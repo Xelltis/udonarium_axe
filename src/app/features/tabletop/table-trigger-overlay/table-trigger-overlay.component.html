@@ -1,0 +1,7 @@
+@if (view().length > 0) {
+  <canvas
+    #triggerCanvas
+    class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"
+    [style.transform]="zTransform()"
+  ></canvas>
+}

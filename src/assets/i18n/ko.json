@@ -2840,7 +2840,22 @@
         "paletteWall": "던전 벽",
         "paletteGround": "지면·바닥",
         "paletteOwn": "추가한 텍스처",
-        "faceFromLibrary": "이미지 라이브러리에서 선택"
+        "faceFromLibrary": "이미지 라이브러리에서 선택",
+        "role_trigger": "이벤트",
+        "triggerHint": "칠한 칸에 말이 들어오면 이벤트가 일어납니다. 우선은 리소스 증감입니다.",
+        "triggerName": "이름",
+        "triggerElement": "대상 항목",
+        "triggerAmount": "줄일 양",
+        "triggerMoment": "발동",
+        "triggerMoment_stop": "멈췄을 때",
+        "triggerMoment_enter": "지나갈 때",
+        "triggerTargets": "대상",
+        "triggerTargets_all": "모든 말",
+        "triggerTargets_pc": "PC의 말",
+        "triggerTargets_npc": "NPC의 말",
+        "triggerOnce": "한 번만",
+        "triggerOpen": "모두에게 보이기",
+        "triggerColor": "색"
       },
       "stampCategories": {
         "door": "문",

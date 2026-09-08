@@ -7,6 +7,7 @@ import {
   MapFunctionRole,
   MaskBlock,
   TerrainBlock,
+  TriggerBlock,
 } from '@axe/domain/tabletop/function-paint';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
@@ -94,6 +95,16 @@ function maskBlocksOf(scene: MapScene, hex: boolean): MaskBlock[] {
   return blocks;
 }
 
+function triggerBlocksOf(scene: MapScene, hex: boolean): TriggerBlock[] {
+  const blocks: TriggerBlock[] = [];
+  for (const layer of functionLayersOf(scene, 'trigger')) {
+    for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
+      blocks.push({ ...rect, spec: layer.spec.trigger });
+    }
+  }
+  return blocks;
+}
+
 /**
  * Whether the scene says anything at all about what the table's cells do.
  *
@@ -137,6 +148,9 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
       : { add: [], remove: [] },
     mask: sceneCarriesFunctions(scene, 'mask')
       ? blockChange(maskBlocksOf(scene, hex), table.maskBlocks)
+      : { add: [], remove: [] },
+    trigger: sceneCarriesFunctions(scene, 'trigger')
+      ? blockChange(triggerBlocksOf(scene, hex), table.triggerBlocks)
       : { add: [], remove: [] },
   };
 }

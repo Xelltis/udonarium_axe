@@ -2840,7 +2840,22 @@
         "paletteWall": "Dungeon walls",
         "paletteGround": "Ground and floor",
         "paletteOwn": "Textures you added",
-        "faceFromLibrary": "Pick from the image library"
+        "faceFromLibrary": "Pick from the image library",
+        "role_trigger": "Event",
+        "triggerHint": "A piece walking onto the painted ground sets off an event. Taking from a resource, for now.",
+        "triggerName": "Name",
+        "triggerElement": "Resource",
+        "triggerAmount": "Amount taken",
+        "triggerMoment": "Goes off",
+        "triggerMoment_stop": "on the walk ending there",
+        "triggerMoment_enter": "on being stepped on",
+        "triggerTargets": "Catches",
+        "triggerTargets_all": "every piece",
+        "triggerTargets_pc": "the players' pieces",
+        "triggerTargets_npc": "the master's pieces",
+        "triggerOnce": "Only once",
+        "triggerOpen": "Show the room",
+        "triggerColor": "Colour"
       },
       "stampCategories": {
         "door": "Doors",

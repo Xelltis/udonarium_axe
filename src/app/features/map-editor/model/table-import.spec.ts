@@ -26,6 +26,7 @@ function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
     blockedCells: [],
     terrainBlocks: [],
     maskBlocks: [],
+    triggerBlocks: [],
     ...over,
   };
 }

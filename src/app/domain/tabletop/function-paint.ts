@@ -1,4 +1,13 @@
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
+import {
+  asTriggerMoment,
+  asTriggerTarget,
+  DEFAULT_TRIGGER_COLOR,
+  DEFAULT_TRIGGER_MOMENT,
+  DEFAULT_TRIGGER_TARGET,
+  TriggerMoment,
+  TriggerTarget,
+} from '@axe/domain/tabletop/trigger-event';
 
 /**
  * What a painted cell does, and what it lays on the table.
@@ -7,7 +16,7 @@ import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
  * editor: a cell closed to walking is closed however it came to be.
  */
 
-export const MAP_FUNCTION_ROLES = ['moveBlock', 'terrain', 'mask'] as const;
+export const MAP_FUNCTION_ROLES = ['moveBlock', 'terrain', 'mask', 'trigger'] as const;
 
 export type MapFunctionRole = (typeof MAP_FUNCTION_ROLES)[number];
 
@@ -105,10 +114,28 @@ export interface MaskPaintSpec {
   placement: BlockPlacement | null;
 }
 
+/** Everything painted ground that goes off under a piece is, which the table carries as it is. */
+export interface TriggerPaintSpec {
+  name: string;
+  /** When it goes off: as a walk ends on it, or the moment it is stepped on. */
+  moment: TriggerMoment;
+  /** Whose pieces it has anything to say to. */
+  targets: TriggerTarget;
+  /** Whether going off once is the end of it. */
+  once: boolean;
+  /** Whether the room sees the ground, or only the master does. */
+  open: boolean;
+  color: string;
+  /** The name of the resource it takes from, and how much. A number or a handful of dice. */
+  element: string;
+  amount: string;
+}
+
 /** What a role lays on the table, the same for every cell the layer holds. */
 export interface FunctionSpec {
   terrain: TerrainPaintSpec;
   mask: MaskPaintSpec;
+  trigger: TriggerPaintSpec;
 }
 
 export const NO_FACE_IMAGES: TerrainFaceImages = {
@@ -180,6 +207,16 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     preview: false,
     placement: null,
   },
+  trigger: {
+    name: '',
+    moment: DEFAULT_TRIGGER_MOMENT,
+    targets: DEFAULT_TRIGGER_TARGET,
+    once: false,
+    open: false,
+    color: DEFAULT_TRIGGER_COLOR,
+    element: '',
+    amount: '',
+  },
 };
 
 function sanitizePlacement(value: unknown): BlockPlacement | null {
@@ -247,6 +284,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
   const held = asRecord(value);
   const terrain = asRecord(held['terrain']);
   const mask = asRecord(held['mask']);
+  const trigger = asRecord(held['trigger']);
   const fallback = DEFAULT_FUNCTION_SPEC;
 
   return {
@@ -286,6 +324,16 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       preview: flagIn(mask, 'preview', fallback.mask.preview),
       placement: sanitizePlacement(mask['placement']),
     },
+    trigger: {
+      name: textIn(trigger, 'name', fallback.trigger.name),
+      moment: asTriggerMoment(trigger['moment']),
+      targets: asTriggerTarget(trigger['targets']),
+      once: flagIn(trigger, 'once', fallback.trigger.once),
+      open: flagIn(trigger, 'open', fallback.trigger.open),
+      color: textIn(trigger, 'color', fallback.trigger.color),
+      element: textIn(trigger, 'element', fallback.trigger.element),
+      amount: textIn(trigger, 'amount', fallback.trigger.amount),
+    },
   };
 }
 
@@ -296,6 +344,10 @@ export interface TerrainBlock extends CellRect {
 
 export interface MaskBlock extends CellRect {
   spec: MaskPaintSpec;
+}
+
+export interface TriggerBlock extends CellRect {
+  spec: TriggerPaintSpec;
 }
 
 /**
@@ -352,6 +404,7 @@ export interface FunctionPaintPlan {
   blocked: string[];
   terrain: BlockChange<TerrainBlock>;
   mask: BlockChange<MaskBlock>;
+  trigger: BlockChange<TriggerBlock>;
 }
 
 /**

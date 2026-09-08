@@ -2840,7 +2840,22 @@
         "paletteWall": "ダンジョンの壁",
         "paletteGround": "地面・床",
         "paletteOwn": "追加したテクスチャ",
-        "faceFromLibrary": "画像ライブラリから選ぶ"
+        "faceFromLibrary": "画像ライブラリから選ぶ",
+        "role_trigger": "イベント",
+        "triggerHint": "塗ったマスにコマが入るとイベントが起きます。まずはリソースの増減です。",
+        "triggerName": "名前",
+        "triggerElement": "対象の項目",
+        "triggerAmount": "減らす量",
+        "triggerMoment": "発火",
+        "triggerMoment_stop": "止まったとき",
+        "triggerMoment_enter": "通ったとき",
+        "triggerTargets": "対象",
+        "triggerTargets_all": "全部のコマ",
+        "triggerTargets_pc": "PC のコマ",
+        "triggerTargets_npc": "NPC のコマ",
+        "triggerOnce": "一度きり",
+        "triggerOpen": "全員に見せる",
+        "triggerColor": "色"
       },
       "stampCategories": {
         "door": "扉",
