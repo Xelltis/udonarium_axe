@@ -1,20 +1,26 @@
 import { TestBed } from '@angular/core/testing';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
-import { PanelWindowService } from '@axe/features/panels/panel-window.service';
-import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { PanelWindowRequest, PanelWindowService } from '@axe/features/panels/panel-window.service';
 
 describe('PanelWindowService', () => {
-  let opened: RoomPanelService;
+  const drawn = vi.fn();
+  const restored = vi.fn();
+
+  function request(key = 'room:chatWindow'): PanelWindowRequest {
+    return { key, open: drawn, restore: restored };
+  }
 
   function setup(open: Window['open']): PanelWindowService {
     vi.spyOn(window, 'open').mockImplementation(open);
     TestBed.configureTestingModule({});
-    opened = TestBed.inject(RoomPanelService);
-    vi.spyOn(opened, 'open').mockImplementation(() => undefined);
     return TestBed.inject(PanelWindowService);
   }
 
-  beforeEach(() => AttachedDocuments.reset(document));
+  beforeEach(() => {
+    drawn.mockClear();
+    restored.mockClear();
+    AttachedDocuments.reset(document);
+  });
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -31,16 +37,17 @@ describe('PanelWindowService', () => {
   it('reports a window the browser refused rather than pretending', () => {
     const windows = setup(() => null);
 
-    expect(windows.popOut('chatWindow')).toBe(false);
-    expect(windows.isDetached('chatWindow')).toBe(false);
+    expect(windows.popOut(request())).toBe(false);
+    expect(windows.isDetached('room:chatWindow')).toBe(false);
     expect(windows.detached()).toEqual([]);
+    expect(drawn).not.toHaveBeenCalled();
   });
 
   it('holds nothing to bring back before anything has left', () => {
     const windows = setup(() => null);
 
-    expect(() => windows.bringBack('chatWindow')).not.toThrow();
-    expect(opened.open).not.toHaveBeenCalled();
+    expect(() => windows.bringBack('room:chatWindow')).not.toThrow();
+    expect(restored).not.toHaveBeenCalled();
   });
 
   it('closes nothing, quietly, when the page goes away with no windows out', () => {

@@ -7,20 +7,21 @@ import {
   inject,
   Injectable,
   signal,
+  ViewContainerRef,
 } from '@angular/core';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
-import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { PanelWindowLayerComponent } from '@axe/features/panels/panel-window-layer.component';
-import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 
 /**
  * What a panel drawn in a window of its own has to be told, on top of the app's own sheet.
  *
  * The frame belongs to the operating system now, so the panel's own — its place on the
- * table, its size, the corner it is dragged by — has nothing left to describe.
+ * table, its size, the corner it is dragged by, the button that shuts it — has nothing left
+ * to describe, and a second set of window controls inside a window is only confusing.
  */
 const WINDOW_SHEET = `
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--ui-bg); }
+  [data-panel-frame-controls] { display: none !important; }
   .draggable-panel {
     position: static !important;
     inset: auto !important;
@@ -34,8 +35,20 @@ const WINDOW_SHEET = `
   }
 `;
 
+/** How to put one panel in a window, and how to put it back. */
+export interface PanelWindowRequest {
+  /** What tells this panel from every other one out there. */
+  key: string;
+  width?: number;
+  height?: number;
+  /** Draws the panel into the layer belonging to the new window. */
+  open: (host: ViewContainerRef) => void;
+  /** Draws it on the table again, once the window has gone. */
+  restore: () => void;
+}
+
 interface OpenWindow {
-  panel: RoomPanelName;
+  request: PanelWindowRequest;
   window: Window;
   layer: ComponentRef<PanelWindowLayerComponent>;
   watchdog: ReturnType<typeof setInterval>;
@@ -50,19 +63,20 @@ interface OpenWindow {
  * afterwards, a context menu or a dialogue, opens in the window the reader is looking at.
  *
  * The component itself stays in this application. Only its nodes are over there, so what it
- * is showing goes on arriving the same way it always did.
+ * is showing goes on arriving the same way it always did. How a panel is opened is not known
+ * here — the caller brings that, which is how a panel belonging to one piece on the table can
+ * be taken out as readily as one belonging to the room.
  */
 @Injectable({ providedIn: 'root' })
 export class PanelWindowService {
   private readonly document = inject(DOCUMENT);
   private readonly appRef = inject(ApplicationRef);
   private readonly environmentInjector = inject(EnvironmentInjector);
-  private readonly roomPanels = inject(RoomPanelService);
 
-  private readonly windows = new Map<RoomPanelName, OpenWindow>();
+  private readonly windows = new Map<string, OpenWindow>();
 
   /** Which panels are currently in windows of their own. */
-  readonly detached = signal<readonly RoomPanelName[]>([]);
+  readonly detached = signal<readonly string[]>([]);
 
   constructor() {
     this.document.defaultView?.addEventListener('pagehide', () => this.closeAll());
@@ -73,27 +87,26 @@ export class PanelWindowService {
     return typeof this.document.defaultView?.open === 'function';
   }
 
-  isDetached(panel: RoomPanelName): boolean {
-    return this.windows.has(panel);
+  isDetached(key: string): boolean {
+    return this.windows.has(key);
   }
 
   /**
-   * Opens a panel in a window of its own, closing the one on the table.
+   * Opens a panel in a window of its own.
    *
-   * Called from anywhere but a click this will be refused as a pop-up, which is reported
-   * rather than swallowed: the reader pressed something and is owed an answer.
+   * Called from anywhere but a click this will be refused as a pop-up, which is answered
+   * with `false` rather than swallowed: the reader pressed something and is owed an answer,
+   * and the caller still has the panel it was about to close.
    */
-  popOut(panel: RoomPanelName, width = 520, height = 680): boolean {
-    if (this.windows.has(panel)) {
-      this.windows.get(panel)!.window.focus();
+  popOut(request: PanelWindowRequest): boolean {
+    const already = this.windows.get(request.key);
+    if (already) {
+      already.window.focus();
       return true;
     }
 
-    const opened = this.document.defaultView?.open(
-      '',
-      `axe-panel-${panel}`,
-      `popup=yes,width=${width},height=${height}`
-    );
+    const features = `popup=yes,width=${request.width ?? 520},height=${request.height ?? 680}`;
+    const opened = this.document.defaultView?.open('', `axe-panel-${request.key}`, features);
     if (!opened) return false;
 
     this.dress(opened.document);
@@ -105,25 +118,24 @@ export class PanelWindowService {
     });
     this.appRef.attachView(layer.hostView);
     layer.changeDetectorRef.detectChanges();
-
-    this.roomPanels.open(panel, { left: 0, top: 0 }, undefined, layer.instance.layer());
+    request.open(layer.instance.layer());
 
     const watchdog = setInterval(() => {
-      if (opened.closed) this.bringBack(panel);
+      if (opened.closed) this.bringBack(request.key);
     }, 500);
-    opened.addEventListener('pagehide', () => this.bringBack(panel));
+    opened.addEventListener('pagehide', () => this.bringBack(request.key));
 
-    this.windows.set(panel, { panel, window: opened, layer, watchdog });
+    this.windows.set(request.key, { request, window: opened, layer, watchdog });
     this.detached.set([...this.windows.keys()]);
     return true;
   }
 
   /** Brings a panel back to the table, whether the reader asked or just shut the window. */
-  bringBack(panel: RoomPanelName, reopen = true): void {
-    const held = this.windows.get(panel);
+  bringBack(key: string, restore = true): void {
+    const held = this.windows.get(key);
     if (!held) return;
 
-    this.windows.delete(panel);
+    this.windows.delete(key);
     this.detached.set([...this.windows.keys()]);
     clearInterval(held.watchdog);
 
@@ -132,11 +144,11 @@ export class PanelWindowService {
     this.appRef.detachView(held.layer.hostView);
     if (!held.window.closed) held.window.close();
 
-    if (reopen) this.roomPanels.open(panel);
+    if (restore) held.request.restore();
   }
 
   closeAll(): void {
-    for (const panel of [...this.windows.keys()]) this.bringBack(panel, false);
+    for (const key of [...this.windows.keys()]) this.bringBack(key, false);
   }
 
   /**

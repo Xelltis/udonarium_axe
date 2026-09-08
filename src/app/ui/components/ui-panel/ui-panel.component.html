@@ -78,6 +78,7 @@
     @if (title !== menuTitle) {
       <div
         class="absolute top-0 right-0 flex h-7 items-center gap-0.5 px-1.5"
+        data-panel-frame-controls
         [ngClass]="{
           'top-[env(safe-area-inset-top)]! h-11! px-1!': isCompact(),
           'rounded-ui shadow-ui-md bg-ui-ghost [&>button]:text-ui-text!': isGhost,
@@ -89,7 +90,7 @@
             [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
             [title]="control.label"
             [attr.data-testid]="'panel-control-' + control.icon"
-            (click)="control.press()"
+            (click)="control.press(panelService)"
           >
             <i class="material-icons text-[14px]!">{{ control.icon }}</i>
           </button>

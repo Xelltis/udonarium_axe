@@ -31,6 +31,18 @@ export interface PanelHeaderControl {
   press: () => void;
 }
 
+/**
+ * A button in the titlebar belonging to whoever opened the panel.
+ *
+ * It is handed the panel when it is pressed, because it is built before the panel exists and
+ * has no other way to reach it — sending the panel somewhere else is the whole point of one.
+ */
+export interface PanelFrameControl {
+  icon: string;
+  label: string;
+  press: (panel: PanelService) => void;
+}
+
 export interface PanelOption {
   title?: string;
   left?: number;
@@ -57,7 +69,7 @@ export interface PanelOption {
   roomPanel?: string;
 
   /** Buttons for the titlebar that belong to whoever opened the panel. */
-  controls?: readonly PanelHeaderControl[];
+  controls?: readonly PanelFrameControl[];
 
   /**
    * Where this panel sits, for one opened by something that lives above where panels go.
@@ -140,7 +152,7 @@ export class PanelService {
    * Kept apart from `headerControls` because the content owns that one and replaces it
    * wholesale; anything the opener added would go with it.
    */
-  readonly panelControls = signal<readonly PanelHeaderControl[]>([]);
+  readonly panelControls = signal<readonly PanelFrameControl[]>([]);
   /**
    * Standing with its box taken off: no ground, no frame, no title, only what it holds.
    *

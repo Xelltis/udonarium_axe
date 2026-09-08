@@ -54,8 +54,16 @@ export class RoomPanelService {
       {
         icon: 'open_in_new',
         label: this.t('common.panel.popOut'),
-        active: false,
-        press: () => void windows.popOut(name),
+        press: (owner) => {
+          const went = windows.popOut({
+            key: `room:${name}`,
+            open: (host) => this.open(name, { left: 0, top: 0 }, undefined, host),
+            restore: () => this.open(name),
+          });
+          // Closed only once the window is really there: one the browser refuses would
+          // otherwise take the panel with it.
+          if (went) owner.close();
+        },
       },
     ];
   }

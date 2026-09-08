@@ -34,11 +34,20 @@ describe('ObjectPanelService', () => {
 
     expect(selectObject).toHaveBeenCalledWith('t1', 'terrain');
     const [load, option, setup] = openLazy.mock.calls[0];
-    expect(option).toEqual({ title: 'Terrain - Hill', width: 600, height: 300, left: 700, top: 550 });
+    expect(option).toEqual(
+      expect.objectContaining({ title: 'Terrain - Hill', width: 600, height: 300, left: 700, top: 550 })
+    );
     await expect(load()).resolves.toBe(GameCharacterSheetComponent);
     const sheet = { tabletopObject: null } as unknown as GameCharacterSheetComponent;
     setup(sheet);
     expect(sheet.tabletopObject).toBe(terrain);
+  });
+
+  it('offers to send the panel to a window of its own', () => {
+    service.openSheet(terrain, 'Terrain - Hill', { width: 600, height: 300 });
+
+    const [, option] = openLazy.mock.calls[0];
+    expect(option.controls?.map((control: { icon: string }) => control.icon)).toEqual(['open_in_new']);
   });
 
   it('takes a point and an offset of its own', () => {
