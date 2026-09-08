@@ -1,6 +1,6 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCount, CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellColRow, cellCount, CellGrid, cellIndexOf, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { forEachMoveNeighbour } from '@axe/domain/tabletop/move/move-neighbours';
 import { isHostileTo } from '@axe/domain/tabletop/move/zone-of-control';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -167,6 +167,10 @@ export function fightsByCell(
   });
 
   const mine = weightOf(mover, countsSize);
+  // A piece standing on a cell takes up as much ground as it is wide, and touches with all of
+  // it: a golem three across is beside an enemy its middle cell is nowhere near.
+  const across = Math.max(1, Math.round(mover.size));
+  const back = Math.floor((across - 1) / 2);
   for (let cell = 0; cell < total; cell++) {
     const touched: number[] = [];
     const gather = (met: number): void => {
@@ -175,8 +179,15 @@ export function fightsByCell(
         if (!touched.includes(root)) touched.push(root);
       }
     };
-    gather(cell);
-    forEachMoveNeighbour(grid, cell, (neighbour) => gather(neighbour), cutsCorners);
+    const { col, row } = cellColRow(grid, cell);
+    for (let down = 0; down < across; down++) {
+      for (let right = 0; right < across; right++) {
+        const stood = cellIndexOf(grid, col - back + right, row - back + down);
+        if (stood < 0) continue;
+        gather(stood);
+        forEachMoveNeighbour(grid, stood, (neighbour) => gather(neighbour), cutsCorners);
+      }
+    }
     if (touched.length < 1) continue;
     let theirs = 0;
     let ours = mine;

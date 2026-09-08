@@ -44,6 +44,12 @@ describe('what painted ground takes', () => {
     expect(rollTriggerAmount('2+3')).toBe(5);
   });
 
+  it('reads a sign written after a space, since a space is nothing to read', () => {
+    expect(rollTriggerAmount(' -3')).toBe(-3);
+    expect(rollTriggerAmount('  +4 ')).toBe(4);
+    expect(rollTriggerAmount(' - 2d6', highest)).toBe(-12);
+  });
+
   it('takes nothing at all where nothing readable was written', () => {
     expect(rollTriggerAmount('')).toBe(0);
     expect(rollTriggerAmount('たくさん')).toBe(0);

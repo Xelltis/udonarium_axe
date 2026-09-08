@@ -45,6 +45,14 @@ export class TableTrigger extends ObjectNode {
   @SyncVar() effect: string = '';
   /** Whether it has already gone off, which only ground that goes off once ever holds. */
   @SyncVar() spent: boolean = false;
+  /**
+   * Whether going off has shown it to the room.
+   *
+   * Kept apart from what was painted rather than written back over it: the painting is what the
+   * ground is, and being found is what has happened to it. Painting the same ground again would
+   * otherwise read the finding as a different painting and lay down a fresh, unsprung trap.
+   */
+  @SyncVar() found: boolean = false;
 
   get rect(): CellRect {
     return {
@@ -66,6 +74,11 @@ export class TableTrigger extends ObjectNode {
   /** Whether this ground still has anything left in it. */
   get isArmed(): boolean {
     return !(this.once && this.spent);
+  }
+
+  /** Whether the room is being shown it: painted open, or given away by going off. */
+  get isShown(): boolean {
+    return this.open || this.found;
   }
 
   covers(col: number, row: number): boolean {

@@ -127,7 +127,7 @@ export class TriggerFireService {
     if (trigger.once) trigger.spent = true;
     // Ground that was to give itself away does so by being seen, which is the one change to it
     // the room is allowed to notice.
-    if (trigger.reveals && !trigger.open) trigger.open = true;
+    if (trigger.reveals && !trigger.found) trigger.found = true;
     const firing = { trigger, taken, from: held ? held.name : '' };
     // Neither the show nor the telling is what the ground is for, so neither is allowed to
     // stop it: a room with no chat tab yet, or an effect that will not play, still takes the

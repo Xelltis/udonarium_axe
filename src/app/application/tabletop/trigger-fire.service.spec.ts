@@ -212,11 +212,20 @@ describe('TriggerFireService', () => {
 
   it('gives itself away by being seen where that is what going off was to do', () => {
     const trap = trapAt(5, 5, { reveals: true });
-    expect(trap.open).toBe(false);
+    expect(trap.isShown).toBe(false);
 
     service.walked(heroWith(20), grid(), [at(4, 5), at(5, 5)]);
 
-    expect(trap.open).toBe(true);
+    expect(trap.isShown).toBe(true);
+  });
+
+  it('is found rather than repainted, so what was painted is still what it was', () => {
+    const trap = trapAt(5, 5, { reveals: true });
+
+    service.walked(heroWith(20), grid(), [at(4, 5), at(5, 5)]);
+
+    expect(trap.found).toBe(true);
+    expect(trap.open).toBe(false);
   });
 
   it('stays hidden where giving itself away was never asked of it', () => {
@@ -224,7 +233,7 @@ describe('TriggerFireService', () => {
 
     service.walked(heroWith(20), grid(), [at(4, 5), at(5, 5)]);
 
-    expect(trap.open).toBe(false);
+    expect(trap.isShown).toBe(false);
   });
 
   it('holds its peace for a piece it was not pointed at', () => {

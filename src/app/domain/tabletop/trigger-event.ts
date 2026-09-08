@@ -79,7 +79,9 @@ function splitTerms(amount: string): { sign: number; term: string }[] {
         held = '';
         continue;
       }
-      if (held.length === 0 && terms.length === 0) sign = letter === '-' ? -sign : sign;
+      // Nothing worth reading has come yet, so this is the sign of what is about to. Space
+      // before it is still nothing: ' -3' takes three, the way '-3' does.
+      if (terms.length === 0) sign = letter === '-' ? -sign : sign;
       continue;
     }
     held += letter;

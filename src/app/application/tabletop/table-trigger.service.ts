@@ -32,6 +32,6 @@ export class TableTriggerService {
   shown(): TableTrigger[] {
     this.objectChange.trackMyCursor();
     const master = this.rolePermission.canSeeHidden;
-    return this.all().filter((trigger) => master || trigger.open);
+    return this.all().filter((trigger) => master || trigger.isShown);
   }
 }

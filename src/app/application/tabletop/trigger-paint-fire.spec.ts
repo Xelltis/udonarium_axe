@@ -77,4 +77,30 @@ describe('painting ground that goes off and then walking into it', () => {
     expect(fired.length).toBe(1);
     expect(Number(DataElement.findElementByReference(hero.rootDataElement!, 'ライフ')!.currentValue)).toBe(16);
   });
+
+  it('leaves a sprung trap sprung when the same ground is painted again', () => {
+    const spec = { ...DEFAULT_FUNCTION_SPEC.trigger, element: 'ライフ', amount: '4', once: true, reveals: true };
+    const painted = { col: 5, row: 5, width: 1, height: 1, spec };
+    paint.apply(planWith({ trigger: { add: [painted], remove: [] } }));
+
+    const hero = GameCharacter.create('英雄', 1, '');
+    hero.detailDataElement!.appendChild(
+      DataElement.create('ライフ', 20, { type: DataElementType.NUMBER_RESOURCE, currentValue: 20 })
+    );
+    hero.location = { name: 'table', x: 4 * GRID, y: 5 * GRID };
+    fire.pickedUp(hero);
+    hero.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    fire.putDown(hero);
+
+    const sprung = triggersOn(table)[0];
+    expect(sprung.spent).toBe(true);
+    expect(sprung.found).toBe(true);
+
+    // The same scene laid down again: the ground was never repainted, so it is never rearmed.
+    paint.apply(planWith({ trigger: { add: [], remove: [] } }));
+
+    expect(triggersOn(table).length).toBe(1);
+    expect(triggersOn(table)[0].spent).toBe(true);
+    expect(triggersOn(table)[0].found).toBe(true);
+  });
 });

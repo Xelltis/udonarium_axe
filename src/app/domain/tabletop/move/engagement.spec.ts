@@ -171,6 +171,22 @@ describe('the fight on each cell, and what leaving it costs', () => {
     expect(fightsFor(hero, [hero, pieceAt(5, 5, true)]).priceAt(4, 5)).toBe(1);
   });
 
+  it('has a wide piece touch with all of itself, not with its middle cell alone', () => {
+    const golem = pieceAt(0, 0, false, 3);
+    const fights = fightsFor(golem, [pieceAt(5, 3, true)]);
+
+    // Standing at (3,3) a golem three across covers (2,2) to (4,4), so it is beside (5,3).
+    expect(fights.priceAt(3, 3)).not.toBe(NO_FIGHT);
+  });
+
+  it('leaves a piece one cell across reaching one cell, as it always did', () => {
+    const hero = pieceAt(0, 0, false);
+    const fights = fightsFor(hero, [pieceAt(5, 3, true)]);
+
+    expect(fights.priceAt(3, 3)).toBe(NO_FIGHT);
+    expect(fights.priceAt(4, 3)).not.toBe(NO_FIGHT);
+  });
+
   it('calls a step out of the fight one, and a step within it none', () => {
     const fights = fightsFor(pieceAt(0, 0, false), [pieceAt(5, 5, true)]);
 

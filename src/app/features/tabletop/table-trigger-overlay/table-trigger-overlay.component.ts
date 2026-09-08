@@ -56,7 +56,7 @@ export class TableTriggerOverlayComponent {
       patches.push({
         cells,
         color: trigger.color,
-        hidden: !trigger.open,
+        hidden: !trigger.isShown,
         spent: trigger.once && trigger.spent,
       });
     }
