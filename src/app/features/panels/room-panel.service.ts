@@ -26,9 +26,8 @@ export class RoomPanelService {
     const panel = this.panelOf(name);
     const option: PanelOption = {
       title: this.t(panelLabelKey(name)),
-      roomPanel: name,
       windowed: host !== undefined,
-      controls: host ? [] : this.popOutControl(name),
+      controls: host ? [] : this.popOutControl(name, extra, setup),
       ...panel.option,
       top: ((this.opened % 10) + 1) * 20,
       left: 100 + ((this.opened % 20) + 1) * 5,
@@ -48,7 +47,11 @@ export class RoomPanelService {
    * It is offered only on a panel standing on the table: one already in a window has the
    * operating system's own frame to close, and closing it brings the panel back here.
    */
-  private popOutControl(name: RoomPanelName): PanelOption['controls'] {
+  private popOutControl<T>(
+    name: RoomPanelName,
+    extra: PanelOption,
+    setup?: (instance: T) => void
+  ): PanelOption['controls'] {
     const windows = this.injector.get(PanelWindowService);
     if (!windows.isSupported) return [];
     return [
@@ -58,8 +61,10 @@ export class RoomPanelService {
         press: (owner) => {
           const went = windows.popOut({
             key: `room:${name}`,
-            open: (host) => this.open(name, { left: 0, top: 0 }, undefined, host),
-            restore: () => this.open(name),
+            // Opened again the way it was opened here, so a panel asked for at a size, with a
+            // title of its own or something to set up keeps all of it on the way out and back.
+            open: (host) => this.open(name, { ...extra, left: 0, top: 0 }, setup, host),
+            restore: () => this.open(name, extra, setup),
           });
           // Closed only once the window is really there: one the browser refuses would
           // otherwise take the panel with it.

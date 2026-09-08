@@ -60,15 +60,6 @@ export interface PanelOption {
   frameless?: boolean;
 
   /**
-   * Which of the room's panels this is, where it is one of them.
-   *
-   * The panel needs to know its own name to be able to open itself somewhere else — in a
-   * window of its own, say. The component class is not that name: several panels are opened
-   * from the same component with different content.
-   */
-  roomPanel?: string;
-
-  /**
    * Whether this panel is being drawn in a window of its own rather than on the table.
    *
    * What a panel offers can turn on it. A menu opened where the pointer is has nowhere to
@@ -171,9 +162,6 @@ export class PanelService {
   /** What kind of panel this is, taken from the selector of what it was opened with. */
   readonly panelKind = signal('');
 
-  /** Which of the room's panels this is, for anything that has to open it again elsewhere. */
-  readonly roomPanel = signal('');
-
   /** Whether the panel stands in a window of its own, for content that has to work differently there. */
   readonly windowed = signal(false);
   chatTab: ChatTab | null = null;
@@ -265,7 +253,6 @@ export class PanelService {
     childPanelService.panelKind.set(panelKindOf(childComponent));
     const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
     if (inheritedOption) this.applyPanelOption(panelComponentRef, childPanelService, inheritedOption);
-    if (option?.roomPanel) childPanelService.roomPanel.set(option.roomPanel);
     if (option?.windowed) childPanelService.windowed.set(true);
     if (option?.controls) childPanelService.panelControls.set(option.controls);
     const single = option?.single;
