@@ -24,6 +24,7 @@ export const ROOM_PANELS = [
   'roomSnapshot',
   'replay',
   'tabletopDisplay',
+  'skin',
 ] as const;
 
 export type CharacterPanelName = (typeof CHARACTER_PANELS)[number];
@@ -59,6 +60,7 @@ const LABEL_KEYS: Record<PanelName, string> = {
   roomSnapshot: 'common.panel.roomSnapshot',
   replay: 'common.panel.replay',
   tabletopDisplay: 'feature.tabletop.displaySetting.title',
+  skin: 'feature.skin.title',
 };
 
 /** Anything unknown reads as the chat palette, which is where a panel slot starts. */

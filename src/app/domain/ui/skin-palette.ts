@@ -26,11 +26,21 @@ export interface SkinRecipe {
   textChroma?: number;
   /** Moves every surface up or down the ladder together, leaving the ink where it is. */
   lift?: number;
+  /** How far the ground drops away from the panels, so the panels read as floating on it. */
+  spread?: number;
   contrast?: SkinContrast;
 }
 
 /** How far a skin may shift its surfaces before the ink stops carrying over them. */
 export const MAX_LIFT = 10;
+
+/**
+ * How far the ground may fall behind the panels.
+ *
+ * Text is drawn straight onto the ground in a few places, so the ground cannot keep
+ * falling: at the far end of this it still carries body text at the reading standard.
+ */
+export const MAX_SPREAD = 15;
 
 /** The custom properties a skin sets, keyed by the name the stylesheet reads. */
 export type SkinTokens = Readonly<Record<string, string>>;
@@ -177,9 +187,12 @@ function alpha(lch: Lch, amount: number): string {
   return `rgba(${byte(r)}, ${byte(g)}, ${byte(b)}, ${Number(amount.toFixed(3))})`;
 }
 
-function surface(stop: Stop, recipe: SkinRecipe): Lch {
+function surface(stop: Stop, recipe: SkinRecipe, panel: number): Lch {
   const lift = Math.max(-MAX_LIFT, Math.min(MAX_LIFT, recipe.lift ?? 0));
-  return { tone: Math.max(2, Math.min(98, stop.tone + lift)), chroma: recipe.chroma * stop.share, hue: recipe.hue };
+  const spread = Math.max(0, Math.min(MAX_SPREAD, recipe.spread ?? 0));
+  const below = Math.max(0, panel - stop.tone);
+  const tone = stop.tone - (below * spread) / 20 + lift;
+  return { tone: Math.max(2, Math.min(98, tone)), chroma: recipe.chroma * stop.share, hue: recipe.hue };
 }
 
 /** The colour the ink is drawn in, which is the surfaces' own hue unless a skin says otherwise. */
@@ -202,10 +215,12 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
   const ink = inkHue(recipe);
   const onDark = mode === 'dark';
 
-  const bg = surface(ramp.bg, recipe);
-  const elevated = surface(ramp.elevated, recipe);
-  const titlebar = surface(ramp.titlebar, recipe);
-  const ghostHeader = surface(ramp.ghostHeader, recipe);
+  const panel = ramp.elevated.tone;
+  const at = (stop: Stop) => surface(stop, recipe, panel);
+  const bg = at(ramp.bg);
+  const elevated = at(ramp.elevated);
+  const titlebar = at(ramp.titlebar);
+  const ghostHeader = at(ramp.ghostHeader);
   const accent: Lch = { tone: ramp.accent, chroma: recipe.accentChroma, hue: recipe.accentHue };
   const danger: Lch = { tone: ramp.danger, chroma: 58, hue: 28 };
 
@@ -214,12 +229,12 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
 
   return {
     '--ui-bg': hex(bg),
-    '--ui-surface': hex(surface(ramp.surface, recipe)),
+    '--ui-surface': hex(at(ramp.surface)),
     '--ui-elevated': hex(elevated),
 
     '--ui-panel-bg': alpha(elevated, onDark ? 0.9 : 0.94),
     '--ui-panel-border': over(ramp.edge),
-    '--ui-bubble-caret-border': hex(surface(ramp.caret, recipe)),
+    '--ui-bubble-caret-border': hex(at(ramp.caret)),
     '--ui-panel-glow': alpha(accent, 0.07),
     '--ui-titlebar-bg': hex(titlebar),
     '--ui-titlebar-border': over(ramp.edge * 0.82),
@@ -228,7 +243,7 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
     '--ui-ghost-bg': alpha(elevated, onDark ? 0.6 : 0.72),
     '--ui-ghost-header-bg': alpha(ghostHeader, 0.92),
 
-    '--ui-menu-bg': alpha(surface(ramp.menu, recipe), onDark ? 0.96 : 0.98),
+    '--ui-menu-bg': alpha(at(ramp.menu), onDark ? 0.96 : 0.98),
     '--ui-menu-border': over(ramp.edge),
     '--ui-menu-hover': alpha(accent, 0.12),
     '--ui-menu-separator': over(ramp.edge * 0.7),
@@ -242,8 +257,8 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
     '--ui-accent-glow': alpha(accent, 0.28),
     '--ui-accent-bg': alpha(accent, 0.12),
 
-    '--ui-quote-bg': hex(surface(ramp.quoteBg, recipe)),
-    '--ui-quote-hover-bg': hex(surface(ramp.quoteHover, recipe)),
+    '--ui-quote-bg': hex(at(ramp.quoteBg)),
+    '--ui-quote-hover-bg': hex(at(ramp.quoteHover)),
     '--ui-quote-border': hex(accent),
     '--ui-quote-text': hex({ tone: ramp.quoteText, ...ink }),
     '--ui-quote-name': hex({ ...accent, tone: ramp.quoteName, chroma: Math.max(0, recipe.accentChroma - 4) }),
@@ -257,7 +272,7 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
 
     '--ui-suit-black': onDark ? hex(accent) : '#000000',
 
-    '--ui-input-bg': hex(surface(ramp.input, recipe)),
+    '--ui-input-bg': hex(at(ramp.input)),
     '--ui-input-border': over(ramp.edge * 0.82),
 
     '--ui-shadow-sm': `0 2px 8px ${alpha({ tone: onDark ? 0 : 30, chroma: 0, hue: 0 }, onDark ? 0.5 : 0.16)}`,

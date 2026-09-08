@@ -1,4 +1,4 @@
-import { MAX_LIFT, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
+import { MAX_LIFT, MAX_SPREAD, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
 
 /**
  * How the picker files the skins.
@@ -59,6 +59,13 @@ export const SKINS: readonly Skin[] = [
   skin('catacomb', 'dark', 'scene', { hue: 300, chroma: 8, accentHue: 90, accentChroma: 40 }),
   skin('lavaTube', 'dark', 'scene', { hue: 30, chroma: 20, accentHue: 45, accentChroma: 60 }),
 
+  skin('slateDesk', 'light', 'board', {
+    hue: 240,
+    chroma: 9,
+    spread: MAX_SPREAD,
+    accentHue: 155,
+    accentChroma: 40,
+  }),
   skin('creamBoard', 'light', 'board', {
     hue: 61,
     chroma: 10,
@@ -112,6 +119,7 @@ export function asRecipe(value: unknown, mode: SkinMode): SkinRecipe {
     accentHue: clamp(raw['accentHue'], 0, 360, seed.accentHue) % 360,
     accentChroma: clamp(raw['accentChroma'], 0, 80, seed.accentChroma),
     lift: clamp(raw['lift'], -MAX_LIFT, MAX_LIFT, 0),
+    spread: clamp(raw['spread'], 0, MAX_SPREAD, 0),
     contrast: raw['contrast'] === 'high' ? 'high' : 'normal',
   };
   if (typeof raw['textHue'] === 'number') recipe.textHue = clamp(raw['textHue'], 0, 360, 0) % 360;

@@ -37,6 +37,10 @@
             [attr.aria-pressed]="chosen() === skin.id"
             [attr.data-testid]="'skin-' + skin.id"
             (click)="pick(skin.id)"
+            (mouseenter)="tryOn(skin.id)"
+            (mouseleave)="tryOn(null)"
+            (focus)="tryOn(skin.id)"
+            (blur)="tryOn(null)"
           >
             <span class="flex h-9 w-full items-end p-1" [style.background-color]="swatchOf(skin).ground">
               <span
@@ -87,6 +91,7 @@
         { field: 'hue', min: 0, max: 360, step: 1 },
         { field: 'chroma', min: 0, max: 40, step: 1 },
         { field: 'lift', min: -maxLift, max: maxLift, step: 1 },
+        { field: 'spread', min: 0, max: maxSpread, step: 1 },
         { field: 'accentHue', min: 0, max: 360, step: 1 },
         { field: 'accentChroma', min: 0, max: 80, step: 1 },
       ];

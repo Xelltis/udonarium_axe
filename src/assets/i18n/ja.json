@@ -2290,7 +2290,7 @@
       "tickerSpeedUnit": "px/秒"
     },
     "skin": {
-      "title": "画面の色（皮）",
+      "title": "スキン",
       "hint": "この画面にだけ効きます。部屋の他の人には伝わりません。明るいときと暗いときで別々に選べます。",
       "ladder_light": "明るいとき",
       "ladder_dark": "暗いとき",
@@ -2299,7 +2299,7 @@
       "group_dark": "暗い卓",
       "group_legible": "見やすさ重視",
       "group_scene": "卓の雰囲気",
-      "group_board": "掲示板",
+      "group_board": "懐かしい配色",
       "group_custom": "自分で作る",
       "name_standard": "標準",
       "name_parchment": "羊皮紙",
@@ -2321,14 +2321,42 @@
       "name_catacomb": "地下墓所",
       "name_lavaTube": "溶岩洞",
       "name_creamBoard": "クリーム掲示板",
-      "name_custom": "自分の色",
+      "name_slateDesk": "青灰のデスクトップ",
+      "name_custom": "自分のスキン",
       "customHint": "つまみを動かすと、その場で画面に映ります。読みにくくならない範囲に収まるようになっています。",
       "hue": "色相",
       "chroma": "色の濃さ",
       "lift": "明るさ",
+      "spread": "地の沈み",
       "accentHue": "アクセントの色相",
       "accentChroma": "アクセントの強さ",
-      "strongEdges": "境界と文字を強くする"
+      "strongEdges": "境界と文字を強くする",
+      "preview": {
+        "window": "接続情報",
+        "role": "役割",
+        "watcher": "見学",
+        "body": "ルーム「忘れられた坑道」に 4 人がつないでいます。",
+        "link": "招待リンクをコピー",
+        "muted": "最後の保存から 3 分",
+        "speaker": "ケルド / 斥候",
+        "said": "足跡は三つ。まだ乾いていない。",
+        "roller": "アリシア",
+        "success": "成功",
+        "field": "合言葉を入力",
+        "enter": "入室",
+        "lobby": "ロビー",
+        "leave": "切断",
+        "menuItem": "コマを作る",
+        "menuHover": "カードを配る",
+        "menuPicked": "選択中の項目",
+        "menuOff": "いまは押せない項目"
+      },
+      "revert": "開いたときに戻す",
+      "state": {
+        "live": "この画面に反映中",
+        "tryingOn": "試着中 — 押すと反映します",
+        "offScreen": "いまは画面に出ていない側"
+      }
     },
     "lobby": {
       "peerMenu": {
@@ -3642,7 +3670,8 @@
       "viewPerspective": "3D 表示（クリックで 2D）",
       "viewAutoFlat": "視点: 自動（2D）",
       "viewAutoPerspective": "視点: 自動（3D）",
-      "tabletopDisplay": "卓上ディスプレイ"
+      "tabletopDisplay": "卓上ディスプレイ",
+      "skin": "スキン"
     },
     "roomDataDefault": "ルームデータ"
   },

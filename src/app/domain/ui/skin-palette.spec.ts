@@ -1,4 +1,4 @@
-import { MAX_LIFT, panelTone, skinContrast, skinTokens } from '@axe/domain/ui/skin-palette';
+import { MAX_LIFT, MAX_SPREAD, panelTone, skinContrast, skinTokens } from '@axe/domain/ui/skin-palette';
 
 const PLAIN = { hue: 82, chroma: 14, accentHue: 160, accentChroma: 30 };
 
@@ -64,6 +64,23 @@ describe('the colours a skin recipe makes', () => {
     const allowed = skinTokens({ ...PLAIN, lift: MAX_LIFT }, 'light');
 
     expect(asked['--ui-bg']).toBe(allowed['--ui-bg']);
+  });
+
+  it('drops the ground away from the panels when it is spread, and leaves the panels', () => {
+    const flat = skinTokens(PLAIN, 'light');
+    const floating = skinTokens({ ...PLAIN, spread: MAX_SPREAD }, 'light');
+
+    expect(skinContrast(floating, '--ui-elevated', '--ui-bg')).toBeGreaterThan(
+      skinContrast(flat, '--ui-elevated', '--ui-bg')
+    );
+    expect(floating['--ui-elevated']).toBe(flat['--ui-elevated']);
+  });
+
+  it('still carries body text on a ground spread as far as it goes', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const tokens = skinTokens({ ...PLAIN, spread: MAX_SPREAD }, mode);
+      expect(skinContrast(tokens, '--ui-text', '--ui-bg')).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it('draws the text in its own hue where the skin asks for one', () => {

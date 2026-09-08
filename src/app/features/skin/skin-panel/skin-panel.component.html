@@ -1,0 +1,88 @@
+<div class="flex h-full flex-col overflow-y-auto" data-testid="skin-panel">
+  <div class="bg-ui-panel border-ui-border-panel sticky top-0 z-10 border-b border-solid p-2.5 backdrop-blur-md">
+    <div class="mb-2 flex items-center gap-2">
+      <span class="text-[11px] font-semibold" [class.text-ui-accent]="live()" [class.text-ui-muted]="!live()">
+        @if (tryingOn()) {
+          {{ 'feature.skin.state.tryingOn' | transloco }}
+        } @else if (live()) {
+          {{ 'feature.skin.state.live' | transloco }}
+        } @else {
+          {{ 'feature.skin.state.offScreen' | transloco }}
+        }
+      </span>
+      <button
+        type="button"
+        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent ml-auto cursor-pointer border border-solid px-2.5 py-0.5 text-[11px] transition-colors"
+        data-testid="skin-revert"
+        (click)="revert()"
+      >
+        {{ 'feature.skin.revert' | transloco }}
+      </button>
+    </div>
+
+    <div #stage class="bg-ui-bg rounded-ui flex flex-col gap-2 p-2.5" data-testid="skin-stage">
+      <div class="border-ui-border-panel rounded-ui shadow-ui-md overflow-hidden border border-solid">
+        <div
+          class="bg-ui-titlebar border-ui-border-titlebar text-ui-text flex items-center gap-2 border-b border-solid px-2.5 py-1 text-[11px] font-semibold"
+        >
+          {{ 'feature.skin.preview.window' | transloco }}
+          <span class="ml-auto flex gap-1.5">
+            <i class="bg-ui-dim block size-2 rounded-full"></i>
+            <i class="bg-ui-dim block size-2 rounded-full"></i>
+          </span>
+        </div>
+
+        <div class="bg-ui-elevated flex flex-col gap-1.5 p-2.5">
+          <div class="flex items-center gap-1.5">
+            <span class="bg-ui-accent text-ui-elevated rounded-full px-2 py-0.5 text-[10px] font-bold">GM</span>
+            <span class="border-ui-border-panel text-ui-muted rounded-full border border-solid px-2 py-0.5 text-[10px]"
+              >PL</span
+            >
+            <span class="text-ui-muted ml-auto text-[10px]">{{ 'feature.skin.preview.muted' | transloco }}</span>
+          </div>
+
+          <p class="text-ui-text m-0 text-xs/relaxed">
+            {{ 'feature.skin.preview.body' | transloco }}
+            <span class="text-ui-accent underline">{{ 'feature.skin.preview.link' | transloco }}</span>
+          </p>
+
+          <div class="bg-ui-quote-bg border-ui-accent rounded-r-ui-sm border-l-[3px] border-solid px-2 py-1">
+            <span class="text-ui-quote-name block text-[10px] font-semibold">{{
+              'feature.skin.preview.speaker' | transloco
+            }}</span>
+            <span class="text-ui-quote-text text-[11px]">{{ 'feature.skin.preview.said' | transloco }}</span>
+          </div>
+
+          <div class="bg-ui-surface rounded-ui-sm text-ui-text flex items-baseline gap-2 px-2 py-1 text-[11px]">
+            <span>{{ 'feature.skin.preview.roller' | transloco }}</span>
+            <span class="text-ui-success font-semibold tabular-nums">2d6 → 9</span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <span
+              class="bg-ui-input border-ui-border-input text-ui-dim rounded-ui-sm flex-1 border border-solid px-2 py-1 text-[11px]"
+              >{{ 'feature.skin.preview.field' | transloco }}</span
+            >
+            <span class="bg-ui-accent text-ui-elevated rounded-ui-sm px-2.5 py-1 text-[11px] font-bold">{{
+              'feature.skin.preview.enter' | transloco
+            }}</span>
+            <span class="bg-ui-danger text-ui-elevated rounded-ui-sm px-2.5 py-1 text-[11px] font-bold">{{
+              'feature.skin.preview.leave' | transloco
+            }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-ui-menu border-ui-border-menu rounded-ui-sm flex overflow-hidden border border-solid text-[10px]">
+        <span class="text-ui-text px-2 py-1">{{ 'feature.skin.preview.menuItem' | transloco }}</span>
+        <span class="bg-ui-menu-hover text-ui-text px-2 py-1">{{ 'feature.skin.preview.menuHover' | transloco }}</span>
+        <span class="bg-ui-selected text-ui-text px-2 py-1">{{ 'feature.skin.preview.menuPicked' | transloco }}</span>
+        <span class="text-ui-dim px-2 py-1">{{ 'feature.skin.preview.menuOff' | transloco }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-2.5">
+    <app-skin-picker />
+  </div>
+</div>

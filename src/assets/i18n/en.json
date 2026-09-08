@@ -2299,7 +2299,7 @@
       "group_dark": "Dark tables",
       "group_legible": "Legibility",
       "group_scene": "Scenery",
-      "group_board": "Board",
+      "group_board": "Period looks",
       "group_custom": "Build your own",
       "name_standard": "Standard",
       "name_parchment": "Parchment",
@@ -2321,14 +2321,42 @@
       "name_catacomb": "Catacomb",
       "name_lavaTube": "Lava tube",
       "name_creamBoard": "Cream board",
+      "name_slateDesk": "Slate desktop",
       "name_custom": "Your own",
       "customHint": "Move a slider and the screen follows. The range stops where the text would stop being readable.",
       "hue": "Hue",
       "chroma": "Colour",
       "lift": "Brightness",
+      "spread": "Ground drop",
       "accentHue": "Accent hue",
       "accentChroma": "Accent strength",
-      "strongEdges": "Stronger edges and text"
+      "strongEdges": "Stronger edges and text",
+      "preview": {
+        "window": "Connection",
+        "role": "Role",
+        "watcher": "Watching",
+        "body": "Four people are connected to “The Forgotten Shaft”.",
+        "link": "Copy the invite link",
+        "muted": "Three minutes since the last save",
+        "speaker": "Keld / scout",
+        "said": "Three sets of tracks. Not dry yet.",
+        "roller": "Alicia",
+        "success": "Success",
+        "field": "Enter the password",
+        "enter": "Enter",
+        "lobby": "Lobby",
+        "leave": "Disconnect",
+        "menuItem": "New piece",
+        "menuHover": "Deal cards",
+        "menuPicked": "The item in hand",
+        "menuOff": "Not available now"
+      },
+      "revert": "Back to how it opened",
+      "state": {
+        "live": "Showing on this screen",
+        "tryingOn": "Trying it on — click to keep",
+        "offScreen": "The ladder not on screen"
+      }
     },
     "lobby": {
       "peerMenu": {
@@ -3642,7 +3670,8 @@
       "viewPerspective": "Table in depth (click to flatten)",
       "viewAutoFlat": "View: auto (2D)",
       "viewAutoPerspective": "View: auto (3D)",
-      "tabletopDisplay": "Tabletop display"
+      "tabletopDisplay": "Tabletop display",
+      "skin": "Skin"
     },
     "roomDataDefault": "Room data"
   },

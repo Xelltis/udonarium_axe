@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { CUSTOM_SKIN, Skin, SkinGroup, skinsFor, STANDARD_SKIN } from '@axe/domain/ui/skin';
-import { MAX_LIFT, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
+import { MAX_LIFT, MAX_SPREAD, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The order the groups are offered in: the plain one first, then colour, then the odd ones. */
@@ -27,13 +27,14 @@ export class SkinPickerComponent {
   protected readonly standard = STANDARD_SKIN;
   protected readonly custom = CUSTOM_SKIN;
   protected readonly maxLift = MAX_LIFT;
+  protected readonly maxSpread = MAX_SPREAD;
 
-  /** Which ladder is being dressed. It opens on the one showing, and can be moved to the other. */
-  protected readonly editing = signal<SkinMode>(this.skins.mode());
+  /** Which ladder is being dressed. The service holds it, so the preview follows along. */
+  protected readonly editing = this.skins.editing;
 
   protected readonly chosen = computed(() => this.skins.skinOf(this.editing()));
 
-  protected readonly recipe = computed(() => this.skins.recipeOf(this.editing()));
+  protected readonly recipe = this.skins.recipe;
 
   protected readonly groups = computed(() => {
     const mode = this.editing();
@@ -72,7 +73,11 @@ export class SkinPickerComponent {
   });
 
   protected editLadder(mode: SkinMode): void {
-    this.editing.set(mode);
+    this.skins.editLadder(mode);
+  }
+
+  protected tryOn(id: string | null): void {
+    this.skins.tryOn(id);
   }
 
   protected pick(id: string): void {

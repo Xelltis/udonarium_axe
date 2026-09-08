@@ -1,9 +1,16 @@
 import { DOCUMENT } from '@angular/common';
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, linkedSignal, signal } from '@angular/core';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { resetChatBubbleBaseTone, setChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { asRecipe, asSkinId, CUSTOM_SKIN, parseRecipe, skinById, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { panelTone, SkinMode, SkinRecipe, SkinTokens, skinTokens } from '@axe/domain/ui/skin-palette';
+import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
+
+/** A seat's whole wardrobe at one moment, which is what "put it back" restores. */
+export interface SkinSnapshot {
+  light: { id: string; recipe: SkinRecipe };
+  dark: { id: string; recipe: SkinRecipe };
+}
 
 const SKIN_KEY: Record<SkinMode, string> = { light: 'ui-skin-light', dark: 'ui-skin-dark' };
 const RECIPE_KEY: Record<SkinMode, string> = { light: 'ui-skin-recipe-light', dark: 'ui-skin-recipe-dark' };
@@ -54,8 +61,37 @@ export class SkinService {
   /** The skin on screen now. */
   readonly current = computed(() => this.chosen[this.mode()]());
 
-  /** What the sliders are holding for the ladder on screen. */
-  readonly recipe = computed(() => this.recipes[this.mode()]());
+  /**
+   * Which ladder the picker is dressing.
+   *
+   * It follows the one on screen, and stays where it is put until the screen moves: a dark
+   * skin has to be choosable in daylight.
+   */
+  readonly editing = linkedSignal<SkinMode>(() => this.mode());
+
+  /** What the sliders are holding for the ladder being dressed. */
+  readonly recipe = computed(() => this.recipes[this.editing()]());
+
+  /**
+   * The skin under the pointer, which is shown without being put on.
+   *
+   * Trying a skin on for real means repainting the whole app, which is the truest preview
+   * there is but costs the one you were wearing. Hovering shows it in the panel's own
+   * preview instead, so a list of twenty can be looked through without choosing twenty times.
+   */
+  private readonly hovered = signal<string | null>(null);
+
+  /** The colours the panel's preview is showing, standard included, without painting any. */
+  readonly editedTokens = computed<SkinTokens>(() => {
+    const mode = this.editing();
+    return this.preview(this.hovered() ?? this.chosen[mode](), mode) ?? STANDARD_TOKENS[mode];
+  });
+
+  /** Whether the preview is showing something other than what the seat is wearing. */
+  readonly tryingOn = computed(() => this.hovered() !== null && this.hovered() !== this.chosen[this.editing()]());
+
+  /** Whether what the preview shows is also what is on screen behind the panel. */
+  readonly live = computed(() => this.editing() === this.mode() && !this.tryingOn());
 
   /** The colours to paint, or nothing at all where the stylesheet already says them. */
   readonly tokens = computed<SkinTokens | null>(() => {
@@ -81,14 +117,43 @@ export class SkinService {
     return this.recipes[mode]();
   }
 
-  choose(id: string, mode: SkinMode = this.mode()): void {
+  editLadder(mode: SkinMode): void {
+    this.editing.set(mode);
+    this.hovered.set(null);
+  }
+
+  /** Shows a skin in the preview without putting it on. Null goes back to the one worn. */
+  tryOn(id: string | null): void {
+    this.hovered.set(id);
+  }
+
+  /** What the seat is wearing now, so a panel can put it back after someone has tried things on. */
+  snapshot(): SkinSnapshot {
+    return {
+      light: { id: this.chosen.light(), recipe: this.recipes.light() },
+      dark: { id: this.chosen.dark(), recipe: this.recipes.dark() },
+    };
+  }
+
+  restore(worn: SkinSnapshot): void {
+    for (const mode of ['light', 'dark'] as const) {
+      this.recipes[mode].set(worn[mode].recipe);
+      write(RECIPE_KEY[mode], JSON.stringify(worn[mode].recipe));
+      this.chosen[mode].set(worn[mode].id);
+      write(SKIN_KEY[mode], worn[mode].id);
+    }
+    this.hovered.set(null);
+  }
+
+  choose(id: string, mode: SkinMode = this.editing()): void {
+    this.hovered.set(null);
     const settled = asSkinId(id, mode);
     this.chosen[mode].set(settled);
     write(SKIN_KEY[mode], settled);
   }
 
   /** Hands the sliders' numbers to the skin a person is building, and switches to it. */
-  build(recipe: SkinRecipe, mode: SkinMode = this.mode()): void {
+  build(recipe: SkinRecipe, mode: SkinMode = this.editing()): void {
     const settled = asRecipe(recipe, mode);
     this.recipes[mode].set(settled);
     write(RECIPE_KEY[mode], JSON.stringify(settled));

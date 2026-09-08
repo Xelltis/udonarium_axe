@@ -2299,7 +2299,7 @@
       "group_dark": "어두운 탁자",
       "group_legible": "가독성",
       "group_scene": "분위기",
-      "group_board": "게시판",
+      "group_board": "옛 배색",
       "group_custom": "직접 만들기",
       "name_standard": "표준",
       "name_parchment": "양피지",
@@ -2321,14 +2321,42 @@
       "name_catacomb": "지하 묘지",
       "name_lavaTube": "용암 동굴",
       "name_creamBoard": "크림 게시판",
+      "name_slateDesk": "청회색 데스크톱",
       "name_custom": "내 색",
       "customHint": "슬라이더를 움직이면 화면에 바로 반영됩니다. 글자를 읽을 수 없게 되는 범위에는 들어가지 않습니다.",
       "hue": "색상",
       "chroma": "색의 진하기",
       "lift": "밝기",
+      "spread": "바탕 낮추기",
       "accentHue": "강조색 색상",
       "accentChroma": "강조색 세기",
-      "strongEdges": "경계와 글자를 진하게"
+      "strongEdges": "경계와 글자를 진하게",
+      "preview": {
+        "window": "접속 정보",
+        "role": "역할",
+        "watcher": "관전",
+        "body": "“잊혀진 갱도” 방에 네 명이 접속해 있습니다.",
+        "link": "초대 링크 복사",
+        "muted": "마지막 저장으로부터 3분",
+        "speaker": "켈드 / 척후",
+        "said": "발자국은 셋. 아직 마르지 않았다.",
+        "roller": "알리시아",
+        "success": "성공",
+        "field": "암호 입력",
+        "enter": "입장",
+        "lobby": "로비",
+        "leave": "접속 끊기",
+        "menuItem": "말 만들기",
+        "menuHover": "카드 돌리기",
+        "menuPicked": "선택한 항목",
+        "menuOff": "지금은 누를 수 없는 항목"
+      },
+      "revert": "열었을 때로 되돌리기",
+      "state": {
+        "live": "이 화면에 적용 중",
+        "tryingOn": "입어보는 중 — 누르면 적용",
+        "offScreen": "지금 화면에 없는 쪽"
+      }
     },
     "lobby": {
       "peerMenu": {
@@ -3877,7 +3905,8 @@
       "viewPerspective": "3D 표시(클릭하면 2D)",
       "viewAutoFlat": "시점: 자동 (2D)",
       "viewAutoPerspective": "시점: 자동 (3D)",
-      "tabletopDisplay": "탁상 디스플레이"
+      "tabletopDisplay": "탁상 디스플레이",
+      "skin": "스킨"
     },
     "roomDataDefault": "룸 데이터"
   },
