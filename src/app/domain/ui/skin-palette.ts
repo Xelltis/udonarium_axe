@@ -26,8 +26,16 @@ export interface SkinRecipe {
   textChroma?: number;
   /** Moves every surface up or down the ladder together, leaving the ink where it is. */
   lift?: number;
-  /** How far the ground drops away from the panels, so the panels read as floating on it. */
+  /**
+   * How many tones the ground sits below the panels, on top of what the ladder already says.
+   *
+   * Negative lifts the ground above them, which is how a page of pale cream carrying darker
+   * reply blocks is built.
+   */
   spread?: number;
+  /** The titlebar's own hue, for a chrome that was never the same colour as its panels. */
+  titlebarHue?: number;
+  titlebarChroma?: number;
   contrast?: SkinContrast;
 }
 
@@ -40,7 +48,10 @@ export const MAX_LIFT = 10;
  * Text is drawn straight onto the ground in a few places, so the ground cannot keep
  * falling: at the far end of this it still carries body text at the reading standard.
  */
-export const MAX_SPREAD = 15;
+export const MAX_SPREAD = 11;
+
+/** How far the ground may rise above them, which is as far as the ladder has room for. */
+export const MIN_SPREAD = -20;
 
 /** The custom properties a skin sets, keyed by the name the stylesheet reads. */
 export type SkinTokens = Readonly<Record<string, string>>;
@@ -187,11 +198,12 @@ function alpha(lch: Lch, amount: number): string {
   return `rgba(${byte(r)}, ${byte(g)}, ${byte(b)}, ${Number(amount.toFixed(3))})`;
 }
 
-function surface(stop: Stop, recipe: SkinRecipe, panel: number): Lch {
+function surface(stop: Stop, recipe: SkinRecipe, ramp: Ramp): Lch {
   const lift = Math.max(-MAX_LIFT, Math.min(MAX_LIFT, recipe.lift ?? 0));
-  const spread = Math.max(0, Math.min(MAX_SPREAD, recipe.spread ?? 0));
-  const below = Math.max(0, panel - stop.tone);
-  const tone = stop.tone - (below * spread) / 20 + lift;
+  const spread = Math.max(MIN_SPREAD, Math.min(MAX_SPREAD, recipe.spread ?? 0));
+  const reach = Math.abs(ramp.elevated.tone - ramp.bg.tone) || 1;
+  const below = ramp.elevated.tone - stop.tone;
+  const tone = stop.tone - (spread * below) / reach + lift;
   return { tone: Math.max(2, Math.min(98, tone)), chroma: recipe.chroma * stop.share, hue: recipe.hue };
 }
 
@@ -215,8 +227,7 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
   const ink = inkHue(recipe);
   const onDark = mode === 'dark';
 
-  const panel = ramp.elevated.tone;
-  const at = (stop: Stop) => surface(stop, recipe, panel);
+  const at = (stop: Stop) => surface(stop, recipe, ramp);
   const bg = at(ramp.bg);
   const elevated = at(ramp.elevated);
   const titlebar = at(ramp.titlebar);
@@ -236,7 +247,11 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
     '--ui-panel-border': over(ramp.edge),
     '--ui-bubble-caret-border': hex(at(ramp.caret)),
     '--ui-panel-glow': alpha(accent, 0.07),
-    '--ui-titlebar-bg': hex(titlebar),
+    '--ui-titlebar-bg': hex(
+      recipe.titlebarHue === undefined
+        ? titlebar
+        : { ...titlebar, hue: recipe.titlebarHue, chroma: recipe.titlebarChroma ?? recipe.chroma }
+    ),
     '--ui-titlebar-border': over(ramp.edge * 0.82),
     '--ui-hover': over(ramp.edge * 0.26),
     '--ui-selected': alpha(accent, 0.2),

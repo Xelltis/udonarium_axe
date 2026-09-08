@@ -5,19 +5,26 @@
 
   <p class="text-ui-dim m-0 text-[11px] leading-relaxed">{{ 'feature.skin.hint' | transloco }}</p>
 
-  <div class="flex gap-1" role="group">
-    @for (ladder of ['light', 'dark']; track ladder) {
+  <div class="flex gap-1.5" role="group">
+    @for (ladder of ladders(); track ladder.mode) {
       <button
         type="button"
-        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent cursor-pointer border border-solid px-2.5 py-1 text-[12px] transition-colors"
-        [class.bg-ui-accent-bg]="editing() === ladder"
-        [class.text-ui-accent]="editing() === ladder"
-        [class.border-ui-accent]="editing() === ladder"
-        [attr.aria-pressed]="editing() === ladder"
-        [attr.data-testid]="'skin-ladder-' + ladder"
-        (click)="editLadder($any(ladder))"
+        class="rounded-ui-sm border-ui-border-panel hover:border-ui-accent flex flex-1 cursor-pointer flex-col items-start gap-0.5 border border-solid px-2.5 py-1.5 transition-colors"
+        [class.bg-ui-accent-bg]="editing() === ladder.mode"
+        [class.border-ui-accent]="editing() === ladder.mode"
+        [attr.aria-pressed]="editing() === ladder.mode"
+        [attr.data-testid]="'skin-ladder-' + ladder.mode"
+        (click)="editLadder(ladder.mode)"
       >
-        {{ 'feature.skin.ladder_' + ladder | transloco }}
+        <span
+          class="text-[10px] font-semibold tracking-[0.06em]"
+          [class.text-ui-accent]="editing() === ladder.mode"
+          [class.text-ui-muted]="editing() !== ladder.mode"
+          >{{ 'feature.skin.ladder_' + ladder.mode | transloco }}</span
+        >
+        <span class="text-ui-text w-full truncate text-left text-[12.5px] font-semibold">
+          {{ 'feature.skin.name_' + ladder.worn | transloco }}
+        </span>
       </button>
     }
   </div>
@@ -91,7 +98,7 @@
         { field: 'hue', min: 0, max: 360, step: 1 },
         { field: 'chroma', min: 0, max: 40, step: 1 },
         { field: 'lift', min: -maxLift, max: maxLift, step: 1 },
-        { field: 'spread', min: 0, max: maxSpread, step: 1 },
+        { field: 'spread', min: minSpread, max: maxSpread, step: 1 },
         { field: 'accentHue', min: 0, max: 360, step: 1 },
         { field: 'accentChroma', min: 0, max: 80, step: 1 },
       ];

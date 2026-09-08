@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { TestBed } from '@angular/core/testing';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
@@ -154,6 +155,21 @@ describe('SkinService', () => {
     skins.choose(STANDARD_SKIN);
     TestBed.tick();
     expect(chatBubbleBaseTone('light')).toBe(standard);
+  });
+
+  it('is reached at startup, so a seat is dressed on load without a panel being opened', () => {
+    // Nothing else asks for this service until the picker is created, and a skin that only
+    // arrives once someone opens a panel is a skin that is gone after every reload.
+    const root = readFileSync('src/app/app.component.ts', 'utf-8');
+
+    expect(root).toContain('inject(SkinService)');
+  });
+
+  it('dresses the seat as soon as it is created, with no panel in sight', () => {
+    localStorage.setItem('ui-skin-light', 'parchment');
+    setup();
+
+    expect(painted('--ui-bg')).toMatch(/^#[0-9a-f]{6}$/);
   });
 
   it('hands the picker the colours a skin would paint without painting them', () => {

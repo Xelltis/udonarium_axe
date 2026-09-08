@@ -1,4 +1,4 @@
-import { MAX_LIFT, MAX_SPREAD, panelTone, skinContrast, skinTokens } from '@axe/domain/ui/skin-palette';
+import { MAX_LIFT, MAX_SPREAD, MIN_SPREAD, panelTone, skinContrast, skinTokens } from '@axe/domain/ui/skin-palette';
 
 const PLAIN = { hue: 82, chroma: 14, accentHue: 160, accentChroma: 30 };
 
@@ -81,6 +81,24 @@ describe('the colours a skin recipe makes', () => {
       const tokens = skinTokens({ ...PLAIN, spread: MAX_SPREAD }, mode);
       expect(skinContrast(tokens, '--ui-text', '--ui-bg')).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it('lifts the ground above the panels when the spread is turned the other way', () => {
+    const flat = skinTokens(PLAIN, 'light');
+    const page = skinTokens({ ...PLAIN, spread: MIN_SPREAD }, 'light');
+
+    expect(panelTone({ '--ui-elevated': page['--ui-bg'] })).toBeGreaterThan(
+      panelTone({ '--ui-elevated': flat['--ui-bg'] })
+    );
+    expect(page['--ui-elevated']).toBe(flat['--ui-elevated']);
+  });
+
+  it('gives the titlebar its own colour where a skin asks for one', () => {
+    const shared = skinTokens(PLAIN, 'light');
+    const green = skinTokens({ ...PLAIN, titlebarHue: 150, titlebarChroma: 26 }, 'light');
+
+    expect(green['--ui-titlebar-bg']).not.toBe(shared['--ui-titlebar-bg']);
+    expect(green['--ui-elevated']).toBe(shared['--ui-elevated']);
   });
 
   it('draws the text in its own hue where the skin asks for one', () => {

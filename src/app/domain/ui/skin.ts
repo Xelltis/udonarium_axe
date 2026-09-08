@@ -1,4 +1,4 @@
-import { MAX_LIFT, MAX_SPREAD, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
+import { MAX_LIFT, MAX_SPREAD, MIN_SPREAD, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
 
 /**
  * How the picker files the skins.
@@ -61,19 +61,21 @@ export const SKINS: readonly Skin[] = [
 
   skin('slateDesk', 'light', 'board', {
     hue: 240,
-    chroma: 9,
+    chroma: 10,
     spread: MAX_SPREAD,
-    accentHue: 155,
+    titlebarHue: 150,
+    titlebarChroma: 26,
+    accentHue: 152,
     accentChroma: 40,
   }),
   skin('creamBoard', 'light', 'board', {
-    hue: 61,
-    chroma: 10,
-    lift: MAX_LIFT,
+    hue: 80,
+    chroma: 13,
+    spread: MIN_SPREAD,
     textHue: 38,
-    textChroma: 45,
-    accentHue: 265,
-    accentChroma: 55,
+    textChroma: 50,
+    accentHue: 35,
+    accentChroma: 62,
   }),
 ];
 
@@ -119,11 +121,13 @@ export function asRecipe(value: unknown, mode: SkinMode): SkinRecipe {
     accentHue: clamp(raw['accentHue'], 0, 360, seed.accentHue) % 360,
     accentChroma: clamp(raw['accentChroma'], 0, 80, seed.accentChroma),
     lift: clamp(raw['lift'], -MAX_LIFT, MAX_LIFT, 0),
-    spread: clamp(raw['spread'], 0, MAX_SPREAD, 0),
+    spread: clamp(raw['spread'], MIN_SPREAD, MAX_SPREAD, 0),
     contrast: raw['contrast'] === 'high' ? 'high' : 'normal',
   };
   if (typeof raw['textHue'] === 'number') recipe.textHue = clamp(raw['textHue'], 0, 360, 0) % 360;
   if (typeof raw['textChroma'] === 'number') recipe.textChroma = clamp(raw['textChroma'], 0, 60, 0);
+  if (typeof raw['titlebarHue'] === 'number') recipe.titlebarHue = clamp(raw['titlebarHue'], 0, 360, 0) % 360;
+  if (typeof raw['titlebarChroma'] === 'number') recipe.titlebarChroma = clamp(raw['titlebarChroma'], 0, 60, 0);
   return recipe;
 }
 

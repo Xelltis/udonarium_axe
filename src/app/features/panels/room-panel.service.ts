@@ -185,7 +185,7 @@ export class RoomPanelService {
       case 'skin':
         return {
           load: () => import('@axe/features/skin/skin-panel/skin-panel.component').then((m) => m.SkinPanelComponent),
-          option: { width: 520, height: 720, minWidth: 400, minHeight: 460 },
+          option: { width: 720, height: 860, minWidth: 460, minHeight: 520 },
         };
     }
   }

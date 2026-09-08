@@ -58,6 +58,18 @@ describe('SkinPickerComponent', () => {
     expect(skins.mode()).toBe('light');
   });
 
+  it('says what each ladder is wearing without switching to look', () => {
+    skins.choose('parchment', 'light');
+    skins.choose('deepSea', 'dark');
+    fixture.detectChanges();
+
+    const light = fixture.nativeElement.querySelector('[data-testid="skin-ladder-light"]').textContent;
+    const dark = fixture.nativeElement.querySelector('[data-testid="skin-ladder-dark"]').textContent;
+
+    expect(light).toContain('羊皮紙');
+    expect(dark).toContain('深海');
+  });
+
   it('puts a skin on when its swatch is pressed', () => {
     click('skin-parchment');
 

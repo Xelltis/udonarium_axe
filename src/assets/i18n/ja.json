@@ -2292,8 +2292,8 @@
     "skin": {
       "title": "スキン",
       "hint": "この画面にだけ効きます。部屋の他の人には伝わりません。明るいときと暗いときで別々に選べます。",
-      "ladder_light": "明るいとき",
-      "ladder_dark": "暗いとき",
+      "ladder_light": "ライトテーマ",
+      "ladder_dark": "ダークテーマ",
       "group_standard": "標準",
       "group_hue": "色みで選ぶ",
       "group_dark": "暗い卓",

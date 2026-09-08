@@ -2292,8 +2292,8 @@
     "skin": {
       "title": "Skin",
       "hint": "This screen only — nobody else at the table sees it. Light and dark are chosen separately.",
-      "ladder_light": "When light",
-      "ladder_dark": "When dark",
+      "ladder_light": "Light theme",
+      "ladder_dark": "Dark theme",
       "group_standard": "Standard",
       "group_hue": "By colour",
       "group_dark": "Dark tables",
