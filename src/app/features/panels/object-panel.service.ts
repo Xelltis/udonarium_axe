@@ -117,6 +117,7 @@ export class ObjectPanelService {
       height: size.height,
       left: at.x - offset.x,
       top: at.y - offset.y,
+      windowed: detach.taken,
       controls: this.popOutControl(size, detach),
     };
     if (place.single) option.single = place.single;

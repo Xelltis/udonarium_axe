@@ -134,6 +134,22 @@ describe('PanelService', () => {
     expect(setInput).not.toHaveBeenCalledWith('frameless', true);
   });
 
+  it('lets the panel know it was opened into a window of its own', () => {
+    const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
+
+    service.open(DummyBodyComponent, { windowed: true }, parentViewContainerRef);
+
+    expect(childPanelService.windowed()).toBe(true);
+  });
+
+  it('leaves a panel opened onto the table saying it is not in one', () => {
+    const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
+
+    service.open(DummyBodyComponent, { windowed: false }, parentViewContainerRef);
+
+    expect(childPanelService.windowed()).toBe(false);
+  });
+
   it('applies an explicit initial panel rotation', () => {
     const { service, parentViewContainerRef, setInitialRotation } = setupOpenMocks();
 

@@ -1,3 +1,4 @@
+import { ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -48,6 +49,23 @@ describe('ObjectPanelService', () => {
 
     const [, option] = openLazy.mock.calls[0];
     expect(option.controls?.map((control: { icon: string }) => control.icon)).toEqual(['open_in_new']);
+  });
+
+  it('tells a panel drawn into a window that it is in one, and offers it no way out again', () => {
+    const host = {} as ViewContainerRef;
+
+    service.openSheet(terrain, 'Terrain - Hill', { width: 600, height: 300 }, {}, host);
+
+    const [, option, , parent] = openLazy.mock.calls[0];
+    expect(option.windowed).toBe(true);
+    expect(option.controls).toEqual([]);
+    expect(parent).toBe(host);
+  });
+
+  it('leaves a panel standing on the table knowing it is not in a window', () => {
+    service.openSheet(terrain, 'Terrain - Hill', { width: 600, height: 300 });
+
+    expect(openLazy.mock.calls[0][1].windowed).toBe(false);
   });
 
   it('takes a point and an offset of its own', () => {

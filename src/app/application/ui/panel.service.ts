@@ -68,6 +68,15 @@ export interface PanelOption {
    */
   roomPanel?: string;
 
+  /**
+   * Whether this panel is being drawn in a window of its own rather than on the table.
+   *
+   * What a panel offers can turn on it. A menu opened where the pointer is has nowhere to
+   * appear in a window the pointer was never followed across, so a panel that leans on one
+   * needs something else to offer there.
+   */
+  windowed?: boolean;
+
   /** Buttons for the titlebar that belong to whoever opened the panel. */
   controls?: readonly PanelFrameControl[];
 
@@ -164,6 +173,9 @@ export class PanelService {
 
   /** Which of the room's panels this is, for anything that has to open it again elsewhere. */
   readonly roomPanel = signal('');
+
+  /** Whether the panel stands in a window of its own, for content that has to work differently there. */
+  readonly windowed = signal(false);
   chatTab: ChatTab | null = null;
   cardStack: CardStack | null = null;
   scrollablePanel: HTMLDivElement | null = null;
@@ -254,6 +266,7 @@ export class PanelService {
     const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
     if (inheritedOption) this.applyPanelOption(panelComponentRef, childPanelService, inheritedOption);
     if (option?.roomPanel) childPanelService.roomPanel.set(option.roomPanel);
+    if (option?.windowed) childPanelService.windowed.set(true);
     if (option?.controls) childPanelService.panelControls.set(option.controls);
     const single = option?.single;
     if (single) {

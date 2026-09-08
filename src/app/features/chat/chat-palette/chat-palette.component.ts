@@ -87,6 +87,18 @@ export class ChatPaletteComponent {
     return paletteRowsOf(palette.getPalette());
   });
 
+  /**
+   * The headings, for the list a panel in its own window is given instead of the menu.
+   *
+   * The menu behind the headings button opens where the pointer is, and the pointer is only
+   * followed in the window the app started in, so over there it lands somewhere the reader
+   * cannot see. A plain list needs nowhere to be put.
+   */
+  readonly paletteHeadings = computed((): PaletteRow[] => this.paletteRows().filter((row) => row.kind === 'heading'));
+
+  /** Whether this palette stands in a window of its own. */
+  readonly windowed = this.panelService.windowed;
+
   get palette(): ChatPalette | null {
     return this.character()?.chatPalette ?? null;
   }
@@ -404,6 +416,15 @@ export class ChatPaletteComponent {
 
   onSelectAutoComplete(text: string, event: Event): void {
     this.selectAutoComplete(text, (event.target as HTMLInputElement).value);
+  }
+
+  /** Jumps to the heading picked from the list, and takes the list back to its own label. */
+  onSelectHeading(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const picked = select.value;
+    select.selectedIndex = 0;
+    if (picked === '') return;
+    this.japmIndex(Number(picked));
   }
 
   indexBtn() {

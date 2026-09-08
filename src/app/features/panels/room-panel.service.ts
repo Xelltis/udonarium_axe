@@ -27,6 +27,7 @@ export class RoomPanelService {
     const option: PanelOption = {
       title: this.t(panelLabelKey(name)),
       roomPanel: name,
+      windowed: host !== undefined,
       controls: host ? [] : this.popOutControl(name),
       ...panel.option,
       top: ((this.opened % 10) + 1) * 20,
