@@ -174,20 +174,47 @@ export class SkinService {
     effect(() => this.paint(this.tokens(), this.mode()));
     // A window opened later starts bare, so the colours are laid on again when one arrives.
     this.destroyRef.onDestroy(AttachedDocuments.onChange(() => this.paint(this.tokens(), this.mode())));
-    void this.loadPictures();
+    void this.loadPictures(true);
+    this.destroyRef.onDestroy(() => {
+      for (const url of Object.values(this.urls())) URL.revokeObjectURL(url);
+    });
   }
 
-  private async loadPictures(): Promise<void> {
+  private async loadPictures(sweep = false): Promise<void> {
     const wanted = [...this.stacks.light(), ...this.stacks.dark()].map((layer) => layer.id);
-    const fetched = await Promise.all(wanted.map(async (id) => [id, await this.images.get(id)] as const));
+    const missing = wanted.filter((id) => !this.urls()[id]);
+    const fetched = await Promise.all(missing.map(async (id) => [id, await this.images.get(id)] as const));
 
-    const found: Record<string, string> = {};
     for (const [id, blob] of fetched) {
-      if (blob) found[id] = URL.createObjectURL(blob);
+      if (blob) this.hold(id, URL.createObjectURL(blob));
     }
-    if (Object.keys(found).length > 0) this.urls.update((held) => ({ ...held, ...found }));
 
-    await this.images.forget(new Set(wanted));
+    if (sweep) await this.images.forget(new Set(wanted));
+  }
+
+  /** Keeps one address, or lets it go where the waiting let another arrive under the same name. */
+  private hold(id: string, url: string): void {
+    if (this.urls()[id]) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    this.urls.update((held) => ({ ...held, [id]: url }));
+  }
+
+  /**
+   * Lets go of the addresses no stack refers to any more.
+   *
+   * Each of them holds the picture behind it in memory for as long as the page lives, and a
+   * seat where skins are being built and swapped goes through a good many.
+   */
+  private releaseUnused(): void {
+    const wanted = new Set([...this.stacks.light(), ...this.stacks.dark()].map((layer) => layer.id));
+    const held = this.urls();
+    const stale = Object.keys(held).filter((id) => !wanted.has(id));
+    if (stale.length === 0) return;
+
+    for (const id of stale) URL.revokeObjectURL(held[id]);
+    this.urls.update((kept) => Object.fromEntries(Object.entries(kept).filter(([id]) => wanted.has(id))));
   }
 
   /** The stack of one ladder, with the bytes it has and without the ones it has lost. */
@@ -211,6 +238,7 @@ export class SkinService {
   private keepStack(mode: SkinMode, layers: SkinLayer[]): void {
     this.stacks[mode].set(layers);
     write(LAYERS_KEY[mode], JSON.stringify(layers));
+    this.releaseUnused();
   }
 
   /**
@@ -232,25 +260,39 @@ export class SkinService {
   }
 
   /**
-   * The one way bytes become a layer, whether they came from a file picker or a zip.
+   * Takes bytes into the store as a layer's picture, wherever they came from.
    *
    * Nothing skips the size limit, the check that this is a picture at all, or the resample:
-   * a skin handed over by someone else is exactly the case where those matter most. The cap
-   * on the stack is read again after the waiting, since two pictures can be chosen at once.
+   * a skin handed over by someone else is exactly the case where those matter most. How many
+   * a stack may hold is not asked here, so a skin arriving as a file can be counted as it is
+   * built rather than against the stack still on screen.
    */
-  private async keepPicture(file: Blob, mode: SkinMode): Promise<string | null> {
-    if (this.stacks[mode]().length >= MAX_LAYERS) return null;
+  private async readPicture(file: Blob): Promise<string | null> {
     if (file.size > SKIN_IMAGE_MAX_BYTES) return null;
     if (file.type && !file.type.startsWith('image/')) return null;
     if (!(await looksLikeImage(file))) return null;
 
     const scaled = (await downscaleImageBlob(file, SKIN_IMAGE_MAX_SIDE)) ?? file;
+    return this.store(scaled);
+  }
+
+  /** A picture for the stack on screen, which is read again afterwards: two can be chosen at once. */
+  private async keepPicture(file: Blob, mode: SkinMode): Promise<string | null> {
     if (this.stacks[mode]().length >= MAX_LAYERS) return null;
 
-    const id = newLayerId();
-    if (!(await this.images.put(id, scaled))) return null;
+    const id = await this.readPicture(file);
+    if (!id) return null;
+    if (this.stacks[mode]().length < MAX_LAYERS) return id;
 
-    this.urls.update((held) => ({ ...held, [id]: URL.createObjectURL(scaled) }));
+    this.releaseUnused();
+    return null;
+  }
+
+  private async store(picture: Blob): Promise<string | null> {
+    const id = newLayerId();
+    if (!(await this.images.put(id, picture))) return null;
+
+    this.hold(id, URL.createObjectURL(picture));
     return id;
   }
 
@@ -310,9 +352,14 @@ export class SkinService {
       write(RECIPE_KEY[mode], JSON.stringify(worn[mode].recipe));
       this.chosen[mode].set(worn[mode].id);
       write(SKIN_KEY[mode], worn[mode].id);
-      this.keepStack(mode, [...worn[mode].stack]);
+      this.stacks[mode].set([...worn[mode].stack]);
+      write(LAYERS_KEY[mode], JSON.stringify(worn[mode].stack));
     }
     this.hovered.set(null);
+    // Both ladders are back before anything is let go of, and a layer taken out while the
+    // panel was open is fetched again: its bytes are kept until the next start.
+    this.releaseUnused();
+    void this.loadPictures();
   }
 
   choose(id: string, mode: SkinMode = this.editing()): void {
@@ -357,7 +404,12 @@ export class SkinService {
     downloadBlob(await createZipBlob(files), skinFileName(name));
   }
 
-  /** Reads a skin someone was handed, and wears it. Anything unreadable is left alone. */
+  /**
+   * Reads a skin someone was handed, and wears it. Anything unreadable is left alone.
+   *
+   * The whole skin is read before any of it is worn: a file whose pictures will not open is
+   * refused outright rather than taking the stack already on the seat down with it.
+   */
   async importSkin(blob: Blob): Promise<boolean> {
     const entries = await readZipEntries(blob).catch(() => []);
     const description = entries.find((entry) => entry.name === SKIN_FILE_NAME);
@@ -367,20 +419,22 @@ export class SkinService {
     if (!skin) return false;
 
     const mode = skin.mode;
-    this.keepStack(mode, []);
-    this.build(skin.recipe, mode);
-
+    const brought: SkinLayer[] = [];
     for (const wanted of skin.layers) {
+      if (brought.length >= MAX_LAYERS) break;
       const packed = entries.find((entry) => entry.name === wanted.file);
       if (!packed) continue;
-      const id = await this.keepPicture(packed.blob, mode);
+      const id = await this.readPicture(packed.blob);
       if (!id) continue;
-      this.keepStack(mode, [
-        ...this.stacks[mode](),
-        { id, name: wanted.name, opacity: wanted.opacity, fit: wanted.fit, anchor: wanted.anchor },
-      ]);
+      brought.push({ id, name: wanted.name, opacity: wanted.opacity, fit: wanted.fit, anchor: wanted.anchor });
+    }
+    if (skin.layers.length > 0 && brought.length === 0) {
+      this.releaseUnused();
+      return false;
     }
 
+    this.keepStack(mode, brought);
+    this.build(skin.recipe, mode);
     this.editLadder(mode);
     return true;
   }

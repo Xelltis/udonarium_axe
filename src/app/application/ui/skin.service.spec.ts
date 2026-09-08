@@ -348,7 +348,7 @@ describe('SkinService', () => {
     expect(skins.stack()[0]).toMatchObject({ name: 'paper', opacity: 40, fit: 'tile' });
   });
 
-  it('holds a zip to the same guards a file picker goes through', async () => {
+  it('refuses a zip whose pictures will not open, leaving the seat as it was', async () => {
     const put = vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
     vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(null);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:skin');
@@ -366,14 +366,18 @@ describe('SkinService', () => {
       new File([new Blob(['plain text'])], 'a.txt', { type: 'text/plain' }),
     ]);
 
-    expect(await skins.importSkin(zipped)).toBe(true);
-    expect(skins.stack()).toEqual([]);
-    expect(put).not.toHaveBeenCalled();
+    await skins.addLayer(picture(), 'already here.png');
+    const standing = skins.stack();
+
+    expect(await skins.importSkin(zipped)).toBe(false);
+    expect(skins.stack()).toEqual(standing);
+    expect(put).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a removed picture until the way back has been passed up', async () => {
     const removed = vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue();
     vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(picture());
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
     const { skins } = setup();
     await skins.addLayer(picture(), 'a.png');
@@ -384,9 +388,9 @@ describe('SkinService', () => {
     expect(removed).not.toHaveBeenCalled();
 
     skins.restore(worn);
+    await vi.waitFor(() => expect(skins.panelLayers().length).toBe(1));
 
     expect(skins.stack().length).toBe(1);
-    expect(skins.panelLayers().length).toBe(1);
   });
 
   it('leaves the seat alone when the zip is not a skin', async () => {
