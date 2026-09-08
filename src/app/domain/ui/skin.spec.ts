@@ -21,6 +21,16 @@ describe('the skins that ship with the app', () => {
     expect(skinsFor('dark').length).toBeGreaterThan(3);
   });
 
+  it('pins only colours the stylesheet actually reads', () => {
+    const known = new Set(Object.keys(skinTokens({ hue: 0, chroma: 0, accentHue: 0, accentChroma: 0 }, 'light')));
+
+    for (const entry of SKINS) {
+      for (const name of Object.keys(entry.pinned ?? {})) {
+        expect(`${entry.id}: ${name}`).toBe(`${entry.id}: ${known.has(name) ? name : 'unknown token'}`);
+      }
+    }
+  });
+
   it('names each skin once per ladder', () => {
     for (const mode of ['light', 'dark'] as const) {
       const ids = skinsFor(mode).map((entry) => entry.id);
@@ -31,7 +41,7 @@ describe('the skins that ship with the app', () => {
   it('keeps every one of them readable', () => {
     for (const entry of SKINS) {
       if (!entry.recipe) continue;
-      const tokens = skinTokens(entry.recipe, entry.mode);
+      const tokens = { ...skinTokens(entry.recipe, entry.mode), ...(entry.pinned ?? {}) };
       const pairs: [string, string][] = [
         ['--ui-text', '--ui-elevated'],
         ['--ui-text-muted', '--ui-elevated'],

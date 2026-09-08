@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { SkinService, SkinSnapshot } from '@axe/application/ui/skin.service';
+import { scopedTokens } from '@axe/domain/ui/skin-alias';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -21,7 +22,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class SkinPanelComponent {
   private readonly skins = inject(SkinService);
-  private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
+  private readonly stage = viewChild<ElementRef<HTMLElement>>('stage');
 
   protected readonly editing = this.skins.editing;
   protected readonly live = this.skins.live;
@@ -34,8 +35,14 @@ export class SkinPanelComponent {
 
   constructor() {
     effect(() => {
-      const tokens = this.skins.editedTokens();
-      const style = this.stage().nativeElement.style;
+      const tokens = scopedTokens(this.skins.editedTokens());
+      // The query is read here rather than asserted: an effect declared in the constructor
+      // can run before the view exists, and a required read would throw the effect away
+      // before it ever painted. Reading the signal brings it back once the stage is there.
+      const stage = this.stage();
+      if (!stage) return;
+
+      const style = stage.nativeElement.style;
       for (const name of this.painted) style.removeProperty(name);
       this.painted = Object.keys(tokens);
       for (const [name, value] of Object.entries(tokens)) style.setProperty(name, value);

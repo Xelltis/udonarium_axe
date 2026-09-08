@@ -98,9 +98,7 @@ export class SkinService {
     const mode = this.mode();
     const id = this.chosen[mode]();
     if (id === STANDARD_SKIN) return null;
-    if (id === CUSTOM_SKIN) return skinTokens(this.recipes[mode](), mode);
-    const skin = skinById(id, mode);
-    return skin?.recipe ? skinTokens(skin.recipe, mode) : null;
+    return this.preview(id, mode);
   });
 
   private painted: string[] = [];
@@ -160,11 +158,12 @@ export class SkinService {
     this.choose(CUSTOM_SKIN, mode);
   }
 
-  /** The colours a skin would paint, for the swatches in the picker. */
+  /** The colours a skin would paint, for the swatches and the preview stage. */
   preview(id: string, mode: SkinMode): SkinTokens | null {
     if (id === CUSTOM_SKIN) return skinTokens(this.recipes[mode](), mode);
     const skin = skinById(id, mode);
-    return skin?.recipe ? skinTokens(skin.recipe, mode) : null;
+    if (!skin?.recipe) return null;
+    return skin.pinned ? { ...skinTokens(skin.recipe, mode), ...skin.pinned } : skinTokens(skin.recipe, mode);
   }
 
   private paint(tokens: SkinTokens | null, mode: SkinMode): void {

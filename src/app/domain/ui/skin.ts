@@ -14,6 +14,14 @@ export interface Skin {
   group: SkinGroup;
   /** What the recipe makes, or nothing at all where the stylesheet already says it. */
   recipe: SkinRecipe | null;
+  /**
+   * Colours pinned by hand, laid over what the recipe worked out.
+   *
+   * The ramp exists so that any two skins can be compared and so that the sliders cannot
+   * reach something unreadable. A skin quoting a real screen has no such duty: it has one
+   * right answer, and the ramp's job there is only to fill in what the quote does not say.
+   */
+  pinned?: Readonly<Record<string, string>>;
 }
 
 /** The skin that changes nothing: the stylesheet's own light and dark blocks show through. */
@@ -22,8 +30,14 @@ export const STANDARD_SKIN = 'standard';
 /** The one skin whose recipe comes from the person using it rather than from this list. */
 export const CUSTOM_SKIN = 'custom';
 
-function skin(id: string, mode: SkinMode, group: SkinGroup, recipe: SkinRecipe | null): Skin {
-  return { id, mode, group, recipe };
+function skin(
+  id: string,
+  mode: SkinMode,
+  group: SkinGroup,
+  recipe: SkinRecipe | null,
+  pinned?: Readonly<Record<string, string>>
+): Skin {
+  return { id, mode, group, recipe, pinned };
 }
 
 export const SKINS: readonly Skin[] = [
@@ -68,15 +82,44 @@ export const SKINS: readonly Skin[] = [
     accentHue: 152,
     accentChroma: 40,
   }),
-  skin('creamBoard', 'light', 'board', {
-    hue: 80,
-    chroma: 13,
-    spread: MIN_SPREAD,
-    textHue: 38,
-    textChroma: 50,
-    accentHue: 35,
-    accentChroma: 62,
-  }),
+  skin(
+    'creamBoard',
+    'light',
+    'board',
+    { hue: 45, chroma: 14, spread: MIN_SPREAD, textHue: 38, textChroma: 50, accentHue: 265, accentChroma: 62 },
+    {
+      '--ui-bg': '#f0e0d6',
+      '--ui-surface': '#f0e0d6',
+      '--ui-elevated': '#ffffee',
+      '--ui-panel-bg': 'rgba(255, 255, 238, 0.96)',
+      '--ui-panel-border': '#cc9988',
+      '--ui-bubble-caret-border': '#cc9988',
+      '--ui-titlebar-bg': '#ea8e78',
+      '--ui-titlebar-border': '#cc7755',
+      '--ui-hover': 'rgba(234, 142, 120, 0.24)',
+      '--ui-selected': 'rgba(234, 142, 120, 0.45)',
+      '--ui-menu-bg': 'rgba(255, 255, 238, 0.98)',
+      '--ui-menu-border': '#cc9988',
+      '--ui-menu-hover': 'rgba(234, 142, 120, 0.28)',
+      '--ui-menu-separator': '#e0b8a4',
+      '--ui-text': '#800000',
+      '--ui-text-muted': '#a05030',
+      '--ui-text-dim': '#c08870',
+      '--ui-accent': '#0000ee',
+      '--ui-accent-hover': '#0000aa',
+      '--ui-accent-bg': 'rgba(0, 0, 238, 0.08)',
+      '--ui-quote-bg': '#f0e0d6',
+      '--ui-quote-hover-bg': '#e8d4c6',
+      '--ui-quote-border': '#ea8e78',
+      '--ui-quote-text': '#800000',
+      '--ui-quote-name': '#4f6b12',
+      '--ui-danger': '#cc0000',
+      '--ui-danger-hover': '#aa0000',
+      '--ui-success': '#5a7a15',
+      '--ui-input-bg': '#ffffff',
+      '--ui-input-border': '#cc9988',
+    }
+  ),
 ];
 
 /** What a new custom skin starts from, so the sliders open on something readable. */

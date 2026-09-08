@@ -38,6 +38,18 @@ describe('SkinPanelComponent', () => {
     document.documentElement.removeAttribute('style');
   });
 
+  it('sets the names the utility classes read, not only the theme tokens', () => {
+    // `--color-ui-bg: var(--ui-bg)` resolves on the root, and what descendants inherit is
+    // the value it resolved to there. Setting only `--ui-bg` on the stage left every
+    // bg-ui-* inside it showing whatever the app itself was wearing.
+    skins.editLadder('dark');
+    fixture.detectChanges();
+
+    expect(stageColour('--color-ui-bg')).toBe(STANDARD_TOKENS.dark['--ui-bg']);
+    expect(stageColour('--color-ui-elevated')).toBe(STANDARD_TOKENS.dark['--ui-elevated']);
+    expect(stageColour('--color-ui-accent')).toBe(STANDARD_TOKENS.dark['--ui-accent']);
+  });
+
   it('shows the standard colours before anything is chosen', () => {
     expect(stageColour('--ui-bg')).toBe(STANDARD_TOKENS.light['--ui-bg']);
   });
