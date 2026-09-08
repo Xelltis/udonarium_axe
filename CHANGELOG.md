@@ -1,3 +1,31 @@
+## [1.50.0](https://github.com/Xelltis/udonarium_axe/compare/v1.49.0...v1.50.0) (2026-09-08)
+
+### ✨ Features
+
+* **tabletop:** ask a generated dungeon for its passages, its fog and its party ([abe968d](https://github.com/Xelltis/udonarium_axe/commit/abe968d40498af5f458992f492e58b1bd55da9a8))
+* **tabletop:** count a corner the way the table counts it ([ac26f1d](https://github.com/Xelltis/udonarium_axe/commit/ac26f1d01ad535b9fdfc8a377fc2de21d1eadb72))
+* **tabletop:** cut a generated dungeon's passages as wide as the room asks ([ab1f059](https://github.com/Xelltis/udonarium_axe/commit/ab1f0590ff87b327dabf0983167d2cec70c2f5ba))
+* **tabletop:** gather what a table is looked at with into one panel ([74fd687](https://github.com/Xelltis/udonarium_axe/commit/74fd6873baf9fc43fa2534e488c8ce756590c3a8))
+* **tabletop:** hold a fight as one place, not as pairs ([1c91149](https://github.com/Xelltis/udonarium_axe/commit/1c911492deeccf14ab188e58928c78e546e9682b))
+* **tabletop:** hold a piece picture to the ground it stands on ([22c1cd3](https://github.com/Xelltis/udonarium_axe/commit/22c1cd37ba45ec79a9fb809679f8d78bef904c97))
+* **tabletop:** let painted ground go off under a piece ([b990c51](https://github.com/Xelltis/udonarium_axe/commit/b990c51d9ac131c4e4e522ebbe9e45b9e5233407))
+* **tabletop:** let the room say what leaving a fight takes ([c8631d2](https://github.com/Xelltis/udonarium_axe/commit/c8631d2ab3c7be5386f7c167a5036489b8788365))
+* **tabletop:** make the tabletop a mode rather than a checklist ([41a6ea7](https://github.com/Xelltis/udonarium_axe/commit/41a6ea756b3777b803ddea9059e857e561688748))
+* **tabletop:** say what painted ground did, and ask for what it needs ([20478cc](https://github.com/Xelltis/udonarium_axe/commit/20478cc5eedb06d534b766ac1ed5416135b8e89e))
+* **tabletop:** spring painted ground step by step, and let a trap show itself ([c3010d3](https://github.com/Xelltis/udonarium_axe/commit/c3010d3cc58a93c0632579c78429d2a506c4eaa4))
+
+### 🐛 Bug Fixes
+
+* **map-editor:** read painted ground that goes off back in, and let it be edited ([825d8ad](https://github.com/Xelltis/udonarium_axe/commit/825d8ada37382057fe17143d144dcbd9406677b5))
+* **room-settings:** describe the ticker as it is sent now ([0e15977](https://github.com/Xelltis/udonarium_axe/commit/0e15977e10abb653105852f741e66c940198065e))
+* **tabletop:** three the review found in ground that goes off ([87f155f](https://github.com/Xelltis/udonarium_axe/commit/87f155f4c251c7d5dce6ee07d2670771f13c51c7))
+
+### 📝 Documentation
+
+* **website:** name the engagement heading so the link to it lands ([7a6a3a3](https://github.com/Xelltis/udonarium_axe/commit/7a6a3a36aa110302508f8bf7829c8bd0c0dcb847))
+* **website:** name the pieces of v1.49.0 as the app names them ([326e506](https://github.com/Xelltis/udonarium_axe/commit/326e5066ff67821363006cdbb90f436e5f73d87c))
+* **website:** say what moved where in the v1.49.0 note ([2634773](https://github.com/Xelltis/udonarium_axe/commit/2634773d0e52ae3b124cb81f6d8fd0d9623e18c9))
+
 ## [1.49.0](https://github.com/Xelltis/udonarium_axe/compare/v1.48.0...v1.49.0) (2026-09-07)
 
 ### ✨ Features
