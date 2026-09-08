@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { EffectCastService } from '@axe/application/effect/effect-cast.service';
+import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -131,6 +133,37 @@ describe('TriggerFireService', () => {
     expect(told).toHaveBeenCalled();
   });
 
+  it('plays what the ground was told to play, on whoever set it off', () => {
+    const preset = TestBed.inject(EffectLibraryService).create('爆発');
+    const cast = vi.spyOn(TestBed.inject(EffectCastService), 'fire').mockReturnValue(null);
+    trapAt(5, 5, { effect: '爆発' });
+    const hero = heroWith(20);
+
+    service.walked(hero, grid(), [at(4, 5), at(5, 5)]);
+
+    expect(cast).toHaveBeenCalledWith(preset, [hero], null);
+  });
+
+  it('plays an effect the master keeps to themselves, since the master is who painted it', () => {
+    const preset = TestBed.inject(EffectLibraryService).create('隠し爆発');
+    preset.gmOnly = true;
+    const cast = vi.spyOn(TestBed.inject(EffectCastService), 'fire').mockReturnValue(null);
+    trapAt(5, 5, { effect: '隠し爆発' });
+
+    service.walked(heroWith(20), grid(), [at(4, 5), at(5, 5)]);
+
+    expect(cast).toHaveBeenCalled();
+  });
+
+  it('plays nothing where the ground names no effect', () => {
+    const cast = vi.spyOn(TestBed.inject(EffectCastService), 'fire').mockReturnValue(null);
+    trapAt(5, 5);
+
+    service.walked(heroWith(20), grid(), [at(4, 5), at(5, 5)]);
+
+    expect(cast).not.toHaveBeenCalled();
+  });
+
   it('leaves ground the piece was already standing on alone', () => {
     trapAt(5, 5);
     const hero = heroWith(20);
@@ -157,14 +190,41 @@ describe('TriggerFireService', () => {
     expect(hpOf(hero)).toBe(17);
   });
 
-  it('goes off once for one walk, however much of it crosses the ground', () => {
+  it('goes off for every cell of it that is stepped on, so wading it costs the wading', () => {
     trapAt(5, 5, { moment: 'enter', width: 3, height: 3 });
+    const hero = heroWith(20);
+
+    const fired = service.walked(hero, grid(), [at(4, 5), at(5, 5), at(6, 5), at(7, 5)]);
+
+    expect(fired.length).toBe(3);
+    expect(hpOf(hero)).toBe(11);
+  });
+
+  it('goes off once for a walk across it where one go is all it had', () => {
+    trapAt(5, 5, { moment: 'enter', width: 3, height: 3, once: true });
     const hero = heroWith(20);
 
     const fired = service.walked(hero, grid(), [at(4, 5), at(5, 5), at(6, 5), at(7, 5)]);
 
     expect(fired.length).toBe(1);
     expect(hpOf(hero)).toBe(17);
+  });
+
+  it('gives itself away by being seen where that is what going off was to do', () => {
+    const trap = trapAt(5, 5, { reveals: true });
+    expect(trap.open).toBe(false);
+
+    service.walked(heroWith(20), grid(), [at(4, 5), at(5, 5)]);
+
+    expect(trap.open).toBe(true);
+  });
+
+  it('stays hidden where giving itself away was never asked of it', () => {
+    const trap = trapAt(5, 5);
+
+    service.walked(heroWith(20), grid(), [at(4, 5), at(5, 5)]);
+
+    expect(trap.open).toBe(false);
   });
 
   it('holds its peace for a piece it was not pointed at', () => {

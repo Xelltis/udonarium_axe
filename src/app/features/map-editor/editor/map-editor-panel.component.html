@@ -756,14 +756,28 @@
               />
             </label>
             <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerEffect' | transloco }}</span>
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerReveals' | transloco }}</span>
               <input
-                type="text"
+                type="checkbox"
+                class="size-3.5 [accent-color:var(--ui-accent)]"
+                data-testid="trigger-reveals"
+                [ngModel]="state.functionSpec().trigger.reveals"
+                (ngModelChange)="setTriggerPaint({ reveals: $event })"
+              />
+            </label>
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerEffect' | transloco }}</span>
+              <select
                 class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
                 data-testid="trigger-effect"
                 [ngModel]="state.functionSpec().trigger.effect"
                 (ngModelChange)="setTriggerPaint({ effect: $event })"
-              />
+              >
+                <option value="">{{ 'feature.mapEditor.function.triggerEffectNone' | transloco }}</option>
+                @for (name of effectNames(); track name) {
+                  <option [value]="name">{{ name }}</option>
+                }
+              </select>
             </label>
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerColor' | transloco }}</span>

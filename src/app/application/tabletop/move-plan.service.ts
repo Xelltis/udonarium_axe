@@ -240,18 +240,21 @@ export class MovePlanService {
     this.walking = true;
     try {
       const corner = cornerShiftOf(character, table.gridSize);
-      for (const cell of way.slice(1)) {
+      const steps = way.slice(1);
+      for (const [index, cell] of steps.entries()) {
         const centre = cellCenterOf(plan.grid, cell);
         character.location.x = centre.x - corner;
         character.location.y = centre.y - corner;
         character.update();
+        // Sprung on arrival rather than once the walking is over, so what the ground does
+        // happens where the piece is standing when it does it.
+        this.triggerFire.stepped(character, plan.grid, cell, index === steps.length - 1);
         await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
       }
     } finally {
       this.walking = false;
     }
     SoundEffect.play(PresetSound.piecePut);
-    this.triggerFire.walked(character, plan.grid, way);
     this.close();
     return true;
   }

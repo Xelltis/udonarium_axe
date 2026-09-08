@@ -75,30 +75,41 @@ export class TriggerFireService {
    *
    * The way is given cell by cell, beginning where the piece set out from: ground under the
    * first cell is ground the piece was already standing on, and standing still springs
-   * nothing. Ground that goes off the moment it is stepped on takes its chance anywhere along
-   * the way; ground that waits for the walk to end takes only the last cell.
+   * nothing. Ground that waits for the walk to end takes only the last cell.
+   *
+   * Ground that goes off the moment it is stepped on goes off for every cell of it that is
+   * stepped on. Wading four cells of a poison swamp is four steps in poison, and a swamp that
+   * charged once for the crossing would be a swamp it paid to wade the long way through.
    */
   walked(piece: GameCharacter, grid: CellGrid, way: readonly number[]): TriggerFiring[] {
-    const table = this.tableSelecter.viewTable;
-    const armed = triggersOn(table).filter((trigger) => trigger.isArmed);
-    if (armed.length < 1 || way.length < 2) return [];
+    if (way.length < 2) return [];
 
     const walked = way.slice(1);
-    const last = walked[walked.length - 1];
     const firings: TriggerFiring[] = [];
-    const sprung = new Set<string>();
-
     for (const [index, cell] of walked.entries()) {
-      const ending = index === walked.length - 1 && cell === last;
-      const { col, row } = cellColRow(grid, cell);
-      for (const trigger of armed) {
-        if (sprung.has(trigger.identifier)) continue;
-        if (!trigger.covers(col, row)) continue;
-        if (trigger.firesOn === 'stop' && !ending) continue;
-        if (!triggerCatches(trigger.catches, piece.isNpc)) continue;
-        sprung.add(trigger.identifier);
-        firings.push(this.spring(trigger, piece));
-      }
+      firings.push(...this.stepped(piece, grid, cell, index === walked.length - 1));
+    }
+    return firings;
+  }
+
+  /**
+   * One step of a walk, sprung as the piece arrives on the cell rather than once it is done.
+   *
+   * A walk drawn cell by cell is walked cell by cell, and a trap under the second cell of it
+   * goes off while the piece is standing on the second cell. Springing them all at the end
+   * would land four explosions on the far side of a swamp the piece waded through.
+   */
+  stepped(piece: GameCharacter, grid: CellGrid, cell: number, ending: boolean): TriggerFiring[] {
+    const table = this.tableSelecter.viewTable;
+    const { col, row } = cellColRow(grid, cell);
+    const firings: TriggerFiring[] = [];
+    for (const trigger of triggersOn(table)) {
+      // Asked again each time: ground with one go in it is spent by the first cell of it.
+      if (!trigger.isArmed) continue;
+      if (!trigger.covers(col, row)) continue;
+      if (trigger.firesOn === 'stop' && !ending) continue;
+      if (!triggerCatches(trigger.catches, piece.isNpc)) continue;
+      firings.push(this.spring(trigger, piece));
     }
     return firings;
   }
@@ -114,6 +125,9 @@ export class TriggerFireService {
       held.currentValue = taken < 0 && Number.isFinite(most) ? Math.min(most, next) : next;
     }
     if (trigger.once) trigger.spent = true;
+    // Ground that was to give itself away does so by being seen, which is the one change to it
+    // the room is allowed to notice.
+    if (trigger.reveals && !trigger.open) trigger.open = true;
     const firing = { trigger, taken, from: held ? held.name : '' };
     // Neither the show nor the telling is what the ground is for, so neither is allowed to
     // stop it: a room with no chat tab yet, or an effect that will not play, still takes the
@@ -135,7 +149,9 @@ export class TriggerFireService {
   private play(firing: TriggerFiring, piece: GameCharacter): void {
     const named = firing.trigger.effect.trim();
     if (named.length < 1) return;
-    const preset = this.effectLibrary.findByName(named);
+    // Looked up past the master-only gate: the ground was painted by the master, so playing
+    // what it was told to play is the ground's doing rather than the reader's reaching.
+    const preset = this.effectLibrary.presets().find((held) => held.name.trim() === named);
     if (!preset) return;
     this.effectCast.fire(preset, [piece], null);
   }

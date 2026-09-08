@@ -125,6 +125,8 @@ export interface TriggerPaintSpec {
   once: boolean;
   /** Whether the room sees the ground, or only the master does. */
   open: boolean;
+  /** Whether going off shows it to the room, so a sprung trap gives itself away. */
+  reveals: boolean;
   color: string;
   /** The name of the resource it takes from, and how much. A number or a handful of dice. */
   element: string;
@@ -215,6 +217,7 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     targets: DEFAULT_TRIGGER_TARGET,
     once: false,
     open: false,
+    reveals: false,
     color: DEFAULT_TRIGGER_COLOR,
     element: '',
     amount: '',
@@ -333,6 +336,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       targets: asTriggerTarget(trigger['targets']),
       once: flagIn(trigger, 'once', fallback.trigger.once),
       open: flagIn(trigger, 'open', fallback.trigger.open),
+      reveals: flagIn(trigger, 'reveals', fallback.trigger.reveals),
       color: textIn(trigger, 'color', fallback.trigger.color),
       element: textIn(trigger, 'element', fallback.trigger.element),
       amount: textIn(trigger, 'amount', fallback.trigger.amount),

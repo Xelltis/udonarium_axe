@@ -2867,7 +2867,9 @@
         "triggerElementPlaceholder": "HP",
         "triggerElementHint": "말의 리소스 이름을 그대로 씁니다. 탁자에 있는 것이 후보로 나옵니다. 비워 두면 아무것도 줄지 않습니다",
         "triggerAmountPlaceholder": "2d6",
-        "triggerAmountHint": "숫자나 주사위식. 마이너스를 쓰면 회복입니다 (5 / 2d6 / 1d6+2 / -3)"
+        "triggerAmountHint": "숫자나 주사위식. 마이너스를 쓰면 회복입니다 (5 / 2d6 / 1d6+2 / -3)",
+        "triggerEffectNone": "표시 안 함",
+        "triggerReveals": "발동하면 보이기"
       },
       "stampCategories": {
         "door": "문",

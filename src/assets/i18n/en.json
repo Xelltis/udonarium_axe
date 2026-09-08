@@ -2867,7 +2867,9 @@
         "triggerElementPlaceholder": "HP",
         "triggerElementHint": "The name the piece calls it. What the table carries is offered. Left empty, nothing is taken",
         "triggerAmountPlaceholder": "2d6",
-        "triggerAmountHint": "A number or dice. A negative gives back (5 / 2d6 / 1d6+2 / -3)"
+        "triggerAmountHint": "A number or dice. A negative gives back (5 / 2d6 / 1d6+2 / -3)",
+        "triggerEffectNone": "none",
+        "triggerReveals": "Show once sprung"
       },
       "stampCategories": {
         "door": "Doors",

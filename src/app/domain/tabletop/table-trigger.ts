@@ -35,6 +35,8 @@ export class TableTrigger extends ObjectNode {
   @SyncVar() once: boolean = false;
   /** Whether the room sees the ground, or only the master does. */
   @SyncVar() open: boolean = false;
+  /** Whether going off is what shows the ground to the room, a trap giving itself away. */
+  @SyncVar() reveals: boolean = false;
   @SyncVar() color: string = DEFAULT_TRIGGER_COLOR;
   /** The name of what it takes from, and how much. A resource of the piece that walked in. */
   @SyncVar() element: string = '';

@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -192,6 +193,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly effectLibrary = inject(EffectLibraryService);
   private readonly modalService = inject(ModalService);
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly t = inject(TRANSLATE_FN);
@@ -226,6 +228,15 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   protected readonly triggerMoments = TRIGGER_MOMENTS;
   protected readonly triggerTargets = TRIGGER_TARGETS;
+
+  /** The effects the room has to play, offered by name the way chat and the sheets name one. */
+  protected readonly effectNames = computed<string[]>(() =>
+    this.effectLibrary
+      .presets()
+      .map((preset) => preset.name.trim())
+      .filter((name) => name.length > 0)
+      .sort()
+  );
 
   /**
    * The resources the room's pieces are carrying, offered rather than left to be remembered.

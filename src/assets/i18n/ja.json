@@ -2867,7 +2867,9 @@
         "triggerElementPlaceholder": "HP",
         "triggerElementHint": "コマのリソース名をそのまま書きます。卓にあるものが候補に出ます。空欄だと何も減りません",
         "triggerAmountPlaceholder": "2d6",
-        "triggerAmountHint": "数かダイス式。マイナスを書けば回復です（例: 5 / 2d6 / 1d6+2 / -3）"
+        "triggerAmountHint": "数かダイス式。マイナスを書けば回復です（例: 5 / 2d6 / 1d6+2 / -3）",
+        "triggerEffectNone": "出さない",
+        "triggerReveals": "発動したら見せる"
       },
       "stampCategories": {
         "door": "扉",

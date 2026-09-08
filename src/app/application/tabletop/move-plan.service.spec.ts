@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -9,6 +10,7 @@ import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { vi } from 'vitest';
 
 const GRID = 50;
 
@@ -274,6 +276,19 @@ describe('MovePlanService', () => {
     expect(piece.location.x).toBe(7 * GRID);
     expect(piece.location.y).toBe(5 * GRID);
     expect(service.plan()).toBeNull();
+  });
+
+  it('springs the ground it crosses as it arrives on each cell, not once it has stopped', async () => {
+    const fire = TestBed.inject(TriggerFireService);
+    const sprung = vi.spyOn(fire, 'stepped').mockReturnValue([]);
+    service.begin(pieceAt(5, 5, 4));
+    service.lookAt(8 * GRID + 10, 5 * GRID + 10);
+    service.settle();
+
+    await service.run();
+
+    expect(sprung).toHaveBeenCalledTimes(3);
+    expect(sprung.mock.calls.map((call) => call[3])).toEqual([false, false, true]);
   });
 
   it('walks the whole way, legs and all', async () => {
