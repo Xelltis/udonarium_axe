@@ -1,7 +1,8 @@
-import { inject, Injectable, Type } from '@angular/core';
+import { inject, Injectable, Injector, Type, ViewContainerRef } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { panelLabelKey, RoomPanelName, STATUS_AILMENT_PANEL } from '@axe/domain/ui/room-panel';
+import { PanelWindowService } from '@axe/features/panels/panel-window.service';
 
 interface RoomPanel {
   load: () => Promise<Type<unknown>>;
@@ -12,20 +13,51 @@ interface RoomPanel {
 export class RoomPanelService {
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly injector = inject(Injector);
+
   private opened = 0;
 
-  open<T = unknown>(name: RoomPanelName, extra: PanelOption = {}, setup?: (instance: T) => void): void {
+  open<T = unknown>(
+    name: RoomPanelName,
+    extra: PanelOption = {},
+    setup?: (instance: T) => void,
+    host?: ViewContainerRef
+  ): void {
     const panel = this.panelOf(name);
     const option: PanelOption = {
       title: this.t(panelLabelKey(name)),
+      roomPanel: name,
+      controls: host ? [] : this.popOutControl(name),
       ...panel.option,
       top: ((this.opened % 10) + 1) * 20,
       left: 100 + ((this.opened % 20) + 1) * 5,
       ...extra,
     };
     this.opened += 1;
-    if (setup) this.panelService.openLazy(panel.load, option, setup as (instance: unknown) => void);
+    // Passed on exactly as far as there is something to pass: a trailing `undefined` is a
+    // different call to anything watching, and nothing here needs to make one.
+    if (host) this.panelService.openLazy(panel.load, option, setup as (instance: unknown) => void, host);
+    else if (setup) this.panelService.openLazy(panel.load, option, setup as (instance: unknown) => void);
     else this.panelService.openLazy(panel.load, option);
+  }
+
+  /**
+   * The button that sends a panel to a window of its own.
+   *
+   * It is offered only on a panel standing on the table: one already in a window has the
+   * operating system's own frame to close, and closing it brings the panel back here.
+   */
+  private popOutControl(name: RoomPanelName): PanelOption['controls'] {
+    const windows = this.injector.get(PanelWindowService);
+    if (!windows.isSupported) return [];
+    return [
+      {
+        icon: 'open_in_new',
+        label: this.t('common.panel.popOut'),
+        active: false,
+        press: () => void windows.popOut(name),
+      },
+    ];
   }
 
   private panelOf(name: RoomPanelName): RoomPanel {

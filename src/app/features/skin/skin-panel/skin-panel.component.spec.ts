@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 import { SkinPanelComponent } from '@axe/features/skin/skin-panel/skin-panel.component';
 
@@ -17,6 +18,7 @@ describe('SkinPanelComponent', () => {
   beforeEach(() => {
     for (const key of KEYS) localStorage.removeItem(key);
     document.documentElement.removeAttribute('style');
+    AttachedDocuments.reset(document);
     vi.spyOn(window, 'matchMedia').mockImplementation(
       (query: string) =>
         ({

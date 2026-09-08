@@ -48,6 +48,18 @@ export interface PanelOption {
   frameless?: boolean;
 
   /**
+   * Which of the room's panels this is, where it is one of them.
+   *
+   * The panel needs to know its own name to be able to open itself somewhere else — in a
+   * window of its own, say. The component class is not that name: several panels are opened
+   * from the same component with different content.
+   */
+  roomPanel?: string;
+
+  /** Buttons for the titlebar that belong to whoever opened the panel. */
+  controls?: readonly PanelHeaderControl[];
+
+  /**
    * Where this panel sits, for one opened by something that lives above where panels go.
    *
    * Left out, the panel takes its turn among the others as the reader brings them forward.
@@ -121,6 +133,14 @@ export class PanelService {
   readonly isMinimized = signal(false);
   /** Buttons the content put in the title bar, beside the ones every panel wears. */
   readonly headerControls = signal<readonly PanelHeaderControl[]>([]);
+
+  /**
+   * Controls put there by whatever opened the panel, rather than by what it is showing.
+   *
+   * Kept apart from `headerControls` because the content owns that one and replaces it
+   * wholesale; anything the opener added would go with it.
+   */
+  readonly panelControls = signal<readonly PanelHeaderControl[]>([]);
   /**
    * Standing with its box taken off: no ground, no frame, no title, only what it holds.
    *
@@ -129,6 +149,9 @@ export class PanelService {
   readonly isGhost = signal(false);
   /** What kind of panel this is, taken from the selector of what it was opened with. */
   readonly panelKind = signal('');
+
+  /** Which of the room's panels this is, for anything that has to open it again elsewhere. */
+  readonly roomPanel = signal('');
   chatTab: ChatTab | null = null;
   cardStack: CardStack | null = null;
   scrollablePanel: HTMLDivElement | null = null;
@@ -218,6 +241,8 @@ export class PanelService {
     childPanelService.panelKind.set(panelKindOf(childComponent));
     const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
     if (inheritedOption) this.applyPanelOption(panelComponentRef, childPanelService, inheritedOption);
+    if (option?.roomPanel) childPanelService.roomPanel.set(option.roomPanel);
+    if (option?.controls) childPanelService.panelControls.set(option.controls);
     const single = option?.single;
     if (single) {
       PanelService.singles.set(single, panelComponentRef);

@@ -48,7 +48,8 @@
       "characterImport": "キャラクター取り込み",
       "ownedCharacters": "所有キャラクター一覧",
       "roomSnapshot": "自動保存",
-      "replay": "リプレイ"
+      "replay": "リプレイ",
+      "popOut": "別のウィンドウで開く"
     },
     "party": {
       "unnamed": "無名のパーティ"

@@ -48,7 +48,8 @@
       "characterImport": "캐릭터 가져오기",
       "ownedCharacters": "내 캐릭터 목록",
       "roomSnapshot": "자동 저장",
-      "replay": "리플레이"
+      "replay": "리플레이",
+      "popOut": "별도 창으로 열기"
     },
     "party": {
       "unnamed": "이름 없는 파티"

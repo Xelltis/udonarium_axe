@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
 
@@ -24,6 +25,7 @@ describe('SkinPickerComponent', () => {
   beforeEach(async () => {
     for (const key of KEYS) localStorage.removeItem(key);
     document.documentElement.removeAttribute('style');
+    AttachedDocuments.reset(document);
     vi.spyOn(window, 'matchMedia').mockImplementation(
       (query: string) =>
         ({

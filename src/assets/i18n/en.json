@@ -48,7 +48,8 @@
       "characterImport": "Import Character",
       "ownedCharacters": "My characters",
       "roomSnapshot": "Auto Save",
-      "replay": "Replay"
+      "replay": "Replay",
+      "popOut": "Open in its own window"
     },
     "party": {
       "unnamed": "Unnamed party"

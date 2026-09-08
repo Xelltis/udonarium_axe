@@ -83,6 +83,17 @@
           'rounded-ui shadow-ui-md bg-ui-ghost [&>button]:text-ui-text!': isGhost,
         }"
       >
+        @for (control of panelService.panelControls(); track control.icon) {
+          <button
+            class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+            [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
+            [title]="control.label"
+            [attr.data-testid]="'panel-control-' + control.icon"
+            (click)="control.press()"
+          >
+            <i class="material-icons text-[14px]!">{{ control.icon }}</i>
+          </button>
+        }
         @for (control of panelService.headerControls(); track control.icon) {
           <button
             class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"

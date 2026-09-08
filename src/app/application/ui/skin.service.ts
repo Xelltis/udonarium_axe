@@ -1,11 +1,12 @@
 import { DOCUMENT } from '@angular/common';
-import { computed, effect, inject, Injectable, linkedSignal, signal } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, linkedSignal, signal } from '@angular/core';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { looksLikeImage } from '@axe/core/storage/image-sniff';
 import { SKIN_IMAGE_MAX_BYTES, SKIN_IMAGE_MAX_SIDE, SkinImageStore } from '@axe/core/storage/skin-image-store';
 import { createZipBlob, readZipEntries } from '@axe/core/storage/zip-archive';
 import { downloadBlob } from '@axe/core/util/download-blob';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { resetChatBubbleBaseTone, setChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { asRecipe, asSkinId, CUSTOM_SKIN, parseRecipe, skinById, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { readSkinFile, SKIN_FILE_NAME, skinFileName, writeSkinFile } from '@axe/domain/ui/skin-file';
@@ -69,6 +70,7 @@ function write(key: string, value: string): void {
 export class SkinService {
   private readonly document = inject(DOCUMENT);
   private readonly theme = inject(ThemeService);
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly chosen: Record<SkinMode, ReturnType<typeof signal<string>>> = {
     light: signal(asSkinId(read(SKIN_KEY.light), 'light')),
@@ -170,6 +172,8 @@ export class SkinService {
 
   constructor() {
     effect(() => this.paint(this.tokens(), this.mode()));
+    // A window opened later starts bare, so the colours are laid on again when one arrives.
+    this.destroyRef.onDestroy(AttachedDocuments.onChange(() => this.paint(this.tokens(), this.mode())));
     void this.loadPictures();
   }
 
@@ -382,19 +386,16 @@ export class SkinService {
   }
 
   private paint(tokens: SkinTokens | null, mode: SkinMode): void {
-    const style = this.document.documentElement.style;
-    for (const name of this.painted) style.removeProperty(name);
-    this.painted = [];
-
-    if (!tokens) {
-      resetChatBubbleBaseTone();
-      return;
+    for (const document of AttachedDocuments.all()) {
+      const style = document.documentElement.style;
+      for (const name of this.painted) style.removeProperty(name);
+      if (tokens) {
+        for (const [name, value] of Object.entries(tokens)) style.setProperty(name, value);
+      }
     }
+    this.painted = tokens ? Object.keys(tokens) : [];
 
-    for (const [name, value] of Object.entries(tokens)) {
-      style.setProperty(name, value);
-      this.painted.push(name);
-    }
-    setChatBubbleBaseTone(mode, panelTone(tokens));
+    if (tokens) setChatBubbleBaseTone(mode, panelTone(tokens));
+    else resetChatBubbleBaseTone();
   }
 }
