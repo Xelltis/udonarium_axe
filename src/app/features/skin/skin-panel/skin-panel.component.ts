@@ -27,6 +27,7 @@ export class SkinPanelComponent {
   protected readonly editing = this.skins.editing;
   protected readonly live = this.skins.live;
   protected readonly tryingOn = this.skins.tryingOn;
+  protected readonly paper = this.skins.editedLayers;
 
   /** What the seat was wearing when this opened, which is what the way back leads to. */
   private readonly worn: SkinSnapshot = this.skins.snapshot();

@@ -3,9 +3,20 @@ import { TestBed } from '@angular/core/testing';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { chatBubbleBaseTone, resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
+import { SkinImageStore } from '@axe/core/storage/skin-image-store';
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
+import { readSkinFile, SKIN_FILE_NAME } from '@axe/domain/ui/skin-file';
+import { MAX_LAYERS, SkinLayer } from '@axe/domain/ui/skin-layer';
 
-const KEYS = ['ui-theme', 'ui-skin-light', 'ui-skin-dark', 'ui-skin-recipe-light', 'ui-skin-recipe-dark'];
+const KEYS = [
+  'ui-theme',
+  'ui-skin-light',
+  'ui-skin-dark',
+  'ui-skin-recipe-light',
+  'ui-skin-recipe-dark',
+  'ui-skin-layers-light',
+  'ui-skin-layers-dark',
+];
 
 function painted(name: string): string {
   return document.documentElement.style.getPropertyValue(name);
@@ -170,6 +181,170 @@ describe('SkinService', () => {
     setup();
 
     expect(painted('--ui-bg')).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('papers nothing until a picture is given', () => {
+    const { skins } = setup();
+
+    expect(skins.stack()).toEqual([]);
+    expect(skins.panelLayers()).toEqual([]);
+  });
+
+  it('takes a picture into the stack and hands it out as a style', async () => {
+    const kept: Record<string, Blob> = {};
+    vi.spyOn(SkinImageStore.instance, 'put').mockImplementation(async (id, blob) => {
+      kept[id] = blob;
+      return true;
+    });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
+    const { skins } = setup();
+
+    const done = await skins.addLayer(new Blob(['bytes'], { type: 'image/png' }), 'paper.png');
+
+    expect(done).toBe(true);
+    expect(skins.stack().length).toBe(1);
+    expect(skins.stack()[0].name).toBe('paper.png');
+    expect(Object.keys(kept).length).toBe(1);
+    expect(skins.panelLayers()[0].backgroundImage).toBe('url("blob:paper")');
+    expect(skins.panelLayers()[0].opacity).toBe(1);
+  });
+
+  it('turns away a file that is not a picture', async () => {
+    const { skins } = setup();
+
+    expect(await skins.addLayer(new Blob(['{}'], { type: 'application/json' }), 'x.json')).toBe(false);
+    expect(skins.stack()).toEqual([]);
+  });
+
+  it('takes a picture back out of the stack', async () => {
+    vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const { skins } = setup();
+    await skins.addLayer(new Blob(['bytes'], { type: 'image/png' }), 'paper.png');
+
+    await skins.removeLayer(skins.stack()[0].id);
+
+    expect(skins.stack()).toEqual([]);
+    expect(skins.panelLayers()).toEqual([]);
+  });
+
+  it('changes one layer without disturbing the rest', async () => {
+    vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
+    const { skins } = setup();
+    await skins.addLayer(new Blob(['a'], { type: 'image/png' }), 'a.png');
+    await skins.addLayer(new Blob(['b'], { type: 'image/png' }), 'b.png');
+    const [under] = skins.stack();
+
+    skins.tuneLayer(under.id, { opacity: 30, fit: 'tile', anchor: 'top-left' });
+
+    expect(skins.stack()[0]).toMatchObject({ opacity: 30, fit: 'tile', anchor: 'top-left' });
+    expect(skins.stack()[1].opacity).toBe(100);
+    expect(skins.panelLayers()[0].backgroundRepeat).toBe('repeat');
+    expect(skins.panelLayers()[0].opacity).toBe(0.3);
+  });
+
+  it('moves a layer through the stack and remembers where it landed', async () => {
+    vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
+    const { skins } = setup();
+    await skins.addLayer(new Blob(['a'], { type: 'image/png' }), 'a.png');
+    await skins.addLayer(new Blob(['b'], { type: 'image/png' }), 'b.png');
+
+    skins.moveLayer(skins.stack()[0].id, 1);
+
+    expect(skins.stack().map((layer) => layer.name)).toEqual(['b.png', 'a.png']);
+    expect(JSON.parse(localStorage.getItem('ui-skin-layers-light')!).map((l: SkinLayer) => l.name)).toEqual([
+      'b.png',
+      'a.png',
+    ]);
+  });
+
+  it('stops taking pictures once the stack is full', async () => {
+    vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
+    const { skins } = setup();
+    for (let i = 0; i < MAX_LAYERS; i++) {
+      await skins.addLayer(new Blob([`${i}`], { type: 'image/png' }), `${i}.png`);
+    }
+
+    expect(skins.stackIsFull()).toBe(true);
+    expect(await skins.addLayer(new Blob(['x'], { type: 'image/png' }), 'x.png')).toBe(false);
+    expect(skins.stack().length).toBe(MAX_LAYERS);
+  });
+
+  it('leaves out a layer whose bytes have gone', () => {
+    localStorage.setItem(
+      'ui-skin-layers-light',
+      JSON.stringify([{ id: 'lost', name: 'gone.png', opacity: 100, fit: 'cover', anchor: 'center' }])
+    );
+    const { skins } = setup();
+
+    expect(skins.stack().length).toBe(1);
+    expect(skins.panelLayers()).toEqual([]);
+  });
+
+  it('writes a skin out as a zip that reads back as the same skin', async () => {
+    vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(null);
+    const saved: Blob[] = [];
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+      saved.push(blob as Blob);
+      return 'blob:skin';
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const { skins } = setup();
+    skins.build({ hue: 210, chroma: 22, accentHue: 40, accentChroma: 55 });
+
+    await skins.exportSkin('夜の卓');
+
+    expect(saved.length).toBeGreaterThan(0);
+    const { readZipEntries } = await import('@axe/core/storage/zip-archive');
+    const entries = await readZipEntries(saved[saved.length - 1]);
+    const description = entries.find((entry) => entry.name === SKIN_FILE_NAME);
+    const read = readSkinFile(await description!.blob.text());
+
+    expect(read?.name).toBe('夜の卓');
+    expect(read?.recipe.hue).toBe(210);
+  });
+
+  it('wears a skin read out of a zip, pictures and all', async () => {
+    vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(null);
+    vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:skin');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const { skins } = setup();
+
+    const { createZipBlob } = await import('@axe/core/storage/zip-archive');
+    const text = JSON.stringify({
+      kind: 'udonarium-axe-skin',
+      version: 1,
+      name: 'から',
+      mode: 'light',
+      recipe: { hue: 111, chroma: 15, accentHue: 20, accentChroma: 40 },
+      layers: [{ file: '1-a.webp', name: 'paper', opacity: 40, fit: 'tile', anchor: 'top-left' }],
+    });
+    const zipped = await createZipBlob([
+      new File([text], SKIN_FILE_NAME, { type: 'application/json' }),
+      new File([new Blob(['bytes'])], '1-a.webp', { type: 'image/webp' }),
+    ]);
+
+    expect(await skins.importSkin(zipped)).toBe(true);
+    expect(skins.skinOf('light')).toBe(CUSTOM_SKIN);
+    expect(skins.recipeOf('light').hue).toBe(111);
+    expect(skins.stack().length).toBe(1);
+    expect(skins.stack()[0]).toMatchObject({ name: 'paper', opacity: 40, fit: 'tile' });
+  });
+
+  it('leaves the seat alone when the zip is not a skin', async () => {
+    const { createZipBlob } = await import('@axe/core/storage/zip-archive');
+    const { skins } = setup();
+    const zipped = await createZipBlob([new File(['nope'], 'readme.txt', { type: 'text/plain' })]);
+
+    expect(await skins.importSkin(zipped)).toBe(false);
+    expect(skins.skinOf('light')).toBe(STANDARD_SKIN);
   });
 
   it('hands the picker the colours a skin would paint without painting them', () => {

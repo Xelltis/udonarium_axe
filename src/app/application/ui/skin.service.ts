@@ -1,8 +1,21 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, effect, inject, Injectable, linkedSignal, signal } from '@angular/core';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
+import { SKIN_IMAGE_MAX_BYTES, SKIN_IMAGE_MAX_SIDE, SkinImageStore } from '@axe/core/storage/skin-image-store';
+import { createZipBlob, readZipEntries } from '@axe/core/storage/zip-archive';
+import { downloadBlob } from '@axe/core/util/download-blob';
 import { resetChatBubbleBaseTone, setChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { asRecipe, asSkinId, CUSTOM_SKIN, parseRecipe, skinById, STANDARD_SKIN } from '@axe/domain/ui/skin';
+import { readSkinFile, SKIN_FILE_NAME, skinFileName, writeSkinFile } from '@axe/domain/ui/skin-file';
+import {
+  layerPlacement,
+  MAX_LAYERS,
+  newLayerId,
+  parseLayers,
+  reorderLayers,
+  SkinLayer,
+} from '@axe/domain/ui/skin-layer';
 import { panelTone, SkinMode, SkinRecipe, SkinTokens, skinTokens } from '@axe/domain/ui/skin-palette';
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 
@@ -14,6 +27,17 @@ export interface SkinSnapshot {
 
 const SKIN_KEY: Record<SkinMode, string> = { light: 'ui-skin-light', dark: 'ui-skin-dark' };
 const RECIPE_KEY: Record<SkinMode, string> = { light: 'ui-skin-recipe-light', dark: 'ui-skin-recipe-dark' };
+const LAYERS_KEY: Record<SkinMode, string> = { light: 'ui-skin-layers-light', dark: 'ui-skin-layers-dark' };
+
+/** One picture of the stack, ready to be handed to an element as a style. */
+export interface PaintedLayer {
+  id: string;
+  backgroundImage: string;
+  backgroundSize: string;
+  backgroundPosition: string;
+  backgroundRepeat: string;
+  opacity: number;
+}
 
 function read(key: string): string | null {
   try {
@@ -55,6 +79,22 @@ export class SkinService {
     dark: signal(parseRecipe(read(RECIPE_KEY.dark), 'dark')),
   };
 
+  /**
+   * The pictures papering each ladder's panels, underneath first.
+   *
+   * They belong to the ladder rather than to the skin, so a stack survives trying other
+   * skins on. The bytes live in their own database; only the arrangement is held here.
+   */
+  private readonly stacks: Record<SkinMode, ReturnType<typeof signal<SkinLayer[]>>> = {
+    light: signal(parseLayers(read(LAYERS_KEY.light))),
+    dark: signal(parseLayers(read(LAYERS_KEY.dark))),
+  };
+
+  /** Where each layer's bytes are reachable, once they have been fetched out of the store. */
+  private readonly urls = signal<Readonly<Record<string, string>>>({});
+
+  private readonly images = SkinImageStore.instance;
+
   /** Which ladder is on screen, settled the same way the light/dark switch settles it. */
   readonly mode = computed<SkinMode>(() => this.theme.resolved());
 
@@ -87,6 +127,18 @@ export class SkinService {
     return this.preview(this.hovered() ?? this.chosen[mode](), mode) ?? STANDARD_TOKENS[mode];
   });
 
+  /** The stack being arranged, for the list in the panel. */
+  readonly stack = computed(() => this.stacks[this.editing()]());
+
+  /** What every panel on screen is papered with. */
+  readonly panelLayers = computed(() => this.paintedFor(this.mode()));
+
+  /** What the preview is papered with, which may be the other ladder's. */
+  readonly editedLayers = computed(() => this.paintedFor(this.editing()));
+
+  /** Whether the stack is full, so the panel can stop offering to add to it. */
+  readonly stackIsFull = computed(() => this.stack().length >= MAX_LAYERS);
+
   /** Whether the preview is showing something other than what the seat is wearing. */
   readonly tryingOn = computed(() => this.hovered() !== null && this.hovered() !== this.chosen[this.editing()]());
 
@@ -105,6 +157,99 @@ export class SkinService {
 
   constructor() {
     effect(() => this.paint(this.tokens(), this.mode()));
+    void this.loadPictures();
+  }
+
+  private async loadPictures(): Promise<void> {
+    const found: Record<string, string> = {};
+    for (const mode of ['light', 'dark'] as const) {
+      for (const layer of this.stacks[mode]()) {
+        const blob = await this.images.get(layer.id);
+        if (blob) found[layer.id] = URL.createObjectURL(blob);
+      }
+    }
+    if (Object.keys(found).length > 0) this.urls.update((held) => ({ ...held, ...found }));
+  }
+
+  /** The stack of one ladder, with the bytes it has and without the ones it has lost. */
+  private paintedFor(mode: SkinMode): PaintedLayer[] {
+    const urls = this.urls();
+    return this.stacks[mode]()
+      .filter((layer) => urls[layer.id])
+      .map((layer) => {
+        const place = layerPlacement(layer);
+        return {
+          id: layer.id,
+          backgroundImage: `url("${urls[layer.id]}")`,
+          backgroundSize: place.size,
+          backgroundPosition: place.position,
+          backgroundRepeat: place.repeat,
+          opacity: layer.opacity / 100,
+        };
+      });
+  }
+
+  private keepStack(mode: SkinMode, layers: SkinLayer[]): void {
+    this.stacks[mode].set(layers);
+    write(LAYERS_KEY[mode], JSON.stringify(layers));
+  }
+
+  /**
+   * Takes a picture into the stack of the ladder being dressed.
+   *
+   * It is resampled first: a panel is a few hundred pixels across and a camera hands over
+   * something far larger, which would sit in the database for as long as the skin does.
+   * Anything that is not a picture, or beyond what a browser will decode, is refused.
+   */
+  async addLayer(file: Blob, name: string, mode: SkinMode = this.editing()): Promise<boolean> {
+    if (this.stacks[mode]().length >= MAX_LAYERS) return false;
+    if (file.size > SKIN_IMAGE_MAX_BYTES) return false;
+    if (file.type && !file.type.startsWith('image/')) return false;
+
+    const scaled = (await downscaleImageBlob(file, SKIN_IMAGE_MAX_SIDE)) ?? file;
+    const layer: SkinLayer = {
+      id: newLayerId(),
+      name: name.slice(0, 60),
+      opacity: 100,
+      fit: 'cover',
+      anchor: 'center',
+    };
+    if (!(await this.images.put(layer.id, scaled))) return false;
+
+    this.urls.update((held) => ({ ...held, [layer.id]: URL.createObjectURL(scaled) }));
+    this.keepStack(mode, [...this.stacks[mode](), layer]);
+    return true;
+  }
+
+  async removeLayer(id: string, mode: SkinMode = this.editing()): Promise<void> {
+    await this.images.remove(id);
+    this.releaseUrl(id);
+    this.keepStack(
+      mode,
+      this.stacks[mode]().filter((layer) => layer.id !== id)
+    );
+  }
+
+  moveLayer(id: string, by: number, mode: SkinMode = this.editing()): void {
+    this.keepStack(mode, reorderLayers(this.stacks[mode](), id, by));
+  }
+
+  /** Changes one layer's strength, fit or corner, leaving the rest of the stack alone. */
+  tuneLayer(id: string, patch: Partial<SkinLayer>, mode: SkinMode = this.editing()): void {
+    this.keepStack(
+      mode,
+      this.stacks[mode]().map((layer) => (layer.id === id ? { ...layer, ...patch, id: layer.id } : layer))
+    );
+  }
+
+  private releaseUrl(id: string): void {
+    const held = this.urls()[id];
+    if (held) URL.revokeObjectURL(held);
+    this.urls.update((all) => {
+      const left = { ...all };
+      delete left[id];
+      return left;
+    });
   }
 
   skinOf(mode: SkinMode): string {
@@ -164,6 +309,58 @@ export class SkinService {
     const skin = skinById(id, mode);
     if (!skin?.recipe) return null;
     return skin.pinned ? { ...skinTokens(skin.recipe, mode), ...skin.pinned } : skinTokens(skin.recipe, mode);
+  }
+
+  /** Writes the skin being dressed out as a zip: its numbers, and every picture it stacks. */
+  async exportSkin(name: string, mode: SkinMode = this.editing()): Promise<void> {
+    const layers = this.stacks[mode]();
+    const files: File[] = [];
+    const packed: { layer: SkinLayer; entry: string }[] = [];
+
+    for (const [index, layer] of layers.entries()) {
+      const picture = await this.images.get(layer.id);
+      if (!picture) continue;
+      const entry = `${index + 1}-${layer.id}.${picture.type === 'image/png' ? 'png' : 'webp'}`;
+      packed.push({ layer, entry });
+      files.push(new File([picture], entry, { type: picture.type || 'image/webp' }));
+    }
+
+    const text = writeSkinFile(this.recipes[mode](), mode, name, packed);
+    files.unshift(new File([text], SKIN_FILE_NAME, { type: 'application/json' }));
+    downloadBlob(await createZipBlob(files), skinFileName(name));
+  }
+
+  /** Reads a skin someone was handed, and wears it. Anything unreadable is left alone. */
+  async importSkin(blob: Blob): Promise<boolean> {
+    const entries = await readZipEntries(blob).catch(() => []);
+    const description = entries.find((entry) => entry.name === SKIN_FILE_NAME);
+    if (!description) return false;
+
+    const skin = readSkinFile(await description.blob.text());
+    if (!skin) return false;
+
+    const mode = skin.mode;
+    for (const layer of this.stacks[mode]()) {
+      await this.images.remove(layer.id);
+      this.releaseUrl(layer.id);
+    }
+    this.keepStack(mode, []);
+    this.build(skin.recipe, mode);
+
+    for (const wanted of skin.layers) {
+      const packed = entries.find((entry) => entry.name === wanted.file);
+      if (!packed) continue;
+      const id = newLayerId();
+      if (!(await this.images.put(id, packed.blob))) continue;
+      this.urls.update((held) => ({ ...held, [id]: URL.createObjectURL(packed.blob) }));
+      this.keepStack(mode, [
+        ...this.stacks[mode](),
+        { id, name: wanted.name, opacity: wanted.opacity, fit: wanted.fit, anchor: wanted.anchor },
+      ]);
+    }
+
+    this.editLadder(mode);
+    return true;
   }
 
   private paint(tokens: SkinTokens | null, mode: SkinMode): void {

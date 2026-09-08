@@ -53,6 +53,12 @@ export const MAX_SPREAD = 11;
 /** How far the ground may rise above them, which is as far as the ladder has room for. */
 export const MIN_SPREAD = -20;
 
+/** How much of the ground a picture may be left to show through. */
+export const MAX_FADE = 95;
+
+/** Enough of the ground over a picture that the panels still read against it. */
+export const DEFAULT_FADE = 45;
+
 /** The custom properties a skin sets, keyed by the name the stylesheet reads. */
 export type SkinTokens = Readonly<Record<string, string>>;
 
@@ -240,6 +246,7 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
 
   return {
     '--ui-bg': hex(bg),
+    '--ui-panel-image': 'none',
     '--ui-surface': hex(at(ramp.surface)),
     '--ui-elevated': hex(elevated),
 
@@ -320,4 +327,21 @@ function contrastOf(a: number, b: number): number {
 export function panelTone(tokens: SkinTokens): number {
   const rgb = parseHexColor(tokens['--ui-elevated'] ?? '');
   return rgb ? rgbToLch(rgb).tone : 92;
+}
+
+/**
+ * What a panel is papered with once a skin gives it a picture.
+ *
+ * The picture is covered by the panel's own colour at whatever strength the skin asks for,
+ * because text that was worked out to read against a flat colour does not read against a
+ * photograph. With no picture a panel is the colour and nothing else.
+ */
+export function panelImage(panel: string, url: string | null, fade: number): string {
+  if (!url) return 'none';
+  const rgb = parseHexColor(panel);
+  const amount = Math.max(0, Math.min(MAX_FADE, fade)) / 100;
+  if (!rgb) return `url("${url}")`;
+  const [r, g, b] = rgb.map((channel) => Math.round(channel * 255));
+  const veil = `rgba(${r}, ${g}, ${b}, ${Number(amount.toFixed(3))})`;
+  return `linear-gradient(${veil}, ${veil}), url("${url}")`;
 }

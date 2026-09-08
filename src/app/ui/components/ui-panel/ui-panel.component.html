@@ -1,5 +1,5 @@
 <div
-  class="draggable-panel animate-fly-in rounded-ui-lg border-ui-border-panel bg-ui-panel text-ui-text absolute top-50 box-border h-50 max-h-full w-75 max-w-full overflow-visible border border-solid p-0 shadow-[var(--ui-shadow-md),inset_0_1px_0_rgba(255,255,255,0.06)] [backdrop-filter:blur(24px)_saturate(1.5)] transition-opacity duration-200 outline-none [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+  class="draggable-panel animate-fly-in rounded-ui-lg border-ui-border-panel bg-ui-panel text-ui-text absolute top-50 isolate box-border h-50 max-h-full w-75 max-w-full overflow-visible border border-solid p-0 shadow-[var(--ui-shadow-md),inset_0_1px_0_rgba(255,255,255,0.06)] [backdrop-filter:blur(24px)_saturate(1.5)] transition-opacity duration-200 outline-none [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
   [ngClass]="{
     'pointer-events-none': isPointerDragging,
     'inset-0!': isCompact(),
@@ -41,6 +41,20 @@
   (mouseenter)="showPortrait(true)"
   (mouseleave)="showPortrait(false)"
 >
+  @if (!unboxed && skinLayers().length > 0) {
+    <div class="rounded-ui-lg pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+      @for (layer of skinLayers(); track layer.id) {
+        <div
+          class="absolute inset-0"
+          [style.background-image]="layer.backgroundImage"
+          [style.background-size]="layer.backgroundSize"
+          [style.background-position]="layer.backgroundPosition"
+          [style.background-repeat]="layer.backgroundRepeat"
+          [style.opacity]="layer.opacity"
+        ></div>
+      }
+    </div>
+  }
   <div
     class="rounded-t-ui-lg border-ui-border-titlebar bg-ui-titlebar text-ui-muted relative box-border h-7 w-full border-b border-solid px-2 text-xs/7 font-medium tracking-[0.02em] select-none"
     [ngClass]="

@@ -1,6 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { CUSTOM_SKIN, Skin, SkinGroup, skinsFor, STANDARD_SKIN } from '@axe/domain/ui/skin';
+import {
+  LAYER_ANCHORS,
+  LAYER_FITS,
+  LayerAnchor,
+  LayerFit,
+  RECOMMENDED_LAYER_SIZE,
+  RECOMMENDED_TILE_SIZE,
+} from '@axe/domain/ui/skin-layer';
 import { MAX_LIFT, MAX_SPREAD, MIN_SPREAD, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -29,6 +37,20 @@ export class SkinPickerComponent {
   protected readonly maxLift = MAX_LIFT;
   protected readonly maxSpread = MAX_SPREAD;
   protected readonly minSpread = MIN_SPREAD;
+  protected readonly fits = LAYER_FITS;
+  protected readonly anchors = LAYER_ANCHORS;
+  protected readonly wide = RECOMMENDED_LAYER_SIZE.width;
+  protected readonly tall = RECOMMENDED_LAYER_SIZE.height;
+  protected readonly tile = RECOMMENDED_TILE_SIZE;
+
+  protected readonly stack = this.skins.stack;
+  protected readonly stackIsFull = this.skins.stackIsFull;
+
+  /** What the skin is called when it is written out. Blank is fine; the file falls back. */
+  protected readonly skinName = signal('');
+
+  /** What went wrong with the last file that was handed over, for the line under the button. */
+  protected readonly trouble = signal<'' | 'picture' | 'skin'>('');
 
   /** Which ladder is being dressed. The service holds it, so the preview follows along. */
   protected readonly editing = this.skins.editing;
@@ -94,6 +116,52 @@ export class SkinPickerComponent {
     const amount = Number(value);
     if (!Number.isFinite(amount)) return;
     this.skins.build({ ...this.recipe(), [field]: amount }, this.editing());
+  }
+
+  protected async addLayer(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const name = file?.name ?? '';
+    input.value = '';
+    if (!file) return;
+    this.trouble.set((await this.skins.addLayer(file, name)) ? '' : 'picture');
+  }
+
+  protected async dropLayer(id: string): Promise<void> {
+    await this.skins.removeLayer(id);
+  }
+
+  protected moveLayer(id: string, by: number): void {
+    this.skins.moveLayer(id, by);
+  }
+
+  protected setOpacity(id: string, value: string): void {
+    const amount = Number(value);
+    if (Number.isFinite(amount)) this.skins.tuneLayer(id, { opacity: amount });
+  }
+
+  protected setFit(id: string, fit: string): void {
+    this.skins.tuneLayer(id, { fit: fit as LayerFit });
+  }
+
+  protected setAnchor(id: string, anchor: string): void {
+    this.skins.tuneLayer(id, { anchor: anchor as LayerAnchor });
+  }
+
+  protected async exportSkin(): Promise<void> {
+    await this.skins.exportSkin(this.skinName());
+  }
+
+  protected async importSkin(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    this.trouble.set((await this.skins.importSkin(file)) ? '' : 'skin');
+  }
+
+  protected rename(value: string): void {
+    this.skinName.set(value.slice(0, 40));
   }
 
   protected toggleContrast(strong: boolean): void {
