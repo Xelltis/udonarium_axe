@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 
 /** The block a selector opens, read straight out of the stylesheet the app ships. */

@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
+
 import { TestBed } from '@angular/core/testing';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
-import { chatBubbleBaseTone, resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { SkinImageStore } from '@axe/core/storage/skin-image-store';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
+import { chatBubbleBaseTone, resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { readSkinFile, SKIN_FILE_NAME } from '@axe/domain/ui/skin-file';
 import { MAX_LAYERS, SkinLayer } from '@axe/domain/ui/skin-layer';

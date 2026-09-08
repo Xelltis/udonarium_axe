@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { TOKEN_ALIASES, scopedTokens } from '@axe/domain/ui/skin-alias';
+
+import { scopedTokens, TOKEN_ALIASES } from '@axe/domain/ui/skin-alias';
 
 describe('the names a scoped preview also has to set', () => {
   it('lists every alias the stylesheet declares, and nothing it does not', () => {

@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { SkinService } from '@axe/application/ui/skin.service';
-import { CUSTOM_SKIN, Skin, SkinGroup, skinsFor, STANDARD_SKIN } from '@axe/domain/ui/skin';
-import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
+import { CUSTOM_SKIN, SkinGroup, skinsFor, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import {
   LAYER_ANCHORS,
   LAYER_FITS,
@@ -11,6 +10,7 @@ import {
   RECOMMENDED_TILE_SIZE,
 } from '@axe/domain/ui/skin-layer';
 import { MAX_LIFT, MAX_SPREAD, MIN_SPREAD, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
+import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The order the groups are offered in: the plain one first, then colour, then the odd ones. */
