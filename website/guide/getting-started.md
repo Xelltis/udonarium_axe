@@ -18,10 +18,12 @@ Udonarium Axe は、ブラウザ上で動作する TRPG オンラインセッシ
 
 ## 次のステップ
 
-- [必要なもの](/guide/requirements) — 遊ぶために用意するものと全体構成
-- [クイックスタート](/guide/quickstart) — 最短の導入手順
-- [バックエンドの選択肢](/guide/backend) — トークン発行サーバーの選び方
-- [主な機能](/guide/features) — Axe で使える機能の一覧
+遊ぶだけなら、設置は要りません。[デモサイト](https://axe.xelltis.com)を開けばその場で卓が動きます。
+
+- [遊びはじめる](/play/) — どの入口から来ても、まずここ
+- [できること](/guide/features) — 盤面・暗闇・記録まで、場面ごとに
+- [なぜバックエンドが要るのか](/guide/requirements) — 自分の場所を持つときの全体像
+- [クイックスタート](/guide/quickstart) — 最短の設置手順
 
 ## 名前について
 
