@@ -14,6 +14,8 @@ describe('pieceImageView', () => {
   const billboard = signal(true);
   const billboardTransform = signal('rotateX(50deg)');
 
+  const fitInCell = signal(false);
+
   function view(squarePoster = false) {
     return pieceImageView({
       imageUrl: url,
@@ -23,6 +25,7 @@ describe('pieceImageView', () => {
       billboardEnabled: billboard,
       billboardTransform,
       squarePoster,
+      fitInCell,
     });
   }
 
@@ -32,6 +35,7 @@ describe('pieceImageView', () => {
     sizePx.set(100);
     specified.set(null);
     billboard.set(true);
+    fitInCell.set(false);
   });
 
   it('draws at one to one until the picture is read', () => {
@@ -86,5 +90,74 @@ describe('pieceImageView', () => {
     const image = view();
     billboard.set(false);
     expect(image.pieceTransform()).toBe(supersampleTransform({ factor: 1, anchor: 'bottom', inner: '' }));
+  });
+});
+
+describe('a picture held to the ground its piece stands on', () => {
+  const url = signal('a.png');
+  const poster = signal(false);
+  const sizePx = signal(100);
+  const specified = signal<number | null>(null);
+  const fitInCell = signal(true);
+
+  function view() {
+    return pieceImageView({
+      imageUrl: url,
+      isPoster: poster,
+      sizePx,
+      specifiedHeightPx: specified,
+      billboardEnabled: signal(false),
+      billboardTransform: signal(''),
+      squarePoster: true,
+      fitInCell,
+    });
+  }
+
+  beforeEach(() => {
+    poster.set(false);
+    sizePx.set(100);
+    specified.set(null);
+    fitInCell.set(true);
+  });
+
+  it('gives the picture a box of the ground rather than of its own shape', () => {
+    const image = view();
+    image.onImageLoad(loaded(100, 400));
+
+    expect(image.fitsInCell()).toBe(true);
+    expect(image.boxHeightPx()).toBe(100);
+  });
+
+  it('gives the box back to the shape of the picture the moment it is not asked to be held', () => {
+    const image = view();
+    image.onImageLoad(loaded(100, 400));
+    fitInCell.set(false);
+
+    expect(image.fitsInCell()).toBe(false);
+    expect(image.boxHeightPx()).toBeNull();
+  });
+
+  it('measures by whichever side runs out of room first, so the whole picture is inside', () => {
+    const image = view();
+    image.onImageLoad(loaded(400, 800));
+
+    expect(image.supersample()).toBe(supersampleFactor(400, 100));
+  });
+
+  it('leaves a poster to the poster reckoning, since one is already held to its ground', () => {
+    poster.set(true);
+    const image = view();
+    image.onImageLoad(loaded(100, 400));
+
+    expect(image.fitsInCell()).toBe(false);
+    expect(image.boxHeightPx()).toBeNull();
+  });
+
+  it('has nothing to say about a height a piece was given by hand', () => {
+    specified.set(300);
+    const image = view();
+    image.onImageLoad(loaded(100, 400));
+
+    expect(image.boxHeightPx()).toBe(100);
   });
 });

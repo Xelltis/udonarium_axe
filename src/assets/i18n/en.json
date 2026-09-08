@@ -2137,6 +2137,8 @@
         "tableRecommend": "What this table recommends",
         "tableRecommendsFlat": "Recommend 2D, seen from above",
         "sectionPieces": "Pieces",
+        "pieceImageInCell": "Hold a piece picture to its cell",
+        "pieceImageInCellHint": "A tall picture no longer towers over the cell it belongs to, and stops smearing over whatever is behind it.",
         "sectionAround": "All-round display",
         "sectionReach": "Menus and controls",
         "sectionRealSize": "Real size",

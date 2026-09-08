@@ -478,14 +478,20 @@ export class GameCharacterComponent {
     [this.billboardTransformImage(), this.multiAnglePieceImageRotation()].filter((part) => part.length > 0).join(' ')
   );
 
+  /** Whether this screen holds a piece's picture to the ground it stands on. */
+  readonly fitsImageInCell = computed(() => this.tabletopService.display().pieceImageInCell);
+
   readonly imageView = pieceImageView({
     imageUrl: computed(() => this.imageFile().url),
     isPoster: this.isPoster,
     sizePx: computed(() => this.size() * this.gridSize),
-    specifiedHeightPx: computed(() => (this.specifyKomaImageFlag() ? this.komaImageHeightSignal() : null)),
+    specifiedHeightPx: computed(() =>
+      this.specifyKomaImageFlag() && !this.fitsImageInCell() ? this.komaImageHeightSignal() : null
+    ),
     billboardEnabled: this.imageBillboardEnabled,
     billboardTransform: this.pieceImageBillboardTransform,
     squarePoster: true,
+    fitInCell: this.fitsImageInCell,
   });
 
   private readonly pieceCenterShift = computed(

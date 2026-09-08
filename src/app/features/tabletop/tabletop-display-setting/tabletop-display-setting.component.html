@@ -102,6 +102,21 @@
       }}</span>
     </div>
 
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="pieceImageInCell"
+        name="pieceImageInCell"
+        data-testid="piece-image-in-cell"
+      />
+      <span class="flex-1">{{ 'feature.tabletop.displaySetting.pieceImageInCell' | transloco }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+    </label>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.tabletop.displaySetting.pieceImageInCellHint' | transloco }}</p>
+
     <div class="flex flex-col gap-1.5" [attr.inert]="isEditable() ? null : ''">
       <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
         <span class="flex-1">{{ 'feature.roomSettings.facingMark' | transloco }}</span>

@@ -2137,6 +2137,8 @@
         "tableRecommend": "이 탁자의 권장",
         "tableRecommendsFlat": "2D (바로 위에서 보기)를 권장",
         "sectionPieces": "말 표시",
+        "pieceImageInCell": "말 이미지를 칸 안에 맞춤",
+        "pieceImageInCellHint": "세로로 긴 그림이 칸을 넘지 않게 됩니다. 바로 위에서 볼 때 뒤쪽 말이 가려지지 않습니다.",
         "sectionAround": "다방향 표시",
         "sectionReach": "메뉴와 조작",
         "sectionRealSize": "실측 표시",

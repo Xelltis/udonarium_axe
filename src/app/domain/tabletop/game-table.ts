@@ -74,6 +74,7 @@ export class GameTable extends ObjectNode {
    * room was asked keeps looking the way it did.
    */
   @SyncVar() orthographicProjection: boolean = DISPLAY_DEFAULTS.orthographicProjection;
+  @SyncVar() pieceImageInCell: boolean = DISPLAY_DEFAULTS.pieceImageInCell;
   @SyncVar() radialMenuEnabled: boolean = DISPLAY_DEFAULTS.radialMenuEnabled;
   @SyncVar() radialMenuRotationSpeed: number = DISPLAY_DEFAULTS.radialMenuRotationSpeed;
   @SyncVar() hoverDetailPlacement: HoverDetailPlacement = DISPLAY_DEFAULTS.hoverDetailPlacement;

@@ -2137,6 +2137,8 @@
         "tableRecommend": "このテーブルの推奨",
         "tableRecommendsFlat": "2D（真上から見る）を勧める",
         "sectionPieces": "コマの見せ方",
+        "pieceImageInCell": "コマ画像をマス内に収める",
+        "pieceImageInCellHint": "背の高い絵がマスからはみ出さなくなります。真上から見るとき、後ろのコマが隠れずに済みます。",
         "sectionAround": "多方向表示",
         "sectionReach": "メニューと操作",
         "sectionRealSize": "実寸表示",

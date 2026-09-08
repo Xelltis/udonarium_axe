@@ -33,6 +33,7 @@ const CONTROLS: Record<TabletopDisplayKey, string> = {
   multiAngleTickerPixelsPerSecond: 'tickerPixelsPerSecond',
   cutInMultiDirectionMode: 'cutInMultiDirectionMode',
   panelRotationEnabled: 'panelRotationEnabled',
+  pieceImageInCell: 'pieceImageInCell',
 };
 
 describe('TabletopDisplaySettingComponent', () => {

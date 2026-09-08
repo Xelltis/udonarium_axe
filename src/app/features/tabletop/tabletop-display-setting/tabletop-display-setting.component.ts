@@ -209,6 +209,13 @@ export class TabletopDisplaySettingComponent {
     this.set({ hoverDetailPlacement: asHoverDetailPlacement(value) });
   }
 
+  get pieceImageInCell(): boolean {
+    return this.settings.pieceImageInCell;
+  }
+  set pieceImageInCell(value: boolean) {
+    this.set({ pieceImageInCell: value });
+  }
+
   get panelRotationEnabled(): boolean {
     return this.settings.panelRotationEnabled;
   }
