@@ -2125,6 +2125,8 @@
       "displaySetting": {
         "title": "Tabletop display",
         "intro": "Everything for playing on a table seen from above. The same controls are still in the room and table settings.",
+        "tabletopMode": "Tabletop mode (a screen laid flat)",
+        "tabletopModeHint": "Lays the view flat and puts in what a screen sat around wants. Turning it off stands the view back up and leaves the rest.",
         "sectionView": "View",
         "seatView": "This screen",
         "viewMode_auto": "As the table asks",
@@ -2140,7 +2142,9 @@
         "sectionRealSize": "Real size",
         "scopeOwn": "this screen",
         "scopeRoom": "room, master",
-        "scopeTable": "table, master"
+        "scopeTable": "table, master",
+        "whenFlat": "in 2D",
+        "whenUpright": "in 3D"
       }
     },
     "roomSettings": {

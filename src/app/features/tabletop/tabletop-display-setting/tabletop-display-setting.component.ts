@@ -35,7 +35,11 @@ import { cellWidthInches, clampCellMm } from '@axe/domain/tabletop/physical-scal
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { asMultiAngleMotionMode, TabletopDisplaySettings } from '@axe/domain/tabletop/tabletop-display';
+import {
+  asMultiAngleMotionMode,
+  TABLETOP_MODE_SETTINGS,
+  TabletopDisplaySettings,
+} from '@axe/domain/tabletop/tabletop-display';
 import { VIEW_MODES, ViewMode } from '@axe/domain/ui/view-mode';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -97,6 +101,26 @@ export class TabletopDisplaySettingComponent {
 
   chooseViewMode(mode: ViewMode): void {
     this.viewMode.choose(mode);
+  }
+
+  /**
+   * Whether this screen is set up as the table itself: laid flat, and dressed for it.
+   *
+   * Looking straight down is the whole of what the rest of this panel is for, so the mode is
+   * read from the view rather than written down beside it. Turning it on lays the screen flat
+   * and puts in what a flat screen wants; turning it off only stands the view back up, since
+   * everything it put in is dead in that view anyway and is a reader's to keep.
+   */
+  get tabletopMode(): boolean {
+    return this.laysFlat();
+  }
+  set tabletopMode(wanted: boolean) {
+    if (!wanted) {
+      this.viewMode.choose('perspective');
+      return;
+    }
+    this.viewMode.choose('flat');
+    this.set(TABLETOP_MODE_SETTINGS);
   }
 
   /** The view the table asks for, which is the table's to set and so the master's to change. */

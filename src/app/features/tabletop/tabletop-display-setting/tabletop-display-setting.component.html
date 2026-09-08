@@ -11,6 +11,21 @@
       }}</span>
     </div>
 
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="tabletopMode"
+        name="tabletopMode"
+        data-testid="tabletop-mode"
+      />
+      <span class="flex-1 font-semibold">{{ 'feature.tabletop.displaySetting.tabletopMode' | transloco }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+    </label>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.tabletop.displaySetting.tabletopModeHint' | transloco }}</p>
+
     <div class="flex flex-col gap-1.5">
       <div class="flex flex-wrap items-baseline gap-1.5">
         <span class="text-ui-text text-[13px]">{{ 'feature.tabletop.displaySetting.seatView' | transloco }}</span>
@@ -118,18 +133,27 @@
         <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
           'feature.tabletop.displaySetting.scopeTable' | transloco
         }}</span>
+        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+          'feature.tabletop.displaySetting.whenUpright' | transloco
+        }}</span>
       </label>
     </div>
   </div>
 
   <!-- Everything that is there because readers sit on all four sides of the glass. -->
-  <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+  <div
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+    [class.opacity-60]="!laysFlat()"
+  >
     <div class="border-ui-accent flex flex-wrap items-baseline gap-1.5 border-l-2 border-solid pl-2">
       <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
         'feature.tabletop.displaySetting.sectionAround' | transloco
       }}</span>
       <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
         'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.whenFlat' | transloco
       }}</span>
     </div>
 
@@ -304,7 +328,7 @@
       }}</span>
     </div>
 
-    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-1" [class.opacity-60]="!laysFlat()">
       <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
         <input
           type="checkbox"
@@ -330,9 +354,11 @@
         <span class="min-w-9 text-right">{{ radialMenuRotationSpeed }}°/s</span>
       </label>
     </div>
-    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.radialMenuHelp' | transloco }}</p>
+    <p class="text-ui-dim m-0 text-[11px]" [class.opacity-60]="!laysFlat()">
+      {{ 'feature.roomSettings.radialMenuHelp' | transloco }}
+    </p>
 
-    <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+    <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none" [class.opacity-60]="!laysFlat()">
       <span class="flex-1">{{ 'feature.roomSettings.hoverDetailPlacement' | transloco }}</span>
       <select
         class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
@@ -363,13 +389,19 @@
   </div>
 
   <!-- What one square measures on this glass, and the measuring that makes it true. -->
-  <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+  <div
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+    [class.opacity-60]="!laysFlat()"
+  >
     <div class="border-ui-accent flex flex-wrap items-baseline gap-1.5 border-l-2 border-solid pl-2">
       <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
         'feature.tabletop.displaySetting.sectionRealSize' | transloco
       }}</span>
       <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
         'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.whenFlat' | transloco
       }}</span>
     </div>
     <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">

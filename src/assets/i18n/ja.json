@@ -2125,6 +2125,8 @@
       "displaySetting": {
         "title": "卓上ディスプレイ",
         "intro": "卓を真上から見て使うための設定です。同じ項目は部屋設定とテーブル設定にも残してあります。",
+        "tabletopMode": "卓上モード（画面を寝かせて囲む）",
+        "tabletopModeHint": "入れると視点が 2D になり、四方の席へ向ける設定がまとめて入ります。切っても入った設定はそのままです。",
         "sectionView": "視点",
         "seatView": "自分の視点",
         "viewMode_auto": "自動（卓に従う）",
@@ -2140,7 +2142,9 @@
         "sectionRealSize": "実寸表示",
         "scopeOwn": "この画面だけ",
         "scopeRoom": "部屋・GM",
-        "scopeTable": "テーブル・GM"
+        "scopeTable": "テーブル・GM",
+        "whenFlat": "2D のとき",
+        "whenUpright": "3D のとき"
       }
     },
     "roomSettings": {

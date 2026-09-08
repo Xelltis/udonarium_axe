@@ -6,7 +6,11 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { DEFAULT_TABLETOP_DISPLAY_SETTINGS, TabletopDisplayKey } from '@axe/domain/tabletop/tabletop-display';
+import {
+  DEFAULT_TABLETOP_DISPLAY_SETTINGS,
+  TABLETOP_MODE_SETTINGS,
+  TabletopDisplayKey,
+} from '@axe/domain/tabletop/tabletop-display';
 import { TabletopDisplaySettingComponent } from '@axe/features/tabletop/tabletop-display-setting/tabletop-display-setting.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -117,6 +121,46 @@ describe('TabletopDisplaySettingComponent', () => {
 
     expect(component.facingMark).not.toBe('arrow');
     expect(table.imageBillboard).toBe(false);
+  });
+
+  it('is not in tabletop mode until the table is looked straight down on', () => {
+    expect(component.tabletopMode).toBe(false);
+
+    component.chooseViewMode('flat');
+
+    expect(component.tabletopMode).toBe(true);
+  });
+
+  it('lays the screen flat and puts in what a screen sat around wants', () => {
+    component.tabletopMode = true;
+
+    expect(component.seatViewMode()).toBe('flat');
+    expect(TestBed.inject(TabletopDisplayPreferenceService).own()).toEqual(TABLETOP_MODE_SETTINGS);
+  });
+
+  it('stands the view back up when the mode is turned off, and keeps what it put in', () => {
+    component.tabletopMode = true;
+
+    component.tabletopMode = false;
+
+    expect(component.seatViewMode()).toBe('perspective');
+    expect(component.orthographicProjection).toBe(true);
+  });
+
+  it('turns off against a table that recommends looking down, rather than snapping back on', () => {
+    table.mode2d = true;
+    component.chooseViewMode('auto');
+    expect(component.tabletopMode).toBe(true);
+
+    component.tabletopMode = false;
+
+    expect(component.tabletopMode).toBe(false);
+  });
+
+  it('asks for nothing a flat screen does not want', () => {
+    const wanted = Object.keys(TABLETOP_MODE_SETTINGS) as TabletopDisplayKey[];
+
+    for (const key of wanted) expect(CONTROLS[key]).toBeDefined();
   });
 
   it('takes the view this seat is looking from, and leaves the table alone', () => {

@@ -84,6 +84,27 @@ export const DEFAULT_TABLETOP_DISPLAY_SETTINGS: TabletopDisplaySettings = {
   panelRotationEnabled: false,
 };
 
+/**
+ * What a screen laid flat on a table wants of itself.
+ *
+ * Every one of these is dead while the table is looked at along rather than down: the piece
+ * labels, the ticker and the turning menus are all there to serve readers sitting on four
+ * sides, and none of them is drawn otherwise. Asking for the tabletop is asking for the lot,
+ * which is why they are named together rather than found one menu at a time.
+ *
+ * The window turn is the exception that earns its place: it is what lets a reader on the far
+ * side read a panel, and it works whichever way the table is being looked at.
+ */
+export const TABLETOP_MODE_SETTINGS: Readonly<Partial<TabletopDisplaySettings>> = {
+  orthographicProjection: true,
+  hoverDetailPlacement: 'screen-edges',
+  radialMenuEnabled: true,
+  panelRotationEnabled: true,
+  multiAngleEnabled: true,
+  multiAngleTickerEnabled: true,
+  cutInMultiDirectionMode: 'four-directions',
+};
+
 export const MIN_MULTI_ANGLE_REVOLUTION_SECONDS = 1;
 export const MAX_MULTI_ANGLE_REVOLUTION_SECONDS = 120;
 export const MIN_MULTI_ANGLE_PAUSE_SECONDS = 0;
