@@ -294,3 +294,36 @@ describe('walls painted over walls', () => {
     expect(plan.terrain.add.map((block) => block.spec.altitude)).toEqual([0, 0]);
   });
 });
+
+describe('painting ground that goes off', () => {
+  it('answers with the blocks the layer holds, and what each of them does', () => {
+    const spec = {
+      ...DEFAULT_FUNCTION_SPEC,
+      trigger: { ...DEFAULT_FUNCTION_SPEC.trigger, element: 'HP', amount: '2d6', moment: 'enter' as const },
+    };
+    const scene = sceneWith(layerOf('trigger', ['1,1', '2,1'], { spec }));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    expect(plan.trigger.add.length).toBe(1);
+    expect(plan.trigger.add[0]).toMatchObject({ col: 1, row: 1, width: 2, height: 1 });
+    expect(plan.trigger.add[0].spec).toMatchObject({ element: 'HP', amount: '2d6', moment: 'enter' });
+  });
+
+  it('leaves the ground a table already holds alone where the scene never mentions it', () => {
+    const scene = sceneWith(layerOf('mask', ['1,1']));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    expect(plan.trigger).toEqual({ add: [], remove: [] });
+  });
+
+  it('takes away ground the scene has stopped holding', () => {
+    const held = { col: 3, row: 3, width: 1, height: 1, spec: { ...DEFAULT_FUNCTION_SPEC.trigger } };
+    const scene = sceneWith(layerOf('trigger', []));
+
+    const plan = planFunctionPaint(scene, snapshot({ triggerBlocks: [held] }))!;
+
+    expect(plan.trigger.remove).toEqual([held]);
+  });
+});

@@ -129,6 +129,8 @@ export interface TriggerPaintSpec {
   /** The name of the resource it takes from, and how much. A number or a handful of dice. */
   element: string;
   amount: string;
+  /** The effect to play on whoever set it off, by name. Empty plays nothing. */
+  effect: string;
 }
 
 /** What a role lays on the table, the same for every cell the layer holds. */
@@ -216,6 +218,7 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     color: DEFAULT_TRIGGER_COLOR,
     element: '',
     amount: '',
+    effect: '',
   },
 };
 
@@ -333,6 +336,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       color: textIn(trigger, 'color', fallback.trigger.color),
       element: textIn(trigger, 'element', fallback.trigger.element),
       amount: textIn(trigger, 'amount', fallback.trigger.amount),
+      effect: textIn(trigger, 'effect', fallback.trigger.effect),
     },
   };
 }

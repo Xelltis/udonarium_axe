@@ -2147,6 +2147,13 @@
         "scopeTable": "탁자·GM",
         "whenFlat": "2D일 때",
         "whenUpright": "3D일 때"
+      },
+      "trigger": {
+        "unnamed": "장치",
+        "took": "받았다",
+        "gave": "회복했다",
+        "tookFrom": "[{{trigger}}] {{piece}}은(는) {{element}}을(를) {{amount}} {{verb}}",
+        "sprang": "[{{trigger}}] {{piece}}이(가) 밟았다"
       }
     },
     "roomSettings": {
@@ -2844,8 +2851,8 @@
         "role_trigger": "이벤트",
         "triggerHint": "칠한 칸에 말이 들어오면 이벤트가 일어납니다. 우선은 리소스 증감입니다.",
         "triggerName": "이름",
-        "triggerElement": "대상 항목",
-        "triggerAmount": "줄일 양",
+        "triggerElement": "깎을 리소스",
+        "triggerAmount": "양",
         "triggerMoment": "발동",
         "triggerMoment_stop": "멈췄을 때",
         "triggerMoment_enter": "지나갈 때",
@@ -2855,7 +2862,12 @@
         "triggerTargets_npc": "NPC의 말",
         "triggerOnce": "한 번만",
         "triggerOpen": "모두에게 보이기",
-        "triggerColor": "색"
+        "triggerColor": "색",
+        "triggerEffect": "이펙트",
+        "triggerElementPlaceholder": "HP",
+        "triggerElementHint": "말의 리소스 이름을 그대로 씁니다. 탁자에 있는 것이 후보로 나옵니다. 비워 두면 아무것도 줄지 않습니다",
+        "triggerAmountPlaceholder": "2d6",
+        "triggerAmountHint": "숫자나 주사위식. 마이너스를 쓰면 회복입니다 (5 / 2d6 / 1d6+2 / -3)"
       },
       "stampCategories": {
         "door": "문",

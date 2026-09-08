@@ -27,6 +27,9 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import {
   isTextureId,
@@ -188,6 +191,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly objectStore = inject(ObjectStore);
   private readonly modalService = inject(ModalService);
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly t = inject(TRANSLATE_FN);
@@ -222,6 +226,23 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   protected readonly triggerMoments = TRIGGER_MOMENTS;
   protected readonly triggerTargets = TRIGGER_TARGETS;
+
+  /**
+   * The resources the room's pieces are carrying, offered rather than left to be remembered.
+   *
+   * A trap takes from a resource by name, and a name nobody carries takes nothing at all. The
+   * names on the table are the ones worth offering, so the field says what there is to hit.
+   */
+  protected readonly resourceNames = computed<string[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const names = new Set<string>();
+    for (const character of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      for (const element of collectDataElements(character.detailDataElement)) {
+        if (element.isNumberResource && element.name.trim().length > 0) names.add(element.name.trim());
+      }
+    }
+    return [...names].sort();
+  });
 
   protected readonly terrainFaces = TERRAIN_FACE_KEYS;
 

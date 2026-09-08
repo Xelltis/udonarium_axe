@@ -2147,6 +2147,13 @@
         "scopeTable": "テーブル・GM",
         "whenFlat": "2D のとき",
         "whenUpright": "3D のとき"
+      },
+      "trigger": {
+        "unnamed": "仕掛け",
+        "took": "受けた",
+        "gave": "回復した",
+        "tookFrom": "【{{trigger}}】{{piece}} は {{element}} を {{amount}} {{verb}}",
+        "sprang": "【{{trigger}}】{{piece}} が踏んだ"
       }
     },
     "roomSettings": {
@@ -2844,8 +2851,8 @@
         "role_trigger": "イベント",
         "triggerHint": "塗ったマスにコマが入るとイベントが起きます。まずはリソースの増減です。",
         "triggerName": "名前",
-        "triggerElement": "対象の項目",
-        "triggerAmount": "減らす量",
+        "triggerElement": "削るリソース",
+        "triggerAmount": "量",
         "triggerMoment": "発火",
         "triggerMoment_stop": "止まったとき",
         "triggerMoment_enter": "通ったとき",
@@ -2855,7 +2862,12 @@
         "triggerTargets_npc": "NPC のコマ",
         "triggerOnce": "一度きり",
         "triggerOpen": "全員に見せる",
-        "triggerColor": "色"
+        "triggerColor": "色",
+        "triggerEffect": "エフェクト",
+        "triggerElementPlaceholder": "HP",
+        "triggerElementHint": "コマのリソース名をそのまま書きます。卓にあるものが候補に出ます。空欄だと何も減りません",
+        "triggerAmountPlaceholder": "2d6",
+        "triggerAmountHint": "数かダイス式。マイナスを書けば回復です（例: 5 / 2d6 / 1d6+2 / -3）"
       },
       "stampCategories": {
         "door": "扉",

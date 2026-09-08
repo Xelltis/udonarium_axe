@@ -1,4 +1,8 @@
 import { inject, Injectable } from '@angular/core';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { EffectCastService } from '@axe/application/effect/effect-cast.service';
+import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { cellColRow, CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -26,6 +30,10 @@ export interface TriggerFiring {
 @Injectable({ providedIn: 'root' })
 export class TriggerFireService {
   private readonly tableSelecter = inject(TableSelecter);
+  private readonly effectLibrary = inject(EffectLibraryService);
+  private readonly effectCast = inject(EffectCastService);
+  private readonly chat = inject(ChatMessageService);
+  private readonly t = inject(TRANSLATE_FN);
 
   /** Where each piece was lifted from, so putting it down knows what it crossed to get here. */
   private readonly lifted = new Map<string, number>();
@@ -106,7 +114,54 @@ export class TriggerFireService {
       held.currentValue = taken < 0 && Number.isFinite(most) ? Math.min(most, next) : next;
     }
     if (trigger.once) trigger.spent = true;
-    return { trigger, taken, from: held ? held.name : '' };
+    const firing = { trigger, taken, from: held ? held.name : '' };
+    // Neither the show nor the telling is what the ground is for, so neither is allowed to
+    // stop it: a room with no chat tab yet, or an effect that will not play, still takes the
+    // damage it was walked into.
+    try {
+      this.play(firing, piece);
+    } catch {
+      // The effect is a flourish; the ground did its work either way.
+    }
+    try {
+      this.announce(firing, piece);
+    } catch {
+      // Said or unsaid, the resource has already changed.
+    }
+    return firing;
+  }
+
+  /** Sets off whatever the ground was told to play, on the piece that set it off. */
+  private play(firing: TriggerFiring, piece: GameCharacter): void {
+    const named = firing.trigger.effect.trim();
+    if (named.length < 1) return;
+    const preset = this.effectLibrary.findByName(named);
+    if (!preset) return;
+    this.effectCast.fire(preset, [piece], null);
+  }
+
+  /**
+   * Says in the room that the ground went off.
+   *
+   * Ground that nobody was shown is still ground that took something, and a table that is not
+   * told has no way of knowing whether anything happened at all. What is said is what was
+   * taken and from whom, never where the ground was: a trap that announces its own cell is a
+   * trap the party has found.
+   */
+  private announce(firing: TriggerFiring, piece: GameCharacter): void {
+    const name = firing.trigger.name.trim();
+    const called = name.length > 0 ? name : this.t('feature.tabletop.trigger.unnamed');
+    const text =
+      firing.from.length > 0
+        ? this.t('feature.tabletop.trigger.tookFrom', {
+            trigger: called,
+            piece: piece.name,
+            amount: Math.abs(firing.taken),
+            element: firing.from,
+            verb: this.t(firing.taken < 0 ? 'feature.tabletop.trigger.gave' : 'feature.tabletop.trigger.took'),
+          })
+        : this.t('feature.tabletop.trigger.sprang', { trigger: called, piece: piece.name });
+    this.chat.sendSystemMessageToMainTab(text);
   }
 
   private resourceOf(piece: GameCharacter, name: string): DataElement | null {

@@ -39,6 +39,8 @@ export class TableTrigger extends ObjectNode {
   /** The name of what it takes from, and how much. A resource of the piece that walked in. */
   @SyncVar() element: string = '';
   @SyncVar() amount: string = '';
+  /** The effect played on whoever sets it off, by name. Empty plays nothing. */
+  @SyncVar() effect: string = '';
   /** Whether it has already gone off, which only ground that goes off once ever holds. */
   @SyncVar() spent: boolean = false;
 

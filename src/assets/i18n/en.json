@@ -2147,6 +2147,13 @@
         "scopeTable": "table, master",
         "whenFlat": "in 2D",
         "whenUpright": "in 3D"
+      },
+      "trigger": {
+        "unnamed": "Trap",
+        "took": "lost",
+        "gave": "gained",
+        "tookFrom": "[{{trigger}}] {{piece}} {{verb}} {{amount}} {{element}}",
+        "sprang": "[{{trigger}}] {{piece}} stepped on it"
       }
     },
     "roomSettings": {
@@ -2844,8 +2851,8 @@
         "role_trigger": "Event",
         "triggerHint": "A piece walking onto the painted ground sets off an event. Taking from a resource, for now.",
         "triggerName": "Name",
-        "triggerElement": "Resource",
-        "triggerAmount": "Amount taken",
+        "triggerElement": "Resource taken from",
+        "triggerAmount": "Amount",
         "triggerMoment": "Goes off",
         "triggerMoment_stop": "on the walk ending there",
         "triggerMoment_enter": "on being stepped on",
@@ -2855,7 +2862,12 @@
         "triggerTargets_npc": "the master's pieces",
         "triggerOnce": "Only once",
         "triggerOpen": "Show the room",
-        "triggerColor": "Colour"
+        "triggerColor": "Colour",
+        "triggerEffect": "Effect",
+        "triggerElementPlaceholder": "HP",
+        "triggerElementHint": "The name the piece calls it. What the table carries is offered. Left empty, nothing is taken",
+        "triggerAmountPlaceholder": "2d6",
+        "triggerAmountHint": "A number or dice. A negative gives back (5 / 2d6 / 1d6+2 / -3)"
       },
       "stampCategories": {
         "door": "Doors",

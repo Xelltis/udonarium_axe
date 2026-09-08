@@ -8,6 +8,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { vi } from 'vitest';
 
 const GRID = 50;
 
@@ -56,6 +57,57 @@ describe('TriggerFireService', () => {
     return Number(DataElement.findElementByReference(piece.rootDataElement!, 'ライフ')!.currentValue);
   }
 
+  describe('a piece carried by hand', () => {
+    function standAt(piece: GameCharacter, col: number, row: number): void {
+      piece.location = { name: 'table', x: col * GRID, y: row * GRID };
+    }
+
+    it('springs what it is put down on', () => {
+      trapAt(5, 5);
+      const hero = heroWith(20);
+      standAt(hero, 4, 5);
+
+      service.pickedUp(hero);
+      standAt(hero, 5, 5);
+      const fired = service.putDown(hero);
+
+      expect(fired.length).toBe(1);
+      expect(hpOf(hero)).toBe(17);
+    });
+
+    it('springs ground that waits to be stepped on as readily, having no way to offer', () => {
+      trapAt(5, 5, { moment: 'enter' });
+      const hero = heroWith(20);
+      standAt(hero, 4, 5);
+
+      service.pickedUp(hero);
+      standAt(hero, 5, 5);
+      service.putDown(hero);
+
+      expect(hpOf(hero)).toBe(17);
+    });
+
+    it('springs nothing where the piece was put back where it came from', () => {
+      trapAt(4, 5);
+      const hero = heroWith(20);
+      standAt(hero, 4, 5);
+
+      service.pickedUp(hero);
+      const fired = service.putDown(hero);
+
+      expect(fired).toEqual([]);
+      expect(hpOf(hero)).toBe(20);
+    });
+
+    it('springs nothing for a piece nobody picked up', () => {
+      trapAt(5, 5);
+      const hero = heroWith(20);
+      standAt(hero, 5, 5);
+
+      expect(service.putDown(hero)).toEqual([]);
+    });
+  });
+
   it('takes what the ground takes from the piece that walks onto it', () => {
     trapAt(5, 5);
     const hero = heroWith(20);
@@ -65,6 +117,18 @@ describe('TriggerFireService', () => {
     expect(fired.length).toBe(1);
     expect(fired[0].taken).toBe(3);
     expect(hpOf(hero)).toBe(17);
+  });
+
+  it('says the resource changed, so the gauge, the floating number and its sound all follow', () => {
+    trapAt(5, 5);
+    const hero = heroWith(20);
+    const resource = DataElement.findElementByReference(hero.rootDataElement!, 'ライフ')!;
+    const told = vi.spyOn(resource, 'update');
+
+    service.walked(hero, grid(), [at(4, 5), at(5, 5)]);
+
+    // The write itself announces it, which is what the piece watches to draw the change.
+    expect(told).toHaveBeenCalled();
   });
 
   it('leaves ground the piece was already standing on alone', () => {
