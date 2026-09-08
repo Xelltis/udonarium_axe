@@ -44,6 +44,21 @@ export class SkinImageStore {
     await this.request<undefined>('readwrite', (store) => store.delete(mode));
   }
 
+  /**
+   * Drops every picture no stack refers to any more.
+   *
+   * A layer taken out of a stack leaves its bytes behind so that the panel's way back can
+   * put it there again; nothing else ever removes them, and a stack trimmed on load leaves
+   * some too. This is the sweep, run once at start.
+   */
+  async forget(keep: ReadonlySet<string>): Promise<void> {
+    const held = await this.request<IDBValidKey[]>('readonly', (store) => store.getAllKeys());
+    if (!held) return;
+    for (const key of held) {
+      if (typeof key === 'string' && !keep.has(key)) await this.remove(key);
+    }
+  }
+
   /** Forgets the open handle, so a test can start again against a fresh database. */
   reset(): void {
     this.dbPromise = null;

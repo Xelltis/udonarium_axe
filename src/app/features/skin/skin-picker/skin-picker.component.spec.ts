@@ -4,6 +4,12 @@ import { ThemeService } from '@axe/application/ui/theme.service';
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
 
+const PNG_HEAD = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+function picture(): Blob {
+  return new Blob([PNG_HEAD], { type: 'image/png' });
+}
+
 const KEYS = ['ui-theme', 'ui-skin-light', 'ui-skin-dark', 'ui-skin-recipe-light', 'ui-skin-recipe-dark'];
 
 describe('SkinPickerComponent', () => {
@@ -104,6 +110,24 @@ describe('SkinPickerComponent', () => {
     const ground = document.documentElement.style.getPropertyValue('--ui-bg');
     expect(ground.slice(1, 3)).toBe(ground.slice(3, 5));
     expect(ground.slice(3, 5)).toBe(ground.slice(5, 7));
+  });
+
+  it('lists the stack the way it is drawn, topmost first', async () => {
+    const { SkinImageStore } = await import('@axe/core/storage/skin-image-store');
+    vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
+    await skins.addLayer(picture(), 'under.png');
+    await skins.addLayer(picture(), 'over.png');
+    fixture.detectChanges();
+
+    const rows = [...fixture.nativeElement.querySelectorAll('[data-testid^="skin-layer-opacity-"]')];
+    const names = [...fixture.nativeElement.querySelectorAll('.truncate')].map((n: HTMLElement) => n.textContent);
+
+    expect(rows.length).toBe(2);
+    expect(names.join(' ')).toContain('over.png');
+    // The top row is the top of the stack, so it cannot be raised any further.
+    expect(fixture.nativeElement.querySelector('[data-testid="skin-layer-up-0"]').disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-testid="skin-layer-down-0"]').disabled).toBe(false);
   });
 
   it('sets the edges harder when it is asked to', () => {

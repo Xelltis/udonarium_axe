@@ -28,7 +28,10 @@
         </div>
         <div
           class="group/body break-anywhere rounded-ui bg-ui-elevated text-ui-text relative ml-2 min-w-0 grow border border-solid border-(--ui-bubble-caret-border) px-1.5 pt-0.75 pb-1.25 [--bubble-bg:var(--ui-elevated)] before:absolute before:top-3 before:-left-2.25 before:border-y-[6px] before:border-r-[9px] before:border-l-0 before:border-solid before:border-y-transparent before:border-r-(--ui-bubble-caret-border) before:content-[''] after:absolute after:top-3.25 after:-left-1.75 after:border-y-[5px] after:border-r-8 after:border-l-0 after:border-solid after:border-y-transparent after:border-r-(--bubble-bg) after:content-['']"
-          [ngStyle]="chatMessage.messColor | chatColorStyle: theme.resolved() : bubbleFor(chatMessage)"
+          [ngStyle]="
+            chatMessage.messColor
+              | chatColorStyle: theme.resolved() : bubbleFor(chatMessage) : skins.toneOf(theme.resolved())
+          "
         >
           <div class="pl-2.5 align-top text-(length:--chat-font-size) font-medium text-inherit">
             <span class="msg-name">{{ displayName(chatMessage.name) }}</span>
@@ -214,7 +217,10 @@
       >
         <div
           class="group/body rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-text grow border border-solid px-1.5 pt-0.5 pb-0.75"
-          [ngStyle]="chatMessage.messColor | chatColorStyle: theme.resolved() : bubbleFor(chatMessage)"
+          [ngStyle]="
+            chatMessage.messColor
+              | chatColorStyle: theme.resolved() : bubbleFor(chatMessage) : skins.toneOf(theme.resolved())
+          "
         >
           <span class="pl-2.5 align-top text-(length:--chat-font-size) font-medium text-inherit">
             <font class="msg-name">{{ displayName(chatMessage.name) }}</font

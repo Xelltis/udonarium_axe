@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { computed, effect, inject, Injectable, linkedSignal, signal } from '@angular/core';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
+import { looksLikeImage } from '@axe/core/storage/image-sniff';
 import { SKIN_IMAGE_MAX_BYTES, SKIN_IMAGE_MAX_SIDE, SkinImageStore } from '@axe/core/storage/skin-image-store';
 import { createZipBlob, readZipEntries } from '@axe/core/storage/zip-archive';
 import { downloadBlob } from '@axe/core/util/download-blob';
@@ -21,8 +22,8 @@ import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 
 /** A seat's whole wardrobe at one moment, which is what "put it back" restores. */
 export interface SkinSnapshot {
-  light: { id: string; recipe: SkinRecipe };
-  dark: { id: string; recipe: SkinRecipe };
+  light: { id: string; recipe: SkinRecipe; stack: SkinLayer[] };
+  dark: { id: string; recipe: SkinRecipe; stack: SkinLayer[] };
 }
 
 const SKIN_KEY: Record<SkinMode, string> = { light: 'ui-skin-light', dark: 'ui-skin-dark' };
@@ -127,6 +128,18 @@ export class SkinService {
     return this.preview(this.hovered() ?? this.chosen[mode](), mode) ?? STANDARD_TOKENS[mode];
   });
 
+  /**
+   * The tone the panels of one ladder sit at.
+   *
+   * A chat bubble is worked out against the page it sits on, and the pipe that does the
+   * working out is pure: it has to be handed this so that a skin moving the panels moves
+   * every bubble already on screen, not only the ones written afterwards.
+   */
+  toneOf(mode: SkinMode): number {
+    const worn = mode === this.mode() ? this.tokens() : this.preview(this.chosen[mode](), mode);
+    return panelTone(worn ?? STANDARD_TOKENS[mode]);
+  }
+
   /** The stack being arranged, for the list in the panel. */
   readonly stack = computed(() => this.stacks[this.editing()]());
 
@@ -161,14 +174,16 @@ export class SkinService {
   }
 
   private async loadPictures(): Promise<void> {
+    const wanted = [...this.stacks.light(), ...this.stacks.dark()].map((layer) => layer.id);
+    const fetched = await Promise.all(wanted.map(async (id) => [id, await this.images.get(id)] as const));
+
     const found: Record<string, string> = {};
-    for (const mode of ['light', 'dark'] as const) {
-      for (const layer of this.stacks[mode]()) {
-        const blob = await this.images.get(layer.id);
-        if (blob) found[layer.id] = URL.createObjectURL(blob);
-      }
+    for (const [id, blob] of fetched) {
+      if (blob) found[id] = URL.createObjectURL(blob);
     }
     if (Object.keys(found).length > 0) this.urls.update((held) => ({ ...held, ...found }));
+
+    await this.images.forget(new Set(wanted));
   }
 
   /** The stack of one ladder, with the bytes it has and without the ones it has lost. */
@@ -202,28 +217,46 @@ export class SkinService {
    * Anything that is not a picture, or beyond what a browser will decode, is refused.
    */
   async addLayer(file: Blob, name: string, mode: SkinMode = this.editing()): Promise<boolean> {
-    if (this.stacks[mode]().length >= MAX_LAYERS) return false;
-    if (file.size > SKIN_IMAGE_MAX_BYTES) return false;
-    if (file.type && !file.type.startsWith('image/')) return false;
+    const id = await this.keepPicture(file, mode);
+    if (!id) return false;
 
-    const scaled = (await downscaleImageBlob(file, SKIN_IMAGE_MAX_SIDE)) ?? file;
-    const layer: SkinLayer = {
-      id: newLayerId(),
-      name: name.slice(0, 60),
-      opacity: 100,
-      fit: 'cover',
-      anchor: 'center',
-    };
-    if (!(await this.images.put(layer.id, scaled))) return false;
-
-    this.urls.update((held) => ({ ...held, [layer.id]: URL.createObjectURL(scaled) }));
-    this.keepStack(mode, [...this.stacks[mode](), layer]);
+    this.keepStack(mode, [
+      ...this.stacks[mode](),
+      { id, name: name.slice(0, 60), opacity: 100, fit: 'cover', anchor: 'center' },
+    ]);
     return true;
   }
 
-  async removeLayer(id: string, mode: SkinMode = this.editing()): Promise<void> {
-    await this.images.remove(id);
-    this.releaseUrl(id);
+  /**
+   * The one way bytes become a layer, whether they came from a file picker or a zip.
+   *
+   * Nothing skips the size limit, the check that this is a picture at all, or the resample:
+   * a skin handed over by someone else is exactly the case where those matter most. The cap
+   * on the stack is read again after the waiting, since two pictures can be chosen at once.
+   */
+  private async keepPicture(file: Blob, mode: SkinMode): Promise<string | null> {
+    if (this.stacks[mode]().length >= MAX_LAYERS) return null;
+    if (file.size > SKIN_IMAGE_MAX_BYTES) return null;
+    if (file.type && !file.type.startsWith('image/')) return null;
+    if (!(await looksLikeImage(file))) return null;
+
+    const scaled = (await downscaleImageBlob(file, SKIN_IMAGE_MAX_SIDE)) ?? file;
+    if (this.stacks[mode]().length >= MAX_LAYERS) return null;
+
+    const id = newLayerId();
+    if (!(await this.images.put(id, scaled))) return null;
+
+    this.urls.update((held) => ({ ...held, [id]: URL.createObjectURL(scaled) }));
+    return id;
+  }
+
+  /**
+   * Takes a layer out of the stack, leaving its bytes where they are.
+   *
+   * The way back out of the panel has to be able to put it there again, and there is nowhere
+   * else the picture survives. What no stack refers to any more is swept on the next start.
+   */
+  removeLayer(id: string, mode: SkinMode = this.editing()): void {
     this.keepStack(
       mode,
       this.stacks[mode]().filter((layer) => layer.id !== id)
@@ -241,17 +274,6 @@ export class SkinService {
       this.stacks[mode]().map((layer) => (layer.id === id ? { ...layer, ...patch, id: layer.id } : layer))
     );
   }
-
-  private releaseUrl(id: string): void {
-    const held = this.urls()[id];
-    if (held) URL.revokeObjectURL(held);
-    this.urls.update((all) => {
-      const left = { ...all };
-      delete left[id];
-      return left;
-    });
-  }
-
   skinOf(mode: SkinMode): string {
     return this.chosen[mode]();
   }
@@ -273,8 +295,8 @@ export class SkinService {
   /** What the seat is wearing now, so a panel can put it back after someone has tried things on. */
   snapshot(): SkinSnapshot {
     return {
-      light: { id: this.chosen.light(), recipe: this.recipes.light() },
-      dark: { id: this.chosen.dark(), recipe: this.recipes.dark() },
+      light: { id: this.chosen.light(), recipe: this.recipes.light(), stack: [...this.stacks.light()] },
+      dark: { id: this.chosen.dark(), recipe: this.recipes.dark(), stack: [...this.stacks.dark()] },
     };
   }
 
@@ -284,6 +306,7 @@ export class SkinService {
       write(RECIPE_KEY[mode], JSON.stringify(worn[mode].recipe));
       this.chosen[mode].set(worn[mode].id);
       write(SKIN_KEY[mode], worn[mode].id);
+      this.keepStack(mode, [...worn[mode].stack]);
     }
     this.hovered.set(null);
   }
@@ -340,19 +363,14 @@ export class SkinService {
     if (!skin) return false;
 
     const mode = skin.mode;
-    for (const layer of this.stacks[mode]()) {
-      await this.images.remove(layer.id);
-      this.releaseUrl(layer.id);
-    }
     this.keepStack(mode, []);
     this.build(skin.recipe, mode);
 
     for (const wanted of skin.layers) {
       const packed = entries.find((entry) => entry.name === wanted.file);
       if (!packed) continue;
-      const id = newLayerId();
-      if (!(await this.images.put(id, packed.blob))) continue;
-      this.urls.update((held) => ({ ...held, [id]: URL.createObjectURL(packed.blob) }));
+      const id = await this.keepPicture(packed.blob, mode);
+      if (!id) continue;
       this.keepStack(mode, [
         ...this.stacks[mode](),
         { id, name: wanted.name, opacity: wanted.opacity, fit: wanted.fit, anchor: wanted.anchor },

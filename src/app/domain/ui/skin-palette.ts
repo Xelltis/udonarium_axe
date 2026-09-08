@@ -53,12 +53,6 @@ export const MAX_SPREAD = 11;
 /** How far the ground may rise above them, which is as far as the ladder has room for. */
 export const MIN_SPREAD = -20;
 
-/** How much of the ground a picture may be left to show through. */
-export const MAX_FADE = 95;
-
-/** Enough of the ground over a picture that the panels still read against it. */
-export const DEFAULT_FADE = 45;
-
 /** The custom properties a skin sets, keyed by the name the stylesheet reads. */
 export type SkinTokens = Readonly<Record<string, string>>;
 
@@ -182,6 +176,8 @@ function stretch(ramp: Ramp): Ramp {
     accentHover: ramp.ink === 'dark' ? 24 : 86,
     quoteName: ramp.ink === 'dark' ? 26 : 82,
     danger: ramp.ink === 'dark' ? 34 : 68,
+    dangerHover: ramp.ink === 'dark' ? 26 : 78,
+    success: ramp.ink === 'dark' ? 40 : 76,
     edge: ramp.edge * 1.8,
   };
 }
@@ -206,12 +202,27 @@ function alpha(lch: Lch, amount: number): string {
   return `rgba(${byte(r)}, ${byte(g)}, ${byte(b)}, ${Number(amount.toFixed(3))})`;
 }
 
+/**
+ * How far the ground may be moved before the text drawn straight onto it stops reading.
+ *
+ * Brightness and ground drop each have a range of their own, but they add up, and a pair of
+ * settings that are fine apart can leave the ground level with the ink. The ground is held
+ * on the readable side of the ink whatever the two of them ask for.
+ */
+function ground(tone: number, ramp: Ramp): number {
+  return ramp.ink === 'dark' ? Math.max(READABLE_GROUND, tone) : Math.min(100 - READABLE_GROUND, tone);
+}
+
+/** The tone a ground has to keep from the ink for body text to clear 4.5:1 over it. */
+const READABLE_GROUND = 68;
+
 function surface(stop: Stop, recipe: SkinRecipe, ramp: Ramp): Lch {
   const lift = Math.max(-MAX_LIFT, Math.min(MAX_LIFT, recipe.lift ?? 0));
   const spread = Math.max(MIN_SPREAD, Math.min(MAX_SPREAD, recipe.spread ?? 0));
   const reach = Math.abs(ramp.elevated.tone - ramp.bg.tone) || 1;
   const below = ramp.elevated.tone - stop.tone;
-  const tone = stop.tone - (spread * below) / reach + lift;
+  const moved = stop.tone - (spread * below) / reach + lift;
+  const tone = below > 0 ? ground(moved, ramp) : moved;
   return { tone: Math.max(2, Math.min(98, tone)), chroma: recipe.chroma * stop.share, hue: recipe.hue };
 }
 
@@ -248,7 +259,6 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
 
   return {
     '--ui-bg': hex(bg),
-    '--ui-panel-image': 'none',
     '--ui-surface': hex(at(ramp.surface)),
     '--ui-elevated': hex(elevated),
 
@@ -331,21 +341,4 @@ function contrastOf(a: number, b: number): number {
 export function panelTone(tokens: SkinTokens): number {
   const rgb = parseHexColor(tokens['--ui-elevated'] ?? '');
   return rgb ? rgbToLch(rgb).tone : 92;
-}
-
-/**
- * What a panel is papered with once a skin gives it a picture.
- *
- * The picture is covered by the panel's own colour at whatever strength the skin asks for,
- * because text that was worked out to read against a flat colour does not read against a
- * photograph. With no picture a panel is the colour and nothing else.
- */
-export function panelImage(panel: string, url: string | null, fade: number): string {
-  if (!url) return 'none';
-  const rgb = parseHexColor(panel);
-  const amount = Math.max(0, Math.min(MAX_FADE, fade)) / 100;
-  if (!rgb) return `url("${url}")`;
-  const [r, g, b] = rgb.map((channel) => Math.round(channel * 255));
-  const veil = `rgba(${r}, ${g}, ${b}, ${Number(amount.toFixed(3))})`;
-  return `linear-gradient(${veil}, ${veil}), url("${url}")`;
 }

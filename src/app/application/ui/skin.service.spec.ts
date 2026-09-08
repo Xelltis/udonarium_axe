@@ -8,6 +8,13 @@ import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { readSkinFile, SKIN_FILE_NAME } from '@axe/domain/ui/skin-file';
 import { MAX_LAYERS, SkinLayer } from '@axe/domain/ui/skin-layer';
 
+/** The first bytes of a PNG, so what the guard sniffs is what a picture actually starts with. */
+const PNG_HEAD = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+function picture(): Blob {
+  return new Blob([PNG_HEAD], { type: 'image/png' });
+}
+
 const KEYS = [
   'ui-theme',
   'ui-skin-light',
@@ -199,7 +206,7 @@ describe('SkinService', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
     const { skins } = setup();
 
-    const done = await skins.addLayer(new Blob(['bytes'], { type: 'image/png' }), 'paper.png');
+    const done = await skins.addLayer(picture(), 'paper.png');
 
     expect(done).toBe(true);
     expect(skins.stack().length).toBe(1);
@@ -222,7 +229,7 @@ describe('SkinService', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     const { skins } = setup();
-    await skins.addLayer(new Blob(['bytes'], { type: 'image/png' }), 'paper.png');
+    await skins.addLayer(picture(), 'paper.png');
 
     await skins.removeLayer(skins.stack()[0].id);
 
@@ -234,8 +241,8 @@ describe('SkinService', () => {
     vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
     const { skins } = setup();
-    await skins.addLayer(new Blob(['a'], { type: 'image/png' }), 'a.png');
-    await skins.addLayer(new Blob(['b'], { type: 'image/png' }), 'b.png');
+    await skins.addLayer(picture(), 'a.png');
+    await skins.addLayer(picture(), 'b.png');
     const [under] = skins.stack();
 
     skins.tuneLayer(under.id, { opacity: 30, fit: 'tile', anchor: 'top-left' });
@@ -250,8 +257,8 @@ describe('SkinService', () => {
     vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
     const { skins } = setup();
-    await skins.addLayer(new Blob(['a'], { type: 'image/png' }), 'a.png');
-    await skins.addLayer(new Blob(['b'], { type: 'image/png' }), 'b.png');
+    await skins.addLayer(picture(), 'a.png');
+    await skins.addLayer(picture(), 'b.png');
 
     skins.moveLayer(skins.stack()[0].id, 1);
 
@@ -267,11 +274,11 @@ describe('SkinService', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
     const { skins } = setup();
     for (let i = 0; i < MAX_LAYERS; i++) {
-      await skins.addLayer(new Blob([`${i}`], { type: 'image/png' }), `${i}.png`);
+      await skins.addLayer(picture(), `${i}.png`);
     }
 
     expect(skins.stackIsFull()).toBe(true);
-    expect(await skins.addLayer(new Blob(['x'], { type: 'image/png' }), 'x.png')).toBe(false);
+    expect(await skins.addLayer(picture(), 'x.png')).toBe(false);
     expect(skins.stack().length).toBe(MAX_LAYERS);
   });
 
@@ -328,7 +335,7 @@ describe('SkinService', () => {
     });
     const zipped = await createZipBlob([
       new File([text], SKIN_FILE_NAME, { type: 'application/json' }),
-      new File([new Blob(['bytes'])], '1-a.webp', { type: 'image/webp' }),
+      new File([PNG_HEAD], '1-a.webp', { type: 'image/webp' }),
     ]);
 
     expect(await skins.importSkin(zipped)).toBe(true);
@@ -336,6 +343,47 @@ describe('SkinService', () => {
     expect(skins.recipeOf('light').hue).toBe(111);
     expect(skins.stack().length).toBe(1);
     expect(skins.stack()[0]).toMatchObject({ name: 'paper', opacity: 40, fit: 'tile' });
+  });
+
+  it('holds a zip to the same guards a file picker goes through', async () => {
+    const put = vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(null);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:skin');
+    const { skins } = setup();
+
+    const { createZipBlob } = await import('@axe/core/storage/zip-archive');
+    const text = JSON.stringify({
+      kind: 'udonarium-axe-skin',
+      mode: 'light',
+      recipe: { hue: 100, chroma: 10, accentHue: 20, accentChroma: 40 },
+      layers: [{ file: 'a.txt', name: 'not a picture', opacity: 100, fit: 'cover', anchor: 'center' }],
+    });
+    const zipped = await createZipBlob([
+      new File([text], SKIN_FILE_NAME, { type: 'application/json' }),
+      new File([new Blob(['plain text'])], 'a.txt', { type: 'text/plain' }),
+    ]);
+
+    expect(await skins.importSkin(zipped)).toBe(true);
+    expect(skins.stack()).toEqual([]);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it('keeps a removed picture until the way back has been passed up', async () => {
+    const removed = vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue();
+    vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
+    const { skins } = setup();
+    await skins.addLayer(picture(), 'a.png');
+    const worn = skins.snapshot();
+
+    skins.removeLayer(skins.stack()[0].id);
+    expect(skins.stack()).toEqual([]);
+    expect(removed).not.toHaveBeenCalled();
+
+    skins.restore(worn);
+
+    expect(skins.stack().length).toBe(1);
+    expect(skins.panelLayers().length).toBe(1);
   });
 
   it('leaves the seat alone when the zip is not a skin', async () => {

@@ -49,13 +49,16 @@
             (focus)="tryOn(skin.id)"
             (blur)="tryOn(null)"
           >
-            <span class="flex h-9 w-full items-end p-1" [style.background-color]="swatchOf(skin).ground">
+            <span class="flex h-9 w-full items-end p-1" [style.background-color]="swatches().get(skin.id)!.ground">
               <span
                 class="flex h-6 w-full items-center gap-1 rounded-[3px] px-1"
-                [style.background-color]="swatchOf(skin).panel"
+                [style.background-color]="swatches().get(skin.id)!.panel"
               >
-                <span class="size-2.5 shrink-0 rounded-full" [style.background-color]="swatchOf(skin).accent"></span>
-                <span class="h-1 flex-1 rounded-full" [style.background-color]="swatchOf(skin).ink"></span>
+                <span
+                  class="size-2.5 shrink-0 rounded-full"
+                  [style.background-color]="swatches().get(skin.id)!.accent"
+                ></span>
+                <span class="h-1 flex-1 rounded-full" [style.background-color]="swatches().get(skin.id)!.ink"></span>
               </span>
             </span>
             <span class="text-ui-text w-full truncate px-1 pb-1 text-center text-[10.5px]">
@@ -138,7 +141,7 @@
         'feature.skin.picture' | transloco
       }}</span>
 
-      @for (layer of stack(); track layer.id; let index = $index, count = $count) {
+      @for (layer of stackTopFirst(); track layer.id; let index = $index, count = $count) {
         <div class="border-ui-border-panel rounded-ui-sm flex flex-col gap-1.5 border border-solid p-2">
           <div class="flex items-center gap-1.5">
             <span class="text-ui-muted font-mono text-[10px] tabular-nums">{{ count - index }}</span>
@@ -148,7 +151,7 @@
             <button
               type="button"
               class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer border-none bg-transparent px-1 text-[13px] leading-none"
-              [disabled]="index === count - 1"
+              [disabled]="index === 0"
               [attr.aria-label]="'feature.skin.moveUp' | transloco"
               [attr.data-testid]="'skin-layer-up-' + index"
               (click)="moveLayer(layer.id, 1)"
@@ -158,7 +161,7 @@
             <button
               type="button"
               class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer border-none bg-transparent px-1 text-[13px] leading-none"
-              [disabled]="index === 0"
+              [disabled]="index === count - 1"
               [attr.aria-label]="'feature.skin.moveDown' | transloco"
               [attr.data-testid]="'skin-layer-down-' + index"
               (click)="moveLayer(layer.id, -1)"

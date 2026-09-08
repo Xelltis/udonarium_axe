@@ -2,6 +2,7 @@ import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { SkinService } from '@axe/application/ui/skin.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
@@ -53,6 +54,9 @@ export const CHAT_PRESET_COLORS: readonly string[] = [
   imports: [TranslocoModule, ChatColorStylePipe, NgStyle],
 })
 export class ChatColorSettingComponent {
+  /** The panels a bubble has to read against, which a skin may have moved. */
+  protected readonly skins = inject(SkinService);
+
   private readonly modalService = inject(ModalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatSettings = inject(ChatSettingsEventHandlerService);

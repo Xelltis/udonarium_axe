@@ -76,6 +76,26 @@ describe('the colours a skin recipe makes', () => {
     expect(floating['--ui-elevated']).toBe(flat['--ui-elevated']);
   });
 
+  it('carries body text on the ground for every pair the two knobs can reach', () => {
+    // Brightness and ground drop are clamped one at a time but add up, so the corners of the
+    // grid are where a readable ground stops being guaranteed.
+    for (const mode of ['light', 'dark'] as const) {
+      for (const hue of [0, 90, 180, 270]) {
+        for (const chroma of [0, 20, 40]) {
+          for (const lift of [-MAX_LIFT, -4, 0, 4, MAX_LIFT]) {
+            for (const spread of [MIN_SPREAD, -8, 0, 6, MAX_SPREAD]) {
+              const tokens = skinTokens({ hue, chroma, accentHue: hue, accentChroma: 50, lift, spread }, mode);
+              const ratio = skinContrast(tokens, '--ui-text', '--ui-bg');
+              expect(`${mode} h${hue} c${chroma} lift${lift} spread${spread}: ${ratio >= 4.5}`).toBe(
+                `${mode} h${hue} c${chroma} lift${lift} spread${spread}: true`
+              );
+            }
+          }
+        }
+      }
+    }
+  });
+
   it('still carries body text on a ground spread as far as it goes', () => {
     for (const mode of ['light', 'dark'] as const) {
       const tokens = skinTokens({ ...PLAIN, spread: MAX_SPREAD }, mode);

@@ -223,10 +223,10 @@ export class UIPanelComponent {
     return this.panelService.frameless;
   }
 
-  /** Wearing no box of its own: shrunk to its content, asked to play without a frame, or gone ghost. */
   /** The pictures the skin papers a panel with, underneath first. */
   protected readonly skinLayers = inject(SkinService).panelLayers;
 
+  /** Wearing no box of its own: shrunk to its content, asked to play without a frame, or gone ghost. */
   get unboxed(): boolean {
     return this.contentMinimized || this.frameless || this.panelService.isGhost();
   }

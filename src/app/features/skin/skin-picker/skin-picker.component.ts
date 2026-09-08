@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { CUSTOM_SKIN, Skin, SkinGroup, skinsFor, STANDARD_SKIN } from '@axe/domain/ui/skin';
+import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 import {
   LAYER_ANCHORS,
   LAYER_FITS,
@@ -21,6 +22,16 @@ interface Swatch {
   panel: string;
   accent: string;
   ink: string;
+}
+
+function swatchFrom(id: string, tokens: Readonly<Record<string, string>>): Swatch {
+  return {
+    id,
+    ground: tokens['--ui-bg'],
+    panel: tokens['--ui-elevated'],
+    accent: tokens['--ui-accent'],
+    ink: tokens['--ui-text'],
+  };
 }
 
 @Component({
@@ -44,6 +55,9 @@ export class SkinPickerComponent {
   protected readonly tile = RECOMMENDED_TILE_SIZE;
 
   protected readonly stack = this.skins.stack;
+
+  /** The stack as it is looked at: the topmost picture first, the way it is drawn. */
+  protected readonly stackTopFirst = computed(() => [...this.skins.stack()].reverse());
   protected readonly stackIsFull = this.skins.stackIsFull;
 
   /** What the skin is called when it is written out. Blank is fine; the file falls back. */
@@ -72,33 +86,25 @@ export class SkinPickerComponent {
     );
   });
 
-  /** The four colours a swatch shows, which is as much of a skin as a thumbnail can carry. */
-  protected swatchOf(skin: Skin): Swatch {
-    const tokens = this.skins.preview(skin.id, this.editing());
-    if (!tokens) {
-      return skin.mode === 'light'
-        ? { id: skin.id, ground: '#d4c8e2', panel: '#e8dded', accent: '#1e66f5', ink: '#4c4564' }
-        : { id: skin.id, ground: '#0d1117', panel: '#21262d', accent: '#58a6ff', ink: '#e6edf3' };
+  /**
+   * The four colours each swatch shows, worked out once per ladder.
+   *
+   * Every one of them is a whole palette, and a palette is forty colours through a search
+   * for what the screen can show. Doing that per binding, per change detection, while a
+   * slider is being dragged, is what this map is here to avoid.
+   */
+  protected readonly swatches = computed(() => {
+    const mode = this.editing();
+    const found = new Map<string, Swatch>();
+    for (const skin of skinsFor(mode)) {
+      found.set(skin.id, swatchFrom(skin.id, this.skins.preview(skin.id, mode) ?? STANDARD_TOKENS[mode]));
     }
-    return {
-      id: skin.id,
-      ground: tokens['--ui-bg'],
-      panel: tokens['--ui-elevated'],
-      accent: tokens['--ui-accent'],
-      ink: tokens['--ui-text'],
-    };
-  }
-
-  protected readonly customSwatch = computed<Swatch>(() => {
-    const tokens = this.skins.preview(CUSTOM_SKIN, this.editing())!;
-    return {
-      id: CUSTOM_SKIN,
-      ground: tokens['--ui-bg'],
-      panel: tokens['--ui-elevated'],
-      accent: tokens['--ui-accent'],
-      ink: tokens['--ui-text'],
-    };
+    return found;
   });
+
+  protected readonly customSwatch = computed<Swatch>(() =>
+    swatchFrom(CUSTOM_SKIN, this.skins.preview(CUSTOM_SKIN, this.editing())!)
+  );
 
   protected editLadder(mode: SkinMode): void {
     this.skins.editLadder(mode);

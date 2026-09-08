@@ -36,14 +36,14 @@ const TONE_CEILING = 98;
  * it leaves the background it shares with every other panel only as far as it must, in
  * whichever direction is nearer.
  */
-export function autoChatBubble(color: string, theme: 'light' | 'dark'): string {
+export function autoChatBubble(color: string, theme: 'light' | 'dark', base?: number): string {
   const rgb = parseHexColor(color);
   if (!rgb) return '';
 
   const { chroma, hue } = rgbToLch(rgb);
   const tint = Math.min(chroma, BUBBLE_CHROMA);
   const textLum = relativeLuminance(rgb);
-  const baseTone = chatBubbleBaseTone(theme);
+  const baseTone = base ?? chatBubbleBaseTone(theme);
   // Measured on the colour as it will be written out, so what is returned is what was tested:
   // a tone that clears the standard as a float can fall a hair under it once it is a byte.
   const shown = (tone: number) => parseHexColor(cssToHex(rgbToCss(lchToRgb({ tone, chroma: tint, hue }))))!;
@@ -105,12 +105,14 @@ export class ChatColorStylePipe implements PipeTransform {
   transform(
     color: string | null | undefined,
     theme: 'light' | 'dark' = 'light',
-    bubble?: string | null
+    bubble?: string | null,
+    base?: number
   ): Record<string, string> | null {
     if (!color) return null;
     if (!parseHexColor(color)) return null;
 
-    const chosen = bubble && parseHexColor(bubble) ? rgbToCss(parseHexColor(bubble)!) : autoChatBubble(color, theme);
+    const chosen =
+      bubble && parseHexColor(bubble) ? rgbToCss(parseHexColor(bubble)!) : autoChatBubble(color, theme, base);
 
     return {
       color,
