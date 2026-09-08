@@ -12,6 +12,8 @@ export const TOKEN_ALIASES: Readonly<Record<string, string>> = {
   '--ui-elevated': '--color-ui-elevated',
   '--ui-panel-bg': '--color-ui-panel',
   '--ui-titlebar-bg': '--color-ui-titlebar',
+  '--ui-titlebar-text': '--color-ui-titlebar-text',
+  '--ui-titlebar-muted': '--color-ui-titlebar-muted',
   '--ui-hover': '--color-ui-hover',
   '--ui-selected': '--color-ui-selected',
   '--ui-menu-bg': '--color-ui-menu',

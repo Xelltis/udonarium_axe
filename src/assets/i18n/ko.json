@@ -2397,7 +2397,12 @@
       "name_lcdGreen": "4계조 초록",
       "name_commandWindow": "커맨드 창",
       "name_eightBit": "8비트 검정",
-      "name_mazeAmber": "미궁의 호박빛"
+      "name_mazeAmber": "미궁의 호박빛",
+      "name_origin": "원조",
+      "name_grassland": "초원",
+      "name_coast": "해안",
+      "name_wasteland": "황야",
+      "name_academy": "학원×청춘"
     },
     "lobby": {
       "peerMenu": {

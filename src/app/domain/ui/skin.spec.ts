@@ -49,8 +49,14 @@ describe('the skins that ship with the app', () => {
         ['--ui-danger', '--ui-elevated'],
         ['--ui-quote-name', '--ui-quote-bg'],
         ['--ui-text', '--ui-bg'],
+        // Other surfaces are painted with the titlebar colour and carry the app's ordinary
+        // secondary text, so a bar that contrasts with its own panel has to carry it too.
+        ['--ui-titlebar-text', '--ui-titlebar-bg'],
+        ['--ui-titlebar-muted', '--ui-titlebar-bg'],
       ];
       for (const [ink, ground] of pairs) {
+        // A translucent surface is composited over the panel behind it, which this cannot see.
+        if (!tokens[ground]?.startsWith('#')) continue;
         const ratio = skinContrast(tokens, ink, ground);
         expect(`${entry.id}/${entry.mode} ${ink} on ${ground}: ${ratio.toFixed(2)}`).toBe(
           `${entry.id}/${entry.mode} ${ink} on ${ground}: ${Math.max(ratio, 4.5).toFixed(2)}`

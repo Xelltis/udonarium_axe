@@ -116,7 +116,9 @@ const LIGHT: Ramp = {
   ghostHeader: { tone: 84, share: 0.86 },
   caret: { tone: 72, share: 1 },
   text: 24,
-  muted: 42,
+  // Deep enough to be read on the titlebar tint as well as on the panel: other surfaces
+  // are painted with the titlebar colour and carry this same secondary text.
+  muted: 36,
   dim: 56,
   quoteText: 20,
   accent: 38,
@@ -259,6 +261,8 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
         ? titlebar
         : { ...titlebar, hue: recipe.titlebarHue, chroma: recipe.titlebarChroma ?? recipe.chroma }
     ),
+    '--ui-titlebar-text': hex({ tone: ramp.text, ...ink }),
+    '--ui-titlebar-muted': hex({ tone: ramp.muted, hue: ink.hue, chroma: Math.min(ink.chroma + 1, 13) }),
     '--ui-titlebar-border': over(ramp.edge * 0.82),
     '--ui-hover': over(ramp.edge * 0.26),
     '--ui-selected': alpha(accent, 0.2),

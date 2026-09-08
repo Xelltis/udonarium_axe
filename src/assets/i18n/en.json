@@ -2397,7 +2397,12 @@
       "name_lcdGreen": "Four-tone green",
       "name_commandWindow": "Command window",
       "name_eightBit": "Eight-bit black",
-      "name_mazeAmber": "Dungeon amber"
+      "name_mazeAmber": "Dungeon amber",
+      "name_origin": "The original",
+      "name_grassland": "Grassland",
+      "name_coast": "Coast",
+      "name_wasteland": "Wasteland",
+      "name_academy": "Academy days"
     },
     "lobby": {
       "peerMenu": {

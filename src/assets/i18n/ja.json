@@ -2397,7 +2397,12 @@
       "name_lcdGreen": "四階調の緑",
       "name_commandWindow": "コマンドウィンドウ",
       "name_eightBit": "八ビットの黒",
-      "name_mazeAmber": "迷宮の琥珀"
+      "name_mazeAmber": "迷宮の琥珀",
+      "name_origin": "元祖",
+      "name_grassland": "草原",
+      "name_coast": "海岸",
+      "name_wasteland": "荒野",
+      "name_academy": "学園×青春"
     },
     "lobby": {
       "peerMenu": {
