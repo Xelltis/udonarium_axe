@@ -1,0 +1,530 @@
+<div class="bg-ui-panel text-ui-text flex h-full flex-col gap-3 overflow-y-auto p-3" data-testid="tabletop-display">
+  <p class="text-ui-dim m-0 text-[11px] leading-relaxed">
+    {{ 'feature.tabletop.displaySetting.intro' | transloco }}
+  </p>
+
+  <!-- Which way this table is looked at, asked of the reader and of the table in that order. -->
+  <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-3 border border-solid p-3">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.tabletop.displaySetting.sectionView' | transloco
+      }}</span>
+    </div>
+
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="tabletopMode"
+        name="tabletopMode"
+        data-testid="tabletop-mode"
+      />
+      <span class="flex-1 font-semibold">{{ 'feature.tabletop.displaySetting.tabletopMode' | transloco }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+    </label>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.tabletop.displaySetting.tabletopModeHint' | transloco }}</p>
+
+    <div class="flex flex-col gap-1.5">
+      <div class="flex flex-wrap items-baseline gap-1.5">
+        <span class="text-ui-text text-[13px]">{{ 'feature.tabletop.displaySetting.seatView' | transloco }}</span>
+        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+          'feature.tabletop.displaySetting.scopeOwn' | transloco
+        }}</span>
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        @for (mode of viewModes; track mode) {
+          <button
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-2.5 py-1 text-[12px]"
+            type="button"
+            [class.border-ui-accent]="seatViewMode() === mode"
+            [attr.aria-pressed]="seatViewMode() === mode"
+            [attr.data-testid]="'view-mode-' + mode"
+            (click)="chooseViewMode(mode)"
+          >
+            {{ 'feature.tabletop.displaySetting.viewMode_' + mode | transloco }}
+          </button>
+        }
+      </div>
+      <span class="text-ui-accent text-[12px]">
+        @if (laysFlat()) {
+          {{ 'feature.tabletop.displaySetting.nowFlat' | transloco }}
+        } @else {
+          {{ 'feature.tabletop.displaySetting.nowPerspective' | transloco }}
+        }
+      </span>
+    </div>
+
+    <div class="flex flex-col gap-1.5" [attr.inert]="isEditable() ? null : ''">
+      <div class="flex flex-wrap items-baseline gap-1.5">
+        <span class="text-ui-text text-[13px]">{{ 'feature.tabletop.displaySetting.tableRecommend' | transloco }}</span>
+        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+          'feature.tabletop.displaySetting.scopeTable' | transloco
+        }}</span>
+      </div>
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="tableRecommendsFlat"
+          name="tableRecommendsFlat"
+          data-testid="table-recommends-flat"
+        />
+        {{ 'feature.tabletop.displaySetting.tableRecommendsFlat' | transloco }}
+      </label>
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.tabletop.tableSetting.recommendedViewHint' | transloco }}</p>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="orthographicProjection"
+          name="orthographicProjection"
+          data-testid="orthographic-projection"
+        />
+        <span class="flex-1">{{ 'feature.roomSettings.orthographicProjection' | transloco }}</span>
+        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+          'feature.tabletop.displaySetting.scopeOwn' | transloco
+        }}</span>
+      </label>
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.flatTableHint' | transloco }}</p>
+    </div>
+  </div>
+
+  <!-- What a piece gives away about itself, which the room and the table answer for. -->
+  <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.tabletop.displaySetting.sectionPieces' | transloco
+      }}</span>
+    </div>
+
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="pieceImageInCell"
+        name="pieceImageInCell"
+        data-testid="piece-image-in-cell"
+      />
+      <span class="flex-1">{{ 'feature.tabletop.displaySetting.pieceImageInCell' | transloco }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+    </label>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.tabletop.displaySetting.pieceImageInCellHint' | transloco }}</p>
+
+    <div class="flex flex-col gap-1.5" [attr.inert]="isEditable() ? null : ''">
+      <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+        <span class="flex-1">{{ 'feature.roomSettings.facingMark' | transloco }}</span>
+        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+          'feature.tabletop.displaySetting.scopeRoom' | transloco
+        }}</span>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
+          [(ngModel)]="facingMark"
+          name="facingMark"
+          data-testid="facing-mark"
+        >
+          @for (mark of facingMarks; track mark) {
+            <option [value]="mark">{{ 'feature.roomSettings.facingMark_' + mark | transloco }}</option>
+          }
+        </select>
+      </label>
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.facingMarkHint' | transloco }}</p>
+
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="imageBillboard"
+          name="imageBillboard"
+          data-testid="image-billboard"
+        />
+        <span class="flex-1">{{ 'feature.roomSettings.imageBillboard' | transloco }}</span>
+        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+          'feature.tabletop.displaySetting.scopeTable' | transloco
+        }}</span>
+        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+          'feature.tabletop.displaySetting.whenUpright' | transloco
+        }}</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Everything that is there because readers sit on all four sides of the glass. -->
+  <div
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+    [class.opacity-60]="!laysFlat()"
+  >
+    <div class="border-ui-accent flex flex-wrap items-baseline gap-1.5 border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.tabletop.displaySetting.sectionAround' | transloco
+      }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.whenFlat' | transloco
+      }}</span>
+    </div>
+
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="multiAngleEnabled"
+        name="multiAngleEnabled"
+        data-testid="multi-angle-enabled"
+      />
+      {{ 'feature.roomSettings.multiAngle' | transloco }}
+    </label>
+
+    <div
+      class="border-ui-border-panel bg-ui-input/35 grid grid-cols-[9.5rem_1fr] items-center gap-2 rounded-md border border-solid p-2"
+      [class.opacity-45]="!multiAngleEnabled"
+    >
+      <label class="text-ui-text col-span-2 flex cursor-pointer items-center gap-1.5 text-[12px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="multiAngleResourceBuffEnabled"
+          name="multiAngleResourceBuffEnabled"
+          [disabled]="!multiAngleEnabled"
+        />
+        {{ 'feature.roomSettings.multiAngleResourceBuff' | transloco }}
+      </label>
+
+      <label class="text-ui-muted text-[11px]" for="displayMultiAngleMotionMode">{{
+        'feature.roomSettings.multiAngleMotionMode' | transloco
+      }}</label>
+      <select
+        id="displayMultiAngleMotionMode"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 border border-solid px-2 py-1 text-[12px]"
+        [(ngModel)]="multiAngleMotionMode"
+        name="multiAngleMotionMode"
+        [disabled]="!multiAngleEnabled"
+      >
+        <option value="continuous">{{ 'feature.roomSettings.multiAngleContinuous' | transloco }}</option>
+        <option value="quarter-turn">{{ 'feature.roomSettings.multiAngleQuarterTurn' | transloco }}</option>
+        <option value="piece-quarter-turn">
+          {{ 'feature.roomSettings.multiAnglePieceQuarterTurn' | transloco }}
+        </option>
+      </select>
+
+      <label class="text-ui-muted text-[11px]" for="displayMultiAngleRevolutionSeconds">{{
+        'feature.roomSettings.multiAngleRevolutionSeconds' | transloco
+      }}</label>
+      <div class="flex items-center gap-1.5">
+        <input
+          id="displayMultiAngleRevolutionSeconds"
+          type="number"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
+          [(ngModel)]="multiAngleRevolutionSeconds"
+          name="multiAngleRevolutionSeconds"
+          min="1"
+          max="120"
+          step="1"
+          [disabled]="!multiAngleEnabled"
+        />
+        <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
+      </div>
+
+      <label class="text-ui-muted text-[11px]" for="displayMultiAnglePieceRevolutionSeconds">{{
+        'feature.roomSettings.multiAnglePieceRevolutionSeconds' | transloco
+      }}</label>
+      <div class="flex items-center gap-1.5">
+        <input
+          id="displayMultiAnglePieceRevolutionSeconds"
+          type="number"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
+          [(ngModel)]="multiAnglePieceRevolutionSeconds"
+          name="multiAnglePieceRevolutionSeconds"
+          min="5"
+          max="300"
+          step="5"
+          [disabled]="!multiAngleEnabled"
+        />
+        <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
+      </div>
+
+      @if (multiAngleMotionMode !== 'continuous') {
+        <label class="text-ui-muted text-[11px]" for="displayMultiAnglePauseSeconds">{{
+          'feature.roomSettings.multiAnglePauseSeconds' | transloco
+        }}</label>
+        <div class="flex items-center gap-1.5">
+          <input
+            id="displayMultiAnglePauseSeconds"
+            type="number"
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-20 border border-solid px-1.5 py-1 text-right text-[12px]"
+            [(ngModel)]="multiAnglePauseSeconds"
+            name="multiAnglePauseSeconds"
+            min="0"
+            max="30"
+            step="0.5"
+            [disabled]="!multiAngleEnabled"
+          />
+          <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.seconds' | transloco }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="tickerEnabled"
+          name="tickerEnabled"
+          data-testid="ticker-enabled"
+        />
+        {{ 'feature.roomSettings.tickerEnabled' | transloco }}
+      </label>
+      <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+        <span>{{ 'feature.roomSettings.tickerSpeed' | transloco }}</span>
+        <input
+          type="range"
+          class="h-1 w-24 p-0 [accent-color:var(--ui-accent)]"
+          min="20"
+          max="240"
+          step="5"
+          [(ngModel)]="tickerPixelsPerSecond"
+          name="tickerPixelsPerSecond"
+          [disabled]="!tickerEnabled"
+        />
+        <span class="min-w-12 text-right"
+          >{{ tickerPixelsPerSecond }} {{ 'feature.roomSettings.tickerSpeedUnit' | transloco }}</span
+        >
+      </label>
+    </div>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.tickerHint' | transloco }}</p>
+
+    <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+      <span class="flex-1">{{ 'feature.media.cutIn.multiDirection' | transloco }}</span>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
+        [(ngModel)]="cutInMultiDirectionMode"
+        name="cutInMultiDirectionMode"
+        data-testid="cut-in-multi-direction"
+      >
+        @for (mode of cutInMultiDirectionModes; track mode) {
+          <option [value]="mode">{{ 'feature.media.cutIn.multiDirection_' + mode | transloco }}</option>
+        }
+      </select>
+    </label>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.media.cutIn.multiDirectionHint' | transloco }}</p>
+
+    <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+      <span class="flex-1">{{ 'feature.roomSettings.multiAngleFontScale' | transloco }}</span>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
+        [(ngModel)]="multiAngleFontScale"
+        name="multiAngleFontScale"
+        data-testid="multi-angle-font-scale"
+      >
+        @for (scale of multiAngleFontScales; track scale) {
+          <option [value]="scale">{{ 'feature.roomSettings.multiAngleFontScale_' + scale | transloco }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  <!-- Reaching a piece and a window from whichever side of the glass a reader is sitting on. -->
+  <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+    <div class="border-ui-accent flex flex-wrap items-baseline gap-1.5 border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.tabletop.displaySetting.sectionReach' | transloco
+      }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-1" [class.opacity-60]="!laysFlat()">
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="radialMenuEnabled"
+          name="radialMenuEnabled"
+          data-testid="radial-menu-enabled"
+        />
+        {{ 'feature.roomSettings.radialMenu' | transloco }}
+      </label>
+      <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+        <span>{{ 'feature.roomSettings.radialMenuSpeed' | transloco }}</span>
+        <input
+          type="range"
+          class="h-1 w-24 p-0 [accent-color:var(--ui-accent)]"
+          min="1"
+          max="24"
+          step="1"
+          [(ngModel)]="radialMenuRotationSpeed"
+          name="radialMenuRotationSpeed"
+          [disabled]="!radialMenuEnabled"
+        />
+        <span class="min-w-9 text-right">{{ radialMenuRotationSpeed }}°/s</span>
+      </label>
+    </div>
+    <p class="text-ui-dim m-0 text-[11px]" [class.opacity-60]="!laysFlat()">
+      {{ 'feature.roomSettings.radialMenuHelp' | transloco }}
+    </p>
+
+    <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none" [class.opacity-60]="!laysFlat()">
+      <span class="flex-1">{{ 'feature.roomSettings.hoverDetailPlacement' | transloco }}</span>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
+        [(ngModel)]="hoverDetailPlacement"
+        name="hoverDetailPlacement"
+      >
+        @for (placement of hoverDetailPlacements; track placement) {
+          <option [value]="placement">
+            {{ 'feature.roomSettings.hoverDetailPlacement_' + placement | transloco }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <div class="flex flex-col gap-1.5">
+      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="panelRotationEnabled"
+          name="panelRotationEnabled"
+          data-testid="panel-rotation-enabled"
+        />
+        {{ 'feature.roomSettings.panelRotation' | transloco }}
+      </label>
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.panelRotationHint' | transloco }}</p>
+    </div>
+  </div>
+
+  <!-- What one square measures on this glass, and the measuring that makes it true. -->
+  <div
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+    [class.opacity-60]="!laysFlat()"
+  >
+    <div class="border-ui-accent flex flex-wrap items-baseline gap-1.5 border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.tabletop.displaySetting.sectionRealSize' | transloco
+      }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.scopeOwn' | transloco
+      }}</span>
+      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
+        'feature.tabletop.displaySetting.whenFlat' | transloco
+      }}</span>
+    </div>
+    <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+      <span class="flex-1">{{ 'feature.roomSettings.realSizeCellMm' | transloco }}</span>
+      <input
+        type="number"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-18 border border-solid px-1 py-0.5 text-[13px]"
+        min="5"
+        max="200"
+        step="0.1"
+        [(ngModel)]="cellMm"
+        name="cellMm"
+        data-testid="cell-mm"
+      />
+      <span class="text-ui-muted text-[12px]">mm</span>
+    </label>
+    <span class="text-ui-accent text-[12px]">
+      @if (cellSummary().unit === 'cell') {
+        {{
+          'feature.roomSettings.realSizeSummaryPlain'
+            | transloco: { mm: cellSummary().mm, inches: cellSummary().inches }
+        }}
+      } @else {
+        {{
+          'feature.roomSettings.realSizeSummary'
+            | transloco
+              : {
+                  mm: cellSummary().mm,
+                  inches: cellSummary().inches,
+                  distance: cellSummary().distance,
+                  unit: 'feature.roomSettings.cellUnit.' + cellSummary().unit | transloco,
+                }
+        }}
+      }
+    </span>
+
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="realSizeEnabled"
+        name="realSizeEnabled"
+        data-testid="real-size-enabled"
+      />
+      {{ 'feature.roomSettings.realSize' | transloco }}
+    </label>
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="viewLocked"
+        name="viewLocked"
+        data-testid="view-locked"
+      />
+      {{ 'feature.roomSettings.viewLock' | transloco }}
+    </label>
+
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.measureHint' | transloco }}</p>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <button
+        class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text border border-solid px-2 py-0.5 text-[12px]"
+        type="button"
+        data-testid="calibrate"
+        (click)="openCalibration()"
+      >
+        {{ 'feature.roomSettings.realSizeCalibrate' | transloco }}
+      </button>
+      @if (isCalibrated()) {
+        <span class="text-ui-muted flex-1 text-[12px]">
+          {{ 'feature.roomSettings.realSizeDpi' | transloco: { dpi: calibrationDpi() } }}
+        </span>
+        <button
+          class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text border border-solid px-1.5 py-0.5 text-[12px]"
+          type="button"
+          (click)="nudgeScale(-1)"
+        >
+          {{ 'feature.roomSettings.realSizeSmaller' | transloco }}
+        </button>
+        <button
+          class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text border border-solid px-1.5 py-0.5 text-[12px]"
+          type="button"
+          (click)="nudgeScale(1)"
+        >
+          {{ 'feature.roomSettings.realSizeLarger' | transloco }}
+        </button>
+        <button
+          class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text border border-solid px-1.5 py-0.5 text-[12px]"
+          type="button"
+          data-testid="reset-calibration"
+          (click)="resetCalibration()"
+        >
+          {{ 'feature.roomSettings.realSizeReset' | transloco }}
+        </button>
+      } @else {
+        <span class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.realSizeUncalibrated' | transloco }}</span>
+      }
+    </div>
+    @if (needsRecalibration()) {
+      <p class="m-0 text-[11px] text-amber-400">{{ 'feature.roomSettings.realSizeStale' | transloco }}</p>
+    }
+  </div>
+
+  <button
+    class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text self-start border border-solid px-2 py-0.5 text-[12px]"
+    type="button"
+    data-testid="forget-own-display"
+    (click)="forgetOwnDisplay()"
+  >
+    {{ 'feature.roomSettings.forgetOwnDisplay' | transloco }}
+  </button>
+</div>

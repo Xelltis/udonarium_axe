@@ -12,9 +12,9 @@ import {
   layoutToBlocks,
   MAX_MERGE_SPAN,
 } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
-import { DungeonLayout } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { clampCorridorWidth, DungeonLayout } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { assignRoomRoles } from '@axe/domain/tabletop/dungeon/room-roles';
-import { generateRoomsAndMazes } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
+import { fitBoardTo, generateRoomsAndMazes } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
 import { openTunnelMouth } from '@axe/domain/tabletop/dungeon/tunnel-mouth';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
@@ -36,6 +36,14 @@ export interface DungeonRequest {
   gridType?: GridType;
   /** Left out, the atmosphere decides how the party gets in. */
   entrance?: DungeonEntranceStyle;
+  /** The narrowest and the widest a passage is cut. Left out, the atmosphere decides that too. */
+  corridorWidth?: CorridorWidths;
+}
+
+/** How wide a passage may be cut, at its narrowest and at its widest. */
+export interface CorridorWidths {
+  least: number;
+  most: number;
 }
 
 export interface DungeonBoardSize {
@@ -48,12 +56,29 @@ export function clampRoomCount(roomCount: number): number {
   return Math.min(MAX_ROOM_COUNT, Math.max(MIN_ROOM_COUNT, Math.round(roomCount)));
 }
 
-/** The maze steps two cells at a time, so a room-and-maze board is always an odd size. */
-function toOdd(value: number): number {
-  return value % 2 === 0 ? value - 1 : value;
+/** How wide a passage this atmosphere cuts when the room has not said otherwise. */
+export function defaultCorridorWidth(atmosphere: DungeonAtmosphere): number {
+  return clampCorridorWidth(atmosphere.algorithm === 'cave' ? atmosphere.cave!.tunnelWidth : 1);
 }
 
-export function boardSizeFor(atmosphere: DungeonAtmosphere, roomCount: number): DungeonBoardSize {
+/**
+ * The widths a passage is cut between, held in order and within what a passage may be.
+ *
+ * A table that asks for one width asks for it at both ends, and a table that asks for nothing
+ * is given whatever the atmosphere has always cut.
+ */
+export function corridorWidthsFor(atmosphere: DungeonAtmosphere, asked?: CorridorWidths): CorridorWidths {
+  const fallback = defaultCorridorWidth(atmosphere);
+  const most = clampCorridorWidth(asked?.most ?? fallback);
+  const least = Math.min(most, clampCorridorWidth(asked?.least ?? fallback));
+  return { least, most };
+}
+
+export function boardSizeFor(
+  atmosphere: DungeonAtmosphere,
+  roomCount: number,
+  corridorWidth = defaultCorridorWidth(atmosphere)
+): DungeonBoardSize {
   const rooms = clampRoomCount(roomCount);
   if (atmosphere.algorithm === 'cave') {
     return {
@@ -61,17 +86,21 @@ export function boardSizeFor(atmosphere: DungeonAtmosphere, roomCount: number): 
       height: Math.min(MAX_BOARD_HEIGHT, Math.round((18 + Math.round(rooms * 1.5)) * CAVE_BOARD_SCALE)),
     };
   }
-  // A maze fills whatever rock is left, so slack in the board is paid for in corridor.
+  // A maze fills whatever rock is left, so slack in the board is paid for in corridor. A wide
+  // passage eats the board faster, so the board is given the room the passages want.
+  const wide = clampCorridorWidth(corridorWidth);
+  const spread = 1 + (wide - 1) * 0.5;
   return {
-    width: toOdd(Math.min(MAX_BOARD_WIDTH, 22 + Math.round(rooms * 1.8))),
-    height: toOdd(Math.min(MAX_BOARD_HEIGHT, 16 + Math.round(rooms * 1.4))),
+    width: fitBoardTo(Math.min(MAX_BOARD_WIDTH, Math.round((22 + rooms * 1.8) * spread)), wide),
+    height: fitBoardTo(Math.min(MAX_BOARD_HEIGHT, Math.round((16 + rooms * 1.4) * spread)), wide),
   };
 }
 
 export function generateDungeon(request: DungeonRequest): DungeonLayout {
   const atmosphere = atmosphereById(request.atmosphere);
   const rooms = clampRoomCount(request.roomCount);
-  const { width, height } = boardSizeOn(boardSizeFor(atmosphere, rooms), {
+  const widths = corridorWidthsFor(atmosphere, request.corridorWidth);
+  const { width, height } = boardSizeOn(boardSizeFor(atmosphere, rooms, widths.most), {
     type: request.gridType ?? GridType.SQUARE,
     sizePx: 1,
   });
@@ -88,7 +117,8 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
             iterations: atmosphere.cave!.iterations,
             birth: atmosphere.cave!.birth,
             survive: atmosphere.cave!.survive,
-            tunnelWidth: atmosphere.cave!.tunnelWidth,
+            minTunnel: widths.least,
+            maxTunnel: widths.most,
             hazardPools: Math.round(atmosphere.cave!.hazardPoolsPerRoom * rooms),
             seed: request.seed,
           },
@@ -105,6 +135,8 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
             extraConnectorChance: atmosphere.rooms!.extraConnectorChance,
             wallBreakChance: atmosphere.rooms!.wallBreakChance,
             shapes: atmosphere.rooms!.shapes,
+            minCorridor: widths.least,
+            maxCorridor: widths.most,
             seed: request.seed,
           },
           rng

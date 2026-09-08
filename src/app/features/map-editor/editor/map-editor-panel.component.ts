@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -27,6 +28,9 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import {
   isTextureId,
@@ -45,9 +49,11 @@ import {
   TERRAIN_FACE_KEYS,
   TerrainFaceImages,
   TerrainPaintSpec,
+  TriggerPaintSpec,
 } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { TRIGGER_MOMENTS, TRIGGER_TARGETS } from '@axe/domain/tabletop/trigger-event';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
 import { getStampById, STAMPS } from '@axe/features/map-editor/assets/stamps';
@@ -186,6 +192,8 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly objectStore = inject(ObjectStore);
+  private readonly effectLibrary = inject(EffectLibraryService);
   private readonly modalService = inject(ModalService);
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly t = inject(TRANSLATE_FN);
@@ -212,6 +220,40 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const spec = this.state.functionSpec();
     this.state.setFunctionSpec({ ...spec, mask: { ...spec.mask, ...patch } });
   }
+
+  protected setTriggerPaint(patch: Partial<TriggerPaintSpec>): void {
+    const spec = this.state.functionSpec();
+    this.state.setFunctionSpec({ ...spec, trigger: { ...spec.trigger, ...patch } });
+  }
+
+  protected readonly triggerMoments = TRIGGER_MOMENTS;
+  protected readonly triggerTargets = TRIGGER_TARGETS;
+
+  /** The effects the room has to play, offered by name the way chat and the sheets name one. */
+  protected readonly effectNames = computed<string[]>(() =>
+    this.effectLibrary
+      .presets()
+      .map((preset) => preset.name.trim())
+      .filter((name) => name.length > 0)
+      .sort()
+  );
+
+  /**
+   * The resources the room's pieces are carrying, offered rather than left to be remembered.
+   *
+   * A trap takes from a resource by name, and a name nobody carries takes nothing at all. The
+   * names on the table are the ones worth offering, so the field says what there is to hit.
+   */
+  protected readonly resourceNames = computed<string[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const names = new Set<string>();
+    for (const character of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      for (const element of collectDataElements(character.detailDataElement)) {
+        if (element.isNumberResource && element.name.trim().length > 0) names.add(element.name.trim());
+      }
+    }
+    return [...names].sort();
+  });
 
   protected readonly terrainFaces = TERRAIN_FACE_KEYS;
 

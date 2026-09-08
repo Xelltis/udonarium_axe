@@ -1,3 +1,18 @@
+/**
+ * How many cells across a passage is cut.
+ *
+ * One is what a dungeon drawn on paper usually has, and is what the maze was written for. Wider
+ * than that is for a table that wants a party abreast in a passage, or a thing too big to walk
+ * one cell at a time; four is as wide as a passage may be asked to be before it stops being one.
+ */
+export const MIN_CORRIDOR_WIDTH = 1;
+export const MAX_CORRIDOR_WIDTH = 4;
+
+export function clampCorridorWidth(width: number | undefined): number {
+  if (width === undefined || !Number.isFinite(width)) return MIN_CORRIDOR_WIDTH;
+  return Math.min(MAX_CORRIDOR_WIDTH, Math.max(MIN_CORRIDOR_WIDTH, Math.round(width)));
+}
+
 export const DungeonCell = {
   Rock: 0,
   Room: 1,

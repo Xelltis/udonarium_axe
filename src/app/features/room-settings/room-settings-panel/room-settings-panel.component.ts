@@ -23,6 +23,13 @@ import {
   HOVER_DETAIL_PLACEMENTS,
   HoverDetailPlacement,
 } from '@axe/domain/tabletop/hover-detail-placement';
+import {
+  asDiagonalMove,
+  DEFAULT_DIAGONAL_MOVE,
+  DIAGONAL_MOVES,
+  DiagonalMove,
+} from '@axe/domain/tabletop/move/diagonal-move';
+import { asBreakOutMode, BREAK_OUT_MODES, BreakOutMode } from '@axe/domain/tabletop/move/engagement';
 import { DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
 import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { asZocMode, ZOC_MODES, ZocMode } from '@axe/domain/tabletop/move/zone-of-control';
@@ -102,6 +109,8 @@ export class RoomSettingsPanelComponent {
   readonly moveUnits = MOVE_UNITS;
   readonly facingMarks = TABLE_FACING_MARKS;
   readonly zocModes = ZOC_MODES;
+  readonly diagonalMoves = DIAGONAL_MOVES;
+  readonly breakOutModes = BREAK_OUT_MODES;
 
   readonly isReadOnly = computed(() => {
     this.objectChange.trackMyCursor();
@@ -464,11 +473,11 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.moveRangeAlways = value;
   }
 
-  get moveDiagonally(): boolean {
-    return this.rules.moveDiagonally;
+  get diagonalMove(): DiagonalMove {
+    return this.rules.diagonalMove;
   }
-  set moveDiagonally(value: boolean) {
-    if (this.isEditable) this.config.moveDiagonally = value;
+  set diagonalMove(value: DiagonalMove) {
+    if (this.isEditable) this.config.diagonalMove = asDiagonalMove(value) ?? DEFAULT_DIAGONAL_MOVE;
   }
 
   get piecesShareCells(): boolean {
@@ -535,5 +544,33 @@ export class RoomSettingsPanelComponent {
   }
   set zocExtraCost(value: number) {
     if (this.isEditable) this.config.zocExtraCost = wholeCells(value);
+  }
+
+  get zocEngages(): boolean {
+    return this.rules.zocEngages;
+  }
+  set zocEngages(value: boolean) {
+    if (this.isEditable) this.config.zocEngages = value;
+  }
+
+  get breakOutMode(): BreakOutMode {
+    return this.rules.breakOutMode;
+  }
+  set breakOutMode(value: BreakOutMode) {
+    if (this.isEditable) this.config.breakOutMode = asBreakOutMode(value);
+  }
+
+  get breakOutCost(): number {
+    return this.rules.breakOutCost;
+  }
+  set breakOutCost(value: number) {
+    if (this.isEditable) this.config.breakOutCost = wholeCells(value);
+  }
+
+  get engagementCountsSize(): boolean {
+    return this.rules.engagementCountsSize;
+  }
+  set engagementCountsSize(value: boolean) {
+    if (this.isEditable) this.config.engagementCountsSize = value;
   }
 }

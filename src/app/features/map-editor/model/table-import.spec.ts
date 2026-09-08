@@ -26,6 +26,7 @@ function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
     blockedCells: [],
     terrainBlocks: [],
     maskBlocks: [],
+    triggerBlocks: [],
     ...over,
   };
 }
@@ -185,5 +186,45 @@ describe('a table that already has walls upon walls', () => {
     const plan = planFunctionPaint(sceneFromTable(table), table)!;
 
     expect(changesNothing(plan, table)).toBe(true);
+  });
+});
+
+describe('reading painted ground that goes off back into the editor', () => {
+  it('brings each patch back with everything it does', () => {
+    const spec = { ...DEFAULT_FUNCTION_SPEC.trigger, name: '落とし穴', element: 'HP', amount: '2d6', once: true };
+    const scene = sceneFromTable(snapshot({ triggerBlocks: [{ col: 2, row: 3, width: 2, height: 1, spec }] }));
+
+    const layer = scene.layers.find(
+      (held): held is FunctionLayer => held.kind === 'function' && (held as FunctionLayer).role === 'trigger'
+    )!;
+
+    expect(layer).toBeDefined();
+    expect(Object.keys(layer.cells).sort()).toEqual(['2,3', '3,3']);
+    expect(layer.spec.trigger).toEqual(spec);
+  });
+
+  it('keeps two patches that do different things in two layers', () => {
+    const scene = sceneFromTable(
+      snapshot({
+        triggerBlocks: [
+          { col: 1, row: 1, width: 1, height: 1, spec: { ...DEFAULT_FUNCTION_SPEC.trigger, element: 'HP' } },
+          { col: 5, row: 5, width: 1, height: 1, spec: { ...DEFAULT_FUNCTION_SPEC.trigger, element: 'MP' } },
+        ],
+      })
+    );
+
+    const layers = scene.layers.filter(
+      (held): held is FunctionLayer => held.kind === 'function' && (held as FunctionLayer).role === 'trigger'
+    );
+
+    expect(layers.length).toBe(2);
+  });
+
+  it('adds no layer at all to a table nobody has trapped', () => {
+    const scene = sceneFromTable(snapshot());
+
+    expect(scene.layers.some((held) => held.kind === 'function' && (held as FunctionLayer).role === 'trigger')).toBe(
+      false
+    );
   });
 });

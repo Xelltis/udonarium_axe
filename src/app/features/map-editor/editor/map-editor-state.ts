@@ -242,12 +242,21 @@ export class MapEditorState {
     return this.scene.layers.find((l) => l.id === id) ?? null;
   }
 
+  /**
+   * Takes a layer in hand, and the brush that painted it with it.
+   *
+   * Choosing a layer of functions is choosing to work on what it does, so the tool that works
+   * on it is put in hand as well. Without that the properties on show are some other tool's,
+   * and a patch that was painted with settings of its own looks like one that cannot be
+   * changed at all.
+   */
   setActiveLayer(id: string | null): void {
     this.activeLayerId.set(id);
     const chosen = this.activeLayer();
     if (chosen && chosen.kind === 'function') {
       this.functionRole.set(chosen.role);
       this.functionSpec.set({ ...chosen.spec });
+      if (this.tool() !== 'functionPaint' && this.tool() !== 'functionErase') this.tool.set('functionPaint');
     }
     this.bump();
   }
@@ -257,12 +266,6 @@ export class MapEditorState {
     this.functionSpec.set(spec);
     const active = this.activeLayer();
     if (active && active.kind === 'function' && active.role === this.functionRole() && !active.locked) {
-      // Through the same door as every other edit of a layer: retexturing one is a step of the
-      // work like any other, and one that goes round the outside is stepped over by an undo,
-      // which then lands past the painting the retexture was made for.
-      // Through the same door as every other edit of a layer: retexturing one is a step of the
-      // work like any other, and one that goes round the outside is stepped over by an undo,
-      // which then lands past the painting the retexture was made for.
       // Through the same door as every other edit of a layer: retexturing one is a step of the
       // work like any other, and one that goes round the outside is stepped over by an undo,
       // which then lands past the painting the retexture was made for.

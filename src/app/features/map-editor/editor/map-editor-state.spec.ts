@@ -1,6 +1,7 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { sampleCurvePoints } from '@axe/features/map-editor/model/curve-geometry';
+import { DEFAULT_FUNCTION_SPEC } from '@axe/features/map-editor/model/function-layer';
 import {
   CellLayer,
   DEFAULT_SCENE_BACKGROUND,
@@ -458,5 +459,49 @@ describe('MapEditorState', () => {
     state.textureRotation.set(45);
     const fill = state.currentFill();
     expect(fill).toEqual({ type: 'texture', textureId: 'image:abc123', scale: 2, rotation: 45 });
+  });
+});
+
+describe('taking a layer of functions in hand', () => {
+  it('takes the brush that painted it, so its settings are the ones on show', () => {
+    const state = new MapEditorState();
+    state.functionRole.set('trigger');
+    state.setFunctionSpec({
+      ...DEFAULT_FUNCTION_SPEC,
+      trigger: { ...DEFAULT_FUNCTION_SPEC.trigger, element: 'HP', amount: '2d6' },
+    });
+    state.paintFunctionCell(1, 1);
+    const painted = state.current.layers.find((layer) => layer.kind === 'function')!;
+
+    // Let go of it before taking up another brush, or changing the brush would repaint it.
+    state.setActiveLayer(null);
+    state.setFunctionSpec({ ...DEFAULT_FUNCTION_SPEC });
+    state.setActiveLayer(painted.id);
+
+    expect(state.functionSpec().trigger).toMatchObject({ element: 'HP', amount: '2d6' });
+  });
+
+  it('puts the tool that works on it in hand, so the settings can be reached at all', () => {
+    const state = new MapEditorState();
+    state.functionRole.set('trigger');
+    state.paintFunctionCell(1, 1);
+    const painted = state.current.layers.find((layer) => layer.kind === 'function')!;
+    state.tool.set('select');
+
+    state.setActiveLayer(painted.id);
+
+    expect(state.tool()).toBe('functionPaint');
+  });
+
+  it('leaves the eraser in hand where that is the one being used on it', () => {
+    const state = new MapEditorState();
+    state.functionRole.set('trigger');
+    state.paintFunctionCell(1, 1);
+    const painted = state.current.layers.find((layer) => layer.kind === 'function')!;
+    state.tool.set('functionErase');
+
+    state.setActiveLayer(painted.id);
+
+    expect(state.tool()).toBe('functionErase');
   });
 });

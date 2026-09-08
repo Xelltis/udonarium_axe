@@ -9,12 +9,19 @@ import { MAX_MERGE_SPAN } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import {
   boardSizeFor,
   clampRoomCount,
+  defaultCorridorWidth,
   generateDungeon,
   MAX_BOARD_HEIGHT,
   MAX_BOARD_WIDTH,
   planDungeon,
 } from '@axe/domain/tabletop/dungeon/dungeon-generator';
-import { cellAt, countOpenCells, DungeonCell, reachableCells } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import {
+  cellAt,
+  clampCorridorWidth,
+  countOpenCells,
+  DungeonCell,
+  reachableCells,
+} from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MAP_MAX_TERRAINS, syncObjectCount } from '@axe/domain/tabletop/map-blocks';
 
@@ -355,5 +362,99 @@ describe('laying a dungeon on hexes', () => {
     // Every way the layout joins two cells - north, south, east, west on the offset grid - is
     // one of the six a hex has, so nothing it carved can have come apart by being laid on hexes.
     expect(plan.layout.rooms.length).toBeGreaterThan(0);
+  });
+});
+
+describe('passages cut to the width the room asked for', () => {
+  it('holds the width between one and four', () => {
+    expect(clampCorridorWidth(0)).toBe(1);
+    expect(clampCorridorWidth(9)).toBe(4);
+    expect(clampCorridorWidth(3)).toBe(3);
+    expect(clampCorridorWidth(undefined)).toBe(1);
+    expect(clampCorridorWidth(Number.NaN)).toBe(1);
+  });
+
+  it('leaves a dungeon of rooms cutting one cell across, and a cave its own two', () => {
+    expect(defaultCorridorWidth(atmosphereById('stoneDungeon'))).toBe(1);
+    expect(defaultCorridorWidth(atmosphereById('cavern'))).toBe(2);
+  });
+
+  it('opens a passage the width it was asked for', () => {
+    for (const wide of [2, 3, 4]) {
+      const layout = generateDungeon({
+        atmosphere: 'stoneDungeon',
+        roomCount: 8,
+        seed: 7,
+        corridorWidth: { least: wide, most: wide },
+      });
+      const step = wide + 1;
+      let squares = 0;
+      for (let y = 1; y + wide <= layout.height - 1; y += step) {
+        for (let x = 1; x + wide <= layout.width - 1; x += step) {
+          const cells: number[] = [];
+          for (let dy = 0; dy < wide; dy++) {
+            for (let dx = 0; dx < wide; dx++) cells.push(cellAt(layout, x + dx, y + dy));
+          }
+          if (!cells.includes(DungeonCell.Corridor)) continue;
+          if (cells.includes(DungeonCell.Room)) continue;
+          squares++;
+
+          expect(cells.every((cell) => cell !== DungeonCell.Rock)).toBe(true);
+        }
+      }
+
+      expect(squares).toBeGreaterThan(0);
+    }
+  });
+
+  it('leaves every open cell reachable however wide the passages are', () => {
+    for (const wide of [1, 2, 3, 4]) {
+      for (const seed of SEEDS) {
+        const layout = generateDungeon({
+          atmosphere: 'stoneDungeon',
+          roomCount: 8,
+          seed,
+          corridorWidth: { least: wide, most: wide },
+        });
+
+        expect(reachableCells(layout, layout.entrance).size).toBe(countOpenCells(layout));
+      }
+    }
+  });
+
+  it('digs a cave its tunnels at the width asked for as well', () => {
+    const narrow = generateDungeon({
+      atmosphere: 'cavern',
+      roomCount: 8,
+      seed: 7,
+      corridorWidth: { least: 1, most: 1 },
+    });
+    const wide = generateDungeon({ atmosphere: 'cavern', roomCount: 8, seed: 7, corridorWidth: { least: 4, most: 4 } });
+
+    expect(countOpenCells(wide)).toBeGreaterThan(countOpenCells(narrow));
+  });
+
+  it('keeps a board it can lay the lattice on whole', () => {
+    for (const wide of [1, 2, 3, 4]) {
+      const size = boardSizeFor(atmosphereById('stoneDungeon'), 12, wide);
+
+      expect((size.width - wide - 2) % (wide + 1)).toBe(0);
+      expect((size.height - wide - 2) % (wide + 1)).toBe(0);
+      expect(size.width).toBeLessThanOrEqual(MAX_BOARD_WIDTH);
+      expect(size.height).toBeLessThanOrEqual(MAX_BOARD_HEIGHT);
+    }
+  });
+
+  it('stays inside what a table may hold', () => {
+    for (const wide of [1, 2, 3, 4]) {
+      const plan = planDungeon({
+        atmosphere: 'stoneDungeon',
+        roomCount: 20,
+        seed: 3,
+        corridorWidth: { least: wide, most: wide },
+      });
+
+      expect(plan.blocks.blocks.length).toBeLessThanOrEqual(MAP_MAX_TERRAINS);
+    }
   });
 });

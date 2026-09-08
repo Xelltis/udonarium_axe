@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import { LIGHT_SKIN_ASSET_URLS, LightSkinId } from '@axe/domain/media/light-skins';
@@ -11,6 +12,8 @@ import {
   WALL_TOP_TEXTURE,
   WallTextureId,
 } from '@axe/domain/media/texture-catalog';
+import { DungeonPoint } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import {
@@ -24,6 +27,7 @@ import {
   MapSize,
 } from '@axe/domain/tabletop/map-blocks';
 import { blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
+import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { EYE_HEIGHT_CELLS } from '@axe/domain/tabletop/vision-scene';
@@ -105,6 +109,27 @@ export interface DungeonBuildOptions {
   summary: string;
   /** What shape the cells are. Left out, squares. */
   gridType?: GridType;
+  /**
+   * Whether the table starts with the fog of war drawn over it.
+   *
+   * A dungeon nobody has walked yet is the one place a blank map is worth having, so the
+   * generator is where it is easiest to ask for. Left out, the table starts uncovered.
+   */
+  fogEnabled?: boolean;
+  /**
+   * Who is to be stood where, once the ground exists to stand them on.
+   *
+   * A party walks into a dungeon together, and finding each of them wherever they were left on
+   * the last table is the first chore of every session that starts on a new one. Which cells
+   * those are is worked out from the layout before the building starts.
+   */
+  muster?: readonly MusterStand[];
+}
+
+/** One piece and the cell of the finished map it is to be standing on. */
+export interface MusterStand {
+  piece: GameCharacter;
+  cell: DungeonPoint;
 }
 
 export interface DungeonBuildResult {
@@ -168,6 +193,7 @@ export class DungeonBuildService {
 
     this.layAmbiences(table, blocks.ambiences, grid);
     this.standLights(table, blocks.lights, options.wallHeight, grid);
+    this.musterParty(table, options.muster ?? []);
 
     return { table, terrainCount: blocks.blocks.length, summary: options.summary };
   }
@@ -188,8 +214,27 @@ export class DungeonBuildService {
     table.ambientColor = mood.ambientColor;
     table.weatherKind = mood.weatherKind;
     table.weatherDensity = mood.weatherDensity;
+    table.fogEnabled = options.fogEnabled ?? false;
     table.initialize();
     return table;
+  }
+
+  /**
+   * Stands the party on the ground it was given, on the table and on the floor of it.
+   *
+   * Wherever a piece was before this — another table, a board, somebody's hand — it is on the
+   * dungeon floor once the party has walked in, since that is what walking in means.
+   */
+  private musterParty(table: GameTable, party: readonly MusterStand[]): void {
+    if (party.length < 1) return;
+    const grid = cellGridOf(table.width, table.height, GRID_SIZE, table.gridType);
+    for (const { piece, cell } of party) {
+      const centre = cellCenterOf(grid, cellIndexOf(grid, cell.x, cell.y));
+      const corner = cornerShiftOf(piece, GRID_SIZE);
+      piece.location = { name: 'table', x: centre.x - corner, y: centre.y - corner };
+      piece.posZ = 0;
+      piece.update();
+    }
   }
 
   private createTerrain(

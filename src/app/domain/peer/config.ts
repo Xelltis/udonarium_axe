@@ -4,6 +4,7 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { allowsDiagonal, asDiagonalMove, DiagonalMove } from '@axe/domain/tabletop/move/diagonal-move';
 import {
   readRuleFlag,
   readRuleNumber,
@@ -42,6 +43,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_moveRangeEnabled') private _moveRangeEnabled: string = '';
   @SyncVar('_moveRangeElementNames') private _moveRangeElementNames: string = '';
   @SyncVar('_moveDiagonally') private _moveDiagonally: string = '';
+  @SyncVar('_diagonalMove') private _diagonalMove: string = '';
   @SyncVar('_piecesShareCells') private _piecesShareCells: string = '';
   @SyncVar('_moveRangeAlways') private _moveRangeAlways: string = '';
   @SyncVar('_zocAlways') private _zocAlways: string = '';
@@ -50,6 +52,10 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_zocMode') private _zocMode: string = '';
   @SyncVar('_zocRange') private _zocRange: number = -1;
   @SyncVar('_zocExtraCost') private _zocExtraCost: number = -1;
+  @SyncVar('_zocEngages') private _zocEngages: string = '';
+  @SyncVar('_breakOutMode') private _breakOutMode: string = '';
+  @SyncVar('_breakOutCost') private _breakOutCost: number = -1;
+  @SyncVar('_engagementCountsSize') private _engagementCountsSize: string = '';
   @SyncVar('_facingMark') private _facingMark: string = '';
 
   get defaultDiceBot(): string {
@@ -158,6 +164,19 @@ export class Config extends ObjectNode implements InnerXml {
   get moveDiagonally(): boolean | null {
     return readRuleFlag(this._moveDiagonally);
   }
+  /**
+   * How a corner is counted, or nothing where the room has not said.
+   *
+   * Written alongside the older yes-or-no, never instead of it: a peer on a version that only
+   * knows the older question still has to be told whether corners may be cut at all.
+   */
+  get diagonalMove(): DiagonalMove | null {
+    return asDiagonalMove(readRuleText(this._diagonalMove));
+  }
+  set diagonalMove(answer: DiagonalMove | null) {
+    this._diagonalMove = writeRuleText(answer);
+    this._moveDiagonally = writeRuleFlag(answer === null ? null : allowsDiagonal(answer));
+  }
   set moveDiagonally(answer: boolean | null) {
     this._moveDiagonally = writeRuleFlag(answer);
   }
@@ -218,6 +237,34 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocExtraCost = writeRuleNumber(answer);
   }
 
+  get zocEngages(): boolean | null {
+    return readRuleFlag(this._zocEngages);
+  }
+  set zocEngages(answer: boolean | null) {
+    this._zocEngages = writeRuleFlag(answer);
+  }
+
+  get breakOutMode(): string | null {
+    return readRuleText(this._breakOutMode);
+  }
+  set breakOutMode(answer: string | null) {
+    this._breakOutMode = writeRuleText(answer);
+  }
+
+  get breakOutCost(): number | null {
+    return readRuleNumber(this._breakOutCost);
+  }
+  set breakOutCost(answer: number | null) {
+    this._breakOutCost = writeRuleNumber(answer);
+  }
+
+  get engagementCountsSize(): boolean | null {
+    return readRuleFlag(this._engagementCountsSize);
+  }
+  set engagementCountsSize(answer: boolean | null) {
+    this._engagementCountsSize = writeRuleFlag(answer);
+  }
+
   get facingMark(): string | null {
     return readRuleText(this._facingMark);
   }
@@ -231,6 +278,7 @@ export class Config extends ObjectNode implements InnerXml {
       moveRangeEnabled: this.moveRangeEnabled,
       moveRangeElementNames: this.moveRangeElementNames,
       moveDiagonally: this.moveDiagonally,
+      diagonalMove: this.diagonalMove,
       piecesShareCells: this.piecesShareCells,
       moveRangeAlways: this.moveRangeAlways,
       zocAlways: this.zocAlways,
@@ -239,6 +287,10 @@ export class Config extends ObjectNode implements InnerXml {
       zocMode: this.zocMode,
       zocRange: this.zocRange,
       zocExtraCost: this.zocExtraCost,
+      zocEngages: this.zocEngages,
+      breakOutMode: this.breakOutMode,
+      breakOutCost: this.breakOutCost,
+      engagementCountsSize: this.engagementCountsSize,
       facingMark: this.facingMark,
     };
   }

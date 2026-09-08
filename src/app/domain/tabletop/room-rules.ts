@@ -1,3 +1,10 @@
+import { asDiagonalMove, DEFAULT_DIAGONAL_MOVE, DiagonalMove } from '@axe/domain/tabletop/move/diagonal-move';
+import {
+  asBreakOutMode,
+  BreakOutMode,
+  DEFAULT_BREAK_OUT_COST,
+  DEFAULT_BREAK_OUT_MODE,
+} from '@axe/domain/tabletop/move/engagement';
 import {
   DEFAULT_CELL_DISTANCE,
   DEFAULT_CELL_DISTANCE_UNIT,
@@ -16,7 +23,10 @@ import { DEFAULT_TABLE_FACING_MARK } from '@axe/domain/tabletop/table-facing-mar
 export interface RoomRules {
   moveRangeEnabled: boolean;
   moveRangeElementNames: string;
+  /** Whether a corner may be cut at all, which is what a table said before it could say how. */
   moveDiagonally: boolean;
+  /** How a corner is counted: see {@link DiagonalMove}. */
+  diagonalMove: DiagonalMove;
   piecesShareCells: boolean;
   moveRangeAlways: boolean;
   zocAlways: boolean;
@@ -25,11 +35,29 @@ export interface RoomRules {
   zocMode: ZocMode;
   zocRange: number;
   zocExtraCost: number;
+  /**
+   * Whether pieces standing against one another are held as one fight rather than as pairs.
+   *
+   * Left off, every enemy holds its own ground and nothing joins up. Turned on, whoever stands
+   * beside a piece already fighting is in the same fight, and what it costs to get out of one
+   * is weighed side against side rather than enemy by enemy.
+   */
+  zocEngages: boolean;
+  /** What a piece has to do to walk out of a fight: see {@link BreakOutMode}. */
+  breakOutMode: BreakOutMode;
+  /** What leaving costs where the table charges the same for every leaving. */
+  breakOutCost: number;
+  /** Whether a piece weighs what it covers in that reckoning, rather than one apiece. */
+  engagementCountsSize: boolean;
   facingMark: string;
 }
 
 /** The same rules in the looser terms a table holds them and an attribute carries them. */
-export type RoomRuleValues = Omit<RoomRules, 'zocMode'> & { zocMode: string };
+export type RoomRuleValues = Omit<RoomRules, 'zocMode' | 'diagonalMove' | 'breakOutMode'> & {
+  zocMode: string;
+  diagonalMove: string;
+  breakOutMode: string;
+};
 
 /** The same questions as the room hears them, where null is one it has not answered. */
 export type RoomRuleAnswers = { [Rule in keyof RoomRuleValues]: RoomRuleValues[Rule] | null };
@@ -38,6 +66,7 @@ export const ROOM_RULE_DEFAULTS: RoomRules = {
   moveRangeEnabled: true,
   moveRangeElementNames: DEFAULT_MOVE_RANGE_ELEMENT_NAMES,
   moveDiagonally: true,
+  diagonalMove: DEFAULT_DIAGONAL_MOVE,
   piecesShareCells: true,
   moveRangeAlways: false,
   zocAlways: false,
@@ -46,6 +75,10 @@ export const ROOM_RULE_DEFAULTS: RoomRules = {
   zocMode: DEFAULT_ZOC_MODE,
   zocRange: DEFAULT_ZOC_RANGE,
   zocExtraCost: DEFAULT_ZOC_EXTRA_COST,
+  zocEngages: false,
+  breakOutMode: DEFAULT_BREAK_OUT_MODE,
+  breakOutCost: DEFAULT_BREAK_OUT_COST,
+  engagementCountsSize: true,
   facingMark: DEFAULT_TABLE_FACING_MARK,
 };
 
@@ -55,12 +88,22 @@ export const ROOM_RULE_GROUPS = {
     'moveRangeEnabled',
     'moveRangeAlways',
     'moveDiagonally',
+    'diagonalMove',
     'piecesShareCells',
     'moveRangeElementNames',
     'cellDistance',
     'cellDistanceUnit',
   ],
-  zoc: ['zocMode', 'zocRange', 'zocAlways', 'zocExtraCost'],
+  zoc: [
+    'zocMode',
+    'zocRange',
+    'zocAlways',
+    'zocExtraCost',
+    'zocEngages',
+    'breakOutMode',
+    'breakOutCost',
+    'engagementCountsSize',
+  ],
   facing: ['facingMark'],
 } as const satisfies Record<string, readonly (keyof RoomRules)[]>;
 
@@ -130,10 +173,19 @@ export function resolveRoomRules(
     return ROOM_RULE_DEFAULTS[rule];
   };
 
+  const cutsCorners = settled('moveDiagonally');
   return {
     moveRangeEnabled: settled('moveRangeEnabled'),
     moveRangeElementNames: settled('moveRangeElementNames'),
-    moveDiagonally: settled('moveDiagonally'),
+    moveDiagonally: cutsCorners,
+    // How a corner is counted is a newer question than whether it may be cut at all, so the
+    // older answer stands in for it rather than the default doing: a room or a table that only
+    // ever said "corners are allowed" is saying a corner costs what a side costs, which is what
+    // it did when that was all a table could say.
+    diagonalMove:
+      asDiagonalMove(room?.diagonalMove) ??
+      asDiagonalMove(table?.diagonalMove) ??
+      (cutsCorners ? DEFAULT_DIAGONAL_MOVE : 'none'),
     piecesShareCells: settled('piecesShareCells'),
     moveRangeAlways: settled('moveRangeAlways'),
     zocAlways: settled('zocAlways'),
@@ -142,6 +194,10 @@ export function resolveRoomRules(
     zocMode: asZocMode(settled('zocMode')),
     zocRange: settled('zocRange'),
     zocExtraCost: settled('zocExtraCost'),
+    zocEngages: settled('zocEngages'),
+    breakOutMode: asBreakOutMode(settled('breakOutMode')),
+    breakOutCost: settled('breakOutCost'),
+    engagementCountsSize: settled('engagementCountsSize'),
     facingMark: settled('facingMark'),
   };
 }

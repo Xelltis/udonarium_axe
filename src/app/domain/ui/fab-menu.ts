@@ -32,6 +32,7 @@ export const FAB_ENTRIES: readonly FabEntry[] = [
   panel('jukebox', 'queue_music', 'jukebox'),
   panel('cutIn', 'slideshow', 'cutInList'),
   { key: 'visualNovel', icon: 'auto_stories', action: { kind: 'visualNovel' } },
+  panel('tabletopDisplay', 'table_restaurant', 'tabletopDisplay'),
   panel('replay', 'receipt_long', 'replay'),
   { key: 'zipLoad', icon: 'open_in_browser', action: { kind: 'zipLoad' } },
 ];

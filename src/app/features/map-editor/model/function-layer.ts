@@ -20,6 +20,7 @@ export const FUNCTION_ROLE_INK: Record<MapFunctionRole, string> = {
   moveBlock: 'rgba(220, 60, 60, 0.38)',
   terrain: 'rgba(120, 100, 80, 0.45)',
   mask: 'rgba(70, 70, 90, 0.45)',
+  trigger: 'rgba(200, 80, 40, 0.42)',
 };
 
 export function functionRoleLabelKey(role: MapFunctionRole): string {

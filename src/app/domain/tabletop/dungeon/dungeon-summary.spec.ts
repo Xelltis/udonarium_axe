@@ -26,6 +26,8 @@ function build(seed = 7): DungeonLayout {
       extraConnectorChance: 0.06,
       wallBreakChance: 0,
       shapes: ['rect'],
+      minCorridor: 1,
+      maxCorridor: 1,
       seed,
     },
     seededRandom(seed)

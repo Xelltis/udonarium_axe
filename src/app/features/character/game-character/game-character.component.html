@@ -114,7 +114,7 @@
               </div>
             </div>
           }
-          @if (isDropShadow && 0 < imageFile().url.length && specifyKomaImageFlag()) {
+          @if (isDropShadow && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
             <img
               class="chrome-smooth-image-trick pointer-events-none filter-[brightness(0)_opacity(0.7)_blur(1px)]"
               [ngStyle]="{
@@ -134,11 +134,29 @@
               [src]="imageFile().url | safe: 'resourceUrl'"
             />
           }
-          @if (isDropShadow && 0 < imageFile().url.length && !specifyKomaImageFlag()) {
+          @if (isDropShadow && 0 < imageFile().url.length && !specifyKomaImageFlag() && !imageView.fitsInCell()) {
             <img
               class="chrome-smooth-image-trick pointer-events-none inset-x-0 bottom-0 m-auto h-auto align-bottom filter-[brightness(0)_opacity(0.7)_blur(1px)]"
               [ngStyle]="{
                 width: '100%',
+                transform:
+                  'translateX(-50%) translateX(' +
+                  (size() * gridSize) / 2 +
+                  'px) ' +
+                  multiAnglePiecePedestalRotation() +
+                  ' scaleY(0.5) translateY(-150%) translateY(' +
+                  size() * gridSize +
+                  'px)',
+              }"
+              [src]="imageFile().url | safe: 'resourceUrl'"
+            />
+          }
+          @if (isDropShadow && 0 < imageFile().url.length && imageView.fitsInCell()) {
+            <img
+              class="chrome-smooth-image-trick pointer-events-none inset-x-0 bottom-0 m-auto block object-contain align-bottom filter-[brightness(0)_opacity(0.7)_blur(1px)]"
+              [ngStyle]="{
+                width: '100%',
+                height: size() * gridSize + 'px',
                 transform:
                   'translateX(-50%) translateX(' +
                   (size() * gridSize) / 2 +
@@ -419,7 +437,7 @@
                     >
                   </div>
                 }
-                @if (!isPoster() && 0 < imageFile().url.length && specifyKomaImageFlag()) {
+                @if (!isPoster() && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
                   <img
                     class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
                     [ngStyle]="{
@@ -435,11 +453,26 @@
                     [src]="imageFile().url | safe: 'resourceUrl'"
                   />
                 }
-                @if (!isPoster() && 0 < imageFile().url.length && !specifyKomaImageFlag()) {
+                @if (!isPoster() && 0 < imageFile().url.length && !specifyKomaImageFlag() && !imageView.fitsInCell()) {
                   <img
                     class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),
+                      maxWidth: 'none',
+                      marginLeft: imageView.supersampleInset(),
+                      marginRight: imageView.supersampleInset(),
+                      transform: imageView.pieceTransform(),
+                    }"
+                    (load)="imageView.onImageLoad($event)"
+                    [src]="imageFile().url | safe: 'resourceUrl'"
+                  />
+                }
+                @if (!isPoster() && 0 < imageFile().url.length && imageView.fitsInCell()) {
+                  <img
+                    class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto block object-contain align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [ngStyle]="{
+                      width: imageView.supersamplePercent(),
+                      height: size() * gridSize * imageView.supersample() + 'px',
                       maxWidth: 'none',
                       marginLeft: imageView.supersampleInset(),
                       marginRight: imageView.supersampleInset(),

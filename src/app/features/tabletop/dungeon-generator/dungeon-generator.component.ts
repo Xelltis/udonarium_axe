@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewContainerRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import {
   DUNGEON_GRID_SIZE,
@@ -11,6 +12,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import {
   TEXTURE_ASSET_URLS,
@@ -30,10 +32,19 @@ import {
 } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import {
   clampRoomCount,
+  CorridorWidths,
+  corridorWidthsFor,
   MAX_ROOM_COUNT,
   MIN_ROOM_COUNT,
   planDungeon,
 } from '@axe/domain/tabletop/dungeon/dungeon-generator';
+import {
+  clampCorridorWidth,
+  DungeonPoint,
+  MAX_CORRIDOR_WIDTH,
+  MIN_CORRIDOR_WIDTH,
+} from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
 import {
   clampFieldDensity,
   clampFieldSize,
@@ -77,6 +88,7 @@ export class DungeonGeneratorComponent {
   private readonly panelService = inject(PanelService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly dungeonBuild = inject(DungeonBuildService);
+  private readonly partyService = inject(PartyService);
   private readonly objectStore = inject(ObjectStore);
   private readonly imageStorage = inject(ImageStorage);
   private readonly t = inject(TRANSLATE_FN);
@@ -99,6 +111,8 @@ export class DungeonGeneratorComponent {
   protected readonly maxDensity = MAX_FIELD_DENSITY;
   protected readonly minWallHeight = MIN_WALL_HEIGHT;
   protected readonly maxWallHeight = MAX_WALL_HEIGHT;
+  protected readonly minCorridorWidth = MIN_CORRIDOR_WIDTH;
+  protected readonly maxCorridorWidth = MAX_CORRIDOR_WIDTH;
 
   protected readonly kind = signal<MapKind>('dungeon');
   protected readonly atmosphere = signal<DungeonAtmosphereId>('stoneDungeon');
@@ -110,11 +124,13 @@ export class DungeonGeneratorComponent {
   protected readonly tableName = signal('');
   protected readonly placeDoors = signal(true);
   protected readonly placeStairs = signal(true);
+  protected readonly fogEnabled = signal(false);
 
   private readonly wallOverride = signal<DungeonMaterial | null>(null);
   private readonly floorOverride = signal<DungeonMaterial | null>(null);
   private readonly heightOverride = signal<number | null>(null);
   private readonly entranceOverride = signal<DungeonEntranceStyle | null>(null);
+  private readonly corridorOverride = signal<CorridorWidths | null>(null);
 
   protected readonly busy = signal(false);
   protected readonly progress = signal(0);
@@ -153,12 +169,17 @@ export class DungeonGeneratorComponent {
   protected readonly entrance = computed<DungeonEntranceStyle>(
     () => this.entranceOverride() ?? atmosphereById(this.atmosphere()).entrance
   );
+  /** How wide the passages are cut, which each atmosphere has its own idea of. */
+  protected readonly corridorWidth = computed(() =>
+    corridorWidthsFor(atmosphereById(this.atmosphere()), this.corridorOverride() ?? undefined)
+  );
   protected readonly usingDefaults = computed(
     () =>
       this.wallOverride() === null &&
       this.floorOverride() === null &&
       this.heightOverride() === null &&
-      this.entranceOverride() === null
+      this.entranceOverride() === null &&
+      this.corridorOverride() === null
   );
 
   /**
@@ -179,6 +200,7 @@ export class DungeonGeneratorComponent {
         roomCount: this.roomCount(),
         seed: this.seed(),
         entrance: this.entrance(),
+        corridorWidth: this.corridorWidth(),
         gridType: this.gridType(),
       },
       { placeDoors: this.placeDoors(), placeStairs: this.placeStairs() }
@@ -268,11 +290,31 @@ export class DungeonGeneratorComponent {
     this.entranceOverride.set(style);
   }
 
+  /** The narrowest a passage may be cut. Asking for wider than the widest widens that too. */
+  protected setCorridorLeast(width: number): void {
+    const least = clampCorridorWidth(width);
+    this.corridorOverride.set({ least, most: Math.max(least, this.corridorWidth().most) });
+  }
+
+  protected setCorridorMost(width: number): void {
+    const most = clampCorridorWidth(width);
+    this.corridorOverride.set({ least: Math.min(most, this.corridorWidth().least), most });
+  }
+
+  /** Who walks in with the party, which is nobody until a party is picked. */
+  protected readonly parties = this.partyService.parties;
+  protected readonly musterParty = signal('');
+
+  protected setMusterParty(identifier: string): void {
+    this.musterParty.set(identifier);
+  }
+
   protected resetMaterials(): void {
     this.wallOverride.set(null);
     this.floorOverride.set(null);
     this.heightOverride.set(null);
     this.entranceOverride.set(null);
+    this.corridorOverride.set(null);
   }
 
   protected reroll(): void {
@@ -310,6 +352,8 @@ export class DungeonGeneratorComponent {
           floorImage: await this.paintFloor(plan),
           summary,
           gridType: this.gridType(),
+          fogEnabled: this.fogEnabled(),
+          muster: this.musterStands(plan),
         },
         // A map with nothing standing on it is finished the moment it starts, not NaN done.
         (done, total) => this.progress.set(total > 0 ? Math.round((done / total) * 100) : 100)
@@ -321,6 +365,23 @@ export class DungeonGeneratorComponent {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /**
+   * Where each of the party stands once the map is built, or nobody where none was picked.
+   *
+   * The way in is the break in the outer wall where the dungeon has one, since that is the way
+   * the party walked in; where it has none, the stair comes to the same thing. A field has no
+   * way in to speak of, so nobody is gathered onto one.
+   */
+  private musterStands(plan: DungeonPlan | FieldPlan): { piece: GameCharacter; cell: DungeonPoint }[] {
+    const identifier = this.musterParty();
+    if (!identifier || this.field() || !('layout' in plan)) return [];
+    const layout = (plan as DungeonPlan).layout;
+    const party = this.partyService.membersOf(identifier);
+    if (party.length < 1) return [];
+    const cells = musterCells(layout, layout.mouth ?? layout.entrance, party.length);
+    return cells.map((cell, index) => ({ piece: party[index], cell }));
   }
 
   /**

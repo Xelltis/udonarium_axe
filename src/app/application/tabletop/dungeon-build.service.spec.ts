@@ -3,6 +3,7 @@ import { DungeonBuildService } from '@axe/application/tabletop/dungeon-build.ser
 import { wallLightInset, wallLightPitch } from '@axe/application/tabletop/dungeon-build.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import { WALL_TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
 import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
@@ -110,6 +111,49 @@ describe('DungeonBuildService', () => {
 
     expect(store.getObjects(GameTable).length).toBe(1);
     expect(store.getObjects(GameTable)[0]).toBe(result.table);
+  });
+
+  it('leaves the table uncovered unless the fog was asked for', async () => {
+    const { result } = await build();
+
+    expect(result.table.fogEnabled).toBe(false);
+  });
+
+  it('draws the fog over a table that was asked for it', async () => {
+    const { result } = await build({ fogEnabled: true });
+
+    expect(result.table.fogEnabled).toBe(true);
+  });
+
+  it('stands a party where it was told to, on the table and on the floor', async () => {
+    const hero = GameCharacter.create('英雄', 1, '');
+    hero.location = { name: 'graveyard', x: 0, y: 0 };
+    hero.posZ = 300;
+
+    await build({ muster: [{ piece: hero, cell: { x: 4, y: 6 } }] });
+
+    expect(hero.location.name).toBe('table');
+    expect(hero.location.x).toBe(4 * GRID);
+    expect(hero.location.y).toBe(6 * GRID);
+    expect(hero.posZ).toBe(0);
+  });
+
+  it('centres a piece wider than its cell on the ground it was given', async () => {
+    const golem = GameCharacter.create('ゴーレム', 3, '');
+
+    await build({ muster: [{ piece: golem, cell: { x: 5, y: 5 } }] });
+
+    expect(golem.location.x).toBe(4 * GRID);
+    expect(golem.location.y).toBe(4 * GRID);
+  });
+
+  it('leaves every piece alone where no party was asked for', async () => {
+    const hero = GameCharacter.create('英雄', 1, '');
+    hero.location = { name: 'graveyard', x: 7, y: 9 };
+
+    await build();
+
+    expect(hero.location.name).toBe('graveyard');
   });
 
   it('sizes the table to the dungeon and pins it to squares', async () => {

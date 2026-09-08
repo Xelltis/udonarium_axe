@@ -1,5 +1,6 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
+import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -29,6 +30,8 @@ export interface MovePlan {
   /** What the settled way has cost, and what the piece had to spend altogether. */
   spent: number;
   budget: number;
+  /** How many corners the settled way has cut, which a table counting them by turns goes on from. */
+  cornersCut: number;
   /** Where the piece may still get to, from the last settled cell. */
   reach: CellBits;
   /** The cells the way is settled on, for showing where it has been. */
@@ -46,6 +49,7 @@ export interface MovePlan {
 @Injectable({ providedIn: 'root' })
 export class MovePlanService {
   private readonly moveRange = inject(MoveRangeService);
+  private readonly triggerFire = inject(TriggerFireService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
 
@@ -122,6 +126,7 @@ export class MovePlanService {
       ahead: [],
       spent: 0,
       budget: terms.walk,
+      cornersCut: 0,
       reach: terms.cells,
       waypoints: [],
     });
@@ -149,7 +154,7 @@ export class MovePlanService {
       cell,
       plan.budget - plan.spent,
       (index) => terms.blocked.get(index),
-      terms.options
+      { ...terms.options, cornersCut: plan.cornersCut }
     );
     this.held.set({ ...plan, ahead: ahead ?? [] });
   }
@@ -170,8 +175,9 @@ export class MovePlanService {
       return;
     }
     this.legs.push(plan);
-    const cost = walkedPath(plan.grid, plan.ahead, (index) => terms.blocked.get(index), terms.options).cost;
-    const spent = plan.spent + cost;
+    const options = { ...terms.options, cornersCut: plan.cornersCut };
+    const walked = walkedPath(plan.grid, plan.ahead, (index) => terms.blocked.get(index), options);
+    const spent = plan.spent + walked.cost;
     const left = plan.budget - spent;
     const from = plan.ahead[plan.ahead.length - 1];
     this.held.set({
@@ -181,12 +187,16 @@ export class MovePlanService {
       waypoints: [...plan.waypoints, from],
       ahead: [],
       spent,
+      cornersCut: walked.corners,
       // A leg that ended on ground an enemy holds ends the move. A reach worked out afresh from
       // that cell would forget it, since a reach only asks what stops it of the cells it steps
       // on to, never of the one it sets out from.
       reach:
         left > 0 && !terms.options.stopsAt?.(from)
-          ? reachableCells(plan.grid, from, left, (index) => terms.blocked.get(index), terms.options)
+          ? reachableCells(plan.grid, from, left, (index) => terms.blocked.get(index), {
+              ...options,
+              cornersCut: walked.corners,
+            })
           : new CellBits(plan.reach.count),
     });
   }
@@ -230,11 +240,15 @@ export class MovePlanService {
     this.walking = true;
     try {
       const corner = cornerShiftOf(character, table.gridSize);
-      for (const cell of way.slice(1)) {
+      const steps = way.slice(1);
+      for (const [index, cell] of steps.entries()) {
         const centre = cellCenterOf(plan.grid, cell);
         character.location.x = centre.x - corner;
         character.location.y = centre.y - corner;
         character.update();
+        // Sprung on arrival rather than once the walking is over, so what the ground does
+        // happens where the piece is standing when it does it.
+        this.triggerFire.stepped(character, plan.grid, cell, index === steps.length - 1);
         await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
       }
     } finally {

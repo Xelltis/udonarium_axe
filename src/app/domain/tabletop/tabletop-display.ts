@@ -58,6 +58,14 @@ export interface TabletopDisplaySettings {
   cutInMultiDirectionMode: CutInMultiDirectionMode;
   /** Whether a window carries the button that turns it a quarter at a time. */
   panelRotationEnabled: boolean;
+  /**
+   * Whether a piece is drawn no taller than the ground it stands on.
+   *
+   * A piece is drawn from the cell up, so a tall picture towers over the cell it belongs to.
+   * Standing over a table that has been laid flat, that tower is smeared across whatever is
+   * behind it, and telling which piece is on which cell becomes guesswork.
+   */
+  pieceImageInCell: boolean;
 }
 
 export type TabletopDisplayKey = keyof TabletopDisplaySettings;
@@ -82,6 +90,29 @@ export const DEFAULT_TABLETOP_DISPLAY_SETTINGS: TabletopDisplaySettings = {
   multiAngleTickerPixelsPerSecond: DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
   cutInMultiDirectionMode: DEFAULT_CUT_IN_MULTI_DIRECTION_MODE,
   panelRotationEnabled: false,
+  pieceImageInCell: false,
+};
+
+/**
+ * What a screen laid flat on a table wants of itself.
+ *
+ * Every one of these is dead while the table is looked at along rather than down: the piece
+ * labels, the ticker and the turning menus are all there to serve readers sitting on four
+ * sides, and none of them is drawn otherwise. Asking for the tabletop is asking for the lot,
+ * which is why they are named together rather than found one menu at a time.
+ *
+ * The window turn is the exception that earns its place: it is what lets a reader on the far
+ * side read a panel, and it works whichever way the table is being looked at.
+ */
+export const TABLETOP_MODE_SETTINGS: Readonly<Partial<TabletopDisplaySettings>> = {
+  orthographicProjection: true,
+  hoverDetailPlacement: 'screen-edges',
+  radialMenuEnabled: true,
+  panelRotationEnabled: true,
+  multiAngleEnabled: true,
+  multiAngleTickerEnabled: true,
+  cutInMultiDirectionMode: 'four-directions',
+  pieceImageInCell: true,
 };
 
 export const MIN_MULTI_ANGLE_REVOLUTION_SECONDS = 1;
@@ -163,6 +194,7 @@ export function normalizeTabletopDisplaySettings(value: unknown): TabletopDispla
     ),
     cutInMultiDirectionMode: asCutInMultiDirectionMode(source['cutInMultiDirectionMode']),
     panelRotationEnabled: booleanOr(source['panelRotationEnabled'], defaults.panelRotationEnabled),
+    pieceImageInCell: booleanOr(source['pieceImageInCell'], defaults.pieceImageInCell),
   };
 }
 

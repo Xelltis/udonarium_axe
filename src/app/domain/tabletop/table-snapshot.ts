@@ -1,4 +1,4 @@
-import { MaskBlock, TerrainBlock } from '@axe/domain/tabletop/function-paint';
+import { MaskBlock, TerrainBlock, TriggerBlock } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 /**
@@ -20,4 +20,6 @@ export interface TableSnapshot {
   terrainBlocks: readonly TerrainBlock[];
   /** The blocks of cover on the table. */
   maskBlocks: readonly MaskBlock[];
+  /** The ground on the table that goes off under a piece. */
+  triggerBlocks: readonly TriggerBlock[];
 }

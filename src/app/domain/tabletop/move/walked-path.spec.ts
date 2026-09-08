@@ -14,11 +14,11 @@ describe('walkedPath()', () => {
   it('counts a step for each cell entered', () => {
     const way = [at(1, 1), at(2, 1), at(3, 1)];
 
-    expect(walkedPath(GRID, way, nothingBlocked)).toEqual({ walkable: true, cost: 2 });
+    expect(walkedPath(GRID, way, nothingBlocked)).toEqual({ walkable: true, cost: 2, corners: 0 });
   });
 
   it('counts nothing for standing still', () => {
-    expect(walkedPath(GRID, [at(1, 1)], nothingBlocked)).toEqual({ walkable: true, cost: 0 });
+    expect(walkedPath(GRID, [at(1, 1)], nothingBlocked)).toEqual({ walkable: true, cost: 0, corners: 0 });
   });
 
   it('passes over a cell named twice in a row', () => {
@@ -42,13 +42,43 @@ describe('walkedPath()', () => {
   it('counts a corner as one step where corners may be cut', () => {
     const way = [at(1, 1), at(2, 2)];
 
-    expect(walkedPath(GRID, way, nothingBlocked, { cutsCorners: true })).toEqual({ walkable: true, cost: 1 });
+    expect(walkedPath(GRID, way, nothingBlocked, { diagonals: 'equal' })).toEqual({
+      walkable: true,
+      cost: 1,
+      corners: 1,
+    });
   });
 
   it('refuses the corner where corners may not be cut', () => {
     const way = [at(1, 1), at(2, 2)];
 
-    expect(walkedPath(GRID, way, nothingBlocked, { cutsCorners: false }).walkable).toBe(false);
+    expect(walkedPath(GRID, way, nothingBlocked, { diagonals: 'none' }).walkable).toBe(false);
+  });
+
+  it('counts a corner one, then two, by turns', () => {
+    const way = [at(1, 1), at(2, 2), at(3, 3)];
+
+    expect(walkedPath(GRID, way, nothingBlocked, { diagonals: 'alternating' })).toEqual({
+      walkable: true,
+      cost: 3,
+      corners: 2,
+    });
+  });
+
+  it('counts on from the corners cut before it, so a leg is not a fresh reckoning', () => {
+    const way = [at(1, 1), at(2, 2)];
+
+    expect(walkedPath(GRID, way, nothingBlocked, { diagonals: 'alternating', cornersCut: 1 })).toEqual({
+      walkable: true,
+      cost: 2,
+      corners: 2,
+    });
+  });
+
+  it('charges two for a corner where the table always does', () => {
+    const way = [at(1, 1), at(2, 2), at(3, 3)];
+
+    expect(walkedPath(GRID, way, nothingBlocked, { diagonals: 'double' }).cost).toBe(4);
   });
 
   it('charges what a cell of its own price costs', () => {
@@ -72,6 +102,7 @@ describe('walkedPath()', () => {
     expect(walkedPath(GRID, way, nothingBlocked, { stopsAt: (index) => index === sticky })).toEqual({
       walkable: true,
       cost: 1,
+      corners: 0,
     });
   });
 

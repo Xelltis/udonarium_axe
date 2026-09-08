@@ -1,6 +1,6 @@
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { countCells, reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
+import { countCells, reachableCells, ReachOptions } from '@axe/domain/tabletop/move/reachable-cells';
 import { describe, expect, it } from 'vitest';
 
 const nothingBlocked = () => false;
@@ -99,19 +99,84 @@ describe('cutting corners', () => {
   const nothingBlocks = () => false;
 
   it('reaches a square of ground where a corner may be cut', () => {
-    const reached = reachableCells(grid, start, 2, nothingBlocks, { cutsCorners: true });
+    const reached = reachableCells(grid, start, 2, nothingBlocks, { diagonals: 'equal' });
 
     expect(countCells(reached)).toBe(24);
     expect(reached.get(cellIndexOf(grid, 6, 6))).toBe(true);
   });
 
   it('reaches a diamond where it may not', () => {
-    const reached = reachableCells(grid, start, 2, nothingBlocks, { cutsCorners: false });
+    const reached = reachableCells(grid, start, 2, nothingBlocks, { diagonals: 'none' });
 
     // Two steps along the sides: the corners of the square are three steps away.
     expect(countCells(reached)).toBe(12);
     expect(reached.get(cellIndexOf(grid, 6, 6))).toBe(false);
     expect(reached.get(cellIndexOf(grid, 5, 5))).toBe(true);
+  });
+});
+
+describe('a corner counted one, then two, by turns', () => {
+  const grid = cellGridOf(11, 11, 50, GridType.SQUARE);
+  const start = cellIndexOf(grid, 5, 5);
+  const nothingBlocks = () => false;
+
+  it('lets the first corner cost what a side costs', () => {
+    const reached = reachableCells(grid, start, 1, nothingBlocks, { diagonals: 'alternating' });
+
+    // One step: the four sides and the four corners, as an equal-corner table would give.
+    expect(countCells(reached)).toBe(8);
+  });
+
+  it('charges the second corner double, so two steps reach less than they would', () => {
+    const alternating = reachableCells(grid, start, 2, nothingBlocks, { diagonals: 'alternating' });
+    const equal = reachableCells(grid, start, 2, nothingBlocks, { diagonals: 'equal' });
+
+    // The far corner of the square is two corners away, and the second of them costs two.
+    expect(alternating.get(cellIndexOf(grid, 7, 7))).toBe(false);
+    expect(equal.get(cellIndexOf(grid, 7, 7))).toBe(true);
+    // One corner and one side is still two steps, so the reach is not a plain diamond either.
+    expect(alternating.get(cellIndexOf(grid, 7, 6))).toBe(true);
+  });
+
+  it('spends its corners in any order, so three steps reach the far corner', () => {
+    const reached = reachableCells(grid, start, 3, nothingBlocks, { diagonals: 'alternating' });
+
+    expect(reached.get(cellIndexOf(grid, 7, 7))).toBe(true);
+  });
+
+  it('holds a cell open at both counts, since the dearer arrival may lead on cheapest', () => {
+    // (7,7) is reached at three steps with one corner spent, and at three with two spent. The
+    // cheaper of the two leads no further, so a search that kept only one would stop short.
+    const reached = reachableCells(grid, start, 4, nothingBlocks, { diagonals: 'alternating' });
+
+    expect(reached.get(cellIndexOf(grid, 8, 8))).toBe(true);
+  });
+
+  it('counts on from the corners a settled leg already cut', () => {
+    const reached = reachableCells(grid, start, 1, nothingBlocks, { diagonals: 'alternating', cornersCut: 1 });
+
+    // The corner owed after an odd number of them costs two, so a single step buys the sides.
+    expect(countCells(reached)).toBe(4);
+  });
+});
+
+describe('a corner counted double', () => {
+  const grid = cellGridOf(11, 11, 50, GridType.SQUARE);
+  const start = cellIndexOf(grid, 5, 5);
+  const nothingBlocks = () => false;
+
+  it('costs two steps every time, so one step reaches the sides alone', () => {
+    const reached = reachableCells(grid, start, 1, nothingBlocks, { diagonals: 'double' });
+
+    expect(countCells(reached)).toBe(4);
+  });
+
+  it('reaches a corner on the second step, and two sides for the same price', () => {
+    const reached = reachableCells(grid, start, 2, nothingBlocks, { diagonals: 'double' });
+
+    expect(reached.get(cellIndexOf(grid, 6, 6))).toBe(true);
+    expect(reached.get(cellIndexOf(grid, 7, 5))).toBe(true);
+    expect(reached.get(cellIndexOf(grid, 7, 6))).toBe(false);
   });
 });
 
@@ -160,7 +225,7 @@ describe('the cells a piece can walk to over ground of its own price', () => {
     const grid = cellGridOf(5, 5, 50, GridType.SQUARE);
     const heavy = cellIndexOf(grid, 1, 2);
     const reached = reachableCells(grid, cellIndexOf(grid, 0, 2), 4, nothingBlocked, {
-      cutsCorners: false,
+      diagonals: 'none',
       costOf: (index) => (index === heavy ? 5 : 1),
     });
 
@@ -197,7 +262,7 @@ describe('the cells a piece can walk to across ground that holds it', () => {
     const holds = cellIndexOf(grid, 1, 2);
     const beyond = cellIndexOf(grid, 2, 2);
     const away = cellIndexOf(grid, 0, 2);
-    const held = { cutsCorners: false, stopsAt: (index: number) => index === holds };
+    const held: ReachOptions = { diagonals: 'none', stopsAt: (index: number) => index === holds };
 
     expect(reachableCells(grid, away, 3, nothingBlocked, held).get(beyond)).toBe(false);
     expect(reachableCells(grid, away, 4, nothingBlocked, held).get(beyond)).toBe(true);

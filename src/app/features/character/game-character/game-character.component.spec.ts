@@ -1292,6 +1292,49 @@ describe('GameCharacterComponent', () => {
     }
   });
 
+  it('holds a tall picture to the ground its piece stands on when this screen asks for it', () => {
+    ImageStorage.instance.add('in-cell-url');
+    const char = GameCharacter.create('in-cell-test', 1, 'in-cell-url');
+    fixture.componentRef.setInput('gameCharacter', char);
+
+    try {
+      fixture.detectChanges();
+      const before = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
+      expect(before.style.height).toBe('');
+
+      TestBed.inject(TabletopDisplayService).set({ pieceImageInCell: true });
+      fixture.detectChanges();
+
+      const fitted = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
+      expect(fitted.classList.contains('object-contain')).toBe(true);
+      expect(fitted.style.height).toBe(`${component.size() * component.gridSize}px`);
+    } finally {
+      TestBed.inject(TabletopDisplayService).forget();
+      char.destroy();
+      ImageStorage.instance.delete('in-cell-url');
+    }
+  });
+
+  it('holds a hand-set height to the cell too, rather than letting it out again', () => {
+    ImageStorage.instance.add('in-cell-tall-url');
+    const char = GameCharacter.create('in-cell-tall', 1, 'in-cell-tall-url');
+    char.specifyKomaImageFlag = true;
+    char.komaImageHeight = 240;
+    fixture.componentRef.setInput('gameCharacter', char);
+
+    try {
+      TestBed.inject(TabletopDisplayService).set({ pieceImageInCell: true });
+      fixture.detectChanges();
+
+      const fitted = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
+      expect(fitted.style.height).toBe(`${component.size() * component.gridSize}px`);
+    } finally {
+      TestBed.inject(TabletopDisplayService).forget();
+      char.destroy();
+      ImageStorage.instance.delete('in-cell-tall-url');
+    }
+  });
+
   describe('the handles that tip a piece over', () => {
     const headOf = () => fixture.nativeElement.querySelector('[data-testid="roll-grab-head"]') as HTMLElement | null;
     const footOf = () => fixture.nativeElement.querySelector('[data-testid="roll-grab-foot"]') as HTMLElement | null;

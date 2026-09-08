@@ -9,6 +9,7 @@ import {
   planFunctionPaint,
   sceneCarriesFunctions,
 } from '@axe/features/map-editor/model/table-apply';
+import { sceneFromTable } from '@axe/features/map-editor/model/table-import';
 
 function changesNothing(plan: FunctionPaintPlan, table: TableSnapshot): boolean {
   const sameBlocked =
@@ -18,7 +19,9 @@ function changesNothing(plan: FunctionPaintPlan, table: TableSnapshot): boolean 
     plan.terrain.add.length === 0 &&
     plan.terrain.remove.length === 0 &&
     plan.mask.add.length === 0 &&
-    plan.mask.remove.length === 0
+    plan.mask.remove.length === 0 &&
+    plan.trigger.add.length === 0 &&
+    plan.trigger.remove.length === 0
   );
 }
 
@@ -61,6 +64,7 @@ function snapshot(over: Partial<TableSnapshot> = {}): TableSnapshot {
     blockedCells: [],
     terrainBlocks: [],
     maskBlocks: [],
+    triggerBlocks: [],
     ...over,
   };
 }
@@ -291,5 +295,58 @@ describe('walls painted over walls', () => {
     const plan = planFunctionPaint(scene, snapshot())!;
 
     expect(plan.terrain.add.map((block) => block.spec.altitude)).toEqual([0, 0]);
+  });
+});
+
+describe('painting ground that goes off', () => {
+  it('answers with the blocks the layer holds, and what each of them does', () => {
+    const spec = {
+      ...DEFAULT_FUNCTION_SPEC,
+      trigger: { ...DEFAULT_FUNCTION_SPEC.trigger, element: 'HP', amount: '2d6', moment: 'enter' as const },
+    };
+    const scene = sceneWith(layerOf('trigger', ['1,1', '2,1'], { spec }));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    expect(plan.trigger.add.length).toBe(1);
+    expect(plan.trigger.add[0]).toMatchObject({ col: 1, row: 1, width: 2, height: 1 });
+    expect(plan.trigger.add[0].spec).toMatchObject({ element: 'HP', amount: '2d6', moment: 'enter' });
+  });
+
+  it('leaves the ground a table already holds alone where the scene never mentions it', () => {
+    const scene = sceneWith(layerOf('mask', ['1,1']));
+
+    const plan = planFunctionPaint(scene, snapshot())!;
+
+    expect(plan.trigger).toEqual({ add: [], remove: [] });
+  });
+
+  it('takes away ground the scene has stopped holding', () => {
+    const held = { col: 3, row: 3, width: 1, height: 1, spec: { ...DEFAULT_FUNCTION_SPEC.trigger } };
+    const scene = sceneWith(layerOf('trigger', []));
+
+    const plan = planFunctionPaint(scene, snapshot({ triggerBlocks: [held] }))!;
+
+    expect(plan.trigger.remove).toEqual([held]);
+  });
+});
+
+describe('reading painted ground that goes off back in and laying it down again', () => {
+  it('leaves the table exactly as it was found', () => {
+    const table = snapshot({
+      triggerBlocks: [
+        {
+          col: 2,
+          row: 3,
+          width: 2,
+          height: 1,
+          spec: { ...DEFAULT_FUNCTION_SPEC.trigger, name: '落とし穴', element: 'HP', amount: '2d6' },
+        },
+      ],
+    });
+
+    const plan = planFunctionPaint(sceneFromTable(table), table)!;
+
+    expect(changesNothing(plan, table)).toBe(true);
   });
 });

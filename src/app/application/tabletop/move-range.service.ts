@@ -9,6 +9,16 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
+import { allowsDiagonal } from '@axe/domain/tabletop/move/diagonal-move';
+import {
+  breakOutToll,
+  Engagement,
+  engagementOf,
+  engagementsOn,
+  Fights,
+  fightsByCell,
+  leavesFight,
+} from '@axe/domain/tabletop/move/engagement';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
@@ -154,13 +164,23 @@ export class MoveRangeService {
     if (!rules.piecesShareCells) blocked.or(occupiedCells(grid, standing, character.identifier));
 
     const mode = rules.zocMode;
-    const held = mode === 'none' ? null : this.heldGroundAround(grid, character, standing, rules);
+    const ground = mode === 'none' ? null : this.heldGroundAround(grid, character, standing, rules);
+    const held = ground?.held ?? null;
     if (held && mode === 'block') blocked.or(held);
     const extra = Math.max(0, Math.floor(rules.zocExtraCost));
+    const fights = rules.breakOutMode === 'free' ? null : (ground?.fights ?? null);
+    const flat = Math.max(0, Math.floor(rules.breakOutCost));
+    const charges = (held !== null && mode === 'cost') || fights !== null;
 
     const options: ReachOptions = {
-      cutsCorners: rules.moveDiagonally,
-      costOf: held && mode === 'cost' ? (index) => (held.get(index) ? 1 + extra : 1) : undefined,
+      diagonals: rules.diagonalMove,
+      costOf: charges
+        ? (index, from) => {
+            const price = held && mode === 'cost' && held.get(index) ? 1 + extra : 1;
+            if (!fights || !leavesFight(fights, from, index)) return price;
+            return price + breakOutToll(rules.breakOutMode, fights.prices[from], flat);
+          }
+        : undefined,
       stopsAt: held && mode === 'stop' ? (index) => held.get(index) : undefined,
     };
     const cells = reachableCells(grid, start, walk, (index) => blocked.get(index), options);
@@ -177,15 +197,50 @@ export class MoveRangeService {
    * Only the ones the person moving can see hold any: a range with a bite taken out of it
    * where nobody is standing tells the table there is something in the dark there, which is
    * the one thing the fog is for.
+   *
+   * Where the table holds a fight as one place rather than as pairs, the whole of the fight
+   * this piece is in holds it, allies and all, and getting out of it costs what the two sides
+   * come to when they are weighed against one another. A side that outweighs the other walks
+   * away as though the fight were not there, which is the whole of what breaking through is.
    */
   private heldGroundAround(
     grid: CellGrid,
     mover: GameCharacter,
     standing: readonly GameCharacter[],
     rules: RoomRules
-  ): CellBits | null {
-    const foes = standing.filter((piece) => isHostileTo(piece, mover) && this.vision.isTokenVisible(piece));
-    const held = zoneOfControl(grid, foes, rules.zocRange, rules.moveDiagonally);
-    return held.isEmpty ? null : held;
+  ): HeldGround | null {
+    const cutsCorners = allowsDiagonal(rules.diagonalMove);
+    const seen = standing.filter((piece) => piece.identifier === mover.identifier || this.vision.isTokenVisible(piece));
+    const foes = seen.filter((piece) => isHostileTo(piece, mover));
+    if (!rules.zocEngages) {
+      const held = zoneOfControl(grid, foes, rules.zocRange, cutsCorners);
+      return held.isEmpty ? null : { held, fights: null };
+    }
+    if (foes.length < 1) return null;
+
+    const caught = engagementOf(engagementsOn(grid, seen, cutsCorners), mover);
+    const held = zoneOfControl(grid, holdersOf(mover, foes, caught), rules.zocRange, cutsCorners);
+    const fights = fightsByCell(grid, mover, seen, rules.engagementCountsSize, cutsCorners);
+    return { held: held.isEmpty ? null : held, fights };
   }
+}
+
+/** The ground held against a piece, and the fights it would have to walk out of to get anywhere. */
+interface HeldGround {
+  held: CellBits | null;
+  fights: Fights | null;
+}
+
+/**
+ * Who holds ground against the piece being moved.
+ *
+ * The fight it is in holds it whole, so the pieces on its own side are in the reckoning too:
+ * standing among friends is standing in the thick of it, not standing clear.
+ */
+function holdersOf(mover: GameCharacter, foes: readonly GameCharacter[], caught: Engagement | null): GameCharacter[] {
+  const holding = new Map<string, GameCharacter>();
+  for (const piece of foes) holding.set(piece.identifier, piece);
+  for (const piece of caught?.members ?? []) holding.set(piece.identifier, piece);
+  holding.delete(mover.identifier);
+  return [...holding.values()];
 }

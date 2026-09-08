@@ -27,6 +27,7 @@ describe('the menu the room is reached through', () => {
       'jukebox',
       'cutIn',
       'visualNovel',
+      'tabletopDisplay',
       'replay',
       'zipLoad',
     ]);

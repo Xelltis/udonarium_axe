@@ -126,7 +126,13 @@ describe('FunctionalPaintService', () => {
 
   describe('laying what was painted on the table', () => {
     function plan(over: Partial<FunctionPaintPlan> = {}): FunctionPaintPlan {
-      return { blocked: [], terrain: { add: [], remove: [] }, mask: { add: [], remove: [] }, ...over };
+      return {
+        blocked: [],
+        terrain: { add: [], remove: [] },
+        mask: { add: [], remove: [] },
+        trigger: { add: [], remove: [] },
+        ...over,
+      };
     }
 
     function wall(rect: CellRect, spec: Partial<TerrainPaintSpec> = {}): TerrainBlock {
@@ -361,7 +367,13 @@ describe('FunctionalPaintService', () => {
 
   describe('reading a block in and laying it back down', () => {
     function planWith(over: Partial<FunctionPaintPlan> = {}): FunctionPaintPlan {
-      return { blocked: [], terrain: { add: [], remove: [] }, mask: { add: [], remove: [] }, ...over };
+      return {
+        blocked: [],
+        terrain: { add: [], remove: [] },
+        mask: { add: [], remove: [] },
+        trigger: { add: [], remove: [] },
+        ...over,
+      };
     }
 
     it('returns a wall with everything it had', () => {
