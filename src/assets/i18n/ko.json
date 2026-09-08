@@ -2296,7 +2296,6 @@
       "ladder_dark": "다크 테마",
       "group_standard": "표준",
       "group_hue": "색으로 고르기",
-      "group_dark": "어두운 탁자",
       "group_legible": "가독성",
       "group_scene": "분위기",
       "group_board": "옛 배색",
@@ -2385,7 +2384,20 @@
       "anchor_bottom-left": "왼쪽 아래",
       "anchor_bottom": "아래",
       "anchor_bottom-right": "오른쪽 아래",
-      "sizeHint": "{{wide}} × {{tall}} 정도로 그리세요. 바둑판용 반복 무늬는 {{tile}} px 정도가 좋습니다. 큰 그림은 자동으로 줄입니다."
+      "sizeHint": "{{wide}} × {{tall}} 정도로 그리세요. 바둑판용 반복 무늬는 {{tile}} px 정도가 좋습니다. 큰 그림은 자동으로 줄입니다.",
+      "name_sumi": "먹",
+      "name_ebi": "포도주",
+      "name_kokimurasaki": "짙은 보라",
+      "name_konjou": "감청",
+      "name_tokiwa": "상록",
+      "name_monoDark": "모노크롬(어둡게)",
+      "name_iceCave": "얼음 동굴",
+      "name_sandTomb": "모래 무덤",
+      "name_cavern": "동굴",
+      "name_lcdGreen": "4계조 초록",
+      "name_commandWindow": "커맨드 창",
+      "name_eightBit": "8비트 검정",
+      "name_mazeAmber": "미궁의 호박빛"
     },
     "lobby": {
       "peerMenu": {

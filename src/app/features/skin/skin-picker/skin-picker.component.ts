@@ -13,7 +13,7 @@ import { MAX_LIFT, MAX_SPREAD, MIN_SPREAD, SkinMode, SkinRecipe } from '@axe/dom
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The order the groups are offered in: the plain one first, then colour, then the odd ones. */
-const GROUPS: readonly SkinGroup[] = ['standard', 'hue', 'dark', 'legible', 'scene', 'board'];
+const GROUPS: readonly SkinGroup[] = ['standard', 'hue', 'legible', 'scene', 'board'];
 
 interface Swatch {
   id: string;

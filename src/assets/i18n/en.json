@@ -2296,7 +2296,6 @@
       "ladder_dark": "Dark theme",
       "group_standard": "Standard",
       "group_hue": "By colour",
-      "group_dark": "Dark tables",
       "group_legible": "Legibility",
       "group_scene": "Scenery",
       "group_board": "Period looks",
@@ -2385,7 +2384,20 @@
       "anchor_bottom-left": "Bottom left",
       "anchor_bottom": "Bottom",
       "anchor_bottom-right": "Bottom right",
-      "sizeHint": "Draw at around {{wide}} × {{tall}}. A repeating texture for Tile wants about {{tile}} px square. Larger pictures are resampled down."
+      "sizeHint": "Draw at around {{wide}} × {{tall}}. A repeating texture for Tile wants about {{tile}} px square. Larger pictures are resampled down.",
+      "name_sumi": "Sumi ink",
+      "name_ebi": "Wine",
+      "name_kokimurasaki": "Deep violet",
+      "name_konjou": "Navy",
+      "name_tokiwa": "Evergreen",
+      "name_monoDark": "Monochrome (dark)",
+      "name_iceCave": "Ice cave",
+      "name_sandTomb": "Sand tomb",
+      "name_cavern": "Cavern",
+      "name_lcdGreen": "Four-tone green",
+      "name_commandWindow": "Command window",
+      "name_eightBit": "Eight-bit black",
+      "name_mazeAmber": "Dungeon amber"
     },
     "lobby": {
       "peerMenu": {

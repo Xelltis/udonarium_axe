@@ -2296,7 +2296,6 @@
       "ladder_dark": "ダークテーマ",
       "group_standard": "標準",
       "group_hue": "色みで選ぶ",
-      "group_dark": "暗い卓",
       "group_legible": "見やすさ重視",
       "group_scene": "卓の雰囲気",
       "group_board": "懐かしい配色",
@@ -2385,7 +2384,20 @@
       "anchor_bottom-left": "左下",
       "anchor_bottom": "下",
       "anchor_bottom-right": "右下",
-      "sizeHint": "推奨サイズ: {{wide}} × {{tall}} 前後。「並べる」で使う繰り返し模様は {{tile}} px 四方くらいが目安です。大きい画像は自動で縮めます。"
+      "sizeHint": "推奨サイズ: {{wide}} × {{tall}} 前後。「並べる」で使う繰り返し模様は {{tile}} px 四方くらいが目安です。大きい画像は自動で縮めます。",
+      "name_sumi": "墨",
+      "name_ebi": "葡萄",
+      "name_kokimurasaki": "深紫",
+      "name_konjou": "紺青",
+      "name_tokiwa": "常盤",
+      "name_monoDark": "モノクローム（暗）",
+      "name_iceCave": "氷窟",
+      "name_sandTomb": "砂の墳墓",
+      "name_cavern": "洞窟",
+      "name_lcdGreen": "四階調の緑",
+      "name_commandWindow": "コマンドウィンドウ",
+      "name_eightBit": "八ビットの黒",
+      "name_mazeAmber": "迷宮の琥珀"
     },
     "lobby": {
       "peerMenu": {
