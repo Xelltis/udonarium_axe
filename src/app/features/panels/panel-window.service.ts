@@ -9,6 +9,7 @@ import {
   signal,
   ViewContainerRef,
 } from '@angular/core';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { PanelWindowLayerComponent } from '@axe/features/panels/panel-window-layer.component';
 
@@ -17,7 +18,9 @@ import { PanelWindowLayerComponent } from '@axe/features/panels/panel-window-lay
  *
  * The frame belongs to the operating system now, so the panel's own — its place on the
  * table, its size, the corner it is dragged by, the button that shuts it — has nothing left
- * to describe, and a second set of window controls inside a window is only confusing.
+ * to describe, and a second set of window controls inside a window is only confusing. What
+ * the panel's content put in the bar is left alone: those work on what it is showing, not on
+ * the frame, and are the same use here as anywhere.
  */
 const WINDOW_SHEET = `
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--ui-bg); }
@@ -50,8 +53,12 @@ export interface PanelWindowRequest {
 interface OpenWindow {
   request: PanelWindowRequest;
   window: Window;
+  /** Held rather than read back off the window, which gives up its document once it is closed. */
+  document: Document;
   layer: ComponentRef<PanelWindowLayerComponent>;
   watchdog: ReturnType<typeof setInterval>;
+  /** Set once the panel has arrived, so an empty layer afterwards means the panel has gone. */
+  arrived: boolean;
 }
 
 /**
@@ -59,13 +66,16 @@ interface OpenWindow {
  *
  * The panel is not moved: it is closed here and opened there, into a layer belonging to that
  * window. That costs whatever the panel was holding on screen — a half-typed line, where it
- * was scrolled to — and buys the thing moving the nodes cannot: everything the panel opens
- * afterwards, a context menu or a dialogue, opens in the window the reader is looking at.
+ * was scrolled to — and buys the thing moving the nodes cannot: the panel goes on being the
+ * same component, told about the same room, without a copy of the application behind it.
  *
  * The component itself stays in this application. Only its nodes are over there, so what it
  * is showing goes on arriving the same way it always did. How a panel is opened is not known
  * here — the caller brings that, which is how a panel belonging to one piece on the table can
  * be taken out as readily as one belonging to the room.
+ *
+ * The window's layer is offered to `OverlayLayers` as well, so a menu, a dialogue or a
+ * tooltip opened from the panel appears in the window the reader is looking at.
  */
 @Injectable({ providedIn: 'root' })
 export class PanelWindowService {
@@ -109,25 +119,48 @@ export class PanelWindowService {
     const opened = this.document.defaultView?.open('', `axe-panel-${request.key}`, features);
     if (!opened) return false;
 
-    this.dress(opened.document);
-    AttachedDocuments.attach(opened.document);
+    const target = opened.document;
+    this.dress(target);
+    AttachedDocuments.attach(target);
 
     const layer = createComponent(PanelWindowLayerComponent, {
       environmentInjector: this.environmentInjector,
-      hostElement: opened.document.body,
+      hostElement: target.body,
     });
     this.appRef.attachView(layer.hostView);
     layer.changeDetectorRef.detectChanges();
+    OverlayLayers.attach(target, layer.instance.layer());
     request.open(layer.instance.layer());
 
-    const watchdog = setInterval(() => {
-      if (opened.closed) this.bringBack(request.key);
-    }, 500);
+    const watchdog = setInterval(() => this.look(request.key), 500);
     opened.addEventListener('pagehide', () => this.bringBack(request.key));
 
-    this.windows.set(request.key, { request, window: opened, layer, watchdog });
+    this.windows.set(request.key, { request, window: opened, document: target, layer, watchdog, arrived: false });
     this.detached.set([...this.windows.keys()]);
     return true;
+  }
+
+  /**
+   * Notices a window shut from outside, and a panel that closed itself while in one.
+   *
+   * A panel can go without the window going: a piece deleted takes its sheet with it, and a
+   * panel that only one of may stand is closed when its name is asked for again. What is left
+   * is an empty window, and putting the panel back when that is shut would open it over the
+   * very thing it was closed for.
+   */
+  private look(key: string): void {
+    const held = this.windows.get(key);
+    if (!held) return;
+    if (held.window.closed) {
+      this.bringBack(key);
+      return;
+    }
+    if (this.holds(held)) held.arrived = true;
+    else if (held.arrived) this.bringBack(key, false);
+  }
+
+  private holds(held: OpenWindow): boolean {
+    return held.layer.instance.layer().length > 0;
   }
 
   /** Brings a panel back to the table, whether the reader asked or just shut the window. */
@@ -135,16 +168,19 @@ export class PanelWindowService {
     const held = this.windows.get(key);
     if (!held) return;
 
+    const wentOnItsOwn = held.arrived && !this.holds(held);
+
     this.windows.delete(key);
     this.detached.set([...this.windows.keys()]);
     clearInterval(held.watchdog);
 
-    AttachedDocuments.detach(held.window.document);
+    AttachedDocuments.detach(held.document);
+    OverlayLayers.detach(held.document);
     held.layer.destroy();
     this.appRef.detachView(held.layer.hostView);
     if (!held.window.closed) held.window.close();
 
-    if (restore) held.request.restore();
+    if (restore && !wentOnItsOwn) held.request.restore();
   }
 
   closeAll(): void {
