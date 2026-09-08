@@ -144,6 +144,12 @@ export function sceneFromTable(table: TableSnapshot): MapScene {
     ...layersByLook(table.maskBlocks, 'mask', 'mask', (block) => ({ ...DEFAULT_FUNCTION_SPEC, mask: block.spec }))
   );
   layers.push(...terrainLayers(table.terrainBlocks, table.cellPx, 'terrain'));
+  layers.push(
+    ...layersByLook(table.triggerBlocks, 'trigger', 'event', (block) => ({
+      ...DEFAULT_FUNCTION_SPEC,
+      trigger: block.spec,
+    }))
+  );
   if (table.blockedCells.length > 0) layers.push(functionLayer('moveBlock', 'no entry', table.blockedCells));
 
   return { ...scene, layers };
