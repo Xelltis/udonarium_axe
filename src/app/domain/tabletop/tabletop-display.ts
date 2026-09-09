@@ -111,18 +111,13 @@ export const TABLETOP_MODE_SETTINGS: Readonly<Partial<TabletopDisplaySettings>> 
 };
 
 /**
- * The same settings put back the way a screen has them until it asks for the tabletop.
+ * What asking for the tabletop puts in, named so that it can be let go of again.
  *
- * Asking for the tabletop is asking for the lot, so letting go of it is letting go of the
- * lot: anything else would leave a screen wearing half a setup nobody chose.
+ * Asking for it is asking for the lot, so letting go is letting go of the lot — by taking
+ * these off this screen rather than by writing the defaults, which would be a different
+ * thing: a table carrying its own value for one of them would never be heard again.
  */
-export function tabletopModeDefaults(): Partial<TabletopDisplaySettings> {
-  const back: Partial<TabletopDisplaySettings> = {};
-  for (const key of Object.keys(TABLETOP_MODE_SETTINGS) as TabletopDisplayKey[]) {
-    Object.assign(back, { [key]: DEFAULT_TABLETOP_DISPLAY_SETTINGS[key] });
-  }
-  return back;
-}
+export const TABLETOP_MODE_KEYS = Object.keys(TABLETOP_MODE_SETTINGS) as readonly TabletopDisplayKey[];
 
 export const MIN_MULTI_ANGLE_REVOLUTION_SECONDS = 1;
 export const MAX_MULTI_ANGLE_REVOLUTION_SECONDS = 120;

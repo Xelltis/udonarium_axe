@@ -155,6 +155,20 @@ describe('TabletopDisplaySettingComponent', () => {
     expect(component.tabletopRecommended).toBe(false);
   });
 
+  /**
+   * Writing the defaults would pin them on this screen; the table would then never be heard
+   * on those settings again, though nothing but a passing tick had been asked for.
+   */
+  it('lets go of what it put in, so a table that answers for one of them is heard again', () => {
+    table.multiAngleEnabled = true;
+
+    component.tabletopRecommended = true;
+    component.tabletopRecommended = false;
+
+    expect(TestBed.inject(TabletopDisplayPreferenceService).own()).toEqual({});
+    expect(component.multiAngleEnabled).toBe(true);
+  });
+
   it('puts the defaults back when it is turned off, and leaves the view looking down', () => {
     component.tabletopRecommended = true;
 

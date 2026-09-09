@@ -37,10 +37,10 @@ import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/dom
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
   asMultiAngleMotionMode,
+  TABLETOP_MODE_KEYS,
   TABLETOP_MODE_SETTINGS,
   TabletopDisplayKey,
   TabletopDisplaySettings,
-  tabletopModeDefaults,
 } from '@axe/domain/tabletop/tabletop-display';
 import { TABLETOP_MENU_STYLES, TabletopMenuStyle } from '@axe/domain/tabletop/tabletop-menu-style';
 import { VIEW_MODES, ViewMode } from '@axe/domain/ui/view-mode';
@@ -125,7 +125,10 @@ export class TabletopDisplaySettingComponent {
     );
   }
   set tabletopRecommended(wanted: boolean) {
-    this.set(wanted ? TABLETOP_MODE_SETTINGS : tabletopModeDefaults());
+    if (wanted) this.set(TABLETOP_MODE_SETTINGS);
+    // Letting go of them is not the same as pinning the defaults: a table that carries its own
+    // value for one of these would never be heard again if this screen wrote over it.
+    else this.display.forgetOnly(TABLETOP_MODE_KEYS);
     // Asking for the tabletop is asking to look down on it; letting go of the settings is not
     // asking to stand back up, since a reader may well want to go on looking down.
     if (wanted) this.viewMode.choose('flat');
