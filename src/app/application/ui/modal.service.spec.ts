@@ -103,9 +103,10 @@ describe('ModalService', () => {
 
     /**
      * A dialogue opened in a window of its own goes when that window does, without anyone
-     * answering it. Whoever is waiting has to be let go of, or they wait for ever.
+     * answering it. Whoever is waiting has to be let go of, or they wait for ever — and with
+     * the same answer a dismissal gives, since that is the one every caller reads for.
      */
-    it('lets go of a caller whose dialogue was taken away unanswered', async () => {
+    it('answers a caller whose dialogue was taken away, as a dismissal would', async () => {
       const service = TestBed.inject(ModalService);
       const rootInjector = TestBed.inject(Injector);
       let destroyCallback: (() => void) | undefined;
@@ -126,7 +127,7 @@ describe('ModalService', () => {
 
       panelComponentRef.destroy();
 
-      await expect(waiting).rejects.toBeUndefined();
+      await expect(waiting).resolves.toBeNull();
       expect(service.isShow).toBe(false);
     });
 

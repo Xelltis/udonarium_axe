@@ -101,11 +101,13 @@ export class ModalService {
       panelComponentRef.onDestroy(() => {
         this.count--;
         // A dialogue can be taken away without being answered: the window it was opened in is
-        // shut, and the layer it stood in goes with it. Whoever is waiting is owed the same
-        // answer as if it had been dismissed, or they wait for one that can never come.
+        // shut, and the layer it stood in goes with it. Whoever is waiting is owed the answer
+        // a dismissal gives — nothing chosen — or they wait for one that can never come.
+        // Nothing rejects one of these in practice, and the callers read the value rather
+        // than catching, so rejecting here would break in a way that hanging never did.
         if (!answered) {
           answered = true;
-          reject(undefined);
+          resolve(null as T);
         }
       });
 
