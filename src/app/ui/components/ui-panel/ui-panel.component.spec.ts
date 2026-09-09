@@ -1,3 +1,4 @@
+import { ChangeDetectionStrategy, Component, viewChild, ViewContainerRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
@@ -5,6 +6,16 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
+
+@Component({
+  standalone: true,
+  selector: 'panel-title-test-host',
+  changeDetection: ChangeDetectionStrategy.Eager,
+  template: '<ng-template #layer></ng-template>',
+})
+class PanelTitleTestHostComponent {
+  readonly layer = viewChild.required('layer', { read: ViewContainerRef });
+}
 
 describe('UIPanelComponent', () => {
   let component: UIPanelComponent;
@@ -529,6 +540,22 @@ describe('UIPanelComponent', () => {
 
       const panel = fixture.nativeElement.querySelector('.draggable-panel') as HTMLElement;
       expect(panel.style.zIndex).not.toBe('201');
+    });
+  });
+
+  describe('the title in the bar', () => {
+    it('follows a title written after the panel was opened', async () => {
+      const host = TestBed.createComponent(PanelTitleTestHostComponent);
+      host.detectChanges();
+      const layer = host.componentInstance.layer();
+      const frame = layer.createComponent(UIPanelComponent, { index: layer.length, injector: layer.injector });
+      host.detectChanges();
+
+      frame.injector.get(PanelService).title = 'Written later';
+      host.detectChanges();
+
+      expect(host.nativeElement.textContent).toContain('Written later');
+      host.destroy();
     });
   });
 

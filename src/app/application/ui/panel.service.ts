@@ -127,8 +127,21 @@ export class PanelService {
    * that is no longer there, and the next press opens what it meant to close.
    */
   private static readonly singlesVersion = signal(0);
-  title: string = '';
-  titleTooltip: string = '';
+  private readonly _title = signal('');
+  get title(): string {
+    return this._title();
+  }
+  set title(value: string) {
+    this._title.set(value);
+  }
+
+  private readonly _titleTooltip = signal('');
+  get titleTooltip(): string {
+    return this._titleTooltip();
+  }
+  set titleTooltip(value: string) {
+    this._titleTooltip.set(value);
+  }
   left: number = 0;
   top: number = 0;
   width: number = 100;
@@ -164,7 +177,13 @@ export class PanelService {
 
   /** Whether the panel stands in a window of its own, for content that has to work differently there. */
   readonly windowed = signal(false);
-  chatTab: ChatTab | null = null;
+  private readonly _chatTab = signal<ChatTab | null>(null);
+  get chatTab(): ChatTab | null {
+    return this._chatTab();
+  }
+  set chatTab(value: ChatTab | null) {
+    this._chatTab.set(value);
+  }
   cardStack: CardStack | null = null;
   scrollablePanel: HTMLDivElement | null = null;
   private isScrollablePanelClaimed = false;
