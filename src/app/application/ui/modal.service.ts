@@ -62,9 +62,11 @@ export class ModalService {
     }
     let panelComponentRef: ComponentRef<unknown>;
     return new Promise<T>((resolve, reject) => {
+      let answered = false;
       // build an injector
       const _resolve = (val: T) => {
         if (panelComponentRef) {
+          answered = true;
           panelComponentRef.destroy();
           resolve(val);
         }
@@ -72,6 +74,7 @@ export class ModalService {
 
       const _reject = (reason?: unknown) => {
         if (panelComponentRef) {
+          answered = true;
           panelComponentRef.destroy();
           reject(reason);
         }
@@ -97,6 +100,13 @@ export class ModalService {
 
       panelComponentRef.onDestroy(() => {
         this.count--;
+        // A dialogue can be taken away without being answered: the window it was opened in is
+        // shut, and the layer it stood in goes with it. Whoever is waiting is owed the same
+        // answer as if it had been dismissed, or they wait for one that can never come.
+        if (!answered) {
+          answered = true;
+          reject(undefined);
+        }
       });
 
       this.count++;
