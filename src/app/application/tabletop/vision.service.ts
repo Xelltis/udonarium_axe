@@ -33,6 +33,7 @@ import { rectangleSegments } from '@axe/domain/tabletop/los/segments';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainTopPx } from '@axe/domain/tabletop/terrain-height';
 import {
   computeLightBeam,
   computeLightGlow,
@@ -295,7 +296,7 @@ export class VisionService {
     for (const terrain of table.terrains) {
       if (!terrain.hasWall || !terrain.blocksSightNow || surfaceOf(terrain) !== 'floor') continue;
       const box = this.terrainBox(terrain, grid.sizePx);
-      const top = (terrain.altitude + terrain.height) * grid.sizePx;
+      const top = terrainTopPx(terrain, grid.sizePx);
       forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => {
         cells.set(cell);
         if (top > tops[cell]) tops[cell] = top;
@@ -713,7 +714,7 @@ export class VisionService {
   /** How high the top of a block stands, in pixels above the floor. */
   terrainTopZ(terrain: Terrain): number {
     const scene = this.scene();
-    return scene ? (terrain.altitude + terrain.height) * scene.gridSize : 0;
+    return scene ? terrainTopPx(terrain, scene.gridSize) : 0;
   }
 
   /** The cells of a block's roof, each read at the height the roof stands at. */
@@ -730,7 +731,7 @@ export class VisionService {
     // The top of a wall is a surface of its own, and a lamp level with it lights along it. Read
     // at the ground the wall stands on, a walkway beside a torch came out as dark as the floor
     // ten feet below, and so did whatever had climbed onto it.
-    const top = (terrain.altitude + terrain.height) * scene.gridSize;
+    const top = terrainTopPx(terrain, scene.gridSize);
     if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true, top);
 
     return this.brightestCleared(cover);

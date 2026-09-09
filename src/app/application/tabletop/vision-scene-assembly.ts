@@ -4,6 +4,7 @@ import { perimeterSegments, rectangleSegments, TallSegment } from '@axe/domain/t
 import { type SurfaceDims, surfaceInwardDirection, surfacePointTo3D } from '@axe/domain/tabletop/surface-space';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { terrainTopPx } from '@axe/domain/tabletop/terrain-height';
 import {
   eyeHeightPx,
   type LightSegment,
@@ -49,7 +50,7 @@ export function collectSegments(
       terrain.depth * gridSize,
       terrain.rotate
     );
-    const top = (terrain.altitude + terrain.height) * gridSize;
+    const top = terrainTopPx(terrain, gridSize);
     if (terrain.blocksSightNow) for (const edge of edges) sight.push({ ...edge, heightPx: top });
     if (terrain.blocksLightNow && !terrain.lightEnabled) {
       for (const edge of edges) light.push({ ...edge, heightPx: top });

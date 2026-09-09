@@ -54,6 +54,20 @@ describe('vision scene assembly', () => {
     expect(segments.sight[4].heightPx).toBe(100);
   });
 
+  it('reads a block resting on something at the height it really stands', () => {
+    const table = makeTable();
+    const terrain = Terrain.create('棚', 2, 1, 1, '', '');
+    terrain.location.x = 100;
+    terrain.location.y = 100;
+    terrain.altitude = 1;
+    terrain.posZ = 25;
+    table.appendChild(terrain);
+
+    const segments = collectSegments(table, 50, 500, 400);
+
+    expect(segments.sight[4].heightPx).toBe(125);
+  });
+
   it('turns a light spec into pixels, keeping the direction it was given', () => {
     const spec = {
       brightRadius: 2,
