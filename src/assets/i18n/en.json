@@ -2066,6 +2066,10 @@
           "corridorWidth": "Passage width",
           "corridorLeast": "Narrowest",
           "corridorMost": "Widest",
+          "doorWidth": "Door width",
+          "doorLeast": "Narrowest",
+          "doorMost": "Widest",
+          "doubleDoors": "Double doors (%)",
           "muster": "Party at the way in",
           "musterNobody": "Nobody",
           "fog": "Start with the fog of war drawn"
@@ -2088,6 +2092,8 @@
           "roomsDiffer": "{{found}} rooms fitted. Caverns run together, so a cave ends up with fewer than asked",
           "squareOnly": "A generated table always uses a square grid",
           "corridorWidth": "Wider passages take a wider lattice, so fewer rooms fit on the board",
+          "doorWidth": "A door wider than the way it bars has the stone beside the opening cut away. An opening wider than the door takes a row of them",
+          "doubleDoors": "A pair is two leaves of half the width, parting in the middle. A door of four cells is two of two",
           "muster": "Stands that party by the way in. No other piece is moved"
         },
         "entrance": {

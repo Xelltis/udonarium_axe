@@ -244,6 +244,26 @@ describe('DungeonBuildService', () => {
     }
   });
 
+  it('stands a wide door as one slab the width of its half of the opening', async () => {
+    const plan = planDungeon({
+      atmosphere: 'stoneDungeon',
+      roomCount: 8,
+      seed: 7,
+      doorWidth: { least: 4, most: 4 },
+      doubleDoorPercent: 100,
+    });
+    const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+    const index = plan.blocks.blocks.findIndex(
+      (block) => block.kind === 'door' && Math.max(block.rect.w, block.rect.h) === 2
+    );
+    const block = plan.blocks.blocks[index];
+    const door = result.table.terrains[index];
+
+    expect(index).toBeGreaterThanOrEqual(0);
+    expect(block.across === 'x' ? door.depth : door.width).toBe(2);
+    expect(block.across === 'x' ? door.width : door.depth).toBeLessThan(1);
+  });
+
   it('gives every door the way of opening its atmosphere calls for', async () => {
     const { plan, result } = await build();
     const style = atmosphereById('stoneDungeon').doorStyle;

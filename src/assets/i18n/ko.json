@@ -2066,6 +2066,10 @@
           "corridorWidth": "통로의 폭",
           "corridorLeast": "최소",
           "corridorMost": "최대",
+          "doorWidth": "문의 폭",
+          "doorLeast": "최소",
+          "doorMost": "최대",
+          "doubleDoors": "양문의 비율(%)",
           "muster": "입구에 모을 파티",
           "musterNobody": "모으지 않음",
           "fog": "전장의 안개를 씌운 상태로 시작"
@@ -2088,6 +2092,8 @@
           "roomsDiffer": "배치된 방은 {{found}}개입니다. 동굴은 공동이 이어지므로 요청보다 적어집니다",
           "squareOnly": "생성되는 테이블은 정사각 그리드 고정입니다",
           "corridorWidth": "넓힐수록 방과 간격도 커져서 놓을 수 있는 방이 줄어듭니다",
+          "doorWidth": "문이 통로보다 넓으면 그만큼 입구의 벽을 깎습니다. 입구가 더 넓으면 문이 나란히 놓입니다",
+          "doubleDoors": "양문은 폭을 절반씩 나눈 문 2개가 됩니다. 폭이 4라면 2칸짜리 문 2개입니다",
           "muster": "선택한 파티의 말을 입구 근처에 세웁니다. 다른 말은 움직이지 않습니다"
         },
         "entrance": {

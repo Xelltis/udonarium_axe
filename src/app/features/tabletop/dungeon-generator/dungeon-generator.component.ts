@@ -21,6 +21,16 @@ import {
   WALL_TEXTURE_IDS,
 } from '@axe/domain/media/texture-catalog';
 import {
+  clampDoorWidth,
+  clampDoubleDoorPercent,
+  DoorWidths,
+  doorWidthsFor,
+  MAX_DOOR_WIDTH,
+  MAX_DOUBLE_DOOR_PERCENT,
+  MIN_DOOR_WIDTH,
+  MIN_DOUBLE_DOOR_PERCENT,
+} from '@axe/domain/tabletop/dungeon/door-hanging';
+import {
   atmosphereById,
   clampWallHeight,
   DUNGEON_ATMOSPHERE_IDS,
@@ -113,6 +123,10 @@ export class DungeonGeneratorComponent {
   protected readonly maxWallHeight = MAX_WALL_HEIGHT;
   protected readonly minCorridorWidth = MIN_CORRIDOR_WIDTH;
   protected readonly maxCorridorWidth = MAX_CORRIDOR_WIDTH;
+  protected readonly minDoorWidth = MIN_DOOR_WIDTH;
+  protected readonly maxDoorWidth = MAX_DOOR_WIDTH;
+  protected readonly minDoubleDoors = MIN_DOUBLE_DOOR_PERCENT;
+  protected readonly maxDoubleDoors = MAX_DOUBLE_DOOR_PERCENT;
 
   protected readonly kind = signal<MapKind>('dungeon');
   protected readonly atmosphere = signal<DungeonAtmosphereId>('stoneDungeon');
@@ -131,6 +145,8 @@ export class DungeonGeneratorComponent {
   private readonly heightOverride = signal<number | null>(null);
   private readonly entranceOverride = signal<DungeonEntranceStyle | null>(null);
   private readonly corridorOverride = signal<CorridorWidths | null>(null);
+  private readonly doorOverride = signal<DoorWidths | null>(null);
+  private readonly doubleDoorOverride = signal<number | null>(null);
 
   protected readonly busy = signal(false);
   protected readonly progress = signal(0);
@@ -173,13 +189,18 @@ export class DungeonGeneratorComponent {
   protected readonly corridorWidth = computed(() =>
     corridorWidthsFor(atmosphereById(this.atmosphere()), this.corridorOverride() ?? undefined)
   );
+  /** How wide the doors are hung, and how many of them part in the middle rather than swing whole. */
+  protected readonly doorWidth = computed(() => doorWidthsFor(this.doorOverride() ?? undefined));
+  protected readonly doubleDoors = computed(() => clampDoubleDoorPercent(this.doubleDoorOverride() ?? undefined));
   protected readonly usingDefaults = computed(
     () =>
       this.wallOverride() === null &&
       this.floorOverride() === null &&
       this.heightOverride() === null &&
       this.entranceOverride() === null &&
-      this.corridorOverride() === null
+      this.corridorOverride() === null &&
+      this.doorOverride() === null &&
+      this.doubleDoorOverride() === null
   );
 
   /**
@@ -201,6 +222,8 @@ export class DungeonGeneratorComponent {
         seed: this.seed(),
         entrance: this.entrance(),
         corridorWidth: this.corridorWidth(),
+        doorWidth: this.doorWidth(),
+        doubleDoorPercent: this.doubleDoors(),
         gridType: this.gridType(),
       },
       { placeDoors: this.placeDoors(), placeStairs: this.placeStairs() }
@@ -301,6 +324,21 @@ export class DungeonGeneratorComponent {
     this.corridorOverride.set({ least: Math.min(most, this.corridorWidth().least), most });
   }
 
+  /** The narrowest a door may be hung. Asking for wider than the widest widens that too. */
+  protected setDoorLeast(width: number): void {
+    const least = clampDoorWidth(width);
+    this.doorOverride.set({ least, most: Math.max(least, this.doorWidth().most) });
+  }
+
+  protected setDoorMost(width: number): void {
+    const most = clampDoorWidth(width);
+    this.doorOverride.set({ least: Math.min(most, this.doorWidth().least), most });
+  }
+
+  protected setDoubleDoors(percent: number): void {
+    this.doubleDoorOverride.set(clampDoubleDoorPercent(percent));
+  }
+
   /** Who walks in with the party, which is nobody until a party is picked. */
   protected readonly parties = this.partyService.parties;
   protected readonly musterParty = signal('');
@@ -315,6 +353,8 @@ export class DungeonGeneratorComponent {
     this.heightOverride.set(null);
     this.entranceOverride.set(null);
     this.corridorOverride.set(null);
+    this.doorOverride.set(null);
+    this.doubleDoorOverride.set(null);
   }
 
   protected reroll(): void {

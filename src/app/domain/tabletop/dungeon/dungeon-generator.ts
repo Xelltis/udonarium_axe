@@ -1,5 +1,6 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { generateCave } from '@axe/domain/tabletop/dungeon/cave-automata';
+import { DoorWidths, hangDoors } from '@axe/domain/tabletop/dungeon/door-hanging';
 import {
   atmosphereById,
   DungeonAtmosphere,
@@ -38,6 +39,10 @@ export interface DungeonRequest {
   entrance?: DungeonEntranceStyle;
   /** The narrowest and the widest a passage is cut. Left out, the atmosphere decides that too. */
   corridorWidth?: CorridorWidths;
+  /** The narrowest and the widest a door is hung. Left out, a door fills one cell. */
+  doorWidth?: DoorWidths;
+  /** How many doors in a hundred are hung as a pair. Left out, half of those that can be. */
+  doubleDoorPercent?: number;
 }
 
 /** How wide a passage may be cut, at its narrowest and at its widest. */
@@ -145,6 +150,8 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   // Cut before the roles are given out, so depth is counted from the mouth the party walks in by.
   if ((request.entrance ?? atmosphere.entrance) === 'tunnel') openTunnelMouth(layout);
   assignRoomRoles(layout);
+  // Hung last, so that widening an opening cannot leave the room a key opens standing ajar.
+  hangDoors(layout, { widths: request.doorWidth, doublePercent: request.doubleDoorPercent }, rng);
   return layout;
 }
 
