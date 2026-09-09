@@ -7,7 +7,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildMacroMessage } from '@axe/domain/chat/character-macro';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { DiceBot, PLAIN_DICE_BOT } from '@axe/domain/dice/dice-bot';
+import { Config } from '@axe/domain/peer/config';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 export interface MacroSendOptions {
@@ -25,6 +26,16 @@ export interface MacroSendOptions {
   replyTo?: string;
   quoteOf?: string;
   targets?: readonly GameCharacter[];
+}
+
+/**
+ * A system somebody actually chose, rather than the one everything starts with.
+ *
+ * A piece's palette and the room both carry `DiceBot` from the moment they are made, so
+ * reading either as an answer would mean nothing chosen further along could ever be heard.
+ */
+function chosenSystem(gameType: string | undefined | null): string {
+  return gameType && gameType !== PLAIN_DICE_BOT ? gameType : '';
 }
 
 @Injectable({ providedIn: 'root' })
@@ -72,11 +83,11 @@ export class CharacterMacroService {
   ): Promise<ChatMessage | null> {
     if (options.gameSystem !== undefined) return this.send(character, line, options);
 
-    // What the caller named wins; after that the system the reader has chosen in the chat
-    // window, which is where they choose one. The palette's own is the last word, and only
-    // answers where nothing has been chosen: it carries `DiceBot` from the moment a piece is
-    // made, so asking it first would mean a choice made in the chat window never took.
-    const gameType = options.gameType || this.chatMessageService.gameType || character.chatPalette?.dicebot || '';
+    const gameType =
+      options.gameType ||
+      chosenSystem(character.chatPalette?.dicebot) ||
+      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
+      this.chatMessageService.gameType;
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     return this.send(character, line, { ...options, gameSystem });
   }

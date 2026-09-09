@@ -26,6 +26,9 @@ import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
 import GameSystemClass from 'bcdice/lib/game_system';
 import type StaticLoader from 'bcdice/lib/loader/static_loader';
 
+/** The dice bot everything starts with, which nobody has to have chosen. */
+export const PLAIN_DICE_BOT = 'DiceBot';
+
 @SyncObject('dice-bot')
 export class DiceBot extends GameObject {
   private static loader: StaticLoader;
@@ -98,7 +101,7 @@ export class DiceBot extends GameObject {
       if (system) {
         return system;
       }
-      const id = this.diceBotInfos.some((info) => info.id === gameType) ? gameType : 'DiceBot';
+      const id = this.diceBotInfos.some((info) => info.id === gameType) ? gameType : PLAIN_DICE_BOT;
       try {
         return DiceBot.loader.getGameSystemClass(id);
       } catch {
