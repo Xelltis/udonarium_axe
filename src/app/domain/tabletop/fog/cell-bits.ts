@@ -1,10 +1,4 @@
-const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-const BASE64_LOOKUP = (() => {
-  const table = new Int8Array(128).fill(-1);
-  for (let i = 0; i < BASE64_ALPHABET.length; i++) table[BASE64_ALPHABET.charCodeAt(i)] = i;
-  return table;
-})();
+import { decodeBytes, encodeBytes } from '@axe/core/util/base64-bytes';
 
 export class CellBits {
   private readonly words: Uint8Array;
@@ -73,35 +67,12 @@ export class CellBits {
 }
 
 export function encodeCellBits(bits: CellBits): string {
-  const bytes = bits.bytes();
-  let out = '';
-  for (let i = 0; i < bytes.length; i += 3) {
-    const a = bytes[i];
-    const b = i + 1 < bytes.length ? bytes[i + 1] : 0;
-    const c = i + 2 < bytes.length ? bytes[i + 2] : 0;
-    out += BASE64_ALPHABET[a >> 2];
-    out += BASE64_ALPHABET[((a & 3) << 4) | (b >> 4)];
-    out += i + 1 < bytes.length ? BASE64_ALPHABET[((b & 15) << 2) | (c >> 6)] : '=';
-    out += i + 2 < bytes.length ? BASE64_ALPHABET[c & 63] : '=';
-  }
-  return out;
+  return encodeBytes(bits.bytes());
 }
 
 export function decodeCellBits(text: string, count: number): CellBits {
   const bits = new CellBits(count);
-  const bytes = bits.bytes();
-  let byteAt = 0;
-  let held = 0;
-  let heldBits = 0;
-  for (let i = 0; i < text.length && byteAt < bytes.length; i++) {
-    const code = text.charCodeAt(i);
-    const value = code < 128 ? BASE64_LOOKUP[code] : -1;
-    if (value < 0) continue;
-    held = (held << 6) | value;
-    heldBits += 6;
-    if (heldBits < 8) continue;
-    heldBits -= 8;
-    bytes[byteAt++] = (held >> heldBits) & 0xff;
-  }
+  const words = bits.bytes();
+  words.set(decodeBytes(text, words.length));
   return bits;
 }
