@@ -296,6 +296,37 @@ describe('ChatWindowComponent', () => {
     });
   });
 
+  describe('being looked at again after standing behind another panel', () => {
+    it('takes the log back to the bottom when that is where it was', () => {
+      fixture.detectChanges();
+      const priv = component as unknown as {
+        panelService: { scrollablePanel: HTMLDivElement | null; activated$: { emit: () => void } };
+      };
+      priv.panelService.scrollablePanel = document.createElement('div');
+      const scrolled = vi.spyOn(component, 'scrollToBottom');
+
+      priv.panelService.activated$.emit();
+
+      expect(scrolled).toHaveBeenCalledWith(true);
+    });
+
+    it('measures how far from the bottom it is when it was reading further up', () => {
+      fixture.detectChanges();
+      const priv = component as unknown as {
+        panelService: { scrollablePanel: HTMLDivElement | null; activated$: { emit: () => void } };
+        isNearBottom: { set(value: boolean): void };
+      };
+      priv.panelService.scrollablePanel = document.createElement('div');
+      priv.isNearBottom.set(false);
+      const scrolled = vi.spyOn(component, 'scrollToBottom');
+
+      priv.panelService.activated$.emit();
+
+      expect(scrolled).not.toHaveBeenCalled();
+      expect(component.isNearBottom()).toBe(true);
+    });
+  });
+
   describe('scrolling while it is not following', () => {
     /**
      * It does not fire the scroll while it is not following and is not forced.

@@ -28,6 +28,7 @@ import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { holdLiveState } from '@axe/ui/components/ui-panel/live-state';
 import { PanelTabSlotComponent } from '@axe/ui/components/ui-panel/panel-tab-slot.component';
 import { PanelTabStripComponent } from '@axe/ui/components/ui-panel/panel-tab-strip.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -258,9 +259,12 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
 
   /** Takes a panel in from another frame, the ground it stands on and all. */
   adoptTab(handle: PanelTabHandle): void {
+    const restore = holdLiveState(handle.slot.instance.scrollable().nativeElement);
     this.slots().insert(handle.slot.hostView);
     handle.panel.attachTo(this);
     this.holdTab(handle);
+    restore();
+    afterNextRender({ read: restore }, { injector: this.injector });
   }
 
   /** Hands a panel out without taking it down. The frame stays, emptied, for the caller to end. */
