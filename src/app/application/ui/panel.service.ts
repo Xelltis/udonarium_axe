@@ -95,7 +95,14 @@ export interface PanelOption {
  * to hold more than one panel, so a panel asks it to be taken away rather than tearing the
  * frame down itself.
  */
+/** A panel on its way from one frame to another. What it holds belongs to the frame. */
+export interface PanelHandoff {
+  panel: PanelService;
+}
+
 export interface PanelFrame {
+  /** Tells one frame from another. */
+  readonly frameKey: string;
   /** Builds a panel into a place of its own in this frame, and answers with what it built. */
   openTab: <T>(childComponent: Type<T>, panel: PanelService) => ComponentRef<T>;
   setInitialRotation: (degrees: PanelRotationDegrees) => void;
@@ -104,7 +111,12 @@ export interface PanelFrame {
   /** Puts one panel away. The frame goes with the last of them. */
   closeTab: (panel: PanelService) => void;
   /** Takes a panel in from another frame, the ground it stands on and all. */
-  takeIn: (handoff: { panel: PanelService }) => void;
+  takeIn: (handoff: PanelHandoff) => void;
+  /** Hands every panel it holds out, ready to be taken in elsewhere. */
+  handOverAll: () => PanelHandoff[];
+  panelCount: () => number;
+  /** The frame goes, whatever it is holding. */
+  dismissFrame: () => void;
 }
 
 type PanelServiceAssignableKey =
@@ -467,6 +479,11 @@ export class PanelService {
       ghost: this.isGhost(),
       windowed: this.windowed(),
     });
+  }
+
+  /** The frame this panel stands in, for whoever moves panels about as a whole. */
+  get standingFrame(): PanelFrame | null {
+    return this.frame;
   }
 
   /** Told when the panel changes frames, which is what folding it into another one does. */

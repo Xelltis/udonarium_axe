@@ -139,6 +139,11 @@ export class ObjectPanelService {
         icon: 'open_in_new',
         label: this.t('common.panel.popOut'),
         press: (owner) => {
+          const frame = owner.standingFrame;
+          if (frame && frame.panelCount() > 1) {
+            windows.popOutGroup(frame, this.panelService, { width: owner.width, height: owner.height });
+            return;
+          }
           const went = windows.popOut({
             key: detach.key,
             width: size.width,

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, input, output, signal, viewChild } from '@angular/core';
 import { tabInsertIndex } from '@axe/application/ui/panel-drag-helpers';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -34,8 +34,14 @@ export class PanelTabStripComponent {
   /** A name was let go of somewhere else on the screen. */
   readonly tookOut = output<{ index: number; x: number; y: number }>();
   readonly moved = output<{ from: number; to: number }>();
+  /** A carry has ended, however it ended, so whoever was following it can stop. */
+  readonly released = output<void>();
 
   private readonly strip = viewChild.required<ElementRef<HTMLDivElement>>('strip');
+  /** The name being carried, drawn faded while it is in the air. */
+  protected readonly carried = signal(-1);
+  /** Where a name let go of now would land, drawn as a line between two of them. */
+  protected readonly landing = signal(-1);
   private held: { index: number; x: number; y: number } | null = null;
   private carrying = false;
 
@@ -53,25 +59,31 @@ export class PanelTabStripComponent {
     if (!this.carrying) {
       if (Math.hypot(event.clientX - held.x, event.clientY - held.y) < DRAG_THRESHOLD_PX) return;
       this.carrying = true;
+      this.carried.set(held.index);
       this.grabbed.emit(held.index);
     }
-    this.dragged.emit({ x: event.clientX, y: event.clientY });
+    const at = { x: event.clientX, y: event.clientY };
+    this.landing.set(this.withinStrip(at) ? tabInsertIndex(at.x, this.pillRects()) : -1);
+    this.dragged.emit(at);
   }
 
   protected onPillPointerUp(event: PointerEvent): void {
     const held = this.held;
     this.held = null;
+    this.carried.set(-1);
+    this.landing.set(-1);
     if (!held || !this.carrying) return;
     this.carrying = false;
 
     const at = { x: event.clientX, y: event.clientY };
-    if (!this.withinStrip(at)) {
+    if (this.withinStrip(at)) {
+      const landing = tabInsertIndex(at.x, this.pillRects());
+      const to = landing > held.index ? landing - 1 : landing;
+      if (to !== held.index) this.moved.emit({ from: held.index, to });
+    } else {
       this.tookOut.emit({ index: held.index, ...at });
-      return;
     }
-    const landing = tabInsertIndex(at.x, this.pillRects());
-    const to = landing > held.index ? landing - 1 : landing;
-    if (to !== held.index) this.moved.emit({ from: held.index, to });
+    this.released.emit();
   }
 
   private withinStrip(at: { x: number; y: number }): boolean {

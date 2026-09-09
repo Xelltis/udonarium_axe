@@ -236,7 +236,7 @@ describe('a frame holding more than one panel', () => {
 
     fold(first.frame, second);
 
-    const names = [...first.frame.location.nativeElement.querySelectorAll('[role="tab"] span')].map(
+    const names = [...first.frame.location.nativeElement.querySelectorAll('[role="tab"] [data-panel-tab-name]')].map(
       (pill) => (pill as HTMLElement).textContent
     );
     expect(names).toEqual(['Chat', 'Sheet']);
@@ -303,6 +303,23 @@ describe('a frame holding more than one panel', () => {
     expect(second.panel.isShow).toBe(true);
   });
 
+  it('gives a panel back the size it had before it was folded in', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    // Both the input and where it lands, so the size holds whenever the frame's effect runs.
+    second.frame.setInput('width', 760);
+    second.frame.setInput('height', 500);
+    second.panel.width = 760;
+    second.panel.height = 500;
+    place(first.frame, 0, 0);
+    place(second.frame, 400, 0);
+    dragBar(second.frame, { x: 20, y: 14 });
+
+    const handed = first.frame.instance.releaseTab(second.panel);
+
+    expect(handed?.box).toEqual({ width: 760, height: 500 });
+  });
+
   it('takes the emptied frame away when its last panel is pulled out', () => {
     const first = openFrame('Chat');
     const second = openFrame('Sheet');
@@ -329,7 +346,7 @@ describe('a frame holding more than one panel', () => {
     strip.onTabMoved({ from: 1, to: 0 });
     host.detectChanges();
 
-    const names = [...first.frame.location.nativeElement.querySelectorAll('[role="tab"] span')].map(
+    const names = [...first.frame.location.nativeElement.querySelectorAll('[role="tab"] [data-panel-tab-name]')].map(
       (pill) => (pill as HTMLElement).textContent
     );
     expect(names).toEqual(['Sheet', 'Chat']);

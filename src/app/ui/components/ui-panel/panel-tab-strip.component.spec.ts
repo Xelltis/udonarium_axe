@@ -22,7 +22,7 @@ describe('PanelTabStripComponent', () => {
   });
 
   it('names every panel the frame holds', () => {
-    expect(pills().map((pill) => pill.querySelector('span')?.textContent)).toEqual(['Chat', 'Sheet']);
+    expect(pills().map((pill) => pill.querySelector('[data-panel-tab-name]')?.textContent)).toEqual(['Chat', 'Sheet']);
   });
 
   it('marks the one being looked at', () => {
@@ -50,6 +50,33 @@ describe('PanelTabStripComponent', () => {
 
     expect(closed).toBe(0);
     expect(chosen).toBe(-1);
+  });
+
+  it('says the carry is over however it ended', () => {
+    let released = 0;
+    fixture.componentInstance.released.subscribe(() => (released += 1));
+    const pill = pills()[0];
+    pill.getBoundingClientRect = () => ({ left: 0, right: 40, top: 0, bottom: 20 }) as DOMRect;
+
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    pill.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 200, clientY: 300 }));
+    pill.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 200, clientY: 300 }));
+
+    expect(released).toBe(1);
+  });
+
+  it('carries a name out of the row rather than reordering it', () => {
+    let taken: { index: number; x: number; y: number } | null = null;
+    fixture.componentInstance.tookOut.subscribe((out) => (taken = out));
+    const strip = fixture.nativeElement.querySelector('[role="tablist"]') as HTMLElement;
+    strip.getBoundingClientRect = () => ({ left: 0, right: 200, top: 0, bottom: 28 }) as DOMRect;
+    const pill = pills()[1];
+
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    pill.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 400, clientY: 500 }));
+    pill.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 400, clientY: 500 }));
+
+    expect(taken).toEqual({ index: 1, x: 400, y: 500 });
   });
 
   it('keeps a drag on it from taking the frame with it', () => {

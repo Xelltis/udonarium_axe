@@ -1,26 +1,12 @@
 import { Injectable, signal } from '@angular/core';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { PanelFrame, PanelHandoff, PanelService } from '@axe/application/ui/panel.service';
 import { findDropZone, PanelDropZone } from '@axe/application/ui/panel-drag-helpers';
 
-/** A panel on its way from one frame to another. What it holds belongs to the frame. */
-export interface PanelHandoff {
-  panel: PanelService;
-}
-
-/**
- * A frame, as far as a drag is concerned: where it may be dropped on, and how panels pass.
- *
- * Named rather than imported, since frames live a layer above this one.
- */
-export interface PanelDropFrame {
-  readonly dragKey: string;
+/** A frame, as far as a drag is concerned: where it may be dropped on, and what it holds. */
+export interface PanelDropFrame extends PanelFrame {
   /** The boxes a drop counts in, or nothing while the frame will take no panel in. */
   measureDropZone: () => PanelDropZone | null;
-  handOverAll: () => PanelHandoff[];
   handOver: (panel: PanelService) => PanelHandoff | null;
-  takeIn: (handoff: PanelHandoff) => void;
-  panelCount: () => number;
-  dismissFrame: () => void;
 }
 
 /**
@@ -39,11 +25,11 @@ export class PanelDragService {
 
   /** Offers a frame as somewhere to drop on. Returns the way to take the offer back. */
   register(frame: PanelDropFrame): () => void {
-    this.frames.set(frame.dragKey, frame);
+    this.frames.set(frame.frameKey, frame);
     return () => {
-      this.frames.delete(frame.dragKey);
-      if (this.held()?.dragKey === frame.dragKey) this.held.set(null);
-      if (this.target()?.dragKey === frame.dragKey) this.target.set(null);
+      this.frames.delete(frame.frameKey);
+      if (this.held()?.frameKey === frame.frameKey) this.held.set(null);
+      if (this.target()?.frameKey === frame.frameKey) this.target.set(null);
     };
   }
 
@@ -57,7 +43,7 @@ export class PanelDragService {
     if (!held) return;
     const offered: { frame: PanelDropFrame; zone: PanelDropZone }[] = [];
     for (const frame of this.frames.values()) {
-      if (frame.dragKey === held.dragKey) continue;
+      if (frame.frameKey === held.frameKey) continue;
       const zone = frame.measureDropZone();
       if (zone) offered.push({ frame, zone });
     }

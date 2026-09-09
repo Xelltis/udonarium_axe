@@ -181,7 +181,7 @@
     <div
       class="block truncate"
       [ngClass]="isCompact() ? 'min-w-0 flex-1 pr-11' : 'pr-38'"
-      [class.invisible]="contentMinimized || isGhost"
+      [class.invisible]="contentMinimized || isGhost || showsTabs()"
       [appTextTooltip]="activePanel().titleTooltip"
     >
       {{ activePanel().title }}
@@ -215,6 +215,7 @@
       (dragged)="onTabDragged($event)"
       (moved)="onTabMoved($event)"
       (tookOut)="onTabTakenOut($event)"
+      (released)="onTabReleased()"
     />
   }
   <ng-container #slots></ng-container>

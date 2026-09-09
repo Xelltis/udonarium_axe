@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ComponentRef, ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
+import { PanelFrame } from '@axe/application/ui/panel.service';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { PanelWindowRequest, PanelWindowService } from '@axe/features/panels/panel-window.service';
 
@@ -111,6 +112,70 @@ describe('PanelWindowService', () => {
 
       expect(AttachedDocuments.all()).toEqual([document]);
       expect(OverlayLayers.current()).toBeNull();
+    });
+  });
+
+  describe('a group of panels taken out together', () => {
+    /** A stand-in for a frame: it holds panels and hands them over as a whole. */
+    function frameHolding(held: string[]) {
+      const taken: string[] = [];
+      const frame = {
+        frameKey: 'panel-1',
+        openTab: (() => ({})) as never,
+        setInitialRotation: () => undefined,
+        claimSelf: () => undefined,
+        closeTab: () => undefined,
+        takeIn: (handoff: { panel: { name: string } }) => {
+          taken.push(handoff.panel.name);
+          held.push(handoff.panel.name);
+        },
+        handOverAll: () =>
+          held.splice(0).map((name) => ({ panel: { name, windowed: { set: () => undefined } } })) as never,
+        panelCount: () => held.length,
+        dismissFrame: vi.fn(),
+        taken,
+      };
+      return frame as typeof frame & PanelFrame;
+    }
+
+    function panelsMaking(frame: ReturnType<typeof frameHolding>) {
+      return { openFrame: vi.fn(() => frame) } as unknown as never;
+    }
+
+    it('moves every panel it holds into one frame in the window', () => {
+      const opened = fakeWindow();
+      const windows = setup(() => opened);
+      const here = frameHolding(['chat', 'sheet']);
+      const abroad = frameHolding([]);
+
+      expect(windows.popOutGroup(here, panelsMaking(abroad), { width: 700, height: 500 })).toBe(true);
+
+      expect(abroad.taken).toEqual(['chat', 'sheet']);
+      expect(here.dismissFrame).toHaveBeenCalled();
+      expect(windows.isDetached('group:panel-1')).toBe(true);
+    });
+
+    it('brings them home before the window is taken down', () => {
+      vi.useFakeTimers();
+      const opened = fakeWindow();
+      const windows = setup(() => opened);
+      const abroad = frameHolding([]);
+      const home = frameHolding([]);
+      let made = 0;
+      const panels = {
+        openFrame: vi.fn(() => {
+          made += 1;
+          return made === 1 ? abroad : home;
+        }),
+      } as unknown as never;
+      windows.popOutGroup(frameHolding(['chat', 'sheet']), panels, { width: 700, height: 500 });
+
+      (opened as { closed: boolean }).closed = true;
+      vi.advanceTimersByTime(500);
+
+      expect(home.taken).toEqual(['chat', 'sheet']);
+      expect(abroad.dismissFrame).toHaveBeenCalled();
+      expect(restored).not.toHaveBeenCalled();
     });
   });
 

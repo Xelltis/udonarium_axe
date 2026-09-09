@@ -3,7 +3,11 @@ import { PanelDropZone } from '@axe/application/ui/panel-drag-helpers';
 
 function frameAt(key: string, zone: PanelDropZone | null): PanelDropFrame {
   return {
-    dragKey: key,
+    frameKey: key,
+    openTab: (() => ({})) as unknown as PanelDropFrame['openTab'],
+    setInitialRotation: () => undefined,
+    claimSelf: () => undefined,
+    closeTab: () => undefined,
     measureDropZone: () => zone,
     handOverAll: () => [],
     handOver: () => null,

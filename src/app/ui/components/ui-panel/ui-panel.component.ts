@@ -20,8 +20,8 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
-import { PanelFrame, PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
-import { PanelDragService, PanelDropFrame, PanelHandoff } from '@axe/application/ui/panel-drag.service';
+import { PanelFrame, PanelHandoff, PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
+import { PanelDragService, PanelDropFrame } from '@axe/application/ui/panel-drag.service';
 import { PanelDropZone, pointerOf, tearOffBox } from '@axe/application/ui/panel-drag-helpers';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { SkinService } from '@axe/application/ui/skin.service';
@@ -45,8 +45,13 @@ export interface PanelTabHandle {
   panel: PanelService;
   slot: ComponentRef<PanelTabSlotComponent>;
   body: ComponentRef<unknown>;
-  /** The size it wants back when it stands in a frame of its own again. */
-  box: { width: number; height: number };
+  /**
+   * The size it wants back when it stands in a frame of its own again.
+   *
+   * Nothing until it is folded into a group: a panel standing alone is the size of its frame,
+   * and that is not known when the panel is built - the size is written on the frame after.
+   */
+  box: { width: number; height: number } | null;
 }
 
 interface PanelTab extends PanelTabHandle {
@@ -143,9 +148,9 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    */
   readonly activePanel = computed<PanelService>(() => this.tabs()[this.activeIndex()]?.panel ?? this.panelService);
 
-  readonly dragKey = `panel-${(framesOpened += 1)}`;
+  readonly frameKey = `panel-${(framesOpened += 1)}`;
   /** Whether a panel let go of now would join this frame. */
-  protected readonly isDropTarget = computed(() => this.panelDrag.target()?.dragKey === this.dragKey);
+  protected readonly isDropTarget = computed(() => this.panelDrag.target()?.frameKey === this.frameKey);
 
   measureDropZone(): PanelDropZone | null {
     if (this.isCompact() || !this.activePanel().isTabbable || !this.showsTitleBar) return null;
@@ -216,6 +221,11 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     this.panelDrag.move(at.x, at.y);
   }
 
+  /** Whatever became of the name, the drag is over: nothing should go on wearing the ring. */
+  protected onTabReleased(): void {
+    this.panelDrag.cancel();
+  }
+
   protected onTabMoved(move: { from: number; to: number }): void {
     const held = this.tabs()[move.from];
     if (!held) return;
@@ -240,10 +250,9 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     if (target && target !== (this as PanelDropFrame)) {
       target.takeIn(handle);
     } else {
-      const at = tearOffBox(taken, handle.box, { width: window.innerWidth, height: window.innerHeight });
-      this.panelService
-        .openFrame({ left: at.left, top: at.top, width: handle.box.width, height: handle.box.height })
-        .takeIn(handle);
+      const box = handle.box ?? { width: this.width, height: this.height };
+      const at = tearOffBox(taken, box, { width: window.innerWidth, height: window.innerHeight });
+      this.panelService.openFrame({ left: at.left, top: at.top, width: box.width, height: box.height }).takeIn(handle);
     }
     if (this.tabCount() === 0) this.dismissFrame();
   }
@@ -253,7 +262,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     const slot = this.slots().createComponent(PanelTabSlotComponent);
     const body = slot.instance.content().createComponent(childComponent);
     panel.setDefaultScrollablePanel(slot.instance.scrollable().nativeElement);
-    this.holdTab({ panel, slot, body, box: { width: this.width, height: this.height } });
+    this.holdTab({ panel, slot, body, box: null });
     return body;
   }
 
@@ -271,8 +280,9 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   releaseTab(panel: PanelService): PanelTabHandle | null {
     const tab = this.tabOf(panel);
     if (!tab) return null;
+    const box = tab.box ?? { width: this.width, height: this.height };
     this.dropTab(tab);
-    return { panel: tab.panel, slot: tab.slot, body: tab.body, box: tab.box };
+    return { panel: tab.panel, slot: tab.slot, body: tab.body, box };
   }
 
   /** Puts one panel away. The frame goes with the last of them. */

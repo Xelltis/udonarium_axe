@@ -23,6 +23,18 @@ export async function openFabMenu(page: Page) {
 }
 
 /**
+ * 左上 FAB のメニューを閉じる。開いている時のみクリックする。
+ * 開いたままだと画面左側のパネルにポインタが届かない。
+ */
+export async function closeFabMenu(page: Page) {
+  const fabBtn = page.getByRole('button', { name: /メニューを(開く|閉じる)/ });
+  if ((await fabBtn.getAttribute('aria-expanded')) === 'true') {
+    await fabBtn.click();
+    await expect(fabBtn).toHaveAttribute('aria-expanded', 'false');
+  }
+}
+
+/**
  * FAB を開いた上で data-label のメニュー項目をクリックする。
  * 既存テストで `getByText('インベントリ')` などを呼んでいた箇所の置換用。
  */
