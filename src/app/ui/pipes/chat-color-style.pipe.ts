@@ -7,9 +7,7 @@ import {
   rgbToCss,
   rgbToLch,
 } from '@axe/core/util/tonal-color';
-
-/** The background every other panel on the page has: `--ui-elevated`, per theme. */
-const BASE_HEX = { light: '#e8dded', dark: '#21262d' };
+import { chatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 
 /** What the bubble aims for when it is worked out: the reading standard for body text. */
 export const CHAT_TARGET_RATIO = 4.5;
@@ -31,10 +29,6 @@ const TONE_STEP = 0.5;
 const TONE_FLOOR = 6;
 const TONE_CEILING = 98;
 
-function baseToneOf(theme: 'light' | 'dark'): number {
-  return rgbToLch(parseHexColor(BASE_HEX[theme])!).tone;
-}
-
 /**
  * The bubble nearest the page's own background that the chosen colour can be read on.
  *
@@ -42,14 +36,14 @@ function baseToneOf(theme: 'light' | 'dark'): number {
  * it leaves the background it shares with every other panel only as far as it must, in
  * whichever direction is nearer.
  */
-export function autoChatBubble(color: string, theme: 'light' | 'dark'): string {
+export function autoChatBubble(color: string, theme: 'light' | 'dark', base?: number): string {
   const rgb = parseHexColor(color);
   if (!rgb) return '';
 
   const { chroma, hue } = rgbToLch(rgb);
   const tint = Math.min(chroma, BUBBLE_CHROMA);
   const textLum = relativeLuminance(rgb);
-  const baseTone = baseToneOf(theme);
+  const baseTone = base ?? chatBubbleBaseTone(theme);
   // Measured on the colour as it will be written out, so what is returned is what was tested:
   // a tone that clears the standard as a float can fall a hair under it once it is a byte.
   const shown = (tone: number) => parseHexColor(cssToHex(rgbToCss(lchToRgb({ tone, chroma: tint, hue }))))!;
@@ -77,10 +71,10 @@ export function autoChatBubble(color: string, theme: 'light' | 'dark'): string {
 }
 
 /** How well a colour reads on a given bubble, or on the one it would be given. */
-export function chatColorContrast(color: string, bubble: string, theme: 'light' | 'dark'): number {
+export function chatColorContrast(color: string, bubble: string, theme: 'light' | 'dark', base?: number): number {
   const text = parseHexColor(color);
   if (!text) return 0;
-  const shown = parseHexColor(bubble) ?? parseHexColor(cssToHex(autoChatBubble(color, theme)));
+  const shown = parseHexColor(bubble) ?? parseHexColor(cssToHex(autoChatBubble(color, theme, base)));
   if (!shown) return 0;
   return contrastRatio(relativeLuminance(text), relativeLuminance(shown));
 }
@@ -111,12 +105,14 @@ export class ChatColorStylePipe implements PipeTransform {
   transform(
     color: string | null | undefined,
     theme: 'light' | 'dark' = 'light',
-    bubble?: string | null
+    bubble?: string | null,
+    base?: number
   ): Record<string, string> | null {
     if (!color) return null;
     if (!parseHexColor(color)) return null;
 
-    const chosen = bubble && parseHexColor(bubble) ? rgbToCss(parseHexColor(bubble)!) : autoChatBubble(color, theme);
+    const chosen =
+      bubble && parseHexColor(bubble) ? rgbToCss(parseHexColor(bubble)!) : autoChatBubble(color, theme, base);
 
     return {
       color,

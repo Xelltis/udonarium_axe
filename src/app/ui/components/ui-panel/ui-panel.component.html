@@ -1,5 +1,5 @@
 <div
-  class="draggable-panel animate-fly-in rounded-ui-lg border-ui-border-panel bg-ui-panel text-ui-text absolute top-50 box-border h-50 max-h-full w-75 max-w-full overflow-visible border border-solid p-0 shadow-[var(--ui-shadow-md),inset_0_1px_0_rgba(255,255,255,0.06)] [backdrop-filter:blur(24px)_saturate(1.5)] transition-opacity duration-200 outline-none [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+  class="draggable-panel animate-fly-in rounded-ui-lg border-ui-border-panel bg-ui-panel text-ui-text absolute top-50 isolate box-border h-50 max-h-full w-75 max-w-full overflow-visible border border-solid p-0 shadow-[var(--ui-shadow-md),inset_0_1px_0_rgba(255,255,255,0.06)] [backdrop-filter:blur(24px)_saturate(1.5)] transition-opacity duration-200 outline-none [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
   [ngClass]="{
     'pointer-events-none': isPointerDragging,
     'inset-0!': isCompact(),
@@ -41,8 +41,22 @@
   (mouseenter)="showPortrait(true)"
   (mouseleave)="showPortrait(false)"
 >
+  @if (!unboxed && skinLayers().length > 0) {
+    <div class="rounded-ui-lg pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+      @for (layer of skinLayers(); track layer.id) {
+        <div
+          class="absolute inset-0"
+          [style.background-image]="layer.backgroundImage"
+          [style.background-size]="layer.backgroundSize"
+          [style.background-position]="layer.backgroundPosition"
+          [style.background-repeat]="layer.backgroundRepeat"
+          [style.opacity]="layer.opacity"
+        ></div>
+      }
+    </div>
+  }
   <div
-    class="rounded-t-ui-lg border-ui-border-titlebar bg-ui-titlebar text-ui-muted relative box-border h-7 w-full border-b border-solid px-2 text-xs/7 font-medium tracking-[0.02em] select-none"
+    class="rounded-t-ui-lg border-ui-border-titlebar bg-ui-titlebar text-ui-titlebar-muted relative box-border h-7 w-full border-b border-solid px-2 text-xs/7 font-medium tracking-[0.02em] select-none"
     [ngClass]="
       isCompact()
         ? 'flex! h-[calc(2.75rem+env(safe-area-inset-top))]! items-center rounded-none! pt-[env(safe-area-inset-top)] pr-[max(0.75rem,env(safe-area-inset-right))]! pl-[max(0.75rem,env(safe-area-inset-left))]! text-[0.9rem]!'
@@ -64,14 +78,15 @@
     @if (title !== menuTitle) {
       <div
         class="absolute top-0 right-0 flex h-7 items-center gap-0.5 px-1.5"
+        data-testid="panel-controls"
         [ngClass]="{
           'top-[env(safe-area-inset-top)]! h-11! px-1!': isCompact(),
-          'rounded-ui shadow-ui-md bg-ui-ghost [&>button]:text-ui-text!': isGhost,
+          'rounded-ui shadow-ui-md bg-ui-ghost [&_button]:text-ui-text!': isGhost,
         }"
       >
         @for (control of panelService.headerControls(); track control.icon) {
           <button
-            class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+            class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
             [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
             [class.text-ui-accent!]="control.active"
             [title]="control.label"
@@ -81,68 +96,81 @@
             <i class="material-icons text-[14px]!">{{ control.icon }}</i>
           </button>
         }
-        <!--
-          Shrunk to its content a panel is as narrow as what it holds, which leaves room for
-          the buttons and nothing else: the bar for fading it and the one for filling the
-          screen would both spill out of it.
-        -->
-        @if (!isCompact() && !contentMinimized) {
-          <input
-            type="range"
-            data-testid="panel-transparency"
-            class="mr-1 w-14 cursor-pointer align-middle text-[10px]"
-            min="0"
-            max="100"
-            step="5"
-            [style.--min]="0"
-            [style.--max]="100"
-            [style.--val]="transparency()"
-            [value]="transparency()"
-            [title]="transparencyLabel"
-            (input)="onTransparencyInput($event)"
-            (focus)="onBarFocus(true)"
-            (blur)="onBarFocus(false)"
-          />
-          <button
-            class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
-            [disabled]="isFullScreen()"
-            (click)="toggleMinimize()"
-          >
-            <i class="material-icons text-[14px]!">remove</i>
-          </button>
-          @if (showsRotation()) {
+        <div class="contents" data-panel-frame-controls>
+          @for (control of panelService.panelControls(); track control.icon) {
             <button
-              data-testid="panel-rotate-90"
-              class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
-              [attr.aria-label]="rotate90Title"
-              [title]="rotate90Title"
-              (click)="rotatePanelClockwise()"
+              class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+              [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
+              [title]="control.label"
+              [attr.data-testid]="'panel-control-' + control.icon"
+              (click)="control.press(panelService)"
             >
-              <i class="material-icons text-[14px]!">rotate_right</i>
+              <i class="material-icons text-[14px]!">{{ control.icon }}</i>
+            </button>
+          }
+          <!--
+            Shrunk to its content a panel is as narrow as what it holds, which leaves room for
+            the buttons and nothing else: the bar for fading it and the one for filling the
+            screen would both spill out of it.
+          -->
+          @if (!isCompact() && !contentMinimized) {
+            <input
+              type="range"
+              data-testid="panel-transparency"
+              class="mr-1 w-14 cursor-pointer align-middle text-[10px]"
+              min="0"
+              max="100"
+              step="5"
+              [style.--min]="0"
+              [style.--max]="100"
+              [style.--val]="transparency()"
+              [value]="transparency()"
+              [title]="transparencyLabel"
+              (input)="onTransparencyInput($event)"
+              (focus)="onBarFocus(true)"
+              (blur)="onBarFocus(false)"
+            />
+            <button
+              class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+              [disabled]="isFullScreen()"
+              (click)="toggleMinimize()"
+            >
+              <i class="material-icons text-[14px]!">remove</i>
+            </button>
+            @if (showsRotation()) {
+              <button
+                data-testid="panel-rotate-90"
+                class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+                [attr.aria-label]="rotate90Title"
+                [title]="rotate90Title"
+                (click)="rotatePanelClockwise()"
+              >
+                <i class="material-icons text-[14px]!">rotate_right</i>
+              </button>
+            }
+            <button
+              class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+              [disabled]="isMinimized()"
+              (click)="toggleFullScreen()"
+            >
+              <i class="material-icons text-[14px]!">fullscreen</i>
+            </button>
+          } @else if (!isCompact()) {
+            <button
+              class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+              (click)="toggleMinimize()"
+            >
+              <i class="material-icons text-[14px]!">open_in_full</i>
             </button>
           }
           <button
-            class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
-            [disabled]="isMinimized()"
-            (click)="toggleFullScreen()"
+            class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+            [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
+            (click)="close()"
           >
-            <i class="material-icons text-[14px]!">fullscreen</i>
+            <i class="material-icons text-[14px]!">close</i>
           </button>
-        } @else if (!isCompact()) {
-          <button
-            class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
-            (click)="toggleMinimize()"
-          >
-            <i class="material-icons text-[14px]!">open_in_full</i>
-          </button>
-        }
-        <button
-          class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
-          [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
-          (click)="close()"
-        >
-          <i class="material-icons text-[14px]!">close</i>
-        </button>
+        </div>
       </div>
     }
     <div

@@ -2,6 +2,7 @@ import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { SkinService } from '@axe/application/ui/skin.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
@@ -53,6 +54,9 @@ export const CHAT_PRESET_COLORS: readonly string[] = [
   imports: [TranslocoModule, ChatColorStylePipe, NgStyle],
 })
 export class ChatColorSettingComponent {
+  /** The panels a bubble has to read against, which a skin may have moved. */
+  protected readonly skins = inject(SkinService);
+
   private readonly modalService = inject(ModalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatSettings = inject(ChatSettingsEventHandlerService);
@@ -94,13 +98,19 @@ export class ChatColorSettingComponent {
     return codes[num] ?? '';
   }
 
-  /** What the bubble will actually be: the one that was set, or the one worked out for it. */
+  /**
+   * What the bubble will actually be: the one that was set, or the one worked out for it.
+   *
+   * Both ladders are shown side by side here, so the tone each is measured against is asked
+   * for by name. Read off the screen instead, the one not on it would be worked out against
+   * the standard page rather than against the skin that ladder is wearing.
+   */
   shownBubble(num: number, theme: ChatTheme): string {
-    return this.bubbleCode(num, theme) || autoChatBubble(this.chatColorCode(num), theme);
+    return this.bubbleCode(num, theme) || autoChatBubble(this.chatColorCode(num), theme, this.skins.toneOf(theme));
   }
 
   contrastOf(num: number, theme: ChatTheme): number {
-    return chatColorContrast(this.chatColorCode(num), this.bubbleCode(num, theme), theme);
+    return chatColorContrast(this.chatColorCode(num), this.bubbleCode(num, theme), theme, this.skins.toneOf(theme));
   }
 
   isHardToRead(num: number, theme: ChatTheme): boolean {
@@ -137,7 +147,7 @@ export class ChatColorSettingComponent {
 
   /** Puts the bubble where the colour can be read on it, and leaves it there to be edited. */
   autoAdjust(num: number, theme: ChatTheme): void {
-    this.changeBubble(cssToHex(autoChatBubble(this.chatColorCode(num), theme)), num, theme);
+    this.changeBubble(cssToHex(autoChatBubble(this.chatColorCode(num), theme, this.skins.toneOf(theme))), num, theme);
   }
 
   clearBubble(num: number, theme: ChatTheme): void {

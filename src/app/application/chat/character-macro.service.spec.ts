@@ -5,6 +5,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { Config } from '@axe/domain/peer/config';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CharacterMacroService', () => {
@@ -38,6 +39,8 @@ describe('CharacterMacroService', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    // The room outlives the fixture, so a system left on it turns up in whatever runs next.
+    Config.instance.defaultDiceBot = '';
     (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
   });
 
@@ -130,12 +133,52 @@ describe('CharacterMacroService', () => {
     expect(contexts).toBeUndefined();
   });
 
-  it('loads the dice bot of the palette when the caller has none to hand', async () => {
+  it('rolls with the system the piece carries on its palette, over everything else', async () => {
     const speaker = character('術者');
-    speaker.chatPalette!.dicebot = 'DiceBot';
+    speaker.chatPalette!.dicebot = 'Cthulhu7th';
+    Config.instance.defaultDiceBot = 'SwordWorld2.5';
+    chatMessageService.gameType = 'DoubleCross';
 
     await service.sendAsCharacter(speaker, '2d6', { tab });
 
-    expect(sendMessage.mock.calls[0][2]).toBeTruthy();
+    expect((sendMessage.mock.calls[0][2] as { ID: string }).ID).toBe('Cthulhu7th');
+  });
+
+  it('falls to the room’s own system where the piece carries only the plain one', async () => {
+    const speaker = character('術者');
+    Config.instance.defaultDiceBot = 'SwordWorld2.5';
+    chatMessageService.gameType = 'DoubleCross';
+
+    await service.sendAsCharacter(speaker, '2d6', { tab });
+
+    expect((sendMessage.mock.calls[0][2] as { ID: string }).ID).toBe('SwordWorld2.5');
+  });
+
+  it('rolls with the system the chat window is set to', async () => {
+    const speaker = character('術者');
+    chatMessageService.gameType = 'Cthulhu7th';
+
+    await service.sendAsCharacter(speaker, '2d6', { tab });
+
+    expect((sendMessage.mock.calls[0][2] as { ID: string }).ID).toBe('Cthulhu7th');
+  });
+
+  it('lets the caller name a system of its own, over the one the window is set to', async () => {
+    const speaker = character('術者');
+    chatMessageService.gameType = 'Cthulhu7th';
+
+    await service.sendAsCharacter(speaker, '2d6', { tab, gameType: 'SwordWorld2.5' });
+
+    expect((sendMessage.mock.calls[0][2] as { ID: string }).ID).toBe('SwordWorld2.5');
+  });
+
+  it('falls back to the dice bot of the palette where no system has been chosen', async () => {
+    const speaker = character('術者');
+    speaker.chatPalette!.dicebot = 'Cthulhu7th';
+    chatMessageService.gameType = '';
+
+    await service.sendAsCharacter(speaker, '2d6', { tab });
+
+    expect((sendMessage.mock.calls[0][2] as { ID: string }).ID).toBe('Cthulhu7th');
   });
 });

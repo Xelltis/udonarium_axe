@@ -23,6 +23,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -57,6 +58,9 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [NgClass, NgStyle, DatePipe, FormsModule, LinkifyPipe, ChatColorStylePipe, SafePipe, TranslocoModule],
 })
 export class ChatMessageComponent {
+  /** The panels a bubble has to read against, which a skin may have moved. */
+  protected readonly skins = inject(SkinService);
+
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly objectStore = inject(ObjectStore);

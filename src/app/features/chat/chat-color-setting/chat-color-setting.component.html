@@ -55,7 +55,9 @@
 
         <div
           class="rounded-ui-sm border border-solid px-1.5 py-1"
-          [ngStyle]="chatColorCode(editing()) | chatColorStyle: theme : bubbleCode(editing(), theme)"
+          [ngStyle]="
+            chatColorCode(editing()) | chatColorStyle: theme : bubbleCode(editing(), theme) : skins.toneOf(theme)
+          "
           [style.border-color]="isHardToRead(editing(), theme) ? '#c93c3c' : 'var(--ui-bubble-caret-border)'"
         >
           <div class="truncate text-[10px] font-medium opacity-90">{{ speakerName }}</div>

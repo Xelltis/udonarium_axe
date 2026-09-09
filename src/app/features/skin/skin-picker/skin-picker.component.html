@@ -1,0 +1,290 @@
+<div class="flex flex-col gap-2.5" data-testid="skin-picker">
+  <div class="border-ui-accent border-l-2 border-solid pl-2">
+    <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{ 'feature.skin.title' | transloco }}</span>
+  </div>
+
+  <p class="text-ui-dim m-0 text-[11px] leading-relaxed">{{ 'feature.skin.hint' | transloco }}</p>
+
+  <div class="flex gap-1.5" role="group">
+    @for (ladder of ladders(); track ladder.mode) {
+      <button
+        type="button"
+        class="rounded-ui-sm border-ui-border-panel hover:border-ui-accent flex flex-1 cursor-pointer flex-col items-start gap-0.5 border border-solid px-2.5 py-1.5 transition-colors"
+        [class.bg-ui-accent-bg]="editing() === ladder.mode"
+        [class.border-ui-accent]="editing() === ladder.mode"
+        [attr.aria-pressed]="editing() === ladder.mode"
+        [attr.data-testid]="'skin-ladder-' + ladder.mode"
+        (click)="editLadder(ladder.mode)"
+      >
+        <span
+          class="text-[10px] font-semibold tracking-[0.06em]"
+          [class.text-ui-accent]="editing() === ladder.mode"
+          [class.text-ui-muted]="editing() !== ladder.mode"
+          >{{ 'feature.skin.ladder_' + ladder.mode | transloco }}</span
+        >
+        <span class="text-ui-text w-full truncate text-left text-[12.5px] font-semibold">
+          {{ 'feature.skin.name_' + ladder.worn | transloco }}
+        </span>
+      </button>
+    }
+  </div>
+
+  @for (row of groups(); track row.group) {
+    <div class="flex flex-col gap-1.5">
+      <span class="text-ui-muted text-[10px] font-semibold tracking-[0.08em] uppercase">
+        {{ 'feature.skin.group_' + row.group | transloco }}
+      </span>
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-1.5">
+        @for (skin of row.skins; track skin.id) {
+          <button
+            type="button"
+            class="rounded-ui-sm border-ui-border-panel hover:border-ui-accent flex cursor-pointer flex-col gap-1 overflow-hidden border border-solid p-0 transition-colors"
+            [class.border-ui-accent]="chosen() === skin.id"
+            [class.shadow-ui-sm]="chosen() === skin.id"
+            [attr.aria-pressed]="chosen() === skin.id"
+            [attr.data-testid]="'skin-' + skin.id"
+            (click)="pick(skin.id)"
+            (mouseenter)="tryOn(skin.id)"
+            (mouseleave)="tryOn(null)"
+            (focus)="tryOn(skin.id)"
+            (blur)="tryOn(null)"
+          >
+            <span class="flex h-9 w-full items-end p-1" [style.background-color]="swatches().get(skin.id)!.ground">
+              <span
+                class="flex h-6 w-full items-center gap-1 rounded-[3px] px-1"
+                [style.background-color]="swatches().get(skin.id)!.panel"
+              >
+                <span
+                  class="size-2.5 shrink-0 rounded-full"
+                  [style.background-color]="swatches().get(skin.id)!.accent"
+                ></span>
+                <span class="h-1 flex-1 rounded-full" [style.background-color]="swatches().get(skin.id)!.ink"></span>
+              </span>
+            </span>
+            <span class="text-ui-text w-full truncate px-1 pb-1 text-center text-[10.5px]">
+              {{ 'feature.skin.name_' + skin.id | transloco }}
+            </span>
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="border-ui-border-panel rounded-ui flex flex-col gap-2 border border-solid p-2.5">
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="rounded-ui-sm border-ui-border-panel hover:border-ui-accent flex cursor-pointer flex-col overflow-hidden border border-solid p-0 transition-colors"
+        [class.border-ui-accent]="chosen() === custom"
+        [attr.aria-pressed]="chosen() === custom"
+        data-testid="skin-custom"
+        (click)="pick(custom)"
+      >
+        <span class="flex h-9 w-20 items-end p-1" [style.background-color]="customSwatch().ground">
+          <span
+            class="flex h-6 w-full items-center gap-1 rounded-[3px] px-1"
+            [style.background-color]="customSwatch().panel"
+          >
+            <span class="size-2.5 shrink-0 rounded-full" [style.background-color]="customSwatch().accent"></span>
+            <span class="h-1 flex-1 rounded-full" [style.background-color]="customSwatch().ink"></span>
+          </span>
+        </span>
+      </button>
+      <div class="min-w-0 flex-1">
+        <span class="text-ui-text text-[12px] font-semibold">{{ 'feature.skin.group_custom' | transloco }}</span>
+        <p class="text-ui-dim m-0 text-[11px] leading-relaxed">{{ 'feature.skin.customHint' | transloco }}</p>
+      </div>
+    </div>
+
+    @for (
+      slider of [
+        { field: 'hue', min: 0, max: 360, step: 1 },
+        { field: 'chroma', min: 0, max: 40, step: 1 },
+        { field: 'lift', min: -maxLift, max: maxLift, step: 1 },
+        { field: 'spread', min: minSpread, max: maxSpread, step: 1 },
+        { field: 'accentHue', min: 0, max: 360, step: 1 },
+        { field: 'accentChroma', min: 0, max: 80, step: 1 },
+      ];
+      track slider.field
+    ) {
+      <label class="text-ui-text flex items-center gap-2 text-[12px] select-none">
+        <span class="w-[7.5em] shrink-0">{{ 'feature.skin.' + slider.field | transloco }}</span>
+        <input
+          type="range"
+          class="flex-1 [accent-color:var(--ui-accent)]"
+          [min]="slider.min"
+          [max]="slider.max"
+          [step]="slider.step"
+          [value]="$any(recipe())[slider.field] ?? 0"
+          [attr.data-testid]="'skin-slider-' + slider.field"
+          (input)="tune($any(slider.field), $any($event.target).value)"
+        />
+        <span class="text-ui-muted w-[2.5em] shrink-0 text-right text-[11px] tabular-nums">{{
+          $any(recipe())[slider.field] ?? 0
+        }}</span>
+      </label>
+    }
+
+    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[12px] select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [checked]="recipe().contrast === 'high'"
+        data-testid="skin-strong-edges"
+        (change)="toggleContrast($any($event.target).checked)"
+      />
+      {{ 'feature.skin.strongEdges' | transloco }}
+    </label>
+
+    <div class="border-ui-border-separator flex flex-col gap-2 border-t border-solid pt-2">
+      <span class="text-ui-muted text-[10px] font-semibold tracking-[0.08em] uppercase">{{
+        'feature.skin.picture' | transloco
+      }}</span>
+
+      @for (layer of stackTopFirst(); track layer.id; let index = $index, count = $count) {
+        <div class="border-ui-border-panel rounded-ui-sm flex flex-col gap-1.5 border border-solid p-2">
+          <div class="flex items-center gap-1.5">
+            <span class="text-ui-muted font-mono text-[10px] tabular-nums">{{ count - index }}</span>
+            <span class="text-ui-text min-w-0 flex-1 truncate text-[12px]">{{
+              layer.name || ('feature.skin.picture' | transloco)
+            }}</span>
+            <button
+              type="button"
+              class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer border-none bg-transparent px-1 text-[13px] leading-none"
+              [disabled]="index === 0"
+              [attr.aria-label]="'feature.skin.moveUp' | transloco"
+              [attr.data-testid]="'skin-layer-up-' + index"
+              (click)="moveLayer(layer.id, 1)"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer border-none bg-transparent px-1 text-[13px] leading-none"
+              [disabled]="index === count - 1"
+              [attr.aria-label]="'feature.skin.moveDown' | transloco"
+              [attr.data-testid]="'skin-layer-down-' + index"
+              (click)="moveLayer(layer.id, -1)"
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              class="rounded-ui-sm text-ui-dim hover:text-ui-danger cursor-pointer border-none bg-transparent px-1 text-[13px] leading-none"
+              [attr.aria-label]="'feature.skin.dropPicture' | transloco"
+              [attr.data-testid]="'skin-layer-drop-' + index"
+              (click)="dropLayer(layer.id)"
+            >
+              ×
+            </button>
+          </div>
+
+          <label class="text-ui-text flex items-center gap-2 text-[11px] select-none">
+            <span class="w-[5em] shrink-0">{{ 'feature.skin.opacity' | transloco }}</span>
+            <input
+              type="range"
+              class="flex-1 [accent-color:var(--ui-accent)]"
+              min="0"
+              max="100"
+              step="5"
+              [value]="layer.opacity"
+              [attr.data-testid]="'skin-layer-opacity-' + index"
+              (input)="setOpacity(layer.id, $any($event.target).value)"
+            />
+            <span class="text-ui-muted w-[2.5em] shrink-0 text-right text-[10px] tabular-nums">{{
+              layer.opacity
+            }}</span>
+          </label>
+
+          <div class="flex flex-wrap items-center gap-1.5">
+            <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+              {{ 'feature.skin.fit' | transloco }}
+              <select
+                class="rounded-ui-sm border-ui-border-input bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[11px]"
+                [value]="layer.fit"
+                [attr.data-testid]="'skin-layer-fit-' + index"
+                (change)="setFit(layer.id, $any($event.target).value)"
+              >
+                @for (fit of fits; track fit) {
+                  <option [value]="fit">{{ 'feature.skin.fit_' + fit | transloco }}</option>
+                }
+              </select>
+            </label>
+            <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+              {{ 'feature.skin.anchor' | transloco }}
+              <select
+                class="rounded-ui-sm border-ui-border-input bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[11px]"
+                [value]="layer.anchor"
+                [attr.data-testid]="'skin-layer-anchor-' + index"
+                (change)="setAnchor(layer.id, $any($event.target).value)"
+              >
+                @for (anchor of anchors; track anchor) {
+                  <option [value]="anchor">{{ 'feature.skin.anchor_' + anchor | transloco }}</option>
+                }
+              </select>
+            </label>
+          </div>
+        </div>
+      }
+
+      @if (!stackIsFull()) {
+        <label
+          class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent w-fit cursor-pointer border border-solid px-2.5 py-1 text-[12px] transition-colors"
+        >
+          {{ 'feature.skin.choosePicture' | transloco }}
+          <input type="file" class="hidden" accept="image/*" data-testid="skin-picture" (change)="addLayer($event)" />
+        </label>
+      }
+
+      <p class="text-ui-dim m-0 text-[11px] leading-relaxed">
+        {{ 'feature.skin.pictureHint' | transloco }}
+      </p>
+      <p class="text-ui-dim m-0 text-[11px] leading-relaxed">
+        {{ 'feature.skin.sizeHint' | transloco: { wide: wide, tall: tall, tile: tile } }}
+      </p>
+    </div>
+
+    <div class="border-ui-border-separator flex flex-col gap-2 border-t border-solid pt-2">
+      <label class="text-ui-text flex items-center gap-2 text-[12px] select-none">
+        <span class="w-[7.5em] shrink-0">{{ 'feature.skin.skinName' | transloco }}</span>
+        <input
+          type="text"
+          class="rounded-ui-sm border-ui-border-input bg-ui-input text-ui-text min-w-0 flex-1 border border-solid px-2 py-1 text-[12px]"
+          [value]="skinName()"
+          [attr.placeholder]="'feature.skin.namePlaceholder' | transloco"
+          data-testid="skin-name"
+          (input)="rename($any($event.target).value)"
+        />
+      </label>
+
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent cursor-pointer border border-solid px-2.5 py-1 text-[12px] transition-colors"
+          data-testid="skin-export"
+          (click)="exportSkin()"
+        >
+          {{ 'feature.skin.export' | transloco }}
+        </button>
+        <label
+          class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent cursor-pointer border border-solid px-2.5 py-1 text-[12px] transition-colors"
+        >
+          {{ 'feature.skin.import' | transloco }}
+          <input
+            type="file"
+            class="hidden"
+            accept=".zip,application/zip"
+            data-testid="skin-import"
+            (change)="importSkin($event)"
+          />
+        </label>
+      </div>
+
+      @if (trouble() !== '') {
+        <p class="text-ui-danger m-0 text-[11px]" data-testid="skin-trouble">
+          {{ 'feature.skin.trouble_' + trouble() | transloco }}
+        </p>
+      }
+    </div>
+  </div>
+</div>

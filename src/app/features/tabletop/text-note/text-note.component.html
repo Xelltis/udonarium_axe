@@ -44,13 +44,13 @@
             >
               <i class="material-icons text-ui-accent shrink-0 text-[14px]! opacity-75">subject</i>
               <span
-                class="text-ui-muted flex-1 truncate text-[11px] font-bold tracking-[0.06em] uppercase"
+                class="text-ui-titlebar-muted flex-1 truncate text-[11px] font-bold tracking-[0.06em] uppercase"
                 [style.filter]="canView() ? null : 'blur(4px)'"
                 [class.select-none]="!canView()"
                 >{{ canView() ? title() : maskedTitle() }}</span
               >
               @if (isLock) {
-                <i class="material-icons text-ui-dim shrink-0 text-[13px]!">lock</i>
+                <i class="material-icons text-ui-titlebar-muted shrink-0 text-[13px]!">lock</i>
               }
             </div>
           }

@@ -199,13 +199,13 @@ export class TableAmbienceComponent {
 
     const menu = buildTableAmbienceContextMenuModel(area, this.gridSize(), () => this.openSettings(area), this.t);
     const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d()) {
+    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
       this.contextMenuService.openRadial(
         menuPosition,
         menu.actions,
         menu.radialGroups,
         area.name,
-        display.radialMenuEnabled,
+        display.tabletopMenuStyle === 'radial',
         display.radialMenuRotationSpeed,
         multiAngleFontScaleFactor(display.multiAngleFontScale)
       );

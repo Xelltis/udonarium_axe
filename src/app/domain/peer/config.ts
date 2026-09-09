@@ -57,6 +57,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_breakOutCost') private _breakOutCost: number = -1;
   @SyncVar('_engagementCountsSize') private _engagementCountsSize: string = '';
   @SyncVar('_facingMark') private _facingMark: string = '';
+  @SyncVar('_pieceImageInCell') private _pieceImageInCell: string = '';
 
   get defaultDiceBot(): string {
     if (this._defaultDiceBot == '') {
@@ -272,6 +273,13 @@ export class Config extends ObjectNode implements InnerXml {
     this._facingMark = writeRuleText(answer);
   }
 
+  get pieceImageInCell(): boolean | null {
+    return readRuleFlag(this._pieceImageInCell);
+  }
+  set pieceImageInCell(answer: boolean | null) {
+    this._pieceImageInCell = writeRuleFlag(answer);
+  }
+
   /** Every rule of play the room has been asked about, answered or not. */
   get roomRuleAnswers(): RoomRuleAnswers {
     return {
@@ -292,6 +300,7 @@ export class Config extends ObjectNode implements InnerXml {
       breakOutCost: this.breakOutCost,
       engagementCountsSize: this.engagementCountsSize,
       facingMark: this.facingMark,
+      pieceImageInCell: this.pieceImageInCell,
     };
   }
 

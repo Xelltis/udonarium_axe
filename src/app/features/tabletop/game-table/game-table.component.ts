@@ -976,13 +976,13 @@ export class GameTableComponent {
     const menu = this.buildContextMenuModel(objectPosition);
     const table = this.currentTable;
     const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d()) {
+    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
       this.contextMenuService.openRadial(
         menuPosition,
         menu.actions,
         menu.rotatingGroups,
         table.name,
-        display.radialMenuEnabled,
+        display.tabletopMenuStyle === 'radial',
         display.radialMenuRotationSpeed,
         multiAngleFontScaleFactor(display.multiAngleFontScale)
       );

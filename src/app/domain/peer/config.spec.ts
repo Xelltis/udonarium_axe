@@ -114,6 +114,7 @@ describe('Config', () => {
         breakOutCost: null,
         engagementCountsSize: null,
         facingMark: null,
+        pieceImageInCell: null,
       });
     });
 

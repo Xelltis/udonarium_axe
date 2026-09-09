@@ -101,6 +101,36 @@ describe('ModalService', () => {
       expect(service.isShow).toBe(false);
     });
 
+    /**
+     * A dialogue opened in a window of its own goes when that window does, without anyone
+     * answering it. Whoever is waiting has to be let go of, or they wait for ever — and with
+     * the same answer a dismissal gives, since that is the one every caller reads for.
+     */
+    it('answers a caller whose dialogue was taken away, as a dismissal would', async () => {
+      const service = TestBed.inject(ModalService);
+      const rootInjector = TestBed.inject(Injector);
+      let destroyCallback: (() => void) | undefined;
+
+      const panelComponentRef = {
+        instance: { content: () => ({ createComponent: () => ({ instance: {} }) }) },
+        destroy: () => destroyCallback?.(),
+        onDestroy: (cb: () => void) => (destroyCallback = cb),
+      };
+      const parentViewContainerRef = {
+        injector: rootInjector,
+        length: 0,
+        createComponent: () => panelComponentRef,
+      } as unknown as ViewContainerRef;
+
+      const waiting = service.open(class {}, { title: 'taken away' }, parentViewContainerRef);
+      expect(service.isShow).toBe(true);
+
+      panelComponentRef.destroy();
+
+      await expect(waiting).resolves.toBeNull();
+      expect(service.isShow).toBe(false);
+    });
+
     it('shows again after rejecting, since the count is only decremented once', async () => {
       const service = TestBed.inject(ModalService);
       const rootInjector = TestBed.inject(Injector);

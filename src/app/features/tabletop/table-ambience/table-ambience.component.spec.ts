@@ -29,7 +29,7 @@ describe('TableAmbienceComponent', () => {
     fixture.componentRef.setInput('ambience', ambience);
     const table = TestBed.inject(TabletopService).currentTable;
     table.mode2d = false;
-    table.radialMenuEnabled = false;
+    table.tabletopMenuStyle = 'four-way';
   });
 
   afterEach(() => {
@@ -104,10 +104,10 @@ describe('TableAmbienceComponent', () => {
   });
 
   describe('context menu display', () => {
-    function openMenu(mode2d: boolean, radialMenuEnabled: boolean): void {
+    function openMenu(mode2d: boolean, menuStyle: 'four-way' | 'radial' | 'standard'): void {
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = mode2d;
-      table.radialMenuEnabled = radialMenuEnabled;
+      table.tabletopMenuStyle = menuStyle;
       table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
       vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
@@ -116,19 +116,19 @@ describe('TableAmbienceComponent', () => {
       element().dispatchEvent(new Event('contextmenu', { bubbles: true, cancelable: true }));
     }
 
-    it.each([true, false])('uses the 2D menu interface with rotating display %s', (enabled) => {
+    it.each(['radial', 'four-way'] as const)('opens the four-way menu when the style is %s', (style) => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
 
-      openMenu(true, enabled);
+      openMenu(true, style);
 
       expect(openRadial).toHaveBeenCalledWith(
         expect.objectContaining({ x: 240, y: 180 }),
         expect.any(Array),
         expect.any(Array),
         '毒沼',
-        enabled,
+        style === 'radial',
         9,
         1
       );
@@ -141,7 +141,7 @@ describe('TableAmbienceComponent', () => {
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
 
-      openMenu(false, true);
+      openMenu(false, 'radial');
 
       expect(openOrdinary).toHaveBeenCalledWith(expect.objectContaining({ x: 240, y: 180 }), expect.any(Array), '毒沼');
       expect(openRadial).not.toHaveBeenCalled();

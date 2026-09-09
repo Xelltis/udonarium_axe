@@ -54,6 +54,20 @@ describe('UIPanelComponent', () => {
 
       expect(controls()[0].getAttribute('aria-pressed')).toBe('true');
     });
+
+    it('keeps them out of what a window of its own puts away', () => {
+      component.panelService.headerControls.set([{ icon: 'inventory', label: '荷物', active: false, press: vi.fn() }]);
+      component.panelService.panelControls.set([
+        { icon: 'open_in_new', label: '別ウィンドウ', press: () => undefined },
+      ]);
+      fixture.detectChanges();
+
+      const frame = fixture.nativeElement.querySelector('[data-panel-frame-controls]') as HTMLElement;
+      const opener = fixture.nativeElement.querySelector('[data-testid="panel-control-open_in_new"]') as HTMLElement;
+
+      expect(frame.contains(controls()[0])).toBe(false);
+      expect(frame.contains(opener)).toBe(true);
+    });
   });
 
   describe('shrinking when the content asks', () => {
@@ -194,7 +208,7 @@ describe('UIPanelComponent', () => {
 
       const buttons = fixture.nativeElement.querySelectorAll('button');
       expect(buttons.length).toBeGreaterThan(0);
-      const cluster = (buttons[0].parentElement as HTMLElement).className;
+      const cluster = (fixture.nativeElement.querySelector('[data-testid="panel-controls"]') as HTMLElement).className;
       expect(cluster).toContain('bg-ui-ghost');
       expect(cluster).not.toContain('bg-black');
     });

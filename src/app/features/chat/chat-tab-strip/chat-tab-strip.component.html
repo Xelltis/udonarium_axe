@@ -30,7 +30,7 @@
         (change)="selected.set(chatTab.identifier)"
       />
       <div
-        class="chat-tab-pill border-ui-border-panel text-ui-muted peer-checked:border-ui-accent peer-checked:bg-ui-accent-bg peer-checked:text-ui-accent hover:border-ui-accent hover:bg-ui-hover hover:text-ui-text relative inline-flex cursor-pointer items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 align-middle text-[11px] whitespace-nowrap outline-0 transition-colors peer-checked:font-medium peer-checked:shadow-[0_0_0_1px_var(--ui-accent-glow)]"
+        class="chat-tab-pill border-ui-border-titlebar text-ui-titlebar-muted peer-checked:border-ui-accent peer-checked:bg-ui-accent-bg peer-checked:text-ui-titlebar-text hover:border-ui-accent hover:bg-ui-hover hover:text-ui-titlebar-text relative inline-flex cursor-pointer items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 align-middle text-[11px] whitespace-nowrap outline-0 transition-colors peer-checked:font-medium peer-checked:shadow-[0_0_0_1px_var(--ui-accent-glow)]"
       >
         {{ chatTab.name }}
         @if (chatTab.hasUnread) {

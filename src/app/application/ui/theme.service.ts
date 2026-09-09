@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 
 export type Theme = 'auto' | 'dark' | 'light';
 
@@ -28,19 +29,29 @@ export class ThemeService {
     mql.addEventListener('change', listener);
     this.destroyRef.onDestroy(() => mql.removeEventListener('change', listener));
 
+    AttachedDocuments.begin(this.document);
+    const stopWatching = AttachedDocuments.onChange((documents) => this.dress(documents));
+    this.destroyRef.onDestroy(stopWatching);
+
     effect(() => {
       const t = this.theme();
-      const html = this.document.documentElement;
-      if (t === 'auto') {
-        html.removeAttribute('data-theme');
-      } else {
-        html.setAttribute('data-theme', t);
-      }
-      const resolved = this.resolved();
-      html.classList.toggle('theme-light', resolved === 'light');
-      html.classList.toggle('theme-dark', resolved === 'dark');
+      this.resolved();
+      this.dress(AttachedDocuments.all());
       localStorage.setItem(STORAGE_KEY, t);
     });
+  }
+
+  /** A window that opened after the theme was settled still has to be dressed in it. */
+  private dress(documents: readonly Document[]): void {
+    const theme = this.theme();
+    const resolved = this.resolved();
+    for (const document of documents) {
+      const html = document.documentElement;
+      if (theme === 'auto') html.removeAttribute('data-theme');
+      else html.setAttribute('data-theme', theme);
+      html.classList.toggle('theme-light', resolved === 'light');
+      html.classList.toggle('theme-dark', resolved === 'dark');
+    }
   }
 
   cycle() {

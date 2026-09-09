@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import {
   normalizeTabletopDisplayOwn,
+  TabletopDisplayKey,
   TabletopDisplayOwn,
   TabletopDisplaySettings,
 } from '@axe/domain/tabletop/tabletop-display';
@@ -23,6 +24,18 @@ export class TabletopDisplayPreferenceService {
 
   set(patch: Partial<TabletopDisplaySettings>): void {
     this.write({ ...this.state(), ...patch });
+  }
+
+  /**
+   * Lets go of the named settings, so the table answers for them again.
+   *
+   * Writing the defaults instead would pin them on this screen, which is a different thing:
+   * a table that carries its own value for one of them would never be heard again.
+   */
+  forgetOnly(keys: readonly TabletopDisplayKey[]): void {
+    const kept = { ...this.state() };
+    for (const key of keys) delete kept[key];
+    this.write(kept);
   }
 
   /** Back to whatever the table says, which is where a screen starts. */

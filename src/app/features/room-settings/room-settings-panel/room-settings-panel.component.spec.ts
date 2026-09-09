@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
@@ -70,6 +71,22 @@ describe('RoomSettingsPanelComponent', () => {
     expect(Config.instance.zocMode).toBe('block');
     expect(component.answersFor('zoc')).toBe(true);
     expect(component.answersFor('moveRange')).toBe(false);
+  });
+
+  it('leaves the shared settings to the master, though a player may set the rules of play', () => {
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    component.zocMode = 'block';
+    component.facingMark = 'arrow';
+    component.imageBillboard = true;
+    component.defaultDiceBot = 'Cthulhu7th';
+
+    expect(component.isReadOnly()).toBe(false);
+    expect(component.isSharedReadOnly()).toBe(true);
+    expect(Config.instance.zocMode).toBe('block');
+    expect(component.facingMark).not.toBe('arrow');
+    expect(table.imageBillboard).toBe(false);
+    expect(component.defaultDiceBot).not.toBe('Cthulhu7th');
   });
 
   it('writes nothing for a reader who may not edit the table', () => {
@@ -313,7 +330,7 @@ describe('RoomSettingsPanelComponent', () => {
       component.orthographicProjection = true;
       component.multiAngleEnabled = true;
       component.multiAngleFontScale = 'large';
-      component.radialMenuEnabled = true;
+      component.tabletopMenuStyle = 'radial';
       component.radialMenuRotationSpeed = 9;
       component.hoverDetailPlacement = 'screen-edges';
       component.cellMm = 30;
@@ -323,7 +340,7 @@ describe('RoomSettingsPanelComponent', () => {
         orthographicProjection: true,
         multiAngleEnabled: true,
         multiAngleFontScale: 'large',
-        radialMenuEnabled: true,
+        tabletopMenuStyle: 'radial',
         radialMenuRotationSpeed: 9,
         hoverDetailPlacement: 'screen-edges',
         cellMm: 30,
@@ -387,24 +404,106 @@ describe('RoomSettingsPanelComponent', () => {
       expect(table.imageBillboard).toBe(false);
     });
 
-    it('shows what the room shares apart from what this screen keeps', async () => {
+    async function openUi(part: 'shared' | 'skin' | 'tabletop'): Promise<HTMLElement> {
       component.tab.set('ui');
+      component.uiTab.set(part);
       fixture.detectChanges();
       await fixture.whenStable();
-      const root = fixture.nativeElement as HTMLElement;
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('opens the UI settings on what the room shows everyone', () => {
+      expect(component.uiTab()).toBe('shared');
+    });
+
+    it('keeps a piece inside its cell for the whole room, from the shared part', async () => {
+      const root = await openUi('shared');
+      const block = root.querySelector('[data-testid="room-settings-flat-pieces"]');
+
+      expect(block).toBeTruthy();
+      expect(block!.querySelector('[data-testid="piece-image-in-cell"]')).toBeTruthy();
+
+      component.pieceImageInCell = true;
+
+      expect(component.pieceImageInCell).toBe(true);
+      expect(Config.instance.pieceImageInCell).toBe(true);
+    });
+
+    it('leaves a piece in its cell to the master', () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+
+      component.pieceImageInCell = true;
+
+      expect(component.pieceImageInCell).toBe(false);
+      expect(Config.instance.pieceImageInCell).toBeNull();
+    });
+
+    it('keeps what the room shows everyone under its own part', async () => {
+      const root = await openUi('shared');
       const shared = root.querySelector('[data-testid="room-settings-shared"]');
+
+      expect(shared).toBeTruthy();
+      expect(shared!.querySelector('[data-testid="facing-mark"]')).toBeTruthy();
+      expect(shared!.querySelector('[data-testid="image-billboard"]')).toBeTruthy();
+      expect(root.querySelector('[data-testid="room-settings-own"]')).toBeNull();
+      expect(root.querySelector('[data-testid="room-settings-skin"]')).toBeNull();
+    });
+
+    it('keeps the colours this screen is dressed in under their own part', async () => {
+      const root = await openUi('skin');
+
+      expect(root.querySelector('[data-testid="room-settings-skin"]')).toBeTruthy();
+      expect(root.querySelector('[data-testid="room-settings-shared"]')).toBeNull();
+      expect(root.querySelector('[data-testid="room-settings-own"]')).toBeNull();
+    });
+
+    it('puts in what a tabletop display wants, and takes it back out again', () => {
+      expect(component.tabletopRecommended).toBe(false);
+
+      component.tabletopRecommended = true;
+
+      expect(component.tabletopRecommended).toBe(true);
+      expect(TestBed.inject(ViewModePreferenceService).mode()).toBe('flat');
+      expect(component.tabletopMenuStyle).toBe('radial');
+      expect(component.multiAngleEnabled).toBe(true);
+      expect(component.panelRotationEnabled).toBe(true);
+
+      component.tabletopRecommended = false;
+
+      expect(component.tabletopRecommended).toBe(false);
+      expect(component.tabletopMenuStyle).toBe('standard');
+      expect(component.multiAngleEnabled).toBe(false);
+      expect(component.panelRotationEnabled).toBe(false);
+    });
+
+    it('leaves the real size alone, which is measured rather than recommended', () => {
+      component.cellMm = 30;
+
+      component.tabletopRecommended = true;
+
+      expect(component.cellMm).toBe(30);
+    });
+
+    it('keeps what a screen laid on a table wants under its own part', async () => {
+      const root = await openUi('tabletop');
       const own = root.querySelector('[data-testid="room-settings-own"]');
 
-      expect(shared?.querySelector('[data-testid="facing-mark"]')).not.toBeNull();
-      expect(shared?.querySelector('[data-testid="image-billboard"]')).not.toBeNull();
-      expect(own?.querySelector('[data-testid="orthographic-projection"]')).not.toBeNull();
-      expect(own?.querySelector('[data-testid="multi-angle-enabled"]')).not.toBeNull();
-      expect(own?.querySelector('[data-testid="ticker-enabled"]')).not.toBeNull();
-      expect(own?.querySelector('[data-testid="cell-mm"]')).not.toBeNull();
-      expect(own?.querySelector('[data-testid="real-size-enabled"]')).not.toBeNull();
-      expect(own?.querySelector('[data-testid="panel-rotation-enabled"]')).not.toBeNull();
-      expect(own?.querySelector('[data-testid="forget-own-display"]')).not.toBeNull();
+      expect(own).toBeTruthy();
+      for (const control of [
+        'tabletop-recommended',
+        'tabletop-menu-style',
+        'orthographic-projection',
+        'multi-angle-enabled',
+        'ticker-enabled',
+        'cell-mm',
+        'real-size-enabled',
+        'panel-rotation-enabled',
+        'forget-own-display',
+      ]) {
+        expect(own!.querySelector(`[data-testid="${control}"]`)).toBeTruthy();
+      }
       expect(root.querySelector('[data-testid="reset-calibration"]')).toBeNull();
+      expect(root.querySelector('[data-testid="room-settings-shared"]')).toBeNull();
     });
 
     it('keeps the measuring tool under the utility part', async () => {

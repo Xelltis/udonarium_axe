@@ -31,6 +31,18 @@ export interface PanelHeaderControl {
   press: () => void;
 }
 
+/**
+ * A button in the titlebar belonging to whoever opened the panel.
+ *
+ * It is handed the panel when it is pressed, because it is built before the panel exists and
+ * has no other way to reach it — sending the panel somewhere else is the whole point of one.
+ */
+export interface PanelFrameControl {
+  icon: string;
+  label: string;
+  press: (panel: PanelService) => void;
+}
+
 export interface PanelOption {
   title?: string;
   left?: number;
@@ -46,6 +58,18 @@ export interface PanelOption {
   invisible?: boolean;
   minimizeToContent?: boolean;
   frameless?: boolean;
+
+  /**
+   * Whether this panel is being drawn in a window of its own rather than on the table.
+   *
+   * What a panel offers can turn on it. A menu opened where the pointer is has nowhere to
+   * appear in a window the pointer was never followed across, so a panel that leans on one
+   * needs something else to offer there.
+   */
+  windowed?: boolean;
+
+  /** Buttons for the titlebar that belong to whoever opened the panel. */
+  controls?: readonly PanelFrameControl[];
 
   /**
    * Where this panel sits, for one opened by something that lives above where panels go.
@@ -121,6 +145,14 @@ export class PanelService {
   readonly isMinimized = signal(false);
   /** Buttons the content put in the title bar, beside the ones every panel wears. */
   readonly headerControls = signal<readonly PanelHeaderControl[]>([]);
+
+  /**
+   * Controls put there by whatever opened the panel, rather than by what it is showing.
+   *
+   * Kept apart from `headerControls` because the content owns that one and replaces it
+   * wholesale; anything the opener added would go with it.
+   */
+  readonly panelControls = signal<readonly PanelFrameControl[]>([]);
   /**
    * Standing with its box taken off: no ground, no frame, no title, only what it holds.
    *
@@ -129,6 +161,9 @@ export class PanelService {
   readonly isGhost = signal(false);
   /** What kind of panel this is, taken from the selector of what it was opened with. */
   readonly panelKind = signal('');
+
+  /** Whether the panel stands in a window of its own, for content that has to work differently there. */
+  readonly windowed = signal(false);
   chatTab: ChatTab | null = null;
   cardStack: CardStack | null = null;
   scrollablePanel: HTMLDivElement | null = null;
@@ -218,6 +253,8 @@ export class PanelService {
     childPanelService.panelKind.set(panelKindOf(childComponent));
     const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
     if (inheritedOption) this.applyPanelOption(panelComponentRef, childPanelService, inheritedOption);
+    if (option?.windowed) childPanelService.windowed.set(true);
+    if (option?.controls) childPanelService.panelControls.set(option.controls);
     const single = option?.single;
     if (single) {
       PanelService.singles.set(single, panelComponentRef);

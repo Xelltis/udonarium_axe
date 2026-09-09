@@ -37,9 +37,12 @@ import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/dom
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
   asMultiAngleMotionMode,
+  TABLETOP_MODE_KEYS,
   TABLETOP_MODE_SETTINGS,
+  TabletopDisplayKey,
   TabletopDisplaySettings,
 } from '@axe/domain/tabletop/tabletop-display';
+import { TABLETOP_MENU_STYLES, TabletopMenuStyle } from '@axe/domain/tabletop/tabletop-menu-style';
 import { VIEW_MODES, ViewMode } from '@axe/domain/ui/view-mode';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -87,10 +90,15 @@ export class TabletopDisplaySettingComponent {
     queueMicrotask(() => (this.panelService.title = this.t('feature.tabletop.displaySetting.title')));
   }
 
-  /** Whether this reader may speak for the table, which only the recommended view asks. */
+  /**
+   * Whether this reader may speak for the room and its tables.
+   *
+   * These few settings reach every screen, and the chips beside them say so. A player may set
+   * the rules of play, but not what everyone sees.
+   */
   protected readonly isEditable = computed(() => {
     this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditShared;
   });
 
   /** What this seat asked for: the table's own recommendation, or a view of its own. */
@@ -104,23 +112,26 @@ export class TabletopDisplaySettingComponent {
   }
 
   /**
-   * Whether this screen is set up as the table itself: laid flat, and dressed for it.
+   * Whether this screen carries everything a table with seats around it asks for.
    *
-   * Looking straight down is the whole of what the rest of this panel is for, so the mode is
-   * read from the view rather than written down beside it. Turning it on lays the screen flat
-   * and puts in what a flat screen wants; turning it off only stands the view back up, since
-   * everything it put in is dead in that view anyway and is a reader's to keep.
+   * Being looked at from above is not the same as being set up as a table, so this answers for
+   * the settings rather than for the view: the view is chosen just below, by name. Taking one
+   * of them away afterwards leaves this unticked until the lot is asked for again.
    */
-  get tabletopMode(): boolean {
-    return this.laysFlat();
+  get tabletopRecommended(): boolean {
+    const now = this.settings;
+    return (Object.keys(TABLETOP_MODE_SETTINGS) as TabletopDisplayKey[]).every(
+      (key) => now[key] === TABLETOP_MODE_SETTINGS[key]
+    );
   }
-  set tabletopMode(wanted: boolean) {
-    if (!wanted) {
-      this.viewMode.choose('perspective');
-      return;
-    }
-    this.viewMode.choose('flat');
-    this.set(TABLETOP_MODE_SETTINGS);
+  set tabletopRecommended(wanted: boolean) {
+    if (wanted) this.set(TABLETOP_MODE_SETTINGS);
+    // Letting go of them is not the same as pinning the defaults: a table that carries its own
+    // value for one of these would never be heard again if this screen wrote over it.
+    else this.display.forgetOnly(TABLETOP_MODE_KEYS);
+    // Asking for the tabletop is asking to look down on it; letting go of the settings is not
+    // asking to stand back up, since a reader may well want to go on looking down.
+    if (wanted) this.viewMode.choose('flat');
   }
 
   /** The view the table asks for, which is the table's to set and so the master's to change. */
@@ -134,20 +145,6 @@ export class TabletopDisplaySettingComponent {
     const table = this.tableSelecter.viewTable;
     if (!this.isEditable() || !table) return;
     table.mode2d = value;
-    triggerUpdateGameObject(table.toContext());
-  }
-
-  /** Whether a piece keeps its face to the reader, which the table answers for everyone. */
-  get imageBillboard(): boolean {
-    this.objectChange.versionOf(this.tableSelecter.identifier)();
-    const table = this.tableSelecter.viewTable;
-    if (table) this.objectChange.versionOf(table.identifier)();
-    return table?.imageBillboard ?? false;
-  }
-  set imageBillboard(value: boolean) {
-    const table = this.tableSelecter.viewTable;
-    if (!this.isEditable() || !table) return;
-    table.imageBillboard = value;
     triggerUpdateGameObject(table.toContext());
   }
 
@@ -209,13 +206,6 @@ export class TabletopDisplaySettingComponent {
     this.set({ hoverDetailPlacement: asHoverDetailPlacement(value) });
   }
 
-  get pieceImageInCell(): boolean {
-    return this.settings.pieceImageInCell;
-  }
-  set pieceImageInCell(value: boolean) {
-    this.set({ pieceImageInCell: value });
-  }
-
   get panelRotationEnabled(): boolean {
     return this.settings.panelRotationEnabled;
   }
@@ -223,11 +213,13 @@ export class TabletopDisplaySettingComponent {
     this.set({ panelRotationEnabled: value });
   }
 
-  get radialMenuEnabled(): boolean {
-    return this.settings.radialMenuEnabled;
+  protected readonly menuStyles = TABLETOP_MENU_STYLES;
+
+  get tabletopMenuStyle(): TabletopMenuStyle {
+    return this.settings.tabletopMenuStyle;
   }
-  set radialMenuEnabled(value: boolean) {
-    this.set({ radialMenuEnabled: value });
+  set tabletopMenuStyle(value: TabletopMenuStyle) {
+    this.set({ tabletopMenuStyle: value });
   }
 
   get radialMenuRotationSpeed(): number {

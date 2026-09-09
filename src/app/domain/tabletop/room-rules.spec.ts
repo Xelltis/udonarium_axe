@@ -18,6 +18,7 @@ const table: RoomRules = {
   moveDiagonally: false,
   diagonalMove: 'none',
   piecesShareCells: false,
+  pieceImageInCell: false,
   moveRangeAlways: true,
   zocAlways: true,
   cellDistance: 5,
@@ -175,5 +176,32 @@ describe('isGroupAnswered()', () => {
     const grouped = Object.values(ROOM_RULE_GROUPS).flat();
 
     expect([...grouped].sort()).toEqual(Object.keys(ROOM_RULE_DEFAULTS).sort());
+  });
+});
+
+/**
+ * The four ways a room reaches a newer version: a room saved before the rule existed, a peer
+ * that has never heard of it, an attribute left empty, and the two running side by side.
+ */
+describe('keeping a piece inside its cell, for a room that predates the rule', () => {
+  it('takes the table’s own answer where the room has never been asked', () => {
+    expect(resolveRoomRules(null, { ...table, pieceImageInCell: true }).pieceImageInCell).toBe(true);
+    expect(resolveRoomRules({}, { ...table, pieceImageInCell: true }).pieceImageInCell).toBe(true);
+  });
+
+  it('lets the room overrule the table once it has been asked', () => {
+    const answered = { pieceImageInCell: false };
+    expect(resolveRoomRules(answered, { ...table, pieceImageInCell: true }).pieceImageInCell).toBe(false);
+  });
+
+  it('reads an unanswered attribute as unanswered, not as no', () => {
+    expect(readRuleFlag('')).toBeNull();
+    expect(resolveRoomRules({ pieceImageInCell: null }, { ...table, pieceImageInCell: true }).pieceImageInCell).toBe(
+      true
+    );
+  });
+
+  it('answers no for a room and a table that both say nothing', () => {
+    expect(resolveRoomRules(null, null).pieceImageInCell).toBe(false);
   });
 });

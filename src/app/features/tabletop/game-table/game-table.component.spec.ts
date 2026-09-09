@@ -807,7 +807,7 @@ describe('GameTableComponent', () => {
 
     it('opens the rotating interface directly on an empty 2D table when enabled', () => {
       component.currentTable.mode2d = true;
-      component.currentTable.radialMenuEnabled = true;
+      component.currentTable.tabletopMenuStyle = 'radial';
       component.currentTable.radialMenuRotationSpeed = 8;
       const menus = TestBed.inject(ContextMenuService);
       const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
@@ -827,9 +827,9 @@ describe('GameTableComponent', () => {
       expect(openLegacy).not.toHaveBeenCalled();
     });
 
-    it('opens the four-direction launcher on an empty 2D table when rotating display is disabled', () => {
+    it('opens the four-direction launcher on an empty 2D table when the style asks for it', () => {
       component.currentTable.mode2d = true;
-      component.currentTable.radialMenuEnabled = false;
+      component.currentTable.tabletopMenuStyle = 'four-way';
       component.currentTable.radialMenuRotationSpeed = 6;
       const menus = TestBed.inject(ContextMenuService);
       const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
@@ -849,9 +849,21 @@ describe('GameTableComponent', () => {
       expect(openLegacy).not.toHaveBeenCalled();
     });
 
+    it('keeps the ordinary menu on a 2D table that never asked for another', () => {
+      component.currentTable.mode2d = true;
+      const menus = TestBed.inject(ContextMenuService);
+      const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
+      const openLegacy = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+
+      component.openTableContextMenu(menuPosition, objectPosition);
+
+      expect(openLegacy).toHaveBeenCalled();
+      expect(openRotating).not.toHaveBeenCalled();
+    });
+
     it('keeps the existing vertical table menu outside 2D mode', () => {
       component.currentTable.mode2d = false;
-      component.currentTable.radialMenuEnabled = false;
+      component.currentTable.tabletopMenuStyle = 'four-way';
       const menus = TestBed.inject(ContextMenuService);
       const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openLegacy = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
@@ -868,7 +880,7 @@ describe('GameTableComponent', () => {
 
     it('opens the four-way menu for a reader whose own seat lies flat over a table that does not', () => {
       component.currentTable.mode2d = false;
-      component.currentTable.radialMenuEnabled = true;
+      component.currentTable.tabletopMenuStyle = 'radial';
       TestBed.inject(ViewModePreferenceService).choose('flat');
       const menus = TestBed.inject(ContextMenuService);
       const openRotating = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);

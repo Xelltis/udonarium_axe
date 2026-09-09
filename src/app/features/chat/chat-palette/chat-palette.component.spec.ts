@@ -4,6 +4,7 @@ import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-se
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { childrenChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -182,6 +183,60 @@ describe('ChatPaletteComponent', () => {
 
       expect(open).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reaching the headings', () => {
+    function speakerWithHeadings(): void {
+      const speaker = createChar('術者');
+      speaker.chatPalette!.setPalette('◆戦闘\n2d6+3 攻撃\n◆技能\n1d100<=50');
+      component.character.set(speaker);
+    }
+
+    function shown<T extends HTMLElement>(testId: string): T | null {
+      return (fixture.nativeElement as HTMLElement).querySelector<T>(`[data-testid="${testId}"]`);
+    }
+
+    it('opens the menu from a button while the panel stands on the table', () => {
+      speakerWithHeadings();
+      fixture.detectChanges();
+
+      expect(shown('palette-headings-menu')).not.toBeNull();
+      expect(shown('palette-headings-list')).toBeNull();
+    });
+
+    it('lists them instead once the panel is in a window of its own', () => {
+      TestBed.inject(PanelService).windowed.set(true);
+      speakerWithHeadings();
+      fixture.detectChanges();
+
+      const list = shown<HTMLSelectElement>('palette-headings-list');
+
+      expect(shown('palette-headings-menu')).toBeNull();
+      expect([...(list?.options ?? [])].map((option) => option.value)).toEqual(['', '0', '2']);
+    });
+
+    it('goes to the heading picked, and offers the same one again after', () => {
+      TestBed.inject(PanelService).windowed.set(true);
+      speakerWithHeadings();
+      fixture.detectChanges();
+      const list = shown<HTMLSelectElement>('palette-headings-list')!;
+
+      list.value = '2';
+      list.dispatchEvent(new Event('change'));
+
+      expect(component.selectedLine()).toBe(2);
+      expect(list.selectedIndex).toBe(0);
+    });
+
+    it('has nothing to offer where the palette carries no heading', () => {
+      TestBed.inject(PanelService).windowed.set(true);
+      const speaker = createChar('術者');
+      speaker.chatPalette!.setPalette('2d6+3 攻撃');
+      component.character.set(speaker);
+      fixture.detectChanges();
+
+      expect(shown<HTMLSelectElement>('palette-headings-list')?.disabled).toBe(true);
     });
   });
 });

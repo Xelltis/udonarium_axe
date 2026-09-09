@@ -15,16 +15,16 @@
       <input
         type="checkbox"
         class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [(ngModel)]="tabletopMode"
-        name="tabletopMode"
-        data-testid="tabletop-mode"
+        [(ngModel)]="tabletopRecommended"
+        name="tabletopRecommended"
+        data-testid="tabletop-recommended"
       />
-      <span class="flex-1 font-semibold">{{ 'feature.tabletop.displaySetting.tabletopMode' | transloco }}</span>
+      <span class="flex-1 font-semibold">{{ 'feature.roomSettings.tabletopRecommended' | transloco }}</span>
       <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
         'feature.tabletop.displaySetting.scopeOwn' | transloco
       }}</span>
     </label>
-    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.tabletop.displaySetting.tabletopModeHint' | transloco }}</p>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.tabletopRecommendedHint' | transloco }}</p>
 
     <div class="flex flex-col gap-1.5">
       <div class="flex flex-wrap items-baseline gap-1.5">
@@ -63,10 +63,16 @@
           'feature.tabletop.displaySetting.scopeTable' | transloco
         }}</span>
       </div>
-      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+      <label
+        class="text-ui-text flex items-center gap-1.5 text-[13px] select-none"
+        [class.cursor-pointer]="isEditable()"
+        [class.opacity-50]="!isEditable()"
+      >
         <input
           type="checkbox"
-          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          class="size-3.5 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed"
+          [class.cursor-pointer]="isEditable()"
+          [disabled]="!isEditable()"
           [(ngModel)]="tableRecommendsFlat"
           name="tableRecommendsFlat"
           data-testid="table-recommends-flat"
@@ -102,21 +108,6 @@
       }}</span>
     </div>
 
-    <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
-      <input
-        type="checkbox"
-        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [(ngModel)]="pieceImageInCell"
-        name="pieceImageInCell"
-        data-testid="piece-image-in-cell"
-      />
-      <span class="flex-1">{{ 'feature.tabletop.displaySetting.pieceImageInCell' | transloco }}</span>
-      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
-        'feature.tabletop.displaySetting.scopeOwn' | transloco
-      }}</span>
-    </label>
-    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.tabletop.displaySetting.pieceImageInCellHint' | transloco }}</p>
-
     <div class="flex flex-col gap-1.5" [attr.inert]="isEditable() ? null : ''">
       <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
         <span class="flex-1">{{ 'feature.roomSettings.facingMark' | transloco }}</span>
@@ -124,10 +115,11 @@
           'feature.tabletop.displaySetting.scopeRoom' | transloco
         }}</span>
         <select
-          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px]"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
           [(ngModel)]="facingMark"
           name="facingMark"
           data-testid="facing-mark"
+          [disabled]="!isEditable()"
         >
           @for (mark of facingMarks; track mark) {
             <option [value]="mark">{{ 'feature.roomSettings.facingMark_' + mark | transloco }}</option>
@@ -135,23 +127,6 @@
         </select>
       </label>
       <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.facingMarkHint' | transloco }}</p>
-
-      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
-        <input
-          type="checkbox"
-          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-          [(ngModel)]="imageBillboard"
-          name="imageBillboard"
-          data-testid="image-billboard"
-        />
-        <span class="flex-1">{{ 'feature.roomSettings.imageBillboard' | transloco }}</span>
-        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
-          'feature.tabletop.displaySetting.scopeTable' | transloco
-        }}</span>
-        <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
-          'feature.tabletop.displaySetting.whenUpright' | transloco
-        }}</span>
-      </label>
     </div>
   </div>
 
@@ -330,44 +305,43 @@
         }
       </select>
     </label>
-  </div>
 
-  <!-- Reaching a piece and a window from whichever side of the glass a reader is sitting on. -->
-  <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
-    <div class="border-ui-accent flex flex-wrap items-baseline gap-1.5 border-l-2 border-solid pl-2">
-      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+    <!-- Reaching a piece and a window from whichever side of the glass a reader is sitting on. -->
+    <div class="border-ui-border-panel mt-1 border-t border-solid pt-2.5">
+      <span class="text-ui-muted text-[11px] font-semibold">{{
         'feature.tabletop.displaySetting.sectionReach' | transloco
-      }}</span>
-      <span class="text-ui-muted border-ui-border-panel rounded-ui-sm border border-solid px-1 text-[10px]">{{
-        'feature.tabletop.displaySetting.scopeOwn' | transloco
       }}</span>
     </div>
 
     <div class="flex flex-wrap items-center gap-x-2 gap-y-1" [class.opacity-60]="!laysFlat()">
-      <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
-        <input
-          type="checkbox"
-          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-          [(ngModel)]="radialMenuEnabled"
-          name="radialMenuEnabled"
-          data-testid="radial-menu-enabled"
-        />
-        {{ 'feature.roomSettings.radialMenu' | transloco }}
+      <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+        <span>{{ 'feature.roomSettings.tabletopMenuStyle' | transloco }}</span>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[12px]"
+          [(ngModel)]="tabletopMenuStyle"
+          name="tabletopMenuStyle"
+          data-testid="tabletop-menu-style"
+        >
+          @for (style of menuStyles; track style) {
+            <option [value]="style">{{ 'feature.roomSettings.tabletopMenuStyle_' + style | transloco }}</option>
+          }
+        </select>
       </label>
-      <label class="text-ui-muted flex items-center gap-1 text-[11px]">
-        <span>{{ 'feature.roomSettings.radialMenuSpeed' | transloco }}</span>
-        <input
-          type="range"
-          class="h-1 w-24 p-0 [accent-color:var(--ui-accent)]"
-          min="1"
-          max="24"
-          step="1"
-          [(ngModel)]="radialMenuRotationSpeed"
-          name="radialMenuRotationSpeed"
-          [disabled]="!radialMenuEnabled"
-        />
-        <span class="min-w-9 text-right">{{ radialMenuRotationSpeed }}°/s</span>
-      </label>
+      @if (tabletopMenuStyle === 'radial') {
+        <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+          <span>{{ 'feature.roomSettings.radialMenuSpeed' | transloco }}</span>
+          <input
+            type="range"
+            class="h-1 w-24 p-0 [accent-color:var(--ui-accent)]"
+            min="1"
+            max="24"
+            step="1"
+            [(ngModel)]="radialMenuRotationSpeed"
+            name="radialMenuRotationSpeed"
+          />
+          <span class="min-w-9 text-right">{{ radialMenuRotationSpeed }}°/s</span>
+        </label>
+      }
     </div>
     <p class="text-ui-dim m-0 text-[11px]" [class.opacity-60]="!laysFlat()">
       {{ 'feature.roomSettings.radialMenuHelp' | transloco }}

@@ -4,6 +4,8 @@ import {
   normalizeTabletopDisplayOwn,
   normalizeTabletopDisplaySettings,
   resolveTabletopDisplay,
+  TABLETOP_MODE_KEYS,
+  TABLETOP_MODE_SETTINGS,
 } from '@axe/domain/tabletop/tabletop-display';
 
 describe('the way a flat table is drawn', () => {
@@ -55,13 +57,69 @@ describe('the way a flat table is drawn', () => {
   });
 });
 
+describe('the menu a flat table opens', () => {
+  it('is the ordinary one until a screen asks for another', () => {
+    expect(normalizeTabletopDisplaySettings({}).tabletopMenuStyle).toBe('standard');
+    expect(normalizeTabletopDisplaySettings({ mode2d: true }).tabletopMenuStyle).toBe('standard');
+  });
+
+  it('is the turning one for a room that had the old switch on', () => {
+    expect(normalizeTabletopDisplaySettings({ radialMenuEnabled: true }).tabletopMenuStyle).toBe('radial');
+    expect(normalizeTabletopDisplaySettings({ radialMenuEnabled: 'true' }).tabletopMenuStyle).toBe('radial');
+  });
+
+  it('is the ordinary one for a room that had it off, which is what asking for the table fixes', () => {
+    expect(normalizeTabletopDisplaySettings({ radialMenuEnabled: false }).tabletopMenuStyle).toBe('standard');
+    expect(TABLETOP_MODE_SETTINGS.tabletopMenuStyle).toBe('radial');
+  });
+
+  it('carries a screen that was told to turn its menus under the old key', () => {
+    expect(normalizeTabletopDisplayOwn({ radialMenuEnabled: true }).tabletopMenuStyle).toBe('radial');
+    expect(normalizeTabletopDisplayOwn({}).tabletopMenuStyle).toBeUndefined();
+  });
+});
+
+describe('TABLETOP_MODE_KEYS', () => {
+  it('names every setting asking for the tabletop puts in, and no other', () => {
+    expect([...TABLETOP_MODE_KEYS].sort()).toEqual(Object.keys(TABLETOP_MODE_SETTINGS).sort());
+  });
+
+  it('names settings the tabletop actually moves off their defaults', () => {
+    for (const key of TABLETOP_MODE_KEYS) {
+      expect(TABLETOP_MODE_SETTINGS[key]).not.toBe(DEFAULT_TABLETOP_DISPLAY_SETTINGS[key]);
+    }
+  });
+});
+
+describe('a screen whose stored settings predate this version', () => {
+  it('carries the turning menu it was told about under the old key', () => {
+    expect(normalizeTabletopDisplayOwn({ radialMenuEnabled: true }).tabletopMenuStyle).toBe('radial');
+  });
+
+  /**
+   * Keeping a piece inside its cell is the room's answer now. A value one screen kept for
+   * itself cannot become the room's, so it is dropped and the room is asked instead.
+   */
+  it('drops what has since become the room’s to answer', () => {
+    const own = normalizeTabletopDisplayOwn({ pieceImageInCell: true, multiAngleEnabled: true });
+
+    expect('pieceImageInCell' in own).toBe(false);
+    expect(own.multiAngleEnabled).toBe(true);
+  });
+
+  it('keeps nothing at all from a bag that holds nothing this version knows', () => {
+    expect(normalizeTabletopDisplayOwn({ somethingElse: 1 })).toEqual({});
+    expect(normalizeTabletopDisplayOwn(null)).toEqual({});
+  });
+});
+
 describe('what one screen has been told', () => {
   it('answers with what it holds, and leaves the rest to the table', () => {
-    const table = { multiAngleEnabled: true, radialMenuEnabled: true, multiAngleTickerEnabled: true };
+    const table = { multiAngleEnabled: true, tabletopMenuStyle: 'radial' as const, multiAngleTickerEnabled: true };
 
-    const resolved = resolveTabletopDisplay(table, { radialMenuEnabled: false });
+    const resolved = resolveTabletopDisplay(table, { tabletopMenuStyle: 'standard' });
 
-    expect(resolved.radialMenuEnabled).toBe(false);
+    expect(resolved.tabletopMenuStyle).toBe('standard');
     expect(resolved.multiAngleEnabled).toBe(true);
     expect(resolved.multiAngleTickerEnabled).toBe(true);
   });

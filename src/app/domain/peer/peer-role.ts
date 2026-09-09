@@ -26,6 +26,16 @@ export function canRoleSeeHidden(role: PeerRole): boolean {
   return role === PeerRole.GameMaster;
 }
 
+/**
+ * Whether this reader may change what the room and its tables answer for everyone.
+ *
+ * Wider than the rules of play, which a player may set as readily as the master: these are
+ * settings one screen changes for every screen, and the panels label them so.
+ */
+export function canRoleEditShared(role: PeerRole): boolean {
+  return role === PeerRole.GameMaster;
+}
+
 export function roleLabelKey(role: PeerRole): string {
   switch (role) {
     case PeerRole.GameMaster:

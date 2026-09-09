@@ -1,4 +1,5 @@
 import { ComponentRef, Injectable, Injector, signal, ViewContainerRef } from '@angular/core';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import type { PanelRotationDegrees } from '@axe/application/ui/panel.service';
 
 class ModalContext {
@@ -57,13 +58,15 @@ export class ModalService {
     parentViewContainerRef?: ViewContainerRef
   ): Promise<T> {
     if (!parentViewContainerRef) {
-      parentViewContainerRef = ModalService.defaultParentViewContainerRef;
+      parentViewContainerRef = OverlayLayers.current() ?? ModalService.defaultParentViewContainerRef;
     }
     let panelComponentRef: ComponentRef<unknown>;
     return new Promise<T>((resolve, reject) => {
+      let answered = false;
       // build an injector
       const _resolve = (val: T) => {
         if (panelComponentRef) {
+          answered = true;
           panelComponentRef.destroy();
           resolve(val);
         }
@@ -71,6 +74,7 @@ export class ModalService {
 
       const _reject = (reason?: unknown) => {
         if (panelComponentRef) {
+          answered = true;
           panelComponentRef.destroy();
           reject(reason);
         }
@@ -96,6 +100,15 @@ export class ModalService {
 
       panelComponentRef.onDestroy(() => {
         this.count--;
+        // A dialogue can be taken away without being answered: the window it was opened in is
+        // shut, and the layer it stood in goes with it. Whoever is waiting is owed the answer
+        // a dismissal gives — nothing chosen — or they wait for one that can never come.
+        // Nothing rejects one of these in practice, and the callers read the value rather
+        // than catching, so rejecting here would break in a way that hanging never did.
+        if (!answered) {
+          answered = true;
+          resolve(null as T);
+        }
       });
 
       this.count++;

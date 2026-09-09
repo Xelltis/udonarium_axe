@@ -12,6 +12,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { observeTap, TapGestureHandle } from '@axe/core/input/tap-gesture';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -201,7 +202,7 @@ export class TooltipDirective {
     const panelClass = TooltipDirective.TooltipPanelComponentClass;
     if (!panelClass) return;
 
-    const parentViewContainerRef = ContextMenuService.defaultParentViewContainerRef;
+    const parentViewContainerRef = OverlayLayers.current() ?? ContextMenuService.defaultParentViewContainerRef;
     const injector = parentViewContainerRef.injector;
     const seats = this.edgeSeats();
     const refs: ComponentRef<TooltipPanelInstance>[] = [];

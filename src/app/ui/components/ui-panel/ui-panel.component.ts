@@ -19,6 +19,7 @@ import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-displ
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
+import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -221,6 +222,9 @@ export class UIPanelComponent {
   get frameless(): boolean {
     return this.panelService.frameless;
   }
+
+  /** The pictures the skin papers a panel with, underneath first. */
+  protected readonly skinLayers = inject(SkinService).panelLayers;
 
   /** Wearing no box of its own: shrunk to its content, asked to play without a frame, or gone ghost. */
   get unboxed(): boolean {
