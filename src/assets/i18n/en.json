@@ -2125,7 +2125,7 @@
       },
       "displaySetting": {
         "title": "Tabletop display",
-        "intro": "Settings for using the table seen from straight above.",
+        "intro": "Settings for a large display several people sit around, playing in the same room. The recommended settings above put in all but the real size at once.",
         "sectionView": "View",
         "seatView": "This screen",
         "viewMode_auto": "As the table asks",
