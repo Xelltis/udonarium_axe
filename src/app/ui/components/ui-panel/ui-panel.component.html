@@ -199,5 +199,14 @@
       *ngComponentOutlet="cardStackListComponent; inputs: { cardStackidentifier: activePanel().cardStack!.identifier }"
     ></ng-container>
   }
+  @if (showsTabs()) {
+    <panel-tab-strip
+      [tabs]="tabLabels()"
+      [active]="activeIndex()"
+      [top]="barBottom()"
+      (chose)="selectTab($event)"
+      (closed)="closeTabAt($event)"
+    />
+  }
   <ng-container #slots></ng-container>
 </div>

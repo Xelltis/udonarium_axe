@@ -4006,7 +4006,8 @@
       "menuTitle": "メニュー",
       "rotate90": "時計回りに90度回転",
       "transparency": "透過率",
-      "ghost": "透明モード"
+      "ghost": "透明モード",
+      "tabClose": "このパネルを閉じる"
     },
     "portraitPicker": {
       "title": "立ち絵",

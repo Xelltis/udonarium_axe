@@ -27,6 +27,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PanelTabSlotComponent } from '@axe/ui/components/ui-panel/panel-tab-slot.component';
+import { PanelTabStripComponent } from '@axe/ui/components/ui-panel/panel-tab-strip.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { ResizableDirective } from '@axe/ui/directives/resizable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -53,7 +54,14 @@ interface PanelTab extends PanelTabHandle {
   templateUrl: './ui-panel.component.html',
   host: { class: 'block' },
   providers: [PanelService],
-  imports: [DraggableDirective, ResizableDirective, NgClass, NgComponentOutlet, TextTooltipDirective],
+  imports: [
+    DraggableDirective,
+    ResizableDirective,
+    NgClass,
+    NgComponentOutlet,
+    TextTooltipDirective,
+    PanelTabStripComponent,
+  ],
 })
 export class UIPanelComponent implements PanelFrame {
   panelService = inject(PanelService);
@@ -127,6 +135,14 @@ export class UIPanelComponent implements PanelFrame {
    * by hand is.
    */
   readonly activePanel = computed<PanelService>(() => this.tabs()[this.activeIndex()]?.panel ?? this.panelService);
+
+  /** Whether the frame is showing a row of names, which it does only when it holds several. */
+  readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isCompact());
+  readonly tabLabels = computed(() => this.tabs().map((tab) => tab.panel.title));
+
+  closeTabAt(index: number): void {
+    this.tabs()[index]?.panel.close();
+  }
 
   /** Builds a panel into a place of its own in this frame. */
   openTab<T>(childComponent: Type<T>, panel: PanelService): ComponentRef<T> {
@@ -587,10 +603,16 @@ export class UIPanelComponent implements PanelFrame {
     panel.style.top = `${this.top}px`;
   }
 
-  /** How far down the body starts: under the bar, or at the top of a panel wearing none. */
-  private bodyTop(): string {
+  /** Where the title bar leaves off, which is where a row of names goes. */
+  protected barBottom(): string {
     if (!this.showsTitleBar) return '0';
     return this.isCompact() ? 'calc(2.75rem + env(safe-area-inset-top))' : '28px';
+  }
+
+  /** How far down the body starts: under the bar, and under the names when there are any. */
+  private bodyTop(): string {
+    if (!this.showsTabs()) return this.barBottom();
+    return this.showsTitleBar ? '56px' : '28px';
   }
 
   get padding_(): string {

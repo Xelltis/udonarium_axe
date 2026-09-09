@@ -1,0 +1,31 @@
+<div
+  class="panel-no-drag border-ui-border-titlebar bg-ui-panel absolute box-border flex h-7 w-full scrollbar-none items-center gap-0.75 overflow-x-auto overflow-y-hidden border-b border-solid px-1.5"
+  [style.top]="top()"
+  role="tablist"
+>
+  @for (tab of tabs(); track $index) {
+    <div
+      class="border-ui-border-titlebar text-ui-titlebar-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-titlebar-text relative inline-flex max-w-40 flex-none cursor-pointer items-center gap-1 rounded-full border border-solid bg-transparent py-0.75 pr-1 pl-2.5 align-middle text-[11px] whitespace-nowrap transition-colors"
+      [class.border-ui-accent]="$index === active()"
+      [class.bg-ui-accent-bg]="$index === active()"
+      [class.text-ui-titlebar-text]="$index === active()"
+      [class.font-medium]="$index === active()"
+      role="tab"
+      [attr.aria-selected]="$index === active()"
+      [attr.data-testid]="'panel-tab-' + $index"
+      (pointerdown)="chose.emit($index)"
+    >
+      <span class="min-w-0 truncate">{{ tab }}</span>
+      <button
+        class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex size-4 shrink-0 transform-none items-center justify-center border-none bg-transparent p-0 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+        type="button"
+        [attr.data-testid]="'panel-tab-clear-' + $index"
+        [title]="'ui.panel.tabClose' | transloco"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="closed.emit($index)"
+      >
+        <i class="material-icons text-[12px]!">clear</i>
+      </button>
+    </div>
+  }
+</div>

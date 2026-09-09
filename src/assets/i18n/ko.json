@@ -4008,7 +4008,8 @@
       "menuTitle": "메뉴",
       "rotate90": "시계 방향으로 90도 회전",
       "transparency": "투명도",
-      "ghost": "투명 모드"
+      "ghost": "투명 모드",
+      "tabClose": "이 패널 닫기"
     },
     "portraitPicker": {
       "title": "입화",

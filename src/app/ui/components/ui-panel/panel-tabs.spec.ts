@@ -158,6 +158,53 @@ describe('a frame holding more than one panel', () => {
     expect(first.frame.instance.tabCount()).toBe(1);
   });
 
+  it('names every panel it holds once it holds more than one', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    expect(first.frame.location.nativeElement.querySelector('[role="tablist"]')).toBeNull();
+
+    fold(first.frame, second);
+
+    const names = [...first.frame.location.nativeElement.querySelectorAll('[role="tab"] span')].map(
+      (pill) => (pill as HTMLElement).textContent
+    );
+    expect(names).toEqual(['Chat', 'Sheet']);
+  });
+
+  it('moves the bodies down to make room for the names', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+
+    fold(first.frame, second);
+
+    expect(grounds(first.frame).map((ground) => ground.style.top)).toEqual(['56px', '56px']);
+  });
+
+  it('shows the panel whose name was pressed', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    fold(first.frame, second);
+
+    const pill = first.frame.location.nativeElement.querySelector('[data-testid="panel-tab-0"]') as HTMLElement;
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    host.detectChanges();
+
+    expect(first.frame.instance.activeIndex()).toBe(0);
+  });
+
+  it('puts away the panel whose name was cleared', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    fold(first.frame, second);
+
+    const clear = first.frame.location.nativeElement.querySelector('[data-testid="panel-tab-clear-1"]') as HTMLElement;
+    clear.click();
+    host.detectChanges();
+
+    expect(second.body.instance.gone).toBe(true);
+    expect(first.frame.instance.tabCount()).toBe(1);
+  });
+
   it('tells a panel when it is looked at again', async () => {
     const first = openFrame('Chat');
     const second = openFrame('Sheet');

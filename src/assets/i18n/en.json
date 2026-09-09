@@ -4006,7 +4006,8 @@
       "menuTitle": "Menu",
       "rotate90": "Rotate 90° clockwise",
       "transparency": "Transparency",
-      "ghost": "Ghost mode"
+      "ghost": "Ghost mode",
+      "tabClose": "Close this panel"
     },
     "portraitPicker": {
       "title": "Portraits",
