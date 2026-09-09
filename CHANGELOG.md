@@ -1,3 +1,63 @@
+## [1.51.0](https://github.com/Xelltis/udonarium_axe/compare/v1.50.0...v1.51.0) (2026-09-09)
+
+### ✨ Features
+
+* **panels:** let a panel be taken out into a window of its own ([f1f5237](https://github.com/Xelltis/udonarium_axe/commit/f1f5237b4487f78de13f9a1005bc5d910555bb1c))
+* **permission:** let only the master answer for the room and its tables ([ba386fa](https://github.com/Xelltis/udonarium_axe/commit/ba386fab44660a6578c85d26682e8ae341d72837))
+* **room-settings:** add the skin picker to the personal settings ([6f729fc](https://github.com/Xelltis/udonarium_axe/commit/6f729fcf9e0bd56eaf968fdcd4858c9188a4387b))
+* **skin:** call the command window skin what the joke calls it ([cae3fa3](https://github.com/Xelltis/udonarium_axe/commit/cae3fa38d02cadaa3bca5bca90bafa7f58894d37))
+* **skin:** even the ladders at twenty each, and let a titlebar contrast ([3b64b32](https://github.com/Xelltis/udonarium_axe/commit/3b64b32a86e4ed0dbfbb2058d895052bb4117059)), closes [#f7f7f7](https://github.com/Xelltis/udonarium_axe/issues/f7f7f7) [#999](https://github.com/Xelltis/udonarium_axe/issues/999) [#555](https://github.com/Xelltis/udonarium_axe/issues/555) [#ccc](https://github.com/Xelltis/udonarium_axe/issues/ccc)
+* **skin:** even the two ladders up, and give the dark one a past ([b488c41](https://github.com/Xelltis/udonarium_axe/commit/b488c4111f2c83eba99b4c632b2979fd326ae51c))
+* **skin:** give skins a panel of their own, and a preview worth looking at ([67c06b0](https://github.com/Xelltis/udonarium_axe/commit/67c06b0a0efd5b89c8a06502bbbf8bcdcfef4c3a))
+* **skin:** paper the panels with a stack of pictures, and let a skin travel ([bccc230](https://github.com/Xelltis/udonarium_axe/commit/bccc23056af236f457336bb717d971782e045ac5))
+* **tabletop:** let the room answer for keeping a piece inside its cell ([3403526](https://github.com/Xelltis/udonarium_axe/commit/340352690c2a9f79f454244529a5068a49993b50))
+* **ui:** let each seat pick the colours it is dressed in ([e7042fc](https://github.com/Xelltis/udonarium_axe/commit/e7042fc36a96eb5c0370e3f36cb79384b4f634cb))
+* **ui:** work a whole theme out of a few numbers ([c539cca](https://github.com/Xelltis/udonarium_axe/commit/c539ccade2db25fcde806324411ff490a12e6bc1))
+
+### 🐛 Bug Fixes
+
+* **chat:** measure a bubble against the ladder it is drawn on ([ecbebc5](https://github.com/Xelltis/udonarium_axe/commit/ecbebc5be0f273afab9cdf44fa1df567d92d795c))
+* **chat:** roll a hotbar line with the system nearest the piece saying it ([e95704a](https://github.com/Xelltis/udonarium_axe/commit/e95704a8b1188bc376c6dbbf9fdd709c9bee4ded))
+* **chat:** roll a hotbar slot with the system the chat window is set to ([ee85b35](https://github.com/Xelltis/udonarium_axe/commit/ee85b356f2c778b11f615ad2d5bfe0a858ae5dc9))
+* **panels:** close a window whose panel has gone, and let its document go too ([db3e7ef](https://github.com/Xelltis/udonarium_axe/commit/db3e7efddb4b5ecbeb87e4334cd48b3c539b7cba))
+* **panels:** close the panel that left, and let a piece's panels leave too ([b200abd](https://github.com/Xelltis/udonarium_axe/commit/b200abdc7cc4b01d2984cb0f93816a336aa2c947))
+* **panels:** give the palette's headings a list of their own in a window ([786ed7e](https://github.com/Xelltis/udonarium_axe/commit/786ed7e84bd5693477604a9546e105dac6c16bdc))
+* **panels:** open a menu in the window the reader is looking at ([78d5cbf](https://github.com/Xelltis/udonarium_axe/commit/78d5cbf5b8ab6f0a38d72ad2f102ea3fb8fb5fd8))
+* **panels:** open a room panel again the way it was opened the first time ([950450c](https://github.com/Xelltis/udonarium_axe/commit/950450c50fc23da3d22d42383c0dff289dea8879))
+* **skin:** dress the seat on load, and read the two homages off their screens ([a4b3fea](https://github.com/Xelltis/udonarium_axe/commit/a4b3fea69a683dbefa7c232e2595090d59c90a02))
+* **skin:** everything the review turned up ([95324a4](https://github.com/Xelltis/udonarium_axe/commit/95324a46de47a0b8976414e123390bc31ab57f2b))
+* **skin:** make the preview show the skin instead of the app ([ce88dfa](https://github.com/Xelltis/udonarium_axe/commit/ce88dfa9e9872f6af33470b4cf05175860cd0d1d))
+* **skin:** read a whole skin before wearing any of it, and let old addresses go ([f8c9815](https://github.com/Xelltis/udonarium_axe/commit/f8c9815cb42f06eda25e35698c600b842fee2921))
+* **skin:** read the brand in an ftyp box, so a film is not taken for a picture ([19ceee4](https://github.com/Xelltis/udonarium_axe/commit/19ceee4b133b641aa7434adbb3211cfe27cc6d5e))
+* **tabletop:** hear a room that chose the turning menu under the old switch ([600f121](https://github.com/Xelltis/udonarium_axe/commit/600f121b8e25b3f58a753f0d675b624ad1557f04))
+* **tabletop:** let go of the tabletop's settings rather than pinning defaults ([0379bba](https://github.com/Xelltis/udonarium_axe/commit/0379bba65f28843aed945c4ad0fe309bfbed29ba))
+* **tabletop:** read the tabletop switch from what is in force, not from the view ([e8ba212](https://github.com/Xelltis/udonarium_axe/commit/e8ba212030f7048e2bbbfaaea33ccd36863bac46))
+* **tabletop:** stop a 2D table from wearing the menu built for a table with seats ([aaf4b40](https://github.com/Xelltis/udonarium_axe/commit/aaf4b400f9ac5459597901077687dd418285ea1f))
+* **ui:** answer a dialogue taken away with nothing chosen, rather than rejecting ([bc9333b](https://github.com/Xelltis/udonarium_axe/commit/bc9333be5ce6a6651a84f6606268fb4633fc9a11))
+* **ui:** keep the content's own buttons when a panel is in a window ([58aabe8](https://github.com/Xelltis/udonarium_axe/commit/58aabe869da0282d52b47dbf7819f11098dff483))
+* **ui:** let go of a caller whose dialogue was taken away unanswered ([a1cf942](https://github.com/Xelltis/udonarium_axe/commit/a1cf9423b1d6a74160437f230a6dbf05dd801d08))
+
+### 📝 Documentation
+
+* **tabletop:** say who the flat-table panel is for, rather than what it draws ([82a81dd](https://github.com/Xelltis/udonarium_axe/commit/82a81dd3cb66846c9336461061739ce89c9b0484))
+* **website:** correct what masking the invite link password buys ([3fc008c](https://github.com/Xelltis/udonarium_axe/commit/3fc008c38786e188423ac6cf1179849f78114cc8))
+* **website:** document skins ([a2fae77](https://github.com/Xelltis/udonarium_axe/commit/a2fae77cb98b98729c2ffb8a5fda64f9a74cdc70))
+* **website:** put playing first ([7a4692c](https://github.com/Xelltis/udonarium_axe/commit/7a4692c200f94edfd3514ef1ce095ef7ba26865e))
+* **website:** repair references that no longer point where they say ([381a9ab](https://github.com/Xelltis/udonarium_axe/commit/381a9ab7acea2fe0f9857046b943dd437017f74a))
+* **website:** say what the long sheet costs, rather than what the browser does ([1e84f40](https://github.com/Xelltis/udonarium_axe/commit/1e84f40bdd0c3f3c6368a212a506739af132af41))
+* **website:** say which dice bot a hotbar slot rolls with ([4202da1](https://github.com/Xelltis/udonarium_axe/commit/4202da1a3abfbd6638cef5839b568b4d0d4da742))
+* **website:** say which dice bot a hotbar slot rolls with, in order ([6e3acbc](https://github.com/Xelltis/udonarium_axe/commit/6e3acbc19aa462f0ba78f8ba247dd561ee8368c0))
+* **website:** take the screenshots again on what the app looks like now ([626d759](https://github.com/Xelltis/udonarium_axe/commit/626d7591dce8862d21f1e83ed522aff5f2926495))
+* **website:** write the release note for v1.50.0 ([d9cba6d](https://github.com/Xelltis/udonarium_axe/commit/d9cba6d36eccd33689702d97c60f3034746962ac))
+* **website:** write the release note for v1.51.0 ([05d157c](https://github.com/Xelltis/udonarium_axe/commit/05d157c1fa6bfecd277a4c4d924223412590f786))
+* **website:** write the UI settings up the way they are now read ([83a3031](https://github.com/Xelltis/udonarium_axe/commit/83a303120cf0eabbefcdc86e7c8fc2dc7fd6ec8f))
+
+### ♻️ Refactor
+
+* **i18n:** drop the two strings the last moves left with nothing to name ([d61eb69](https://github.com/Xelltis/udonarium_axe/commit/d61eb6950ed91de6858aa7f610edc78d75496a68))
+* **room-settings:** clear away what the last two moves left behind ([dab1fad](https://github.com/Xelltis/udonarium_axe/commit/dab1fadaf5287eea218bb0903f1f25980b0c3a0e))
+* **room-settings:** read the UI settings in three parts, and ask by name ([b34ab93](https://github.com/Xelltis/udonarium_axe/commit/b34ab9329f39b6177b2aa4467da0b9911fff1a99))
+
 ## [1.50.0](https://github.com/Xelltis/udonarium_axe/compare/v1.49.0...v1.50.0) (2026-09-08)
 
 ### ✨ Features
