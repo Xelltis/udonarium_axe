@@ -376,6 +376,21 @@ describe('FunctionalPaintService', () => {
       };
     }
 
+    it('keeps the height a wall was built at, where gravity cannot rub it out', () => {
+      const before = Terrain.create('梁', 2, 1, 1, 'wood', 'wood');
+      before.location = { name: 'table', x: 0, y: 0 };
+      before.altitude = 3;
+      table.appendChild(before);
+
+      const read = service.snapshot()!.terrainBlocks[0];
+      before.destroy();
+      service.apply(planWith({ terrain: { add: [read], remove: [] } }));
+
+      const after = table.children.filter((child): child is Terrain => child instanceof Terrain)[0];
+      expect(after.altitude).toBe(3);
+      expect(after.posZ).toBe(0);
+    });
+
     it('returns a wall with everything it had', () => {
       const before = Terrain.create('石の壁', 2, 3, 4, 'granite', 'moss');
       before.location = { name: 'table', x: 25, y: 75 };
@@ -418,7 +433,8 @@ describe('FunctionalPaintService', () => {
       expect(after.name).toBe('石の壁');
       expect(after.location).toMatchObject({ x: 25, y: 75 });
       expect([after.width, after.depth, after.height]).toEqual([2, 3, 4]);
-      expect([after.rotate, after.posZ, after.isAltitudeIndicate]).toEqual([30, 12, true]);
+      expect([after.rotate, after.isAltitudeIndicate]).toEqual([30, true]);
+      expect(after.altitude * table.gridSize + after.posZ).toBe(12);
       expect([after.mode, after.isLocked, after.isTiledTexture, after.isGrid]).toEqual([2, true, true, true]);
       expect([after.isDropShadow, after.isSurfaceShading]).toEqual([false, false]);
       expect([after.blocksSight, after.blocksLight]).toEqual([false, false]);

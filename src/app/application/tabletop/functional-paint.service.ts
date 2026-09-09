@@ -36,7 +36,13 @@ function masksOn(table: GameTable): GameTableMask[] {
 }
 
 /** Lays one block of terrain wearing everything the block carries. */
-function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number, placed: BlockPlacement | null): Terrain {
+function layTerrainBlock(
+  spec: TerrainPaintSpec,
+  width: number,
+  depth: number,
+  placed: BlockPlacement | null,
+  gridSize: number
+): Terrain {
   const terrain = Terrain.create(
     spec.name,
     placed ? placed.width : width,
@@ -53,7 +59,9 @@ function layTerrainBlock(spec: TerrainPaintSpec, width: number, depth: number, p
   terrain.isDropShadow = spec.dropShadow;
   terrain.isSurfaceShading = spec.surfaceShading;
   terrain.isLocked = spec.locked;
-  terrain.posZ = spec.altitude;
+  // The height a block was built at is its altitude; posZ is whatever it later came to rest
+  // on, which gravity writes and would overwrite a height kept there.
+  terrain.altitude = gridSize > 0 ? spec.altitude / gridSize : 0;
   terrain.isAltitudeIndicate = spec.showsAltitude;
   if (spec.imageIdentifier.length > 0) terrain.setFaceImage('imageIdentifier', spec.imageIdentifier);
   terrain.doorStyle = spec.doorStyle;
@@ -157,13 +165,13 @@ export function blockedCellKeysOn(table: GameTable, grid: CellGrid): string[] {
  * All of it, so that laying the block back down returns what was there rather than an
  * upright rectangle wearing its colours.
  */
-export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null): TerrainPaintSpec {
+export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null, gridSize: number): TerrainPaintSpec {
   const images = { ...NO_FACE_IMAGES };
   for (const face of TERRAIN_FACE_KEYS) images[face] = terrain.faceImageIdentifier(face);
   return {
     name: terrain.name,
     imageIdentifier: terrain.faceImageIdentifier('imageIdentifier'),
-    altitude: terrain.posZ,
+    altitude: terrain.altitude * gridSize + terrain.posZ,
     showsAltitude: terrain.isAltitudeIndicate,
     height: terrain.height,
     mode: terrain.mode,
@@ -339,14 +347,17 @@ export class FunctionalPaintService {
     this.takeAway(
       terrainsOn(table).map((held) => {
         const stood = blockFootprintOf(held, held.width, held.depth, grid);
-        return { object: held, key: stood ? blockKey(stood.rect, terrainSpecOf(held, stood.placement)) : null };
+        return {
+          object: held,
+          key: stood ? blockKey(stood.rect, terrainSpecOf(held, stood.placement, table.gridSize)) : null,
+        };
       }),
       plan.terrain.remove
     );
 
     for (const block of plan.terrain.add) {
       const placed = placementFor(block.spec, block, grid);
-      const terrain = layTerrainBlock(block.spec, block.width, block.height, placed);
+      const terrain = layTerrainBlock(block.spec, block.width, block.height, placed, table.gridSize);
       terrain.location = blockOrigin(placed, block, grid);
       table.appendChild(terrain);
     }
@@ -449,7 +460,7 @@ export class FunctionalPaintService {
       terrainBlocks: terrainsOn(table)
         .map((held) => {
           const stood = blockFootprintOf(held, held.width, held.depth, grid);
-          return stood ? { ...stood.rect, spec: terrainSpecOf(held, stood.placement) } : null;
+          return stood ? { ...stood.rect, spec: terrainSpecOf(held, stood.placement, table.gridSize) } : null;
         })
         .filter((block): block is TerrainBlock => block !== null),
       maskBlocks: masksOn(table)
