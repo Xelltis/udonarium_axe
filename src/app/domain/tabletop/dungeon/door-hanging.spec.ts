@@ -131,6 +131,32 @@ describe('hangDoors()', () => {
     }
   });
 
+  it('never cuts an opening past the stone that holds its door up', () => {
+    for (const seed of Array.from({ length: 12 }, (_, index) => index * 7 + 1)) {
+      const layout = build({ seed, doorWidth: { least: 4, most: 4 }, doubleDoorPercent: 100 });
+      const doorAt = new Set(layout.doors.map((door) => door.y * layout.width + door.x));
+
+      for (const leaf of layout.doorLeaves) {
+        const step = leaf.across === 'x' ? { x: 0, y: 1 } : { x: 1, y: 0 };
+        let start = { x: leaf.x, y: leaf.y };
+        let end = { x: leaf.x + leaf.w - 1, y: leaf.y + leaf.h - 1 };
+        while (doorAt.has((start.y - step.y) * layout.width + start.x - step.x)) {
+          start = { x: start.x - step.x, y: start.y - step.y };
+        }
+        while (doorAt.has((end.y + step.y) * layout.width + end.x + step.x)) {
+          end = { x: end.x + step.x, y: end.y + step.y };
+        }
+
+        // Open ground past both ends of an opening is a screen standing in a room, not a door.
+        const ends = [
+          cellAt(layout, start.x - step.x, start.y - step.y),
+          cellAt(layout, end.x + step.x, end.y + step.y),
+        ];
+        expect(ends.some((cell) => cell === DungeonCell.Rock)).toBe(true);
+      }
+    }
+  });
+
   it('keeps the outer wall standing while it cuts', () => {
     for (const seed of SEEDS) {
       const layout = build({ seed, doorWidth: { least: 4, most: 4 }, doubleDoorPercent: 50 });

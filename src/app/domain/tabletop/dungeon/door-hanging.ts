@@ -162,33 +162,92 @@ function rollWidth(widths: DoorWidths, pair: boolean, rng: () => number): number
   return pool[Math.floor(rng() * pool.length)] ?? widths.least;
 }
 
-function widen(layout: DungeonLayout, doorway: Doorway, width: number, sealed: ReadonlySet<number>): void {
-  const step = stepOf(doorway.across);
-  let ahead = true;
-  while (doorway.cells.length < width) {
-    if (!extend(layout, doorway, step, ahead, sealed) && !extend(layout, doorway, step, !ahead, sealed)) return;
-    ahead = !ahead;
-  }
+/** One more cell of an opening, and the cell in front of it that has to be cut to reach it. */
+interface Cut {
+  cell: DungeonPoint;
+  threshold: DungeonPoint | null;
 }
 
-function extend(
+/** What one end of an opening could take, and after how many of them the stone still holds. */
+interface Reach {
+  cuts: Cut[];
+  anchored: Set<number>;
+}
+
+/**
+ * Widens an opening, but never past the stone that holds its door up.
+ *
+ * A door is a gap in a wall, so the wall has to outlast it at both ends. Cutting to the end of
+ * a short wall leaves a slab standing in the open with the floor running round it, which is
+ * a screen rather than a door. Where no cut ends against stone, the opening is left as it was.
+ */
+function widen(layout: DungeonLayout, doorway: Doorway, width: number, sealed: ReadonlySet<number>): void {
+  const room = width - doorway.cells.length;
+  if (room < 1) return;
+
+  const step = stepOf(doorway.across);
+  const ahead = reachOf(layout, doorway, step, true, sealed, room);
+  const behind = reachOf(layout, doorway, step, false, sealed, room);
+  const [after, before] = share(doorway.cells.length, width, ahead, behind);
+
+  for (const cut of ahead.cuts.slice(0, after)) cutOpen(layout, doorway, cut, true);
+  for (const cut of behind.cuts.slice(0, before)) cutOpen(layout, doorway, cut, false);
+}
+
+function reachOf(
   layout: DungeonLayout,
   doorway: Doorway,
   step: DungeonPoint,
   ahead: boolean,
-  sealed: ReadonlySet<number>
-): boolean {
-  const from = ahead ? doorway.cells[doorway.cells.length - 1] : doorway.cells[0];
-  const cell = { x: from.x + (ahead ? step.x : -step.x), y: from.y + (ahead ? step.y : -step.y) };
-  const cut = hangable(layout, cell, doorway, sealed);
-  if (!cut) return false;
+  sealed: ReadonlySet<number>,
+  limit: number
+): Reach {
+  const heading = ahead ? step : { x: -step.x, y: -step.y };
+  const beyond = (cell: DungeonPoint) => cellAt(layout, cell.x + heading.x, cell.y + heading.y);
 
+  const cuts: Cut[] = [];
+  const anchored = new Set<number>();
+  let from = ahead ? doorway.cells[doorway.cells.length - 1] : doorway.cells[0];
+  if (beyond(from) === DungeonCell.Rock) anchored.add(0);
+
+  while (cuts.length < limit) {
+    const cell = { x: from.x + heading.x, y: from.y + heading.y };
+    const cut = hangable(layout, cell, doorway, sealed);
+    if (!cut) break;
+    cuts.push({ cell, threshold: cut.threshold });
+    if (beyond(cell) === DungeonCell.Rock) anchored.add(cuts.length);
+    from = cell;
+  }
+
+  return { cuts, anchored };
+}
+
+/** How many cells each end takes: as near the width asked for as the stone allows, evenly split. */
+function share(current: number, width: number, ahead: Reach, behind: Reach): [number, number] {
+  const options = (reach: Reach) => (reach.anchored.size > 0 ? [...reach.anchored] : [0]);
+  let best: [number, number] = [0, 0];
+  let reached = -1;
+
+  for (const after of options(ahead)) {
+    for (const before of options(behind)) {
+      const total = current + after + before;
+      if (total > width) continue;
+      if (total < reached) continue;
+      if (total === reached && Math.abs(after - before) >= Math.abs(best[0] - best[1])) continue;
+      reached = total;
+      best = [after, before];
+    }
+  }
+
+  return best;
+}
+
+function cutOpen(layout: DungeonLayout, doorway: Doorway, cut: Cut, ahead: boolean): void {
   if (cut.threshold) setCell(layout, cut.threshold.x, cut.threshold.y, DungeonCell.Corridor);
-  setCell(layout, cell.x, cell.y, DungeonCell.Door);
-  layout.doors.push({ x: cell.x, y: cell.y, rooms: [...doorway.rooms], locked: doorway.locked });
-  if (ahead) doorway.cells.push(cell);
-  else doorway.cells.unshift(cell);
-  return true;
+  setCell(layout, cut.cell.x, cut.cell.y, DungeonCell.Door);
+  layout.doors.push({ x: cut.cell.x, y: cut.cell.y, rooms: [...doorway.rooms], locked: doorway.locked });
+  if (ahead) doorway.cells.push(cut.cell);
+  else doorway.cells.unshift(cut.cell);
 }
 
 /**
