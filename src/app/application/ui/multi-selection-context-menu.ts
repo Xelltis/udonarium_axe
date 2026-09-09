@@ -65,6 +65,9 @@ export function buildMultiSelectionContextMenu(
             copy.location.x += gridSize;
             copy.location.y += gridSize;
           }
+          // A copy is built from the original's own xml, which says nothing of what it hangs
+          // from. Left hanging from nothing, a light or a piece of terrain belongs to no table.
+          obj.parent?.appendChild(copy);
           copy.update();
           cloned.push(copy.identifier);
         }

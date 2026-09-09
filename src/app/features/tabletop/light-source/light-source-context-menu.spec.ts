@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { LIGHT_PRESETS, LightPreset } from '@axe/domain/tabletop/vision-types';
 import {
@@ -23,6 +24,29 @@ describe('buildLightSourceContextMenu', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('hangs a copied light on the table the original hangs on', () => {
+    const table = new GameTable();
+    table.initialize();
+    const light = LightSource.create('L');
+    light.location.x = 100;
+    light.location.y = 100;
+    light.isLock = true;
+    table.appendChild(light);
+    // happy-dom will not parse the dotted attributes a piece writes, so the copy stands in.
+    const copy = LightSource.create('L');
+    copy.location.x = 100;
+    copy.location.y = 100;
+    copy.isLock = true;
+    vi.spyOn(light, 'clone').mockReturnValue(copy);
+
+    findByName(buildLightSourceContextMenu(light, 50, [], vi.fn(), t, vi.fn()), 'copy')?.action?.();
+
+    expect(copy.parent).toBe(table);
+    expect(copy.location.x).toBe(150);
+    expect(copy.location.y).toBe(150);
+    expect(copy.isLock).toBe(false);
   });
 
   it('groups every action for the 2D menu without changing the ordinary menu', () => {
