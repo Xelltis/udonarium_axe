@@ -72,7 +72,11 @@ export class CharacterMacroService {
   ): Promise<ChatMessage | null> {
     if (options.gameSystem !== undefined) return this.send(character, line, options);
 
-    const gameType = options.gameType ?? character.chatPalette?.dicebot ?? this.chatMessageService.gameType;
+    // What the caller named wins; after that the system the reader has chosen in the chat
+    // window, which is where they choose one. The palette's own is the last word, and only
+    // answers where nothing has been chosen: it carries `DiceBot` from the moment a piece is
+    // made, so asking it first would mean a choice made in the chat window never took.
+    const gameType = options.gameType || this.chatMessageService.gameType || character.chatPalette?.dicebot || '';
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     return this.send(character, line, { ...options, gameSystem });
   }
