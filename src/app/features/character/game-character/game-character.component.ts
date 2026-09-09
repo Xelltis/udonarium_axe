@@ -480,7 +480,6 @@ export class GameCharacterComponent {
     [this.billboardTransformImage(), this.multiAnglePieceImageRotation()].filter((part) => part.length > 0).join(' ')
   );
 
-  /** Whether this screen holds a piece's picture to the ground it stands on. */
   /**
    * Whether a piece is kept inside its cell, which the room answers for everyone.
    *
