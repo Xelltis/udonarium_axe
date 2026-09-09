@@ -66,21 +66,32 @@ describe('moving a panel body from one frame to another', () => {
     return frame.location.nativeElement.querySelector('.probe');
   }
 
-  it('answers with a fresh frame content container before anything is drawn into it', () => {
+  /** Builds a panel into one frame and folds it into another, which is what merging does. */
+  function moveTo(
+    from: ComponentRef<UIPanelComponent>,
+    to: ComponentRef<UIPanelComponent>
+  ): ComponentRef<PanelBodyProbeComponent> {
+    const panel = from.injector.get(PanelService);
+    const body = from.instance.openTab(PanelBodyProbeComponent, panel);
+    to.instance.adoptTab(from.instance.releaseTab(panel)!);
+    return body;
+  }
+
+  it('builds a panel into a frame that has not been drawn yet', () => {
     const frame = layer.createComponent(UIPanelComponent, { index: layer.length, injector: layer.injector });
 
-    expect(frame.instance.content()).toBeTruthy();
+    const body = frame.instance.openTab(PanelBodyProbeComponent, frame.injector.get(PanelService));
 
+    expect(body.instance).toBeTruthy();
     frame.destroy();
   });
 
   it('leaves the body standing when the frame it was built in is taken away', () => {
     const first = openFrame();
-    const body = first.instance.content().createComponent(PanelBodyProbeComponent);
     const second = openFrame();
+    const body = moveTo(first, second);
     host.detectChanges();
 
-    second.instance.content().insert(body.hostView);
     first.destroy();
     host.detectChanges();
 
@@ -90,10 +101,8 @@ describe('moving a panel body from one frame to another', () => {
 
   it('leaves the body holding the panel service it was built with', () => {
     const first = openFrame();
-    const body = first.instance.content().createComponent(PanelBodyProbeComponent);
     const second = openFrame();
-
-    second.instance.content().insert(body.hostView);
+    const body = moveTo(first, second);
 
     expect(body.instance.panel).toBe(first.injector.get(PanelService));
     expect(body.instance.panel).not.toBe(second.injector.get(PanelService));
@@ -101,9 +110,8 @@ describe('moving a panel body from one frame to another', () => {
 
   it('goes on drawing the body in the frame it moved to', () => {
     const first = openFrame();
-    const body = first.instance.content().createComponent(PanelBodyProbeComponent);
     const second = openFrame();
-    second.instance.content().insert(body.hostView);
+    const body = moveTo(first, second);
     first.destroy();
 
     body.instance.mark.set('second');
@@ -114,9 +122,8 @@ describe('moving a panel body from one frame to another', () => {
 
   it('takes the body away with the frame it ended up in, not the one it left', () => {
     const first = openFrame();
-    const body = first.instance.content().createComponent(PanelBodyProbeComponent);
     const second = openFrame();
-    second.instance.content().insert(body.hostView);
+    const body = moveTo(first, second);
 
     first.destroy();
     expect(body.instance.gone).toBe(false);

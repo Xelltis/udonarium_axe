@@ -9,8 +9,10 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   signal,
+  Type,
   viewChild,
   ViewContainerRef,
 } from '@angular/core';
@@ -18,7 +20,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
-import { PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
+import { PanelFrame, PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -31,6 +33,20 @@ import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive'
 
 const PANEL_FLOOR_OPACITY = 0.25;
 
+/** One panel standing in a frame: what it is, where it is drawn, and what it was built into. */
+export interface PanelTabHandle {
+  panel: PanelService;
+  slot: ComponentRef<PanelTabSlotComponent>;
+  body: ComponentRef<unknown>;
+  /** The size it wants back when it stands in a frame of its own again. */
+  box: { width: number; height: number };
+}
+
+interface PanelTab extends PanelTabHandle {
+  /** Dropped when the panel leaves, or the frame goes on answering for a panel it lost. */
+  unsubscribe: () => void;
+}
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'ui-panel',
@@ -39,11 +55,12 @@ const PANEL_FLOOR_OPACITY = 0.25;
   providers: [PanelService],
   imports: [DraggableDirective, ResizableDirective, NgClass, NgComponentOutlet, TextTooltipDirective],
 })
-export class UIPanelComponent {
+export class UIPanelComponent implements PanelFrame {
   panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly viewport = inject(ViewportService);
   private readonly tabletopDisplay = inject(TabletopDisplayService);
   private readonly panelTransparency = inject(PanelTransparencyService);
@@ -99,21 +116,110 @@ export class UIPanelComponent {
   readonly draggablePanel = viewChild.required<ElementRef<HTMLElement>>('draggablePanel');
   readonly titleBar = viewChild.required<ElementRef<HTMLDivElement>>('titleBar');
   private readonly slots = viewChild.required('slots', { read: ViewContainerRef });
-  private slot: ComponentRef<PanelTabSlotComponent> | null = null;
+
+  readonly tabs = signal<readonly PanelTab[]>([]);
+  readonly activeIndex = signal(0);
 
   /**
-   * Where the body of the panel this frame holds is built.
+   * The panel this frame is wearing: its name, its buttons, the kind it is faded by.
    *
-   * The ground is made on the first ask rather than with the frame, since a frame drawn
-   * without a panel in it - which is every frame a test builds - has nothing to stand.
+   * A frame nothing was ever built into answers with its own, which is what a frame put up
+   * by hand is.
    */
-  content(): ViewContainerRef {
-    this.slot ??= this.slots().createComponent(PanelTabSlotComponent);
-    return this.slot.instance.content();
+  readonly activePanel = computed<PanelService>(() => this.tabs()[this.activeIndex()]?.panel ?? this.panelService);
+
+  /** Builds a panel into a place of its own in this frame. */
+  openTab<T>(childComponent: Type<T>, panel: PanelService): ComponentRef<T> {
+    const slot = this.slots().createComponent(PanelTabSlotComponent);
+    const body = slot.instance.content().createComponent(childComponent);
+    panel.setDefaultScrollablePanel(slot.instance.scrollable().nativeElement);
+    this.holdTab({ panel, slot, body, box: { width: this.width, height: this.height } });
+    return body;
+  }
+
+  /** Takes a panel in from another frame, the ground it stands on and all. */
+  adoptTab(handle: PanelTabHandle): void {
+    this.slots().insert(handle.slot.hostView);
+    handle.panel.attachTo(this);
+    this.holdTab(handle);
+  }
+
+  /** Hands a panel out without taking it down. The frame stays, emptied, for the caller to end. */
+  releaseTab(panel: PanelService): PanelTabHandle | null {
+    const tab = this.tabOf(panel);
+    if (!tab) return null;
+    this.dropTab(tab);
+    return { panel: tab.panel, slot: tab.slot, body: tab.body, box: tab.box };
+  }
+
+  /** Puts one panel away. The frame goes with the last of them. */
+  closeTab(panel: PanelService): void {
+    const tab = this.tabOf(panel);
+    if (!tab) {
+      this.self?.destroy();
+      return;
+    }
+    this.dropTab(tab);
+    tab.body.destroy();
+    tab.slot.destroy();
+    if (this.tabs().length === 0) this.self?.destroy();
+  }
+
+  tabCount(): number {
+    return this.tabs().length;
+  }
+
+  selectTab(index: number): void {
+    const tabs = this.tabs();
+    if (index < 0 || index >= tabs.length) return;
+    this.activeIndex.set(index);
+    for (const [at, tab] of tabs.entries()) tab.panel.isActiveTab.set(at === index);
+    const shown = tabs[index];
+    afterNextRender({ read: () => shown.panel.activated$.emit() }, { injector: this.injector });
+  }
+
+  private tabOf(panel: PanelService): PanelTab | null {
+    return this.tabs().find((tab) => tab.panel === panel) ?? null;
+  }
+
+  private holdTab(handle: PanelTabHandle): void {
+    const tab: PanelTab = { ...handle, unsubscribe: this.listenTo(handle.panel) };
+    this.tabs.update((held) => [...held, tab]);
+    this.selectTab(this.tabs().length - 1);
+  }
+
+  /**
+   * Follows what a panel asks of the frame it stands in.
+   *
+   * The frame's own panel is already followed from where the frame was built, so only the
+   * ones folded in from elsewhere are taken up here. What a panel asks for while it is behind
+   * another is not the frame's business: it would shrink or stretch around something nobody
+   * is looking at.
+   */
+  private listenTo(panel: PanelService): () => void {
+    if (panel === this.panelService) return () => undefined;
+    const stopMinimize = panel.minimizeRequest$.subscribe((minimized) => {
+      if (panel !== this.activePanel() || minimized === this.isMinimized()) return;
+      this.toggleMinimize();
+    });
+    const stopResize = panel.resizeRequest$.subscribe((size) => {
+      if (panel === this.activePanel()) this.resizeTo(size);
+    });
+    return () => {
+      stopMinimize();
+      stopResize();
+    };
+  }
+
+  private dropTab(tab: PanelTab): void {
+    tab.unsubscribe();
+    this.tabs.update((held) => held.filter((entry) => entry !== tab));
+    this.activeIndex.set(Math.min(this.activeIndex(), Math.max(0, this.tabs().length - 1)));
+    this.selectTab(this.activeIndex());
   }
 
   private scrollablePanel(): ElementRef<HTMLDivElement> | null {
-    return this.slot?.instance.scrollable() ?? null;
+    return this.tabs()[this.activeIndex()]?.slot.instance.scrollable() ?? null;
   }
 
   readonly titleInput = input('', { alias: 'title' });
@@ -136,19 +242,23 @@ export class UIPanelComponent {
       this.panelService.minWidth = this.minWidthInput();
       this.panelService.minHeight = this.minHeightInput();
     });
-    effect(() => {
-      const slot = this.slot;
-      if (!slot) return;
-      slot.setInput('padding', this.padding_);
-      slot.setInput('top', this.bodyTop());
-      slot.setInput('overflowVisible', this.overflowVisible());
-      slot.setInput('contentMinimized', this.contentMinimized);
-    });
     this.panelService.minimizeRequest$.subscribe((minimized) => {
-      if (minimized === this.isMinimized()) return;
+      if (this.activePanel() !== this.panelService || minimized === this.isMinimized()) return;
       this.toggleMinimize();
     }, this.destroyRef);
-    this.panelService.resizeRequest$.subscribe((size) => this.resizeTo(size), this.destroyRef);
+    this.panelService.resizeRequest$.subscribe((size) => {
+      if (this.activePanel() === this.panelService) this.resizeTo(size);
+    }, this.destroyRef);
+    effect(() => {
+      const active = this.activeIndex();
+      for (const [at, tab] of this.tabs().entries()) {
+        tab.slot.setInput('padding', this.padding_);
+        tab.slot.setInput('top', this.bodyTop());
+        tab.slot.setInput('overflowVisible', this.overflowVisible());
+        tab.slot.setInput('contentMinimized', this.contentMinimized);
+        tab.slot.setInput('active', at === active);
+      }
+    });
     afterNextRender({
       write: () => {
         const ground = this.scrollablePanel();
@@ -286,10 +396,6 @@ export class UIPanelComponent {
     this.self = self;
   }
 
-  closeTab(_panel: PanelService): void {
-    this.self?.destroy();
-  }
-
   showPortrait(flag: boolean) {
     this.portraitDispByMouse.set(flag);
   }
@@ -368,14 +474,14 @@ export class UIPanelComponent {
     const panel = this.draggablePanel().nativeElement;
     if (this.isMinimized()) {
       this.isMinimized.set(false);
-      this.panelService.isMinimized.set(false);
+      this.markMinimized(false);
       if (body) body.style.display = '';
       if (this.panelService.minimizeToContent) this.width = this.preWidth;
       this.height = this.preHeight;
     } else {
       this.preHeight = panel.offsetHeight;
       this.isMinimized.set(true);
-      this.panelService.isMinimized.set(true);
+      this.markMinimized(true);
       if (this.panelService.minimizeToContent) {
         this.preWidth = panel.offsetWidth;
         if (body) body.style.display = '';
@@ -385,6 +491,12 @@ export class UIPanelComponent {
         this.height = this.titleBar().nativeElement.offsetHeight;
       }
     }
+  }
+
+  /** Every panel the frame holds is shrunk with it, since what shrinks is the frame. */
+  private markMinimized(minimized: boolean): void {
+    this.panelService.isMinimized.set(minimized);
+    for (const tab of this.tabs()) tab.panel.isMinimized.set(minimized);
   }
 
   toggleFullScreen() {
@@ -495,7 +607,8 @@ export class UIPanelComponent {
       clearInterval(this.timerCheckWindowSize);
       this.timerCheckWindowSize = null;
     }
-    if (this.panelService) this.panelService.close();
+    if (this.tabs().length > 0) this.self?.destroy();
+    else this.panelService.close();
   }
 
   backGroundSetting(isWhiteLog: boolean): string {

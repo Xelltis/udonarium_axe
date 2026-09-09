@@ -94,8 +94,9 @@ export interface PanelOption {
  * to hold more than one panel, so a panel asks it to be taken away rather than tearing the
  * frame down itself.
  */
-interface PanelFrame {
-  content: () => ViewContainerRef;
+export interface PanelFrame {
+  /** Builds a panel into a place of its own in this frame, and answers with what it built. */
+  openTab: <T>(childComponent: Type<T>, panel: PanelService) => ComponentRef<T>;
   setInitialRotation: (degrees: PanelRotationDegrees) => void;
   /** A component cannot take itself away, so it is handed the means to. */
   claimSelf: (self: { destroy: () => void }) => void;
@@ -188,6 +189,15 @@ export class PanelService {
 
   /** Whether the panel stands in a window of its own, for content that has to work differently there. */
   readonly windowed = signal(false);
+  /** Whether this is the panel its frame is showing. True for one standing on its own. */
+  readonly isActiveTab = signal(true);
+  /**
+   * Fires when this panel is brought to the front of its frame, or lands in one of its own.
+   *
+   * A panel drawn behind another has no size, so everything it measured of itself while it
+   * was back there reads zero. This is where it measures again.
+   */
+  readonly activated$ = new EventChannel<void>();
   private readonly _chatTab = signal<ChatTab | null>(null);
   get chatTab(): ChatTab | null {
     return this._chatTab();
@@ -276,11 +286,11 @@ export class PanelService {
       injector,
     });
     panelComponentRef.instance.claimSelf(panelComponentRef);
-    const bodyComponentRef: ComponentRef<T> = panelComponentRef.instance.content().createComponent(childComponent);
 
     const childPanelService: PanelService = panelComponentRef.injector.get(PanelService);
-
     childPanelService.frame = panelComponentRef.instance;
+    const bodyComponentRef: ComponentRef<T> = panelComponentRef.instance.openTab(childComponent, childPanelService);
+
     childPanelService.panelKind.set(panelKindOf(childComponent));
     const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
     if (inheritedOption) this.applyPanelOption(panelComponentRef, childPanelService, inheritedOption);
@@ -422,6 +432,11 @@ export class PanelService {
     value: PanelService[K]
   ) {
     panelService[key] = value;
+  }
+
+  /** Told when the panel changes frames, which is what folding it into another one does. */
+  attachTo(frame: PanelFrame): void {
+    this.frame = frame;
   }
 
   close() {

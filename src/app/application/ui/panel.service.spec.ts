@@ -26,23 +26,20 @@ function setupOpenMocks(initialChildState?: Partial<PanelService>) {
         self = frame;
       },
       closeTab: () => self?.destroy(),
-      content: () =>
+      openTab: () =>
         ({
-          createComponent: () =>
-            ({
-              instance: bodyInstance,
-              onDestroy: (callback: () => void) => {
-                destroyCallback = callback;
-              },
-            }) as unknown as ComponentRef<DummyBodyComponent>,
-        }) as unknown as ViewContainerRef,
+          instance: bodyInstance,
+          onDestroy: (callback: () => void) => {
+            destroyCallback = callback;
+          },
+        }) as unknown as ComponentRef<DummyBodyComponent>,
     },
     injector: {
       get: () => childPanelService,
     },
     setInput,
     destroy,
-  } as unknown as ComponentRef<{ content: () => ViewContainerRef }>;
+  } as unknown as ComponentRef<{ openTab: () => ComponentRef<DummyBodyComponent> }>;
 
   const parentViewContainerRef = {
     injector: {},
