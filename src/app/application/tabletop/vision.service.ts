@@ -29,10 +29,10 @@ import {
 import { computeVisibleCellsFor, VisibleCellsOptions } from '@axe/domain/tabletop/fog/visible-cells';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
-import { rectangleSegments } from '@axe/domain/tabletop/los/segments';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { terrainTopPx } from '@axe/domain/tabletop/terrain-height';
 import {
   computeLightBeam,
@@ -295,7 +295,7 @@ export class VisionService {
     const tops = new Float32Array(cellCount(grid));
     for (const terrain of table.terrains) {
       if (!terrain.hasWall || !terrain.blocksSightNow || surfaceOf(terrain) !== 'floor') continue;
-      const box = this.terrainBox(terrain, grid.sizePx);
+      const box = terrainBoxOf(terrain, grid.sizePx);
       const top = terrainTopPx(terrain, grid.sizePx);
       forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => {
         cells.set(cell);
@@ -304,27 +304,6 @@ export class VisionService {
     }
     return { cells, tops };
   });
-
-  private terrainBox(terrain: Terrain, gridSize: number): { minX: number; minY: number; maxX: number; maxY: number } {
-    const edges = rectangleSegments(
-      terrain.location.x,
-      terrain.location.y,
-      terrain.width * gridSize,
-      terrain.depth * gridSize,
-      terrain.rotate
-    );
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const edge of edges) {
-      minX = Math.min(minX, edge.x1, edge.x2);
-      minY = Math.min(minY, edge.y1, edge.y2);
-      maxX = Math.max(maxX, edge.x1, edge.x2);
-      maxY = Math.max(maxY, edge.y1, edge.y2);
-    }
-    return { minX, minY, maxX, maxY };
-  }
 
   private readonly sightIndexes = computed<SegmentIndexes | null>(() => {
     const standing = this.standingSegments();
