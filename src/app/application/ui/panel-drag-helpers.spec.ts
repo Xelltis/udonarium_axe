@@ -1,4 +1,11 @@
-import { findDropZone, isTabbablePanel, pointerOf, TabbablePanelFacts } from '@axe/application/ui/panel-drag-helpers';
+import {
+  findDropZone,
+  isTabbablePanel,
+  pointerOf,
+  TabbablePanelFacts,
+  tabInsertIndex,
+  tearOffBox,
+} from '@axe/application/ui/panel-drag-helpers';
 
 function rect(left: number, top: number, right: number, bottom: number) {
   return { left, top, right, bottom };
@@ -93,5 +100,44 @@ describe('pointerOf', () => {
     const event = { touches: [], changedTouches: [touch] } as unknown as TouchEvent;
 
     expect(pointerOf(event)).toEqual({ x: 7, y: 8 });
+  });
+});
+
+describe('tabInsertIndex', () => {
+  const pills = [rect(0, 0, 40, 20), rect(40, 0, 80, 20), rect(80, 0, 120, 20)];
+
+  it('lands before the name it was dropped on the front of', () => {
+    expect(tabInsertIndex(10, pills)).toBe(0);
+    expect(tabInsertIndex(50, pills)).toBe(1);
+  });
+
+  it('lands after the name it was dropped on the back of', () => {
+    expect(tabInsertIndex(30, pills)).toBe(1);
+    expect(tabInsertIndex(70, pills)).toBe(2);
+  });
+
+  it('lands at the end when it was dropped past them all', () => {
+    expect(tabInsertIndex(200, pills)).toBe(3);
+  });
+});
+
+describe('tearOffBox', () => {
+  const viewport = { width: 1000, height: 800 };
+  const size = { width: 400, height: 300 };
+
+  it('stands the panel under the hand that pulled it out', () => {
+    expect(tearOffBox({ x: 500, y: 300 }, size, viewport)).toEqual({ left: 300, top: 286 });
+  });
+
+  it('keeps it on the screen at the near edges', () => {
+    expect(tearOffBox({ x: 5, y: 5 }, size, viewport)).toEqual({ left: 0, top: 0 });
+  });
+
+  it('keeps it on the screen at the far edges', () => {
+    expect(tearOffBox({ x: 995, y: 795 }, size, viewport)).toEqual({ left: 600, top: 500 });
+  });
+
+  it('gives up rather than pushing a panel wider than the screen off it', () => {
+    expect(tearOffBox({ x: 500, y: 400 }, { width: 1200, height: 900 }, viewport)).toEqual({ left: 0, top: 0 });
   });
 });

@@ -211,6 +211,10 @@
       [top]="barBottom()"
       (chose)="selectTab($event)"
       (closed)="closeTabAt($event)"
+      (grabbed)="onTabGrabbed()"
+      (dragged)="onTabDragged($event)"
+      (moved)="onTabMoved($event)"
+      (tookOut)="onTabTakenOut($event)"
     />
   }
   <ng-container #slots></ng-container>

@@ -71,3 +71,26 @@ export function pointerOf(event: MouseEvent | TouchEvent): { x: number; y: numbe
   }
   return { x: event.clientX, y: event.clientY };
 }
+
+/** Where a name let go of at this point lands in a row of them. */
+export function tabInsertIndex(x: number, pills: readonly DragRect[]): number {
+  for (const [index, pill] of pills.entries()) {
+    if (x < pill.left + (pill.right - pill.left) / 2) return index;
+  }
+  return pills.length;
+}
+
+/**
+ * Where a panel pulled out of a group stands: under the pointer that pulled it, on screen.
+ *
+ * Held by its bar rather than by its middle, since that is where the hand is.
+ */
+export function tearOffBox(
+  pointer: { x: number; y: number },
+  size: { width: number; height: number },
+  viewport: { width: number; height: number }
+): { left: number; top: number } {
+  const left = Math.max(0, Math.min(pointer.x - size.width / 2, Math.max(0, viewport.width - size.width)));
+  const top = Math.max(0, Math.min(pointer.y - 14, Math.max(0, viewport.height - size.height)));
+  return { left: Math.round(left), top: Math.round(top) };
+}

@@ -40,6 +40,7 @@ class PanelTabsTestHostComponent {
 describe('a frame holding more than one panel', () => {
   let host: ComponentFixture<PanelTabsTestHostComponent>;
   let layer: ViewContainerRef;
+  let beforeLayer: { frame: typeof PanelService.UIPanelComponentClass; layer: ViewContainerRef };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -50,9 +51,16 @@ describe('a frame holding more than one panel', () => {
     host = TestBed.createComponent(PanelTabsTestHostComponent);
     host.detectChanges();
     layer = host.componentInstance.layer();
+    beforeLayer = { frame: PanelService.UIPanelComponentClass, layer: PanelService.defaultParentViewContainerRef };
+    PanelService.UIPanelComponentClass = UIPanelComponent;
+    PanelService.defaultParentViewContainerRef = layer;
   });
 
-  afterEach(() => host.destroy());
+  afterEach(() => {
+    PanelService.UIPanelComponentClass = beforeLayer.frame;
+    PanelService.defaultParentViewContainerRef = beforeLayer.layer;
+    host.destroy();
+  });
 
   function openFrame(title: string): {
     frame: ComponentRef<UIPanelComponent>;
@@ -266,6 +274,66 @@ describe('a frame holding more than one panel', () => {
 
     expect(second.body.instance.gone).toBe(true);
     expect(first.frame.instance.tabCount()).toBe(1);
+  });
+
+  /** Carries a name out of the row and lets go of it somewhere on the screen. */
+  function dragTabOut(frame: ComponentRef<UIPanelComponent>, index: number, to: { x: number; y: number }): void {
+    const strip = frame.instance as unknown as {
+      onTabGrabbed(): void;
+      onTabDragged(at: { x: number; y: number }): void;
+      onTabTakenOut(taken: { index: number; x: number; y: number }): void;
+    };
+    strip.onTabGrabbed();
+    strip.onTabDragged(to);
+    strip.onTabTakenOut({ index, ...to });
+    host.detectChanges();
+  }
+
+  it('stands a panel dragged out of the row in a frame of its own', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    place(first.frame, 0, 0);
+    place(second.frame, 400, 0);
+    dragBar(second.frame, { x: 20, y: 14 });
+
+    dragTabOut(first.frame, 1, { x: 600, y: 300 });
+
+    expect(first.frame.instance.tabCount()).toBe(1);
+    expect(second.body.instance.gone).toBe(false);
+    expect(second.panel.isShow).toBe(true);
+  });
+
+  it('takes the emptied frame away when its last panel is pulled out', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    place(first.frame, 0, 0);
+    place(second.frame, 400, 0);
+    dragBar(second.frame, { x: 20, y: 14 });
+    let standing = 1;
+    first.frame.onDestroy(() => (standing -= 1));
+
+    dragTabOut(first.frame, 0, { x: 600, y: 300 });
+    dragTabOut(first.frame, 0, { x: 700, y: 300 });
+
+    expect(standing).toBe(0);
+  });
+
+  it('puts a name back in the order it was dropped in', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    place(first.frame, 0, 0);
+    place(second.frame, 400, 0);
+    dragBar(second.frame, { x: 20, y: 14 });
+    const strip = first.frame.instance as unknown as { onTabMoved(move: { from: number; to: number }): void };
+
+    strip.onTabMoved({ from: 1, to: 0 });
+    host.detectChanges();
+
+    const names = [...first.frame.location.nativeElement.querySelectorAll('[role="tab"] span')].map(
+      (pill) => (pill as HTMLElement).textContent
+    );
+    expect(names).toEqual(['Sheet', 'Chat']);
+    expect(first.frame.instance.activeIndex()).toBe(0);
   });
 
   it('tells a panel when it is looked at again', async () => {

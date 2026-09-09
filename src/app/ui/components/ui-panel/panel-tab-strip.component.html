@@ -2,6 +2,7 @@
   class="panel-no-drag border-ui-border-titlebar bg-ui-panel absolute box-border flex h-7 w-full scrollbar-none items-center gap-0.75 overflow-x-auto overflow-y-hidden border-b border-solid px-1.5"
   [style.top]="top()"
   role="tablist"
+  #strip
 >
   @for (tab of tabs(); track $index) {
     <div
@@ -13,7 +14,9 @@
       role="tab"
       [attr.aria-selected]="$index === active()"
       [attr.data-testid]="'panel-tab-' + $index"
-      (pointerdown)="chose.emit($index)"
+      (pointerdown)="onPillPointerDown($event, $index)"
+      (pointermove)="onPillPointerMove($event)"
+      (pointerup)="onPillPointerUp($event)"
     >
       <span class="min-w-0 truncate">{{ tab }}</span>
       <button

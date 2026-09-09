@@ -103,6 +103,8 @@ export interface PanelFrame {
   claimSelf: (self: { destroy: () => void }) => void;
   /** Puts one panel away. The frame goes with the last of them. */
   closeTab: (panel: PanelService) => void;
+  /** Takes a panel in from another frame, the ground it stands on and all. */
+  takeIn: (handoff: { panel: PanelService }) => void;
 }
 
 type PanelServiceAssignableKey =
@@ -313,6 +315,25 @@ export class PanelService {
     });
 
     return bodyComponentRef.instance as T;
+  }
+
+  /**
+   * Puts up a frame with nothing in it, for a panel pulled out of a group to stand in.
+   *
+   * Everything else opens a frame and a panel together; a panel torn off already exists and
+   * only wants somewhere to be.
+   */
+  openFrame(option?: PanelOption, parentViewContainerRef?: ViewContainerRef): PanelFrame {
+    const parent = parentViewContainerRef ?? PanelService.defaultParentViewContainerRef;
+    const panelComponentRef = parent.createComponent(PanelService.UIPanelComponentClass, {
+      index: parent.length,
+      injector: parent.injector,
+    });
+    panelComponentRef.instance.claimSelf(panelComponentRef);
+    if (option) {
+      this.applyPanelOption(panelComponentRef, panelComponentRef.injector.get(PanelService), option);
+    }
+    return panelComponentRef.instance;
   }
 
   openLazy<T>(

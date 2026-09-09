@@ -22,7 +22,7 @@ import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-displ
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { PanelFrame, PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
 import { PanelDragService, PanelDropFrame, PanelHandoff } from '@axe/application/ui/panel-drag.service';
-import { PanelDropZone, pointerOf } from '@axe/application/ui/panel-drag-helpers';
+import { PanelDropZone, pointerOf, tearOffBox } from '@axe/application/ui/panel-drag-helpers';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -204,6 +204,47 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
 
   closeTabAt(index: number): void {
     this.tabs()[index]?.panel.close();
+  }
+
+  /** A name taken hold of: from here it may land on another frame, or on nothing at all. */
+  protected onTabGrabbed(): void {
+    this.panelDrag.begin(this);
+  }
+
+  protected onTabDragged(at: { x: number; y: number }): void {
+    this.panelDrag.move(at.x, at.y);
+  }
+
+  protected onTabMoved(move: { from: number; to: number }): void {
+    const held = this.tabs()[move.from];
+    if (!held) return;
+    const rest = this.tabs().filter((tab) => tab !== held);
+    this.tabs.set([...rest.slice(0, move.to), held, ...rest.slice(move.to)]);
+    this.selectTab(this.tabs().indexOf(held));
+  }
+
+  /**
+   * A panel pulled out of the row: into whatever frame it was dropped on, or into one of its own.
+   *
+   * It stands at the size it had when it was folded in rather than at the size of the group,
+   * or a panel pulled out of a large frame would come away enormous.
+   */
+  protected onTabTakenOut(taken: { index: number; x: number; y: number }): void {
+    const target = this.panelDrag.end();
+    const tab = this.tabs()[taken.index];
+    if (!tab) return;
+    const handle = this.releaseTab(tab.panel);
+    if (!handle) return;
+
+    if (target && target !== (this as PanelDropFrame)) {
+      target.takeIn(handle);
+    } else {
+      const at = tearOffBox(taken, handle.box, { width: window.innerWidth, height: window.innerHeight });
+      this.panelService
+        .openFrame({ left: at.left, top: at.top, width: handle.box.width, height: handle.box.height })
+        .takeIn(handle);
+    }
+    if (this.tabCount() === 0) this.dismissFrame();
   }
 
   /** Builds a panel into a place of its own in this frame. */
