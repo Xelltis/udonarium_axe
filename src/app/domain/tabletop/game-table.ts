@@ -24,6 +24,7 @@ import {
   DEFAULT_TABLETOP_DISPLAY_SETTINGS as DISPLAY_DEFAULTS,
   TabletopDisplaySettings,
 } from '@axe/domain/tabletop/tabletop-display';
+import { TabletopMenuStyle } from '@axe/domain/tabletop/tabletop-menu-style';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { DEFAULT_AMBIENT_COLOR } from '@axe/domain/tabletop/vision-types';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
@@ -75,7 +76,9 @@ export class GameTable extends ObjectNode {
    */
   @SyncVar() orthographicProjection: boolean = DISPLAY_DEFAULTS.orthographicProjection;
   @SyncVar() pieceImageInCell: boolean = DISPLAY_DEFAULTS.pieceImageInCell;
-  @SyncVar() radialMenuEnabled: boolean = DISPLAY_DEFAULTS.radialMenuEnabled;
+  @SyncVar() tabletopMenuStyle: TabletopMenuStyle = DISPLAY_DEFAULTS.tabletopMenuStyle;
+  /** What the style was chosen by before it had a name. Read only where no style is written. */
+  @SyncVar() radialMenuEnabled: boolean = false;
   @SyncVar() radialMenuRotationSpeed: number = DISPLAY_DEFAULTS.radialMenuRotationSpeed;
   @SyncVar() hoverDetailPlacement: HoverDetailPlacement = DISPLAY_DEFAULTS.hoverDetailPlacement;
   @SyncVar() multiAngleEnabled: boolean = DISPLAY_DEFAULTS.multiAngleEnabled;

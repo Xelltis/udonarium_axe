@@ -378,13 +378,13 @@ export class RangeComponent {
       (r) => this.openCellEditor(r)
     );
     const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d()) {
+    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
       this.contextMenuService.openRadial(
         menuPosition,
         menu.actions,
         menu.radialGroups,
         this.name(),
-        display.radialMenuEnabled,
+        display.tabletopMenuStyle === 'radial',
         display.radialMenuRotationSpeed,
         multiAngleFontScaleFactor(display.multiAngleFontScale)
       );

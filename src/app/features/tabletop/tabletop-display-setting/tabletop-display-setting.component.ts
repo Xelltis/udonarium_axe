@@ -40,6 +40,7 @@ import {
   TABLETOP_MODE_SETTINGS,
   TabletopDisplaySettings,
 } from '@axe/domain/tabletop/tabletop-display';
+import { TABLETOP_MENU_STYLES, TabletopMenuStyle } from '@axe/domain/tabletop/tabletop-menu-style';
 import { VIEW_MODES, ViewMode } from '@axe/domain/ui/view-mode';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -223,11 +224,13 @@ export class TabletopDisplaySettingComponent {
     this.set({ panelRotationEnabled: value });
   }
 
-  get radialMenuEnabled(): boolean {
-    return this.settings.radialMenuEnabled;
+  protected readonly menuStyles = TABLETOP_MENU_STYLES;
+
+  get tabletopMenuStyle(): TabletopMenuStyle {
+    return this.settings.tabletopMenuStyle;
   }
-  set radialMenuEnabled(value: boolean) {
-    this.set({ radialMenuEnabled: value });
+  set tabletopMenuStyle(value: TabletopMenuStyle) {
+    this.set({ tabletopMenuStyle: value });
   }
 
   get radialMenuRotationSpeed(): number {

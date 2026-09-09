@@ -156,12 +156,12 @@ describe('RangeComponent', () => {
   });
 
   describe('context menu display', () => {
-    function openMenu(mode2d: boolean, radialMenuEnabled: boolean): RangeArea {
+    function openMenu(mode2d: boolean, menuStyle: 'four-way' | 'radial' | 'standard'): RangeArea {
       const range = RangeArea.create('射程メニュー', 3, 3, 50);
       fixture.componentRef.setInput('range', range);
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = mode2d;
-      table.radialMenuEnabled = radialMenuEnabled;
+      table.tabletopMenuStyle = menuStyle;
       table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
       vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
@@ -171,18 +171,18 @@ describe('RangeComponent', () => {
       return range;
     }
 
-    it.each([false, true])('uses the 2D menu interface with rotating display %s', (enabled) => {
+    it.each(['four-way', 'radial'] as const)('opens the four-way menu when the style is %s', (style) => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
-      const range = openMenu(true, enabled);
+      const range = openMenu(true, style);
 
       expect(openRadial).toHaveBeenCalledWith(
         expect.objectContaining({ x: 240, y: 180 }),
         expect.any(Array),
         expect.any(Array),
         '射程メニュー',
-        enabled,
+        style === 'radial',
         9,
         1
       );
@@ -200,7 +200,7 @@ describe('RangeComponent', () => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
-      const range = openMenu(false, true);
+      const range = openMenu(false, 'radial');
 
       expect(openOrdinary).toHaveBeenCalledWith(
         expect.objectContaining({ x: 240, y: 180 }),

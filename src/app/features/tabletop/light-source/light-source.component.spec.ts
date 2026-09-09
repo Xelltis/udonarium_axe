@@ -48,10 +48,10 @@ describe('LightSourceComponent', () => {
   });
 
   describe('context menu display', () => {
-    function openMenu(mode2d: boolean, radialMenuEnabled: boolean): void {
+    function openMenu(mode2d: boolean, menuStyle: 'four-way' | 'radial' | 'standard'): void {
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = mode2d;
-      table.radialMenuEnabled = radialMenuEnabled;
+      table.tabletopMenuStyle = menuStyle;
       table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
       vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
@@ -60,18 +60,18 @@ describe('LightSourceComponent', () => {
       component.onContextMenu(new Event('contextmenu', { cancelable: true }));
     }
 
-    it.each([false, true])('uses the 2D menu interface with rotating display %s', (enabled) => {
+    it.each(['four-way', 'radial'] as const)('opens the four-way menu when the style is %s', (style) => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
-      openMenu(true, enabled);
+      openMenu(true, style);
 
       expect(openRadial).toHaveBeenCalledWith(
         expect.objectContaining({ x: 240, y: 180 }),
         expect.any(Array),
         expect.any(Array),
         'lantern',
-        enabled,
+        style === 'radial',
         9,
         1
       );
@@ -87,7 +87,7 @@ describe('LightSourceComponent', () => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
       const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
-      openMenu(false, true);
+      openMenu(false, 'radial');
 
       expect(openOrdinary).toHaveBeenCalledWith(
         expect.objectContaining({ x: 240, y: 180 }),

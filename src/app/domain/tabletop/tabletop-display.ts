@@ -28,6 +28,11 @@ import {
   MAX_RADIAL_MENU_ROTATION_SPEED,
   MIN_RADIAL_MENU_ROTATION_SPEED,
 } from '@axe/domain/tabletop/radial-menu';
+import {
+  asTabletopMenuStyle,
+  DEFAULT_TABLETOP_MENU_STYLE,
+  TabletopMenuStyle,
+} from '@axe/domain/tabletop/tabletop-menu-style';
 
 /**
  * How a table laid flat is drawn and reached, for the reader looking straight down on it.
@@ -41,8 +46,8 @@ export interface TabletopDisplaySettings {
   orthographicProjection: boolean;
   /** How wide one square is meant to measure on the glass, for a screen laid flat under miniatures. */
   cellMm: number;
-  /** Whether the four-way menus turn, rather than standing in four straight lists. */
-  radialMenuEnabled: boolean;
+  /** Which menu a right-click opens: the ordinary list, four straight lists, or a turning ring. */
+  tabletopMenuStyle: TabletopMenuStyle;
   radialMenuRotationSpeed: number;
   hoverDetailPlacement: HoverDetailPlacement;
   multiAngleEnabled: boolean;
@@ -76,7 +81,7 @@ export type TabletopDisplayOwn = Partial<TabletopDisplaySettings>;
 export const DEFAULT_TABLETOP_DISPLAY_SETTINGS: TabletopDisplaySettings = {
   orthographicProjection: false,
   cellMm: DEFAULT_CELL_MM,
-  radialMenuEnabled: false,
+  tabletopMenuStyle: DEFAULT_TABLETOP_MENU_STYLE,
   radialMenuRotationSpeed: DEFAULT_RADIAL_MENU_ROTATION_SPEED,
   hoverDetailPlacement: DEFAULT_HOVER_DETAIL_PLACEMENT,
   multiAngleEnabled: false,
@@ -107,7 +112,7 @@ export const DEFAULT_TABLETOP_DISPLAY_SETTINGS: TabletopDisplaySettings = {
 export const TABLETOP_MODE_SETTINGS: Readonly<Partial<TabletopDisplaySettings>> = {
   orthographicProjection: true,
   hoverDetailPlacement: 'screen-edges',
-  radialMenuEnabled: true,
+  tabletopMenuStyle: 'radial',
   panelRotationEnabled: true,
   multiAngleEnabled: true,
   multiAngleTickerEnabled: true,
@@ -151,7 +156,7 @@ export function normalizeTabletopDisplaySettings(value: unknown): TabletopDispla
       source['cellMm'] === '' || source['cellMm'] === null || source['cellMm'] === undefined
         ? defaults.cellMm
         : clampCellMm(Number(source['cellMm'])),
-    radialMenuEnabled: booleanOr(source['radialMenuEnabled'], defaults.radialMenuEnabled),
+    tabletopMenuStyle: asTabletopMenuStyle(source['tabletopMenuStyle'], source['radialMenuEnabled']),
     radialMenuRotationSpeed: finiteInRange(
       source['radialMenuRotationSpeed'],
       defaults.radialMenuRotationSpeed,
@@ -206,6 +211,10 @@ export function normalizeTabletopDisplayOwn(value: unknown): TabletopDisplayOwn 
   for (const key of Object.keys(DEFAULT_TABLETOP_DISPLAY_SETTINGS) as TabletopDisplayKey[]) {
     if (!(key in source)) continue;
     Object.assign(own, { [key]: held[key] });
+  }
+  // A screen told to turn its menus before the style had a name said so under the old key.
+  if (!('tabletopMenuStyle' in source) && 'radialMenuEnabled' in source) {
+    own.tabletopMenuStyle = held.tabletopMenuStyle;
   }
   return own;
 }

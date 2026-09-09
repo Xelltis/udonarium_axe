@@ -49,7 +49,7 @@ describe('GameCharacterComponent', () => {
     table.mode2d = false;
     table.facingMark = 'none';
     table.imageBillboard = false;
-    table.radialMenuEnabled = false;
+    table.tabletopMenuStyle = 'four-way';
     table.radialMenuRotationSpeed = 5;
     table.multiAngleEnabled = false;
     table.multiAngleResourceBuffEnabled = false;
@@ -331,12 +331,17 @@ describe('GameCharacterComponent', () => {
       });
     }
 
-    function openMenu(tableMode2d: boolean, radialMenuEnabled: boolean, size = 1, showRotatingName = false) {
+    function openMenu(
+      tableMode2d: boolean,
+      menuStyle: 'four-way' | 'radial' | 'standard',
+      size = 1,
+      showRotatingName = false
+    ) {
       const character = GameCharacter.create('menu-piece', size, '');
       fixture.componentRef.setInput('gameCharacter', character);
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = tableMode2d;
-      table.radialMenuEnabled = radialMenuEnabled;
+      table.tabletopMenuStyle = menuStyle;
       table.radialMenuRotationSpeed = 7;
       table.multiAngleEnabled = showRotatingName;
       fixture.detectChanges();
@@ -362,7 +367,7 @@ describe('GameCharacterComponent', () => {
       const menus = TestBed.inject(ContextMenuService);
       const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
-      const character = openMenu(false, true);
+      const character = openMenu(false, 'radial');
 
       try {
         expect(open).toHaveBeenCalled();
@@ -372,10 +377,10 @@ describe('GameCharacterComponent', () => {
       }
     });
 
-    it.each([true, false])('opens the 2D menu interface with rotating display %s', (enabled) => {
+    it.each(['radial', 'four-way'] as const)('opens the four-way menu when the style is %s', (style) => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
-      const character = openMenu(true, enabled);
+      const character = openMenu(true, style);
 
       try {
         expect(openRadial).toHaveBeenCalledWith(
@@ -383,7 +388,7 @@ describe('GameCharacterComponent', () => {
           expect.any(Array),
           expect.any(Array),
           'menu-piece',
-          enabled,
+          style === 'radial',
           7,
           1,
           0,
@@ -397,7 +402,7 @@ describe('GameCharacterComponent', () => {
     it.each([true, false])('keeps the same large-piece clearance with rotating names %s', (showRotatingName) => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
-      const character = openMenu(true, true, 3, showRotatingName);
+      const character = openMenu(true, 'radial', 3, showRotatingName);
 
       try {
         const clearanceRadius = openRadial.mock.calls[0]?.[7];
@@ -410,7 +415,7 @@ describe('GameCharacterComponent', () => {
     it('keeps the original 1x1 distance and passes its rendered half extent', () => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
-      const character = openMenu(true, true, 1, true);
+      const character = openMenu(true, 'radial', 1, true);
 
       try {
         expect(openRadial.mock.calls[0]?.[7]).toBe(0);
@@ -425,7 +430,7 @@ describe('GameCharacterComponent', () => {
       fixture.componentRef.setInput('gameCharacter', character);
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = true;
-      table.radialMenuEnabled = false;
+      table.tabletopMenuStyle = 'four-way';
       fixture.detectChanges();
       const root = component.rootElementRef()!.nativeElement;
       vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({

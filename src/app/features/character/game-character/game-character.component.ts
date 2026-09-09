@@ -1155,7 +1155,7 @@ export class GameCharacterComponent {
       this.buffViewMode(),
       surfaceEntries
     );
-    if (!this.tabletopService.mode2d()) {
+    if (!this.tabletopService.mode2d() || display.tabletopMenuStyle === 'standard') {
       this.contextMenuService.open(position, menu.actions, this.name());
       return;
     }
@@ -1169,7 +1169,7 @@ export class GameCharacterComponent {
       menu.actions,
       menu.radialGroups,
       this.name(),
-      display.radialMenuEnabled,
+      display.tabletopMenuStyle === 'radial',
       display.radialMenuRotationSpeed,
       multiAngleFontScaleFactor(display.multiAngleFontScale),
       menuClearanceRadius,

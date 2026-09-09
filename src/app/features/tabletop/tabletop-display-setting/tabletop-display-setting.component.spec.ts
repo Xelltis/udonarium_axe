@@ -19,7 +19,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 const CONTROLS: Record<TabletopDisplayKey, string> = {
   orthographicProjection: 'orthographicProjection',
   cellMm: 'cellMm',
-  radialMenuEnabled: 'radialMenuEnabled',
+  tabletopMenuStyle: 'tabletopMenuStyle',
   radialMenuRotationSpeed: 'radialMenuRotationSpeed',
   hoverDetailPlacement: 'hoverDetailPlacement',
   multiAngleEnabled: 'multiAngleEnabled',

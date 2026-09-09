@@ -384,13 +384,13 @@ export class TextNoteComponent {
       surfaceEntries
     );
     const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d()) {
+    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
       this.contextMenuService.openRadial(
         position,
         menu.actions,
         menu.radialGroups,
         this.title(),
-        display.radialMenuEnabled,
+        display.tabletopMenuStyle === 'radial',
         display.radialMenuRotationSpeed,
         multiAngleFontScaleFactor(display.multiAngleFontScale)
       );

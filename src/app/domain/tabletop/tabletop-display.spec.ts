@@ -4,6 +4,7 @@ import {
   normalizeTabletopDisplayOwn,
   normalizeTabletopDisplaySettings,
   resolveTabletopDisplay,
+  TABLETOP_MODE_SETTINGS,
 } from '@axe/domain/tabletop/tabletop-display';
 
 describe('the way a flat table is drawn', () => {
@@ -55,13 +56,35 @@ describe('the way a flat table is drawn', () => {
   });
 });
 
+describe('the menu a flat table opens', () => {
+  it('is the ordinary one until a screen asks for another', () => {
+    expect(normalizeTabletopDisplaySettings({}).tabletopMenuStyle).toBe('standard');
+    expect(normalizeTabletopDisplaySettings({ mode2d: true }).tabletopMenuStyle).toBe('standard');
+  });
+
+  it('is the turning one for a room that had the old switch on', () => {
+    expect(normalizeTabletopDisplaySettings({ radialMenuEnabled: true }).tabletopMenuStyle).toBe('radial');
+    expect(normalizeTabletopDisplaySettings({ radialMenuEnabled: 'true' }).tabletopMenuStyle).toBe('radial');
+  });
+
+  it('is the ordinary one for a room that had it off, which is what asking for the table fixes', () => {
+    expect(normalizeTabletopDisplaySettings({ radialMenuEnabled: false }).tabletopMenuStyle).toBe('standard');
+    expect(TABLETOP_MODE_SETTINGS.tabletopMenuStyle).toBe('radial');
+  });
+
+  it('carries a screen that was told to turn its menus under the old key', () => {
+    expect(normalizeTabletopDisplayOwn({ radialMenuEnabled: true }).tabletopMenuStyle).toBe('radial');
+    expect(normalizeTabletopDisplayOwn({}).tabletopMenuStyle).toBeUndefined();
+  });
+});
+
 describe('what one screen has been told', () => {
   it('answers with what it holds, and leaves the rest to the table', () => {
-    const table = { multiAngleEnabled: true, radialMenuEnabled: true, multiAngleTickerEnabled: true };
+    const table = { multiAngleEnabled: true, tabletopMenuStyle: 'radial' as const, multiAngleTickerEnabled: true };
 
-    const resolved = resolveTabletopDisplay(table, { radialMenuEnabled: false });
+    const resolved = resolveTabletopDisplay(table, { tabletopMenuStyle: 'standard' });
 
-    expect(resolved.radialMenuEnabled).toBe(false);
+    expect(resolved.tabletopMenuStyle).toBe('standard');
     expect(resolved.multiAngleEnabled).toBe(true);
     expect(resolved.multiAngleTickerEnabled).toBe(true);
   });

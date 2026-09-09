@@ -44,6 +44,7 @@ import { isGroupAnswered, resolveRoomRules, RoomRuleGroup, RoomRules } from '@ax
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { asMultiAngleMotionMode, TabletopDisplaySettings } from '@axe/domain/tabletop/tabletop-display';
+import { TABLETOP_MENU_STYLES, TabletopMenuStyle } from '@axe/domain/tabletop/tabletop-menu-style';
 import {
   FACTION_PHASE_MODES,
   FactionPhaseMode,
@@ -219,11 +220,13 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ hoverDetailPlacement: asHoverDetailPlacement(value) });
   }
 
-  get radialMenuEnabled(): boolean {
-    return this.displaySettings.radialMenuEnabled;
+  protected readonly menuStyles = TABLETOP_MENU_STYLES;
+
+  get tabletopMenuStyle(): TabletopMenuStyle {
+    return this.displaySettings.tabletopMenuStyle;
   }
-  set radialMenuEnabled(value: boolean) {
-    this.displaySet({ radialMenuEnabled: value });
+  set tabletopMenuStyle(value: TabletopMenuStyle) {
+    this.displaySet({ tabletopMenuStyle: value });
   }
 
   get radialMenuRotationSpeed(): number {

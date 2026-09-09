@@ -313,7 +313,7 @@ describe('RoomSettingsPanelComponent', () => {
       component.orthographicProjection = true;
       component.multiAngleEnabled = true;
       component.multiAngleFontScale = 'large';
-      component.radialMenuEnabled = true;
+      component.tabletopMenuStyle = 'radial';
       component.radialMenuRotationSpeed = 9;
       component.hoverDetailPlacement = 'screen-edges';
       component.cellMm = 30;
@@ -323,7 +323,7 @@ describe('RoomSettingsPanelComponent', () => {
         orthographicProjection: true,
         multiAngleEnabled: true,
         multiAngleFontScale: 'large',
-        radialMenuEnabled: true,
+        tabletopMenuStyle: 'radial',
         radialMenuRotationSpeed: 9,
         hoverDetailPlacement: 'screen-edges',
         cellMm: 30,
