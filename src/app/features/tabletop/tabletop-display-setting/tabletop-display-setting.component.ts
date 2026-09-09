@@ -38,6 +38,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
   asMultiAngleMotionMode,
   TABLETOP_MODE_SETTINGS,
+  TabletopDisplayKey,
   TabletopDisplaySettings,
 } from '@axe/domain/tabletop/tabletop-display';
 import { TABLETOP_MENU_STYLES, TabletopMenuStyle } from '@axe/domain/tabletop/tabletop-menu-style';
@@ -107,13 +108,17 @@ export class TabletopDisplaySettingComponent {
   /**
    * Whether this screen is set up as the table itself: laid flat, and dressed for it.
    *
-   * Looking straight down is the whole of what the rest of this panel is for, so the mode is
-   * read from the view rather than written down beside it. Turning it on lays the screen flat
-   * and puts in what a flat screen wants; turning it off only stands the view back up, since
-   * everything it put in is dead in that view anyway and is a reader's to keep.
+   * Being looked at from above is not the same as being a table. A reader who only turned the
+   * view flat has none of what a table with seats around it asks for, so the mode is read from
+   * what is actually in force rather than from the view. Turning one of them off afterwards
+   * leaves this unticked until the lot is asked for again, which is what it says.
    */
   get tabletopMode(): boolean {
-    return this.laysFlat();
+    if (!this.laysFlat()) return false;
+    const now = this.settings;
+    return (Object.keys(TABLETOP_MODE_SETTINGS) as TabletopDisplayKey[]).every(
+      (key) => now[key] === TABLETOP_MODE_SETTINGS[key]
+    );
   }
   set tabletopMode(wanted: boolean) {
     if (!wanted) {

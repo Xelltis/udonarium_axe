@@ -124,12 +124,26 @@ describe('TabletopDisplaySettingComponent', () => {
     expect(table.imageBillboard).toBe(false);
   });
 
-  it('is not in tabletop mode until the table is looked straight down on', () => {
+  it('is not in tabletop mode for a screen that was only turned flat', () => {
     expect(component.tabletopMode).toBe(false);
 
     component.chooseViewMode('flat');
 
+    expect(component.tabletopMode).toBe(false);
+  });
+
+  it('is in tabletop mode once the screen is both flat and dressed for it', () => {
+    component.tabletopMode = true;
+
     expect(component.tabletopMode).toBe(true);
+  });
+
+  it('drops out of the mode when one of the things it put in is taken away', () => {
+    component.tabletopMode = true;
+
+    component.tabletopMenuStyle = 'standard';
+
+    expect(component.tabletopMode).toBe(false);
   });
 
   it('lays the screen flat and puts in what a screen sat around wants', () => {
@@ -148,9 +162,17 @@ describe('TabletopDisplaySettingComponent', () => {
     expect(component.orthographicProjection).toBe(true);
   });
 
+  it('leaves a reader following a 2D table out of the mode until they ask for it', () => {
+    table.mode2d = true;
+    component.chooseViewMode('auto');
+
+    expect(component.tabletopMode).toBe(false);
+  });
+
   it('turns off against a table that recommends looking down, rather than snapping back on', () => {
     table.mode2d = true;
     component.chooseViewMode('auto');
+    component.tabletopMode = true;
     expect(component.tabletopMode).toBe(true);
 
     component.tabletopMode = false;
