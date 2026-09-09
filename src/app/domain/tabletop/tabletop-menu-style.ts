@@ -12,15 +12,22 @@ export type TabletopMenuStyle = (typeof TABLETOP_MENU_STYLES)[number];
 export const DEFAULT_TABLETOP_MENU_STYLE: TabletopMenuStyle = 'standard';
 
 /**
- * Reads the style, taking the switch it replaced as the answer where there is no style yet.
+ * Reads the style, taking the switch it replaced as the answer where none has been chosen.
  *
  * `radialMenuEnabled` chose between the ring and the four lists and had no way of saying
  * "neither", so a room that turned it on meant the ring and nothing else can be read from it.
+ *
+ * The ordinary menu counts as "none has been chosen": a table carries the style at its
+ * default from the moment it is made, so a table that answered under the old switch would
+ * never be heard if the default were taken for an answer. What a screen has chosen for itself
+ * is laid over this afterwards, so choosing the ordinary menu still holds.
  */
 export function asTabletopMenuStyle(value: unknown, legacyRadial?: unknown): TabletopMenuStyle {
-  if (typeof value === 'string' && (TABLETOP_MENU_STYLES as readonly string[]).includes(value)) {
-    return value as TabletopMenuStyle;
-  }
+  const named =
+    typeof value === 'string' && (TABLETOP_MENU_STYLES as readonly string[]).includes(value)
+      ? (value as TabletopMenuStyle)
+      : null;
+  if (named !== null && named !== DEFAULT_TABLETOP_MENU_STYLE) return named;
   if (legacyRadial === true || legacyRadial === 'true') return 'radial';
-  return DEFAULT_TABLETOP_MENU_STYLE;
+  return named ?? DEFAULT_TABLETOP_MENU_STYLE;
 }
