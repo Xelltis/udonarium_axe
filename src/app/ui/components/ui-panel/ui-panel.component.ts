@@ -1,8 +1,9 @@
-import { NgClass, NgComponentOutlet, NgStyle } from '@angular/common';
+import { NgClass, NgComponentOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  ComponentRef,
   computed,
   DestroyRef,
   effect,
@@ -23,6 +24,7 @@ import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { PanelTabSlotComponent } from '@axe/ui/components/ui-panel/panel-tab-slot.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { ResizableDirective } from '@axe/ui/directives/resizable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -35,7 +37,7 @@ const PANEL_FLOOR_OPACITY = 0.25;
   templateUrl: './ui-panel.component.html',
   host: { class: 'block' },
   providers: [PanelService],
-  imports: [DraggableDirective, ResizableDirective, NgClass, NgComponentOutlet, NgStyle, TextTooltipDirective],
+  imports: [DraggableDirective, ResizableDirective, NgClass, NgComponentOutlet, TextTooltipDirective],
 })
 export class UIPanelComponent {
   panelService = inject(PanelService);
@@ -95,9 +97,24 @@ export class UIPanelComponent {
   }
 
   readonly draggablePanel = viewChild.required<ElementRef<HTMLElement>>('draggablePanel');
-  readonly scrollablePanel = viewChild.required<ElementRef<HTMLDivElement>>('scrollablePanel');
   readonly titleBar = viewChild.required<ElementRef<HTMLDivElement>>('titleBar');
-  readonly content = viewChild.required('content', { read: ViewContainerRef });
+  private readonly slots = viewChild.required('slots', { read: ViewContainerRef });
+  private slot: ComponentRef<PanelTabSlotComponent> | null = null;
+
+  /**
+   * Where the body of the panel this frame holds is built.
+   *
+   * The ground is made on the first ask rather than with the frame, since a frame drawn
+   * without a panel in it - which is every frame a test builds - has nothing to stand.
+   */
+  content(): ViewContainerRef {
+    this.slot ??= this.slots().createComponent(PanelTabSlotComponent);
+    return this.slot.instance.content();
+  }
+
+  private scrollablePanel(): ElementRef<HTMLDivElement> | null {
+    return this.slot?.instance.scrollable() ?? null;
+  }
 
   readonly titleInput = input('', { alias: 'title' });
   readonly leftInput = input(0, { alias: 'left' });
@@ -119,6 +136,14 @@ export class UIPanelComponent {
       this.panelService.minWidth = this.minWidthInput();
       this.panelService.minHeight = this.minHeightInput();
     });
+    effect(() => {
+      const slot = this.slot;
+      if (!slot) return;
+      slot.setInput('padding', this.padding_);
+      slot.setInput('top', this.bodyTop());
+      slot.setInput('overflowVisible', this.overflowVisible());
+      slot.setInput('contentMinimized', this.contentMinimized);
+    });
     this.panelService.minimizeRequest$.subscribe((minimized) => {
       if (minimized === this.isMinimized()) return;
       this.toggleMinimize();
@@ -126,7 +151,8 @@ export class UIPanelComponent {
     this.panelService.resizeRequest$.subscribe((size) => this.resizeTo(size), this.destroyRef);
     afterNextRender({
       write: () => {
-        this.panelService.setDefaultScrollablePanel(this.scrollablePanel().nativeElement);
+        const ground = this.scrollablePanel();
+        if (ground) this.panelService.setDefaultScrollablePanel(ground.nativeElement);
         this.clampPanelToViewport(this.draggablePanel().nativeElement);
         if (this.panelService.cutInIdentifier) {
           this.timerCheckWindowSize = setInterval(() => {
@@ -338,12 +364,12 @@ export class UIPanelComponent {
       }
     }
 
-    const body = this.scrollablePanel().nativeElement;
+    const body = this.scrollablePanel()?.nativeElement ?? null;
     const panel = this.draggablePanel().nativeElement;
     if (this.isMinimized()) {
       this.isMinimized.set(false);
       this.panelService.isMinimized.set(false);
-      body.style.display = '';
+      if (body) body.style.display = '';
       if (this.panelService.minimizeToContent) this.width = this.preWidth;
       this.height = this.preHeight;
     } else {
@@ -352,10 +378,10 @@ export class UIPanelComponent {
       this.panelService.isMinimized.set(true);
       if (this.panelService.minimizeToContent) {
         this.preWidth = panel.offsetWidth;
-        body.style.display = '';
+        if (body) body.style.display = '';
         this.width = 128;
       } else {
-        body.style.display = 'none';
+        if (body) body.style.display = 'none';
         this.height = this.titleBar().nativeElement.offsetHeight;
       }
     }
@@ -447,6 +473,12 @@ export class UIPanelComponent {
     this.top = panel.offsetTop + diffY;
     panel.style.left = `${this.left}px`;
     panel.style.top = `${this.top}px`;
+  }
+
+  /** How far down the body starts: under the bar, or at the top of a panel wearing none. */
+  private bodyTop(): string {
+    if (!this.showsTitleBar) return '0';
+    return this.isCompact() ? 'calc(2.75rem + env(safe-area-inset-top))' : '28px';
   }
 
   get padding_(): string {

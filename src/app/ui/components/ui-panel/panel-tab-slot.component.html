@@ -1,0 +1,13 @@
+<div
+  class="rounded-b-ui-lg absolute bottom-0 box-border w-full overflow-auto overscroll-contain"
+  [class.static!]="contentMinimized()"
+  [ngStyle]="{
+    padding: padding(),
+    top: top(),
+    overflow: overflowVisible() || contentMinimized() ? 'visible' : undefined,
+  }"
+  [style.display]="active() ? null : 'none'"
+  #scrollable
+>
+  <div #content></div>
+</div>

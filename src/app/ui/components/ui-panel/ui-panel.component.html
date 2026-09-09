@@ -199,17 +199,5 @@
       *ngComponentOutlet="cardStackListComponent; inputs: { cardStackidentifier: panelService.cardStack.identifier }"
     ></ng-container>
   }
-  <div
-    class="rounded-b-ui-lg absolute bottom-0 box-border w-full overflow-auto overscroll-contain"
-    [class.static!]="contentMinimized"
-    [ngStyle]="{
-      padding: padding_,
-      top: showsTitleBar ? (isCompact() ? 'calc(2.75rem + env(safe-area-inset-top))' : '28px') : '0',
-      overflow: overflowVisible() || contentMinimized ? 'visible' : undefined,
-    }"
-    #scrollablePanel
-  >
-    <ng-content></ng-content>
-    <div #content></div>
-  </div>
+  <ng-container #slots></ng-container>
 </div>
