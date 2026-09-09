@@ -2144,8 +2144,7 @@
         "scopeOwn": "この画面だけ",
         "scopeRoom": "部屋・GM",
         "scopeTable": "テーブル・GM",
-        "whenFlat": "2D のとき",
-        "whenUpright": "3D のとき"
+        "whenFlat": "2D のとき"
       },
       "trigger": {
         "unnamed": "仕掛け",
@@ -2274,7 +2273,6 @@
       "realSizeStale": "画面が変わりました。もう一度合わせてください。",
       "realSizeReset": "この端末の設定をリセット",
       "tab_ui": "UI",
-      "sectionShared": "共通設定",
       "sharedHint": "部屋の全員に効きます。変えられるのは GM だけです。",
       "aroundTableHint": "この画面にだけ効きます。大きなディスプレイを複数人で囲んで見ることを想定したオフラインセッション向けの設定です。卓上ディスプレイの卓上モードを入れると、実寸を除くひととおりが入ります。",
       "tabletopRecommended": "卓上ディスプレイ用の推奨設定をオン",

@@ -2144,8 +2144,7 @@
         "scopeOwn": "이 화면만",
         "scopeRoom": "방·GM",
         "scopeTable": "탁자·GM",
-        "whenFlat": "2D일 때",
-        "whenUpright": "3D일 때"
+        "whenFlat": "2D일 때"
       },
       "trigger": {
         "unnamed": "장치",
@@ -2274,7 +2273,6 @@
       "realSizeStale": "화면이 바뀌었습니다. 다시 맞춰 주세요.",
       "realSizeReset": "이 기기의 설정을 초기화",
       "tab_ui": "UI",
-      "sectionShared": "공통 설정",
       "sharedHint": "방의 모든 사람에게 적용되며 GM만 변경할 수 있습니다.",
       "aroundTableHint": "이 화면에만 적용됩니다. 큰 디스플레이를 여러 명이 둘러싸고 보는 오프라인 세션용 설정입니다. 탁상 디스플레이의 탁상 모드를 켜면 실측을 제외한 대부분이 들어갑니다.",
       "tabletopRecommended": "탁상 디스플레이용 권장 설정 켜기",

@@ -2144,8 +2144,7 @@
         "scopeOwn": "this screen",
         "scopeRoom": "room, master",
         "scopeTable": "table, master",
-        "whenFlat": "in 2D",
-        "whenUpright": "in 3D"
+        "whenFlat": "in 2D"
       },
       "trigger": {
         "unnamed": "Trap",
@@ -2274,7 +2273,6 @@
       "realSizeStale": "The screen has changed. Please measure it again.",
       "realSizeReset": "Reset this device's settings",
       "tab_ui": "UI",
-      "sectionShared": "Shared",
       "sharedHint": "These reach everyone in the room, and only the game master may change them.",
       "aroundTableHint": "Applies to this screen alone. For a large display several people sit around, playing in the same room. Tabletop mode, on the tabletop display panel, puts in all but the real size at once.",
       "tabletopRecommended": "Turn on the settings a tabletop display wants",
