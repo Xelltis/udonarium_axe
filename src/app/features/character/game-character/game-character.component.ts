@@ -481,7 +481,20 @@ export class GameCharacterComponent {
   );
 
   /** Whether this screen holds a piece's picture to the ground it stands on. */
-  readonly fitsImageInCell = computed(() => this.tabletopService.display().pieceImageInCell);
+  /**
+   * Whether a piece is kept inside its cell, which the room answers for everyone.
+   *
+   * Only while the table is looked at from above: standing along the table, a piece is meant
+   * to rise out of its cell, and holding it down would leave nothing but a tile.
+   */
+  readonly fitsImageInCell = computed(() => {
+    if (!this.tabletopService.mode2d()) return false;
+    const table = this.tabletopService.currentTable;
+    this.objectChange.versionOf(table.identifier)();
+    this.objectChange.versionOf('Config')();
+    const config = this.objectStore.get<Config>('Config') ?? null;
+    return resolveRoomRules(config?.roomRuleAnswers ?? null, table).pieceImageInCell;
+  });
 
   readonly imageView = pieceImageView({
     imageUrl: computed(() => this.imageFile().url),

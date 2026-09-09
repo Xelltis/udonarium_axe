@@ -17,6 +17,7 @@ import { DEFAULT_ZOC_EXTRA_COST, DEFAULT_ZOC_MODE, DEFAULT_ZOC_RANGE } from '@ax
 import { MultiAngleMotionMode } from '@axe/domain/tabletop/multi-angle';
 import { MultiAngleFontScale } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
+import { ROOM_RULE_DEFAULTS } from '@axe/domain/tabletop/room-rules';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { DEFAULT_TABLE_FACING_MARK, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
@@ -75,7 +76,7 @@ export class GameTable extends ObjectNode {
    * room was asked keeps looking the way it did.
    */
   @SyncVar() orthographicProjection: boolean = DISPLAY_DEFAULTS.orthographicProjection;
-  @SyncVar() pieceImageInCell: boolean = DISPLAY_DEFAULTS.pieceImageInCell;
+  @SyncVar() pieceImageInCell: boolean = ROOM_RULE_DEFAULTS.pieceImageInCell;
   @SyncVar() tabletopMenuStyle: TabletopMenuStyle = DISPLAY_DEFAULTS.tabletopMenuStyle;
   /** What the style was chosen by before it had a name. Read only where no style is written. */
   @SyncVar() radialMenuEnabled: boolean = false;

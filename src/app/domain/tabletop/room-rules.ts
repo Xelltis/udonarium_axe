@@ -50,6 +50,13 @@ export interface RoomRules {
   /** Whether a piece weighs what it covers in that reckoning, rather than one apiece. */
   engagementCountsSize: boolean;
   facingMark: string;
+  /**
+   * Whether a piece is drawn no taller than the cell it stands on.
+   *
+   * A tall picture towers over its cell, which over a table laid flat smears it across
+   * whatever is behind. The room answers for it so that everyone reads the same board.
+   */
+  pieceImageInCell: boolean;
 }
 
 /** The same rules in the looser terms a table holds them and an attribute carries them. */
@@ -80,6 +87,7 @@ export const ROOM_RULE_DEFAULTS: RoomRules = {
   breakOutCost: DEFAULT_BREAK_OUT_COST,
   engagementCountsSize: true,
   facingMark: DEFAULT_TABLE_FACING_MARK,
+  pieceImageInCell: false,
 };
 
 /** The rules that are set together, and so are handed back to the table together. */
@@ -105,6 +113,7 @@ export const ROOM_RULE_GROUPS = {
     'engagementCountsSize',
   ],
   facing: ['facingMark'],
+  flatPieces: ['pieceImageInCell'],
 } as const satisfies Record<string, readonly (keyof RoomRules)[]>;
 
 export type RoomRuleGroup = keyof typeof ROOM_RULE_GROUPS;
@@ -199,5 +208,6 @@ export function resolveRoomRules(
     breakOutCost: settled('breakOutCost'),
     engagementCountsSize: settled('engagementCountsSize'),
     facingMark: settled('facingMark'),
+    pieceImageInCell: settled('pieceImageInCell'),
   };
 }

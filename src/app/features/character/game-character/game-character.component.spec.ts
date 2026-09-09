@@ -1307,16 +1307,39 @@ describe('GameCharacterComponent', () => {
       const before = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
       expect(before.style.height).toBe('');
 
-      TestBed.inject(TabletopDisplayService).set({ pieceImageInCell: true });
+      const flat = TestBed.inject(TabletopService).currentTable;
+      flat.mode2d = true;
+      Config.instance.pieceImageInCell = true;
+      TestBed.inject(ObjectChangeService).notifyChanged(flat.identifier);
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
       fixture.detectChanges();
 
       const fitted = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
       expect(fitted.classList.contains('object-contain')).toBe(true);
       expect(fitted.style.height).toBe(`${component.size() * component.gridSize}px`);
     } finally {
-      TestBed.inject(TabletopDisplayService).forget();
+      Config.instance.pieceImageInCell = null;
+      TestBed.inject(TabletopService).currentTable.mode2d = false;
       char.destroy();
       ImageStorage.instance.delete('in-cell-url');
+    }
+  });
+
+  it('lets a tall picture out of its cell again while the table is seen along', () => {
+    ImageStorage.instance.add('in-cell-upright-url');
+    const char = GameCharacter.create('in-cell-upright', 1, 'in-cell-upright-url');
+    fixture.componentRef.setInput('gameCharacter', char);
+
+    try {
+      Config.instance.pieceImageInCell = true;
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+      fixture.detectChanges();
+
+      expect(component.fitsImageInCell()).toBe(false);
+    } finally {
+      Config.instance.pieceImageInCell = null;
+      char.destroy();
+      ImageStorage.instance.delete('in-cell-upright-url');
     }
   });
 
@@ -1328,13 +1351,18 @@ describe('GameCharacterComponent', () => {
     fixture.componentRef.setInput('gameCharacter', char);
 
     try {
-      TestBed.inject(TabletopDisplayService).set({ pieceImageInCell: true });
+      const flat = TestBed.inject(TabletopService).currentTable;
+      flat.mode2d = true;
+      Config.instance.pieceImageInCell = true;
+      TestBed.inject(ObjectChangeService).notifyChanged(flat.identifier);
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
       fixture.detectChanges();
 
       const fitted = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
       expect(fitted.style.height).toBe(`${component.size() * component.gridSize}px`);
     } finally {
-      TestBed.inject(TabletopDisplayService).forget();
+      Config.instance.pieceImageInCell = null;
+      TestBed.inject(TabletopService).currentTable.mode2d = false;
       char.destroy();
       ImageStorage.instance.delete('in-cell-tall-url');
     }

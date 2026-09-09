@@ -18,6 +18,7 @@ const table: RoomRules = {
   moveDiagonally: false,
   diagonalMove: 'none',
   piecesShareCells: false,
+  pieceImageInCell: false,
   moveRangeAlways: true,
   zocAlways: true,
   cellDistance: 5,
