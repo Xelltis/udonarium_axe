@@ -63,29 +63,38 @@ function makeCharacter(opts: {
 describe('GravityService.topZ', () => {
   it('the top of terrain is (altitude + height) * gridSize + posZ', () => {
     const entry = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, altitude: 1, posZ: 25 });
-    expect(GravityService.topZ(entry.object)).toBe((1 + 2) * 50 + 25);
+    expect(GravityService.topZ(entry.object, 50)).toBe((1 + 2) * 50 + 25);
   });
 
   it('the top of a character is altitude * gridSize + posZ, with no height of its own', () => {
     const entry = makeCharacter({ x: 0, y: 0, altitude: 1, posZ: 10 });
-    expect(GravityService.topZ(entry.object)).toBe(1 * 50 + 10);
+    expect(GravityService.topZ(entry.object, 50)).toBe(1 * 50 + 10);
   });
 });
 
 describe('GravityService.contactTopZ', () => {
   it('on the floor it matches the top, altitude included', () => {
     const entry = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, altitude: 1, posZ: 25 });
-    expect(GravityService.contactTopZ(entry.object, 'floor')).toBe(GravityService.topZ(entry.object));
+    expect(GravityService.contactTopZ(entry.object, 'floor', 50)).toBe(GravityService.topZ(entry.object, 50));
   });
 
   it('on a wall it is the offset plus the terrain height, with no altitude', () => {
     const entry = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, altitude: 1, posZ: 25 });
-    expect(GravityService.contactTopZ(entry.object, 'north-wall')).toBe(25 + 2 * 50);
+    expect(GravityService.contactTopZ(entry.object, 'north-wall', 50)).toBe(25 + 2 * 50);
   });
 
   it('on a wall anything but terrain is the offset alone, with no depth', () => {
     const entry = makeCharacter({ x: 0, y: 0, altitude: 1, posZ: 10 });
-    expect(GravityService.contactTopZ(entry.object, 'east-wall')).toBe(10);
+    expect(GravityService.contactTopZ(entry.object, 'east-wall', 50)).toBe(10);
+  });
+});
+
+describe('GravityService on a table with cells of its own size', () => {
+  it('reads a block at the height its own table makes it', () => {
+    const entry = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, altitude: 1, posZ: 0 });
+
+    expect(GravityService.topZ(entry.object, 50)).toBe(150);
+    expect(GravityService.topZ(entry.object, 100)).toBe(300);
   });
 });
 
@@ -93,7 +102,7 @@ describe('GravityService.findSupportZ', () => {
   it('supports an object whose centre falls within the footprint of another', () => {
     const base = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'base' });
     const target = makeTerrain({ x: 50, y: 50, w: 1, d: 1, h: 1, identifier: 'target', posZ: 100 });
-    const z = GravityService.findSupportZ(target, [base, target]);
+    const z = GravityService.findSupportZ(target, [base, target], 50);
     expect(z).toBe(2 * 50);
   });
 
@@ -101,20 +110,20 @@ describe('GravityService.findSupportZ', () => {
     const low = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 1, identifier: 'low' });
     const high = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 3, identifier: 'high' });
     const target = makeTerrain({ x: 50, y: 50, w: 1, d: 1, h: 1, identifier: 'target', posZ: 200 });
-    const z = GravityService.findSupportZ(target, [low, high, target]);
+    const z = GravityService.findSupportZ(target, [low, high, target], 50);
     expect(z).toBe(3 * 50);
   });
 
   it('ignores a footprint the centre falls outside of', () => {
     const base = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, identifier: 'base' });
     const target = makeTerrain({ x: 500, y: 500, w: 1, d: 1, h: 1, identifier: 'target', posZ: 100 });
-    const z = GravityService.findSupportZ(target, [base, target]);
+    const z = GravityService.findSupportZ(target, [base, target], 50);
     expect(z).toBe(0);
   });
 
   it('never supports an object on itself', () => {
     const target = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, identifier: 'target', posZ: 100 });
-    const z = GravityService.findSupportZ(target, [target]);
+    const z = GravityService.findSupportZ(target, [target], 50);
     expect(z).toBe(0);
   });
 
@@ -123,16 +132,16 @@ describe('GravityService.findSupportZ', () => {
     const lower = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 1, identifier: 'lower', posZ: 0 });
     const upper = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 1, identifier: 'upper', posZ: 50 });
     // the upper is supported at 50, the top of the lower
-    expect(GravityService.findSupportZ(upper, [lower, upper])).toBe(50);
+    expect(GravityService.findSupportZ(upper, [lower, upper], 50)).toBe(50);
     // the lower is supported by the ground, since the upper is above it
-    expect(GravityService.findSupportZ(lower, [lower, upper])).toBe(0);
+    expect(GravityService.findSupportZ(lower, [lower, upper], 50)).toBe(0);
   });
 
   it('two objects side by side on the ground support neither', () => {
     const a = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 1, identifier: 'a', posZ: 0 });
     const b = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 1, identifier: 'b', posZ: 0 });
-    expect(GravityService.findSupportZ(a, [a, b])).toBe(0);
-    expect(GravityService.findSupportZ(b, [a, b])).toBe(0);
+    expect(GravityService.findSupportZ(a, [a, b], 50)).toBe(0);
+    expect(GravityService.findSupportZ(b, [a, b], 50)).toBe(0);
   });
 });
 

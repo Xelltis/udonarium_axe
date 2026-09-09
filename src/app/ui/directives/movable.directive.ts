@@ -290,7 +290,7 @@ export class MovableDirective implements MovableInteractionContext {
         top,
         right: left + entry.element.offsetWidth,
         bottom: top + entry.element.offsetHeight,
-        topZ: GravityService.contactTopZ(entry.object, selfSurface),
+        topZ: GravityService.contactTopZ(entry.object, selfSurface, this.tableGridSize()),
       });
     }
     return footprints;
@@ -548,13 +548,20 @@ export class MovableDirective implements MovableInteractionContext {
     return true;
   }
 
+  /** How wide a cell is on the table being looked at, which is not always the usual fifty. */
+  private tableGridSize(): number {
+    const size = this.tableSelecter.viewTable?.gridSize ?? 0;
+    return size > 0 ? size : GRID_PX;
+  }
+
   private computeBeamRest(pointer: PointerCoordinate): { x: number; y: number; z: number } | null {
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
+    const gridSize = this.tableGridSize();
     const dims: SurfaceDims = {
-      widthPx: table.width * GRID_PX,
-      depthPx: table.height * GRID_PX,
-      wallHeightPx: table.wallHeight * GRID_PX,
+      widthPx: table.width * gridSize,
+      depthPx: table.height * gridSize,
+      wallHeightPx: table.wallHeight * gridSize,
     };
     const beam = this.highestBeamUnderPointer(pointer, dims);
     if (!beam) return null;
@@ -564,6 +571,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private highestBeamUnderPointer(pointer: PointerCoordinate, dims: SurfaceDims): WorldBox | null {
     const selfId = this.tabletopObject.identifier;
+    const gridSize = this.tableGridSize();
     let best: WorldBox | null = null;
     for (const obj of this.tabletopOverlap.findAt(pointer.x, pointer.y)) {
       if (obj.identifier === selfId) continue;
@@ -578,8 +586,8 @@ export class MovableDirective implements MovableInteractionContext {
         obj.location.y,
         entry.element.offsetWidth,
         entry.element.offsetHeight,
-        obj.altitude * GRID_PX + obj.posZ,
-        obj.height * GRID_PX,
+        obj.altitude * gridSize + obj.posZ,
+        obj.height * gridSize,
         dims
       );
       if (!best || box.maxZ > best.maxZ) best = box;
