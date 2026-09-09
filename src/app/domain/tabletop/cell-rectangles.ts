@@ -47,23 +47,35 @@ function parseCell(key: string): CellKey | null {
  * build them again.
  */
 export function largestRectangles(cells: readonly string[]): CellRect[] {
-  const held = new Set<string>();
-  let maxCol = -1;
-  let maxRow = -1;
+  const held: CellKey[] = [];
   for (const key of cells) {
     const cell = parseCell(key);
-    if (!cell) continue;
-    held.add(cellKeyOf(cell.col, cell.row));
+    if (cell) held.push(cell);
+  }
+  return largestRectanglesOf(held);
+}
+
+/** Far past the columns any board has, so a cell packs into one number rather than a string. */
+const CELL_SPAN = 1 << 15;
+
+/** The same blocks, for a caller that already has the cells as numbers. */
+export function largestRectanglesOf(cells: readonly CellKey[]): CellRect[] {
+  const held = new Set<number>();
+  let maxCol = -1;
+  let maxRow = -1;
+  for (const cell of cells) {
+    if (cell.col < 0 || cell.row < 0 || cell.col >= CELL_SPAN) continue;
+    held.add(cell.row * CELL_SPAN + cell.col);
     maxCol = Math.max(maxCol, cell.col);
     maxRow = Math.max(maxRow, cell.row);
   }
   if (held.size < 1) return [];
 
-  const taken = new Set<string>();
+  const taken = new Set<number>();
   const rects: CellRect[] = [];
 
   const free = (col: number, row: number): boolean => {
-    const key = cellKeyOf(col, row);
+    const key = row * CELL_SPAN + col;
     return held.has(key) && !taken.has(key);
   };
 
@@ -77,7 +89,9 @@ export function largestRectangles(cells: readonly string[]): CellRect[] {
       let height = 1;
       while (rowIsFree(col, row + height, width)) height++;
 
-      for (const key of rectCells({ col, row, width, height })) taken.add(key);
+      for (let step = 0; step < height; step++) {
+        for (let across = 0; across < width; across++) taken.add((row + step) * CELL_SPAN + col + across);
+      }
       rects.push({ col, row, width, height });
     }
   }

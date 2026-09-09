@@ -1,4 +1,11 @@
-import { CellRect, largestRectangles, rectCells, rectKey } from '@axe/domain/tabletop/cell-rectangles';
+import { parseCellKey } from '@axe/domain/tabletop/cell-key';
+import {
+  CellRect,
+  largestRectangles,
+  largestRectanglesOf,
+  rectCells,
+  rectKey,
+} from '@axe/domain/tabletop/cell-rectangles';
 
 function keysOf(rects: readonly CellRect[]): string[] {
   return rects.map(rectKey).sort();
@@ -62,5 +69,33 @@ describe('largestRectangles()', () => {
 
   it('passes over a key it cannot read', () => {
     expect(largestRectangles(['nonsense', '-1,0', '1,1'])).toEqual([{ col: 1, row: 1, width: 1, height: 1 }]);
+  });
+});
+
+describe('largestRectanglesOf()', () => {
+  const paintings = [
+    ['0,0', '1,0', '0,1', '1,1'],
+    ['2,2'],
+    ['0,0', '2,0', '4,0', '0,2', '2,2', '4,2'],
+    ['3,1', '4,1', '5,1', '3,2', '4,2', '5,2', '5,3'],
+    [],
+  ];
+
+  it('cuts the same blocks as the same painting written as keys', () => {
+    for (const painting of paintings) {
+      const cells = painting.map((key) => parseCellKey(key)!);
+
+      expect(largestRectanglesOf(cells)).toEqual(largestRectangles(painting));
+    }
+  });
+
+  it('passes over a cell off the board', () => {
+    expect(
+      largestRectanglesOf([
+        { col: -1, row: 0 },
+        { col: 0, row: -1 },
+        { col: 4, row: 4 },
+      ])
+    ).toEqual([{ col: 4, row: 4, width: 1, height: 1 }]);
   });
 });
