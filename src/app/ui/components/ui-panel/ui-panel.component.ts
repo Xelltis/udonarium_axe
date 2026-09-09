@@ -21,6 +21,8 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { PanelFrame, PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
+import { PanelDragService, PanelDropFrame, PanelHandoff } from '@axe/application/ui/panel-drag.service';
+import { PanelDropZone, pointerOf } from '@axe/application/ui/panel-drag-helpers';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -33,6 +35,9 @@ import { ResizableDirective } from '@axe/ui/directives/resizable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 
 const PANEL_FLOOR_OPACITY = 0.25;
+
+/** Tells one frame from another while a panel is dragged between them. */
+let framesOpened = 0;
 
 /** One panel standing in a frame: what it is, where it is drawn, and what it was built into. */
 export interface PanelTabHandle {
@@ -63,7 +68,7 @@ interface PanelTab extends PanelTabHandle {
     PanelTabStripComponent,
   ],
 })
-export class UIPanelComponent implements PanelFrame {
+export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
@@ -72,6 +77,7 @@ export class UIPanelComponent implements PanelFrame {
   private readonly viewport = inject(ViewportService);
   private readonly tabletopDisplay = inject(TabletopDisplayService);
   private readonly panelTransparency = inject(PanelTransparencyService);
+  private readonly panelDrag = inject(PanelDragService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly isCompact = this.viewport.isCompact;
@@ -135,6 +141,62 @@ export class UIPanelComponent implements PanelFrame {
    * by hand is.
    */
   readonly activePanel = computed<PanelService>(() => this.tabs()[this.activeIndex()]?.panel ?? this.panelService);
+
+  readonly dragKey = `panel-${(framesOpened += 1)}`;
+  /** Whether a panel let go of now would join this frame. */
+  protected readonly isDropTarget = computed(() => this.panelDrag.target()?.dragKey === this.dragKey);
+
+  measureDropZone(): PanelDropZone | null {
+    if (this.isCompact() || !this.activePanel().isTabbable || !this.showsTitleBar) return null;
+    const strip = this.draggablePanel().nativeElement.querySelector('[role="tablist"]');
+    return {
+      bar: this.titleBar().nativeElement.getBoundingClientRect(),
+      strip: strip ? strip.getBoundingClientRect() : null,
+      z: Number(this.draggablePanel().nativeElement.style.zIndex) || 0,
+    };
+  }
+
+  handOverAll(): PanelHandoff[] {
+    return this.tabs()
+      .map((tab) => this.releaseTab(tab.panel))
+      .filter((handle): handle is PanelTabHandle => handle !== null);
+  }
+
+  handOver(panel: PanelService): PanelHandoff | null {
+    return this.releaseTab(panel);
+  }
+
+  takeIn(handoff: PanelHandoff): void {
+    this.adoptTab(handoff as PanelTabHandle);
+  }
+
+  panelCount(): number {
+    return this.tabCount();
+  }
+
+  dismissFrame(): void {
+    this.self?.destroy();
+  }
+
+  /** A panel is folded into another by its bar; taking hold of its middle only moves it. */
+  protected onFrameDragStart(event: MouseEvent | TouchEvent): void {
+    const from = event.target;
+    if (!(from instanceof Node) || !this.titleBar().nativeElement.contains(from)) return;
+    if (this.isCompact() || !this.activePanel().isTabbable) return;
+    this.panelDrag.begin(this);
+  }
+
+  protected onFrameDragMove(event: MouseEvent | TouchEvent): void {
+    const at = pointerOf(event);
+    if (at) this.panelDrag.move(at.x, at.y);
+  }
+
+  protected onFrameDragEnd(): void {
+    const target = this.panelDrag.end();
+    if (!target || target === (this as PanelDropFrame)) return;
+    for (const handoff of this.handOverAll()) target.takeIn(handoff);
+    this.dismissFrame();
+  }
 
   /** Whether the frame is showing a row of names, which it does only when it holds several. */
   readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isCompact());
@@ -287,6 +349,7 @@ export class UIPanelComponent implements PanelFrame {
         }
       },
     });
+    this.destroyRef.onDestroy(this.panelDrag.register(this));
     this.destroyRef.onDestroy(() => {
       if (this.timerCheckWindowSize) {
         clearInterval(this.timerCheckWindowSize);

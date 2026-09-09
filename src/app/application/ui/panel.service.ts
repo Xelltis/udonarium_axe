@@ -1,4 +1,5 @@
 import { ComponentRef, Injectable, reflectComponentType, signal, ViewContainerRef } from '@angular/core';
+import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Logger } from '@axe/core/logging/logger';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -432,6 +433,19 @@ export class PanelService {
     value: PanelService[K]
   ) {
     panelService[key] = value;
+  }
+
+  /** Whether this panel may share a frame with others. */
+  get isTabbable(): boolean {
+    return isTabbablePanel({
+      isCutIn: this.isCutIn,
+      cutInIdentifier: this.cutInIdentifier,
+      layer: this.layer,
+      frameless: this.frameless,
+      invisible: this.invisible,
+      ghost: this.isGhost(),
+      windowed: this.windowed(),
+    });
   }
 
   /** Told when the panel changes frames, which is what folding it into another one does. */

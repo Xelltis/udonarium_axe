@@ -83,6 +83,69 @@ describe('a frame holding more than one panel', () => {
     return [...frame.location.nativeElement.querySelectorAll('panel-tab-slot > div')] as HTMLElement[];
   }
 
+  function barOf(frame: ComponentRef<UIPanelComponent>): HTMLElement {
+    return frame.location.nativeElement.querySelector('.bg-ui-titlebar') as HTMLElement;
+  }
+
+  /** Puts a frame's bar somewhere on the screen, which happy-dom does not lay out on its own. */
+  function place(frame: ComponentRef<UIPanelComponent>, left: number, top: number): void {
+    barOf(frame).getBoundingClientRect = () =>
+      ({ left, top, right: left + 300, bottom: top + 28 }) as unknown as DOMRect;
+  }
+
+  /** Takes a frame by its bar, carries it to a point, and lets go. */
+  function dragBar(frame: ComponentRef<UIPanelComponent>, to: { x: number; y: number }): void {
+    const drag = frame.instance as unknown as {
+      onFrameDragStart(event: MouseEvent): void;
+      onFrameDragMove(event: MouseEvent): void;
+      onFrameDragEnd(): void;
+    };
+    drag.onFrameDragStart({ target: barOf(frame) } as unknown as MouseEvent);
+    drag.onFrameDragMove({ clientX: to.x, clientY: to.y } as MouseEvent);
+    drag.onFrameDragEnd();
+    host.detectChanges();
+  }
+
+  it('takes in a panel whose bar is dropped on it', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    place(first.frame, 0, 0);
+    place(second.frame, 400, 0);
+
+    dragBar(second.frame, { x: 20, y: 14 });
+
+    expect(first.frame.instance.tabCount()).toBe(2);
+    expect(second.body.instance.gone).toBe(false);
+    expect(first.frame.location.nativeElement.textContent).toContain('Sheet');
+  });
+
+  it('leaves a panel where it was let go of away from any bar', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    place(first.frame, 0, 0);
+    place(second.frame, 400, 0);
+
+    dragBar(second.frame, { x: 20, y: 400 });
+
+    expect(first.frame.instance.tabCount()).toBe(1);
+    expect(second.frame.instance.tabCount()).toBe(1);
+  });
+
+  it('takes in every panel a frame was holding', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    const third = openFrame('Palette');
+    place(first.frame, 0, 0);
+    place(second.frame, 400, 0);
+    place(third.frame, 800, 0);
+    dragBar(third.frame, { x: 420, y: 14 });
+
+    place(second.frame, 400, 0);
+    dragBar(second.frame, { x: 20, y: 14 });
+
+    expect(first.frame.instance.tabCount()).toBe(3);
+  });
+
   it('wears the name of the panel it is showing', () => {
     const first = openFrame('Chat');
     const second = openFrame('Sheet');

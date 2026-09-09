@@ -38,6 +38,9 @@
   appResizable
   #draggablePanel
   (resizable.end)="onPanelResizeEnd()"
+  (draggable.start)="onFrameDragStart($event)"
+  (draggable.move)="onFrameDragMove($event)"
+  (draggable.end)="onFrameDragEnd()"
   (mouseenter)="showPortrait(true)"
   (mouseleave)="showPortrait(false)"
 >
@@ -63,6 +66,8 @@
         : ''
     "
     #titleBar
+    [class.ring-ui-accent]="isDropTarget()"
+    [class.ring-2]="isDropTarget()"
     [class.border-transparent!]="contentMinimized || isGhost"
     [style.background]="
       isGhost
