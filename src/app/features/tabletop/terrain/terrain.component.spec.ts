@@ -63,6 +63,20 @@ describe('TerrainComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  describe('what one block costs to draw', () => {
+    it('draws a locked wall out of the elements it takes', () => {
+      const wall = Terrain.create('wall', 2, 1, 3, 'wall.png', 'floor.png');
+      wall.isLocked = true;
+      fixture.componentRef.setInput('terrain', wall);
+      fixture.detectChanges();
+
+      const drawn = fixture.nativeElement.querySelectorAll('*').length;
+
+      // The ledger a voxel table is weighed against: a plain wall, standing still.
+      expect(drawn).toBe(12);
+    });
+  });
+
   describe('a block that reaches past the edge of the table', () => {
     /** Darkness on, fog off, read by a player: what the reader in the report was looking at. */
     function darkTable(): GameTable {

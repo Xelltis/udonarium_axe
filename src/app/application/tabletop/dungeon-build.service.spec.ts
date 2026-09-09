@@ -10,7 +10,9 @@ import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere'
 import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { terrainCostOf } from '@axe/domain/tabletop/terrain-cost';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -105,6 +107,17 @@ describe('DungeonBuildService', () => {
     const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options(overrides));
     return { plan, result };
   }
+
+  it('says what the terrain of a generated dungeon costs to keep', async () => {
+    const { plan, result } = await build();
+    const cost = terrainCostOf(result.table.terrains);
+
+    expect(cost.terrains).toBe(plan.blocks.blocks.length);
+    expect(cost.syncObjects).toBe(cost.terrains * SYNC_OBJECTS_PER_TERRAIN);
+    // Around 950 bytes of saved room per box, which is what a voxel table has to beat.
+    expect(cost.xmlBytes / cost.terrains).toBeGreaterThan(700);
+    expect(cost.xmlBytes / cost.terrains).toBeLessThan(1300);
+  });
 
   it('builds one table and leaves no other behind', async () => {
     const { result } = await build();
