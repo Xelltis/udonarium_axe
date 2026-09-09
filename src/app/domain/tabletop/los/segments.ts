@@ -11,13 +11,19 @@ export interface Segment {
 }
 
 /**
- * A segment that only reaches so high.
+ * A segment that stands between a bottom and a top.
  *
- * Left out, it reaches high enough to stop anything: the edge of the table, and anything
- * whose height nobody has said.
+ * Left out, `heightPx` reaches high enough to stop anything: the edge of the table, and
+ * anything whose height nobody has said. Left out, `basePx` stands on the floor.
  */
 export interface TallSegment extends Segment {
   heightPx?: number;
+  basePx?: number;
+}
+
+/** Whether a segment hangs clear of the floor, with a way through underneath it. */
+export function segmentFloats(seg: TallSegment): boolean {
+  return seg.basePx !== undefined && seg.basePx > 0;
 }
 
 /**
@@ -49,7 +55,7 @@ export function segmentsAbove(segments: readonly TallSegment[], eyeZ: number): r
 
   // Level with the top is not above it: an eye at the height of a wall sees none of the far
   // side, and a character standing on something is above it by its own eye height anyway.
-  const above = segments.filter((seg) => seg.heightPx === undefined || seg.heightPx >= eyeZ);
+  const above = segments.filter((seg) => seg.heightPx === undefined || seg.heightPx >= eyeZ || segmentFloats(seg));
   if (byEye.size >= ABOVE_MEMO_LIMIT) byEye.clear();
   byEye.set(eyeZ, above);
   return above;
@@ -132,8 +138,9 @@ export function crossingAlong(
 /**
  * Whether a line of sight from one height to another clears everything standing in it.
  *
- * A wall stops a look only where it is taller than the look is high as it passes: a head on a
- * roof is seen over the parapet from far enough back, and not from the foot of it.
+ * A wall stops a look only where the look passes through it: a head on a roof is seen over the
+ * parapet from far enough back and not from the foot of it, and a look that ducks under a
+ * bridge comes out the far side.
  */
 export function segmentBlocks(
   ax: number,
@@ -146,8 +153,10 @@ export function segmentBlocks(
 ): boolean {
   const at = crossingAlong(ax, ay, bx, by, seg.x1, seg.y1, seg.x2, seg.y2);
   if (at === null) return false;
+  const z = az + (bz - az) * at;
+  if (seg.basePx !== undefined && z < seg.basePx) return false;
   if (seg.heightPx === undefined) return true;
-  return seg.heightPx >= az + (bz - az) * at;
+  return seg.heightPx >= z;
 }
 
 export function segmentClearBetween(

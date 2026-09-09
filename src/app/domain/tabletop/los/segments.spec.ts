@@ -1,6 +1,7 @@
 import {
   perimeterSegments,
   rectangleSegments,
+  segmentBlocks,
   segmentClear,
   segmentsAbove,
   segmentsCross,
@@ -91,5 +92,61 @@ describe('segmentsAbove()', () => {
     expect(segmentsAbove(list, 400)).toEqual([edgeOfTable]);
     expect(segmentsAbove(other, 100)).not.toBe(segmentsAbove(list, 100));
     expect(segmentsAbove(other, 100)).toEqual(segmentsAbove(list, 100));
+  });
+});
+
+describe('segmentBlocks()', () => {
+  const wall = { x1: 50, y1: -50, x2: 50, y2: 50, heightPx: 100 };
+  const bridge = { ...wall, basePx: 100, heightPx: 150 };
+  const edgeOfTable = { x1: 50, y1: -50, x2: 50, y2: 50 };
+
+  it('stops a look that passes below the top of a wall', () => {
+    expect(segmentBlocks(0, 0, 0, 100, 0, 0, wall)).toBe(true);
+  });
+
+  it('lets a look pass over the top of a wall', () => {
+    expect(segmentBlocks(0, 0, 200, 100, 0, 200, wall)).toBe(false);
+  });
+
+  it('lets a look pass under something that hangs in the air', () => {
+    expect(segmentBlocks(0, 0, 0, 100, 0, 0, bridge)).toBe(false);
+  });
+
+  it('lets a look pass over something that hangs in the air', () => {
+    expect(segmentBlocks(0, 0, 200, 100, 0, 200, bridge)).toBe(false);
+  });
+
+  it('stops a look that runs through what hangs in the air', () => {
+    expect(segmentBlocks(0, 0, 120, 100, 0, 120, bridge)).toBe(true);
+  });
+
+  it('takes the height the look has risen to where it passes, not where it began', () => {
+    expect(segmentBlocks(0, 0, 0, 100, 0, 300, bridge)).toBe(true);
+    expect(segmentBlocks(0, 0, 0, 100, 0, 100, bridge)).toBe(false);
+  });
+
+  it('stops anything at any height where nobody has said how tall it is', () => {
+    expect(segmentBlocks(0, 0, 10_000, 100, 0, 10_000, edgeOfTable)).toBe(true);
+  });
+
+  it('reaches the ground where nobody has said where it begins', () => {
+    expect(segmentBlocks(0, 0, 1, 100, 0, 1, wall)).toBe(true);
+  });
+
+  it('is not in the way of a look that misses it', () => {
+    expect(segmentBlocks(0, 0, 0, 0, 100, 0, bridge)).toBe(false);
+  });
+});
+
+describe('segmentsAbove() with something that hangs in the air', () => {
+  const bridge = { x1: 0, y1: 0, x2: 10, y2: 0, basePx: 100, heightPx: 150 };
+  const onTheFloor = { x1: 0, y1: 10, x2: 10, y2: 10, basePx: 0, heightPx: 150 };
+
+  it('keeps what hangs in the air even for an eye above it', () => {
+    expect(segmentsAbove([bridge], 400)).toEqual([bridge]);
+  });
+
+  it('drops what stands on the floor as before, a bottom of zero being no bottom at all', () => {
+    expect(segmentsAbove([onTheFloor], 400)).toEqual([]);
   });
 });
