@@ -12,6 +12,7 @@ import { DisplayCalibrationService } from '@axe/application/ui/display-calibrati
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
+import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { triggerUpdateGameObject } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -43,7 +44,13 @@ import { cellWidthInches, clampCellMm } from '@axe/domain/tabletop/physical-scal
 import { isGroupAnswered, resolveRoomRules, RoomRuleGroup, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { asMultiAngleMotionMode, TabletopDisplaySettings } from '@axe/domain/tabletop/tabletop-display';
+import {
+  asMultiAngleMotionMode,
+  TABLETOP_MODE_SETTINGS,
+  TabletopDisplayKey,
+  TabletopDisplaySettings,
+  tabletopModeDefaults,
+} from '@axe/domain/tabletop/tabletop-display';
 import { TABLETOP_MENU_STYLES, TabletopMenuStyle } from '@axe/domain/tabletop/tabletop-menu-style';
 import {
   FACTION_PHASE_MODES,
@@ -52,7 +59,12 @@ import {
   TurnOrderMode,
 } from '@axe/domain/tabletop/turn-order-mode';
 import { describeSide, encodeFactionOrder, normalizeFactionOrder } from '@axe/domain/tabletop/turn-side';
-import { ROOM_SETTINGS_TABS, RoomSettingsTab } from '@axe/domain/ui/room-settings-tab';
+import {
+  ROOM_SETTINGS_TABS,
+  ROOM_SETTINGS_UI_TABS,
+  RoomSettingsTab,
+  RoomSettingsUiTab,
+} from '@axe/domain/ui/room-settings-tab';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { RoomSnapshotPanelComponent } from '@axe/features/room-archive/room-snapshot-panel/room-snapshot-panel.component';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
@@ -86,6 +98,7 @@ export class RoomSettingsPanelComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly viewMode = inject(ViewModePreferenceService);
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
@@ -95,7 +108,9 @@ export class RoomSettingsPanelComponent {
   private readonly roomPanels = inject(RoomPanelService);
 
   readonly tabs = ROOM_SETTINGS_TABS;
+  readonly uiTabs = ROOM_SETTINGS_UI_TABS;
   readonly tab = signal<RoomSettingsTab>('general');
+  readonly uiTab = signal<RoomSettingsUiTab>('shared');
 
   readonly isKeeping = this.roomSnapshot.isKeeping;
 
@@ -118,6 +133,12 @@ export class RoomSettingsPanelComponent {
   readonly isReadOnly = computed(() => {
     this.objectChange.trackMyCursor();
     return !this.rolePermission.canEditTabletop;
+  });
+
+  /** The settings one screen changes for every screen, which only the master may. */
+  readonly isSharedReadOnly = computed(() => {
+    this.objectChange.trackMyCursor();
+    return !this.rolePermission.canEditShared;
   });
 
   constructor() {
@@ -161,7 +182,7 @@ export class RoomSettingsPanelComponent {
   }
   set imageBillboard(value: boolean) {
     const table = this.tableSelecter.viewTable;
-    if (!this.isEditable || !table) return;
+    if (this.isSharedReadOnly() || !table) return;
     table.imageBillboard = value;
     triggerUpdateGameObject(table.toContext());
   }
@@ -221,6 +242,23 @@ export class RoomSettingsPanelComponent {
   }
 
   protected readonly menuStyles = TABLETOP_MENU_STYLES;
+
+  /**
+   * Whether this screen carries everything a table with seats around it asks for.
+   *
+   * The switch that lays the view flat as well is on the tabletop display panel; here the
+   * settings alone are asked for, since this panel does not answer for the view.
+   */
+  get tabletopRecommended(): boolean {
+    const now = this.displaySettings;
+    return (Object.keys(TABLETOP_MODE_SETTINGS) as TabletopDisplayKey[]).every(
+      (key) => now[key] === TABLETOP_MODE_SETTINGS[key]
+    );
+  }
+  set tabletopRecommended(wanted: boolean) {
+    this.displaySet(wanted ? TABLETOP_MODE_SETTINGS : tabletopModeDefaults());
+    if (wanted) this.viewMode.choose('flat');
+  }
 
   get tabletopMenuStyle(): TabletopMenuStyle {
     return this.displaySettings.tabletopMenuStyle;
@@ -450,7 +488,7 @@ export class RoomSettingsPanelComponent {
     return this.config.defaultDiceBot;
   }
   set defaultDiceBot(gameType: string) {
-    if (this.isEditable) this.config.defaultDiceBot = gameType;
+    if (!this.isSharedReadOnly()) this.config.defaultDiceBot = gameType;
   }
 
   loadDiceBot(gameType: string): void {
@@ -461,7 +499,14 @@ export class RoomSettingsPanelComponent {
     return asTableFacingMark(this.rules.facingMark);
   }
   set facingMark(value: TableFacingMark) {
-    if (this.isEditable) this.config.facingMark = asTableFacingMark(value);
+    if (!this.isSharedReadOnly()) this.config.facingMark = asTableFacingMark(value);
+  }
+
+  get pieceImageInCell(): boolean {
+    return this.rules.pieceImageInCell;
+  }
+  set pieceImageInCell(value: boolean) {
+    if (!this.isSharedReadOnly()) this.config.pieceImageInCell = value;
   }
 
   get moveRangeEnabled(): boolean {

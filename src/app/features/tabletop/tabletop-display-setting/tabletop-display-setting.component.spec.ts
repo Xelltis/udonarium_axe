@@ -33,7 +33,6 @@ const CONTROLS: Record<TabletopDisplayKey, string> = {
   multiAngleTickerPixelsPerSecond: 'tickerPixelsPerSecond',
   cutInMultiDirectionMode: 'cutInMultiDirectionMode',
   panelRotationEnabled: 'panelRotationEnabled',
-  pieceImageInCell: 'pieceImageInCell',
 };
 
 describe('TabletopDisplaySettingComponent', () => {
@@ -106,78 +105,72 @@ describe('TabletopDisplaySettingComponent', () => {
     });
   });
 
-  it('hands the mark a piece faces by to the room, and the billboard to the table', () => {
+  it('hands the mark a piece faces by to the room', () => {
     component.facingMark = 'arrow';
-    component.imageBillboard = true;
 
     expect(component.facingMark).toBe('arrow');
-    expect(table.imageBillboard).toBe(true);
   });
 
-  it('leaves both alone where the reader may not speak for the room', () => {
+  it('leaves them alone for a player, who may set the rules but not what everyone sees', () => {
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    component.facingMark = 'arrow';
+    component.tableRecommendsFlat = true;
+
+    expect(component.facingMark).not.toBe('arrow');
+    expect(table.mode2d).toBe(false);
+  });
+
+  it('leaves them alone where the reader may not speak for the room', () => {
     PeerCursor.myCursor.role = PeerRole.Guest;
 
     component.facingMark = 'arrow';
-    component.imageBillboard = true;
+    component.tableRecommendsFlat = true;
 
     expect(component.facingMark).not.toBe('arrow');
-    expect(table.imageBillboard).toBe(false);
+    expect(table.mode2d).toBe(false);
   });
 
-  it('is not in tabletop mode for a screen that was only turned flat', () => {
-    expect(component.tabletopMode).toBe(false);
+  it('asks for none of it on a screen that was only turned flat', () => {
+    expect(component.tabletopRecommended).toBe(false);
 
     component.chooseViewMode('flat');
 
-    expect(component.tabletopMode).toBe(false);
+    expect(component.tabletopRecommended).toBe(false);
   });
 
-  it('is in tabletop mode once the screen is both flat and dressed for it', () => {
-    component.tabletopMode = true;
+  it('puts in what a screen sat around wants, and lays the screen flat with it', () => {
+    component.tabletopRecommended = true;
 
-    expect(component.tabletopMode).toBe(true);
-  });
-
-  it('drops out of the mode when one of the things it put in is taken away', () => {
-    component.tabletopMode = true;
-
-    component.tabletopMenuStyle = 'standard';
-
-    expect(component.tabletopMode).toBe(false);
-  });
-
-  it('lays the screen flat and puts in what a screen sat around wants', () => {
-    component.tabletopMode = true;
-
+    expect(component.tabletopRecommended).toBe(true);
     expect(component.seatViewMode()).toBe('flat');
     expect(TestBed.inject(TabletopDisplayPreferenceService).own()).toEqual(TABLETOP_MODE_SETTINGS);
   });
 
-  it('stands the view back up when the mode is turned off, and keeps what it put in', () => {
-    component.tabletopMode = true;
+  it('answers no once one of the things it put in is taken away', () => {
+    component.tabletopRecommended = true;
 
-    component.tabletopMode = false;
+    component.tabletopMenuStyle = 'standard';
 
-    expect(component.seatViewMode()).toBe('perspective');
-    expect(component.orthographicProjection).toBe(true);
+    expect(component.tabletopRecommended).toBe(false);
   });
 
-  it('leaves a reader following a 2D table out of the mode until they ask for it', () => {
+  it('puts the defaults back when it is turned off, and leaves the view looking down', () => {
+    component.tabletopRecommended = true;
+
+    component.tabletopRecommended = false;
+
+    expect(component.tabletopRecommended).toBe(false);
+    expect(component.orthographicProjection).toBe(false);
+    expect(component.tabletopMenuStyle).toBe('standard');
+    expect(component.seatViewMode()).toBe('flat');
+  });
+
+  it('leaves a reader following a 2D table asking for none of it until they say so', () => {
     table.mode2d = true;
     component.chooseViewMode('auto');
 
-    expect(component.tabletopMode).toBe(false);
-  });
-
-  it('turns off against a table that recommends looking down, rather than snapping back on', () => {
-    table.mode2d = true;
-    component.chooseViewMode('auto');
-    component.tabletopMode = true;
-    expect(component.tabletopMode).toBe(true);
-
-    component.tabletopMode = false;
-
-    expect(component.tabletopMode).toBe(false);
+    expect(component.tabletopRecommended).toBe(false);
   });
 
   it('asks for nothing a flat screen does not want', () => {

@@ -63,14 +63,6 @@ export interface TabletopDisplaySettings {
   cutInMultiDirectionMode: CutInMultiDirectionMode;
   /** Whether a window carries the button that turns it a quarter at a time. */
   panelRotationEnabled: boolean;
-  /**
-   * Whether a piece is drawn no taller than the ground it stands on.
-   *
-   * A piece is drawn from the cell up, so a tall picture towers over the cell it belongs to.
-   * Standing over a table that has been laid flat, that tower is smeared across whatever is
-   * behind it, and telling which piece is on which cell becomes guesswork.
-   */
-  pieceImageInCell: boolean;
 }
 
 export type TabletopDisplayKey = keyof TabletopDisplaySettings;
@@ -95,7 +87,6 @@ export const DEFAULT_TABLETOP_DISPLAY_SETTINGS: TabletopDisplaySettings = {
   multiAngleTickerPixelsPerSecond: DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND,
   cutInMultiDirectionMode: DEFAULT_CUT_IN_MULTI_DIRECTION_MODE,
   panelRotationEnabled: false,
-  pieceImageInCell: false,
 };
 
 /**
@@ -117,8 +108,21 @@ export const TABLETOP_MODE_SETTINGS: Readonly<Partial<TabletopDisplaySettings>> 
   multiAngleEnabled: true,
   multiAngleTickerEnabled: true,
   cutInMultiDirectionMode: 'four-directions',
-  pieceImageInCell: true,
 };
+
+/**
+ * The same settings put back the way a screen has them until it asks for the tabletop.
+ *
+ * Asking for the tabletop is asking for the lot, so letting go of it is letting go of the
+ * lot: anything else would leave a screen wearing half a setup nobody chose.
+ */
+export function tabletopModeDefaults(): Partial<TabletopDisplaySettings> {
+  const back: Partial<TabletopDisplaySettings> = {};
+  for (const key of Object.keys(TABLETOP_MODE_SETTINGS) as TabletopDisplayKey[]) {
+    Object.assign(back, { [key]: DEFAULT_TABLETOP_DISPLAY_SETTINGS[key] });
+  }
+  return back;
+}
 
 export const MIN_MULTI_ANGLE_REVOLUTION_SECONDS = 1;
 export const MAX_MULTI_ANGLE_REVOLUTION_SECONDS = 120;
@@ -199,7 +203,6 @@ export function normalizeTabletopDisplaySettings(value: unknown): TabletopDispla
     ),
     cutInMultiDirectionMode: asCutInMultiDirectionMode(source['cutInMultiDirectionMode']),
     panelRotationEnabled: booleanOr(source['panelRotationEnabled'], defaults.panelRotationEnabled),
-    pieceImageInCell: booleanOr(source['pieceImageInCell'], defaults.pieceImageInCell),
   };
 }
 

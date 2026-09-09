@@ -5,6 +5,7 @@ import {
   normalizeTabletopDisplaySettings,
   resolveTabletopDisplay,
   TABLETOP_MODE_SETTINGS,
+  tabletopModeDefaults,
 } from '@axe/domain/tabletop/tabletop-display';
 
 describe('the way a flat table is drawn', () => {
@@ -75,6 +76,19 @@ describe('the menu a flat table opens', () => {
   it('carries a screen that was told to turn its menus under the old key', () => {
     expect(normalizeTabletopDisplayOwn({ radialMenuEnabled: true }).tabletopMenuStyle).toBe('radial');
     expect(normalizeTabletopDisplayOwn({}).tabletopMenuStyle).toBeUndefined();
+  });
+});
+
+describe('tabletopModeDefaults()', () => {
+  it('answers for every setting asking for the tabletop puts in, and no other', () => {
+    expect(Object.keys(tabletopModeDefaults()).sort()).toEqual(Object.keys(TABLETOP_MODE_SETTINGS).sort());
+  });
+
+  it('puts each of them back the way a screen has it until it asks', () => {
+    for (const [key, value] of Object.entries(tabletopModeDefaults())) {
+      expect(value).toBe(DEFAULT_TABLETOP_DISPLAY_SETTINGS[key as keyof typeof DEFAULT_TABLETOP_DISPLAY_SETTINGS]);
+      expect(value).not.toBe(TABLETOP_MODE_SETTINGS[key as keyof typeof TABLETOP_MODE_SETTINGS]);
+    }
   });
 });
 

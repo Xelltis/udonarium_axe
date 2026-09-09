@@ -40,6 +40,7 @@ import {
   TABLETOP_MODE_SETTINGS,
   TabletopDisplayKey,
   TabletopDisplaySettings,
+  tabletopModeDefaults,
 } from '@axe/domain/tabletop/tabletop-display';
 import { TABLETOP_MENU_STYLES, TabletopMenuStyle } from '@axe/domain/tabletop/tabletop-menu-style';
 import { VIEW_MODES, ViewMode } from '@axe/domain/ui/view-mode';
@@ -89,10 +90,15 @@ export class TabletopDisplaySettingComponent {
     queueMicrotask(() => (this.panelService.title = this.t('feature.tabletop.displaySetting.title')));
   }
 
-  /** Whether this reader may speak for the table, which only the recommended view asks. */
+  /**
+   * Whether this reader may speak for the room and its tables.
+   *
+   * These few settings reach every screen, and the chips beside them say so. A player may set
+   * the rules of play, but not what everyone sees.
+   */
   protected readonly isEditable = computed(() => {
     this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditShared;
   });
 
   /** What this seat asked for: the table's own recommendation, or a view of its own. */
@@ -106,27 +112,23 @@ export class TabletopDisplaySettingComponent {
   }
 
   /**
-   * Whether this screen is set up as the table itself: laid flat, and dressed for it.
+   * Whether this screen carries everything a table with seats around it asks for.
    *
-   * Being looked at from above is not the same as being a table. A reader who only turned the
-   * view flat has none of what a table with seats around it asks for, so the mode is read from
-   * what is actually in force rather than from the view. Turning one of them off afterwards
-   * leaves this unticked until the lot is asked for again, which is what it says.
+   * Being looked at from above is not the same as being set up as a table, so this answers for
+   * the settings rather than for the view: the view is chosen just below, by name. Taking one
+   * of them away afterwards leaves this unticked until the lot is asked for again.
    */
-  get tabletopMode(): boolean {
-    if (!this.laysFlat()) return false;
+  get tabletopRecommended(): boolean {
     const now = this.settings;
     return (Object.keys(TABLETOP_MODE_SETTINGS) as TabletopDisplayKey[]).every(
       (key) => now[key] === TABLETOP_MODE_SETTINGS[key]
     );
   }
-  set tabletopMode(wanted: boolean) {
-    if (!wanted) {
-      this.viewMode.choose('perspective');
-      return;
-    }
-    this.viewMode.choose('flat');
-    this.set(TABLETOP_MODE_SETTINGS);
+  set tabletopRecommended(wanted: boolean) {
+    this.set(wanted ? TABLETOP_MODE_SETTINGS : tabletopModeDefaults());
+    // Asking for the tabletop is asking to look down on it; letting go of the settings is not
+    // asking to stand back up, since a reader may well want to go on looking down.
+    if (wanted) this.viewMode.choose('flat');
   }
 
   /** The view the table asks for, which is the table's to set and so the master's to change. */
@@ -140,20 +142,6 @@ export class TabletopDisplaySettingComponent {
     const table = this.tableSelecter.viewTable;
     if (!this.isEditable() || !table) return;
     table.mode2d = value;
-    triggerUpdateGameObject(table.toContext());
-  }
-
-  /** Whether a piece keeps its face to the reader, which the table answers for everyone. */
-  get imageBillboard(): boolean {
-    this.objectChange.versionOf(this.tableSelecter.identifier)();
-    const table = this.tableSelecter.viewTable;
-    if (table) this.objectChange.versionOf(table.identifier)();
-    return table?.imageBillboard ?? false;
-  }
-  set imageBillboard(value: boolean) {
-    const table = this.tableSelecter.viewTable;
-    if (!this.isEditable() || !table) return;
-    table.imageBillboard = value;
     triggerUpdateGameObject(table.toContext());
   }
 
@@ -213,13 +201,6 @@ export class TabletopDisplaySettingComponent {
   }
   set hoverDetailPlacement(value: HoverDetailPlacement) {
     this.set({ hoverDetailPlacement: asHoverDetailPlacement(value) });
-  }
-
-  get pieceImageInCell(): boolean {
-    return this.settings.pieceImageInCell;
-  }
-  set pieceImageInCell(value: boolean) {
-    this.set({ pieceImageInCell: value });
   }
 
   get panelRotationEnabled(): boolean {
