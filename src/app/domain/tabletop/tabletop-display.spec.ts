@@ -91,6 +91,28 @@ describe('TABLETOP_MODE_KEYS', () => {
   });
 });
 
+describe('a screen whose stored settings predate this version', () => {
+  it('carries the turning menu it was told about under the old key', () => {
+    expect(normalizeTabletopDisplayOwn({ radialMenuEnabled: true }).tabletopMenuStyle).toBe('radial');
+  });
+
+  /**
+   * Keeping a piece inside its cell is the room's answer now. A value one screen kept for
+   * itself cannot become the room's, so it is dropped and the room is asked instead.
+   */
+  it('drops what has since become the room’s to answer', () => {
+    const own = normalizeTabletopDisplayOwn({ pieceImageInCell: true, multiAngleEnabled: true });
+
+    expect('pieceImageInCell' in own).toBe(false);
+    expect(own.multiAngleEnabled).toBe(true);
+  });
+
+  it('keeps nothing at all from a bag that holds nothing this version knows', () => {
+    expect(normalizeTabletopDisplayOwn({ somethingElse: 1 })).toEqual({});
+    expect(normalizeTabletopDisplayOwn(null)).toEqual({});
+  });
+});
+
 describe('what one screen has been told', () => {
   it('answers with what it holds, and leaves the rest to the table', () => {
     const table = { multiAngleEnabled: true, tabletopMenuStyle: 'radial' as const, multiAngleTickerEnabled: true };
