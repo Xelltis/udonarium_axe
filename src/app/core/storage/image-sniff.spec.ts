@@ -20,10 +20,25 @@ describe('whether bytes begin like a picture', () => {
     expect(await looksLikeImage(other)).toBe(false);
   });
 
-  it('knows the boxed formats by their ftyp', async () => {
-    expect(await looksLikeImage(new Blob([new Uint8Array([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 1, 2, 3, 4])]))).toBe(
-      true
-    );
+  function boxed(brand: string): Blob {
+    const head = [0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, ...[...brand].map((letter) => letter.charCodeAt(0))];
+    return new Blob([new Uint8Array(head)]);
+  }
+
+  it('knows the boxed pictures by the brand inside their ftyp', async () => {
+    for (const brand of ['avif', 'heic', 'mif1', 'msf1']) {
+      expect(await looksLikeImage(boxed(brand))).toBe(true);
+    }
+  });
+
+  /**
+   * A film heads with the same box, and a zip entry is typed by its name, so `layer.png`
+   * holding an mp4 would otherwise be stored as a layer that draws nothing.
+   */
+  it('turns away a film wearing the same box', async () => {
+    for (const brand of ['isom', 'mp42', 'qt  ', 'M4V ']) {
+      expect(await looksLikeImage(boxed(brand))).toBe(false);
+    }
   });
 
   it('turns away anything else, whatever it is called', async () => {
