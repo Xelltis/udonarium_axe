@@ -254,6 +254,16 @@ export class UIPanelComponent {
     return this.pointerDeviceService.isDragging;
   }
 
+  private self: { destroy: () => void } | null = null;
+
+  claimSelf(self: { destroy: () => void }): void {
+    this.self = self;
+  }
+
+  closeTab(_panel: PanelService): void {
+    this.self?.destroy();
+  }
+
   showPortrait(flag: boolean) {
     this.portraitDispByMouse.set(flag);
   }

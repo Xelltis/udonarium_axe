@@ -87,9 +87,20 @@ export interface PanelOption {
   single?: string;
 }
 
-interface UIPanelInstance {
+/**
+ * What the frame a panel is drawn in offers it.
+ *
+ * Named rather than imported, since the frame lives a layer above this one. A frame may come
+ * to hold more than one panel, so a panel asks it to be taken away rather than tearing the
+ * frame down itself.
+ */
+interface PanelFrame {
   content: () => ViewContainerRef;
   setInitialRotation: (degrees: PanelRotationDegrees) => void;
+  /** A component cannot take itself away, so it is handed the means to. */
+  claimSelf: (self: { destroy: () => void }) => void;
+  /** Puts one panel away. The frame goes with the last of them. */
+  closeTab: (panel: PanelService) => void;
 }
 
 type PanelServiceAssignableKey =
@@ -110,12 +121,12 @@ type PanelServiceAssignableKey =
 @Injectable()
 export class PanelService {
   static defaultParentViewContainerRef: ViewContainerRef;
-  static UIPanelComponentClass: { new (...args: unknown[]): UIPanelInstance } = null!;
+  static UIPanelComponentClass: { new (...args: unknown[]): PanelFrame } = null!;
   static chatPortraitComponentClass: Type<unknown> | null = null;
   static cardStackListComponentClass: Type<unknown> | null = null;
-  private panelComponentRef: ComponentRef<UIPanelInstance> | null = null;
+  private frame: PanelFrame | null = null;
   private actionRotationDegrees: PanelRotationDegrees = 0;
-  private static readonly singles = new Map<string, ComponentRef<UIPanelInstance>>();
+  private static readonly singles = new Map<string, PanelService>();
   /** Names spoken for by a panel whose code is still being fetched. */
   private static readonly opening = new Set<string>();
   /**
@@ -204,7 +215,7 @@ export class PanelService {
    */
   readonly minimizeRequest$ = new EventChannel<boolean>();
   get isShow(): boolean {
-    return this.panelComponentRef !== null;
+    return this.frame !== null;
   }
 
   setDefaultScrollablePanel(panel: HTMLDivElement): void {
@@ -232,7 +243,7 @@ export class PanelService {
 
     const open = PanelService.singles.get(name);
     if (!open) return false;
-    open.destroy();
+    open.close();
     return true;
   }
 
@@ -258,17 +269,18 @@ export class PanelService {
     }
     const injector = parentViewContainerRef.injector;
 
-    if (option?.single) PanelService.singles.get(option.single)?.destroy();
+    if (option?.single) PanelService.singles.get(option.single)?.close();
 
     const panelComponentRef = parentViewContainerRef.createComponent(PanelService.UIPanelComponentClass, {
       index: parentViewContainerRef.length,
       injector,
     });
+    panelComponentRef.instance.claimSelf(panelComponentRef);
     const bodyComponentRef: ComponentRef<T> = panelComponentRef.instance.content().createComponent(childComponent);
 
     const childPanelService: PanelService = panelComponentRef.injector.get(PanelService);
 
-    childPanelService.panelComponentRef = panelComponentRef;
+    childPanelService.frame = panelComponentRef.instance;
     childPanelService.panelKind.set(panelKindOf(childComponent));
     const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
     if (inheritedOption) this.applyPanelOption(panelComponentRef, childPanelService, inheritedOption);
@@ -276,12 +288,14 @@ export class PanelService {
     if (option?.controls) childPanelService.panelControls.set(option.controls);
     const single = option?.single;
     if (single) {
-      PanelService.singles.set(single, panelComponentRef);
+      PanelService.singles.set(single, childPanelService);
       PanelService.noteSingles();
     }
-    panelComponentRef.onDestroy(() => {
-      childPanelService.panelComponentRef = null;
-      if (single && PanelService.singles.get(single) === panelComponentRef) {
+    // Hung on the body rather than on the frame, since a panel may outlive the frame it was
+    // opened in without ever having gone away.
+    bodyComponentRef.onDestroy(() => {
+      childPanelService.frame = null;
+      if (single && PanelService.singles.get(single) === childPanelService) {
         PanelService.singles.delete(single);
         PanelService.noteSingles();
       }
@@ -334,7 +348,7 @@ export class PanelService {
   }
 
   private applyPanelOption(
-    panelComponentRef: ComponentRef<UIPanelInstance>,
+    panelComponentRef: ComponentRef<PanelFrame>,
     childPanelService: PanelService,
     option: PanelOption
   ) {
@@ -411,9 +425,9 @@ export class PanelService {
   }
 
   close() {
-    if (this.panelComponentRef) {
-      this.panelComponentRef.destroy();
-      this.panelComponentRef = null;
-    }
+    const frame = this.frame;
+    if (!frame) return;
+    this.frame = null;
+    frame.closeTab(this);
   }
 }
