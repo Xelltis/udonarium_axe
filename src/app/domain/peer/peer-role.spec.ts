@@ -1,6 +1,7 @@
 import {
   ASSIGNABLE_PEER_ROLES,
   canRoleEdit,
+  canRoleEditShared,
   canRoleSeeHidden,
   DEFAULT_PEER_ROLE,
   isPeerRole,
@@ -10,6 +11,17 @@ import {
   roleLabelKey,
   roleShortLabelKey,
 } from '@axe/domain/peer/peer-role';
+
+describe('canRoleEditShared()', () => {
+  it('lets the master answer for the room and its tables', () => {
+    expect(canRoleEditShared(PeerRole.GameMaster)).toBe(true);
+  });
+
+  it('keeps a player to the rules of play, not to what every screen sees', () => {
+    expect(canRoleEditShared(PeerRole.Player)).toBe(false);
+    expect(canRoleEditShared(PeerRole.Guest)).toBe(false);
+  });
+});
 
 describe('peer-role', () => {
   it('defaults to Player', () => {
