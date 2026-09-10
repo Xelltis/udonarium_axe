@@ -27,12 +27,17 @@ export function encodeBytes(bytes: Uint8Array): string {
   return out;
 }
 
-/** Anything that is not part of the alphabet is passed over rather than read as a zero. */
-export function decodeBytes(text: string, limit = Infinity): Uint8Array {
-  const out: number[] = [];
+/**
+ * Decoded straight into the caller's own buffer, filling as much of it as the text holds.
+ *
+ * Returns how many bytes were written. Anything that is not part of the alphabet is passed
+ * over rather than read as a zero.
+ */
+export function decodeBytesInto(text: string, out: Uint8Array): number {
   let held = 0;
   let heldBits = 0;
-  for (let i = 0; i < text.length && out.length < limit; i++) {
+  let written = 0;
+  for (let i = 0; i < text.length && written < out.length; i++) {
     const code = text.charCodeAt(i);
     const value = code < 128 ? LOOKUP[code] : -1;
     if (value < 0) continue;
@@ -40,7 +45,15 @@ export function decodeBytes(text: string, limit = Infinity): Uint8Array {
     heldBits += 6;
     if (heldBits < 8) continue;
     heldBits -= 8;
-    out.push((held >> heldBits) & 0xff);
+    out[written++] = (held >> heldBits) & 0xff;
   }
-  return Uint8Array.from(out);
+  return written;
+}
+
+/** The same, for a caller with no buffer of its own to fill. */
+export function decodeBytes(text: string, limit = Infinity): Uint8Array {
+  const room = Math.min(limit, (text.length * 3) >> 2);
+  const out = new Uint8Array(Math.max(0, room));
+  const written = decodeBytesInto(text, out);
+  return written === out.length ? out : out.subarray(0, written);
 }

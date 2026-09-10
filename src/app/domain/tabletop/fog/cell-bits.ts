@@ -1,4 +1,4 @@
-import { decodeBytes, encodeBytes } from '@axe/core/util/base64-bytes';
+import { decodeBytesInto, encodeBytes } from '@axe/core/util/base64-bytes';
 
 export class CellBits {
   private readonly words: Uint8Array;
@@ -72,7 +72,6 @@ export function encodeCellBits(bits: CellBits): string {
 
 export function decodeCellBits(text: string, count: number): CellBits {
   const bits = new CellBits(count);
-  const words = bits.bytes();
-  words.set(decodeBytes(text, words.length));
+  decodeBytesInto(text, bits.bytes());
   return bits;
 }
