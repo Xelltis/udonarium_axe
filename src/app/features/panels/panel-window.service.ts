@@ -158,7 +158,7 @@ export class PanelWindowService {
   popOutGroup(frame: PanelFrame, panels: PanelService): boolean {
     let abroad: PanelFrame | null = null;
     const box = frame.frameSize();
-    const home = { left: 0, top: 0, ...box };
+    const home = { ...frame.framePlace(), ...box };
     return this.popOut({
       key: `group:${frame.frameKey}`,
       width: box.width,

@@ -117,6 +117,8 @@ export interface PanelFrame {
   panelCount: () => number;
   /** How big the frame is standing right now, which a panel's own remembered size is not. */
   frameSize: () => { width: number; height: number };
+  /** Where the frame is standing right now, read off the screen rather than off the panel. */
+  framePlace: () => { left: number; top: number };
   /** The frame goes, whatever it is holding. */
   dismissFrame: () => void;
 }

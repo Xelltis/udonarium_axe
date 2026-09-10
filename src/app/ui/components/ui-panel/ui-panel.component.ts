@@ -176,6 +176,13 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     return { width: this.width, height: this.height };
   }
 
+  framePlace(): { left: number; top: number } {
+    // Dragging writes the corner straight onto the element, so the panel's own numbers are
+    // wherever it was first put up rather than where the reader left it.
+    const box = this.draggablePanel().nativeElement.getBoundingClientRect();
+    return { left: Math.round(box.left), top: Math.round(box.top) };
+  }
+
   panelCount(): number {
     return this.tabCount();
   }

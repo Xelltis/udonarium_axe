@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, ComponentRef, ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
-import { PanelFrame } from '@axe/application/ui/panel.service';
+import { PanelFrame, PanelOption } from '@axe/application/ui/panel.service';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { PanelWindowRequest, PanelWindowService } from '@axe/features/panels/panel-window.service';
 
@@ -133,6 +133,7 @@ describe('PanelWindowService', () => {
           held.splice(0).map((name) => ({ panel: { name, windowed: { set: () => undefined } } })) as never,
         panelCount: () => held.length,
         frameSize: () => ({ width: 900, height: 700 }),
+        framePlace: () => ({ left: 320, top: 180 }),
         dismissFrame: vi.fn(),
         taken,
       };
@@ -158,8 +159,8 @@ describe('PanelWindowService', () => {
 
     it('opens the window the size the frame is standing at, and brings it home that size', () => {
       const opened = fakeWindow();
-      const open = vi.fn(() => opened);
-      const windows = setup(open as unknown as Window['open']);
+      const open = vi.fn<Window['open']>(() => opened);
+      const windows = setup(open);
       const abroad = frameHolding([]);
       const panels = { openFrame: vi.fn(() => abroad) } as unknown as never;
 
@@ -190,6 +191,25 @@ describe('PanelWindowService', () => {
       expect(home.taken).toEqual(['chat', 'sheet']);
       expect(abroad.dismissFrame).toHaveBeenCalled();
       expect(restored).not.toHaveBeenCalled();
+    });
+
+    it('stands them again where the group was, not in the corner of the screen', () => {
+      vi.useFakeTimers();
+      const opened = fakeWindow();
+      const windows = setup(() => opened);
+      const abroad = frameHolding([]);
+      const home = frameHolding([]);
+      let made = 0;
+      const openFrame = vi.fn<(option?: PanelOption) => PanelFrame>(() => {
+        made += 1;
+        return made === 1 ? abroad : home;
+      });
+      windows.popOutGroup(frameHolding(['chat']), { openFrame } as unknown as never);
+
+      (opened as { closed: boolean }).closed = true;
+      vi.advanceTimersByTime(500);
+
+      expect(openFrame.mock.calls[1][0]).toEqual({ left: 320, top: 180, width: 900, height: 700 });
     });
   });
 
