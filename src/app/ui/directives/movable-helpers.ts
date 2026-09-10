@@ -21,13 +21,13 @@ export interface ContactRider {
   altitudePx: number;
   thicknessPx: number;
   ridesUp: boolean;
-  bottomZ: number;
+  restingZ: number;
 }
 
 const CONTACT_EPSILON_PX = 0.5;
 const CONTACT_MIN_THICKNESS_PX = 1;
 
-const FLAT_ON_THE_FLOOR: ContactRider = { altitudePx: 0, thicknessPx: 0, ridesUp: true, bottomZ: 0 };
+const FLAT_ON_THE_FLOOR: ContactRider = { altitudePx: 0, thicknessPx: 0, ridesUp: true, restingZ: 0 };
 
 export function contactRestLevels(
   footprints: readonly ContactFootprint[],
@@ -65,7 +65,7 @@ export function findContactSupportZ(
   const levels = contactRestLevels(footprints, centerX, centerY, rider);
   let held = -Infinity;
   for (const level of levels) {
-    if (level <= rider.bottomZ + CONTACT_EPSILON_PX && level > held) held = level;
+    if (level <= contactBottomAt(rider, rider.restingZ) + CONTACT_EPSILON_PX && level > held) held = level;
   }
   if (held > -Infinity) return held;
   if (levels.length > 0) return levels[0];
@@ -99,12 +99,12 @@ function contactLevels(under: readonly ContactFootprint[]): number[] {
   return levels;
 }
 
-function riderBottomAt(rider: ContactRider, level: number): number {
+export function contactBottomAt(rider: Pick<ContactRider, 'altitudePx' | 'ridesUp'>, level: number): number {
   return rider.ridesUp ? level + rider.altitudePx : Math.max(rider.altitudePx, level);
 }
 
 function riderFits(under: readonly ContactFootprint[], rider: ContactRider, level: number): boolean {
-  const bottom = riderBottomAt(rider, level);
+  const bottom = contactBottomAt(rider, level);
   const top = bottom + Math.max(rider.thicknessPx, CONTACT_MIN_THICKNESS_PX);
   for (const footprint of under) {
     if (bottom >= footprint.topZ - CONTACT_EPSILON_PX) continue;

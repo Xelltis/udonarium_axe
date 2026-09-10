@@ -365,17 +365,17 @@ describe('movable-helpers', () => {
       { left: 500, top: 500, right: 600, bottom: 600, bottomZ: 0, topZ: 999 },
     ];
 
-    const block = (thicknessPx: number, bottomZ: number): ContactRider => ({
+    const block = (thicknessPx: number, restingZ: number): ContactRider => ({
       altitudePx: 0,
       thicknessPx,
       ridesUp: false,
-      bottomZ,
+      restingZ,
     });
-    const token = (bottomZ: number): ContactRider => ({
+    const token = (restingZ: number): ContactRider => ({
       altitudePx: 0,
       thicknessPx: 0,
       ridesUp: true,
-      bottomZ,
+      restingZ,
     });
     const cell = (x: number, y: number, bottomZ: number, topZ: number): ContactFootprint => ({
       left: x,
@@ -444,7 +444,7 @@ describe('movable-helpers', () => {
     });
 
     it('takes a canopy built at altitude as the height it keeps, not a floor to climb', () => {
-      const canopy: ContactRider = { altitudePx: 150, thicknessPx: 50, ridesUp: false, bottomZ: 150 };
+      const canopy: ContactRider = { altitudePx: 150, thicknessPx: 50, ridesUp: false, restingZ: 150 };
 
       expect(findContactSupportZ([], 50, 50, canopy)).toBe(0);
       expect(findContactSupportZ([cell(0, 0, 0, 200)], 50, 50, canopy)).toBe(200);
@@ -466,7 +466,7 @@ describe('movable-helpers', () => {
       bottomZ,
       topZ,
     });
-    const rider: ContactRider = { altitudePx: 0, thicknessPx: 50, ridesUp: false, bottomZ: 0 };
+    const rider: ContactRider = { altitudePx: 0, thicknessPx: 50, ridesUp: false, restingZ: 0 };
 
     it('offers the floor and the roof of a rock hanging over it', () => {
       expect(contactRestLevels([cell(0, 0, 150, 200)], 50, 50, rider)).toEqual([0, 200]);

@@ -351,4 +351,36 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     expect(supportZ).toBe(2 * GRID);
     expect(supportZ).toBe(GravityService.contactTopZ(box, 'floor', GRID));
   });
+
+  it('still carries it up on the move after one that found only the floor', () => {
+    const box = block({ identifier: 'box', h: 2 });
+    const flier = GameCharacter.create('flier', 1, '');
+    flier.altitude = 4;
+    const directive = mount(flier, [{ object: box, w: 2, d: 2 }]);
+
+    expect(directive.contactSupportZ(500, 500)).toBe(0);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(2 * GRID);
+  });
+
+  it('reads the height a piece is kept at as clearance, not as a step it has taken', () => {
+    const rock = block({ identifier: 'rock', h: 1, altitude: 7 });
+    const flier = GameCharacter.create('flier', 1, '');
+    flier.altitude = 4;
+    const directive = mount(flier, [{ object: rock, w: 2, d: 2 }]);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(0);
+  });
+
+  it('a turn of the wheel is still what puts that piece on the rock', () => {
+    const rock = block({ identifier: 'rock', h: 1, altitude: 7 });
+    const flier = GameCharacter.create('flier', 1, '');
+    flier.altitude = 4;
+    const directive = mount(flier, [{ object: rock, w: 2, d: 2 }]);
+    grab(directive, { x: 50, y: 50 });
+
+    directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+
+    expect(directive.contactSupportZ(50, 50)).toBe(8 * GRID);
+  });
 });

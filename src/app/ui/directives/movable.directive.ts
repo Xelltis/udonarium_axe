@@ -288,11 +288,12 @@ export class MovableDirective implements MovableInteractionContext {
   private contactRider(self: TabletopObject): ContactRider {
     const gridSize = this.tableGridSize();
     const altitudePx = surfaceOf(self) === 'floor' ? self.altitude * gridSize : 0;
+    const ridesUp = !(self instanceof Terrain);
     return {
       altitudePx,
       thicknessPx: self instanceof Terrain ? self.height * gridSize : 0,
-      ridesUp: !(self instanceof Terrain),
-      bottomZ: this.dragReachZ ?? altitudePx + this.posZ,
+      ridesUp,
+      restingZ: this.dragReachZ ?? (ridesUp ? this.posZ : altitudePx + this.posZ),
     };
   }
 
@@ -310,7 +311,7 @@ export class MovableDirective implements MovableInteractionContext {
     const rider = this.contactRider(self);
     const center = this.coordinateService.convertToLocal(dragPointer2d(this), this.surfaceElement());
     const levels = contactRestLevels(this.contactProbe, center.x, center.y, rider);
-    const next = nextContactLevel(levels, rider.bottomZ, e.deltaY < 0);
+    const next = nextContactLevel(levels, rider.restingZ, e.deltaY < 0);
     if (next === null) return;
 
     this.dragReachZ = next;
