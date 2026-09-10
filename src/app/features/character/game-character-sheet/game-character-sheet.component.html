@@ -297,7 +297,7 @@
                       </span>
                       @if (isElementEditing(childElement.identifier)) {
                         <button
-                          class="inline-flex size-5.5 min-w-5 cursor-pointer items-center justify-center rounded-[3px] border-none bg-white/15 p-0 text-[0.7em] font-bold text-white transition-[background] hover:bg-white/30 [&_.material-icons]:text-[13px]!"
+                          class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 min-w-5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 text-[0.7em] font-bold transition-[background,color] [&_.material-icons]:text-[13px]!"
                           type="button"
                           [title]="'feature.inventory.sheet.cycleColspanTitle' | transloco"
                           (click)="cycleCardColspan(childElement)"
@@ -309,7 +309,7 @@
                           }}</span>
                         </button>
                         <button
-                          class="inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none bg-white/15 p-0 text-white transition-[background] hover:bg-white/30 [&_.material-icons]:text-[13px]!"
+                          class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 transition-[background,color] [&_.material-icons]:text-[13px]!"
                           [class.bg-ui-accent-bg!]="isPopupDataElement(childElement)"
                           [class.text-ui-accent!]="isPopupDataElement(childElement)"
                           [class.hover:bg-[color-mix(in_srgb,var(--ui-accent)_24%,transparent)]!]="
@@ -322,7 +322,7 @@
                           <i class="material-icons">open_in_new</i>
                         </button>
                         <button
-                          class="inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none bg-[color-mix(in_srgb,var(--ui-danger)_50%,transparent)] p-0 text-white transition-[background] hover:bg-[color-mix(in_srgb,var(--ui-danger)_75%,transparent)] [&_.material-icons]:text-[13px]!"
+                          class="bg-ui-danger hover:bg-ui-danger-hover inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 text-white transition-[background] [&_.material-icons]:text-[13px]!"
                           type="button"
                           [title]="'feature.inventory.sheet.deleteItemTitle' | transloco"
                           (click)="deleteTopLevelElement(childElement.identifier)"
@@ -331,7 +331,7 @@
                         </button>
                       }
                       <button
-                        class="inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none bg-white/15 p-0 text-white transition-[background] hover:bg-white/30 [&_.material-icons]:text-[13px]!"
+                        class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 transition-[background,color] [&_.material-icons]:text-[13px]!"
                         type="button"
                         [title]="'feature.inventory.sheet.edit' | transloco"
                         (click)="toggleElementEdit(childElement.identifier)"
