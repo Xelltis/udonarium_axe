@@ -9,9 +9,17 @@ function isTextField(element: Element | null): element is HTMLInputElement | HTM
   return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement;
 }
 
+/**
+ * Only a box that overflows can be scrolled, and one is made so where it is written.
+ *
+ * Reading every node under a panel means reading a whole session of chat a line at a time,
+ * none of which was ever scrollable.
+ */
+const SCROLLERS = '[class*="overflow-"],[style*="overflow"]';
+
 function read(root: HTMLElement): LiveState {
   const scrolls: LiveState['scrolls'] = [];
-  for (const element of [root, ...root.querySelectorAll('*')]) {
+  for (const element of [root, ...root.querySelectorAll(SCROLLERS)]) {
     if (element.scrollTop > 0 || element.scrollLeft > 0) {
       scrolls.push({ element, top: element.scrollTop, left: element.scrollLeft });
     }

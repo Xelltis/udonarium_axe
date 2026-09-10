@@ -40,6 +40,25 @@ describe('holdLiveState', () => {
     root.remove();
   });
 
+  it('holds a box that scrolls inside the panel, and passes over what cannot', () => {
+    const root = scrollable();
+    const log = scrollable();
+    log.className = 'overflow-y-auto';
+    const line = scrollable();
+    line.className = 'text-sm';
+    root.append(log, line);
+    log.scrollTop = 400;
+    line.scrollTop = 90;
+
+    const restore = holdLiveState(root);
+    log.scrollTop = 0;
+    line.scrollTop = 0;
+    restore();
+
+    expect(log.scrollTop).toBe(400);
+    expect(line.scrollTop).toBe(0);
+  });
+
   it('leaves the page alone when the panel held nothing of the sort', () => {
     const root = scrollable();
     document.body.appendChild(root);
