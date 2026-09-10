@@ -3964,7 +3964,8 @@
     },
     "tableView": {
       "judgeCalc": "判定算出モード",
-      "skillLearned": "技能習得モード"
+      "skillLearned": "技能習得モード",
+      "checkColumn": "この列をまとめてチェック"
     },
     "judgement": {
       "title": "{{label}} の判定候補",

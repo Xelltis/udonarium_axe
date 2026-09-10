@@ -3964,7 +3964,8 @@
     },
     "tableView": {
       "judgeCalc": "Judge calc mode",
-      "skillLearned": "Skill learn mode"
+      "skillLearned": "Skill learn mode",
+      "checkColumn": "Tick the whole column"
     },
     "judgement": {
       "title": "Judgement candidates for {{label}}",

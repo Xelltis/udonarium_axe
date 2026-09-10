@@ -3739,7 +3739,8 @@
       },
       "tableView": {
         "judgeCalc": "판정 산출 모드",
-        "skillLearned": "기능 습득 모드"
+        "skillLearned": "기능 습득 모드",
+        "checkColumn": "이 열을 한꺼번에 체크"
       },
       "judgement": {
         "title": "{{label}}의 판정 후보",

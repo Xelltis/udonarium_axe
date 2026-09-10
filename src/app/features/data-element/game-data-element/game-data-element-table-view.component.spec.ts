@@ -10,21 +10,23 @@ function makeTableElement(): DataElement {
   const table = DataElement.create('SkillTable', '');
   const header = DataElement.create('header', '', { tableControl: 'true' });
   const skill = DataElement.create('skill', '', { columnLabel: '技能' });
-  const gap = DataElement.create('gap', '', { columnLabel: '間', gapColumn: 'true' });
+  const gap = DataElement.create('gap', '', { columnLabel: '間', cellKind: 'gap' });
   const stat = DataElement.create('stat', '', { columnLabel: '能力値' });
   header.appendChild(skill);
   header.appendChild(gap);
   header.appendChild(stat);
   table.appendChild(header);
 
-  const row = DataElement.create('row1', '');
-  const cellSkill = DataElement.create('skill', '0', { fieldType: DataElementFieldType.CHECK });
-  const cellGap = DataElement.create('gap', '0', { fieldType: DataElementFieldType.CHECK });
-  const cellStat = DataElement.create('stat', '5');
-  row.appendChild(cellSkill);
-  row.appendChild(cellGap);
-  row.appendChild(cellStat);
-  table.appendChild(row);
+  for (const name of ['row1', 'row2']) {
+    const row = DataElement.create(name, '');
+    const cellSkill = DataElement.create('skill', '0', { fieldType: DataElementFieldType.CHECK });
+    const cellGap = DataElement.create('gap', '0', { fieldType: DataElementFieldType.CHECK, cellKind: 'gap' });
+    const cellStat = DataElement.create('stat', '5');
+    row.appendChild(cellSkill);
+    row.appendChild(cellGap);
+    row.appendChild(cellStat);
+    table.appendChild(row);
+  }
 
   return table;
 }
@@ -48,6 +50,61 @@ describe('GameDataElementTableViewComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('ticking a whole column from its heading', () => {
+    function columnNamed(name: string) {
+      return component.tableColumns().find((column) => column.name === name)!;
+    }
+
+    function cellsIn(name: string) {
+      return component.tableBodyRows().map((row) => component.getTableCell(row, name)!);
+    }
+
+    it('offers a box on a column of boxes, and on nothing else', () => {
+      fixture.detectChanges();
+
+      expect(component.hasTableColumnChecks(columnNamed('skill'))).toBe(true);
+      expect(component.hasTableColumnChecks(columnNamed('stat'))).toBe(false);
+      expect(component.hasTableColumnChecks(columnNamed('gap'))).toBe(false);
+    });
+
+    it('ticks every box under it, and clears them again', () => {
+      fixture.detectChanges();
+      const column = columnNamed('skill');
+
+      component.setTableColumnChecked(column, { stopPropagation: () => undefined } as Event);
+
+      expect(cellsIn('skill').every((cell) => component.isTableCheckCellChecked(cell))).toBe(true);
+      expect(component.isTableColumnAllChecked(column)).toBe(true);
+
+      component.setTableColumnChecked(column, { stopPropagation: () => undefined } as Event);
+
+      expect(cellsIn('skill').some((cell) => component.isTableCheckCellChecked(cell))).toBe(false);
+    });
+
+    it('stands half filled while only some of the column is ticked', () => {
+      fixture.detectChanges();
+      const column = columnNamed('skill');
+      component.toggleTableCheckCell(cellsIn('skill')[0]);
+
+      expect(component.isTableColumnPartlyChecked(column)).toBe(true);
+      expect(component.isTableColumnAllChecked(column)).toBe(false);
+
+      component.setTableColumnChecked(column, { stopPropagation: () => undefined } as Event);
+
+      expect(component.isTableColumnPartlyChecked(column)).toBe(false);
+      expect(component.isTableColumnAllChecked(column)).toBe(true);
+    });
+
+    it('leaves the boxes alone where the values are locked', () => {
+      componentRef.setInput('isValueLocked', true);
+      fixture.detectChanges();
+
+      component.setTableColumnChecked(columnNamed('skill'), { stopPropagation: () => undefined } as Event);
+
+      expect(cellsIn('skill').some((cell) => component.isTableCheckCellChecked(cell))).toBe(false);
+    });
   });
 
   it('scrolls the table sideways from the wheel', () => {

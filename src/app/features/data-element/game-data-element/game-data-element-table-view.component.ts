@@ -136,6 +136,53 @@ export class GameDataElementTableViewComponent {
     this.objectChange.notifyChanged(gapCell.identifier);
   }
 
+  /**
+   * The boxes a column holds, which is what a heading can tick the whole of at once.
+   *
+   * Gap columns are left out: theirs is a box of its own on the heading, not a column of them
+   * underneath it.
+   */
+  private tableColumnCheckCells(column: DataElementTableColumn): DataElement[] {
+    if (this.isGapTableColumn(column)) return [];
+    const cells: DataElement[] = [];
+    for (const row of this.tableBodyRows()) {
+      const cell = this.getTableCell(row, column.name);
+      if (cell?.fieldType === 'check') cells.push(cell);
+    }
+    return cells;
+  }
+
+  hasTableColumnChecks(column: DataElementTableColumn): boolean {
+    return !this.isJudgeMode() && this.tableColumnCheckCells(column).length > 0;
+  }
+
+  isTableColumnAllChecked(column: DataElementTableColumn): boolean {
+    const cells = this.tableColumnCheckCells(column);
+    return cells.length > 0 && cells.every((cell) => this.isTableCheckCellChecked(cell));
+  }
+
+  /** Some of the column but not all of it, which a box says by standing half filled. */
+  isTableColumnPartlyChecked(column: DataElementTableColumn): boolean {
+    const cells = this.tableColumnCheckCells(column);
+    const ticked = cells.filter((cell) => this.isTableCheckCellChecked(cell)).length;
+    return ticked > 0 && ticked < cells.length;
+  }
+
+  setTableColumnChecked(column: DataElementTableColumn, event: Event): void {
+    event.stopPropagation();
+    const wanted = this.isTableColumnAllChecked(column);
+    if (this.isValueLocked()) {
+      if (event.target instanceof HTMLInputElement) event.target.checked = wanted;
+      return;
+    }
+    const checked = event.target instanceof HTMLInputElement ? event.target.checked : !wanted;
+    for (const cell of this.tableColumnCheckCells(column)) {
+      if (this.isTableCheckCellChecked(cell) === checked) continue;
+      cell.value = checked ? 1 : 0;
+      this.objectChange.notifyChanged(cell.identifier);
+    }
+  }
+
   private getGapTableColumnCell(column: DataElementTableColumn): DataElement | null {
     this.tableRows();
     return findGapCellInColumn(this.element(), column);

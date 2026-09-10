@@ -71,6 +71,22 @@
                     (change)="setGapTableColumnActive(column, $event)"
                   />
                 </label>
+              } @else if (hasTableColumnChecks(column)) {
+                <label
+                  class="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1"
+                  [title]="'feature.dataElement.tableView.checkColumn' | transloco"
+                  (click)="$event.stopPropagation()"
+                >
+                  <input
+                    class="m-0 size-3.5 flex-[0_0_auto] cursor-pointer [accent-color:var(--ui-accent)]"
+                    type="checkbox"
+                    [checked]="isTableColumnAllChecked(column)"
+                    [indeterminate]="isTableColumnPartlyChecked(column)"
+                    [disabled]="isValueLocked()"
+                    (change)="setTableColumnChecked(column, $event)"
+                  />
+                  <span class="truncate">{{ column.label }}</span>
+                </label>
               } @else {
                 {{ column.label }}
               }
