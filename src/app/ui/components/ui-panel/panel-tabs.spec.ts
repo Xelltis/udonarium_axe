@@ -6,10 +6,12 @@ import {
   inject,
   viewChild,
   ViewContainerRef,
+  WritableSignal,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 
@@ -390,6 +392,18 @@ describe('a frame holding more than one panel', () => {
     host.detectChanges();
 
     expect(grounds(first.frame).map((ground) => ground.style.display)).toEqual(['none', 'none']);
+  });
+
+  it('keeps the names up on a narrow screen, which is the only way to the panels behind', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    fold(first.frame, second);
+    const viewport = TestBed.inject(ViewportService) as unknown as { _isCompact: WritableSignal<boolean> };
+
+    viewport._isCompact.set(true);
+    host.detectChanges();
+
+    expect(first.frame.instance.showsTabs()).toBe(true);
   });
 
   it('puts its tab names away while it is folded', () => {

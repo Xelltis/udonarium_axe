@@ -211,8 +211,14 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     this.dismissFrame();
   }
 
-  /** Whether the frame is showing a row of names, which it does only when it holds several. */
-  readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isCompact() && !this.isMinimized());
+  /**
+   * Whether the frame is showing a row of names, which it does only when it holds several.
+   *
+   * A narrow screen is no reason to put the names away: nothing but the row reaches the panels
+   * behind the one in front, and a group carried onto a narrow screen -- or a window a reader
+   * drew in -- left every panel but one shut behind a frame with no way into it.
+   */
+  readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isMinimized());
   readonly tabLabels = computed(() => this.tabs().map((tab) => tab.panel.title));
 
   closeTabAt(index: number): void {
