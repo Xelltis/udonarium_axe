@@ -1,3 +1,79 @@
+## [1.52.0](https://github.com/Xelltis/udonarium_axe/compare/v1.51.0...v1.52.0) (2026-09-10)
+
+### ✨ Features
+
+* **data-element:** tick a whole column of a table from its heading ([36cd7ab](https://github.com/Xelltis/udonarium_axe/commit/36cd7ab81d38b38532b2640be91a374177ea1b29))
+* **los:** give a segment a bottom as well as a top ([f83ffbd](https://github.com/Xelltis/udonarium_axe/commit/f83ffbdc5acc401d01f03644f0b395df45d5986b))
+* **tabletop:** hang dungeon doors wider than a cell, and in pairs ([3495f5b](https://github.com/Xelltis/udonarium_axe/commit/3495f5bb5a50a311c71a1bb9a7673809224d2a95))
+* **tabletop:** let a generated dungeon be built with walls nobody can climb ([28b2c96](https://github.com/Xelltis/udonarium_axe/commit/28b2c96983e71366de853cd9af374762fea8d0c5))
+* **tabletop:** let a piece of terrain be too sheer for a piece to climb ([547b17b](https://github.com/Xelltis/udonarium_axe/commit/547b17b8d6b2b803da6096271d240263f4e276e3))
+* **tabletop:** let a planned move be taken over what stands in the way ([69168c3](https://github.com/Xelltis/udonarium_axe/commit/69168c36f85623ce598dce655b2f5f3314e2046b))
+* **tabletop:** offer walking and jumping as a pair a finger can press ([e326405](https://github.com/Xelltis/udonarium_axe/commit/e326405db8886ef47690e98da88470cd3f3c7c15))
+* **tabletop:** step a held piece between the surfaces under it with the wheel ([4262c34](https://github.com/Xelltis/udonarium_axe/commit/4262c340299b3eb2bae0f69625a16868bdd56e92))
+* **ui:** fold one panel into another by dropping its bar on it ([9d5ea35](https://github.com/Xelltis/udonarium_axe/commit/9d5ea35c79a2406a5ad49adbfcdf9ddc044715e0))
+* **ui:** let one frame hold several panels as tabs ([b8fe92d](https://github.com/Xelltis/udonarium_axe/commit/b8fe92d6d3d0912a379baf491d5e39cbff8a21d8))
+* **ui:** send a group out to a window, and draw its names as tabs ([6c636ae](https://github.com/Xelltis/udonarium_axe/commit/6c636aecdd00fa59ba43b5dc1f8409c2778f81fd))
+* **ui:** show a strip of names when a frame holds more than one panel ([5ad435c](https://github.com/Xelltis/udonarium_axe/commit/5ad435c53575ae327249f95e86b11f0c56d1e377))
+* **ui:** take a panel back out of a group by dragging its name away ([8e3b26b](https://github.com/Xelltis/udonarium_axe/commit/8e3b26bce558faff4166a2422b8ea25a65396627))
+
+### 🐛 Bug Fixes
+
+* **character:** draw the sheet's small buttons in the colours of the skin ([e80958f](https://github.com/Xelltis/udonarium_axe/commit/e80958ff4eb014fd5c6a3de08349f72a0eb48215))
+* **map-editor:** keep the height a block was built at ([e90601c](https://github.com/Xelltis/udonarium_axe/commit/e90601ce4c8d3b59b7e913bfebd4993064a7b80c))
+* **panels:** bring a group of panels home to where it was, not to the corner ([996ffbe](https://github.com/Xelltis/udonarium_axe/commit/996ffbe1ae8fe0a6063e157682e91238cc06fac1))
+* **panels:** keep the way out of a window from being offered inside one ([35d2b2a](https://github.com/Xelltis/udonarium_axe/commit/35d2b2a51c4056bf500f0dce5691a4d60da9697c))
+* **replay:** stand a block in a replay at the height it really stood ([b83bf7a](https://github.com/Xelltis/udonarium_axe/commit/b83bf7ace8c09a9051b42f4f381868f1f72a9fd7))
+* **tabletop:** count a room's doors by the doors, not by the cells they fill ([ad1928c](https://github.com/Xelltis/udonarium_axe/commit/ad1928c31ba372804dc1d76addc89fb50b8cdab0))
+* **tabletop:** draw a mover's reach under the rule they are moving by ([b1bded9](https://github.com/Xelltis/udonarium_axe/commit/b1bded9ba1dfa094d1540a0b17cb409ea3574d27))
+* **tabletop:** give a block an underside, so one off the ground is not seen into ([451c1ef](https://github.com/Xelltis/udonarium_axe/commit/451c1ef48f4fb4ddb9fc5caa01f9c9f370aa5769))
+* **tabletop:** keep a cell off the board out by its row as well as its column ([8050242](https://github.com/Xelltis/udonarium_axe/commit/8050242c96fb4883cbe61dc934795d9aee3bcba7))
+* **tabletop:** keep a copied light on the table it was copied on ([a6aba56](https://github.com/Xelltis/udonarium_axe/commit/a6aba566df91a5d3c028053691adef79eeea7001))
+* **tabletop:** keep a piece out of a sheer face it walks at from the far side ([e4c685f](https://github.com/Xelltis/udonarium_axe/commit/e4c685ff3ee94e1fc48a92e9553e36ba51cfc0b1))
+* **tabletop:** keep the snap at the end of a drag out of a sheer face ([6f7f63d](https://github.com/Xelltis/udonarium_axe/commit/6f7f63d43eb5123ff132c36960f04a7d2ed9cc59))
+* **tabletop:** let a piece pass under terrain it fits beneath ([07b2bbf](https://github.com/Xelltis/udonarium_axe/commit/07b2bbfe8ceeb60f41bbb7b16d1c0c50ec268039))
+* **tabletop:** let a piece walk the gap between two walls its own width ([7132073](https://github.com/Xelltis/udonarium_axe/commit/7132073174bf1b2986f05aa48f69c75ff425a15a))
+* **tabletop:** make the band under a move worth pressing with a finger ([3078eb1](https://github.com/Xelltis/udonarium_axe/commit/3078eb166dc5bdf1c9cde7ed783d0f4edd9ac06f))
+* **tabletop:** measure heights by the cells of the table they stand on ([7ec85c8](https://github.com/Xelltis/udonarium_axe/commit/7ec85c87ccb0a5c5825a9ff955d6f5ff132aa8d9))
+* **tabletop:** send a piece where it is going once it has got there ([857d85c](https://github.com/Xelltis/udonarium_axe/commit/857d85c6d589a49dd6513f8bc08e19b678b0fd45))
+* **tabletop:** stop a widened dungeon door from eating the wall that holds it ([2c63bb8](https://github.com/Xelltis/udonarium_axe/commit/2c63bb8c6a2e34d28663b254577c18d88c4aac4f))
+* **tabletop:** tell the height a piece rests at from the height of its underside ([ef828d5](https://github.com/Xelltis/udonarium_axe/commit/ef828d50cf5bc7ad7d4e321d4e7177f72f68fe9e))
+* **ui:** hold the caret only where a box keeps one ([97cbcff](https://github.com/Xelltis/udonarium_axe/commit/97cbcff15752df50e9d9053be79e10597c2afb27))
+* **ui:** keep a panel's place in the log and its half-typed line across a move ([4d4ab14](https://github.com/Xelltis/udonarium_axe/commit/4d4ab1488b5722d35ca86798bb04d84e8027bfd2))
+* **ui:** keep the tab names up on a narrow screen ([0ef651b](https://github.com/Xelltis/udonarium_axe/commit/0ef651bd2f417c99476868893b7ee5a343ad42bc))
+* **ui:** let a frame wear the settings of the panel it is showing ([802796f](https://github.com/Xelltis/udonarium_axe/commit/802796f5d5c9e65a5a59c5ad23781998d9fce9f5))
+* **ui:** let go of a tab where it was when the browser takes the carry away ([e48c442](https://github.com/Xelltis/udonarium_axe/commit/e48c4420e7973e3b088ef237cc1ebad77a2ef7cf))
+* **ui:** set the warning colour on the skin a room starts in ([4945530](https://github.com/Xelltis/udonarium_axe/commit/49455303c43d1500c81965ba9a7fe4ea2911ee32))
+* **ui:** start a frame's body under its names, however tall the bar is ([3d9c55f](https://github.com/Xelltis/udonarium_axe/commit/3d9c55f10ca5c499ec2fed278e858b34f8afce1a))
+* **ui:** write every notice in colours that turn with the skin ([bc2bc94](https://github.com/Xelltis/udonarium_axe/commit/bc2bc94aefff7b2079e4d91457a28a84fc82dcc8))
+* **vision:** let an eye under an arch see the ground it is standing on ([74cd656](https://github.com/Xelltis/udonarium_axe/commit/74cd656a8efa0a8d0e69521f346ec67d45faaadb))
+* **vision:** let sight and light through under a block that hangs clear ([04d2307](https://github.com/Xelltis/udonarium_axe/commit/04d23073132082ba47f799b4789328dd4882f774))
+* **vision:** read a block that rests on something at its real height ([b350730](https://github.com/Xelltis/udonarium_axe/commit/b350730a32258306d6f4c2fb810b1384dc6178f0))
+* **vision:** read a hanging block by the height it was built to hang at ([8a87d01](https://github.com/Xelltis/udonarium_axe/commit/8a87d01abfbf1d0409a69f57366de2a5de8184cc))
+
+### ⚡ Performance
+
+* **core:** decode packed bytes into the buffer that is going to hold them ([5c25c33](https://github.com/Xelltis/udonarium_axe/commit/5c25c3334cf5190661568134a9f953ca78953805))
+* **tabletop:** gather blocks from cells that are already numbers ([d21623e](https://github.com/Xelltis/udonarium_axe/commit/d21623e4159d3031daa2c1be3ce116f768ec91c5))
+* **ui:** look for a panel's scroll only where a box can hold one ([b552d4f](https://github.com/Xelltis/udonarium_axe/commit/b552d4f5921790faab5175446eb78606307e57ba))
+* **ui:** measure the frames a drag may land on once, when it starts ([9c27ca3](https://github.com/Xelltis/udonarium_axe/commit/9c27ca3392af66889d6bf57cb6745e9d03f5322f))
+
+### 📝 Documentation
+
+* **website:** say how panels are folded into one with tabs ([9b78a54](https://github.com/Xelltis/udonarium_axe/commit/9b78a54464ab0a2ab23835519f36ee6b43812616))
+* **website:** say how wide a dungeon door is hung and when it parts in two ([c294d0a](https://github.com/Xelltis/udonarium_axe/commit/c294d0ad81427d8c0cefb0c1e96b83d084b5f21d))
+* **website:** write the release note for v1.52.0 ([4512172](https://github.com/Xelltis/udonarium_axe/commit/4512172c3da707f55077390751d17d69f30c6280))
+* write down what terrain that cannot be climbed does, and how to jump ([e2b3970](https://github.com/Xelltis/udonarium_axe/commit/e2b397010d2ef95f74f88e9440ddc4f788503674))
+
+### ♻️ Refactor
+
+* **core:** share one base64 for whatever a table packs into a string ([7a60d1c](https://github.com/Xelltis/udonarium_axe/commit/7a60d1c9e5613be60b8726826545c9d4b555d8fc))
+* **tabletop:** keep the terrain ledger with the harness, not with the domain ([2840e13](https://github.com/Xelltis/udonarium_axe/commit/2840e13a8547b5472dab0c50a17574e7fdaf3557))
+* **tabletop:** share one square-up of a block's ground ([638de4e](https://github.com/Xelltis/udonarium_axe/commit/638de4e3d5098cf5ae2a4e1c7c98e1b5306a8273))
+* **ui:** close a panel through the frame that draws it ([aa68db0](https://github.com/Xelltis/udonarium_axe/commit/aa68db0f5de0478fed3fada41d9a40b14ea29517))
+* **ui:** give a panel's body a slot of its own inside the frame ([2dc83ab](https://github.com/Xelltis/udonarium_axe/commit/2dc83ab18e96250c740594917bc837f119da6022))
+* **ui:** let a panel's title be followed rather than read once ([f141617](https://github.com/Xelltis/udonarium_axe/commit/f141617b9cc18e35727b6781c0d4f782a3af3ea7))
+* **ui:** share the one way a copy is put down beside its original ([180ec59](https://github.com/Xelltis/udonarium_axe/commit/180ec59842125dbc77b07af16c43501e4d7f7938))
+
 ## [1.51.0](https://github.com/Xelltis/udonarium_axe/compare/v1.50.0...v1.51.0) (2026-09-09)
 
 ### ✨ Features
