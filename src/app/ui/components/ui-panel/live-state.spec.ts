@@ -59,6 +59,22 @@ describe('holdLiveState', () => {
     expect(line.scrollTop).toBe(0);
   });
 
+  it('puts the reader back in a box that keeps no caret without throwing at them', () => {
+    const root = scrollable();
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    root.appendChild(box);
+    document.body.appendChild(root);
+    box.focus();
+
+    const restore = holdLiveState(root);
+    (document.activeElement as HTMLElement)?.blur();
+
+    expect(() => restore()).not.toThrow();
+    expect(document.activeElement).toBe(box);
+    root.remove();
+  });
+
   it('leaves the page alone when the panel held nothing of the sort', () => {
     const root = scrollable();
     document.body.appendChild(root);

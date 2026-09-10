@@ -2,7 +2,7 @@
 interface LiveState {
   scrolls: { element: Element; top: number; left: number }[];
   focused: HTMLElement | null;
-  selection: { start: number | null; end: number | null } | null;
+  selection: { start: number; end: number } | null;
 }
 
 function isTextField(element: Element | null): element is HTMLInputElement | HTMLTextAreaElement {
@@ -26,8 +26,7 @@ function read(root: HTMLElement): LiveState {
   }
   const active = root.ownerDocument.activeElement;
   const focused = active instanceof HTMLElement && root.contains(active) ? active : null;
-  const selection = isTextField(focused) ? { start: focused.selectionStart, end: focused.selectionEnd } : null;
-  return { scrolls, focused, selection };
+  return { scrolls, focused, selection: caretIn(focused) };
 }
 
 function write(state: LiveState): void {
@@ -41,6 +40,20 @@ function write(state: LiveState): void {
   if (state.selection && isTextField(focused)) {
     focused.setSelectionRange(state.selection.start, state.selection.end);
   }
+}
+
+/**
+ * Where the caret sat, in a box that has one.
+ *
+ * A checkbox, a number and a colour are all inputs and none of them keeps a caret: asked for
+ * one they answer nothing, and handed that nothing back they throw. Thrown mid-handover, the
+ * panels a frame was passing on are dropped where they stand.
+ */
+function caretIn(focused: HTMLElement | null): LiveState['selection'] {
+  if (!isTextField(focused)) return null;
+  const start = focused.selectionStart;
+  const end = focused.selectionEnd;
+  return start === null || end === null ? null : { start, end };
 }
 
 /**
