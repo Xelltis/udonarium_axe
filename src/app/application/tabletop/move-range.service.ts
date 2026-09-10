@@ -53,6 +53,13 @@ export interface ReachTerms extends WalkTerms {
   grid: CellGrid;
   start: number;
   cells: CellBits;
+  /**
+   * The same reach for a piece that means to jump.
+   *
+   * Worked out when it is asked for rather than alongside the other: every piece the room is
+   * watching move has its reach drawn afresh on every redraw, and most of them are walking.
+   */
+  leaptCells: () => CellBits;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -120,7 +127,23 @@ export class MoveRangeService {
   termsOf(character: GameCharacter): ReachTerms | null {
     const built = this.build(character);
     if (!built) return null;
-    return { ...built.terms, grid: built.view.grid, start: built.start, cells: built.view.cells };
+    const { grid, cells } = built.view;
+    const terms = built.terms;
+    let leaptCells: CellBits | null = null;
+    return {
+      ...terms,
+      grid,
+      start: built.start,
+      cells,
+      leaptCells: () =>
+        (leaptCells ??= reachableCells(
+          grid,
+          built.start,
+          terms.walk,
+          (index) => terms.leapt.get(index),
+          terms.options
+        )),
+    };
   }
 
   /** What the table is played by, which the room answers for wherever it has been asked. */

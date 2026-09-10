@@ -102,12 +102,19 @@ export class MovePlanService {
     const piece = plan && table ? plan.characterIdentifier : '';
     const on = piece ? table!.identifier : '';
     const way = piece && plan ? this.wholeWay().join(',') : '';
-    if (cursor.movingCharacterIdentifier === piece && cursor.movingTableIdentifier === on && cursor.movingWay === way) {
+    const jumping = piece && plan?.jumping ? 'true' : '';
+    if (
+      cursor.movingCharacterIdentifier === piece &&
+      cursor.movingTableIdentifier === on &&
+      cursor.movingWay === way &&
+      cursor.movingJumping === jumping
+    ) {
       return;
     }
     cursor.movingCharacterIdentifier = piece;
     cursor.movingTableIdentifier = on;
     cursor.movingWay = way;
+    cursor.movingJumping = jumping;
     cursor.update();
   }
 

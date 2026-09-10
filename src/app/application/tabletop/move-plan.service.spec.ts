@@ -203,6 +203,19 @@ describe('MovePlanService', () => {
       expect(service.plan()!.reach.get(cell(6, 5))).toBe(true);
     });
 
+    it('tells the room which rule the move is being taken under', () => {
+      PeerCursor.createMyCursor();
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+      TestBed.tick();
+      expect(PeerCursor.myCursor.movingJumping).toBe('');
+
+      service.toggleJump();
+      TestBed.tick();
+
+      expect(PeerCursor.myCursor.movingJumping).toBe('true');
+    });
+
     it('leaves a face too sheer to climb out of reach, jumping or not', () => {
       blockOver(6, 5, 2, true);
       service.begin(pieceAt(5, 5, 3));
