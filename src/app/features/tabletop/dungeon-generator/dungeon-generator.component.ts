@@ -138,6 +138,7 @@ export class DungeonGeneratorComponent {
   protected readonly tableName = signal('');
   protected readonly placeDoors = signal(true);
   protected readonly placeStairs = signal(true);
+  protected readonly sheerWalls = signal(false);
   protected readonly fogEnabled = signal(false);
 
   private readonly wallOverride = signal<DungeonMaterial | null>(null);
@@ -226,7 +227,7 @@ export class DungeonGeneratorComponent {
         doubleDoorPercent: this.doubleDoors(),
         gridType: this.gridType(),
       },
-      { placeDoors: this.placeDoors(), placeStairs: this.placeStairs() }
+      { placeDoors: this.placeDoors(), placeStairs: this.placeStairs(), sheerWalls: this.sheerWalls() }
     )
   );
 

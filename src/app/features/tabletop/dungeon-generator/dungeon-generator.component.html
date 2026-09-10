@@ -515,6 +515,10 @@
         />
         {{ 'feature.tabletop.dungeonGenerator.props.placeStairs' | transloco }}
       </label>
+      <label class="flex cursor-pointer items-center gap-2">
+        <input type="checkbox" name="sheer-walls" [ngModel]="sheerWalls()" (ngModelChange)="sheerWalls.set($event)" />
+        {{ 'feature.tabletop.dungeonGenerator.props.sheerWalls' | transloco }}
+      </label>
     </div>
   }
 

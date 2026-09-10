@@ -2055,6 +2055,7 @@
           "tableName": "테이블 이름",
           "placeDoors": "문 배치",
           "placeStairs": "입구와 출구 배치",
+          "sheerWalls": "벽을 오를 수 없게 함(열린 문은 통과 가능)",
           "wallHeight": "벽 높이(칸)",
           "entrance": "입구",
           "kind": "종류",

@@ -2055,6 +2055,7 @@
           "tableName": "Table name",
           "placeDoors": "Place doors",
           "placeStairs": "Place the way in and out",
+          "sheerWalls": "Walls cannot be climbed (an open door still lets you through)",
           "wallHeight": "Wall height (cells)",
           "entrance": "Way in",
           "kind": "Kind",

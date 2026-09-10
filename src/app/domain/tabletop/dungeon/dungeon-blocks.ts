@@ -16,6 +16,14 @@ export const MAX_MERGE_SPAN = 12;
 export interface DungeonBlockOptions {
   placeDoors: boolean;
   placeStairs: boolean;
+  /**
+   * Whether the walls of the place are too sheer to get up.
+   *
+   * Stone walls are what a dungeon is made of, so a party that can step over them is walking
+   * a floor plan rather than a dungeon. A door shut is part of that wall; opened, it is a way
+   * through like any other.
+   */
+  sheerWalls?: boolean;
   /** How many cells one block may stand for. Hexes take one each; see mergeSpanFor. */
   mergeSpan?: number;
 }
@@ -145,6 +153,7 @@ export function layoutToBlocks(
       kind: 'wall',
       rect,
       blocksSight: boundary,
+      blocksClimb: options.sheerWalls === true,
       locked: false,
       rooms: boundary ? roomsBeside(layout, rect) : [],
     });
@@ -170,6 +179,7 @@ export function layoutToBlocks(
           kind: 'door',
           rect,
           blocksSight: true,
+          blocksClimb: options.sheerWalls === true,
           locked: leaf.locked,
           rooms: leaf.rooms,
           across: leaf.across,

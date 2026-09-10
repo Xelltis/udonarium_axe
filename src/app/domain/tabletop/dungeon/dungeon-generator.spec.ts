@@ -160,6 +160,40 @@ describe('planDungeon()', () => {
     }
   });
 
+  describe('walls too sheer to get up', () => {
+    function planWith(sheerWalls: boolean) {
+      return planDungeon(
+        { atmosphere: 'stoneDungeon', roomCount: 8, seed: 7 },
+        {
+          placeDoors: true,
+          placeStairs: true,
+          sheerWalls,
+        }
+      ).blocks.blocks;
+    }
+
+    it('leaves every block climbable when it is not asked for', () => {
+      expect(planWith(false).every((block) => block.blocksClimb !== true)).toBe(true);
+    });
+
+    it('is not asked for by a caller that says nothing of it', () => {
+      const blocks = planDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 7 }).blocks.blocks;
+
+      expect(blocks.every((block) => block.blocksClimb !== true)).toBe(true);
+    });
+
+    it('makes the walls and the doors sheer, and leaves the stairs to be walked up', () => {
+      const blocks = planWith(true);
+      const kindsOf = (sheer: boolean) => new Set(blocks.filter((b) => b.blocksClimb === sheer).map((b) => b.kind));
+
+      expect(blocks.some((block) => block.kind === 'wall')).toBe(true);
+      expect(blocks.some((block) => block.kind === 'door')).toBe(true);
+      expect(kindsOf(true)).toEqual(new Set(['wall', 'door']));
+      expect(kindsOf(true).has('stairUp')).toBe(false);
+      expect(kindsOf(true).has('stairDown')).toBe(false);
+    });
+  });
+
   it('counts twelve objects to sync for every terrain', () => {
     const plan = planDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 7 });
 

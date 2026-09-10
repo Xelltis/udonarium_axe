@@ -2055,6 +2055,7 @@
           "tableName": "テーブル名",
           "placeDoors": "扉を置く",
           "placeStairs": "入口と出口を置く",
+          "sheerWalls": "壁を登れなくする（開いた扉は通れる）",
           "wallHeight": "壁の高さ（マス）",
           "entrance": "入口",
           "kind": "種類",
