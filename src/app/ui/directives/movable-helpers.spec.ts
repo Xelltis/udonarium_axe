@@ -11,11 +11,13 @@ import {
   calcSnapNum,
   collectCollidableElements,
   ContactFootprint,
+  contactRestLevels,
   ContactRider,
   dropTargetSurface,
   findContactSupportZ,
   MovableCoordinateResolver,
   MovableLayerItem,
+  nextContactLevel,
   resolveMovableLocalCoordinate,
   setLayerCollidable,
   shouldTransitionTo,
@@ -452,6 +454,61 @@ describe('movable-helpers', () => {
       const note = [cell(0, 0, 0, 0)];
 
       expect(findContactSupportZ(note, 50, 50, block(50, 0))).toBe(0);
+    });
+  });
+
+  describe('contactRestLevels', () => {
+    const cell = (x: number, y: number, bottomZ: number, topZ: number): ContactFootprint => ({
+      left: x,
+      top: y,
+      right: x + 100,
+      bottom: y + 100,
+      bottomZ,
+      topZ,
+    });
+    const rider: ContactRider = { altitudePx: 0, thicknessPx: 50, ridesUp: false, bottomZ: 0 };
+
+    it('offers the floor and the roof of a rock hanging over it', () => {
+      expect(contactRestLevels([cell(0, 0, 150, 200)], 50, 50, rider)).toEqual([0, 200]);
+    });
+
+    it('leaves out the floor a block on the ground has taken', () => {
+      expect(contactRestLevels([cell(0, 0, 0, 50)], 50, 50, rider)).toEqual([50]);
+    });
+
+    it('offers the floor alone where nothing stands', () => {
+      expect(contactRestLevels([cell(500, 500, 0, 50)], 50, 50, rider)).toEqual([0]);
+    });
+
+    it('counts a shared height once', () => {
+      const twins = [cell(0, 0, 0, 50), cell(0, 0, 0, 50)];
+
+      expect(contactRestLevels(twins, 50, 50, rider)).toEqual([50]);
+    });
+  });
+
+  describe('nextContactLevel', () => {
+    const levels = [0, 100, 250];
+
+    it('goes up to the next height there is', () => {
+      expect(nextContactLevel(levels, 0, true)).toBe(100);
+      expect(nextContactLevel(levels, 100, true)).toBe(250);
+    });
+
+    it('goes down to the one below', () => {
+      expect(nextContactLevel(levels, 250, false)).toBe(100);
+      expect(nextContactLevel(levels, 100, false)).toBe(0);
+    });
+
+    it('has nowhere to go past either end', () => {
+      expect(nextContactLevel(levels, 250, true)).toBeNull();
+      expect(nextContactLevel(levels, 0, false)).toBeNull();
+      expect(nextContactLevel([], 0, true)).toBeNull();
+    });
+
+    it('reads a height it is standing at as the one it is on, not one to step to', () => {
+      expect(nextContactLevel([0, 100], 100.2, true)).toBeNull();
+      expect(nextContactLevel([0, 100], 99.8, false)).toBe(0);
     });
   });
 

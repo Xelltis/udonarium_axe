@@ -101,14 +101,7 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
 
   if (!input.isDragging) context.setPointerEvents(false);
 
-  const pointer2d = {
-    x: input.pointer.x + context.pointerOffset2d.x * context.ratio,
-    y: input.pointer.y + context.pointerOffset2d.y * context.ratio,
-    z: 0,
-  };
-
-  pointer2d.x = Math.min(window.innerWidth - 0.1, Math.max(pointer2d.x, 0.1));
-  pointer2d.y = Math.min(window.innerHeight - 0.1, Math.max(pointer2d.y, 0.1));
+  const pointer2d = dragPointer2d(context);
 
   const pointer3d = resolveMovableLocalCoordinate(
     context.coordinateService,
@@ -137,6 +130,15 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
   } else {
     context.scratchObjectPosition(false);
   }
+}
+
+export function dragPointer2d(context: MovableInteractionContext): { x: number; y: number; z: number } {
+  const pointer = context.input?.pointer ?? { x: 0, y: 0, z: 0 };
+  return {
+    x: Math.min(window.innerWidth - 0.1, Math.max(pointer.x + context.pointerOffset2d.x * context.ratio, 0.1)),
+    y: Math.min(window.innerHeight - 0.1, Math.max(pointer.y + context.pointerOffset2d.y * context.ratio, 0.1)),
+    z: 0,
+  };
 }
 
 export function handleInputEnd(context: MovableInteractionContext, e: MouseEvent | TouchEvent): void {

@@ -26,9 +26,11 @@ import {
   calcSnapNum,
   collectCollidableElements,
   ContactFootprint,
+  contactRestLevels,
   ContactRider,
   dropTargetSurface,
   findContactSupportZ,
+  nextContactLevel,
   registerLayer,
   setLayerCollidable,
   shouldTransitionTo,
@@ -36,6 +38,7 @@ import {
   unregisterLayer,
 } from '@axe/ui/directives/movable-helpers';
 import {
+  dragPointer2d,
   handleContextMenu,
   handleInputEnd,
   handleInputMove,
@@ -71,6 +74,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private registeredOverlapId: string | null = null;
   private contactProbe: ContactFootprint[] | null = null;
+  private dragReachZ: number | null = null;
 
   private static layerHash: { [layerName: string]: MovableDirective[] } = {};
 
@@ -277,6 +281,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (!self) return findContactSupportZ(this.contactProbe, centerX, centerY);
     const rider = this.contactRider(self);
     const supportZ = findContactSupportZ(this.contactProbe, centerX, centerY, rider);
+    this.dragReachZ = supportZ;
     return GravityService.restingPosZ(self, supportZ, rider.altitudePx);
   }
 
@@ -287,8 +292,29 @@ export class MovableDirective implements MovableInteractionContext {
       altitudePx,
       thicknessPx: self instanceof Terrain ? self.height * gridSize : 0,
       ridesUp: !(self instanceof Terrain),
-      bottomZ: altitudePx + this.posZ,
+      bottomZ: this.dragReachZ ?? altitudePx + this.posZ,
     };
+  }
+
+  private readonly onWheelWhileGrabbed = (e: WheelEvent) => this.liftByWheel(e);
+
+  private liftByWheel(e: WheelEvent): void {
+    if (!this.input?.isGrabbing) return;
+    if ((this.isDisable() && !this.isScratcOwner()) || this.isReadOnly()) return;
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation();
+
+    const self = this.tabletopObject;
+    if (!self || e.deltaY === 0) return;
+    if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
+    const rider = this.contactRider(self);
+    const center = this.coordinateService.convertToLocal(dragPointer2d(this), this.surfaceElement());
+    const levels = contactRestLevels(this.contactProbe, center.x, center.y, rider);
+    const next = nextContactLevel(levels, rider.bottomZ, e.deltaY < 0);
+    if (next === null) return;
+
+    this.dragReachZ = next;
+    this.onInputMoveNow(e);
   }
 
   private buildContactProbe(): ContactFootprint[] {
@@ -316,6 +342,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private clearContactProbe() {
     this.contactProbe = null;
+    this.dragReachZ = null;
   }
 
   initialize() {
@@ -331,6 +358,7 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   cancel() {
+    window.removeEventListener('wheel', this.onWheelWhileGrabbed, { capture: true });
     if (this.input) this.input.cancel();
     this.promoteWhileMoving(false);
     this.setPointerEvents(true);
@@ -381,6 +409,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (this.collidableElements.length < 1) this.findCollidableElements();
 
     if (this._multiAdapter) this.multiMovableService.beginDrag(this._multiAdapter);
+    window.addEventListener('wheel', this.onWheelWhileGrabbed, { capture: true, passive: false });
     handleInputStart(this, e);
   }
 

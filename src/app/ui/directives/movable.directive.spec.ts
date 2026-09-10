@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -264,6 +265,79 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     const directive = mount(dragged, [{ object: tower, w: 2, d: 2 }]);
 
     expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
+  });
+
+  function grab(directive: MovableDirective, atLocal: { x: number; y: number }): void {
+    TestBed.inject(PointerDeviceService).isDragging = true;
+    directive.targetStartRect = directive.nativeElement.getBoundingClientRect();
+    (directive as unknown as { input: unknown }).input = {
+      isGrabbing: true,
+      isDragging: true,
+      pointer: { x: 0, y: 0, z: 0 },
+      cancel: () => undefined,
+      destroy: () => undefined,
+    };
+    vi.spyOn(directive['coordinateService'], 'convertToLocal').mockReturnValue({ ...atLocal, z: 0 });
+  }
+
+  it('a turn of the wheel lifts the piece onto a rock hanging above it', () => {
+    const rock = block({ identifier: 'rock', h: 1, altitude: 3 });
+    const walker = GameCharacter.create('walker', 1, '');
+    const directive = mount(walker, [{ object: rock, w: 2, d: 2 }]);
+    grab(directive, { x: 50, y: 50 });
+
+    expect(directive.contactSupportZ(50, 50)).toBe(0);
+
+    directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+
+    expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+  });
+
+  it('a turn the other way sets it back down on the ground it came from', () => {
+    const rock = block({ identifier: 'rock', h: 1, altitude: 3 });
+    const walker = GameCharacter.create('walker', 1, '');
+    const directive = mount(walker, [{ object: rock, w: 2, d: 2 }]);
+    grab(directive, { x: 50, y: 50 });
+
+    directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+    expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+
+    directive['liftByWheel'](new WheelEvent('wheel', { deltaY: 1, cancelable: true }));
+
+    expect(directive.contactSupportZ(50, 50)).toBe(0);
+  });
+
+  it('stays put when the wheel is turned past the last height there is', () => {
+    const rock = block({ identifier: 'rock', h: 1, altitude: 3 });
+    const walker = GameCharacter.create('walker', 1, '');
+    const directive = mount(walker, [{ object: rock, w: 2, d: 2 }]);
+    grab(directive, { x: 50, y: 50 });
+
+    directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+    directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+
+    expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+  });
+
+  it('keeps the wheel to itself while a piece is held, so the table does not zoom under it', () => {
+    const directive = mount(block({ identifier: 'dragged', h: 1 }), []);
+    grab(directive, { x: 50, y: 50 });
+    const wheel = new WheelEvent('wheel', { deltaY: -1, cancelable: true });
+    const stop = vi.spyOn(wheel, 'stopPropagation');
+
+    directive['liftByWheel'](wheel);
+
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(stop).toHaveBeenCalled();
+  });
+
+  it('lets the wheel through when no piece is held', () => {
+    const directive = mount(block({ identifier: 'dragged', h: 1 }), []);
+    const wheel = new WheelEvent('wheel', { deltaY: -1, cancelable: true });
+
+    directive['liftByWheel'](wheel);
+
+    expect(wheel.defaultPrevented).toBe(false);
   });
 
   it('carries a character kept above the ground up over a box, the way gravity would', () => {
