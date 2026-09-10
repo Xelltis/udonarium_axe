@@ -366,18 +366,29 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   /**
-   * The ground the piece in hand may not walk onto, spread by how wide the piece is.
+   * How far a piece hangs over the cell it stands in, which is what the ground beside it owes.
    *
-   * Read from the middle of the piece like everything else about where it stands, so what
-   * stops it is the block grown by half a piece rather than the block itself.
+   * A piece is stopped by where its middle is, and a piece of one cell already owns the cell
+   * its middle is in, so the block itself is all that need stand in its way: grown by half a
+   * piece as well, a gap one cell wide would be a gap of no width at all and nothing would
+   * ever walk between two walls. What a piece wider than a cell hangs over is another matter,
+   * and that much is asked of the ground beside the block.
    */
+  private climbSpread(): { x: number; y: number } {
+    const gridSize = this.tableGridSize();
+    return {
+      x: Math.max(0, (this.width - gridSize) / 2),
+      y: Math.max(0, (this.height - gridSize) / 2),
+    };
+  }
+
+  /** The ground the piece in hand may not walk onto. */
   private buildClimbBlocks(): MoveBlock[] {
     const self = this.tabletopObject;
     if (!self) return [];
     const selfSurface = surfaceOf(self);
     const gridSize = this.tableGridSize();
-    const spreadX = this.width / 2;
-    const spreadY = this.height / 2;
+    const spread = this.climbSpread();
     const blocks: MoveBlock[] = [];
     for (const entry of this.tabletopOverlap.entries()) {
       const object = entry.object;
@@ -387,10 +398,10 @@ export class MovableDirective implements MovableInteractionContext {
       if (object.isDoor && object.isDoorOpen) continue;
       const box = terrainBoxOf(object, gridSize);
       blocks.push({
-        minX: box.minX - spreadX,
-        minY: box.minY - spreadY,
-        maxX: box.maxX + spreadX,
-        maxY: box.maxY + spreadY,
+        minX: box.minX - spread.x,
+        minY: box.minY - spread.y,
+        maxX: box.maxX + spread.x,
+        maxY: box.maxY + spread.y,
       });
     }
     return blocks;
@@ -401,18 +412,18 @@ export class MovableDirective implements MovableInteractionContext {
     if (this.posX === fromX && this.posY === fromY) return;
     if (this.climbBlocks === null) this.climbBlocks = this.buildClimbBlocks();
     if (this.climbBlocks.length < 1) return;
-    const spreadX = this.width / 2;
-    const spreadY = this.height / 2;
+    const middleX = this.width / 2;
+    const middleY = this.height / 2;
     const run = clearRunAlong(
-      { x: fromX + spreadX, y: fromY + spreadY },
-      { x: this.posX + spreadX, y: this.posY + spreadY },
+      { x: fromX + middleX, y: fromY + middleY },
+      { x: this.posX + middleX, y: this.posY + middleY },
       this.climbBlocks,
       BLOCK_GAP_PX
     );
     if (run >= 1) return;
     this.posX = fromX + (this.posX - fromX) * run;
     this.posY = fromY + (this.posY - fromY) * run;
-    this.posZ = this.contactSupportZ(this.posX + spreadX, this.posY + spreadY);
+    this.posZ = this.contactSupportZ(this.posX + middleX, this.posY + middleY);
   }
 
   initialize() {

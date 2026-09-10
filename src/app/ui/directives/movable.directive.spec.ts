@@ -342,7 +342,7 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
   });
 
   describe('terrain too sheer to get up', () => {
-    function cliff(at: { x?: number; y?: number } = {}): Terrain {
+    function cliff(at: { x?: number; y?: number; w?: number; d?: number; identifier?: string } = {}): Terrain {
       const sheer = block({ identifier: 'cliff', h: 1, ...at });
       sheer.blocksClimb = true;
       return sheer;
@@ -505,17 +505,68 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       expect(directive.posX).toBe(400);
     });
 
-    it('spreads what stops it by how wide the piece is, so the piece stops beside the face', () => {
+    it('brings a piece of one cell up to the face, since it owns no more ground than its cell', () => {
       const walker = GameCharacter.create('walker', 1, '');
       const directive = mount(walker, [{ object: cliff({ x: 200, y: 0 }), w: 2, d: 2 }]);
-      directive.width = 50;
-      directive.height = 50;
+      directive.width = GRID;
+      directive.height = GRID;
       directive.posY = 25;
 
       directive.posX = 400;
       directive['holdAtBlocks'](0, 25);
 
-      expect(directive.posX).toBe(149);
+      // The middle a pixel short of the face at 200, so the piece stands in the cell beside it.
+      expect(directive.posX + directive.width / 2).toBe(199);
+    });
+
+    it('keeps a piece wider than a cell out by what it hangs over', () => {
+      const walker = GameCharacter.create('walker', 3, '');
+      const directive = mount(walker, [{ object: cliff({ x: 200, y: 0 }), w: 2, d: 2 }]);
+      directive.width = 3 * GRID;
+      directive.height = 3 * GRID;
+      directive.posY = -50;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](-75, -50);
+
+      // Two cells of it hang past the middle cell, so its middle stops a cell out from the face.
+      expect(directive.posX + directive.width / 2).toBe(149);
+    });
+
+    it('walks a piece of one cell through a gap of one cell between two sheer walls', () => {
+      const west = cliff({ x: 0, y: 0, w: 1, d: 4, identifier: 'west' });
+      const east = cliff({ x: 100, y: 0, w: 1, d: 4, identifier: 'east' });
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [
+        { object: west, w: 1, d: 4 },
+        { object: east, w: 1, d: 4 },
+      ]);
+      directive.width = GRID;
+      directive.height = GRID;
+      directive.posX = 50;
+
+      directive.posY = 150;
+      directive['holdAtBlocks'](50, -50);
+
+      expect(directive.posY).toBe(150);
+    });
+
+    it('will not squeeze a piece of three cells through that same gap', () => {
+      const west = cliff({ x: 0, y: 0, w: 1, d: 4, identifier: 'west' });
+      const east = cliff({ x: 100, y: 0, w: 1, d: 4, identifier: 'east' });
+      const walker = GameCharacter.create('walker', 3, '');
+      const directive = mount(walker, [
+        { object: west, w: 1, d: 4 },
+        { object: east, w: 1, d: 4 },
+      ]);
+      directive.width = 3 * GRID;
+      directive.height = 3 * GRID;
+      directive.posX = -25;
+
+      directive.posY = 150;
+      directive['holdAtBlocks'](-25, -200);
+
+      expect(directive.posY).toBeLessThan(0);
     });
 
     it('holds a character being walked by anyone but the master', () => {
