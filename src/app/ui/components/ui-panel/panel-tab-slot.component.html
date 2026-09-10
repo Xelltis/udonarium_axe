@@ -6,7 +6,7 @@
     top: top(),
     overflow: overflowVisible() || contentMinimized() ? 'visible' : undefined,
   }"
-  [style.display]="active() ? null : 'none'"
+  [style.display]="active() && !collapsed() ? null : 'none'"
   #scrollable
 >
   <div #content></div>

@@ -97,7 +97,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     return this.t('ui.panel.transparency');
   }
 
-  readonly transparency = computed(() => this.panelTransparency.valueOf(this.panelService.panelKind()));
+  readonly transparency = computed(() => this.panelTransparency.valueOf(this.activePanel().panelKind()));
 
   /** The shelf this panel was opened on, where whatever opened it asked for one. */
   protected layer(): number {
@@ -112,7 +112,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   readonly panelOpacity = computed(() => (this.hasFocus() && !this.barHasFocus() ? 1 : this.restingOpacity()));
 
   setTransparency(value: number): void {
-    this.panelTransparency.set(this.panelService.panelKind(), value);
+    this.panelTransparency.set(this.activePanel().panelKind(), value);
   }
 
   protected onTransparencyInput(event: Event): void {
@@ -168,12 +168,12 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
       .filter((handle): handle is PanelTabHandle => handle !== null);
   }
 
-  handOver(panel: PanelService): PanelHandoff | null {
-    return this.releaseTab(panel);
-  }
-
   takeIn(handoff: PanelHandoff): void {
     this.adoptTab(handoff as PanelTabHandle);
+  }
+
+  frameSize(): { width: number; height: number } {
+    return { width: this.width, height: this.height };
   }
 
   panelCount(): number {
@@ -205,7 +205,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   }
 
   /** Whether the frame is showing a row of names, which it does only when it holds several. */
-  readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isCompact());
+  readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isCompact() && !this.isMinimized());
   readonly tabLabels = computed(() => this.tabs().map((tab) => tab.panel.title));
 
   closeTabAt(index: number): void {
@@ -306,7 +306,6 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     const tabs = this.tabs();
     if (index < 0 || index >= tabs.length) return;
     this.activeIndex.set(index);
-    for (const [at, tab] of tabs.entries()) tab.panel.isActiveTab.set(at === index);
     const shown = tabs[index];
     afterNextRender({ read: () => shown.panel.activated$.emit() }, { injector: this.injector });
   }
@@ -389,6 +388,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
         tab.slot.setInput('top', this.bodyTop());
         tab.slot.setInput('overflowVisible', this.overflowVisible());
         tab.slot.setInput('contentMinimized', this.contentMinimized);
+        tab.slot.setInput('collapsed', this.bodyCollapsed());
         tab.slot.setInput('active', at === active);
       }
     });
@@ -404,7 +404,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
         }
       },
     });
-    this.destroyRef.onDestroy(this.panelDrag.register(this));
+    afterNextRender({ read: () => this.destroyRef.onDestroy(this.panelDrag.register(this)) });
     this.destroyRef.onDestroy(() => {
       if (this.timerCheckWindowSize) {
         clearInterval(this.timerCheckWindowSize);
@@ -486,8 +486,18 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   }
 
   get contentMinimized(): boolean {
-    return this.panelService.minimizeToContent && this.isMinimized();
+    return this.minimizedToContent && this.isMinimized();
   }
+
+  /** Shrinking to content is asked for by the panel on show, and answered for on the way back up. */
+  private get minimizedToContent(): boolean {
+    return this.isMinimized() ? this.shrankToContent() : this.activePanel().minimizeToContent;
+  }
+
+  private readonly shrankToContent = signal(false);
+
+  /** Folded away with the frame, whichever tab is in front of it. */
+  private readonly bodyCollapsed = computed(() => this.isMinimized() && !this.shrankToContent());
 
   get frameless(): boolean {
     return this.panelService.frameless;
@@ -604,24 +614,22 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
       }
     }
 
-    const body = this.scrollablePanel()?.nativeElement ?? null;
     const panel = this.draggablePanel().nativeElement;
     if (this.isMinimized()) {
       this.isMinimized.set(false);
       this.markMinimized(false);
-      if (body) body.style.display = '';
-      if (this.panelService.minimizeToContent) this.width = this.preWidth;
+      if (this.shrankToContent()) this.width = this.preWidth;
       this.height = this.preHeight;
+      this.shrankToContent.set(false);
     } else {
       this.preHeight = panel.offsetHeight;
+      this.shrankToContent.set(this.activePanel().minimizeToContent);
       this.isMinimized.set(true);
       this.markMinimized(true);
-      if (this.panelService.minimizeToContent) {
+      if (this.shrankToContent()) {
         this.preWidth = panel.offsetWidth;
-        if (body) body.style.display = '';
         this.width = 128;
       } else {
-        if (body) body.style.display = 'none';
         this.height = this.titleBar().nativeElement.offsetHeight;
       }
     }

@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 
@@ -353,6 +354,75 @@ describe('a frame holding more than one panel', () => {
     expect(first.frame.instance.activeIndex()).toBe(0);
   });
 
+  it('fades by the kind of the panel it is showing, and writes it back there', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    first.panel.panelKind.set('chat-window');
+    second.panel.panelKind.set('character-sheet');
+    fold(first.frame, second);
+    const transparency = TestBed.inject(PanelTransparencyService);
+
+    first.frame.instance.selectTab(1);
+    host.detectChanges();
+    first.frame.instance.setTransparency(40);
+
+    expect(transparency.valueOf('character-sheet')).toBe(40);
+    expect(transparency.valueOf('chat-window')).toBe(0);
+    expect(first.frame.instance.transparency()).toBe(40);
+
+    first.frame.instance.selectTab(0);
+    host.detectChanges();
+
+    expect(first.frame.instance.transparency()).toBe(0);
+  });
+
+  it('folds every panel it holds away, not only the one in front', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    fold(first.frame, second);
+
+    first.frame.instance.toggleMinimize();
+    host.detectChanges();
+
+    expect(grounds(first.frame).map((ground) => ground.style.display)).toEqual(['none', 'none']);
+
+    first.frame.instance.selectTab(1);
+    host.detectChanges();
+
+    expect(grounds(first.frame).map((ground) => ground.style.display)).toEqual(['none', 'none']);
+  });
+
+  it('puts its tab names away while it is folded', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    fold(first.frame, second);
+    expect(first.frame.instance.showsTabs()).toBe(true);
+
+    first.frame.instance.toggleMinimize();
+    host.detectChanges();
+
+    expect(first.frame.instance.showsTabs()).toBe(false);
+  });
+
+  it('shrinks to content only when the panel it is showing asked for it', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    second.panel.minimizeToContent = true;
+    fold(first.frame, second);
+
+    first.frame.instance.selectTab(1);
+    host.detectChanges();
+    first.frame.instance.toggleMinimize();
+    host.detectChanges();
+
+    expect(first.frame.instance.contentMinimized).toBe(true);
+
+    first.frame.instance.selectTab(0);
+    host.detectChanges();
+
+    expect(first.frame.instance.contentMinimized).toBe(true);
+  });
+
   it('tells a panel when it is looked at again', async () => {
     const first = openFrame('Chat');
     const second = openFrame('Sheet');
@@ -365,7 +435,6 @@ describe('a frame holding more than one panel', () => {
     await host.whenStable();
 
     expect(woken).toBe(1);
-    expect(first.panel.isActiveTab()).toBe(true);
-    expect(second.panel.isActiveTab()).toBe(false);
+    expect(grounds(first.frame).map((ground) => ground.style.display)).toEqual(['', 'none']);
   });
 });

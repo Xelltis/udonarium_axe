@@ -23,6 +23,8 @@ export class PanelTabSlotComponent {
   readonly contentMinimized = input(false);
   /** Whether this is the panel its frame is showing. The others are kept, not taken down. */
   readonly active = input(true);
+  /** Whether the frame is folded away to its title bar, which hides every panel it holds. */
+  readonly collapsed = input(false);
 
   readonly content = viewChild.required('content', { read: ViewContainerRef });
   readonly scrollable = viewChild.required<ElementRef<HTMLDivElement>>('scrollable');
