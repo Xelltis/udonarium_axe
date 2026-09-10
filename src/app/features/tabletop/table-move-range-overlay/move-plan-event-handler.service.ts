@@ -121,7 +121,11 @@ export class MovePlanEventHandlerService {
 
   private onTable(event: Event): boolean {
     const target = event.target;
-    return target instanceof Node && this.coordinate.tabletopOriginElement.contains(target);
+    if (!(target instanceof Node)) return false;
+    // What the move puts on the screen is not the table, however it is drawn over it: a press
+    // on the band at the foot of the screen is an answer to the move, not a place to walk to.
+    if (target instanceof Element && target.closest('[data-move-plan-control]')) return false;
+    return this.coordinate.tabletopOriginElement.contains(target);
   }
 
   private tablePoint(event: MouseEvent): { x: number; y: number } {

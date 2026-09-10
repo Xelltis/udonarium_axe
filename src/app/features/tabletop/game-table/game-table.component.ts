@@ -1011,6 +1011,35 @@ export class GameTableComponent {
   readonly isPickingEffectTarget = computed(() => this.effectTargetingService.isPicking());
   /** Whether a move is being worked out, which is when the table says how to work one out. */
   readonly isPlanningMove = this.movePlan.isPlanning;
+  readonly isJumpingMove = this.movePlan.isJumping;
+
+  /** The two ways a move may be taken, offered as a pair so which one is on is plain to see. */
+  protected readonly moveModes = [
+    {
+      jumping: false,
+      icon: 'directions_walk',
+      label: 'feature.tabletop.movePlan.walk',
+      testId: 'move-plan-walk',
+    },
+    {
+      jumping: true,
+      icon: 'keyboard_double_arrow_up',
+      label: 'feature.tabletop.movePlan.jump',
+      testId: 'move-plan-jump',
+    },
+  ] as const;
+
+  /**
+   * Chooses how the move is taken, from the band at the foot of the screen.
+   *
+   * A finger has no space bar. The press is kept off the table underneath, which would read
+   * it as a choice of where to walk to.
+   */
+  onChooseMoveMode(jumping: boolean, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.isJumpingMove() !== jumping) this.movePlan.toggleJump();
+  }
 
   onEscapeKey(_e: Event) {
     if (this.effectTargetingService.cancel()) return;

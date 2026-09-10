@@ -2129,7 +2129,10 @@
         }
       },
       "movePlan": {
-        "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it"
+        "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it",
+        "jump": "Jump",
+        "walk": "Walk",
+        "modeLabel": "How the move is taken"
       },
       "displaySetting": {
         "title": "Tabletop display",
