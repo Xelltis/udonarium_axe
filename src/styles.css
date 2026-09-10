@@ -527,6 +527,9 @@ chat-message > div > div {
   /* 成功 */
   --ui-success: #3fb950;
 
+  /* 警告 */
+  --ui-warning: #d29922;
+
   /* トランプ黒スート色 (♣♠) — ダーク背景での視認性確保のため青系に */
   --ui-suit-black: #58a6ff;
 
@@ -597,6 +600,7 @@ chat-message > div > div {
   --ui-danger-bg: rgba(210, 15, 57, 0.1);
 
   --ui-success: #40a02b;
+  --ui-warning: #8c5a00;
 
   /* ライトモード: 黒スート (♣♠) は伝統通り黒 */
   --ui-suit-black: #000000;
