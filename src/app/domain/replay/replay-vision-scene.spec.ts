@@ -129,6 +129,24 @@ describe('buildReplayVisionScene()', () => {
     expect(scene.sightSegments.length).toBeGreaterThan(4);
     expect(isPointVisible(scene, 100, 500, { userId: 'gm', isGameMaster: true })).toBe(true);
   });
+
+  it('hangs a block that came to rest on something at the height it rests at', () => {
+    const shelf = snapshot('t1', 'terrain', {
+      location: { name: 'table', x: 600, y: 0, surface: 'floor' },
+      parentIdentifier: 'table-1',
+      width: 1,
+      depth: 20,
+      height: 1,
+      posZ: 150,
+      hasWall: true,
+      blocksSight: true,
+    });
+    const scene = buildReplayVisionScene([table(), shelf])!;
+    const hung = scene.sightSegments.filter((segment) => segment.basePx !== undefined && segment.basePx > 0);
+
+    expect(hung.length).toBeGreaterThan(0);
+    expect(hung[0]).toMatchObject({ basePx: 150, heightPx: 200 });
+  });
 });
 
 describe('replaySceneViewer()', () => {
