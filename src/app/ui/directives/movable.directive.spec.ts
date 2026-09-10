@@ -6,7 +6,7 @@ import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 
@@ -433,6 +433,63 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       }
 
       expect(directive.posY).toBe(101);
+    });
+
+    it('holds a character at a shut door, and lets one through the moment it is opened', () => {
+      const door = cliff({ x: 200, y: 0 });
+      door.doorStyle = DoorStyle.SWING;
+      const directive = mount(GameCharacter.create('walker', 1, ''), [{ object: door, w: 2, d: 2 }]);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 50;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](0, 50);
+      expect(directive.posX).toBe(199);
+
+      door.isDoorOpen = true;
+      directive['clearContactProbe']();
+      directive.posX = 400;
+      directive['holdAtBlocks'](199, 50);
+
+      expect(directive.posX).toBe(400);
+    });
+
+    it('does not let the snap at the end carry a character into what held it', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff({ x: 200, y: 0 }), w: 2, d: 2 }]);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 50;
+      directive.posX = 199;
+
+      // What a hex snap does from against a face: reach for the middle of the cell behind it.
+      vi.spyOn(directive as unknown as { snapToGridNow(size?: number): void }, 'snapToGridNow').mockImplementation(
+        () => {
+          directive.posX = 250;
+        }
+      );
+      directive.snapToGrid();
+
+      expect(directive.posX).toBe(199);
+    });
+
+    it('still lets the snap put a character down where nothing is in the way', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff({ x: 200, y: 0 }), w: 2, d: 2 }]);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 400;
+      directive.posX = 199;
+
+      vi.spyOn(directive as unknown as { snapToGridNow(size?: number): void }, 'snapToGridNow').mockImplementation(
+        () => {
+          directive.posX = 250;
+        }
+      );
+      directive.snapToGrid();
+
+      expect(directive.posX).toBe(250);
     });
 
     it('lets a character walk anywhere the block is not in the way', () => {

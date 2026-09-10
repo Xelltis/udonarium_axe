@@ -725,6 +725,15 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   snapToGrid(gridSize: number = 25) {
+    const beforeX = this.posX;
+    const beforeY = this.posY;
+    this.snapToGridNow(gridSize);
+    // Snapping is a move like any other: on hexes it reaches for the middle of a cell, which
+    // from against a face is as often as not the middle of the cell behind it.
+    if (this.walksTheTable()) this.holdAtBlocks(beforeX, beforeY);
+  }
+
+  private snapToGridNow(gridSize: number = 25) {
     const table = this.tableSelecter.viewTable;
     const effectiveGridSize = table?.gridSize ?? gridSize;
     const gridType = table?.gridType ?? GridType.SQUARE;
