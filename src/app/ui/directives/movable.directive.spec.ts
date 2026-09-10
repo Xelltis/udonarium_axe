@@ -384,7 +384,8 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       directive.posX = 400;
       directive['holdAtBlocks'](0, 50);
 
-      expect(directive.posX).toBe(200);
+      // A pixel short of the face at 200, which is what keeps whole pixels on the outside.
+      expect(directive.posX).toBe(199);
     });
 
     it('holds it there on the move that carries it across, not only when asked', () => {
@@ -397,7 +398,41 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
 
       directive['onInputMoveNow'](new MouseEvent('mousemove'));
 
-      expect(directive.posX).toBe(200);
+      expect(directive.posX).toBe(199);
+    });
+
+    it('holds a character coming at it from the far side, push after push', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff({ x: 0, y: 0 }), w: 2, d: 2 }]);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 50;
+      directive.posX = 400;
+
+      for (let push = 0; push < 6; push++) {
+        const wasX = directive.posX;
+        directive.posX = -200;
+        directive['holdAtBlocks'](wasX, 50);
+      }
+
+      expect(directive.posX).toBe(101);
+    });
+
+    it('holds one coming up from below the same way', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff({ x: 0, y: 0 }), w: 2, d: 2 }]);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posX = 50;
+      directive.posY = 400;
+
+      for (let push = 0; push < 6; push++) {
+        const wasY = directive.posY;
+        directive.posY = -200;
+        directive['holdAtBlocks'](50, wasY);
+      }
+
+      expect(directive.posY).toBe(101);
     });
 
     it('lets a character walk anywhere the block is not in the way', () => {
@@ -423,7 +458,7 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       directive.posX = 400;
       directive['holdAtBlocks'](0, 25);
 
-      expect(directive.posX).toBe(150);
+      expect(directive.posX).toBe(149);
     });
 
     it('holds a character being walked by anyone but the master', () => {

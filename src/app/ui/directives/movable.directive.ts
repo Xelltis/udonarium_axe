@@ -50,6 +50,8 @@ import {
 } from '@axe/ui/directives/movable-interaction';
 
 const WALL_OCCLUSION_INSET_PX = 2;
+/** How far short of a sheer face a piece is put down, so whole pixels keep it on the outside. */
+const BLOCK_GAP_PX = 1;
 const GRID_PX = 50;
 
 export interface MovableOption {
@@ -404,7 +406,8 @@ export class MovableDirective implements MovableInteractionContext {
     const run = clearRunAlong(
       { x: fromX + spreadX, y: fromY + spreadY },
       { x: this.posX + spreadX, y: this.posY + spreadY },
-      this.climbBlocks
+      this.climbBlocks,
+      BLOCK_GAP_PX
     );
     if (run >= 1) return;
     this.posX = fromX + (this.posX - fromX) * run;

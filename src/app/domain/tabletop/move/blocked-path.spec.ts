@@ -30,6 +30,24 @@ describe('clearRunAlong', () => {
     expect(clearRunAlong({ x: 99.9, y: 100 }, { x: 400, y: 100 }, [wall])).toBeCloseTo(0.00033, 4);
   });
 
+  it('holds a piece resting against a face rather than reading it as already inside', () => {
+    expect(clearRunAlong({ x: 200, y: 100 }, { x: 0, y: 100 }, [wall])).toBe(0);
+    expect(clearRunAlong({ x: 100, y: 100 }, { x: 400, y: 100 }, [wall])).toBe(0);
+  });
+
+  it('stops short of the face by the gap it is given', () => {
+    expect(clearRunAlong({ x: 0, y: 100 }, { x: 400, y: 100 }, [wall], 4)).toBeCloseTo(0.24);
+    expect(clearRunAlong({ x: 0, y: 100 }, { x: 400, y: 100 }, [wall], 0)).toBeCloseTo(0.25);
+  });
+
+  it('keeps a clear way clear however wide the gap', () => {
+    expect(clearRunAlong({ x: 0, y: 300 }, { x: 400, y: 300 }, [wall], 40)).toBe(1);
+  });
+
+  it('gives no ground at all rather than backing a piece away from where it stands', () => {
+    expect(clearRunAlong({ x: 99, y: 100 }, { x: 400, y: 100 }, [wall], 40)).toBe(0);
+  });
+
   it('answers for a way that goes nowhere', () => {
     expect(clearRunAlong({ x: 0, y: 0 }, { x: 0, y: 0 }, [wall])).toBe(1);
   });

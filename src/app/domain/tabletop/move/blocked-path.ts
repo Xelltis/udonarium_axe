@@ -17,8 +17,13 @@ export interface MoveBlock {
  * Answers a fraction of the way: 1 where the way is clear, 0 where it is stopped where it
  * stands. A piece already standing inside a block is let out rather than held there, so
  * terrain laid down over one does not pin it.
+ *
+ * `gapPx` is how far short of the face to stop. A piece is put down on whole pixels, and the
+ * rounding runs one way, so a piece stopped flush against the far face of a block lands a
+ * hair inside it -- and a hair inside reads as standing in it, which is a way through. The
+ * gap is what keeps the answer on the outside of that rounding.
  */
-export function clearRunAlong(from: MovePoint, to: MovePoint, blocks: readonly MoveBlock[]): number {
+export function clearRunAlong(from: MovePoint, to: MovePoint, blocks: readonly MoveBlock[], gapPx: number = 0): number {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   if (dx === 0 && dy === 0) return 1;
@@ -28,7 +33,8 @@ export function clearRunAlong(from: MovePoint, to: MovePoint, blocks: readonly M
     const entered = entryAlong(from, dx, dy, block);
     if (entered !== null && entered < run) run = entered;
   }
-  return run;
+  if (run >= 1) return 1;
+  return Math.max(0, run - gapPx / Math.hypot(dx, dy));
 }
 
 /** Where the way first crosses into a block, or nothing when it never does. */
@@ -42,8 +48,13 @@ function entryAlong(from: MovePoint, dx: number, dy: number, block: MoveBlock): 
   const leaves = Math.min(across.leaves, along.leaves);
   if (enters > leaves || leaves <= 0 || enters >= 1) return null;
   // Standing in it at the outset: on its way out, not on its way in.
-  if (enters <= 0) return null;
-  return enters;
+  if (isWithin(from, block)) return null;
+  return Math.max(0, enters);
+}
+
+/** Within a block, rather than resting against a face of it. */
+function isWithin(point: MovePoint, block: MoveBlock): boolean {
+  return point.x > block.minX && point.x < block.maxX && point.y > block.minY && point.y < block.maxY;
 }
 
 function slabAlong(at: number, step: number, low: number, high: number): { enters: number; leaves: number } | null {
