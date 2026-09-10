@@ -7,17 +7,44 @@ function barOf(panel: Locator): Locator {
   return panel.locator('.bg-ui-titlebar').first();
 }
 
+/**
+ * Where a bar has come to rest.
+ *
+ * A panel flies in when it opens, so its bar is still moving and still scaled for a moment.
+ * Waited out rather than slept off: a slow machine takes longer than any guess, and a quick
+ * one is kept waiting by it.
+ */
+async function restingBox(bar: Locator) {
+  let last: { x: number; y: number; width: number; height: number } | null = null;
+  await expect
+    .poll(
+      async () => {
+        const box = await bar.boundingBox();
+        if (!box) return false;
+        const held =
+          last !== null &&
+          Math.abs(box.x - last.x) < 0.5 &&
+          Math.abs(box.y - last.y) < 0.5 &&
+          Math.abs(box.width - last.width) < 0.5 &&
+          Math.abs(box.height - last.height) < 0.5;
+        last = box;
+        return held;
+      },
+      { timeout: 7000, intervals: [50] }
+    )
+    .toBe(true);
+  return last!;
+}
+
 async function dragBarOnto(page: Page, from: Locator, to: Locator) {
   // The menu is drawn over the left of the screen, where a panel's bar may well be.
   await closeFabMenu(page);
-  // A panel flies in when it opens, so its bar is still moving and still scaled for a moment.
-  await page.waitForTimeout(500);
-  const grip = await barOf(from).boundingBox();
-  const landing = await barOf(to).boundingBox();
+  const grip = await restingBox(barOf(from));
+  const landing = await restingBox(barOf(to));
   // Taken near its left edge: the middle of a bar is often under whatever opened over it.
-  await page.mouse.move(grip!.x + 40, grip!.y + grip!.height / 2);
+  await page.mouse.move(grip.x + 40, grip.y + grip.height / 2);
   await page.mouse.down();
-  await page.mouse.move(landing!.x + landing!.width / 2, landing!.y + landing!.height / 2, { steps: 12 });
+  await page.mouse.move(landing.x + landing.width / 2, landing.y + landing.height / 2, { steps: 12 });
   await page.mouse.up();
 }
 
