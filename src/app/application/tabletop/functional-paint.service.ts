@@ -54,6 +54,7 @@ function layTerrainBlock(
   terrain.mode = spec.mode;
   terrain.blocksSight = spec.blocksSight;
   terrain.blocksLight = spec.blocksLight;
+  terrain.blocksClimb = spec.blocksClimb;
   terrain.isTiledTexture = spec.tiledTexture;
   terrain.isGrid = spec.showsGrid;
   terrain.isDropShadow = spec.dropShadow;
@@ -177,6 +178,7 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
     mode: terrain.mode,
     blocksSight: terrain.blocksSight,
     blocksLight: terrain.blocksLight,
+    blocksClimb: terrain.blocksClimb,
     tiledTexture: terrain.isTiledTexture,
     showsGrid: terrain.isGrid,
     dropShadow: terrain.isDropShadow,

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -338,6 +339,108 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     directive['liftByWheel'](wheel);
 
     expect(wheel.defaultPrevented).toBe(false);
+  });
+
+  describe('terrain too sheer to get up', () => {
+    function cliff(at: { x?: number; y?: number } = {}): Terrain {
+      const sheer = block({ identifier: 'cliff', h: 1, ...at });
+      sheer.blocksClimb = true;
+      return sheer;
+    }
+
+    function asMaster(): void {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'isGameMaster', 'get').mockReturnValue(true);
+    }
+
+    it('leaves a character on the ground beside it rather than up on top', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff(), w: 2, d: 2 }]);
+
+      expect(directive.contactSupportZ(50, 50)).toBe(0);
+    });
+
+    it('is still something the master walks over', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff(), w: 2, d: 2 }]);
+      asMaster();
+
+      expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
+    });
+
+    it('is still something terrain is built on top of', () => {
+      const dragged = block({ identifier: 'dragged', h: 1, x: 500, y: 500 });
+      const directive = mount(dragged, [{ object: cliff(), w: 2, d: 2 }]);
+
+      expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
+    });
+
+    it('holds a character at its near face on the way across', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff({ x: 200, y: 0 }), w: 2, d: 2 }]);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 50;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](0, 50);
+
+      expect(directive.posX).toBe(200);
+    });
+
+    it('holds it there on the move that carries it across, not only when asked', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff({ x: 200, y: 0 }), w: 2, d: 2 }]);
+      grab(directive, { x: 400, y: 50 });
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 50;
+
+      directive['onInputMoveNow'](new MouseEvent('mousemove'));
+
+      expect(directive.posX).toBe(200);
+    });
+
+    it('lets a character walk anywhere the block is not in the way', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff({ x: 200, y: 0 }), w: 2, d: 2 }]);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 400;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](0, 400);
+
+      expect(directive.posX).toBe(400);
+    });
+
+    it('spreads what stops it by how wide the piece is, so the piece stops beside the face', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: cliff({ x: 200, y: 0 }), w: 2, d: 2 }]);
+      directive.width = 50;
+      directive.height = 50;
+      directive.posY = 25;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](0, 25);
+
+      expect(directive.posX).toBe(150);
+    });
+
+    it('holds a character being walked by anyone but the master', () => {
+      const directive = mount(GameCharacter.create('walker', 1, ''), []);
+
+      expect(directive['walksTheTable']()).toBe(true);
+
+      asMaster();
+
+      expect(directive['walksTheTable']()).toBe(false);
+    });
+
+    it('holds nothing of what is being built', () => {
+      const directive = mount(block({ identifier: 'dragged', h: 1 }), []);
+
+      expect(directive['walksTheTable']()).toBe(false);
+    });
   });
 
   it('carries a character kept above the ground up over a box, the way gravity would', () => {

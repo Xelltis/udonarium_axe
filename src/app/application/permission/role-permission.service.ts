@@ -8,6 +8,11 @@ export class RolePermissionService {
     return PeerCursor.myRole;
   }
 
+  /** Whether this reader runs the game, and so is not held to the rules the table plays by. */
+  get isGameMaster(): boolean {
+    return PeerCursor.myRole === PeerRole.GameMaster;
+  }
+
   get canEditTabletop(): boolean {
     return canRoleEdit(PeerCursor.myRole);
   }

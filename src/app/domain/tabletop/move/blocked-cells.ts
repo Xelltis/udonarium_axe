@@ -6,7 +6,7 @@ import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 
 export function terrainBlocksMovement(terrain: Terrain): boolean {
   if (surfaceOf(terrain) !== 'floor') return false;
-  if (!terrain.hasWall) return false;
+  if (!terrain.hasWall && !terrain.blocksClimb) return false;
   return !(terrain.isDoor && terrain.isDoorOpen);
 }
 

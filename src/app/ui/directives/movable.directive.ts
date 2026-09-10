@@ -9,12 +9,15 @@ import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { clearRunAlong, MoveBlock } from '@axe/domain/tabletop/move/blocked-path';
 import { SurfaceDims, surfaceWorldBox, WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 import {
   applyPointerEvents,
@@ -74,6 +77,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private registeredOverlapId: string | null = null;
   private contactProbe: ContactFootprint[] | null = null;
+  private climbBlocks: MoveBlock[] | null = null;
   private dragReachZ: number | null = null;
 
   private static layerHash: { [layerName: string]: MovableDirective[] } = {};
@@ -323,6 +327,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (!self) return [];
     const selfSurface = surfaceOf(self);
     const gridSize = this.tableGridSize();
+    const sheer = this.walksTheTable();
     const footprints: ContactFootprint[] = [];
     for (const entry of this.tabletopOverlap.entries()) {
       if (entry.object.identifier === self.identifier) continue;
@@ -336,6 +341,7 @@ export class MovableDirective implements MovableInteractionContext {
         bottom: top + entry.element.offsetHeight,
         bottomZ: GravityService.contactBottomZ(entry.object, selfSurface, gridSize),
         topZ: GravityService.contactTopZ(entry.object, selfSurface, gridSize),
+        climbable: !(sheer && entry.object instanceof Terrain && entry.object.blocksClimb),
       });
     }
     return footprints;
@@ -343,7 +349,67 @@ export class MovableDirective implements MovableInteractionContext {
 
   private clearContactProbe() {
     this.contactProbe = null;
+    this.climbBlocks = null;
     this.dragReachZ = null;
+  }
+
+  /**
+   * Whether the piece in hand is held to what the terrain will let it walk over.
+   *
+   * The rule is about walking a piece around the table, so it is asked of characters alone:
+   * terrain is being built rather than moved. The master is building either way.
+   */
+  private walksTheTable(): boolean {
+    return this.tabletopObject instanceof GameCharacter && !this.rolePermission.isGameMaster;
+  }
+
+  /**
+   * The ground the piece in hand may not walk onto, spread by how wide the piece is.
+   *
+   * Read from the middle of the piece like everything else about where it stands, so what
+   * stops it is the block grown by half a piece rather than the block itself.
+   */
+  private buildClimbBlocks(): MoveBlock[] {
+    const self = this.tabletopObject;
+    if (!self) return [];
+    const selfSurface = surfaceOf(self);
+    const gridSize = this.tableGridSize();
+    const spreadX = this.width / 2;
+    const spreadY = this.height / 2;
+    const blocks: MoveBlock[] = [];
+    for (const entry of this.tabletopOverlap.entries()) {
+      const object = entry.object;
+      if (object.identifier === self.identifier) continue;
+      if (!(object instanceof Terrain) || !object.blocksClimb) continue;
+      if (surfaceOf(object) !== selfSurface) continue;
+      if (object.isDoor && object.isDoorOpen) continue;
+      const box = terrainBoxOf(object, gridSize);
+      blocks.push({
+        minX: box.minX - spreadX,
+        minY: box.minY - spreadY,
+        maxX: box.maxX + spreadX,
+        maxY: box.maxY + spreadY,
+      });
+    }
+    return blocks;
+  }
+
+  /** Holds the piece at the near face of anything it may not walk over. */
+  private holdAtBlocks(fromX: number, fromY: number): void {
+    if (this.posX === fromX && this.posY === fromY) return;
+    if (this.climbBlocks === null) this.climbBlocks = this.buildClimbBlocks();
+    if (this.climbBlocks.length < 1) return;
+    const spreadX = this.width / 2;
+    const spreadY = this.height / 2;
+    const run = clearRunAlong(
+      { x: fromX + spreadX, y: fromY + spreadY },
+      { x: this.posX + spreadX, y: this.posY + spreadY },
+      this.climbBlocks
+    );
+    if (run >= 1) return;
+    this.posX = fromX + (this.posX - fromX) * run;
+    this.posY = fromY + (this.posY - fromY) * run;
+    this.posZ = this.contactSupportZ(this.posX + spreadX, this.posY + spreadY);
   }
 
   initialize() {
@@ -437,7 +503,10 @@ export class MovableDirective implements MovableInteractionContext {
       this.updateDragPreview(pointerSurface);
       return;
     }
+    const wasX = this.posX;
+    const wasY = this.posY;
     perfTimed('collide', () => handleInputMove(this, e));
+    if (this.walksTheTable()) this.holdAtBlocks(wasX, wasY);
     perfTimed('dragPreview', () => this.updateDragPreview(pointerSurface));
   }
 

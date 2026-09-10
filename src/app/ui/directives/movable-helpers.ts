@@ -15,6 +15,8 @@ export interface ContactFootprint {
   bottom: number;
   bottomZ: number;
   topZ: number;
+  /** Whether a piece may come to rest on top of this. A sheer face may be stood beside, not on. */
+  climbable?: boolean;
 }
 
 export interface ContactRider {
@@ -72,6 +74,7 @@ export function findContactSupportZ(
 
   let highest = 0;
   for (const footprint of footprintsUnder(footprints, centerX, centerY)) {
+    if (footprint.climbable === false) continue;
     if (footprint.topZ > highest) highest = footprint.topZ;
   }
   return highest;
@@ -94,6 +97,7 @@ function footprintsUnder(
 function contactLevels(under: readonly ContactFootprint[]): number[] {
   const levels = [0];
   for (const footprint of under) {
+    if (footprint.climbable === false) continue;
     if (footprint.topZ > 0) levels.push(footprint.topZ);
   }
   return levels;
