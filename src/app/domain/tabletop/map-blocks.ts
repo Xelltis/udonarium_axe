@@ -38,6 +38,8 @@ export interface MapBlock {
   kind: MapBlockKind;
   rect: MapRect;
   blocksSight: boolean;
+  /** Whether a piece walks around it rather than up onto it. Left out, it may be climbed. */
+  blocksClimb?: boolean;
   locked: boolean;
   rooms: number[];
   /** For a door, the axis it bars. A slab thin along x stands across an east-west passage. */

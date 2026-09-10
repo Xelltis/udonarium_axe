@@ -4,7 +4,11 @@ import {
   ContextMenuRadialGroup,
   ContextMenuSeparator,
 } from '@axe/application/ui/context-menu.service';
-import { buildAltitudeAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
+import {
+  buildAltitudeAction,
+  buildCopyAction,
+  buildLockToggleAction,
+} from '@axe/application/ui/tabletop-context-menu-actions';
 import { LIGHT_SKIN_IDS, LightSkinId } from '@axe/domain/media/light-skins';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { LightSource } from '@axe/domain/tabletop/light-source';
@@ -110,16 +114,10 @@ export function buildLightSourceContextMenuModel(
   };
   const altitudeAction = buildAltitudeAction(light, t);
   const lockAction = buildLockToggleAction(light.isLock, (next) => (light.isLock = next), t);
-  const copyAction: ContextMenuAction = {
-    name: t('feature.tabletop.contextMenu.copy'),
-    action: () => {
-      const clone = light.clone();
-      clone.location.x += gridSize;
-      clone.location.y += gridSize;
-      clone.isLock = false;
-      SoundEffect.play(PresetSound.cardPut);
-    },
-  };
+  const copyAction = buildCopyAction(light, gridSize, t, {
+    sound: PresetSound.cardPut,
+    afterClone: (clone) => (clone.isLock = false),
+  });
   const deleteAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.delete'),
     action: () => {

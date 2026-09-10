@@ -273,11 +273,24 @@ export class ChatWindowComponent {
         this.panelService.scrollablePanel.addEventListener('scroll', this.scrollListener, { passive: true });
       }
     });
+    this.panelService.activated$.subscribe(() => this.onPanelShown(), this.destroyRef);
     this.destroyRef.onDestroy(() => {
       if (this.scrollListener && this.panelService.scrollablePanel) {
         this.panelService.scrollablePanel.removeEventListener('scroll', this.scrollListener);
       }
     });
+  }
+
+  /**
+   * Measures the log again once the window is being looked at.
+   *
+   * A window drawn behind another in the same frame has no height, so how far it was from the
+   * bottom, and how many lines it had room to draw, both read as nothing while it waited.
+   */
+  private onPanelShown(): void {
+    if (!this.panelService.scrollablePanel) return;
+    if (this.isNearBottom()) this.scrollToBottom(true);
+    else this.refreshNearBottom();
   }
 
   private distanceFromBottom(): number | null {

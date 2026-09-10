@@ -65,6 +65,7 @@ describe('where a party stands when it walks in', () => {
       cells: new Uint8Array(25).fill(DungeonCell.Rock),
       rooms: [],
       doors: [],
+      doorLeaves: [],
       links: [],
       entrance: { x: 2, y: 2 },
       exit: { x: 2, y: 2 },

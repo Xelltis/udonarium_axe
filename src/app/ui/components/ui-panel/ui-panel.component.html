@@ -26,8 +26,8 @@
   tabindex="-1"
   (focusin)="onFocusIn()"
   (focusout)="onFocusOut($event)"
-  [style.visibility]="panelService.invisible ? 'hidden' : ''"
-  [style.pointer-events]="panelService.invisible || frameless ? 'none' : ''"
+  [style.visibility]="activePanel().invisible ? 'hidden' : ''"
+  [style.pointer-events]="activePanel().invisible || frameless ? 'none' : ''"
   [resizable.disable]="isMinimized() || isFullScreen() || isCompact() || frameless"
   [resizable.rotation]="rotationDegrees()"
   [draggable.disable]="isCompact()"
@@ -38,6 +38,9 @@
   appResizable
   #draggablePanel
   (resizable.end)="onPanelResizeEnd()"
+  (draggable.start)="onFrameDragStart($event)"
+  (draggable.move)="onFrameDragMove($event)"
+  (draggable.end)="onFrameDragEnd()"
   (mouseenter)="showPortrait(true)"
   (mouseleave)="showPortrait(false)"
 >
@@ -63,6 +66,8 @@
         : ''
     "
     #titleBar
+    [class.ring-ui-accent]="isDropTarget()"
+    [class.ring-2]="isDropTarget()"
     [class.border-transparent!]="contentMinimized || isGhost"
     [style.background]="
       isGhost
@@ -84,7 +89,7 @@
           'rounded-ui shadow-ui-md bg-ui-ghost [&_button]:text-ui-text!': isGhost,
         }"
       >
-        @for (control of panelService.headerControls(); track control.icon) {
+        @for (control of activePanel().headerControls(); track control.icon) {
           <button
             class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
             [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
@@ -97,13 +102,13 @@
           </button>
         }
         <div class="contents" data-panel-frame-controls>
-          @for (control of panelService.panelControls(); track control.icon) {
+          @for (control of activePanel().panelControls(); track control.icon) {
             <button
               class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
               [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
               [title]="control.label"
               [attr.data-testid]="'panel-control-' + control.icon"
-              (click)="control.press(panelService)"
+              (click)="control.press(activePanel())"
             >
               <i class="material-icons text-[14px]!">{{ control.icon }}</i>
             </button>
@@ -176,40 +181,42 @@
     <div
       class="block truncate"
       [ngClass]="isCompact() ? 'min-w-0 flex-1 pr-11' : 'pr-38'"
-      [class.invisible]="contentMinimized || isGhost"
-      [appTextTooltip]="panelService.titleTooltip"
+      [class.invisible]="contentMinimized || isGhost || showsTabs()"
+      [appTextTooltip]="activePanel().titleTooltip"
     >
-      {{ panelService.title }}
+      {{ activePanel().title }}
     </div>
   </div>
-  @if (panelService.chatTab && chatPortraitComponent) {
+  @if (activePanel().chatTab && chatPortraitComponent) {
     <ng-container
       *ngComponentOutlet="
         chatPortraitComponent;
         inputs: {
-          chatTabidentifier: panelService.chatTab.identifier,
+          chatTabidentifier: activePanel().chatTab!.identifier,
           isTilteTop: true,
           dispByMouse: portraitDispByMouse(),
         }
       "
     ></ng-container>
   }
-  @if (panelService.cardStack && cardStackListComponent) {
+  @if (activePanel().cardStack && cardStackListComponent) {
     <ng-container
-      *ngComponentOutlet="cardStackListComponent; inputs: { cardStackidentifier: panelService.cardStack.identifier }"
+      *ngComponentOutlet="cardStackListComponent; inputs: { cardStackidentifier: activePanel().cardStack!.identifier }"
     ></ng-container>
   }
-  <div
-    class="rounded-b-ui-lg absolute bottom-0 box-border w-full overflow-auto overscroll-contain"
-    [class.static!]="contentMinimized"
-    [ngStyle]="{
-      padding: padding_,
-      top: showsTitleBar ? (isCompact() ? 'calc(2.75rem + env(safe-area-inset-top))' : '28px') : '0',
-      overflow: overflowVisible() || contentMinimized ? 'visible' : undefined,
-    }"
-    #scrollablePanel
-  >
-    <ng-content></ng-content>
-    <div #content></div>
-  </div>
+  @if (showsTabs()) {
+    <panel-tab-strip
+      [tabs]="tabLabels()"
+      [active]="activeIndex()"
+      [top]="barBottom()"
+      (chose)="selectTab($event)"
+      (closed)="closeTabAt($event)"
+      (grabbed)="onTabGrabbed()"
+      (dragged)="onTabDragged($event)"
+      (moved)="onTabMoved($event)"
+      (tookOut)="onTabTakenOut($event)"
+      (released)="onTabReleased()"
+    />
+  }
+  <ng-container #slots></ng-container>
 </div>

@@ -29,10 +29,11 @@ import {
 import { computeVisibleCellsFor, VisibleCellsOptions } from '@axe/domain/tabletop/fog/visible-cells';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
-import { rectangleSegments } from '@axe/domain/tabletop/los/segments';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { terrainBasePx, terrainTopPx } from '@axe/domain/tabletop/terrain-height';
 import {
   computeLightBeam,
   computeLightGlow,
@@ -284,46 +285,34 @@ export class VisionService {
    * Kept with the walls rather than with the scene, so that a piece walking about does not
    * cut every terrain on the table into cells again.
    */
-  /** The cells a wall stands on, with how high the tallest wall on each of them reaches. */
-  private readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array } | null>(() => {
+  /**
+   * The cells a wall stands on: how high the tallest reaches, and how low the lowest hangs.
+   *
+   * A cell nothing is standing on is ground, and a block hanging clear of the floor leaves
+   * the ground under it just as walkable. Both ends are wanted, since which of them answers
+   * turns on where the eye is: over the roof, under the arch, or up against the face.
+   */
+  private readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array; bases: Float32Array } | null>(() => {
     this.standingEpoch();
     const grid = this.cellGrid();
     const table = this.currentTable();
     if (!grid || !table) return null;
     const cells = new CellBits(cellCount(grid));
     const tops = new Float32Array(cellCount(grid));
+    const bases = new Float32Array(cellCount(grid)).fill(Infinity);
     for (const terrain of table.terrains) {
       if (!terrain.hasWall || !terrain.blocksSightNow || surfaceOf(terrain) !== 'floor') continue;
-      const box = this.terrainBox(terrain, grid.sizePx);
-      const top = (terrain.altitude + terrain.height) * grid.sizePx;
+      const box = terrainBoxOf(terrain, grid.sizePx);
+      const top = terrainTopPx(terrain, grid.sizePx);
+      const base = terrainBasePx(terrain, grid.sizePx);
       forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => {
         cells.set(cell);
         if (top > tops[cell]) tops[cell] = top;
+        if (base < bases[cell]) bases[cell] = base;
       });
     }
-    return { cells, tops };
+    return { cells, tops, bases };
   });
-
-  private terrainBox(terrain: Terrain, gridSize: number): { minX: number; minY: number; maxX: number; maxY: number } {
-    const edges = rectangleSegments(
-      terrain.location.x,
-      terrain.location.y,
-      terrain.width * gridSize,
-      terrain.depth * gridSize,
-      terrain.rotate
-    );
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const edge of edges) {
-      minX = Math.min(minX, edge.x1, edge.x2);
-      minY = Math.min(minY, edge.y1, edge.y2);
-      maxX = Math.max(maxX, edge.x1, edge.x2);
-      maxY = Math.max(maxY, edge.y1, edge.y2);
-    }
-    return { minX, minY, maxX, maxY };
-  }
 
   private readonly sightIndexes = computed<SegmentIndexes | null>(() => {
     const standing = this.standingSegments();
@@ -353,6 +342,7 @@ export class VisionService {
         indexes,
         blocking: standing?.cells,
         blockingTops: standing?.tops,
+        blockingBases: standing?.bases,
       };
       const perSource = new Map<string, CellBits>();
       const shared = new CellBits(cellCount(grid));
@@ -713,7 +703,7 @@ export class VisionService {
   /** How high the top of a block stands, in pixels above the floor. */
   terrainTopZ(terrain: Terrain): number {
     const scene = this.scene();
-    return scene ? (terrain.altitude + terrain.height) * scene.gridSize : 0;
+    return scene ? terrainTopPx(terrain, scene.gridSize) : 0;
   }
 
   /** The cells of a block's roof, each read at the height the roof stands at. */
@@ -730,7 +720,7 @@ export class VisionService {
     // The top of a wall is a surface of its own, and a lamp level with it lights along it. Read
     // at the ground the wall stands on, a walkway beside a torch came out as dark as the floor
     // ten feet below, and so did whatever had climbed onto it.
-    const top = (terrain.altitude + terrain.height) * scene.gridSize;
+    const top = terrainTopPx(terrain, scene.gridSize);
     if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true, top);
 
     return this.brightestCleared(cover);

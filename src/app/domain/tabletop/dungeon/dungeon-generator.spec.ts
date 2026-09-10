@@ -160,6 +160,40 @@ describe('planDungeon()', () => {
     }
   });
 
+  describe('walls too sheer to get up', () => {
+    function planWith(sheerWalls: boolean) {
+      return planDungeon(
+        { atmosphere: 'stoneDungeon', roomCount: 8, seed: 7 },
+        {
+          placeDoors: true,
+          placeStairs: true,
+          sheerWalls,
+        }
+      ).blocks.blocks;
+    }
+
+    it('leaves every block climbable when it is not asked for', () => {
+      expect(planWith(false).every((block) => block.blocksClimb !== true)).toBe(true);
+    });
+
+    it('is not asked for by a caller that says nothing of it', () => {
+      const blocks = planDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 7 }).blocks.blocks;
+
+      expect(blocks.every((block) => block.blocksClimb !== true)).toBe(true);
+    });
+
+    it('makes the walls and the doors sheer, and leaves the stairs to be walked up', () => {
+      const blocks = planWith(true);
+      const kindsOf = (sheer: boolean) => new Set(blocks.filter((b) => b.blocksClimb === sheer).map((b) => b.kind));
+
+      expect(blocks.some((block) => block.kind === 'wall')).toBe(true);
+      expect(blocks.some((block) => block.kind === 'door')).toBe(true);
+      expect(kindsOf(true)).toEqual(new Set(['wall', 'door']));
+      expect(kindsOf(true).has('stairUp')).toBe(false);
+      expect(kindsOf(true).has('stairDown')).toBe(false);
+    });
+  });
+
   it('counts twelve objects to sync for every terrain', () => {
     const plan = planDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 7 });
 
@@ -274,6 +308,36 @@ describe('planDungeon()', () => {
     }
 
     expect(pairs).toBeGreaterThan(0);
+  });
+
+  it('builds a door of four out of two slabs of two', () => {
+    const plan = planDungeon({
+      atmosphere: 'stoneDungeon',
+      roomCount: 12,
+      seed: 7,
+      doorWidth: { least: 4, most: 4 },
+      doubleDoorPercent: 100,
+    });
+    const doors = plan.blocks.blocks.filter((block) => block.kind === 'door');
+
+    expect(doors.some((door) => Math.max(door.rect.w, door.rect.h) === 2)).toBe(true);
+    expect(doors.some((door) => door.doorMirrored)).toBe(true);
+    expect(doors.every((door) => Math.max(door.rect.w, door.rect.h) !== 4)).toBe(true);
+  });
+
+  it('gathers no door into a run of cells on a board of hexes', () => {
+    const plan = planDungeon({
+      atmosphere: 'stoneDungeon',
+      roomCount: 8,
+      seed: 7,
+      gridType: GridType.HEX_VERTICAL,
+      doorWidth: { least: 4, most: 4 },
+    });
+
+    for (const block of plan.blocks.blocks.filter((entry) => entry.kind === 'door')) {
+      expect(block.rect.w).toBe(1);
+      expect(block.rect.h).toBe(1);
+    }
   });
 
   it('paints the ground rather than building it, and stops light at a wall facing open ground', () => {

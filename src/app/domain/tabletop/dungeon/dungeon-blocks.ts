@@ -3,6 +3,7 @@ import { DungeonAtmosphere } from '@axe/domain/tabletop/dungeon/dungeon-atmosphe
 import {
   cellAt,
   DungeonCell,
+  DungeonDoorLeaf,
   DungeonLayout,
   DungeonPoint,
   DungeonRect,
@@ -15,6 +16,14 @@ export const MAX_MERGE_SPAN = 12;
 export interface DungeonBlockOptions {
   placeDoors: boolean;
   placeStairs: boolean;
+  /**
+   * Whether the walls of the place are too sheer to get up.
+   *
+   * Stone walls are what a dungeon is made of, so a party that can step over them is walking
+   * a floor plan rather than a dungeon. A door shut is part of that wall; opened, it is a way
+   * through like any other.
+   */
+  sheerWalls?: boolean;
   /** How many cells one block may stand for. Hexes take one each; see mergeSpanFor. */
   mergeSpan?: number;
 }
@@ -38,22 +47,13 @@ const FACINGS: readonly [number, number, number][] = [
   [1, 0, 180],
 ];
 
-/** Which way the passage runs where a door stands, so the slab can be set across it. */
-function doorAxis(layout: DungeonLayout, x: number, y: number): 'x' | 'y' {
-  const open = (cx: number, cy: number) => cellAt(layout, cx, cy) !== DungeonCell.Rock;
-  const eastWest = open(x + 1, y) && open(x - 1, y);
-  const northSouth = open(x, y + 1) && open(x, y - 1);
-  if (eastWest && !northSouth) return 'x';
-  if (northSouth && !eastWest) return 'y';
-  // A corner or a wide opening: bar the way the neighbouring stone leaves free.
-  return open(x + 1, y) || open(x - 1, y) ? 'x' : 'y';
-}
-
-/** Whether the door before this one along the opening it fills is already a door. */
-function hasPartnerBefore(doors: Set<string>, door: DungeonPoint, across: 'x' | 'y'): boolean {
-  // A door barring an east-west way stands across the north-south span of the opening.
-  const before = across === 'x' ? `${door.x},${door.y - 1}` : `${door.x - 1},${door.y}`;
-  return doors.has(before);
+/** The cells of a leaf, one by one, for a board whose cells will not gather into rectangles. */
+function leafCells(leaf: DungeonDoorLeaf): DungeonRect[] {
+  const cells: DungeonRect[] = [];
+  for (let dy = 0; dy < leaf.h; dy++) {
+    for (let dx = 0; dx < leaf.w; dx++) cells.push({ x: leaf.x + dx, y: leaf.y + dy, w: 1, h: 1 });
+  }
+  return cells;
 }
 
 function touchesOpenCell(layout: DungeonLayout, rect: DungeonRect): boolean {
@@ -153,6 +153,7 @@ export function layoutToBlocks(
       kind: 'wall',
       rect,
       blocksSight: boundary,
+      blocksClimb: options.sheerWalls === true,
       locked: false,
       rooms: boundary ? roomsBeside(layout, rect) : [],
     });
@@ -171,21 +172,22 @@ export function layoutToBlocks(
   }
 
   if (options.placeDoors) {
-    // Two doors filling one opening are a pair, and a pair opens outward from the middle. The
-    // one nearer the far end is turned round, so no run of them all swings the same way.
-    const doorAt = new Set(layout.doors.map((door) => `${door.x},${door.y}`));
-    for (const door of layout.doors) {
-      blocks.push({
-        kind: 'door',
-        rect: { x: door.x, y: door.y, w: 1, h: 1 },
-        blocksSight: true,
-        locked: door.locked,
-        rooms: door.rooms,
-        across: doorAxis(layout, door.x, door.y),
-        prop: doorPropFor(atmosphere),
-        doorStyle: atmosphere.doorStyle,
-        doorMirrored: hasPartnerBefore(doorAt, door, doorAxis(layout, door.x, door.y)),
-      });
+    for (const leaf of layout.doorLeaves) {
+      const hung = { x: leaf.x, y: leaf.y, w: leaf.w, h: leaf.h };
+      for (const rect of span > 1 ? [hung] : leafCells(leaf)) {
+        blocks.push({
+          kind: 'door',
+          rect,
+          blocksSight: true,
+          blocksClimb: options.sheerWalls === true,
+          locked: leaf.locked,
+          rooms: leaf.rooms,
+          across: leaf.across,
+          prop: doorPropFor(atmosphere),
+          doorStyle: atmosphere.doorStyle,
+          doorMirrored: leaf.mirrored,
+        });
+      }
     }
   }
 

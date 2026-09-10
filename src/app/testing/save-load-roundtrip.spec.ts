@@ -112,6 +112,45 @@ describe('save and load round trip', () => {
       expect(xml).toContain('isGrid="true"');
     });
 
+    /**
+     * The attributes of a saved element, as the reader is handed them.
+     *
+     * Built by hand rather than off an element: happy-dom folds the case of an attribute name
+     * away, xml document or not, and every name a room is saved under has case in it.
+     */
+    function attributesOf(written: Record<string, string>): NamedNodeMap {
+      return Object.entries(written).map(([name, value]) => ({ name, value })) as unknown as NamedNodeMap;
+    }
+
+    it('says a sheer face in the saved room, and nothing of one that is not', () => {
+      const plain = Terrain.create('丘', 1, 1, 1, '', '');
+      const cliff = Terrain.create('崖', 1, 1, 1, '', '');
+      cliff.blocksClimb = true;
+
+      expect(serializer.toXml(plain)).toContain('blocksClimb="false"');
+      expect(serializer.toXml(cliff)).toContain('blocksClimb="true"');
+    });
+
+    it('leaves a room saved before there were sheer faces with none of them', () => {
+      const terrain = Terrain.create('崖', 1, 1, 1, '', '');
+
+      terrain.parseAttributes(attributesOf({ name: '崖', mode: '3' }));
+
+      expect(terrain.blocksClimb).toBe(false);
+    });
+
+    it('reads a sheer face back as something told apart from the word for it', () => {
+      const terrain = Terrain.create('崖', 1, 1, 1, '', '');
+
+      terrain.parseAttributes(attributesOf({ blocksClimb: 'true' }));
+
+      expect(terrain.blocksClimb).toBe(true);
+
+      terrain.parseAttributes(attributesOf({ blocksClimb: 'false' }));
+
+      expect(terrain.blocksClimb).toBe(false);
+    });
+
     it('writes the location in dotted notation', () => {
       const terrain = Terrain.create('t', 1, 1, 1, '', '');
       terrain.location = { name: 'table', x: 150, y: 250 };

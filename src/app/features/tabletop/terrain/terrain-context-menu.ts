@@ -136,6 +136,13 @@ export function buildTerrainContextMenuModel(
           terrain.mode = TerrainViewState.ALL;
         },
       };
+  const climbAction: ContextMenuAction = {
+    name: (terrain.blocksClimb ? '☑ ' : '☐ ') + t('feature.tabletop.contextMenu.blocksClimb'),
+    action: () => {
+      terrain.blocksClimb = !terrain.blocksClimb;
+      SoundEffect.play(PresetSound.sweep);
+    },
+  };
   const doorToggleActions: ContextMenuAction[] = terrain.isDoor
     ? [
         {
@@ -284,7 +291,7 @@ export function buildTerrainContextMenuModel(
     subActions: tabletopActionService.makeDefaultContextMenuActions(objectPosition),
   };
 
-  const shapeActions = [altitudeAction, slopeAction, wallAction, ...doorToggleActions, doorStyleAction];
+  const shapeActions = [altitudeAction, slopeAction, wallAction, climbAction, ...doorToggleActions, doorStyleAction];
   const appearanceActions = [tiledTextureAction, shadingAction, shadowAction, lightAction];
   const moveCreateActions = [...surfaceEntries, createAction];
   const objectActions = [...overlapEntries, lockAction, editAction, copyAction, deleteAction];
@@ -296,6 +303,7 @@ export function buildTerrainContextMenuModel(
     ContextMenuSeparator,
     slopeAction,
     wallAction,
+    climbAction,
     ...doorToggleActions,
     doorStyleAction,
     tiledTextureAction,

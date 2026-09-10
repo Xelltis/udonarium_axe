@@ -84,6 +84,7 @@ interface Ramp {
   danger: number;
   dangerHover: number;
   success: number;
+  warning: number;
   /** How strongly borders and hovers are drawn over the surfaces. */
   edge: number;
   /** Whether the ink laid over the surfaces is the dark end or the light end. */
@@ -121,6 +122,7 @@ const LIGHT: Ramp = {
   danger: 40,
   dangerHover: 35,
   success: 47,
+  warning: 44,
   edge: 0.3,
   ink: 'dark',
 };
@@ -146,6 +148,7 @@ const DARK: Ramp = {
   danger: 68,
   dangerHover: 78,
   success: 70,
+  warning: 72,
   edge: 0.34,
   ink: 'light',
 };
@@ -178,6 +181,7 @@ function stretch(ramp: Ramp): Ramp {
     danger: ramp.ink === 'dark' ? 34 : 68,
     dangerHover: ramp.ink === 'dark' ? 26 : 78,
     success: ramp.ink === 'dark' ? 40 : 76,
+    warning: ramp.ink === 'dark' ? 38 : 78,
     edge: ramp.edge * 1.8,
   };
 }
@@ -305,6 +309,7 @@ export function skinTokens(recipe: SkinRecipe, mode: SkinMode): SkinTokens {
     '--ui-danger-bg': alpha(danger, 0.1),
 
     '--ui-success': hex({ tone: ramp.success, chroma: 50, hue: 140 }),
+    '--ui-warning': hex({ tone: ramp.warning, chroma: 62, hue: 72 }),
 
     '--ui-suit-black': onDark ? hex(accent) : '#000000',
 

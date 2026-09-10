@@ -1777,6 +1777,7 @@
         "lightSection": "어둠(시야·발광)",
         "blocksSight": "시야를 막음",
         "blocksLight": "빛을 막음(창문이면 끔)",
+        "blocksClimb": "오를 수 없음",
         "terrainGlow": "빛을 냄",
         "slope": "경사",
         "slopeNone": "없음",
@@ -2054,6 +2055,7 @@
           "tableName": "테이블 이름",
           "placeDoors": "문 배치",
           "placeStairs": "입구와 출구 배치",
+          "sheerWalls": "벽을 오를 수 없게 함(열린 문은 통과 가능)",
           "wallHeight": "벽 높이(칸)",
           "entrance": "입구",
           "kind": "종류",
@@ -2066,6 +2068,10 @@
           "corridorWidth": "통로의 폭",
           "corridorLeast": "최소",
           "corridorMost": "최대",
+          "doorWidth": "문의 폭",
+          "doorLeast": "최소",
+          "doorMost": "최대",
+          "doubleDoors": "양문의 비율(%)",
           "muster": "입구에 모을 파티",
           "musterNobody": "모으지 않음",
           "fog": "전장의 안개를 씌운 상태로 시작"
@@ -2088,6 +2094,8 @@
           "roomsDiffer": "배치된 방은 {{found}}개입니다. 동굴은 공동이 이어지므로 요청보다 적어집니다",
           "squareOnly": "생성되는 테이블은 정사각 그리드 고정입니다",
           "corridorWidth": "넓힐수록 방과 간격도 커져서 놓을 수 있는 방이 줄어듭니다",
+          "doorWidth": "문이 통로보다 넓으면 그만큼 입구의 벽을 깎습니다. 입구가 더 넓으면 문이 나란히 놓입니다",
+          "doubleDoors": "양문은 폭을 절반씩 나눈 문 2개가 됩니다. 폭이 4라면 2칸짜리 문 2개입니다",
           "muster": "선택한 파티의 말을 입구 근처에 세웁니다. 다른 말은 움직이지 않습니다"
         },
         "entrance": {
@@ -2121,7 +2129,11 @@
         }
       },
       "movePlan": {
-        "hint": "클릭하면 이동 / 우클릭으로 경유지 지정(같은 자리를 다시 누르면 취소) / Enter로 확정 / Esc로 중지"
+        "hint": "클릭하면 이동 / 우클릭으로 경유지 지정(같은 자리를 다시 누르면 취소) / Enter로 확정 / Esc로 중지",
+        "jump": "뛰기",
+        "walk": "걷기",
+        "hintTouch": "탭하면 이동 / 길게 누르면 경유지 / 말을 탭하면 중지",
+        "modeLabel": "이동 방식"
       },
       "displaySetting": {
         "title": "탁상 디스플레이",
@@ -2232,7 +2244,7 @@
       "uiTab_tabletop": "탁상",
       "characterImportHint": "외부 캐릭터 시트 보관소에서 말을 가져옵니다. 가져온 말은 탁자에 놓이고 다른 참가자에게도 전달됩니다.",
       "moveStrict": "엄밀한 이동",
-      "moveStrictHint": "말을 집어 올리면 포인터 위치까지의 최단 경로가 선으로 표시됩니다. 말은 그 선을 따라 내려놓이므로 손이 흔들려도 돌아간 것으로 계산하지 않습니다. 벽과 출입 금지 칸은 넘을 수 없고, 이동력이 닿지 않는 곳까지는 선이 뻗지 않습니다. 움직이는 모습은 방의 모든 사람에게 보입니다. 이동력 항목이 없는 말은 지금까지처럼 어디에나 놓을 수 있습니다. GM만은 Shift를 누른 채로 집으면 경로를 그리지 않고 그대로 옮길 수 있습니다.",
+      "moveStrictHint": "말을 집어 올리면 포인터 위치까지의 최단 경로가 선으로 표시됩니다. 말은 그 선을 따라 내려놓이므로 손이 흔들려도 돌아간 것으로 계산하지 않습니다. 벽과 출입 금지 칸은 넘을 수 없고, 이동력이 닿지 않는 곳까지는 선이 뻗지 않습니다. 움직이는 모습은 방의 모든 사람에게 보입니다. 이동력 항목이 없는 말은 지금까지처럼 어디에나 놓을 수 있습니다. GM만은 Shift를 누른 채로 집으면 경로를 그리지 않고 그대로 옮길 수 있습니다. 경로를 그리는 동안 스페이스를 누르면 뛰어넘기로 바뀌어, 오를 수 없는 지형 외에는 높이에 상관없이 목적지로 고를 수 있습니다. 말은 앞 칸에서 뛰어올라 착지합니다.",
       "sectionFlatTable": "위에서 내려다볼 때 (2D)",
       "flatTableHint": "테이블을 바로 위에서 볼 때만 적용됩니다.",
       "orthographicProjection": "원근 없애기 (화면을 눕혀 둘러앉을 때)",
@@ -2943,6 +2955,7 @@
         "terrainHeight": "벽 높이",
         "terrainBlocksSight": "시선을 막음",
         "terrainBlocksLight": "빛을 막음",
+        "terrainBlocksClimb": "오를 수 없음",
         "maskColor": "마스크 색",
         "maskOpacity": "마스크 농도",
         "terrainMode": "표시 방식",
@@ -3726,7 +3739,8 @@
       },
       "tableView": {
         "judgeCalc": "판정 산출 모드",
-        "skillLearned": "기능 습득 모드"
+        "skillLearned": "기능 습득 모드",
+        "checkColumn": "이 열을 한꺼번에 체크"
       },
       "judgement": {
         "title": "{{label}}의 판정 후보",
@@ -4002,7 +4016,8 @@
       "menuTitle": "메뉴",
       "rotate90": "시계 방향으로 90도 회전",
       "transparency": "투명도",
-      "ghost": "투명 모드"
+      "ghost": "투명 모드",
+      "tabClose": "이 패널 닫기"
     },
     "portraitPicker": {
       "title": "입화",

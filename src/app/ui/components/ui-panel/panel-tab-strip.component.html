@@ -1,0 +1,45 @@
+<div
+  class="panel-no-drag border-ui-border-titlebar bg-ui-titlebar absolute box-border flex h-7 w-full scrollbar-none items-stretch overflow-x-auto overflow-y-hidden border-b border-solid"
+  [style.top]="top()"
+  role="tablist"
+  #strip
+>
+  @for (tab of tabs(); track $index) {
+    <div
+      class="group text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text relative box-border inline-flex max-w-44 min-w-0 flex-none cursor-pointer items-center gap-1 border-r border-solid border-r-black/25 bg-transparent pr-1 pl-2.5 text-[11px] whitespace-nowrap transition-colors select-none"
+      [class.bg-ui-panel]="$index === active()"
+      [class.text-ui-text!]="$index === active()"
+      [class.opacity-40]="$index === carried()"
+      role="tab"
+      [attr.aria-selected]="$index === active()"
+      [attr.data-testid]="'panel-tab-' + $index"
+      [title]="tab"
+      (pointerdown)="onPillPointerDown($event, $index)"
+      (pointermove)="onPillPointerMove($event)"
+      (pointerup)="onPillPointerUp($event)"
+      (pointercancel)="onPillPointerCancel()"
+    >
+      @if ($index === active()) {
+        <span class="bg-ui-accent pointer-events-none absolute inset-x-0 top-0 h-0.5"></span>
+      }
+      @if ($index === landing()) {
+        <span class="bg-ui-accent pointer-events-none absolute -left-px z-1 h-full w-0.5"></span>
+      }
+      <span class="min-w-0 truncate" data-panel-tab-name>{{ tab }}</span>
+      <button
+        class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-4 shrink-0 transform-none items-center justify-center border-none bg-transparent p-0 leading-none opacity-0 shadow-none transition-opacity outline-none group-hover:opacity-100 hover:border-transparent hover:shadow-none"
+        [class.opacity-100]="$index === active()"
+        type="button"
+        [attr.data-testid]="'panel-tab-clear-' + $index"
+        [title]="'ui.panel.tabClose' | transloco"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="closed.emit($index)"
+      >
+        <i class="material-icons text-[12px]!">clear</i>
+      </button>
+    </div>
+  }
+  @if (landing() === tabs().length) {
+    <span class="bg-ui-accent pointer-events-none -ml-0.5 w-0.5 shrink-0"></span>
+  }
+</div>

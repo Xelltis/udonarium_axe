@@ -1,0 +1,107 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { PanelTabStripComponent } from '@axe/ui/components/ui-panel/panel-tab-strip.component';
+
+describe('PanelTabStripComponent', () => {
+  let fixture: ComponentFixture<PanelTabStripComponent>;
+
+  function pills(): HTMLElement[] {
+    return [...fixture.nativeElement.querySelectorAll('[role="tab"]')] as HTMLElement[];
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [PanelTabStripComponent],
+      providers: [...TEST_PROVIDERS],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(PanelTabStripComponent);
+    fixture.componentRef.setInput('tabs', ['Chat', 'Sheet']);
+    fixture.componentRef.setInput('active', 1);
+    fixture.detectChanges();
+  });
+
+  it('names every panel the frame holds', () => {
+    expect(pills().map((pill) => pill.querySelector('[data-panel-tab-name]')?.textContent)).toEqual(['Chat', 'Sheet']);
+  });
+
+  it('marks the one being looked at', () => {
+    expect(pills().map((pill) => pill.getAttribute('aria-selected'))).toEqual(['false', 'true']);
+  });
+
+  it('says which one was pressed', () => {
+    let chosen = -1;
+    fixture.componentInstance.chose.subscribe((index) => (chosen = index));
+
+    pills()[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+    expect(chosen).toBe(0);
+  });
+
+  it('says which one was asked to go, without choosing it as well', () => {
+    let closed = -1;
+    let chosen = -1;
+    fixture.componentInstance.closed.subscribe((index) => (closed = index));
+    fixture.componentInstance.chose.subscribe((index) => (chosen = index));
+
+    const clear = fixture.nativeElement.querySelector('[data-testid="panel-tab-clear-0"]') as HTMLElement;
+    clear.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    clear.click();
+
+    expect(closed).toBe(0);
+    expect(chosen).toBe(-1);
+  });
+
+  it('says the carry is over however it ended', () => {
+    let released = 0;
+    fixture.componentInstance.released.subscribe(() => (released += 1));
+    const pill = pills()[0];
+    pill.getBoundingClientRect = () => ({ left: 0, right: 40, top: 0, bottom: 20 }) as DOMRect;
+
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    pill.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 200, clientY: 300 }));
+    pill.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 200, clientY: 300 }));
+
+    expect(released).toBe(1);
+  });
+
+  it('carries a name out of the row rather than reordering it', () => {
+    let taken: { index: number; x: number; y: number } | null = null;
+    fixture.componentInstance.tookOut.subscribe((out) => (taken = out));
+    const strip = fixture.nativeElement.querySelector('[role="tablist"]') as HTMLElement;
+    strip.getBoundingClientRect = () => ({ left: 0, right: 200, top: 0, bottom: 28 }) as DOMRect;
+    const pill = pills()[1];
+
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    pill.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 400, clientY: 500 }));
+    pill.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 400, clientY: 500 }));
+
+    expect(taken).toEqual({ index: 1, x: 400, y: 500 });
+  });
+
+  it('leaves a name where it was when the browser takes the carry away', () => {
+    let taken: { index: number; x: number; y: number } | null = null;
+    let moved: { from: number; to: number } | null = null;
+    let released = 0;
+    fixture.componentInstance.tookOut.subscribe((out) => (taken = out));
+    fixture.componentInstance.moved.subscribe((move) => (moved = move));
+    fixture.componentInstance.released.subscribe(() => (released += 1));
+    const strip = fixture.nativeElement.querySelector('[role="tablist"]') as HTMLElement;
+    strip.getBoundingClientRect = () => ({ left: 0, right: 200, top: 0, bottom: 28 }) as DOMRect;
+    const pill = pills()[1];
+
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    pill.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 400, clientY: 500 }));
+    pill.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, clientX: 400, clientY: 500 }));
+
+    expect(taken).toBeNull();
+    expect(moved).toBeNull();
+    expect(released).toBe(1);
+  });
+
+  it('keeps a drag on it from taking the frame with it', () => {
+    const strip = fixture.nativeElement.querySelector('[role="tablist"]') as HTMLElement;
+
+    expect(strip.classList.contains('panel-no-drag')).toBe(true);
+  });
+});

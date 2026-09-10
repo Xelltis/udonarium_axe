@@ -16,6 +16,10 @@ import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 export const MOVE_RANGE_FILL = 'rgba(90, 170, 255, 0.28)';
 export const MOVE_RANGE_BORDER = 'rgba(120, 200, 255, 0.95)';
 /** The ground an enemy holds, shown under the reach so the two read as one picture. */
+/** The reach of a move being taken over what stands in the way rather than around it. */
+export const MOVE_JUMP_FILL = 'rgba(160, 130, 255, 0.28)';
+export const MOVE_JUMP_BORDER = 'rgba(195, 175, 255, 0.95)';
+
 export const MOVE_ZOC_FILL = 'rgba(230, 80, 80, 0.22)';
 export const MOVE_ZOC_BORDER = 'rgba(240, 120, 120, 0.75)';
 const MOVE_RANGE_BORDER_WIDTH_PX = 3;
@@ -62,44 +66,50 @@ export class TableMoveRangeOverlayComponent {
    * line is drawn on every screen rather than only the mover's. A peer looking at another
    * table is left out: a cell number means nothing away from the grid it was counted in.
    */
-  protected readonly others = computed<{ grid: CellGrid; reach: CellBits | null; way: number[] }[]>(() => {
-    this.objectChange.collectionOf(PeerCursor.aliasName)();
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    this.objectChange.versionOf(this.tableSelecter.identifier)();
-    const table = this.tableSelecter.viewTable;
-    if (!table) return [];
-    this.objectChange.versionOf(table.identifier)();
+  protected readonly others = computed<{ grid: CellGrid; reach: CellBits | null; way: number[]; jumping: boolean }[]>(
+    () => {
+      this.objectChange.collectionOf(PeerCursor.aliasName)();
+      this.objectChange.collectionOf(GameCharacter.aliasName)();
+      this.objectChange.versionOf(this.tableSelecter.identifier)();
+      const table = this.tableSelecter.viewTable;
+      if (!table) return [];
+      this.objectChange.versionOf(table.identifier)();
 
-    const mine = PeerCursor.myCursor?.identifier;
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
-    const drawn: { grid: CellGrid; reach: CellBits | null; way: number[] }[] = [];
-    for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
-      if (cursor.identifier === mine) continue;
-      if (!cursor.movingCharacterIdentifier || cursor.movingTableIdentifier !== table.identifier) continue;
-      // Read after the question of whether this peer is moving anything, not before it: a
-      // cursor's own place is on the cursor, so listening to every one of them redrew the
-      // board and worked every reach out again each time anybody moved a mouse.
-      this.objectChange.versionOf(cursor.identifier)();
+      const mine = PeerCursor.myCursor?.identifier;
+      const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+      const drawn: { grid: CellGrid; reach: CellBits | null; way: number[]; jumping: boolean }[] = [];
+      for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
+        if (cursor.identifier === mine) continue;
+        if (!cursor.movingCharacterIdentifier || cursor.movingTableIdentifier !== table.identifier) continue;
+        // Read after the question of whether this peer is moving anything, not before it: a
+        // cursor's own place is on the cursor, so listening to every one of them redrew the
+        // board and worked every reach out again each time anybody moved a mouse.
+        this.objectChange.versionOf(cursor.identifier)();
 
-      const piece = this.objectStore.get<GameCharacter>(cursor.movingCharacterIdentifier);
-      if (!(piece instanceof GameCharacter)) continue;
-      this.objectChange.versionOf(piece.identifier)();
-      // A piece the reader cannot see is not drawn walking either. The piece's own picture is
-      // taken off the board by the fog, and a reach and a way laid down from its cells would
-      // say where it stands and where it is going just as plainly.
-      if (!this.vision.isTokenVisible(piece)) continue;
+        const piece = this.objectStore.get<GameCharacter>(cursor.movingCharacterIdentifier);
+        if (!(piece instanceof GameCharacter)) continue;
+        this.objectChange.versionOf(piece.identifier)();
+        // A piece the reader cannot see is not drawn walking either. The piece's own picture is
+        // taken off the board by the fog, and a reach and a way laid down from its cells would
+        // say where it stands and where it is going just as plainly.
+        if (!this.vision.isTokenVisible(piece)) continue;
 
-      // Worked out here rather than sent: a reach is shaped by what its owner can see, and
-      // the dents an unseen enemy leaves in one would say where it stands.
-      const reach = this.moveRange.termsOf(piece)?.cells ?? null;
-      const way = cursor.movingWay
-        .split(',')
-        .map((cell) => Number(cell))
-        .filter((cell) => Number.isInteger(cell) && cell >= 0);
-      if (reach || way.length > 1) drawn.push({ grid, reach, way });
+        // Worked out here rather than sent: a reach is shaped by what its owner can see, and
+        // the dents an unseen enemy leaves in one would say where it stands. Which rule it is
+        // worked out under does come over the wire, or a mover who had turned to jumping would
+        // be drawn walking a way that leaves the reach drawn around it.
+        const terms = this.moveRange.termsOf(piece);
+        const jumping = cursor.movingJumping === 'true';
+        const reach = terms ? (jumping ? terms.leaptCells() : terms.cells) : null;
+        const way = cursor.movingWay
+          .split(',')
+          .map((cell) => Number(cell))
+          .filter((cell) => Number.isInteger(cell) && cell >= 0);
+        if (reach || way.length > 1) drawn.push({ grid, reach, way, jumping });
+      }
+      return drawn;
     }
-    return drawn;
-  });
+  );
 
   constructor() {
     effect(() => {
@@ -126,7 +136,7 @@ export class TableMoveRangeOverlayComponent {
     cells: CellBits | null,
     held: CellBits | null,
     plan: MovePlan | null,
-    others: readonly { grid: CellGrid; reach: CellBits | null; way: number[] }[]
+    others: readonly { grid: CellGrid; reach: CellBits | null; way: number[]; jumping: boolean }[]
   ): void {
     const extent = gridExtentPx(grid);
     const width = Math.max(1, Math.ceil(extent.maxX - extent.minX));
@@ -159,7 +169,12 @@ export class TableMoveRangeOverlayComponent {
       }
     }
     if (held) this.paintCells(context, grid, held, MOVE_ZOC_FILL, MOVE_ZOC_BORDER);
-    if (cells) this.paintCells(context, grid, cells, MOVE_RANGE_FILL, MOVE_RANGE_BORDER);
+    if (cells) {
+      const jumping = plan?.jumping === true;
+      const fill = jumping ? MOVE_JUMP_FILL : MOVE_RANGE_FILL;
+      const border = jumping ? MOVE_JUMP_BORDER : MOVE_RANGE_BORDER;
+      this.paintCells(context, grid, cells, fill, border);
+    }
     for (const other of others)
       this.paintRoute(context, other.grid, other.way, MOVE_WAY_OTHERS, MOVE_WAY_OTHERS_WIDTH_PX);
     if (plan) this.paintWay(context, plan);

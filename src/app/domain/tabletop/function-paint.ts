@@ -70,6 +70,8 @@ export interface TerrainPaintSpec {
   mode: number;
   blocksSight: boolean;
   blocksLight: boolean;
+  /** Whether a piece walks around it rather than up onto it. */
+  blocksClimb: boolean;
   /** Whether the picture repeats across the block rather than being stretched over it. */
   tiledTexture: boolean;
   showsGrid: boolean;
@@ -174,6 +176,7 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     mode: 3,
     blocksSight: true,
     blocksLight: true,
+    blocksClimb: false,
     tiledTexture: false,
     showsGrid: false,
     dropShadow: true,
@@ -303,6 +306,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       mode: countIn(terrain, 'mode', fallback.terrain.mode, 0, 3),
       blocksSight: flagIn(terrain, 'blocksSight', fallback.terrain.blocksSight),
       blocksLight: flagIn(terrain, 'blocksLight', fallback.terrain.blocksLight),
+      blocksClimb: flagIn(terrain, 'blocksClimb', fallback.terrain.blocksClimb),
       tiledTexture: flagIn(terrain, 'tiledTexture', fallback.terrain.tiledTexture),
       showsGrid: flagIn(terrain, 'showsGrid', fallback.terrain.showsGrid),
       dropShadow: flagIn(terrain, 'dropShadow', fallback.terrain.dropShadow),

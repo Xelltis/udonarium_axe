@@ -181,6 +181,135 @@ describe('MovePlanService', () => {
     expect(service.plan()!.ahead).toEqual([]);
   });
 
+  describe('a move taken over what stands in the way', () => {
+    function blockOver(col: number, row: number, height: number, sheer = false): Terrain {
+      const terrain = Terrain.create('岩', 1, 1, height, '', '', `rock_${col}_${row}`);
+      terrain.location = { name: 'table', x: col * GRID, y: row * GRID };
+      terrain.blocksClimb = sheer;
+      table.appendChild(terrain);
+      return terrain;
+    }
+
+    it('walks around a block, and jumps onto it once the reader asks to', () => {
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+
+      expect(service.plan()!.reach.get(cell(6, 5))).toBe(false);
+      expect(service.isJumping()).toBe(false);
+
+      service.toggleJump();
+
+      expect(service.isJumping()).toBe(true);
+      expect(service.plan()!.reach.get(cell(6, 5))).toBe(true);
+    });
+
+    it('tells the room which rule the move is being taken under', () => {
+      PeerCursor.createMyCursor();
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+      TestBed.tick();
+      expect(PeerCursor.myCursor.movingJumping).toBe('');
+
+      service.toggleJump();
+      TestBed.tick();
+
+      expect(PeerCursor.myCursor.movingJumping).toBe('true');
+    });
+
+    it('leaves a face too sheer to climb out of reach, jumping or not', () => {
+      blockOver(6, 5, 2, true);
+      service.begin(pieceAt(5, 5, 3));
+
+      service.toggleJump();
+
+      expect(service.plan()!.reach.get(cell(6, 5))).toBe(false);
+    });
+
+    it('takes the jumping back off again, and the block with it', () => {
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+      service.toggleJump();
+
+      service.toggleJump();
+
+      expect(service.isJumping()).toBe(false);
+      expect(service.plan()!.reach.get(cell(6, 5))).toBe(false);
+    });
+
+    it('drops the leg drawn under the other rule', () => {
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+      service.lookAt(5 * GRID + 10, 7 * GRID + 10);
+      expect(service.plan()!.ahead.length).toBeGreaterThan(1);
+
+      service.toggleJump();
+
+      expect(service.plan()!.ahead).toEqual([]);
+    });
+
+    it('draws a way onto the block once it is jumping', () => {
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+      service.toggleJump();
+
+      service.lookAt(6 * GRID + 10, 5 * GRID + 10);
+
+      expect(service.plan()!.ahead[service.plan()!.ahead.length - 1]).toBe(cell(6, 5));
+    });
+
+    it('stands the piece on top of what it jumped onto', async () => {
+      blockOver(6, 5, 2);
+      const piece = pieceAt(5, 5, 3);
+      service.begin(piece);
+      service.toggleJump();
+      service.lookAt(6 * GRID + 10, 5 * GRID + 10);
+
+      await service.run();
+
+      expect(piece.posZ).toBe(2 * GRID);
+      expect(piece.location.x).toBe(6 * GRID);
+    });
+
+    it('never sends the piece to where it is going before it has got there', async () => {
+      blockOver(6, 5, 2);
+      const piece = pieceAt(5, 5, 3);
+      const seen: { x: number; z: number }[] = [];
+      const update = piece.update.bind(piece);
+      vi.spyOn(piece, 'update').mockImplementation(() => {
+        seen.push({ x: piece.location.x, z: piece.posZ });
+        update();
+      });
+      service.begin(piece);
+      service.toggleJump();
+      service.lookAt(6 * GRID + 10, 5 * GRID + 10);
+
+      await service.run();
+
+      // The block's own cell and its height are reached at the end of the hop and never before,
+      // so nobody watching sees the piece arrive, wind back and cross a second time.
+      // Written before the hop, the very first thing every other screen saw was the piece
+      // standing on the block; then it went back and crossed again.
+      const arrived = (at: { x: number; z: number }) => at.x === 6 * GRID && at.z === 2 * GRID;
+      const first = seen.findIndex(arrived);
+
+      expect(arrived(seen[0])).toBe(false);
+      expect(first).toBeGreaterThan(0);
+      expect(seen.slice(first).every(arrived)).toBe(true);
+    });
+
+    it('sets a piece back down on the floor when it comes off again', async () => {
+      blockOver(6, 5, 2);
+      const piece = pieceAt(6, 5, 3);
+      piece.posZ = 2 * GRID;
+      service.begin(piece);
+      service.lookAt(5 * GRID + 10, 5 * GRID + 10);
+
+      await service.run();
+
+      expect(piece.posZ).toBe(0);
+    });
+  });
+
   describe('on a table that counts corners one, then two, by turns', () => {
     beforeEach(() => {
       Config.instance.diagonalMove = 'alternating';

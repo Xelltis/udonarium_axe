@@ -275,6 +275,7 @@ export function generateCave(params: CaveParams, rng: () => number): DungeonLayo
     cells: new Uint8Array(params.width * params.height).fill(DungeonCell.Rock),
     rooms: [],
     doors: [],
+    doorLeaves: [],
     links: [],
     entrance: { x: 1, y: 1 },
     exit: { x: 1, y: 1 },

@@ -1,6 +1,7 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { copyBeside } from '@axe/application/ui/tabletop-context-menu-actions';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { isLockable } from '@axe/domain/tabletop/lockable';
@@ -58,16 +59,7 @@ export function buildMultiSelectionContextMenu(
     {
       name: t('feature.tabletop.selection.copyAll'),
       action: () => {
-        const cloned: string[] = [];
-        for (const obj of movable) {
-          const copy = obj.clone();
-          if (copy.location) {
-            copy.location.x += gridSize;
-            copy.location.y += gridSize;
-          }
-          copy.update();
-          cloned.push(copy.identifier);
-        }
+        const cloned = movable.map((obj) => copyBeside(obj, gridSize).identifier);
         if (cloned.length > 0) selectionSignalService.replaceSelection(cloned);
       },
     },

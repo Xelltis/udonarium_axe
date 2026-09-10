@@ -129,6 +129,43 @@ describe('buildReplayVisionScene()', () => {
     expect(scene.sightSegments.length).toBeGreaterThan(4);
     expect(isPointVisible(scene, 100, 500, { userId: 'gm', isGameMaster: true })).toBe(true);
   });
+
+  it('reads a block that came to rest on something at its real height, and to the floor beneath', () => {
+    const shelf = snapshot('t1', 'terrain', {
+      location: { name: 'table', x: 600, y: 0, surface: 'floor' },
+      parentIdentifier: 'table-1',
+      width: 1,
+      depth: 20,
+      height: 1,
+      posZ: 150,
+      hasWall: true,
+      blocksSight: true,
+    });
+    const scene = buildReplayVisionScene([table(), shelf])!;
+    const stood = scene.sightSegments.filter((segment) => segment.heightPx === 200);
+
+    expect(stood.length).toBeGreaterThan(0);
+    // Whatever it came to rest on is under it, so the way beneath is not a way through.
+    expect(stood[0].basePx).toBe(0);
+  });
+
+  it('hangs a block built to stand clear of the floor at the height it was built at', () => {
+    const arch = snapshot('t1', 'terrain', {
+      location: { name: 'table', x: 600, y: 0, surface: 'floor' },
+      parentIdentifier: 'table-1',
+      width: 1,
+      depth: 20,
+      height: 1,
+      altitude: 3,
+      hasWall: true,
+      blocksSight: true,
+    });
+    const scene = buildReplayVisionScene([table(), arch])!;
+    const hung = scene.sightSegments.filter((segment) => segment.basePx !== undefined && segment.basePx > 0);
+
+    expect(hung.length).toBeGreaterThan(0);
+    expect(hung[0]).toMatchObject({ basePx: 150, heightPx: 200 });
+  });
 });
 
 describe('replaySceneViewer()', () => {

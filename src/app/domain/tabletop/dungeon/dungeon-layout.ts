@@ -66,12 +66,30 @@ export interface DungeonDoor extends DungeonPoint {
   locked: boolean;
 }
 
+/**
+ * One slab of a door, which is a piece of terrain standing in an opening.
+ *
+ * A doorway is filled by a single leaf, or by two that part in the middle; an opening wider
+ * than a door is hung takes several doors side by side. Every cell a leaf covers is a door
+ * cell of the opening it fills.
+ */
+export interface DungeonDoorLeaf extends DungeonRect {
+  /** The axis it bars. A leaf thin along x stands across an east-west passage. */
+  across: 'x' | 'y';
+  rooms: number[];
+  locked: boolean;
+  /** Whether it is hung the other way round, which is what makes two leaves a pair. */
+  mirrored: boolean;
+}
+
 export interface DungeonLayout {
   width: number;
   height: number;
   cells: Uint8Array;
   rooms: DungeonRoom[];
   doors: DungeonDoor[];
+  /** The doors hung in those openings, which is what the table is given rather than the cells. */
+  doorLeaves: DungeonDoorLeaf[];
   /** Which rooms a corridor joins, as index pairs. The spanning tree first, then the extra loops. */
   links: [number, number][];
   entrance: DungeonPoint;

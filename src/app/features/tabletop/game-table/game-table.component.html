@@ -362,22 +362,45 @@
 -->
 @if (isPlanningMove()) {
   <div
-    class="bg-ui-panel shadow-ui-md pointer-events-none absolute bottom-28 left-1/2 z-160 max-w-[90vw] -translate-x-1/2 rounded-full px-4 py-1.5 text-center text-sm text-[whitesmoke] opacity-95"
+    class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-none absolute bottom-28 left-1/2 z-160 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pr-4 pl-1.5 text-sm opacity-95"
     data-testid="move-plan-hint"
   >
-    {{ 'feature.tabletop.movePlan.hint' | transloco }}
+    <div
+      class="border-ui-border-panel pointer-events-auto flex shrink-0 rounded-full border border-solid p-0.5"
+      role="group"
+      data-move-plan-control
+      [attr.aria-label]="'feature.tabletop.movePlan.modeLabel' | transloco"
+    >
+      @for (mode of moveModes; track mode.jumping) {
+        <button
+          type="button"
+          class="inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full border-none px-3.5 text-[0.86em] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[16px]!"
+          [class.bg-ui-accent]="isJumpingMove() === mode.jumping"
+          [class.text-white]="isJumpingMove() === mode.jumping"
+          [class.bg-transparent]="isJumpingMove() !== mode.jumping"
+          [class.text-ui-muted]="isJumpingMove() !== mode.jumping"
+          [attr.aria-pressed]="isJumpingMove() === mode.jumping"
+          [attr.data-testid]="mode.testId"
+          (click)="onChooseMoveMode(mode.jumping, $event)"
+        >
+          <i class="material-icons">{{ mode.icon }}</i>
+          {{ mode.label | transloco }}
+        </button>
+      }
+    </div>
+    <span class="text-ui-muted min-w-0 text-[0.86em] leading-snug">{{ movePlanHintKey() | transloco }}</span>
   </div>
 }
 @if (isPickingEffectTarget()) {
   <div
-    class="bg-ui-panel pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm text-[whitesmoke] opacity-90"
+    class="bg-ui-panel text-ui-text pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm opacity-90"
   >
     {{ 'feature.effect.pickingHint' | transloco }}
   </div>
 }
 @if (isPickingTarget()) {
   <div
-    class="bg-ui-panel pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm text-[whitesmoke] opacity-90"
+    class="bg-ui-panel text-ui-text pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm opacity-90"
   >
     {{ 'feature.card.targetPickingHint' | transloco }}
   </div>

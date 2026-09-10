@@ -4,7 +4,7 @@
       {{ 'feature.tabletop.tableSetting.gridAdjuster.loading' | transloco }}
     </div>
   } @else if (loadState() === 'error') {
-    <div class="flex flex-1 items-center justify-center text-[13px] text-red-400">
+    <div class="text-ui-danger flex flex-1 items-center justify-center text-[13px]">
       {{ 'feature.tabletop.tableSetting.gridAdjuster.loadError' | transloco }}
     </div>
   } @else {

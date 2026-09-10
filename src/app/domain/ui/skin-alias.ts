@@ -33,6 +33,7 @@ export const TOKEN_ALIASES: Readonly<Record<string, string>> = {
   '--ui-danger-glow': '--color-ui-danger-glow',
   '--ui-danger-bg': '--color-ui-danger-bg',
   '--ui-success': '--color-ui-success',
+  '--ui-warning': '--color-ui-warning',
   '--ui-suit-black': '--color-ui-suit-black',
   '--ui-panel-border': '--color-ui-border-panel',
   '--ui-menu-border': '--color-ui-border-menu',

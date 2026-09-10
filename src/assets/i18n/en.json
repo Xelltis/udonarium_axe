@@ -1777,6 +1777,7 @@
         "lightSection": "Darkness (vision & glow)",
         "blocksSight": "Blocks sight",
         "blocksLight": "Blocks light (off = window)",
+        "blocksClimb": "Cannot be climbed",
         "terrainGlow": "Emit light",
         "slope": "Slope",
         "slopeNone": "None",
@@ -2054,6 +2055,7 @@
           "tableName": "Table name",
           "placeDoors": "Place doors",
           "placeStairs": "Place the way in and out",
+          "sheerWalls": "Walls cannot be climbed (an open door still lets you through)",
           "wallHeight": "Wall height (cells)",
           "entrance": "Way in",
           "kind": "Kind",
@@ -2066,6 +2068,10 @@
           "corridorWidth": "Passage width",
           "corridorLeast": "Narrowest",
           "corridorMost": "Widest",
+          "doorWidth": "Door width",
+          "doorLeast": "Narrowest",
+          "doorMost": "Widest",
+          "doubleDoors": "Double doors (%)",
           "muster": "Party at the way in",
           "musterNobody": "Nobody",
           "fog": "Start with the fog of war drawn"
@@ -2088,6 +2094,8 @@
           "roomsDiffer": "{{found}} rooms fitted. Caverns run together, so a cave ends up with fewer than asked",
           "squareOnly": "A generated table always uses a square grid",
           "corridorWidth": "Wider passages take a wider lattice, so fewer rooms fit on the board",
+          "doorWidth": "A door wider than the way it bars has the stone beside the opening cut away. An opening wider than the door takes a row of them",
+          "doubleDoors": "A pair is two leaves of half the width, parting in the middle. A door of four cells is two of two",
           "muster": "Stands that party by the way in. No other piece is moved"
         },
         "entrance": {
@@ -2121,7 +2129,11 @@
         }
       },
       "movePlan": {
-        "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it"
+        "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it",
+        "jump": "Jump",
+        "walk": "Walk",
+        "hintTouch": "Tap to walk there / press and hold to set a corner / tap the piece to leave it",
+        "modeLabel": "How the move is taken"
       },
       "displaySetting": {
         "title": "Tabletop display",
@@ -2232,7 +2244,7 @@
       "uiTab_tabletop": "Tabletop",
       "characterImportHint": "Brings a piece in from an outside character sheet service. What comes in is placed on the table and reaches the other players.",
       "moveStrict": "Strict movement",
-      "moveStrictHint": "Lifting a piece draws the cheapest way to the cell under the pointer. The piece walks that line down, so a wavering hand is not counted as going the long way about. Walls and no-entry cells are not crossed, and the line does not reach past what the piece can walk. The whole room sees the move being worked out. A piece with no move to speak of is still set down wherever the hand leaves it. The game master alone, holding shift while taking a piece up, carries it along with the hand instead, with no way drawn.",
+      "moveStrictHint": "Lifting a piece draws the cheapest way to the cell under the pointer. The piece walks that line down, so a wavering hand is not counted as going the long way about. Walls and no-entry cells are not crossed, and the line does not reach past what the piece can walk. The whole room sees the move being worked out. A piece with no move to speak of is still set down wherever the hand leaves it. The game master alone, holding shift while taking a piece up, carries it along with the hand instead, with no way drawn. Space, while a way is being drawn, turns the move over to jumping: anything but a face too sheer to climb is somewhere to land, however high it stands, and the piece leaps from the cell in front of it.",
       "sectionFlatTable": "Seen from above (2D)",
       "flatTableHint": "These have something to say only while the table is seen from straight above.",
       "orthographicProjection": "Drop the perspective (for a screen laid flat)",
@@ -2943,6 +2955,7 @@
         "terrainHeight": "Wall height",
         "terrainBlocksSight": "Blocks sight",
         "terrainBlocksLight": "Blocks light",
+        "terrainBlocksClimb": "Cannot be climbed",
         "maskColor": "Mask colour",
         "maskOpacity": "Mask strength",
         "terrainMode": "Shows as",
@@ -3951,7 +3964,8 @@
     },
     "tableView": {
       "judgeCalc": "Judge calc mode",
-      "skillLearned": "Skill learn mode"
+      "skillLearned": "Skill learn mode",
+      "checkColumn": "Tick the whole column"
     },
     "judgement": {
       "title": "Judgement candidates for {{label}}",
@@ -4000,7 +4014,8 @@
       "menuTitle": "Menu",
       "rotate90": "Rotate 90° clockwise",
       "transparency": "Transparency",
-      "ghost": "Ghost mode"
+      "ghost": "Ghost mode",
+      "tabClose": "Close this panel"
     },
     "portraitPicker": {
       "title": "Portraits",

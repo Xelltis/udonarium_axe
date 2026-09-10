@@ -251,6 +251,7 @@ export class DungeonBuildService {
     terrain.isLocked = true;
     terrain.blocksSight = block.blocksSight;
     terrain.blocksLight = block.blocksSight;
+    terrain.blocksClimb = block.blocksClimb === true;
 
     // A door slab is thinner than its cell, so it is set in the middle of the way it bars.
     const inset = ((1 - DOOR_THICKNESS) / 2) * GRID_SIZE;

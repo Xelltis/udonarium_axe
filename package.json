@@ -30,7 +30,7 @@
     "@ng-select/ng-select": "^24.1.1",
     "@skyway-sdk/core": "^2.4.6",
     "base-x": "^5.0.1",
-    "bcdice": "^4.6.0",
+    "bcdice": "4.10.0",
     "entities": "^8.0.0",
     "eventemitter3": "^5.0.4",
     "fflate": "^0.8.3",
@@ -92,8 +92,9 @@
     "postcss": "8.5.25",
     "@hono/node-server": "2.0.12",
     "brace-expansion": "5.0.9",
-    "js-yaml": "4.3.1",
-    "nanoid": "3.3.18"
+    "js-yaml": "4.3.2",
+    "nanoid": "3.3.18",
+    "qs": "6.16.0"
   },
   "allowScripts": {
     "@parcel/watcher@2.6.0": true,

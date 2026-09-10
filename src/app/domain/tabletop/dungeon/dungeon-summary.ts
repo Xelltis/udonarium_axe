@@ -34,7 +34,9 @@ export function buildDungeonSummary(input: DungeonSummaryInput): string {
   ];
 
   for (const room of layout.rooms) {
-    const ways = layout.doors.filter((door) => door.rooms.includes(room.index));
+    // The leaves that stand in the doorways, not the cells they fill: a door widened to four
+    // cells is one door, and was counted as four.
+    const ways = layout.doorLeaves.filter((leaf) => leaf.rooms.includes(room.index));
     const shut = ways.length > 0 && ways.every((door) => door.locked);
 
     const notes: string[] = [];

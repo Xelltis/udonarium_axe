@@ -1,15 +1,18 @@
-import { NgClass, NgComponentOutlet, NgStyle } from '@angular/common';
+import { NgClass, NgComponentOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  ComponentRef,
   computed,
   DestroyRef,
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   signal,
+  Type,
   viewChild,
   ViewContainerRef,
 } from '@angular/core';
@@ -17,17 +20,47 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
-import { PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
+import { PanelFrame, PanelHandoff, PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
+import { PanelDragService, PanelDropFrame } from '@axe/application/ui/panel-drag.service';
+import { PanelDropZone, pointerOf, tearOffBox } from '@axe/application/ui/panel-drag-helpers';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { holdLiveState } from '@axe/ui/components/ui-panel/live-state';
+import { PanelTabSlotComponent } from '@axe/ui/components/ui-panel/panel-tab-slot.component';
+import { PanelTabStripComponent } from '@axe/ui/components/ui-panel/panel-tab-strip.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { ResizableDirective } from '@axe/ui/directives/resizable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 
 const PANEL_FLOOR_OPACITY = 0.25;
+
+/** How tall the row of names is, which the strip itself is drawn at (`h-7`). */
+const TAB_STRIP_HEIGHT_PX = 28;
+
+/** Tells one frame from another while a panel is dragged between them. */
+let framesOpened = 0;
+
+/** One panel standing in a frame: what it is, where it is drawn, and what it was built into. */
+export interface PanelTabHandle {
+  panel: PanelService;
+  slot: ComponentRef<PanelTabSlotComponent>;
+  body: ComponentRef<unknown>;
+  /**
+   * The size it wants back when it stands in a frame of its own again.
+   *
+   * Nothing until it is folded into a group: a panel standing alone is the size of its frame,
+   * and that is not known when the panel is built - the size is written on the frame after.
+   */
+  box: { width: number; height: number } | null;
+}
+
+interface PanelTab extends PanelTabHandle {
+  /** Dropped when the panel leaves, or the frame goes on answering for a panel it lost. */
+  unsubscribe: () => void;
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,16 +68,25 @@ const PANEL_FLOOR_OPACITY = 0.25;
   templateUrl: './ui-panel.component.html',
   host: { class: 'block' },
   providers: [PanelService],
-  imports: [DraggableDirective, ResizableDirective, NgClass, NgComponentOutlet, NgStyle, TextTooltipDirective],
+  imports: [
+    DraggableDirective,
+    ResizableDirective,
+    NgClass,
+    NgComponentOutlet,
+    TextTooltipDirective,
+    PanelTabStripComponent,
+  ],
 })
-export class UIPanelComponent {
+export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly viewport = inject(ViewportService);
   private readonly tabletopDisplay = inject(TabletopDisplayService);
   private readonly panelTransparency = inject(PanelTransparencyService);
+  private readonly panelDrag = inject(PanelDragService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly isCompact = this.viewport.isCompact;
@@ -58,7 +100,7 @@ export class UIPanelComponent {
     return this.t('ui.panel.transparency');
   }
 
-  readonly transparency = computed(() => this.panelTransparency.valueOf(this.panelService.panelKind()));
+  readonly transparency = computed(() => this.panelTransparency.valueOf(this.activePanel().panelKind()));
 
   /** The shelf this panel was opened on, where whatever opened it asked for one. */
   protected layer(): number {
@@ -73,7 +115,7 @@ export class UIPanelComponent {
   readonly panelOpacity = computed(() => (this.hasFocus() && !this.barHasFocus() ? 1 : this.restingOpacity()));
 
   setTransparency(value: number): void {
-    this.panelTransparency.set(this.panelService.panelKind(), value);
+    this.panelTransparency.set(this.activePanel().panelKind(), value);
   }
 
   protected onTransparencyInput(event: Event): void {
@@ -95,9 +137,238 @@ export class UIPanelComponent {
   }
 
   readonly draggablePanel = viewChild.required<ElementRef<HTMLElement>>('draggablePanel');
-  readonly scrollablePanel = viewChild.required<ElementRef<HTMLDivElement>>('scrollablePanel');
   readonly titleBar = viewChild.required<ElementRef<HTMLDivElement>>('titleBar');
-  readonly content = viewChild.required('content', { read: ViewContainerRef });
+  private readonly slots = viewChild.required('slots', { read: ViewContainerRef });
+
+  readonly tabs = signal<readonly PanelTab[]>([]);
+  readonly activeIndex = signal(0);
+
+  /**
+   * The panel this frame is wearing: its name, its buttons, the kind it is faded by.
+   *
+   * A frame nothing was ever built into answers with its own, which is what a frame put up
+   * by hand is.
+   */
+  readonly activePanel = computed<PanelService>(() => this.tabs()[this.activeIndex()]?.panel ?? this.panelService);
+
+  readonly frameKey = `panel-${(framesOpened += 1)}`;
+  /** Whether a panel let go of now would join this frame. */
+  protected readonly isDropTarget = computed(() => this.panelDrag.target()?.frameKey === this.frameKey);
+
+  measureDropZone(): PanelDropZone | null {
+    if (this.isCompact() || !this.activePanel().isTabbable || !this.showsTitleBar) return null;
+    const strip = this.draggablePanel().nativeElement.querySelector('[role="tablist"]');
+    return {
+      bar: this.titleBar().nativeElement.getBoundingClientRect(),
+      strip: strip ? strip.getBoundingClientRect() : null,
+      z: Number(this.draggablePanel().nativeElement.style.zIndex) || 0,
+    };
+  }
+
+  handOverAll(): PanelHandoff[] {
+    return this.tabs()
+      .map((tab) => this.releaseTab(tab.panel))
+      .filter((handle): handle is PanelTabHandle => handle !== null);
+  }
+
+  takeIn(handoff: PanelHandoff): void {
+    this.adoptTab(handoff as PanelTabHandle);
+  }
+
+  frameSize(): { width: number; height: number } {
+    return { width: this.width, height: this.height };
+  }
+
+  framePlace(): { left: number; top: number } {
+    // Dragging writes the corner straight onto the element, so the panel's own numbers are
+    // wherever it was first put up rather than where the reader left it.
+    const box = this.draggablePanel().nativeElement.getBoundingClientRect();
+    return { left: Math.round(box.left), top: Math.round(box.top) };
+  }
+
+  panelCount(): number {
+    return this.tabCount();
+  }
+
+  dismissFrame(): void {
+    this.self?.destroy();
+  }
+
+  /** A panel is folded into another by its bar; taking hold of its middle only moves it. */
+  protected onFrameDragStart(event: MouseEvent | TouchEvent): void {
+    const from = event.target;
+    if (!(from instanceof Node) || !this.titleBar().nativeElement.contains(from)) return;
+    if (this.isCompact() || !this.activePanel().isTabbable) return;
+    this.panelDrag.begin(this);
+  }
+
+  protected onFrameDragMove(event: MouseEvent | TouchEvent): void {
+    const at = pointerOf(event);
+    if (at) this.panelDrag.move(at.x, at.y);
+  }
+
+  protected onFrameDragEnd(): void {
+    const target = this.panelDrag.end();
+    if (!target || target === (this as PanelDropFrame)) return;
+    for (const handoff of this.handOverAll()) target.takeIn(handoff);
+    this.dismissFrame();
+  }
+
+  /**
+   * Whether the frame is showing a row of names, which it does only when it holds several.
+   *
+   * A narrow screen is no reason to put the names away: nothing but the row reaches the panels
+   * behind the one in front, and a group carried onto a narrow screen -- or a window a reader
+   * drew in -- left every panel but one shut behind a frame with no way into it.
+   */
+  readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isMinimized());
+  readonly tabLabels = computed(() => this.tabs().map((tab) => tab.panel.title));
+
+  closeTabAt(index: number): void {
+    this.tabs()[index]?.panel.close();
+  }
+
+  /** A name taken hold of: from here it may land on another frame, or on nothing at all. */
+  protected onTabGrabbed(): void {
+    this.panelDrag.begin(this);
+  }
+
+  protected onTabDragged(at: { x: number; y: number }): void {
+    this.panelDrag.move(at.x, at.y);
+  }
+
+  /** Whatever became of the name, the drag is over: nothing should go on wearing the ring. */
+  protected onTabReleased(): void {
+    this.panelDrag.cancel();
+  }
+
+  protected onTabMoved(move: { from: number; to: number }): void {
+    const held = this.tabs()[move.from];
+    if (!held) return;
+    const rest = this.tabs().filter((tab) => tab !== held);
+    this.tabs.set([...rest.slice(0, move.to), held, ...rest.slice(move.to)]);
+    this.selectTab(this.tabs().indexOf(held));
+  }
+
+  /**
+   * A panel pulled out of the row: into whatever frame it was dropped on, or into one of its own.
+   *
+   * It stands at the size it had when it was folded in rather than at the size of the group,
+   * or a panel pulled out of a large frame would come away enormous.
+   */
+  protected onTabTakenOut(taken: { index: number; x: number; y: number }): void {
+    const target = this.panelDrag.end();
+    const tab = this.tabs()[taken.index];
+    if (!tab) return;
+    const handle = this.releaseTab(tab.panel);
+    if (!handle) return;
+
+    if (target && target !== (this as PanelDropFrame)) {
+      target.takeIn(handle);
+    } else {
+      const box = handle.box ?? { width: this.width, height: this.height };
+      const at = tearOffBox(taken, box, { width: window.innerWidth, height: window.innerHeight });
+      this.panelService.openFrame({ left: at.left, top: at.top, width: box.width, height: box.height }).takeIn(handle);
+    }
+    if (this.tabCount() === 0) this.dismissFrame();
+  }
+
+  /** Builds a panel into a place of its own in this frame. */
+  openTab<T>(childComponent: Type<T>, panel: PanelService): ComponentRef<T> {
+    const slot = this.slots().createComponent(PanelTabSlotComponent);
+    const body = slot.instance.content().createComponent(childComponent);
+    panel.setDefaultScrollablePanel(slot.instance.scrollable().nativeElement);
+    this.holdTab({ panel, slot, body, box: null });
+    return body;
+  }
+
+  /** Takes a panel in from another frame, the ground it stands on and all. */
+  adoptTab(handle: PanelTabHandle): void {
+    const restore = holdLiveState(handle.slot.instance.scrollable().nativeElement);
+    this.slots().insert(handle.slot.hostView);
+    handle.panel.attachTo(this);
+    this.holdTab(handle);
+    restore();
+    afterNextRender({ read: restore }, { injector: this.injector });
+  }
+
+  /** Hands a panel out without taking it down. The frame stays, emptied, for the caller to end. */
+  releaseTab(panel: PanelService): PanelTabHandle | null {
+    const tab = this.tabOf(panel);
+    if (!tab) return null;
+    const box = tab.box ?? { width: this.width, height: this.height };
+    this.dropTab(tab);
+    return { panel: tab.panel, slot: tab.slot, body: tab.body, box };
+  }
+
+  /** Puts one panel away. The frame goes with the last of them. */
+  closeTab(panel: PanelService): void {
+    const tab = this.tabOf(panel);
+    if (!tab) {
+      this.self?.destroy();
+      return;
+    }
+    this.dropTab(tab);
+    tab.body.destroy();
+    tab.slot.destroy();
+    if (this.tabs().length === 0) this.self?.destroy();
+  }
+
+  tabCount(): number {
+    return this.tabs().length;
+  }
+
+  selectTab(index: number): void {
+    const tabs = this.tabs();
+    if (index < 0 || index >= tabs.length) return;
+    this.activeIndex.set(index);
+    const shown = tabs[index];
+    afterNextRender({ read: () => shown.panel.activated$.emit() }, { injector: this.injector });
+  }
+
+  private tabOf(panel: PanelService): PanelTab | null {
+    return this.tabs().find((tab) => tab.panel === panel) ?? null;
+  }
+
+  private holdTab(handle: PanelTabHandle): void {
+    const tab: PanelTab = { ...handle, unsubscribe: this.listenTo(handle.panel) };
+    this.tabs.update((held) => [...held, tab]);
+    this.selectTab(this.tabs().length - 1);
+  }
+
+  /**
+   * Follows what a panel asks of the frame it stands in.
+   *
+   * The frame's own panel is already followed from where the frame was built, so only the
+   * ones folded in from elsewhere are taken up here. What a panel asks for while it is behind
+   * another is not the frame's business: it would shrink or stretch around something nobody
+   * is looking at.
+   */
+  private listenTo(panel: PanelService): () => void {
+    if (panel === this.panelService) return () => undefined;
+    const stopMinimize = panel.minimizeRequest$.subscribe((minimized) => {
+      if (panel !== this.activePanel() || minimized === this.isMinimized()) return;
+      this.toggleMinimize();
+    });
+    const stopResize = panel.resizeRequest$.subscribe((size) => {
+      if (panel === this.activePanel()) this.resizeTo(size);
+    });
+    return () => {
+      stopMinimize();
+      stopResize();
+    };
+  }
+
+  private dropTab(tab: PanelTab): void {
+    tab.unsubscribe();
+    this.tabs.update((held) => held.filter((entry) => entry !== tab));
+    this.activeIndex.set(Math.min(this.activeIndex(), Math.max(0, this.tabs().length - 1)));
+    this.selectTab(this.activeIndex());
+  }
+
+  private scrollablePanel(): ElementRef<HTMLDivElement> | null {
+    return this.tabs()[this.activeIndex()]?.slot.instance.scrollable() ?? null;
+  }
 
   readonly titleInput = input('', { alias: 'title' });
   readonly leftInput = input(0, { alias: 'left' });
@@ -120,13 +391,27 @@ export class UIPanelComponent {
       this.panelService.minHeight = this.minHeightInput();
     });
     this.panelService.minimizeRequest$.subscribe((minimized) => {
-      if (minimized === this.isMinimized()) return;
+      if (this.activePanel() !== this.panelService || minimized === this.isMinimized()) return;
       this.toggleMinimize();
     }, this.destroyRef);
-    this.panelService.resizeRequest$.subscribe((size) => this.resizeTo(size), this.destroyRef);
+    this.panelService.resizeRequest$.subscribe((size) => {
+      if (this.activePanel() === this.panelService) this.resizeTo(size);
+    }, this.destroyRef);
+    effect(() => {
+      const active = this.activeIndex();
+      for (const [at, tab] of this.tabs().entries()) {
+        tab.slot.setInput('padding', this.padding_);
+        tab.slot.setInput('top', this.bodyTop());
+        tab.slot.setInput('overflowVisible', this.overflowVisible());
+        tab.slot.setInput('contentMinimized', this.contentMinimized);
+        tab.slot.setInput('collapsed', this.bodyCollapsed());
+        tab.slot.setInput('active', at === active);
+      }
+    });
     afterNextRender({
       write: () => {
-        this.panelService.setDefaultScrollablePanel(this.scrollablePanel().nativeElement);
+        const ground = this.scrollablePanel();
+        if (ground) this.panelService.setDefaultScrollablePanel(ground.nativeElement);
         this.clampPanelToViewport(this.draggablePanel().nativeElement);
         if (this.panelService.cutInIdentifier) {
           this.timerCheckWindowSize = setInterval(() => {
@@ -135,6 +420,7 @@ export class UIPanelComponent {
         }
       },
     });
+    afterNextRender({ read: () => this.destroyRef.onDestroy(this.panelDrag.register(this)) });
     this.destroyRef.onDestroy(() => {
       if (this.timerCheckWindowSize) {
         clearInterval(this.timerCheckWindowSize);
@@ -216,8 +502,18 @@ export class UIPanelComponent {
   }
 
   get contentMinimized(): boolean {
-    return this.panelService.minimizeToContent && this.isMinimized();
+    return this.minimizedToContent && this.isMinimized();
   }
+
+  /** Shrinking to content is asked for by the panel on show, and answered for on the way back up. */
+  private get minimizedToContent(): boolean {
+    return this.isMinimized() ? this.shrankToContent() : this.activePanel().minimizeToContent;
+  }
+
+  private readonly shrankToContent = signal(false);
+
+  /** Folded away with the frame, whichever tab is in front of it. */
+  private readonly bodyCollapsed = computed(() => this.isMinimized() && !this.shrankToContent());
 
   get frameless(): boolean {
     return this.panelService.frameless;
@@ -252,6 +548,12 @@ export class UIPanelComponent {
 
   get isPointerDragging(): boolean {
     return this.pointerDeviceService.isDragging;
+  }
+
+  private self: { destroy: () => void } | null = null;
+
+  claimSelf(self: { destroy: () => void }): void {
+    this.self = self;
   }
 
   showPortrait(flag: boolean) {
@@ -328,27 +630,31 @@ export class UIPanelComponent {
       }
     }
 
-    const body = this.scrollablePanel().nativeElement;
     const panel = this.draggablePanel().nativeElement;
     if (this.isMinimized()) {
       this.isMinimized.set(false);
-      this.panelService.isMinimized.set(false);
-      body.style.display = '';
-      if (this.panelService.minimizeToContent) this.width = this.preWidth;
+      this.markMinimized(false);
+      if (this.shrankToContent()) this.width = this.preWidth;
       this.height = this.preHeight;
+      this.shrankToContent.set(false);
     } else {
       this.preHeight = panel.offsetHeight;
+      this.shrankToContent.set(this.activePanel().minimizeToContent);
       this.isMinimized.set(true);
-      this.panelService.isMinimized.set(true);
-      if (this.panelService.minimizeToContent) {
+      this.markMinimized(true);
+      if (this.shrankToContent()) {
         this.preWidth = panel.offsetWidth;
-        body.style.display = '';
         this.width = 128;
       } else {
-        body.style.display = 'none';
         this.height = this.titleBar().nativeElement.offsetHeight;
       }
     }
+  }
+
+  /** Every panel the frame holds is shrunk with it, since what shrinks is the frame. */
+  private markMinimized(minimized: boolean): void {
+    this.panelService.isMinimized.set(minimized);
+    for (const tab of this.tabs()) tab.panel.isMinimized.set(minimized);
   }
 
   toggleFullScreen() {
@@ -439,6 +745,24 @@ export class UIPanelComponent {
     panel.style.top = `${this.top}px`;
   }
 
+  /** Where the title bar leaves off, which is where a row of names goes. */
+  protected barBottom(): string {
+    if (!this.showsTitleBar) return '0';
+    return this.isCompact() ? 'calc(2.75rem + env(safe-area-inset-top))' : '28px';
+  }
+
+  /**
+   * How far down the body starts: under the bar, and under the names when there are any.
+   *
+   * Worked out from where the bar ends rather than written down as a number, since on a narrow
+   * screen the bar is taller and stands clear of whatever the phone keeps at the top of it. A
+   * number put the body over the names, and the names are the only way to the panels behind.
+   */
+  private bodyTop(): string {
+    if (!this.showsTabs()) return this.barBottom();
+    return `calc(${this.barBottom()} + ${TAB_STRIP_HEIGHT_PX}px)`;
+  }
+
   get padding_(): string {
     if (this.panelService.isCutIn) return '0px';
     else return '8px';
@@ -453,7 +777,8 @@ export class UIPanelComponent {
       clearInterval(this.timerCheckWindowSize);
       this.timerCheckWindowSize = null;
     }
-    if (this.panelService) this.panelService.close();
+    if (this.tabs().length > 0) this.self?.destroy();
+    else this.panelService.close();
   }
 
   backGroundSetting(isWhiteLog: boolean): string {

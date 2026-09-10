@@ -29,7 +29,7 @@ describe('RoomPanelService', () => {
       asked = request;
       return true;
     });
-    option().controls![0].press({ close: vi.fn() } as unknown as PanelService);
+    option().controls![0].press({ close: vi.fn(), windowed: () => false } as unknown as PanelService);
     return asked!;
   }
 
@@ -38,6 +38,15 @@ describe('RoomPanelService', () => {
 
     expect(option().controls?.map((control) => control.icon)).toEqual(['open_in_new']);
     expect(option().windowed).toBe(false);
+  });
+
+  it('does nothing when the button travelled to a window with the panel it was made for', () => {
+    service.open('cutInList');
+    const windows = vi.spyOn(TestBed.inject(PanelWindowService), 'popOut');
+
+    option().controls![0].press({ close: vi.fn(), windowed: () => true } as unknown as PanelService);
+
+    expect(windows).not.toHaveBeenCalled();
   });
 
   it('offers no way out again to one already in a window', () => {

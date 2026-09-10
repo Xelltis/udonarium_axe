@@ -13,17 +13,108 @@ export interface ContactFootprint {
   top: number;
   right: number;
   bottom: number;
+  bottomZ: number;
   topZ: number;
+  /** Whether a piece may come to rest on top of this. A sheer face may be stood beside, not on. */
+  climbable?: boolean;
 }
 
-export function findContactSupportZ(footprints: ContactFootprint[], centerX: number, centerY: number): number {
-  let maxZ = 0;
+export interface ContactRider {
+  altitudePx: number;
+  thicknessPx: number;
+  ridesUp: boolean;
+  restingZ: number;
+}
+
+const CONTACT_EPSILON_PX = 0.5;
+const CONTACT_MIN_THICKNESS_PX = 1;
+
+const FLAT_ON_THE_FLOOR: ContactRider = { altitudePx: 0, thicknessPx: 0, ridesUp: true, restingZ: 0 };
+
+export function contactRestLevels(
+  footprints: readonly ContactFootprint[],
+  centerX: number,
+  centerY: number,
+  rider: ContactRider = FLAT_ON_THE_FLOOR
+): number[] {
+  const under = footprintsUnder(footprints, centerX, centerY);
+  const levels = new Set<number>();
+  for (const level of contactLevels(under)) {
+    if (riderFits(under, rider, level)) levels.add(level);
+  }
+  return [...levels].sort((a, b) => a - b);
+}
+
+export function nextContactLevel(levels: readonly number[], from: number, isUp: boolean): number | null {
+  if (isUp) {
+    for (const level of levels) {
+      if (level > from + CONTACT_EPSILON_PX) return level;
+    }
+    return null;
+  }
+  for (let i = levels.length - 1; i >= 0; i--) {
+    if (levels[i] < from - CONTACT_EPSILON_PX) return levels[i];
+  }
+  return null;
+}
+
+export function findContactSupportZ(
+  footprints: readonly ContactFootprint[],
+  centerX: number,
+  centerY: number,
+  rider: ContactRider = FLAT_ON_THE_FLOOR
+): number {
+  const levels = contactRestLevels(footprints, centerX, centerY, rider);
+  let held = -Infinity;
+  for (const level of levels) {
+    if (level <= contactBottomAt(rider, rider.restingZ) + CONTACT_EPSILON_PX && level > held) held = level;
+  }
+  if (held > -Infinity) return held;
+  if (levels.length > 0) return levels[0];
+
+  let highest = 0;
+  for (const footprint of footprintsUnder(footprints, centerX, centerY)) {
+    if (footprint.climbable === false) continue;
+    if (footprint.topZ > highest) highest = footprint.topZ;
+  }
+  return highest;
+}
+
+function footprintsUnder(
+  footprints: readonly ContactFootprint[],
+  centerX: number,
+  centerY: number
+): ContactFootprint[] {
+  const under: ContactFootprint[] = [];
   for (const footprint of footprints) {
     if (centerX < footprint.left || centerX > footprint.right) continue;
     if (centerY < footprint.top || centerY > footprint.bottom) continue;
-    if (footprint.topZ > maxZ) maxZ = footprint.topZ;
+    under.push(footprint);
   }
-  return maxZ;
+  return under;
+}
+
+function contactLevels(under: readonly ContactFootprint[]): number[] {
+  const levels = [0];
+  for (const footprint of under) {
+    if (footprint.climbable === false) continue;
+    if (footprint.topZ > 0) levels.push(footprint.topZ);
+  }
+  return levels;
+}
+
+export function contactBottomAt(rider: Pick<ContactRider, 'altitudePx' | 'ridesUp'>, level: number): number {
+  return rider.ridesUp ? level + rider.altitudePx : Math.max(rider.altitudePx, level);
+}
+
+function riderFits(under: readonly ContactFootprint[], rider: ContactRider, level: number): boolean {
+  const bottom = contactBottomAt(rider, level);
+  const top = bottom + Math.max(rider.thicknessPx, CONTACT_MIN_THICKNESS_PX);
+  for (const footprint of under) {
+    if (bottom >= footprint.topZ - CONTACT_EPSILON_PX) continue;
+    if (top > footprint.bottomZ + CONTACT_EPSILON_PX) return false;
+  }
+  return true;
 }
 
 export function beamRestPosition(

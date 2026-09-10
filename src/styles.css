@@ -85,6 +85,7 @@
   --color-ui-danger-glow: var(--ui-danger-glow);
   --color-ui-danger-bg: var(--ui-danger-bg);
   --color-ui-success: var(--ui-success);
+  --color-ui-warning: var(--ui-warning);
 
   /* トランプの黒スート (♣♠) — ダークモードでは視認性のため青、ライトモードでは伝統通り黒 */
   --color-ui-suit-black: var(--ui-suit-black);
@@ -526,6 +527,9 @@ chat-message > div > div {
   /* 成功 */
   --ui-success: #3fb950;
 
+  /* 警告 */
+  --ui-warning: #d29922;
+
   /* トランプ黒スート色 (♣♠) — ダーク背景での視認性確保のため青系に */
   --ui-suit-black: #58a6ff;
 
@@ -596,6 +600,7 @@ chat-message > div > div {
   --ui-danger-bg: rgba(210, 15, 57, 0.1);
 
   --ui-success: #40a02b;
+  --ui-warning: #8c5a00;
 
   /* ライトモード: 黒スート (♣♠) は伝統通り黒 */
   --ui-suit-black: #000000;

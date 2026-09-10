@@ -70,6 +70,20 @@ describe('buildMultiSelectionContextMenu', () => {
     expect(selection.selectionSize()).toBe(0);
   });
 
+  it('hangs every copy on whatever the original hung from', () => {
+    const table = { appendChild: vi.fn() };
+    const one = makeObj('a');
+    (one as unknown as { parent: unknown }).parent = table;
+    const selection = new SelectionSignalService();
+    selection.replaceSelection(['a']);
+    const menu = buildMultiSelectionContextMenu([one], { t, selectionSignalService: selection, gridSize: 50 });
+
+    (menu[2] as ContextMenuAction).action?.();
+
+    expect(table.appendChild).toHaveBeenCalledTimes(1);
+    expect((table.appendChild.mock.calls[0][0] as { identifier: string }).identifier).toBe('a-clone');
+  });
+
   it('leaves locked objects out of copy all and move all', () => {
     const selection = new SelectionSignalService();
     const a = makeObj('a');

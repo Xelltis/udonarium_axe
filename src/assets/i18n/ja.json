@@ -1777,6 +1777,7 @@
         "lightSection": "暗闇（視界・発光）",
         "blocksSight": "視界を遮る",
         "blocksLight": "光を遮る（窓ならOFF）",
+        "blocksClimb": "登れない（乗り越え不可）",
         "terrainGlow": "発光する",
         "slope": "傾斜",
         "slopeNone": "なし",
@@ -2054,6 +2055,7 @@
           "tableName": "テーブル名",
           "placeDoors": "扉を置く",
           "placeStairs": "入口と出口を置く",
+          "sheerWalls": "壁を登れなくする（開いた扉は通れる）",
           "wallHeight": "壁の高さ（マス）",
           "entrance": "入口",
           "kind": "種類",
@@ -2066,6 +2068,10 @@
           "corridorWidth": "通路の幅",
           "corridorLeast": "最小",
           "corridorMost": "最大",
+          "doorWidth": "扉の幅",
+          "doorLeast": "最小",
+          "doorMost": "最大",
+          "doubleDoors": "両開きの割合（％）",
           "muster": "入口に集めるパーティ",
           "musterNobody": "集めない",
           "fog": "戦場の霧をかけた状態にする"
@@ -2088,6 +2094,8 @@
           "roomsDiffer": "置けた部屋は {{found}} 個です。洞窟は空洞どうしがつながるため要求より少なくなります",
           "squareOnly": "生成するテーブルは正方グリッド固定です",
           "corridorWidth": "広くするほど部屋も間隔も大きくなり、置ける部屋は減ります",
+          "doorWidth": "扉が通路より広いときは、その分だけ入口の壁を削ります。入口のほうが広いときは扉が並びます",
+          "doubleDoors": "両開きは、幅を半分ずつ分けた 2 枚の扉になります。幅 4 なら 2 マスの扉が 2 枚です",
           "muster": "選んだパーティのコマを入口の近くに並べます。ほかのコマは動かしません"
         },
         "entrance": {
@@ -2121,7 +2129,11 @@
         }
       },
       "movePlan": {
-        "hint": "クリックで移動 / 右クリックで経由地点（同じ場所をもう一度で取り消し）/ Enter で確定 / Esc で中止"
+        "hint": "クリックで移動 / 右クリックで経由地点（同じ場所をもう一度で取り消し）/ Enter で確定 / Esc で中止",
+        "jump": "跳ぶ",
+        "walk": "歩く",
+        "hintTouch": "タップで移動 / 長押しで経由地点 / コマをタップで中止",
+        "modeLabel": "移動のしかた"
       },
       "displaySetting": {
         "title": "卓上ディスプレイ",
@@ -2232,7 +2244,7 @@
       "uiTab_tabletop": "卓上",
       "characterImportHint": "外部のキャラクターシート保管庫からコマを取り込みます。取り込んだコマは卓に置かれ、他の参加者にも渡ります。",
       "moveStrict": "厳密な移動",
-      "moveStrictHint": "コマを持ち上げると、ポインタの位置までの最短経路が線で出ます。コマはその線をたどって着地するので、手が揺れても遠回りとは数えません。壁や立入禁止のマスは越えられず、移動力の届かない先へは線が伸びません。動かしている様子は部屋の全員に見えます。移動力の項目がないコマは、これまでどおりどこへでも置けます。GM だけは Shift を押しながらつかむと、経路を引かずにそのまま動かせます。",
+      "moveStrictHint": "コマを持ち上げると、ポインタの位置までの最短経路が線で出ます。コマはその線をたどって着地するので、手が揺れても遠回りとは数えません。壁や立入禁止のマスは越えられず、移動力の届かない先へは線が伸びません。動かしている様子は部屋の全員に見えます。移動力の項目がないコマは、これまでどおりどこへでも置けます。GM だけは Shift を押しながらつかむと、経路を引かずにそのまま動かせます。経路を引いているあいだにスペースを押すと跳び越えに切り替わり、登れない地形以外は高さを問わず行き先に選べます。コマは手前から跳んで着地します。",
       "sectionFlatTable": "真上から見るとき（2D）",
       "flatTableHint": "卓を真上から見ているあいだだけ効きます。",
       "orthographicProjection": "遠近をなくす（画面を寝かせて囲むとき）",
@@ -2943,6 +2955,7 @@
         "terrainHeight": "壁の高さ",
         "terrainBlocksSight": "視線を遮る",
         "terrainBlocksLight": "光を遮る",
+        "terrainBlocksClimb": "登れない",
         "maskColor": "マスクの色",
         "maskOpacity": "マスクの濃さ",
         "terrainMode": "見せ方",
@@ -3951,7 +3964,8 @@
     },
     "tableView": {
       "judgeCalc": "判定算出モード",
-      "skillLearned": "技能習得モード"
+      "skillLearned": "技能習得モード",
+      "checkColumn": "この列をまとめてチェック"
     },
     "judgement": {
       "title": "{{label}} の判定候補",
@@ -4000,7 +4014,8 @@
       "menuTitle": "メニュー",
       "rotate90": "時計回りに90度回転",
       "transparency": "透過率",
-      "ghost": "透明モード"
+      "ghost": "透明モード",
+      "tabClose": "このパネルを閉じる"
     },
     "portraitPicker": {
       "title": "立ち絵",

@@ -9,11 +9,10 @@ import { SurfaceDims, surfaceWorldBox } from '@axe/domain/tabletop/surface-space
 import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
-const GRID_PX = 50;
 const POSZ_EPSILON = 0.5;
 const DEBOUNCE_MS = 80;
 const MAX_PASSES = 8;
-const BUCKET_PX = 4 * GRID_PX;
+const BUCKET_PX = 200;
 
 const GRAVITY_ALIASES = ['terrain', 'character', 'table-mask', 'table-scratch-mask', 'text-note'] as const;
 
@@ -83,7 +82,8 @@ export class GravityService {
       if (entries.length === 0) return;
 
       // Read each footprint and height once into a cache, so the inner loop never triggers a reflow
-      const cached = GravityService.buildCache(entries, this.surfaceDims(), this.tabletopService.gridSize());
+      const gridSize = this.tabletopService.gridSize();
+      const cached = GravityService.buildCache(entries, this.surfaceDims(gridSize), gridSize);
       const targets = cached.filter((c) => c.isGravity);
       if (targets.length === 0) return;
 
@@ -133,30 +133,39 @@ export class GravityService {
     return !boardSurfaceOf(obj);
   }
 
-  static findSupportZ(target: TabletopOverlapRegistryEntry, entries: TabletopOverlapRegistryEntry[]): number {
+  static findSupportZ(
+    target: TabletopOverlapRegistryEntry,
+    entries: TabletopOverlapRegistryEntry[],
+    gridSize: number
+  ): number {
     const center = GravityService.footprintCenter(target);
-    const targetBottom = target.object.altitude * GRID_PX + target.object.posZ;
+    const targetBottom = target.object.altitude * gridSize + target.object.posZ;
     let maxZ = 0;
     for (const entry of entries) {
       if (entry.object.identifier === target.object.identifier) continue;
       if (!GravityService.containsPoint(entry, center.x, center.y)) continue;
-      const topZ = GravityService.topZ(entry.object);
+      const topZ = GravityService.topZ(entry.object, gridSize);
       if (topZ > targetBottom + POSZ_EPSILON) continue;
       if (topZ > maxZ) maxZ = topZ;
     }
     return maxZ;
   }
 
-  static topZ(obj: TabletopObject): number {
-    const baseZ = obj.altitude * GRID_PX + obj.posZ;
-    if (obj instanceof Terrain) return baseZ + obj.height * GRID_PX;
+  static topZ(obj: TabletopObject, gridSize: number): number {
+    const baseZ = obj.altitude * gridSize + obj.posZ;
+    if (obj instanceof Terrain) return baseZ + obj.height * gridSize;
     return baseZ;
   }
 
-  static contactTopZ(obj: TabletopObject, surface: TableSurface): number {
-    if (surface === 'floor') return GravityService.topZ(obj);
-    const heightPx = obj instanceof Terrain ? obj.height * GRID_PX : 0;
+  static contactTopZ(obj: TabletopObject, surface: TableSurface, gridSize: number): number {
+    if (surface === 'floor') return GravityService.topZ(obj, gridSize);
+    const heightPx = obj instanceof Terrain ? obj.height * gridSize : 0;
     return obj.posZ + heightPx;
+  }
+
+  static contactBottomZ(obj: TabletopObject, surface: TableSurface, gridSize: number): number {
+    if (surface === 'floor') return obj.altitude * gridSize + obj.posZ;
+    return obj.posZ;
   }
 
   private static footprintCenter(entry: TabletopOverlapRegistryEntry): { x: number; y: number } {
@@ -173,12 +182,12 @@ export class GravityService {
     return x >= left && x <= right && y >= top && y <= bottom;
   }
 
-  private surfaceDims(): SurfaceDims {
+  private surfaceDims(gridSize: number): SurfaceDims {
     const table = this.tabletopService.currentTable;
     return {
-      widthPx: table.width * GRID_PX,
-      depthPx: table.height * GRID_PX,
-      wallHeightPx: table.wallHeight * GRID_PX,
+      widthPx: table.width * gridSize,
+      depthPx: table.height * gridSize,
+      wallHeightPx: table.wallHeight * gridSize,
     };
   }
 
@@ -192,9 +201,9 @@ export class GravityService {
       const obj = entry.object;
       const surface = surfaceOf(obj);
       const { width: w, height: h } = GravityService.footprintOf(obj, entry.element, gridSizePx);
-      const altitudePx = obj.altitude * GRID_PX;
+      const altitudePx = obj.altitude * gridSizePx;
       const posZ = obj.posZ;
-      const thicknessPx = obj instanceof Terrain ? obj.height * GRID_PX : 0;
+      const thicknessPx = obj instanceof Terrain ? obj.height * gridSizePx : 0;
       const box = surfaceWorldBox(surface, obj.location.x, obj.location.y, w, h, altitudePx + posZ, thicknessPx, dims);
       cached.push({
         entry,

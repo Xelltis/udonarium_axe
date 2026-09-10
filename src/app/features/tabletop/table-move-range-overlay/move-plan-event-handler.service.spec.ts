@@ -16,6 +16,7 @@ describe('MovePlanEventHandlerService', () => {
     settle: vi.fn(),
     run: vi.fn(),
     cancel: vi.fn(),
+    toggleJump: vi.fn(),
   };
   const coordinate = {
     tabletopOriginElement: document.body,
@@ -159,6 +160,29 @@ describe('MovePlanEventHandlerService', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
     expect(movePlan.run).toHaveBeenCalled();
+  });
+
+  it('turns the move over to jumping on space, and keeps the room from scrolling', () => {
+    openAMove();
+    const event = new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true, cancelable: true });
+
+    document.dispatchEvent(event);
+
+    expect(movePlan.toggleJump).toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('leaves space alone while somebody is typing', () => {
+    openAMove();
+    movePlan.toggleJump.mockClear();
+    const field = document.createElement('input');
+    document.body.appendChild(field);
+    field.focus();
+
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true, cancelable: true }));
+
+    expect(movePlan.toggleJump).not.toHaveBeenCalled();
+    field.remove();
   });
 
   it('lets go of the table once the move is over', () => {

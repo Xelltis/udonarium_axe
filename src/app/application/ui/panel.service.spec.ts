@@ -17,24 +17,29 @@ function setupOpenMocks(initialChildState?: Partial<PanelService>) {
   const setInitialRotation = vi.fn();
   const destroy = vi.fn();
   let destroyCallback: (() => void) | undefined;
+  let self: { destroy: () => void } | null = null;
 
   const panelComponentRef = {
     instance: {
       setInitialRotation,
-      content: () =>
+      claimSelf: (frame: { destroy: () => void }) => {
+        self = frame;
+      },
+      closeTab: () => self?.destroy(),
+      openTab: () =>
         ({
-          createComponent: () => ({ instance: bodyInstance }) as ComponentRef<DummyBodyComponent>,
-        }) as unknown as ViewContainerRef,
+          instance: bodyInstance,
+          onDestroy: (callback: () => void) => {
+            destroyCallback = callback;
+          },
+        }) as unknown as ComponentRef<DummyBodyComponent>,
     },
     injector: {
       get: () => childPanelService,
     },
     setInput,
     destroy,
-    onDestroy: (callback: () => void) => {
-      destroyCallback = callback;
-    },
-  } as unknown as ComponentRef<{ content: () => ViewContainerRef }>;
+  } as unknown as ComponentRef<{ openTab: () => ComponentRef<DummyBodyComponent> }>;
 
   const parentViewContainerRef = {
     injector: {},
@@ -206,6 +211,17 @@ describe('PanelService', () => {
 
     runDestroyCallback();
     expect(childPanelService.isShow).toBe(false);
+  });
+
+  it('lets a name go when the panel that took it is taken away', () => {
+    const { service, parentViewContainerRef, runDestroyCallback } = setupOpenMocks();
+
+    service.open(DummyBodyComponent, { single: 'named-panel' }, parentViewContainerRef);
+    expect(service.hasSingle('named-panel')).toBe(true);
+
+    runDestroyCallback();
+
+    expect(service.hasSingle('named-panel')).toBe(false);
   });
 
   it('closes safely and repeatedly even with no panel', () => {

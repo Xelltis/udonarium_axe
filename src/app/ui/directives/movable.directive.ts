@@ -9,12 +9,15 @@ import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { clearRunAlong, MoveBlock } from '@axe/domain/tabletop/move/blocked-path';
 import { SurfaceDims, surfaceWorldBox, WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 import {
   applyPointerEvents,
@@ -26,8 +29,11 @@ import {
   calcSnapNum,
   collectCollidableElements,
   ContactFootprint,
+  contactRestLevels,
+  ContactRider,
   dropTargetSurface,
   findContactSupportZ,
+  nextContactLevel,
   registerLayer,
   setLayerCollidable,
   shouldTransitionTo,
@@ -35,6 +41,7 @@ import {
   unregisterLayer,
 } from '@axe/ui/directives/movable-helpers';
 import {
+  dragPointer2d,
   handleContextMenu,
   handleInputEnd,
   handleInputMove,
@@ -43,6 +50,8 @@ import {
 } from '@axe/ui/directives/movable-interaction';
 
 const WALL_OCCLUSION_INSET_PX = 2;
+/** How far short of a sheer face a piece is put down, so whole pixels keep it on the outside. */
+const BLOCK_GAP_PX = 1;
 const GRID_PX = 50;
 
 export interface MovableOption {
@@ -70,6 +79,8 @@ export class MovableDirective implements MovableInteractionContext {
 
   private registeredOverlapId: string | null = null;
   private contactProbe: ContactFootprint[] | null = null;
+  private climbBlocks: MoveBlock[] | null = null;
+  private dragReachZ: number | null = null;
 
   private static layerHash: { [layerName: string]: MovableDirective[] } = {};
 
@@ -272,13 +283,53 @@ export class MovableDirective implements MovableInteractionContext {
 
   contactSupportZ(centerX: number, centerY: number): number {
     if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
-    return findContactSupportZ(this.contactProbe, centerX, centerY);
+    const self = this.tabletopObject;
+    if (!self) return findContactSupportZ(this.contactProbe, centerX, centerY);
+    const rider = this.contactRider(self);
+    const supportZ = findContactSupportZ(this.contactProbe, centerX, centerY, rider);
+    this.dragReachZ = supportZ;
+    return GravityService.restingPosZ(self, supportZ, rider.altitudePx);
+  }
+
+  private contactRider(self: TabletopObject): ContactRider {
+    const gridSize = this.tableGridSize();
+    const altitudePx = surfaceOf(self) === 'floor' ? self.altitude * gridSize : 0;
+    const ridesUp = !(self instanceof Terrain);
+    return {
+      altitudePx,
+      thicknessPx: self instanceof Terrain ? self.height * gridSize : 0,
+      ridesUp,
+      restingZ: this.dragReachZ ?? (ridesUp ? this.posZ : altitudePx + this.posZ),
+    };
+  }
+
+  private readonly onWheelWhileGrabbed = (e: WheelEvent) => this.liftByWheel(e);
+
+  private liftByWheel(e: WheelEvent): void {
+    if (!this.input?.isGrabbing) return;
+    if ((this.isDisable() && !this.isScratcOwner()) || this.isReadOnly()) return;
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation();
+
+    const self = this.tabletopObject;
+    if (!self || e.deltaY === 0) return;
+    if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
+    const rider = this.contactRider(self);
+    const center = this.coordinateService.convertToLocal(dragPointer2d(this), this.surfaceElement());
+    const levels = contactRestLevels(this.contactProbe, center.x, center.y, rider);
+    const next = nextContactLevel(levels, rider.restingZ, e.deltaY < 0);
+    if (next === null) return;
+
+    this.dragReachZ = next;
+    this.onInputMoveNow(e);
   }
 
   private buildContactProbe(): ContactFootprint[] {
     const self = this.tabletopObject;
     if (!self) return [];
     const selfSurface = surfaceOf(self);
+    const gridSize = this.tableGridSize();
+    const sheer = this.walksTheTable();
     const footprints: ContactFootprint[] = [];
     for (const entry of this.tabletopOverlap.entries()) {
       if (entry.object.identifier === self.identifier) continue;
@@ -290,7 +341,9 @@ export class MovableDirective implements MovableInteractionContext {
         top,
         right: left + entry.element.offsetWidth,
         bottom: top + entry.element.offsetHeight,
-        topZ: GravityService.contactTopZ(entry.object, selfSurface),
+        bottomZ: GravityService.contactBottomZ(entry.object, selfSurface, gridSize),
+        topZ: GravityService.contactTopZ(entry.object, selfSurface, gridSize),
+        climbable: !(sheer && entry.object instanceof Terrain && entry.object.blocksClimb),
       });
     }
     return footprints;
@@ -298,6 +351,79 @@ export class MovableDirective implements MovableInteractionContext {
 
   private clearContactProbe() {
     this.contactProbe = null;
+    this.climbBlocks = null;
+    this.dragReachZ = null;
+  }
+
+  /**
+   * Whether the piece in hand is held to what the terrain will let it walk over.
+   *
+   * The rule is about walking a piece around the table, so it is asked of characters alone:
+   * terrain is being built rather than moved. The master is building either way.
+   */
+  private walksTheTable(): boolean {
+    return this.tabletopObject instanceof GameCharacter && !this.rolePermission.isGameMaster;
+  }
+
+  /**
+   * How far a piece hangs over the cell it stands in, which is what the ground beside it owes.
+   *
+   * A piece is stopped by where its middle is, and a piece of one cell already owns the cell
+   * its middle is in, so the block itself is all that need stand in its way: grown by half a
+   * piece as well, a gap one cell wide would be a gap of no width at all and nothing would
+   * ever walk between two walls. What a piece wider than a cell hangs over is another matter,
+   * and that much is asked of the ground beside the block.
+   */
+  private climbSpread(): { x: number; y: number } {
+    const gridSize = this.tableGridSize();
+    return {
+      x: Math.max(0, (this.width - gridSize) / 2),
+      y: Math.max(0, (this.height - gridSize) / 2),
+    };
+  }
+
+  /** The ground the piece in hand may not walk onto. */
+  private buildClimbBlocks(): MoveBlock[] {
+    const self = this.tabletopObject;
+    if (!self) return [];
+    const selfSurface = surfaceOf(self);
+    const gridSize = this.tableGridSize();
+    const spread = this.climbSpread();
+    const blocks: MoveBlock[] = [];
+    for (const entry of this.tabletopOverlap.entries()) {
+      const object = entry.object;
+      if (object.identifier === self.identifier) continue;
+      if (!(object instanceof Terrain) || !object.blocksClimb) continue;
+      if (surfaceOf(object) !== selfSurface) continue;
+      if (object.isDoor && object.isDoorOpen) continue;
+      const box = terrainBoxOf(object, gridSize);
+      blocks.push({
+        minX: box.minX - spread.x,
+        minY: box.minY - spread.y,
+        maxX: box.maxX + spread.x,
+        maxY: box.maxY + spread.y,
+      });
+    }
+    return blocks;
+  }
+
+  /** Holds the piece at the near face of anything it may not walk over. */
+  private holdAtBlocks(fromX: number, fromY: number): void {
+    if (this.posX === fromX && this.posY === fromY) return;
+    if (this.climbBlocks === null) this.climbBlocks = this.buildClimbBlocks();
+    if (this.climbBlocks.length < 1) return;
+    const middleX = this.width / 2;
+    const middleY = this.height / 2;
+    const run = clearRunAlong(
+      { x: fromX + middleX, y: fromY + middleY },
+      { x: this.posX + middleX, y: this.posY + middleY },
+      this.climbBlocks,
+      BLOCK_GAP_PX
+    );
+    if (run >= 1) return;
+    this.posX = fromX + (this.posX - fromX) * run;
+    this.posY = fromY + (this.posY - fromY) * run;
+    this.posZ = this.contactSupportZ(this.posX + middleX, this.posY + middleY);
   }
 
   initialize() {
@@ -313,6 +439,7 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   cancel() {
+    window.removeEventListener('wheel', this.onWheelWhileGrabbed, { capture: true });
     if (this.input) this.input.cancel();
     this.promoteWhileMoving(false);
     this.setPointerEvents(true);
@@ -363,6 +490,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (this.collidableElements.length < 1) this.findCollidableElements();
 
     if (this._multiAdapter) this.multiMovableService.beginDrag(this._multiAdapter);
+    window.addEventListener('wheel', this.onWheelWhileGrabbed, { capture: true, passive: false });
     handleInputStart(this, e);
   }
 
@@ -389,7 +517,10 @@ export class MovableDirective implements MovableInteractionContext {
       this.updateDragPreview(pointerSurface);
       return;
     }
+    const wasX = this.posX;
+    const wasY = this.posY;
     perfTimed('collide', () => handleInputMove(this, e));
+    if (this.walksTheTable()) this.holdAtBlocks(wasX, wasY);
     perfTimed('dragPreview', () => this.updateDragPreview(pointerSurface));
   }
 
@@ -548,13 +679,20 @@ export class MovableDirective implements MovableInteractionContext {
     return true;
   }
 
+  /** How wide a cell is on the table being looked at, which is not always the usual fifty. */
+  private tableGridSize(): number {
+    const size = this.tableSelecter.viewTable?.gridSize ?? 0;
+    return size > 0 ? size : GRID_PX;
+  }
+
   private computeBeamRest(pointer: PointerCoordinate): { x: number; y: number; z: number } | null {
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
+    const gridSize = this.tableGridSize();
     const dims: SurfaceDims = {
-      widthPx: table.width * GRID_PX,
-      depthPx: table.height * GRID_PX,
-      wallHeightPx: table.wallHeight * GRID_PX,
+      widthPx: table.width * gridSize,
+      depthPx: table.height * gridSize,
+      wallHeightPx: table.wallHeight * gridSize,
     };
     const beam = this.highestBeamUnderPointer(pointer, dims);
     if (!beam) return null;
@@ -564,6 +702,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private highestBeamUnderPointer(pointer: PointerCoordinate, dims: SurfaceDims): WorldBox | null {
     const selfId = this.tabletopObject.identifier;
+    const gridSize = this.tableGridSize();
     let best: WorldBox | null = null;
     for (const obj of this.tabletopOverlap.findAt(pointer.x, pointer.y)) {
       if (obj.identifier === selfId) continue;
@@ -578,8 +717,8 @@ export class MovableDirective implements MovableInteractionContext {
         obj.location.y,
         entry.element.offsetWidth,
         entry.element.offsetHeight,
-        obj.altitude * GRID_PX + obj.posZ,
-        obj.height * GRID_PX,
+        obj.altitude * gridSize + obj.posZ,
+        obj.height * gridSize,
         dims
       );
       if (!best || box.maxZ > best.maxZ) best = box;
@@ -597,6 +736,15 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   snapToGrid(gridSize: number = 25) {
+    const beforeX = this.posX;
+    const beforeY = this.posY;
+    this.snapToGridNow(gridSize);
+    // Snapping is a move like any other: on hexes it reaches for the middle of a cell, which
+    // from against a face is as often as not the middle of the cell behind it.
+    if (this.walksTheTable()) this.holdAtBlocks(beforeX, beforeY);
+  }
+
+  private snapToGridNow(gridSize: number = 25) {
     const table = this.tableSelecter.viewTable;
     const effectiveGridSize = table?.gridSize ?? gridSize;
     const gridType = table?.gridType ?? GridType.SQUARE;

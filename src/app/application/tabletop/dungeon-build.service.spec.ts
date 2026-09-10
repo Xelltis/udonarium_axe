@@ -10,8 +10,11 @@ import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere'
 import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
+import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { terrainCostOf } from '@axe/testing/terrain-cost';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;
@@ -105,6 +108,17 @@ describe('DungeonBuildService', () => {
     const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options(overrides));
     return { plan, result };
   }
+
+  it('says what the terrain of a generated dungeon costs to keep', async () => {
+    const { plan, result } = await build();
+    const cost = terrainCostOf(result.table.terrains);
+
+    expect(cost.terrains).toBe(plan.blocks.blocks.length);
+    expect(cost.syncObjects).toBe(cost.terrains * SYNC_OBJECTS_PER_TERRAIN);
+    // Around 950 bytes of saved room per box, which is what a voxel table has to beat.
+    expect(cost.xmlBytes / cost.terrains).toBeGreaterThan(700);
+    expect(cost.xmlBytes / cost.terrains).toBeLessThan(1300);
+  });
 
   it('builds one table and leaves no other behind', async () => {
     const { result } = await build();
@@ -244,6 +258,26 @@ describe('DungeonBuildService', () => {
     }
   });
 
+  it('stands a wide door as one slab the width of its half of the opening', async () => {
+    const plan = planDungeon({
+      atmosphere: 'stoneDungeon',
+      roomCount: 8,
+      seed: 7,
+      doorWidth: { least: 4, most: 4 },
+      doubleDoorPercent: 100,
+    });
+    const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+    const index = plan.blocks.blocks.findIndex(
+      (block) => block.kind === 'door' && Math.max(block.rect.w, block.rect.h) === 2
+    );
+    const block = plan.blocks.blocks[index];
+    const door = result.table.terrains[index];
+
+    expect(index).toBeGreaterThanOrEqual(0);
+    expect(block.across === 'x' ? door.depth : door.width).toBe(2);
+    expect(block.across === 'x' ? door.width : door.depth).toBeLessThan(1);
+  });
+
   it('gives every door the way of opening its atmosphere calls for', async () => {
     const { plan, result } = await build();
     const style = atmosphereById('stoneDungeon').doorStyle;
@@ -306,6 +340,38 @@ describe('DungeonBuildService', () => {
     plan.blocks.blocks.forEach((block, index) => {
       expect(result.table.terrains[index].blocksSight).toBe(block.blocksSight);
     });
+  });
+
+  it('stops a climb only where the block says to', async () => {
+    const { plan, result } = await build();
+
+    plan.blocks.blocks.forEach((block, index) => {
+      expect(result.table.terrains[index].blocksClimb).toBe(block.blocksClimb === true);
+    });
+  });
+
+  it('builds a dungeon whose walls and doors are too sheer to get up when it is asked for', async () => {
+    const plan = planDungeon(
+      { atmosphere: 'stoneDungeon', roomCount: 8, seed: 7 },
+      {
+        placeDoors: true,
+        placeStairs: true,
+        sheerWalls: true,
+      }
+    );
+    const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+
+    const sheer = result.table.terrains.filter((terrain) => terrain.blocksClimb);
+    expect(sheer.length).toBe(
+      plan.blocks.blocks.filter((block) => block.kind !== 'stairUp' && block.kind !== 'stairDown').length
+    );
+    expect(sheer.some((terrain) => terrain.isDoor)).toBe(true);
+    // Shut it is a wall; the movement test must go on seeing it that way, and let a piece
+    // through the moment it is opened.
+    const door = sheer.find((terrain) => terrain.isDoor)!;
+    expect(terrainBlocksMovement(door)).toBe(true);
+    door.isDoorOpen = true;
+    expect(terrainBlocksMovement(door)).toBe(false);
   });
 
   it('stands a lit source of its own for every spot the plan picked', async () => {

@@ -89,6 +89,21 @@ export interface CopyActionOptions<T extends TabletopObject> {
   readonly afterClone?: (clone: T) => void;
 }
 
+/** A copy of a piece, put down one cell along from it and hung where the original hangs. */
+export function copyBeside<T extends TabletopObject>(obj: T, gridSize: number, afterClone?: (clone: T) => void): T {
+  const copy = obj.clone();
+  if (copy.location) {
+    copy.location.x += gridSize;
+    copy.location.y += gridSize;
+  }
+  afterClone?.(copy);
+  // A copy is built from the original's own xml, which says nothing of what it hangs from.
+  // Anything the table keeps as a child of its own is nowhere until it is hung there too.
+  obj.parent?.appendChild(copy);
+  copy.update();
+  return copy;
+}
+
 export function buildCopyAction<T extends TabletopObject>(
   obj: T,
   gridSize: number,
@@ -99,14 +114,7 @@ export function buildCopyAction<T extends TabletopObject>(
   return {
     name: t('feature.tabletop.contextMenu.copy'),
     action: () => {
-      const copy = obj.clone();
-      copy.location.x += gridSize;
-      copy.location.y += gridSize;
-      afterClone?.(copy);
-      // A copy is built from the original's own xml, which says nothing of what it hangs from.
-      // Anything the table keeps as a child of its own is nowhere until it is hung there too.
-      obj.parent?.appendChild(copy);
-      copy.update();
+      copyBeside(obj, gridSize, afterClone);
       SoundEffect.play(sound);
     },
   };

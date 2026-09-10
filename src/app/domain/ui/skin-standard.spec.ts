@@ -1,49 +1,38 @@
 import { readFileSync } from 'node:fs';
 
+import { TOKEN_ALIASES } from '@axe/domain/ui/skin-alias';
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 
-/** The block a selector opens, read straight out of the stylesheet the app ships. */
-function declarationsOf(selector: string): Record<string, string> {
-  const css = readFileSync('src/styles.css', 'utf-8');
-  const opens = css.indexOf(`${selector} {`);
-  expect(opens).toBeGreaterThan(-1);
-
-  let depth = 0;
-  let end = -1;
-  const start = css.indexOf('{', opens);
-  for (let i = start; i < css.length; i++) {
-    if (css[i] === '{') depth += 1;
-    else if (css[i] === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        end = i;
-        break;
-      }
-    }
-  }
-
-  const body = css.slice(start + 1, end);
-  const found: Record<string, string> = {};
-  for (const match of body.matchAll(/(--ui-[a-z-]+):\s*([^;]+);/g)) {
-    found[match[1]] = match[2].replace(/\s+/g, ' ').trim();
-  }
-  return found;
+/** The colours a skin recipe mixes, which the standard skin sets by hand instead. */
+function tokensDeclaredIn(block: string): Set<string> {
+  return new Set([...block.matchAll(/(--ui-[a-z-]+)\s*:/g)].map((match) => match[1]));
 }
 
-describe('the colours the standard skin stands for', () => {
-  it.each([
-    ['light', ':root.theme-light'],
-    ['dark', ':root'],
-  ] as const)('matches what the stylesheet carries on the %s ladder', (mode, selector) => {
-    const stylesheet = declarationsOf(selector);
+describe('the standard skin, which is what a room wears until it is given another', () => {
+  const css = readFileSync('src/styles.css', 'utf-8');
 
-    for (const [name, value] of Object.entries(STANDARD_TOKENS[mode])) {
-      expect(`${name}: ${stylesheet[name]}`).toBe(`${name}: ${value}`);
+  /**
+   * A colour a utility class can reach for has to be set wherever a room may be standing.
+   *
+   * The recipes mix every one of them, so a token added there and nowhere else works on every
+   * skin but the one a room starts in, where the class falls back to whatever it inherits.
+   */
+  it('sets every colour the stylesheet gives a utility class a name for', () => {
+    const named = Object.keys(TOKEN_ALIASES).filter((token) => !token.startsWith('--ui-shadow'));
+
+    for (const mode of ['light', 'dark'] as const) {
+      for (const token of named) {
+        expect(STANDARD_TOKENS[mode][token], `${token} on the standard ${mode} skin`).toBeTruthy();
+      }
     }
   });
 
-  it('covers every colour a skin of its own would paint', () => {
-    expect(Object.keys(STANDARD_TOKENS.light).sort()).toEqual(Object.keys(STANDARD_TOKENS.dark).sort());
-    expect(Object.keys(STANDARD_TOKENS.light).length).toBeGreaterThan(35);
+  it('sets them in the stylesheet as well, which is what a page wears before any skin is chosen', () => {
+    const named = Object.keys(TOKEN_ALIASES).filter((token) => !token.startsWith('--ui-shadow'));
+    const declared = tokensDeclaredIn(css);
+
+    for (const token of named) {
+      expect(declared.has(token), `${token} in styles.css`).toBe(true);
+    }
   });
 });

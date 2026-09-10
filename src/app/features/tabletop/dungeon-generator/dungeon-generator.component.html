@@ -250,6 +250,105 @@
     </div>
 
     <div>
+      <label
+        class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase"
+        for="door-width-least"
+      >
+        {{ 'feature.tabletop.dungeonGenerator.props.doorWidth' | transloco }}
+      </label>
+      <div class="flex items-center gap-2">
+        <span class="text-ui-muted shrink-0 text-[0.75rem]">{{
+          'feature.tabletop.dungeonGenerator.props.doorLeast' | transloco
+        }}</span>
+        <input
+          class="min-w-0 flex-1"
+          id="door-width-least"
+          name="door-width-least"
+          type="range"
+          [min]="minDoorWidth"
+          [max]="maxDoorWidth"
+          step="1"
+          [ngModel]="doorWidth().least"
+          (ngModelChange)="setDoorLeast($event)"
+        />
+        <input
+          class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm w-16 shrink-0 border border-solid px-2 py-1.5 text-center text-[13px] outline-none"
+          name="door-width-least-number"
+          type="number"
+          [min]="minDoorWidth"
+          [max]="maxDoorWidth"
+          step="1"
+          [ngModel]="doorWidth().least"
+          (ngModelChange)="setDoorLeast($event)"
+        />
+      </div>
+      <div class="mt-1 flex items-center gap-2">
+        <span class="text-ui-muted shrink-0 text-[0.75rem]">{{
+          'feature.tabletop.dungeonGenerator.props.doorMost' | transloco
+        }}</span>
+        <input
+          class="min-w-0 flex-1"
+          id="door-width-most"
+          name="door-width-most"
+          type="range"
+          [min]="minDoorWidth"
+          [max]="maxDoorWidth"
+          step="1"
+          [ngModel]="doorWidth().most"
+          (ngModelChange)="setDoorMost($event)"
+        />
+        <input
+          class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm w-16 shrink-0 border border-solid px-2 py-1.5 text-center text-[13px] outline-none"
+          name="door-width-most-number"
+          type="number"
+          [min]="minDoorWidth"
+          [max]="maxDoorWidth"
+          step="1"
+          [ngModel]="doorWidth().most"
+          (ngModelChange)="setDoorMost($event)"
+        />
+      </div>
+      <div class="text-ui-muted mt-1 text-[0.75rem]">
+        {{ 'feature.tabletop.dungeonGenerator.status.doorWidth' | transloco }}
+      </div>
+    </div>
+
+    <div>
+      <label
+        class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase"
+        for="double-doors"
+      >
+        {{ 'feature.tabletop.dungeonGenerator.props.doubleDoors' | transloco }}
+      </label>
+      <div class="flex items-center gap-2">
+        <input
+          class="min-w-0 flex-1"
+          id="double-doors"
+          name="double-doors"
+          type="range"
+          [min]="minDoubleDoors"
+          [max]="maxDoubleDoors"
+          step="5"
+          [ngModel]="doubleDoors()"
+          (ngModelChange)="setDoubleDoors($event)"
+        />
+        <input
+          class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm w-16 shrink-0 border border-solid px-2 py-1.5 text-center text-[13px] outline-none"
+          name="double-doors-number"
+          type="number"
+          [min]="minDoubleDoors"
+          [max]="maxDoubleDoors"
+          step="5"
+          [ngModel]="doubleDoors()"
+          (ngModelChange)="setDoubleDoors($event)"
+        />
+      </div>
+      <div class="text-ui-muted mt-1 text-[0.75rem]">
+        {{ 'feature.tabletop.dungeonGenerator.status.doubleDoors' | transloco }}
+      </div>
+    </div>
+
+    <div>
       <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase" for="muster">
         {{ 'feature.tabletop.dungeonGenerator.props.muster' | transloco }}
       </label>
@@ -415,6 +514,10 @@
           (ngModelChange)="placeStairs.set($event)"
         />
         {{ 'feature.tabletop.dungeonGenerator.props.placeStairs' | transloco }}
+      </label>
+      <label class="flex cursor-pointer items-center gap-2">
+        <input type="checkbox" name="sheer-walls" [ngModel]="sheerWalls()" (ngModelChange)="sheerWalls.set($event)" />
+        {{ 'feature.tabletop.dungeonGenerator.props.sheerWalls' | transloco }}
       </label>
     </div>
   }

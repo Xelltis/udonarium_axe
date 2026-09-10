@@ -1,4 +1,5 @@
 import { ComponentRef, Injectable, reflectComponentType, signal, ViewContainerRef } from '@angular/core';
+import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Logger } from '@axe/core/logging/logger';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -87,9 +88,39 @@ export interface PanelOption {
   single?: string;
 }
 
-interface UIPanelInstance {
-  content: () => ViewContainerRef;
+/**
+ * What the frame a panel is drawn in offers it.
+ *
+ * Named rather than imported, since the frame lives a layer above this one. A frame may come
+ * to hold more than one panel, so a panel asks it to be taken away rather than tearing the
+ * frame down itself.
+ */
+/** A panel on its way from one frame to another. What it holds belongs to the frame. */
+export interface PanelHandoff {
+  panel: PanelService;
+}
+
+export interface PanelFrame {
+  /** Tells one frame from another. */
+  readonly frameKey: string;
+  /** Builds a panel into a place of its own in this frame, and answers with what it built. */
+  openTab: <T>(childComponent: Type<T>, panel: PanelService) => ComponentRef<T>;
   setInitialRotation: (degrees: PanelRotationDegrees) => void;
+  /** A component cannot take itself away, so it is handed the means to. */
+  claimSelf: (self: { destroy: () => void }) => void;
+  /** Puts one panel away. The frame goes with the last of them. */
+  closeTab: (panel: PanelService) => void;
+  /** Takes a panel in from another frame, the ground it stands on and all. */
+  takeIn: (handoff: PanelHandoff) => void;
+  /** Hands every panel it holds out, ready to be taken in elsewhere. */
+  handOverAll: () => PanelHandoff[];
+  panelCount: () => number;
+  /** How big the frame is standing right now, which a panel's own remembered size is not. */
+  frameSize: () => { width: number; height: number };
+  /** Where the frame is standing right now, read off the screen rather than off the panel. */
+  framePlace: () => { left: number; top: number };
+  /** The frame goes, whatever it is holding. */
+  dismissFrame: () => void;
 }
 
 type PanelServiceAssignableKey =
@@ -110,12 +141,12 @@ type PanelServiceAssignableKey =
 @Injectable()
 export class PanelService {
   static defaultParentViewContainerRef: ViewContainerRef;
-  static UIPanelComponentClass: { new (...args: unknown[]): UIPanelInstance } = null!;
+  static UIPanelComponentClass: { new (...args: unknown[]): PanelFrame } = null!;
   static chatPortraitComponentClass: Type<unknown> | null = null;
   static cardStackListComponentClass: Type<unknown> | null = null;
-  private panelComponentRef: ComponentRef<UIPanelInstance> | null = null;
+  private frame: PanelFrame | null = null;
   private actionRotationDegrees: PanelRotationDegrees = 0;
-  private static readonly singles = new Map<string, ComponentRef<UIPanelInstance>>();
+  private static readonly singles = new Map<string, PanelService>();
   /** Names spoken for by a panel whose code is still being fetched. */
   private static readonly opening = new Set<string>();
   /**
@@ -127,8 +158,21 @@ export class PanelService {
    * that is no longer there, and the next press opens what it meant to close.
    */
   private static readonly singlesVersion = signal(0);
-  title: string = '';
-  titleTooltip: string = '';
+  private readonly _title = signal('');
+  get title(): string {
+    return this._title();
+  }
+  set title(value: string) {
+    this._title.set(value);
+  }
+
+  private readonly _titleTooltip = signal('');
+  get titleTooltip(): string {
+    return this._titleTooltip();
+  }
+  set titleTooltip(value: string) {
+    this._titleTooltip.set(value);
+  }
   left: number = 0;
   top: number = 0;
   width: number = 100;
@@ -164,7 +208,20 @@ export class PanelService {
 
   /** Whether the panel stands in a window of its own, for content that has to work differently there. */
   readonly windowed = signal(false);
-  chatTab: ChatTab | null = null;
+  /**
+   * Fires when this panel is brought to the front of its frame, or lands in one of its own.
+   *
+   * A panel drawn behind another has no size, so everything it measured of itself while it
+   * was back there reads zero. This is where it measures again.
+   */
+  readonly activated$ = new EventChannel<void>();
+  private readonly _chatTab = signal<ChatTab | null>(null);
+  get chatTab(): ChatTab | null {
+    return this._chatTab();
+  }
+  set chatTab(value: ChatTab | null) {
+    this._chatTab.set(value);
+  }
   cardStack: CardStack | null = null;
   scrollablePanel: HTMLDivElement | null = null;
   private isScrollablePanelClaimed = false;
@@ -185,7 +242,7 @@ export class PanelService {
    */
   readonly minimizeRequest$ = new EventChannel<boolean>();
   get isShow(): boolean {
-    return this.panelComponentRef !== null;
+    return this.frame !== null;
   }
 
   setDefaultScrollablePanel(panel: HTMLDivElement): void {
@@ -213,7 +270,7 @@ export class PanelService {
 
     const open = PanelService.singles.get(name);
     if (!open) return false;
-    open.destroy();
+    open.close();
     return true;
   }
 
@@ -239,17 +296,18 @@ export class PanelService {
     }
     const injector = parentViewContainerRef.injector;
 
-    if (option?.single) PanelService.singles.get(option.single)?.destroy();
+    if (option?.single) PanelService.singles.get(option.single)?.close();
 
     const panelComponentRef = parentViewContainerRef.createComponent(PanelService.UIPanelComponentClass, {
       index: parentViewContainerRef.length,
       injector,
     });
-    const bodyComponentRef: ComponentRef<T> = panelComponentRef.instance.content().createComponent(childComponent);
+    panelComponentRef.instance.claimSelf(panelComponentRef);
 
     const childPanelService: PanelService = panelComponentRef.injector.get(PanelService);
+    childPanelService.frame = panelComponentRef.instance;
+    const bodyComponentRef: ComponentRef<T> = panelComponentRef.instance.openTab(childComponent, childPanelService);
 
-    childPanelService.panelComponentRef = panelComponentRef;
     childPanelService.panelKind.set(panelKindOf(childComponent));
     const inheritedOption = this.withInheritedRotation(option, this.actionRotationDegrees);
     if (inheritedOption) this.applyPanelOption(panelComponentRef, childPanelService, inheritedOption);
@@ -257,18 +315,39 @@ export class PanelService {
     if (option?.controls) childPanelService.panelControls.set(option.controls);
     const single = option?.single;
     if (single) {
-      PanelService.singles.set(single, panelComponentRef);
+      PanelService.singles.set(single, childPanelService);
       PanelService.noteSingles();
     }
-    panelComponentRef.onDestroy(() => {
-      childPanelService.panelComponentRef = null;
-      if (single && PanelService.singles.get(single) === panelComponentRef) {
+    // Hung on the body rather than on the frame, since a panel may outlive the frame it was
+    // opened in without ever having gone away.
+    bodyComponentRef.onDestroy(() => {
+      childPanelService.frame = null;
+      if (single && PanelService.singles.get(single) === childPanelService) {
         PanelService.singles.delete(single);
         PanelService.noteSingles();
       }
     });
 
     return bodyComponentRef.instance as T;
+  }
+
+  /**
+   * Puts up a frame with nothing in it, for a panel pulled out of a group to stand in.
+   *
+   * Everything else opens a frame and a panel together; a panel torn off already exists and
+   * only wants somewhere to be.
+   */
+  openFrame(option?: PanelOption, parentViewContainerRef?: ViewContainerRef): PanelFrame {
+    const parent = parentViewContainerRef ?? PanelService.defaultParentViewContainerRef;
+    const panelComponentRef = parent.createComponent(PanelService.UIPanelComponentClass, {
+      index: parent.length,
+      injector: parent.injector,
+    });
+    panelComponentRef.instance.claimSelf(panelComponentRef);
+    if (option) {
+      this.applyPanelOption(panelComponentRef, panelComponentRef.injector.get(PanelService), option);
+    }
+    return panelComponentRef.instance;
   }
 
   openLazy<T>(
@@ -315,7 +394,7 @@ export class PanelService {
   }
 
   private applyPanelOption(
-    panelComponentRef: ComponentRef<UIPanelInstance>,
+    panelComponentRef: ComponentRef<PanelFrame>,
     childPanelService: PanelService,
     option: PanelOption
   ) {
@@ -391,10 +470,33 @@ export class PanelService {
     panelService[key] = value;
   }
 
+  /** Whether this panel may share a frame with others. */
+  get isTabbable(): boolean {
+    return isTabbablePanel({
+      isCutIn: this.isCutIn,
+      cutInIdentifier: this.cutInIdentifier,
+      layer: this.layer,
+      frameless: this.frameless,
+      invisible: this.invisible,
+      ghost: this.isGhost(),
+      windowed: this.windowed(),
+    });
+  }
+
+  /** The frame this panel stands in, for whoever moves panels about as a whole. */
+  get standingFrame(): PanelFrame | null {
+    return this.frame;
+  }
+
+  /** Told when the panel changes frames, which is what folding it into another one does. */
+  attachTo(frame: PanelFrame): void {
+    this.frame = frame;
+  }
+
   close() {
-    if (this.panelComponentRef) {
-      this.panelComponentRef.destroy();
-      this.panelComponentRef = null;
-    }
+    const frame = this.frame;
+    if (!frame) return;
+    this.frame = null;
+    frame.closeTab(this);
   }
 }

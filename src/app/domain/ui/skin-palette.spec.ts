@@ -21,11 +21,21 @@ describe('the colours a skin recipe makes', () => {
       '--ui-quote-bg',
       '--ui-danger',
       '--ui-success',
+      '--ui-warning',
       '--ui-suit-black',
       '--ui-input-bg',
       '--ui-shadow-lg',
     ]) {
       expect(tokens[name]).toBeTruthy();
+    }
+  });
+
+  it('keeps a warning readable on the panel it is written on, light or dark', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const tokens = skinTokens(PLAIN, mode);
+
+      expect(skinContrast(tokens, '--ui-warning', '--ui-elevated')).toBeGreaterThan(4);
+      expect(skinContrast(tokens, '--ui-danger', '--ui-elevated')).toBeGreaterThan(4);
     }
   });
 

@@ -11,10 +11,13 @@ import {
   calcSnapNum,
   collectCollidableElements,
   ContactFootprint,
+  contactRestLevels,
+  ContactRider,
   dropTargetSurface,
   findContactSupportZ,
   MovableCoordinateResolver,
   MovableLayerItem,
+  nextContactLevel,
   resolveMovableLocalCoordinate,
   setLayerCollidable,
   shouldTransitionTo,
@@ -357,10 +360,31 @@ describe('movable-helpers', () => {
 
   describe('findContactSupportZ', () => {
     const footprints: ContactFootprint[] = [
-      { left: 0, top: 0, right: 100, bottom: 100, topZ: 50 },
-      { left: 0, top: 0, right: 100, bottom: 100, topZ: 150 },
-      { left: 500, top: 500, right: 600, bottom: 600, topZ: 999 },
+      { left: 0, top: 0, right: 100, bottom: 100, bottomZ: 0, topZ: 50 },
+      { left: 0, top: 0, right: 100, bottom: 100, bottomZ: 0, topZ: 150 },
+      { left: 500, top: 500, right: 600, bottom: 600, bottomZ: 0, topZ: 999 },
     ];
+
+    const block = (thicknessPx: number, restingZ: number): ContactRider => ({
+      altitudePx: 0,
+      thicknessPx,
+      ridesUp: false,
+      restingZ,
+    });
+    const token = (restingZ: number): ContactRider => ({
+      altitudePx: 0,
+      thicknessPx: 0,
+      ridesUp: true,
+      restingZ,
+    });
+    const cell = (x: number, y: number, bottomZ: number, topZ: number): ContactFootprint => ({
+      left: x,
+      top: y,
+      right: x + 100,
+      bottom: y + 100,
+      bottomZ,
+      topZ,
+    });
 
     it('returns the highest top of the footprints under the centre', () => {
       expect(findContactSupportZ(footprints, 50, 50)).toBe(150);
@@ -372,6 +396,119 @@ describe('movable-helpers', () => {
 
     it('returns zero with no footprints at all', () => {
       expect(findContactSupportZ([], 50, 50)).toBe(0);
+    });
+
+    it('stays on the floor under a canopy tall enough to walk beneath', () => {
+      const canopy = [cell(0, 0, 150, 200)];
+
+      expect(findContactSupportZ(canopy, 50, 50, block(50, 0))).toBe(0);
+      expect(findContactSupportZ(canopy, 50, 50, token(0))).toBe(0);
+    });
+
+    it('climbs a canopy the block is too tall to fit under', () => {
+      const canopy = [cell(0, 0, 40, 90)];
+
+      expect(findContactSupportZ(canopy, 50, 50, block(50, 0))).toBe(90);
+    });
+
+    it('fills a gap it matches exactly rather than climbing over it', () => {
+      const canopy = [cell(0, 0, 50, 100)];
+
+      expect(findContactSupportZ(canopy, 50, 50, block(50, 0))).toBe(0);
+    });
+
+    it('climbs onto a block standing on the floor, which leaves no room beneath', () => {
+      const box = [cell(0, 0, 0, 50)];
+
+      expect(findContactSupportZ(box, 50, 50, block(50, 0))).toBe(50);
+      expect(findContactSupportZ(box, 50, 50, token(0))).toBe(50);
+    });
+
+    it('keeps what is already up on a canopy up there', () => {
+      const canopy = [cell(0, 0, 150, 200)];
+
+      expect(findContactSupportZ(canopy, 50, 50, token(200))).toBe(200);
+      expect(findContactSupportZ(canopy, 50, 50, block(50, 200))).toBe(200);
+    });
+
+    it('drops what walks off a canopy onto the floor it left', () => {
+      const canopy = [cell(0, 0, 150, 200)];
+
+      expect(findContactSupportZ(canopy, 300, 300, token(200))).toBe(0);
+    });
+
+    it('lands on a deck when a pillar takes the ground under the pointer', () => {
+      const bridge = [cell(0, 0, 0, 150), cell(0, 0, 150, 200)];
+
+      expect(findContactSupportZ(bridge, 50, 50, block(50, 0))).toBe(200);
+    });
+
+    it('takes a canopy built at altitude as the height it keeps, not a floor to climb', () => {
+      const canopy: ContactRider = { altitudePx: 150, thicknessPx: 50, ridesUp: false, restingZ: 150 };
+
+      expect(findContactSupportZ([], 50, 50, canopy)).toBe(0);
+      expect(findContactSupportZ([cell(0, 0, 0, 200)], 50, 50, canopy)).toBe(200);
+    });
+
+    it('is not blocked by something flat lying on the floor', () => {
+      const note = [cell(0, 0, 0, 0)];
+
+      expect(findContactSupportZ(note, 50, 50, block(50, 0))).toBe(0);
+    });
+  });
+
+  describe('contactRestLevels', () => {
+    const cell = (x: number, y: number, bottomZ: number, topZ: number): ContactFootprint => ({
+      left: x,
+      top: y,
+      right: x + 100,
+      bottom: y + 100,
+      bottomZ,
+      topZ,
+    });
+    const rider: ContactRider = { altitudePx: 0, thicknessPx: 50, ridesUp: false, restingZ: 0 };
+
+    it('offers the floor and the roof of a rock hanging over it', () => {
+      expect(contactRestLevels([cell(0, 0, 150, 200)], 50, 50, rider)).toEqual([0, 200]);
+    });
+
+    it('leaves out the floor a block on the ground has taken', () => {
+      expect(contactRestLevels([cell(0, 0, 0, 50)], 50, 50, rider)).toEqual([50]);
+    });
+
+    it('offers the floor alone where nothing stands', () => {
+      expect(contactRestLevels([cell(500, 500, 0, 50)], 50, 50, rider)).toEqual([0]);
+    });
+
+    it('counts a shared height once', () => {
+      const twins = [cell(0, 0, 0, 50), cell(0, 0, 0, 50)];
+
+      expect(contactRestLevels(twins, 50, 50, rider)).toEqual([50]);
+    });
+  });
+
+  describe('nextContactLevel', () => {
+    const levels = [0, 100, 250];
+
+    it('goes up to the next height there is', () => {
+      expect(nextContactLevel(levels, 0, true)).toBe(100);
+      expect(nextContactLevel(levels, 100, true)).toBe(250);
+    });
+
+    it('goes down to the one below', () => {
+      expect(nextContactLevel(levels, 250, false)).toBe(100);
+      expect(nextContactLevel(levels, 100, false)).toBe(0);
+    });
+
+    it('has nowhere to go past either end', () => {
+      expect(nextContactLevel(levels, 250, true)).toBeNull();
+      expect(nextContactLevel(levels, 0, false)).toBeNull();
+      expect(nextContactLevel([], 0, true)).toBeNull();
+    });
+
+    it('reads a height it is standing at as the one it is on, not one to step to', () => {
+      expect(nextContactLevel([0, 100], 100.2, true)).toBeNull();
+      expect(nextContactLevel([0, 100], 99.8, false)).toBe(0);
     });
   });
 

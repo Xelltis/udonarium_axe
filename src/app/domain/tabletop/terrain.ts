@@ -63,6 +63,14 @@ export class Terrain extends TabletopObject {
   @SyncVar() blocksSight: boolean = true;
   @SyncVar() blocksLight: boolean = true;
 
+  /**
+   * A face too sheer to get up, which a piece goes around rather than over.
+   *
+   * Terrain otherwise reads as something to be stood on: walk a piece at a low wall and it
+   * steps up onto it. A cliff, a chasm wall or a pane of glass is not that, and says so here.
+   */
+  @SyncVar() blocksClimb: boolean = false;
+
   @SyncVar() doorStyle: string = DoorStyle.NONE;
   @SyncVar() isDoorOpen: boolean = false;
   /**

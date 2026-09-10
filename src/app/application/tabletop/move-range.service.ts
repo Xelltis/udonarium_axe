@@ -6,9 +6,9 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCount, CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
+import { blockedByTerrain, terrainBlocksJump } from '@axe/domain/tabletop/move/blocked-cells';
 import { allowsDiagonal } from '@axe/domain/tabletop/move/diagonal-move';
 import {
   breakOutToll,
@@ -43,6 +43,8 @@ export interface MoveRangeView {
 export interface WalkTerms {
   walk: number;
   blocked: CellBits;
+  /** The same, for a piece that means to jump: height stops it no longer, sheer faces still do. */
+  leapt: CellBits;
   options: ReachOptions;
 }
 
@@ -51,6 +53,13 @@ export interface ReachTerms extends WalkTerms {
   grid: CellGrid;
   start: number;
   cells: CellBits;
+  /**
+   * The same reach for a piece that means to jump.
+   *
+   * Worked out when it is asked for rather than alongside the other: every piece the room is
+   * watching move has its reach drawn afresh on every redraw, and most of them are walking.
+   */
+  leaptCells: () => CellBits;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -118,7 +127,23 @@ export class MoveRangeService {
   termsOf(character: GameCharacter): ReachTerms | null {
     const built = this.build(character);
     if (!built) return null;
-    return { ...built.terms, grid: built.view.grid, start: built.start, cells: built.view.cells };
+    const { grid, cells } = built.view;
+    const terms = built.terms;
+    let leaptCells: CellBits | null = null;
+    return {
+      ...terms,
+      grid,
+      start: built.start,
+      cells,
+      leaptCells: () =>
+        (leaptCells ??= reachableCells(
+          grid,
+          built.start,
+          terms.walk,
+          (index) => terms.leapt.get(index),
+          terms.options
+        )),
+    };
   }
 
   /** What the table is played by, which the room answers for wherever it has been asked. */
@@ -155,18 +180,24 @@ export class MoveRangeService {
     if (start < 0) return null;
 
     const blocked = blockedByTerrain(grid, table.terrains);
+    // Only the terrain differs between walking and jumping; everything else stands in the way
+    // of both, so it is gathered once and laid over each of them.
+    const leapt = blockedByTerrain(grid, table.terrains, terrainBlocksJump);
+    const otherwise = new CellBits(cellCount(grid));
     const painted = moveBlockMapOn(table)?.read(grid);
-    if (painted) blocked.or(painted);
+    if (painted) otherwise.or(painted);
 
     const standing = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     // Two pieces that may not share a cell may not pass through one either: the ground
     // somebody stands on is in the way, and a reach has to go round it.
-    if (!rules.piecesShareCells) blocked.or(occupiedCells(grid, standing, character.identifier));
+    if (!rules.piecesShareCells) otherwise.or(occupiedCells(grid, standing, character.identifier));
 
     const mode = rules.zocMode;
     const ground = mode === 'none' ? null : this.heldGroundAround(grid, character, standing, rules);
     const held = ground?.held ?? null;
-    if (held && mode === 'block') blocked.or(held);
+    if (held && mode === 'block') otherwise.or(held);
+    blocked.or(otherwise);
+    leapt.or(otherwise);
     const extra = Math.max(0, Math.floor(rules.zocExtraCost));
     const fights = rules.breakOutMode === 'free' ? null : (ground?.fights ?? null);
     const flat = Math.max(0, Math.floor(rules.breakOutCost));
@@ -186,7 +217,7 @@ export class MoveRangeService {
     const cells = reachableCells(grid, start, walk, (index) => blocked.get(index), options);
     return {
       view: { characterIdentifier: character.identifier, grid, cells, held, showsReach: true },
-      terms: { walk, blocked, options },
+      terms: { walk, blocked, leapt, options },
       start,
     };
   }

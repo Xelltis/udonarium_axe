@@ -80,6 +80,7 @@ export function generateRoomsAndMazes(params: RoomsAndMazesParams, rng: () => nu
     cells: new Uint8Array(width * height).fill(DungeonCell.Rock),
     rooms: [],
     doors: [],
+    doorLeaves: [],
     links: [],
     entrance: { x: 1, y: 1 },
     exit: { x: 1, y: 1 },
