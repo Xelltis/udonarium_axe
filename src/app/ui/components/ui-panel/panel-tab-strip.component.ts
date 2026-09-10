@@ -86,6 +86,16 @@ export class PanelTabStripComponent {
     this.released.emit();
   }
 
+  /** A carry the browser took away lands nowhere: the name stays where it was. */
+  protected onPillPointerCancel(): void {
+    const carrying = this.carrying;
+    this.held = null;
+    this.carrying = false;
+    this.carried.set(-1);
+    this.landing.set(-1);
+    if (carrying) this.released.emit();
+  }
+
   private withinStrip(at: { x: number; y: number }): boolean {
     const box = this.strip().nativeElement.getBoundingClientRect();
     return at.x >= box.left && at.x <= box.right && at.y >= box.top && at.y <= box.bottom;

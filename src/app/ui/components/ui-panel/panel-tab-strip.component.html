@@ -17,7 +17,7 @@
       (pointerdown)="onPillPointerDown($event, $index)"
       (pointermove)="onPillPointerMove($event)"
       (pointerup)="onPillPointerUp($event)"
-      (pointercancel)="onPillPointerUp($event)"
+      (pointercancel)="onPillPointerCancel()"
     >
       @if ($index === active()) {
         <span class="bg-ui-accent pointer-events-none absolute inset-x-0 top-0 h-0.5"></span>

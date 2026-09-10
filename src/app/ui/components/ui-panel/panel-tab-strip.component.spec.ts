@@ -79,6 +79,26 @@ describe('PanelTabStripComponent', () => {
     expect(taken).toEqual({ index: 1, x: 400, y: 500 });
   });
 
+  it('leaves a name where it was when the browser takes the carry away', () => {
+    let taken: { index: number; x: number; y: number } | null = null;
+    let moved: { from: number; to: number } | null = null;
+    let released = 0;
+    fixture.componentInstance.tookOut.subscribe((out) => (taken = out));
+    fixture.componentInstance.moved.subscribe((move) => (moved = move));
+    fixture.componentInstance.released.subscribe(() => (released += 1));
+    const strip = fixture.nativeElement.querySelector('[role="tablist"]') as HTMLElement;
+    strip.getBoundingClientRect = () => ({ left: 0, right: 200, top: 0, bottom: 28 }) as DOMRect;
+    const pill = pills()[1];
+
+    pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    pill.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 400, clientY: 500 }));
+    pill.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, clientX: 400, clientY: 500 }));
+
+    expect(taken).toBeNull();
+    expect(moved).toBeNull();
+    expect(released).toBe(1);
+  });
+
   it('keeps a drag on it from taking the frame with it', () => {
     const strip = fixture.nativeElement.querySelector('[role="tablist"]') as HTMLElement;
 
