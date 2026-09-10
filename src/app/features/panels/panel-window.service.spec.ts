@@ -132,6 +132,7 @@ describe('PanelWindowService', () => {
         handOverAll: () =>
           held.splice(0).map((name) => ({ panel: { name, windowed: { set: () => undefined } } })) as never,
         panelCount: () => held.length,
+        frameSize: () => ({ width: 900, height: 700 }),
         dismissFrame: vi.fn(),
         taken,
       };
@@ -148,11 +149,24 @@ describe('PanelWindowService', () => {
       const here = frameHolding(['chat', 'sheet']);
       const abroad = frameHolding([]);
 
-      expect(windows.popOutGroup(here, panelsMaking(abroad), { width: 700, height: 500 })).toBe(true);
+      expect(windows.popOutGroup(here, panelsMaking(abroad))).toBe(true);
 
       expect(abroad.taken).toEqual(['chat', 'sheet']);
       expect(here.dismissFrame).toHaveBeenCalled();
       expect(windows.isDetached('group:panel-1')).toBe(true);
+    });
+
+    it('opens the window the size the frame is standing at, and brings it home that size', () => {
+      const opened = fakeWindow();
+      const open = vi.fn(() => opened);
+      const windows = setup(open as unknown as Window['open']);
+      const abroad = frameHolding([]);
+      const panels = { openFrame: vi.fn(() => abroad) } as unknown as never;
+
+      windows.popOutGroup(frameHolding(['chat']), panels);
+
+      expect(String(open.mock.calls[0][2])).toContain('width=900');
+      expect(String(open.mock.calls[0][2])).toContain('height=700');
     });
 
     it('brings them home before the window is taken down', () => {
@@ -168,7 +182,7 @@ describe('PanelWindowService', () => {
           return made === 1 ? abroad : home;
         }),
       } as unknown as never;
-      windows.popOutGroup(frameHolding(['chat', 'sheet']), panels, { width: 700, height: 500 });
+      windows.popOutGroup(frameHolding(['chat', 'sheet']), panels);
 
       (opened as { closed: boolean }).closed = true;
       vi.advanceTimersByTime(500);

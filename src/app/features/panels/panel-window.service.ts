@@ -155,8 +155,9 @@ export class PanelWindowService {
    * to that window, so a half-typed line and the place a log was read to go with them, and
    * come home the same way when the window is shut.
    */
-  popOutGroup(frame: PanelFrame, panels: PanelService, box: { width: number; height: number }): boolean {
+  popOutGroup(frame: PanelFrame, panels: PanelService): boolean {
     let abroad: PanelFrame | null = null;
+    const box = frame.frameSize();
     const home = { left: 0, top: 0, ...box };
     return this.popOut({
       key: `group:${frame.frameKey}`,

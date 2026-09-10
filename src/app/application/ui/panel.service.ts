@@ -115,6 +115,8 @@ export interface PanelFrame {
   /** Hands every panel it holds out, ready to be taken in elsewhere. */
   handOverAll: () => PanelHandoff[];
   panelCount: () => number;
+  /** How big the frame is standing right now, which a panel's own remembered size is not. */
+  frameSize: () => { width: number; height: number };
   /** The frame goes, whatever it is holding. */
   dismissFrame: () => void;
 }
@@ -204,8 +206,6 @@ export class PanelService {
 
   /** Whether the panel stands in a window of its own, for content that has to work differently there. */
   readonly windowed = signal(false);
-  /** Whether this is the panel its frame is showing. True for one standing on its own. */
-  readonly isActiveTab = signal(true);
   /**
    * Fires when this panel is brought to the front of its frame, or lands in one of its own.
    *
