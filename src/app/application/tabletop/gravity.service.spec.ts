@@ -89,6 +89,25 @@ describe('GravityService.contactTopZ', () => {
   });
 });
 
+describe('GravityService.contactBottomZ', () => {
+  it('on the floor it is the height the block was built at, plus what holds it up', () => {
+    const entry = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, altitude: 1, posZ: 25 });
+    expect(GravityService.contactBottomZ(entry.object, 'floor', 50)).toBe(1 * 50 + 25);
+  });
+
+  it('on a wall it is the offset alone, with no altitude', () => {
+    const entry = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, altitude: 1, posZ: 25 });
+    expect(GravityService.contactBottomZ(entry.object, 'north-wall', 50)).toBe(25);
+  });
+
+  it('is the top of anything with no depth of its own', () => {
+    const entry = makeCharacter({ x: 0, y: 0, altitude: 1, posZ: 10 });
+    expect(GravityService.contactBottomZ(entry.object, 'floor', 50)).toBe(
+      GravityService.contactTopZ(entry.object, 'floor', 50)
+    );
+  });
+});
+
 describe('GravityService on a table with cells of its own size', () => {
   it('reads a block at the height its own table makes it', () => {
     const entry = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, altitude: 1, posZ: 0 });

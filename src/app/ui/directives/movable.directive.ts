@@ -26,6 +26,7 @@ import {
   calcSnapNum,
   collectCollidableElements,
   ContactFootprint,
+  ContactRider,
   dropTargetSurface,
   findContactSupportZ,
   registerLayer,
@@ -272,13 +273,29 @@ export class MovableDirective implements MovableInteractionContext {
 
   contactSupportZ(centerX: number, centerY: number): number {
     if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
-    return findContactSupportZ(this.contactProbe, centerX, centerY);
+    const self = this.tabletopObject;
+    if (!self) return findContactSupportZ(this.contactProbe, centerX, centerY);
+    const rider = this.contactRider(self);
+    const supportZ = findContactSupportZ(this.contactProbe, centerX, centerY, rider);
+    return GravityService.restingPosZ(self, supportZ, rider.altitudePx);
+  }
+
+  private contactRider(self: TabletopObject): ContactRider {
+    const gridSize = this.tableGridSize();
+    const altitudePx = surfaceOf(self) === 'floor' ? self.altitude * gridSize : 0;
+    return {
+      altitudePx,
+      thicknessPx: self instanceof Terrain ? self.height * gridSize : 0,
+      ridesUp: !(self instanceof Terrain),
+      bottomZ: altitudePx + this.posZ,
+    };
   }
 
   private buildContactProbe(): ContactFootprint[] {
     const self = this.tabletopObject;
     if (!self) return [];
     const selfSurface = surfaceOf(self);
+    const gridSize = this.tableGridSize();
     const footprints: ContactFootprint[] = [];
     for (const entry of this.tabletopOverlap.entries()) {
       if (entry.object.identifier === self.identifier) continue;
@@ -290,7 +307,8 @@ export class MovableDirective implements MovableInteractionContext {
         top,
         right: left + entry.element.offsetWidth,
         bottom: top + entry.element.offsetHeight,
-        topZ: GravityService.contactTopZ(entry.object, selfSurface, this.tableGridSize()),
+        bottomZ: GravityService.contactBottomZ(entry.object, selfSurface, gridSize),
+        topZ: GravityService.contactTopZ(entry.object, selfSurface, gridSize),
       });
     }
     return footprints;

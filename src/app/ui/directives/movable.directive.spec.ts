@@ -1,6 +1,10 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 
@@ -168,5 +172,109 @@ describe('MovableDirective drop preview', () => {
     directive.onInputMoveNow(new MouseEvent('mousemove'));
 
     expect(clear).toHaveBeenCalled();
+  });
+});
+
+describe('MovableDirective where a dragged piece comes to rest', () => {
+  @Component({
+    selector: 'contact-host',
+    template: `<div appMovable [movable.option]="{}"></div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MovableDirective],
+  })
+  class ContactHostComponent {}
+
+  const GRID = 50;
+
+  function sized(object: TabletopObject, widthCells: number, depthCells: number): HTMLElement {
+    const element = document.createElement('div');
+    Object.defineProperty(element, 'offsetWidth', { value: widthCells * GRID, configurable: true });
+    Object.defineProperty(element, 'offsetHeight', { value: depthCells * GRID, configurable: true });
+    return element;
+  }
+
+  function block(opts: {
+    identifier: string;
+    x?: number;
+    y?: number;
+    w?: number;
+    d?: number;
+    h: number;
+    altitude?: number;
+    posZ?: number;
+  }): Terrain {
+    const w = opts.w ?? 2;
+    const d = opts.d ?? 2;
+    const terrain = Terrain.create('block', w, d, opts.h, '', '', opts.identifier);
+    terrain.location.x = opts.x ?? 0;
+    terrain.location.y = opts.y ?? 0;
+    terrain.altitude = opts.altitude ?? 0;
+    terrain.posZ = opts.posZ ?? 0;
+    return terrain;
+  }
+
+  function mount(dragged: TabletopObject, standing: { object: TabletopObject; w: number; d: number }[]) {
+    TestBed.configureTestingModule({ imports: [ContactHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(ContactHostComponent);
+    fixture.detectChanges();
+    const overlap = TestBed.inject(TabletopOverlapService);
+    for (const one of standing) overlap.register(one.object, sized(one.object, one.w, one.d));
+    const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+    directive['tabletopObject'] = dragged;
+    directive.posZ = dragged.posZ;
+    return directive;
+  }
+
+  it('slides a block under a canopy standing three cells off the ground', () => {
+    const canopy = block({ identifier: 'canopy', h: 1, altitude: 3 });
+    const directive = mount(block({ identifier: 'dragged', h: 1, x: 500, y: 500 }), [{ object: canopy, w: 2, d: 2 }]);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(0);
+  });
+
+  it('still climbs a block resting on the ground, which leaves no room beneath', () => {
+    const box = block({ identifier: 'box', h: 1 });
+    const directive = mount(block({ identifier: 'dragged', h: 1, x: 500, y: 500 }), [{ object: box, w: 2, d: 2 }]);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
+  });
+
+  it('walks a character under the same canopy rather than onto its roof', () => {
+    const canopy = block({ identifier: 'canopy', h: 1, altitude: 3 });
+    const walker = GameCharacter.create('walker', 1, '');
+    walker.location.x = 500;
+    walker.location.y = 500;
+    const directive = mount(walker, [{ object: canopy, w: 2, d: 2 }]);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(0);
+  });
+
+  it('keeps a character already up on the canopy up there', () => {
+    const canopy = block({ identifier: 'canopy', h: 1, altitude: 3 });
+    const walker = GameCharacter.create('walker', 1, '');
+    walker.posZ = 4 * GRID;
+    const directive = mount(walker, [{ object: canopy, w: 2, d: 2 }]);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+  });
+
+  it('rests a canopy on a tower by the gap under it, not by its own height again', () => {
+    const tower = block({ identifier: 'tower', h: 4 });
+    const dragged = block({ identifier: 'dragged', h: 1, altitude: 3, x: 500, y: 500 });
+    const directive = mount(dragged, [{ object: tower, w: 2, d: 2 }]);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
+  });
+
+  it('carries a character kept above the ground up over a box, the way gravity would', () => {
+    const box = block({ identifier: 'box', h: 2 });
+    const flier = GameCharacter.create('flier', 1, '');
+    flier.altitude = 4;
+    const directive = mount(flier, [{ object: box, w: 2, d: 2 }]);
+
+    const supportZ = directive.contactSupportZ(50, 50);
+
+    expect(supportZ).toBe(2 * GRID);
+    expect(supportZ).toBe(GravityService.contactTopZ(box, 'floor', GRID));
   });
 });

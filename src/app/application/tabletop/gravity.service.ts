@@ -163,6 +163,11 @@ export class GravityService {
     return obj.posZ + heightPx;
   }
 
+  static contactBottomZ(obj: TabletopObject, surface: TableSurface, gridSize: number): number {
+    if (surface === 'floor') return obj.altitude * gridSize + obj.posZ;
+    return obj.posZ;
+  }
+
   private static footprintCenter(entry: TabletopOverlapRegistryEntry): { x: number; y: number } {
     const w = entry.element.offsetWidth;
     const h = entry.element.offsetHeight;

@@ -13,17 +13,72 @@ export interface ContactFootprint {
   top: number;
   right: number;
   bottom: number;
+  bottomZ: number;
   topZ: number;
 }
 
-export function findContactSupportZ(footprints: ContactFootprint[], centerX: number, centerY: number): number {
-  let maxZ = 0;
+export interface ContactRider {
+  altitudePx: number;
+  thicknessPx: number;
+  ridesUp: boolean;
+  bottomZ: number;
+}
+
+const CONTACT_EPSILON_PX = 0.5;
+const CONTACT_MIN_THICKNESS_PX = 1;
+
+const FLAT_ON_THE_FLOOR: ContactRider = { altitudePx: 0, thicknessPx: 0, ridesUp: true, bottomZ: 0 };
+
+export function findContactSupportZ(
+  footprints: readonly ContactFootprint[],
+  centerX: number,
+  centerY: number,
+  rider: ContactRider = FLAT_ON_THE_FLOOR
+): number {
+  const under: ContactFootprint[] = [];
   for (const footprint of footprints) {
     if (centerX < footprint.left || centerX > footprint.right) continue;
     if (centerY < footprint.top || centerY > footprint.bottom) continue;
-    if (footprint.topZ > maxZ) maxZ = footprint.topZ;
+    under.push(footprint);
   }
-  return maxZ;
+
+  let highest = 0;
+  let held = -Infinity;
+  let climbed = Infinity;
+  for (const level of contactLevels(under)) {
+    if (level > highest) highest = level;
+    if (!riderFits(under, rider, level)) continue;
+    if (level <= rider.bottomZ + CONTACT_EPSILON_PX) {
+      if (level > held) held = level;
+    } else if (level < climbed) {
+      climbed = level;
+    }
+  }
+  if (held > -Infinity) return held;
+  if (climbed < Infinity) return climbed;
+  return highest;
+}
+
+function contactLevels(under: readonly ContactFootprint[]): number[] {
+  const levels = [0];
+  for (const footprint of under) {
+    if (footprint.topZ > 0) levels.push(footprint.topZ);
+  }
+  return levels;
+}
+
+function riderBottomAt(rider: ContactRider, level: number): number {
+  return rider.ridesUp ? level + rider.altitudePx : Math.max(rider.altitudePx, level);
+}
+
+function riderFits(under: readonly ContactFootprint[], rider: ContactRider, level: number): boolean {
+  const bottom = riderBottomAt(rider, level);
+  const top = bottom + Math.max(rider.thicknessPx, CONTACT_MIN_THICKNESS_PX);
+  for (const footprint of under) {
+    if (bottom >= footprint.topZ - CONTACT_EPSILON_PX) continue;
+    if (top > footprint.bottomZ + CONTACT_EPSILON_PX) return false;
+  }
+  return true;
 }
 
 export function beamRestPosition(
