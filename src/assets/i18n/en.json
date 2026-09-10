@@ -2240,7 +2240,7 @@
       "uiTab_tabletop": "Tabletop",
       "characterImportHint": "Brings a piece in from an outside character sheet service. What comes in is placed on the table and reaches the other players.",
       "moveStrict": "Strict movement",
-      "moveStrictHint": "Lifting a piece draws the cheapest way to the cell under the pointer. The piece walks that line down, so a wavering hand is not counted as going the long way about. Walls and no-entry cells are not crossed, and the line does not reach past what the piece can walk. The whole room sees the move being worked out. A piece with no move to speak of is still set down wherever the hand leaves it. The game master alone, holding shift while taking a piece up, carries it along with the hand instead, with no way drawn.",
+      "moveStrictHint": "Lifting a piece draws the cheapest way to the cell under the pointer. The piece walks that line down, so a wavering hand is not counted as going the long way about. Walls and no-entry cells are not crossed, and the line does not reach past what the piece can walk. The whole room sees the move being worked out. A piece with no move to speak of is still set down wherever the hand leaves it. The game master alone, holding shift while taking a piece up, carries it along with the hand instead, with no way drawn. Space, while a way is being drawn, turns the move over to jumping: anything but a face too sheer to climb is somewhere to land, however high it stands, and the piece leaps from the cell in front of it.",
       "sectionFlatTable": "Seen from above (2D)",
       "flatTableHint": "These have something to say only while the table is seen from straight above.",
       "orthographicProjection": "Drop the perspective (for a screen laid flat)",

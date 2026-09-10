@@ -181,6 +181,95 @@ describe('MovePlanService', () => {
     expect(service.plan()!.ahead).toEqual([]);
   });
 
+  describe('a move taken over what stands in the way', () => {
+    function blockOver(col: number, row: number, height: number, sheer = false): Terrain {
+      const terrain = Terrain.create('岩', 1, 1, height, '', '', `rock_${col}_${row}`);
+      terrain.location = { name: 'table', x: col * GRID, y: row * GRID };
+      terrain.blocksClimb = sheer;
+      table.appendChild(terrain);
+      return terrain;
+    }
+
+    it('walks around a block, and jumps onto it once the reader asks to', () => {
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+
+      expect(service.plan()!.reach.get(cell(6, 5))).toBe(false);
+      expect(service.isJumping()).toBe(false);
+
+      service.toggleJump();
+
+      expect(service.isJumping()).toBe(true);
+      expect(service.plan()!.reach.get(cell(6, 5))).toBe(true);
+    });
+
+    it('leaves a face too sheer to climb out of reach, jumping or not', () => {
+      blockOver(6, 5, 2, true);
+      service.begin(pieceAt(5, 5, 3));
+
+      service.toggleJump();
+
+      expect(service.plan()!.reach.get(cell(6, 5))).toBe(false);
+    });
+
+    it('takes the jumping back off again, and the block with it', () => {
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+      service.toggleJump();
+
+      service.toggleJump();
+
+      expect(service.isJumping()).toBe(false);
+      expect(service.plan()!.reach.get(cell(6, 5))).toBe(false);
+    });
+
+    it('drops the leg drawn under the other rule', () => {
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+      service.lookAt(5 * GRID + 10, 7 * GRID + 10);
+      expect(service.plan()!.ahead.length).toBeGreaterThan(1);
+
+      service.toggleJump();
+
+      expect(service.plan()!.ahead).toEqual([]);
+    });
+
+    it('draws a way onto the block once it is jumping', () => {
+      blockOver(6, 5, 2);
+      service.begin(pieceAt(5, 5, 3));
+      service.toggleJump();
+
+      service.lookAt(6 * GRID + 10, 5 * GRID + 10);
+
+      expect(service.plan()!.ahead[service.plan()!.ahead.length - 1]).toBe(cell(6, 5));
+    });
+
+    it('stands the piece on top of what it jumped onto', async () => {
+      blockOver(6, 5, 2);
+      const piece = pieceAt(5, 5, 3);
+      service.begin(piece);
+      service.toggleJump();
+      service.lookAt(6 * GRID + 10, 5 * GRID + 10);
+
+      await service.run();
+
+      expect(piece.posZ).toBe(2 * GRID);
+      expect(piece.location.x).toBe(6 * GRID);
+    });
+
+    it('sets a piece back down on the floor when it comes off again', async () => {
+      blockOver(6, 5, 2);
+      const piece = pieceAt(6, 5, 3);
+      piece.posZ = 2 * GRID;
+      service.begin(piece);
+      service.lookAt(5 * GRID + 10, 5 * GRID + 10);
+
+      await service.run();
+
+      expect(piece.posZ).toBe(0);
+    });
+  });
+
   describe('on a table that counts corners one, then two, by turns', () => {
     beforeEach(() => {
       Config.instance.diagonalMove = 'alternating';

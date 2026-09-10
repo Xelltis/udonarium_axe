@@ -109,6 +109,13 @@ export class MovePlanEventHandlerService {
     if (event.key === 'Enter') {
       event.preventDefault();
       void this.movePlan.run();
+      return;
+    }
+    // Space is the table's own key while a move is open: nothing on the page has the focus,
+    // so it would otherwise scroll the room out from under the reader.
+    if (event.key === ' ' || event.code === 'Space') {
+      event.preventDefault();
+      this.movePlan.toggleJump();
     }
   };
 

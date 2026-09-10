@@ -8,6 +8,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
+import { hopHeightAt, hopLiftFor, landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
 import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
@@ -15,6 +16,10 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 
 /** How long the piece rests on each cell of the way it walks, once the way is settled. */
 export const MOVE_STEP_MS = 90;
+
+/** How a hop onto or off a ledge is drawn: how many times it is redrawn, and how long each lasts. */
+export const HOP_FRAMES = 7;
+export const HOP_FRAME_MS = 24;
 
 export interface MovePlan {
   characterIdentifier: string;
@@ -34,6 +39,8 @@ export interface MovePlan {
   cornersCut: number;
   /** Where the piece may still get to, from the last settled cell. */
   reach: CellBits;
+  /** Whether the piece is being taken over what it stands on rather than around it. */
+  jumping: boolean;
   /** The cells the way is settled on, for showing where it has been. */
   waypoints: number[];
 }
@@ -64,6 +71,8 @@ export class MovePlanService {
 
   readonly plan = this.held.asReadonly();
   readonly isPlanning = computed(() => this.held() !== null);
+  /** Whether the move being worked out goes over what stands in the way rather than around it. */
+  readonly isJumping = computed(() => this.held()?.jumping === true);
   /**
    * How many moves have been opened.
    *
@@ -129,6 +138,7 @@ export class MovePlanService {
       cornersCut: 0,
       reach: terms.cells,
       waypoints: [],
+      jumping: false,
     });
     return true;
   }
@@ -148,15 +158,44 @@ export class MovePlanService {
       return;
     }
     if (plan.ahead[plan.ahead.length - 1] === cell) return;
-    const ahead = cheapestPath(
-      plan.grid,
-      plan.from,
-      cell,
-      plan.budget - plan.spent,
-      (index) => terms.blocked.get(index),
-      { ...terms.options, cornersCut: plan.cornersCut }
-    );
+    const stops = this.stopsFor(plan);
+    const ahead = cheapestPath(plan.grid, plan.from, cell, plan.budget - plan.spent, stops, {
+      ...terms.options,
+      cornersCut: plan.cornersCut,
+    });
     this.held.set({ ...plan, ahead: ahead ?? [] });
+  }
+
+  /** What stands in the way of the move as it is being worked out now. */
+  private stopsFor(plan: MovePlan): (index: number) => boolean {
+    const terms = this.terms;
+    const bits = plan.jumping ? terms?.leapt : terms?.blocked;
+    return (index) => bits?.get(index) === true;
+  }
+
+  /**
+   * Turns the move over to jumping, or back again.
+   *
+   * A piece that means to jump is stopped by a face it cannot climb and by nothing else it
+   * could get on top of, so the reach is worked out afresh from where the piece stands now.
+   * The leg drawn ahead goes with it: it was drawn under the other rule.
+   */
+  toggleJump(): void {
+    const plan = this.held();
+    const terms = this.terms;
+    if (!plan || !terms || this.walking) return;
+    const jumping = !plan.jumping;
+    const bits = jumping ? terms.leapt : terms.blocked;
+    const left = plan.budget - plan.spent;
+    const reach =
+      left > 0 && !terms.options.stopsAt?.(plan.from)
+        ? reachableCells(plan.grid, plan.from, left, (index) => bits.get(index), {
+            ...terms.options,
+            cornersCut: plan.cornersCut,
+          })
+        : new CellBits(plan.reach.count);
+    SoundEffect.play(PresetSound.piecePick);
+    this.held.set({ ...plan, jumping, reach, ahead: [] });
   }
 
   /**
@@ -176,7 +215,8 @@ export class MovePlanService {
     }
     this.legs.push(plan);
     const options = { ...terms.options, cornersCut: plan.cornersCut };
-    const walked = walkedPath(plan.grid, plan.ahead, (index) => terms.blocked.get(index), options);
+    const stops = this.stopsFor(plan);
+    const walked = walkedPath(plan.grid, plan.ahead, stops, options);
     const spent = plan.spent + walked.cost;
     const left = plan.budget - spent;
     const from = plan.ahead[plan.ahead.length - 1];
@@ -193,7 +233,7 @@ export class MovePlanService {
       // on to, never of the one it sets out from.
       reach:
         left > 0 && !terms.options.stopsAt?.(from)
-          ? reachableCells(plan.grid, from, left, (index) => terms.blocked.get(index), {
+          ? reachableCells(plan.grid, from, left, stops, {
               ...options,
               cornersCut: walked.corners,
             })
@@ -241,15 +281,30 @@ export class MovePlanService {
     try {
       const corner = cornerShiftOf(character, table.gridSize);
       const steps = way.slice(1);
+      let standingZ = character.posZ;
       for (const [index, cell] of steps.entries()) {
         const centre = cellCenterOf(plan.grid, cell);
+        const landing = landingHeightAt(table.terrains, table.gridSize, centre.x, centre.y);
+        const wasX = character.location.x;
+        const wasY = character.location.y;
         character.location.x = centre.x - corner;
         character.location.y = centre.y - corner;
+        character.posZ = landing;
         character.update();
         // Sprung on arrival rather than once the walking is over, so what the ground does
         // happens where the piece is standing when it does it.
         this.triggerFire.stepped(character, plan.grid, cell, index === steps.length - 1);
-        await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
+        if (landing === standingZ) {
+          await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
+        } else {
+          await this.hop(
+            character,
+            { x: wasX, y: wasY, z: standingZ },
+            { x: character.location.x, y: character.location.y, z: landing },
+            table.gridSize
+          );
+        }
+        standingZ = landing;
       }
     } finally {
       this.walking = false;
@@ -257,6 +312,33 @@ export class MovePlanService {
     SoundEffect.play(PresetSound.piecePut);
     this.close();
     return true;
+  }
+
+  /**
+   * Draws a piece leaving the ground and coming down again on the next cell.
+   *
+   * The way across is walked evenly and the height is arched over it, so a piece is over the
+   * ledge before it is above it rather than climbing the face on the way past.
+   */
+  private async hop(
+    character: GameCharacter,
+    from: { x: number; y: number; z: number },
+    to: { x: number; y: number; z: number },
+    gridSize: number
+  ): Promise<void> {
+    const lift = hopLiftFor(from.z, to.z, gridSize);
+    for (let frame = 1; frame <= HOP_FRAMES; frame++) {
+      const along = frame / HOP_FRAMES;
+      character.location.x = from.x + (to.x - from.x) * along;
+      character.location.y = from.y + (to.y - from.y) * along;
+      character.posZ = hopHeightAt(along, from.z, to.z, lift);
+      character.update();
+      await new Promise((rest) => setTimeout(rest, HOP_FRAME_MS));
+    }
+    character.location.x = to.x;
+    character.location.y = to.y;
+    character.posZ = to.z;
+    character.update();
   }
 
   /** Puts the piece back where it began and closes the move. */

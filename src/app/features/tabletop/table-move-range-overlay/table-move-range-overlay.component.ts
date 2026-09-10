@@ -16,6 +16,10 @@ import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 export const MOVE_RANGE_FILL = 'rgba(90, 170, 255, 0.28)';
 export const MOVE_RANGE_BORDER = 'rgba(120, 200, 255, 0.95)';
 /** The ground an enemy holds, shown under the reach so the two read as one picture. */
+/** The reach of a move being taken over what stands in the way rather than around it. */
+export const MOVE_JUMP_FILL = 'rgba(160, 130, 255, 0.28)';
+export const MOVE_JUMP_BORDER = 'rgba(195, 175, 255, 0.95)';
+
 export const MOVE_ZOC_FILL = 'rgba(230, 80, 80, 0.22)';
 export const MOVE_ZOC_BORDER = 'rgba(240, 120, 120, 0.75)';
 const MOVE_RANGE_BORDER_WIDTH_PX = 3;
@@ -159,7 +163,12 @@ export class TableMoveRangeOverlayComponent {
       }
     }
     if (held) this.paintCells(context, grid, held, MOVE_ZOC_FILL, MOVE_ZOC_BORDER);
-    if (cells) this.paintCells(context, grid, cells, MOVE_RANGE_FILL, MOVE_RANGE_BORDER);
+    if (cells) {
+      const jumping = plan?.jumping === true;
+      const fill = jumping ? MOVE_JUMP_FILL : MOVE_RANGE_FILL;
+      const border = jumping ? MOVE_JUMP_BORDER : MOVE_RANGE_BORDER;
+      this.paintCells(context, grid, cells, fill, border);
+    }
     for (const other of others)
       this.paintRoute(context, other.grid, other.way, MOVE_WAY_OTHERS, MOVE_WAY_OTHERS_WIDTH_PX);
     if (plan) this.paintWay(context, plan);
