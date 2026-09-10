@@ -1,6 +1,6 @@
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
-import { terrainCostOf } from '@axe/domain/tabletop/terrain-cost';
+import { terrainCostOf } from '@axe/testing/terrain-cost';
 
 describe('terrainCostOf', () => {
   function wall(name: string): Terrain {

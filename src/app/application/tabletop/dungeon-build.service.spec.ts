@@ -12,8 +12,8 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
-import { terrainCostOf } from '@axe/domain/tabletop/terrain-cost';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { terrainCostOf } from '@axe/testing/terrain-cost';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;
