@@ -10,3 +10,8 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 export function terrainTopPx(terrain: Terrain, gridSize: number): number {
   return terrain.altitude * gridSize + terrain.posZ + terrain.height * gridSize;
 }
+
+/** How high the underside of a block hangs, in pixels above the floor of the table. */
+export function terrainBasePx(terrain: Terrain, gridSize: number): number {
+  return terrain.altitude * gridSize + terrain.posZ;
+}

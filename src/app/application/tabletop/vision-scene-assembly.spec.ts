@@ -7,6 +7,7 @@ import {
 } from '@axe/application/tabletop/vision-scene-assembly';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { segmentBlocks } from '@axe/domain/tabletop/los/segments';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { LightSpec } from '@axe/domain/tabletop/vision-types';
 
@@ -52,6 +53,23 @@ describe('vision scene assembly', () => {
     const segments = collectSegments(table, 50, 500, 400);
     expect(segments.sight).toHaveLength(8);
     expect(segments.sight[4].heightPx).toBe(100);
+  });
+
+  it('gives the edges a bottom as well, so an arch can be seen under', () => {
+    const table = makeTable();
+    const arch = Terrain.create('アーチ', 2, 1, 1, '', '');
+    arch.location.x = 100;
+    arch.location.y = 100;
+    arch.altitude = 3;
+    table.appendChild(arch);
+
+    const segments = collectSegments(table, 50, 500, 400);
+
+    const wall = segments.sight.slice(4).find((seg) => seg.x1 === 100 && seg.x2 === 100)!;
+    expect(wall.basePx).toBe(150);
+    expect(wall.heightPx).toBe(200);
+    expect(segmentBlocks(50, 125, 25, 400, 125, 25, wall)).toBe(false);
+    expect(segmentBlocks(50, 125, 175, 400, 125, 175, wall)).toBe(true);
   });
 
   it('reads a block resting on something at the height it really stands', () => {
