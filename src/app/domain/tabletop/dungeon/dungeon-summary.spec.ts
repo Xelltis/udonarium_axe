@@ -90,7 +90,7 @@ describe('buildDungeonSummary()', () => {
 
   it('marks the room that is shut', () => {
     const layout = build();
-    if (!layout.doors.some((door) => door.locked)) return;
+    if (!layout.doorLeaves.some((leaf) => leaf.locked)) return;
 
     const text = buildDungeonSummary({ layout, name: 'x', torchRooms: [], labels });
 
@@ -102,9 +102,21 @@ describe('buildDungeonSummary()', () => {
     const lines = buildDungeonSummary({ layout, name: 'x', torchRooms: [], labels }).split('\n').slice(3);
 
     layout.rooms.forEach((room, index) => {
-      const ways = layout.doors.filter((door) => door.rooms.includes(room.index)).length;
+      const ways = layout.doorLeaves.filter((leaf) => leaf.rooms.includes(room.index)).length;
       expect(lines[index]).toContain(`doors ${ways}`);
     });
+  });
+
+  it('counts a door widened across four cells as the one door it is', () => {
+    const layout = build();
+    const room = layout.rooms[0];
+    layout.doorLeaves = [{ x: 0, y: 0, w: 4, h: 1, across: 'y', rooms: [room.index], locked: false, mirrored: false }];
+    // A leaf that wide fills four cells, and every one of them is a door cell.
+    layout.doors = [0, 1, 2, 3].map((step) => ({ x: step, y: 0, rooms: [room.index], locked: false }));
+
+    const lines = buildDungeonSummary({ layout, name: 'x', torchRooms: [], labels }).split('\n').slice(3);
+
+    expect(lines[0]).toContain('doors 1');
   });
 
   it('copes with a dungeon that has no rooms', () => {
