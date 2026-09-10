@@ -37,6 +37,9 @@ import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive'
 
 const PANEL_FLOOR_OPACITY = 0.25;
 
+/** How tall the row of names is, which the strip itself is drawn at (`h-7`). */
+const TAB_STRIP_HEIGHT_PX = 28;
+
 /** Tells one frame from another while a panel is dragged between them. */
 let framesOpened = 0;
 
@@ -748,10 +751,16 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     return this.isCompact() ? 'calc(2.75rem + env(safe-area-inset-top))' : '28px';
   }
 
-  /** How far down the body starts: under the bar, and under the names when there are any. */
+  /**
+   * How far down the body starts: under the bar, and under the names when there are any.
+   *
+   * Worked out from where the bar ends rather than written down as a number, since on a narrow
+   * screen the bar is taller and stands clear of whatever the phone keeps at the top of it. A
+   * number put the body over the names, and the names are the only way to the panels behind.
+   */
   private bodyTop(): string {
     if (!this.showsTabs()) return this.barBottom();
-    return this.showsTitleBar ? '56px' : '28px';
+    return `calc(${this.barBottom()} + ${TAB_STRIP_HEIGHT_PX}px)`;
   }
 
   get padding_(): string {

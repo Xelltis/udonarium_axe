@@ -251,7 +251,8 @@ describe('a frame holding more than one panel', () => {
 
     fold(first.frame, second);
 
-    expect(grounds(first.frame).map((ground) => ground.style.top)).toEqual(['56px', '56px']);
+    // The bar's own height plus the row of names, rather than the sum written down as one number.
+    expect(grounds(first.frame).map((ground) => ground.style.top)).toEqual(['calc(28px + 28px)', 'calc(28px + 28px)']);
   });
 
   it('shows the panel whose name was pressed', () => {
@@ -404,6 +405,22 @@ describe('a frame holding more than one panel', () => {
     host.detectChanges();
 
     expect(first.frame.instance.showsTabs()).toBe(true);
+  });
+
+  it('starts the body under the names, however tall the bar is', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    fold(first.frame, second);
+    const frame = first.frame.instance as unknown as { bodyTop(): string; barBottom(): string };
+    const viewport = TestBed.inject(ViewportService) as unknown as { _isCompact: WritableSignal<boolean> };
+
+    expect(frame.bodyTop()).toBe('calc(28px + 28px)');
+
+    viewport._isCompact.set(true);
+    host.detectChanges();
+
+    expect(frame.bodyTop()).toBe(`calc(${frame.barBottom()} + 28px)`);
+    expect(frame.bodyTop()).toContain('safe-area-inset-top');
   });
 
   it('puts its tab names away while it is folded', () => {
