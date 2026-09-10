@@ -85,6 +85,20 @@
           ></div>
         }
       }
+      @if (showsBottom() && isVisibleFloor() && 0 < bottomFaceImage().url.length) {
+        <div
+          class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+          data-testid="terrain-bottom"
+          [class.blinking-animation]="!isLocked()"
+          [ngStyle]="{
+            transform: 'rotateX(180deg)',
+            ...hexFloorDimStyle(),
+            ...bottomShade().style,
+          }"
+          [style.background-image]="bottomShade().image | safe: 'style'"
+          [style.clip-path]="hexFloorClipPath()"
+        ></div>
+      }
       @if (showsGrid()) {
         @if (isHexSlope() && hexSlopeSteps().floors.length > 0) {
           @for (step of hexSlopeSteps().floors; track $index) {

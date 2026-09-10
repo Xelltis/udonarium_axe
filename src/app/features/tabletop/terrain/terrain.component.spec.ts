@@ -19,7 +19,7 @@ import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
-import { DoorStyle, SlopeDirection, Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
@@ -73,7 +73,8 @@ describe('TerrainComponent', () => {
       const drawn = fixture.nativeElement.querySelectorAll('*').length;
 
       // The ledger a voxel table is weighed against: a plain wall, standing still.
-      expect(drawn).toBe(12);
+      // Thirteen since a block was given an underside, which one off the ground is seen into without.
+      expect(drawn).toBe(13);
     });
   });
 
@@ -270,6 +271,79 @@ describe('TerrainComponent', () => {
       expect(component.doorOrigin()).not.toBe(hinge);
 
       door.destroy();
+    });
+  });
+
+  describe('the underside of a block', () => {
+    function blockAt(altitude: number): Terrain {
+      const terrain = Terrain.create('block', 1, 1, 1, 'wall-image', 'floor-image');
+      terrain.altitude = altitude;
+      fixture.componentRef.setInput('terrain', terrain);
+      return terrain;
+    }
+
+    function underside(): HTMLElement | null {
+      return fixture.nativeElement.querySelector('[data-testid="terrain-bottom"]');
+    }
+
+    it('is drawn however high the block stands, since how it got there is no help', async () => {
+      // Built at a height, stacked on another block, or standing on the table: the underside
+      // is wanted for the first two and hidden by the table itself for the third.
+      for (const [altitude, posZ] of [
+        [3, 0],
+        [0, 150],
+        [0, 0],
+      ]) {
+        const terrain = blockAt(altitude);
+        terrain.posZ = posZ;
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(underside(), `altitude ${altitude}, posZ ${posZ}`).not.toBeNull();
+
+        terrain.destroy();
+      }
+    });
+
+    it('is cut to the hex a block stands on, the way its roof is', async () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      const terrain = blockAt(3);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(underside()!.style.clipPath).toBe(component.hexFloorClipPath());
+      expect(component.hexFloorClipPath()).toContain('polygon');
+
+      terrain.destroy();
+      table.gridType = GridType.SQUARE;
+    });
+
+    it('is left off a block that is nothing but a wall, which has no floor to be under', async () => {
+      const terrain = blockAt(3);
+      terrain.mode = TerrainViewState.WALL;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(underside()).toBeNull();
+
+      terrain.destroy();
+    });
+
+    it('blinks with the rest of a block nobody has pinned down', async () => {
+      const terrain = blockAt(3);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(underside()!.classList.contains('blinking-animation')).toBe(true);
+
+      terrain.isLocked = true;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(underside()!.classList.contains('blinking-animation')).toBe(false);
+
+      terrain.destroy();
     });
   });
 

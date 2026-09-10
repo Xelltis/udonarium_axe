@@ -319,6 +319,7 @@ export class TerrainComponent {
     return this.imageService.getSkeletonOr(this.terrain().faceImage(face));
   }
   readonly topFaceImage = computed(() => this.faceImageOf('top'), { equal: imageFileEqual() });
+  readonly bottomFaceImage = computed(() => this.faceImageOf('bottom'), { equal: imageFileEqual() });
   readonly northFaceImage = computed(() => this.faceImageOf('north'), { equal: imageFileEqual() });
   readonly southFaceImage = computed(() => this.faceImageOf('south'), { equal: imageFileEqual() });
   readonly eastFaceImage = computed(() => this.faceImageOf('east'), { equal: imageFileEqual() });
@@ -847,6 +848,26 @@ export class TerrainComponent {
   protected readonly eastShade = computed(() =>
     this.shadedFace(this.eastFaceImage().url, this.isSurfaceShading() ? 0.8 : 1, 'east')
   );
+
+  /**
+   * The underside of a block, which is only ever looked at on one hung off the ground.
+   *
+   * Shaded the way a wall is rather than the way a roof is: nothing up there lights it, and a
+   * face turned away from every lamp on the table is the darkest side a block has.
+   */
+  protected readonly bottomShade = computed(() =>
+    this.shadedFace(this.bottomFaceImage().url, this.isSurfaceShading() ? 0.25 : 1, 'south')
+  );
+
+  /**
+   * Whether the block is drawn with an underside, which is whenever it has a floor at all.
+   *
+   * Asking how high it stands is the wrong question: a block may be built at a height or be
+   * one of a stack, and read from either the answer was wrong for the other. One standing on
+   * the table hides its own underside anyway, so there is nothing to be saved by leaving it
+   * off and a whole class of see-through boxes to be had by trying.
+   */
+  protected readonly showsBottom = computed(() => this.hasFloor());
 
   protected readonly topFog = computed(() => this.topFogStyle());
   protected readonly northFog = computed(() => this.faceFogStyle('north'));
