@@ -270,6 +270,33 @@ describe('MovePlanService', () => {
       expect(piece.location.x).toBe(6 * GRID);
     });
 
+    it('never sends the piece to where it is going before it has got there', async () => {
+      blockOver(6, 5, 2);
+      const piece = pieceAt(5, 5, 3);
+      const seen: { x: number; z: number }[] = [];
+      const update = piece.update.bind(piece);
+      vi.spyOn(piece, 'update').mockImplementation(() => {
+        seen.push({ x: piece.location.x, z: piece.posZ });
+        update();
+      });
+      service.begin(piece);
+      service.toggleJump();
+      service.lookAt(6 * GRID + 10, 5 * GRID + 10);
+
+      await service.run();
+
+      // The block's own cell and its height are reached at the end of the hop and never before,
+      // so nobody watching sees the piece arrive, wind back and cross a second time.
+      // Written before the hop, the very first thing every other screen saw was the piece
+      // standing on the block; then it went back and crossed again.
+      const arrived = (at: { x: number; z: number }) => at.x === 6 * GRID && at.z === 2 * GRID;
+      const first = seen.findIndex(arrived);
+
+      expect(arrived(seen[0])).toBe(false);
+      expect(first).toBeGreaterThan(0);
+      expect(seen.slice(first).every(arrived)).toBe(true);
+    });
+
     it('sets a piece back down on the floor when it comes off again', async () => {
       blockOver(6, 5, 2);
       const piece = pieceAt(6, 5, 3);

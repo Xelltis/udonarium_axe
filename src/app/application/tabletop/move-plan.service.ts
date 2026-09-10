@@ -292,25 +292,23 @@ export class MovePlanService {
       for (const [index, cell] of steps.entries()) {
         const centre = cellCenterOf(plan.grid, cell);
         const landing = landingHeightAt(table.terrains, table.gridSize, centre.x, centre.y);
-        const wasX = character.location.x;
-        const wasY = character.location.y;
-        character.location.x = centre.x - corner;
-        character.location.y = centre.y - corner;
-        character.posZ = landing;
-        character.update();
+        const from = { x: character.location.x, y: character.location.y, z: standingZ };
+        const to = { x: centre.x - corner, y: centre.y - corner, z: landing };
+        // Where the piece is going is written once, at the end of the step. Written before
+        // the hop as well, every screen but this one saw the piece arrive, go back and cross
+        // again, since the hop begins by winding it back to where it set out from.
+        if (landing === standingZ) {
+          character.location.x = to.x;
+          character.location.y = to.y;
+          character.posZ = to.z;
+          character.update();
+          await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
+        } else {
+          await this.hop(character, from, to, table.gridSize);
+        }
         // Sprung on arrival rather than once the walking is over, so what the ground does
         // happens where the piece is standing when it does it.
         this.triggerFire.stepped(character, plan.grid, cell, index === steps.length - 1);
-        if (landing === standingZ) {
-          await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
-        } else {
-          await this.hop(
-            character,
-            { x: wasX, y: wasY, z: standingZ },
-            { x: character.location.x, y: character.location.y, z: landing },
-            table.gridSize
-          );
-        }
         standingZ = landing;
       }
     } finally {
