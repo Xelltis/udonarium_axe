@@ -10,7 +10,6 @@ function frameAt(key: string, zone: PanelDropZone | null): PanelDropFrame {
     closeTab: () => undefined,
     measureDropZone: () => zone,
     handOverAll: () => [],
-    handOver: () => null,
     takeIn: () => undefined,
     panelCount: () => 1,
     dismissFrame: () => undefined,
