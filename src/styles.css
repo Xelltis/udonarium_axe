@@ -85,6 +85,7 @@
   --color-ui-danger-glow: var(--ui-danger-glow);
   --color-ui-danger-bg: var(--ui-danger-bg);
   --color-ui-success: var(--ui-success);
+  --color-ui-warning: var(--ui-warning);
 
   /* トランプの黒スート (♣♠) — ダークモードでは視認性のため青、ライトモードでは伝統通り黒 */
   --color-ui-suit-black: var(--ui-suit-black);

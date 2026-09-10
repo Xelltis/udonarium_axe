@@ -33,7 +33,7 @@
     }
     @if (!isFront && hasOwner && 0 < ownerName.length) {
       <div
-        class="bg-ui-panel absolute top-0 z-10 box-border max-w-[18em] truncate rounded-3xl px-2.25 py-0.75 text-[15px] whitespace-nowrap text-[whitesmoke]! opacity-90 will-change-[opacity]"
+        class="bg-ui-panel text-ui-text! absolute top-0 z-10 box-border max-w-[18em] truncate rounded-3xl px-2.25 py-0.75 text-[15px] whitespace-nowrap opacity-90 will-change-[opacity]"
         [ngStyle]="{ transform: 'translateY(-75%) translateX(-50%) translateX(' + (size * gridSize) / 2 + 'px)' }"
       >
         <span class="transform-3d">{{ ownerName }}</span>

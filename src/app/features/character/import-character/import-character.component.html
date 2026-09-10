@@ -37,7 +37,10 @@
     >
       {{ 'feature.character.import.submit' | transloco }}
     </button>
-    <button class="rounded-sm bg-gray-400 px-3 py-1 text-white" (click)="close()">
+    <button
+      class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-text hover:bg-ui-hover cursor-pointer border border-solid px-3 py-1 transition-[background]"
+      (click)="close()"
+    >
       {{ 'feature.character.import.close' | transloco }}
     </button>
   </div>
