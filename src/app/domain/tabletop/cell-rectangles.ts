@@ -55,7 +55,7 @@ export function largestRectangles(cells: readonly string[]): CellRect[] {
   return largestRectanglesOf(held);
 }
 
-/** Far past the columns any board has, so a cell packs into one number rather than a string. */
+/** Far past the rows or columns any board has, so a cell packs into one number rather than a string. */
 const CELL_SPAN = 1 << 15;
 
 /** The same blocks, for a caller that already has the cells as numbers. */
@@ -64,7 +64,7 @@ export function largestRectanglesOf(cells: readonly CellKey[]): CellRect[] {
   let maxCol = -1;
   let maxRow = -1;
   for (const cell of cells) {
-    if (cell.col < 0 || cell.row < 0 || cell.col >= CELL_SPAN) continue;
+    if (cell.col < 0 || cell.row < 0 || cell.col >= CELL_SPAN || cell.row >= CELL_SPAN) continue;
     held.add(cell.row * CELL_SPAN + cell.col);
     maxCol = Math.max(maxCol, cell.col);
     maxRow = Math.max(maxRow, cell.row);

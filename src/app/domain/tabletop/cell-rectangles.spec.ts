@@ -89,11 +89,13 @@ describe('largestRectanglesOf()', () => {
     }
   });
 
-  it('passes over a cell off the board', () => {
+  it('passes over a cell off the board, on either axis', () => {
     expect(
       largestRectanglesOf([
         { col: -1, row: 0 },
         { col: 0, row: -1 },
+        { col: 1 << 20, row: 0 },
+        { col: 0, row: 1 << 20 },
         { col: 4, row: 4 },
       ])
     ).toEqual([{ col: 4, row: 4, width: 1, height: 1 }]);
