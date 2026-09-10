@@ -41,6 +41,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { buildToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -234,6 +235,7 @@ export class GameTableComponent {
   private readonly cardTargetService = inject(CardTargetService);
   private readonly effectTargetingService = inject(EffectTargetingService);
   private readonly movePlan = inject(MovePlanService);
+  private readonly viewport = inject(ViewportService);
   private readonly effectPlaybackService = inject(EffectPlaybackService);
   private readonly mobileLayout = inject(MobileLayoutService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -1012,6 +1014,10 @@ export class GameTableComponent {
   /** Whether a move is being worked out, which is when the table says how to work one out. */
   readonly isPlanningMove = this.movePlan.isPlanning;
   readonly isJumpingMove = this.movePlan.isJumping;
+  /** A hand with no keys is told what it can do rather than which keys it has not got. */
+  protected readonly movePlanHintKey = computed(() =>
+    this.viewport.isTouch() ? 'feature.tabletop.movePlan.hintTouch' : 'feature.tabletop.movePlan.hint'
+  );
 
   /** The two ways a move may be taken, offered as a pair so which one is on is plain to see. */
   protected readonly moveModes = [

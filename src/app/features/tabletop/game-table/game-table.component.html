@@ -374,7 +374,7 @@
       @for (mode of moveModes; track mode.jumping) {
         <button
           type="button"
-          class="inline-flex cursor-pointer items-center gap-1 rounded-full border-none px-2.5 py-0.75 text-[0.82em] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[14px]!"
+          class="inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full border-none px-3.5 text-[0.86em] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[16px]!"
           [class.bg-ui-accent]="isJumpingMove() === mode.jumping"
           [class.text-white]="isJumpingMove() === mode.jumping"
           [class.bg-transparent]="isJumpingMove() !== mode.jumping"
@@ -388,9 +388,7 @@
         </button>
       }
     </div>
-    <span class="text-ui-muted min-w-0 text-[0.86em] leading-snug">{{
-      'feature.tabletop.movePlan.hint' | transloco
-    }}</span>
+    <span class="text-ui-muted min-w-0 text-[0.86em] leading-snug">{{ movePlanHintKey() | transloco }}</span>
   </div>
 }
 @if (isPickingEffectTarget()) {
