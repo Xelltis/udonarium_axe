@@ -198,6 +198,45 @@ describe('computeVisibleCellsFor', () => {
     });
   });
 
+  describe('an eye standing under a block that hangs clear of the floor', () => {
+    /** Four cells square, hung between 150 and 200, with the eye on the ground beneath it. */
+    function arch(): VisibleCellsOptions {
+      const edges = rectangleSegments(200, 200, 200, 200, 0).map((edge) => ({
+        ...edge,
+        heightPx: 200,
+        basePx: 150,
+      }));
+      const built = scene({ sightSegments: edges, lightSegments: edges, lights: [{ ...torch(), z: 25 }] });
+      const blocking = new CellBits(cellCount(GRID));
+      const tops = new Float32Array(cellCount(GRID));
+      const bases = new Float32Array(cellCount(GRID)).fill(Infinity);
+      for (let col = 4; col < 8; col++) {
+        for (let row = 4; row < 8; row++) {
+          const cell = cellIndexOf(GRID, col, row);
+          blocking.set(cell);
+          tops[cell] = 200;
+          bases[cell] = 150;
+        }
+      }
+      return { ...optionsFor(built, blocking), blockingTops: tops, blockingBases: bases };
+    }
+
+    it('reaches the ground under its own feet', () => {
+      const cells = computeVisibleCellsFor(eyes({ x: 300, y: 300, z: 25 }), arch());
+
+      expect(cells.get(INSIDE)).toBe(true);
+    });
+
+    it('still reads a block that comes down to the floor at the open sides of it', () => {
+      const options = arch();
+      options.blockingBases = new Float32Array(cellCount(GRID));
+
+      const cells = computeVisibleCellsFor(eyes({ x: 300, y: 300, z: 25 }), options);
+
+      expect(cells.get(INSIDE)).toBe(false);
+    });
+  });
+
   describe('a block of wall standing between the eye and the rest of the board', () => {
     /** Three cells by three, from (250, 250) to (400, 400). */
     const PILLAR = rectangleSegments(250, 250, 150, 150, 0).map((edge) => ({ ...edge, heightPx: WALL_HEIGHT }));

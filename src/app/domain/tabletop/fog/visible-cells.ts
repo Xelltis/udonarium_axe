@@ -27,6 +27,8 @@ export interface VisibleCellsOptions {
   blocking?: CellBits;
   /** How high each of those walls stands, so an eye above one is answered on its roof. */
   blockingTops?: Float32Array;
+  /** How low each of them hangs, so an eye under an arch is answered on the ground beneath it. */
+  blockingBases?: Float32Array;
   /** A guard against a board so large that one pass would stall the display. */
   maxCells?: number;
 }
@@ -61,6 +63,7 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
   };
 
   const tops = options.blockingTops;
+  const bases = options.blockingBases;
 
   const consider = (cell: number, cx: number, cy: number): void => {
     if (spent >= budget) return;
@@ -78,6 +81,13 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
     const top = tops ? tops[cell] : 0;
     if (top > 0 && top <= source.z) {
       if (reaches(cx, cy, top)) bits.set(cell);
+      return;
+    }
+    // A block hanging over an eye is not in its way on the ground: the cell under an arch is
+    // walked on, and asked about at the faces of the arch it stayed fogged over its own feet.
+    const base = bases ? bases[cell] : 0;
+    if (base > source.z) {
+      if (reaches(cx, cy)) bits.set(cell);
       return;
     }
     if (wallFaceIsReached(options.grid, blocking, cell, cx, cy, reaches)) bits.set(cell);

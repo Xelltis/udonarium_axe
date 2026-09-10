@@ -33,7 +33,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import { terrainTopPx } from '@axe/domain/tabletop/terrain-height';
+import { terrainBasePx, terrainTopPx } from '@axe/domain/tabletop/terrain-height';
 import {
   computeLightBeam,
   computeLightGlow,
@@ -285,24 +285,33 @@ export class VisionService {
    * Kept with the walls rather than with the scene, so that a piece walking about does not
    * cut every terrain on the table into cells again.
    */
-  /** The cells a wall stands on, with how high the tallest wall on each of them reaches. */
-  private readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array } | null>(() => {
+  /**
+   * The cells a wall stands on: how high the tallest reaches, and how low the lowest hangs.
+   *
+   * A cell nothing is standing on is ground, and a block hanging clear of the floor leaves
+   * the ground under it just as walkable. Both ends are wanted, since which of them answers
+   * turns on where the eye is: over the roof, under the arch, or up against the face.
+   */
+  private readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array; bases: Float32Array } | null>(() => {
     this.standingEpoch();
     const grid = this.cellGrid();
     const table = this.currentTable();
     if (!grid || !table) return null;
     const cells = new CellBits(cellCount(grid));
     const tops = new Float32Array(cellCount(grid));
+    const bases = new Float32Array(cellCount(grid)).fill(Infinity);
     for (const terrain of table.terrains) {
       if (!terrain.hasWall || !terrain.blocksSightNow || surfaceOf(terrain) !== 'floor') continue;
       const box = terrainBoxOf(terrain, grid.sizePx);
       const top = terrainTopPx(terrain, grid.sizePx);
+      const base = terrainBasePx(terrain, grid.sizePx);
       forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => {
         cells.set(cell);
         if (top > tops[cell]) tops[cell] = top;
+        if (base < bases[cell]) bases[cell] = base;
       });
     }
-    return { cells, tops };
+    return { cells, tops, bases };
   });
 
   private readonly sightIndexes = computed<SegmentIndexes | null>(() => {
@@ -333,6 +342,7 @@ export class VisionService {
         indexes,
         blocking: standing?.cells,
         blockingTops: standing?.tops,
+        blockingBases: standing?.bases,
       };
       const perSource = new Map<string, CellBits>();
       const shared = new CellBits(cellCount(grid));
