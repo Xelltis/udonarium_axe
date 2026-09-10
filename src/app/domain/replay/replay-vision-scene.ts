@@ -295,8 +295,10 @@ function segmentsOf(
     // A door that stood open stopped nothing at the time, and must stop nothing in the replay:
     // the snapshot carries whether it was open, so the same reckoning is made of it here.
     const shut = !(flag(terrain, 'isDoor') && flag(terrain, 'isDoorOpen'));
-    const base = number(terrain, 'altitude') * gridSize + number(terrain, 'posZ');
-    const top = base + number(terrain, 'height', 1) * gridSize;
+    // The height it was built to hang at, which is not where it came to rest: what a block
+    // settled onto is under it, and a look does not pass through that.
+    const base = number(terrain, 'altitude') * gridSize;
+    const top = base + number(terrain, 'posZ') + number(terrain, 'height', 1) * gridSize;
     if (flag(terrain, 'blocksSight') && shut) {
       for (const edge of edges) sightSegments.push({ ...edge, heightPx: top, basePx: base });
     }

@@ -11,7 +11,14 @@ export function terrainTopPx(terrain: Terrain, gridSize: number): number {
   return terrain.altitude * gridSize + terrain.posZ + terrain.height * gridSize;
 }
 
-/** How high the underside of a block hangs, in pixels above the floor of the table. */
+/**
+ * How high a block was built to hang, in pixels above the floor of the table.
+ *
+ * The height it was built at and nothing else. What it came to rest on is left out on
+ * purpose: a wall standing on a pedestal has that pedestal under it, and reading the gap as
+ * open would let a look pass through solid ground. A block that hangs clear of everything is
+ * the only one with a way beneath it, and that is what its altitude says.
+ */
 export function terrainBasePx(terrain: Terrain, gridSize: number): number {
-  return terrain.altitude * gridSize + terrain.posZ;
+  return terrain.altitude * gridSize;
 }
