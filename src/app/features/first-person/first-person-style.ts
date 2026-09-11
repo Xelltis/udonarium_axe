@@ -1,0 +1,99 @@
+import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
+import { FirstPersonPlaneQuad, FirstPersonWallQuad } from '@axe/domain/tabletop/first-person/first-person-scene';
+
+export const FIRST_PERSON_UNIT_PX = 256;
+const MAX_SHADE = 0.85;
+
+export type QuadStyle = Record<string, string>;
+
+export function scaleOf(gridSize: number): number {
+  return gridSize > 0 ? FIRST_PERSON_UNIT_PX / gridSize : 1;
+}
+
+export function perspectivePx(widthPx: number, fovDeg: number): number {
+  const half = (Math.min(Math.max(fovDeg, 1), 179) * Math.PI) / 360;
+  return Math.max(1, widthPx) / 2 / Math.tan(half);
+}
+
+export function cameraTransform(pose: FirstPersonPose, scale: number, perspective: number): string {
+  return [
+    `translateZ(${px(perspective)})`,
+    'rotateX(90deg)',
+    `rotateZ(${deg(-pose.yaw)})`,
+    `translate3d(${px(-pose.x * scale)}, ${px(-pose.y * scale)}, ${px(-pose.z * scale)})`,
+  ].join(' ');
+}
+
+export function shadeFor(depth: number, depthPx: number): number {
+  if (depthPx <= 0) return 0;
+  return round(Math.min(Math.max(depth / depthPx, 0), 1) * MAX_SHADE);
+}
+
+export function wallQuadStyle(quad: FirstPersonWallQuad, scale: number, imageUrl: string, shade: number): QuadStyle {
+  const top = (quad.basePx + quad.heightPx) * scale;
+  return {
+    width: px(quad.length * scale),
+    height: px(quad.heightPx * scale),
+    transformOrigin: '0 0',
+    transform: `translate3d(${px(quad.x * scale)}, ${px(quad.y * scale)}, ${px(top)}) rotateZ(${deg(quad.angle)}) rotateX(-90deg)`,
+    ...backgroundOf(imageUrl, shade, `${px(quad.fullLength * scale)} 100%`, `${px(-quad.uStart * scale)} 0`),
+  };
+}
+
+export function planeQuadStyle(quad: FirstPersonPlaneQuad, scale: number, imageUrl: string, shade: number): QuadStyle {
+  const up = quad.facing === 'up';
+  const originY = up ? quad.minY : quad.minY + quad.height;
+  const local = quad.polygon.map((point) => ({
+    x: (point.x - quad.minX) * scale,
+    y: (up ? point.y - quad.minY : quad.minY + quad.height - point.y) * scale,
+  }));
+  const frame = quad.frame;
+  const size = frame ? `${px(frame.width * scale)} ${px(frame.height * scale)}` : '100% 100%';
+  const position = frame ? `${px((frame.x - quad.minX) * scale)} ${px((frame.y - quad.minY) * scale)}` : '0 0';
+  return {
+    width: px(quad.width * scale),
+    height: px(quad.height * scale),
+    transformOrigin: '0 0',
+    transform: `translate3d(${px(quad.minX * scale)}, ${px(originY * scale)}, ${px(quad.zPx * scale)})${up ? '' : ' rotateX(180deg)'}`,
+    clipPath: `polygon(${local.map((point) => `${px(point.x)} ${px(point.y)}`).join(', ')})`,
+    ...backgroundOf(imageUrl, shade, size, position),
+  };
+}
+
+export function billboardStyle(
+  point: { x: number; y: number; z: number },
+  widthPx: number,
+  heightPx: number,
+  yaw: number,
+  scale: number
+): QuadStyle {
+  return {
+    width: px(widthPx * scale),
+    height: px(heightPx * scale),
+    transformOrigin: '0 0',
+    transform: `translate3d(${px(point.x * scale)}, ${px(point.y * scale)}, ${px(point.z * scale)}) rotateZ(${deg(yaw)}) rotateX(-90deg) translate(-50%, -100%)`,
+  };
+}
+
+function backgroundOf(imageUrl: string, shade: number, size: string, position: string): QuadStyle {
+  const veil = `linear-gradient(rgba(0, 0, 0, ${shade}), rgba(0, 0, 0, ${shade}))`;
+  if (!imageUrl) return { backgroundImage: veil, backgroundSize: '100% 100%', backgroundPosition: '0 0' };
+  return {
+    backgroundImage: `${veil}, url("${imageUrl.replace(/"/g, '%22')}")`,
+    backgroundSize: `100% 100%, ${size}`,
+    backgroundPosition: `0 0, ${position}`,
+  };
+}
+
+function round(value: number): number {
+  const rounded = Math.round(value * 1000) / 1000;
+  return rounded === 0 ? 0 : rounded;
+}
+
+function px(value: number): string {
+  return `${round(value)}px`;
+}
+
+function deg(value: number): string {
+  return `${round(value)}deg`;
+}
