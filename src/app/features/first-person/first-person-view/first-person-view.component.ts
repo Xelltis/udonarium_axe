@@ -51,6 +51,7 @@ const NEAR_CELLS = 0.05;
 const GLIDE_MS = 160;
 const SNAP_CELLS = 3;
 const SNAP_TURN_DEG = 135;
+const COMPASS_TICKS: readonly number[] = Array.from({ length: 24 }, (_, index) => index * 15);
 
 interface QuadView {
   id: string;
@@ -214,6 +215,10 @@ export class FirstPersonViewComponent {
   protected readonly pieceName = computed(() => this.firstPerson.piece()?.name ?? '');
 
   protected readonly facing = computed(() => facingNameOf(this.firstPerson.pose()?.yaw ?? 0));
+
+  protected readonly compassTurn = computed(() => -(this.shown()?.yaw ?? 0));
+
+  protected readonly compassTicks = COMPASS_TICKS;
 
   protected readonly padRows = computed(() => padRows(this.firstPerson.lattice()));
 
