@@ -699,4 +699,56 @@ describe('MoveRangeService and the ground an enemy holds', () => {
       expect(reached(6, 5)).toBe(false);
     });
   });
+
+  describe('whether a piece may take one step', () => {
+    const at = (col: number, row: number) => row * 12 + col;
+
+    function wallAt(col: number, fromRow: number, depthCells: number): void {
+      const terrain = Terrain.create('壁', 1, depthCells, 1, '', '');
+      terrain.location = { name: 'table', x: col * GRID, y: fromRow * GRID };
+      table.appendChild(terrain);
+    }
+
+    it('answers a step onto open ground, and not one into a wall', () => {
+      wallAt(6, 4, 3);
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, at(4, 5))).toBe(true);
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+    });
+
+    it('still answers where the table keeps no range', () => {
+      table.moveRangeEnabled = false;
+      wallAt(6, 4, 3);
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, at(4, 5))).toBe(true);
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+    });
+
+    it('lets a piece whose sheet says nothing about walking take a step all the same', () => {
+      const piece = pieceAt(5, 5, 2);
+      DataElement.findElementByReference(piece.rootDataElement!, '移動')!.destroy();
+
+      expect(service.canStepTo(piece, at(4, 5))).toBe(true);
+    });
+
+    it('keeps a piece off another where the table forbids sharing, range or no range', () => {
+      table.piecesShareCells = false;
+      pieceAt(6, 5, 2);
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+
+      table.moveRangeEnabled = false;
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+    });
+
+    it('answers no for a cell that is not on the table', () => {
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, -1)).toBe(false);
+      expect(service.canStepTo(piece, 144)).toBe(false);
+    });
+  });
 });

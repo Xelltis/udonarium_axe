@@ -146,6 +146,20 @@ export class MoveRangeService {
     };
   }
 
+  canStepTo(character: GameCharacter, cell: number): boolean {
+    const table = this.tableSelecter.viewTable;
+    if (!table || cell < 0 || table.gridSize <= 0) return false;
+    const terms = this.termsOf(character);
+    if (terms) return cell < terms.cells.count && terms.cells.get(cell);
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    if (cell >= cellCount(grid)) return false;
+    if (blockedByTerrain(grid, table.terrains).get(cell)) return false;
+    if (moveBlockMapOn(table)?.read(grid)?.get(cell)) return false;
+    if (this.rulesOf(table).piecesShareCells) return true;
+    const standing = this.objectStore.getObjects<GameCharacter>(GameCharacter);
+    return !occupiedCells(grid, standing, character.identifier).get(cell);
+  }
+
   /** What the table is played by, which the room answers for wherever it has been asked. */
   private rulesOf(table: GameTable | null): RoomRules {
     return resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table);

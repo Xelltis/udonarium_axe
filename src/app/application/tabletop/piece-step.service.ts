@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { cellCenterOf, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellGridOf, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { hopHeightAt, hopLiftFor, landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
 import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -19,6 +19,15 @@ interface StepPoint {
   z: number;
 }
 
+interface Arrival {
+  centre: CellPoint;
+  corner: CellPoint;
+  grid: CellGrid;
+  cell: number;
+  ending: boolean;
+  standingZ: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PieceStepService {
   private readonly triggerFire = inject(TriggerFireService);
@@ -32,10 +41,30 @@ export class PieceStepService {
     standingZ: number = character.posZ
   ): Promise<number> {
     const centre = cellCenterOf(grid, cell);
-    const corner = cornerShiftOf(character, table.gridSize);
+    const shift = cornerShiftOf(character, table.gridSize);
+    const corner = { x: centre.x - shift, y: centre.y - shift };
+    return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });
+  }
+
+  async stepToPoint(
+    character: GameCharacter,
+    table: GameTable,
+    centre: CellPoint,
+    ending: boolean,
+    standingZ: number = character.posZ
+  ): Promise<number> {
+    const half = (Math.max(1, character.size) * table.gridSize) / 2;
+    const corner = { x: centre.x - half, y: centre.y - half };
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const cell = cellIndexAt(grid, centre.x, centre.y);
+    return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });
+  }
+
+  private async arrive(character: GameCharacter, table: GameTable, arrival: Arrival): Promise<number> {
+    const { centre, corner, grid, cell, ending, standingZ } = arrival;
     const landing = landingHeightAt(table.terrains, table.gridSize, centre.x, centre.y);
     const from = { x: character.location.x, y: character.location.y, z: standingZ };
-    const to = { x: centre.x - corner, y: centre.y - corner, z: landing };
+    const to = { x: corner.x, y: corner.y, z: landing };
     // Where the piece is going is written once, at the end of the step. Written before
     // the hop as well, every screen but this one saw the piece arrive, go back and cross
     // again, since the hop begins by winding it back to where it set out from.
@@ -50,7 +79,7 @@ export class PieceStepService {
     }
     // Sprung on arrival rather than once the walking is over, so what the ground does
     // happens where the piece is standing when it does it.
-    this.triggerFire.stepped(character, grid, cell, ending);
+    if (cell >= 0) this.triggerFire.stepped(character, grid, cell, ending);
     return landing;
   }
 

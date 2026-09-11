@@ -110,4 +110,15 @@ describe('PieceStepService', () => {
     expect(seen.some((at) => at.z > 0)).toBe(true);
     expect(seen[seen.length - 1]).toEqual({ x: 6 * GRID, z: 0 });
   });
+
+  it('steps a piece to a point rather than a cell, and springs the cell under that point', async () => {
+    const piece = pieceAt(5, 5);
+    const sprung = vi.spyOn(TestBed.inject(TriggerFireService), 'stepped').mockReturnValue([]);
+
+    await service.stepToPoint(piece, table, { x: 310, y: 275 }, true);
+
+    expect(piece.location.x).toBe(285);
+    expect(piece.location.y).toBe(250);
+    expect(sprung).toHaveBeenCalledWith(piece, grid, cellIndexOf(grid, 6, 5), true);
+  });
 });
