@@ -27,6 +27,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
@@ -196,6 +197,7 @@ export class GameCharacterComponent {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
+  private readonly pieceTarget = inject(PieceTargetService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopService = inject(TabletopService);
@@ -1374,21 +1376,16 @@ export class GameCharacterComponent {
   toggleTarget(): void {
     const char = this.gameCharacter();
     if (!char) return;
-    char.targeted = !char.targeted;
-    this.uiSignalService.notifyTargetChange(char.identifier, char.aliasName);
+    this.pieceTarget.toggle(char);
   }
 
   clearEveryTarget(): void {
-    for (const object of this.objectStore.getObjects(GameCharacter)) {
-      if (!object.targeted) continue;
-      object.targeted = false;
-      this.uiSignalService.notifyTargetChange(object.identifier, object.aliasName);
-    }
+    this.pieceTarget.clear();
   }
 
   /** Whether anything on the table is aimed at, which is what makes clearing worth offering. */
   private anythingTargeted(): boolean {
-    return this.objectStore.getObjects(GameCharacter).some((object) => object.targeted);
+    return this.pieceTarget.anything();
   }
 
   /** Fires an effect from a character sheet. It is looked up by name, so the same row works in any room. */
