@@ -133,6 +133,15 @@ describe('FirstPersonService', () => {
       expect(service().showing()).toBe(false);
     });
 
+    it('says whether a piece can be looked out of at all', () => {
+      const piece = pieceAt(5, 5);
+      expect(service().canLookOutOf(piece)).toBe(true);
+
+      piece.location = { ...piece.location, name: 'graveyard' };
+      touch(piece.identifier);
+      expect(service().canLookOutOf(piece)).toBe(false);
+    });
+
     it('hands the choice of a piece for everyone to the game master alone', () => {
       const piece = pieceAt(5, 5);
 

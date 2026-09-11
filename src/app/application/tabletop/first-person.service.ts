@@ -233,6 +233,11 @@ export class FirstPersonService {
     return me.isGameMaster || isControllableByUser(piece, me.userId);
   });
 
+  canLookOutOf(piece: GameCharacter): boolean {
+    const table = this.table();
+    return table !== null && this.pieceOn(table, piece.identifier) !== null;
+  }
+
   enterSeat(identifier: string): void {
     this.preference.choose(identifier);
   }

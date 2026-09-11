@@ -91,6 +91,43 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(onPlanMove).toHaveBeenCalled();
   });
 
+  describe('the first-person view', () => {
+    type Entry = { name?: unknown; action?: () => void; subActions?: readonly unknown[] };
+    function entriesIn(actions: readonly unknown[]): Entry[] {
+      return actions.flatMap((entry) => [entry as Entry, ...entriesIn((entry as Entry).subActions ?? [])]);
+    }
+    function namesIn(actions: readonly unknown[]): unknown[] {
+      return entriesIn(actions).map((entry) => entry.name);
+    }
+    function menuWith(extra: object): readonly unknown[] {
+      return buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), ...extra },
+        t
+      );
+    }
+
+    it('is offered only where the piece can be looked out of, and opens it', () => {
+      const onViewFirstPerson = vi.fn();
+
+      expect(namesIn(menuWith({}))).not.toContain('一人称で見る');
+      entriesIn(menuWith({ onViewFirstPerson })).find((entry) => entry.name === '一人称で見る')!.action!();
+
+      expect(onViewFirstPerson).toHaveBeenCalled();
+    });
+
+    it('lets the game master put everyone in it, and let them go again, only where they are handed in', () => {
+      const names = namesIn(menuWith({ onShareFirstPerson: vi.fn(), onStopSharingFirstPerson: vi.fn() }));
+
+      expect(names).toContain('全員をこのコマの一人称にする');
+      expect(names).toContain('全員の一人称を解除する');
+      expect(namesIn(menuWith({}))).not.toContain('全員をこのコマの一人称にする');
+      expect(namesIn(menuWith({}))).not.toContain('全員の一人称を解除する');
+    });
+  });
+
   it('puts working a move out above everything else the piece is asked', () => {
     const menu = buildGameCharacterContextMenu(
       makeChar() as unknown as GameCharacter,

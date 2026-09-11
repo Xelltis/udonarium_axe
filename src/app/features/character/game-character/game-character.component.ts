@@ -24,6 +24,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
@@ -205,6 +206,7 @@ export class GameCharacterComponent {
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly triggerFire = inject(TriggerFireService);
   private readonly movePlan = inject(MovePlanService);
+  private readonly firstPerson = inject(FirstPersonService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
   private readonly effectAutoPlay = inject(EffectAutoPlayService);
@@ -1161,6 +1163,19 @@ export class GameCharacterComponent {
         onPlanMove: this.moveRangeService.canPlan(char) ? () => void this.movePlan.begin(char) : undefined,
         onToggleTarget: () => this.toggleTarget(),
         onClearTargets: this.anythingTargeted() ? () => this.clearEveryTarget() : undefined,
+        onViewFirstPerson: this.firstPerson.canLookOutOf(char)
+          ? () => this.firstPerson.enterSeat(char.identifier)
+          : undefined,
+        onShareFirstPerson:
+          this.firstPerson.isGameMaster() &&
+          this.firstPerson.canLookOutOf(char) &&
+          this.firstPerson.sharedPiece() !== char.identifier
+            ? () => this.firstPerson.share(char.identifier)
+            : undefined,
+        onStopSharingFirstPerson:
+          this.firstPerson.isGameMaster() && this.firstPerson.sharedPiece() === char.identifier
+            ? () => this.firstPerson.share(null)
+            : undefined,
       },
       this.translateFn,
       overlapEntries,
