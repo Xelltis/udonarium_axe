@@ -15,6 +15,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { FirstPersonProp, FirstPersonPropsService } from '@axe/application/tabletop/first-person-props.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -33,10 +34,10 @@ import {
   firstPersonScene,
 } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
-import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { facingNameOf, isHexLattice, padRows } from '@axe/features/first-person/first-person-hud';
 import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
+import { glowStyle, lyingSamples, propClip, propStyle } from '@axe/features/first-person/first-person-prop-style';
 import {
   billboardStyle,
   cameraTransform,
@@ -76,6 +77,11 @@ interface PieceView {
   style: QuadStyle;
 }
 
+interface PropView extends FirstPersonProp {
+  fill: boolean;
+  style: QuadStyle;
+}
+
 interface GlowView {
   id: string;
   style: QuadStyle;
@@ -93,6 +99,7 @@ interface GlowView {
 })
 export class FirstPersonViewComponent {
   protected readonly firstPerson = inject(FirstPersonService);
+  private readonly propsService = inject(FirstPersonPropsService);
   private readonly imageService = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
@@ -217,30 +224,37 @@ export class FirstPersonViewComponent {
     return views;
   });
 
-  protected readonly glowViews = computed<GlowView[]>(() => {
+  private readonly props = computed(() => this.propsService.props());
+
+  private readonly glows = computed(() => this.propsService.glows());
+
+  protected readonly propViews = computed<PropView[]>(() => {
     const pose = this.shown();
-    const table = this.firstPerson.table();
     const gridSize = this.gridSize();
-    if (!pose || !table || gridSize <= 0) return [];
-    const views: GlowView[] = [];
-    for (const light of lightSourcesOn(table)) {
-      this.objectChange.versionOf(light.identifier)();
-      if (!light.isVisibleOnTable || surfaceOf(light) !== 'floor') continue;
-      if (this.vision.isPieceHiddenByFog(light)) continue;
-      const centre = { x: light.location.x + gridSize / 2, y: light.location.y + gridSize / 2 };
-      if (!this.inSight(pose, centre)) continue;
+    if (!pose || gridSize <= 0) return [];
+    const eye = eyeFrameOf(pose);
+    const scale = this.scale();
+    const views: PropView[] = [];
+    for (const prop of this.props()) {
+      const clip = propClip(prop, eye, gridSize * NEAR_CELLS, scale);
+      if (clip === null || !this.propInSight(pose, prop)) continue;
+      const style = propStyle(prop, pose.yaw, scale);
       views.push({
-        id: light.identifier,
-        style: billboardStyle(
-          { ...centre, z: light.posZ + gridSize * 0.4 },
-          gridSize * 0.7,
-          gridSize * 0.7,
-          pose.yaw,
-          this.scale()
-        ),
+        ...prop,
+        fill: prop.what === 'mask' || prop.what === 'board' || prop.what === 'trigger',
+        style: clip ? { ...style, clipPath: clip } : style,
       });
     }
     return views;
+  });
+
+  protected readonly glowViews = computed<GlowView[]>(() => {
+    const pose = this.shown();
+    if (!pose) return [];
+    const scale = this.scale();
+    return this.glows()
+      .filter((glow) => this.inSight(pose, glow))
+      .map((glow) => ({ id: glow.id, style: glowStyle(glow, pose.yaw, scale) }));
   });
 
   protected readonly pieceName = computed(() => this.firstPerson.piece()?.name ?? '');
@@ -347,6 +361,11 @@ export class FirstPersonViewComponent {
     if (seen && (cell < 0 || !seen.get(cell))) return false;
     const depth = depthOf(eyeFrameOf(pose), centre);
     return depth > this.gridSize() * NEAR_CELLS * 4 && depth <= this.firstPerson.depthPx();
+  }
+
+  private propInSight(pose: FirstPersonPose, prop: FirstPersonProp): boolean {
+    if (prop.kind !== 'lie') return this.inSight(pose, prop);
+    return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(pose, point));
   }
 
   private urlOf(identifier: string): string {

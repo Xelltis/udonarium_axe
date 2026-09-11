@@ -2,10 +2,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { LightSource } from '@axe/domain/tabletop/light-source';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -161,6 +163,22 @@ describe('FirstPersonViewComponent', () => {
       new KeyboardEvent('keydown', { code: 'KeyT', shiftKey: true, bubbles: true, cancelable: true })
     );
     expect(enemy.targeted).toBe(false);
+  });
+
+  it('stands a lit lamp up in the corridor and lays a card on its floor', () => {
+    const light = new LightSource();
+    light.initialize();
+    light.location = { name: 'table', x: 4 * GRID, y: 4 * GRID };
+    table.appendChild(light);
+    const card = Card.create('札', 'front', 'back');
+    card.location = { name: 'table', x: 4 * GRID, y: 5 * GRID };
+    lookOutOf(pieceAt(4, 7));
+
+    const view = element(mount());
+
+    expect(view.querySelector('[data-prop="light"]')).not.toBeNull();
+    expect(view.querySelector('[data-glow]')).not.toBeNull();
+    expect(view.querySelector('[data-prop="card"]')).not.toBeNull();
   });
 
   it('acts as the piece it looks out of, so an effect is cast from there', () => {

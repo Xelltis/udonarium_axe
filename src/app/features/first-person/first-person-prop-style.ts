@@ -1,0 +1,114 @@
+import { FirstPersonGlow, FirstPersonProp } from '@axe/application/tabletop/first-person-props.service';
+import {
+  clipPolygonToEye,
+  clipSpanToEye,
+  depthOf,
+  EyeFrame,
+} from '@axe/domain/tabletop/first-person/first-person-clip';
+import { CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { billboardStyle, QuadStyle } from '@axe/features/first-person/first-person-style';
+
+const GLOW_FALLBACK = '#ffd68c';
+
+export function propStyle(prop: FirstPersonProp, yaw: number, scale: number): QuadStyle {
+  const size = { width: px(prop.width * scale), height: px(prop.height * scale), transformOrigin: '0 0' };
+  if (prop.kind === 'stand') {
+    return billboardStyle({ x: prop.x, y: prop.y, z: prop.z }, prop.width, prop.height, yaw, scale);
+  }
+  if (prop.kind === 'board') {
+    return {
+      ...size,
+      transform: `translate3d(${px(prop.x * scale)}, ${px(prop.y * scale)}, ${px(prop.z * scale)}) rotateZ(${deg(prop.rotate)}) rotateX(-90deg) translate(-50%, -100%)`,
+    };
+  }
+  return {
+    ...size,
+    transform: `translate3d(${px(prop.x * scale)}, ${px(prop.y * scale)}, ${px(prop.z * scale)}) rotateZ(${deg(prop.rotate)}) translate(-50%, -50%)`,
+  };
+}
+
+export function glowStyle(glow: FirstPersonGlow, yaw: number, scale: number): QuadStyle {
+  const color = glow.color || GLOW_FALLBACK;
+  return {
+    ...billboardStyle({ x: glow.x, y: glow.y, z: glow.z - glow.radius }, glow.radius * 2, glow.radius * 2, yaw, scale),
+    backgroundImage: `radial-gradient(circle, ${color} 0%, color-mix(in srgb, ${color} 40%, transparent) 35%, transparent 70%)`,
+  };
+}
+
+export function lyingCorners(prop: FirstPersonProp): CellPoint[] {
+  return [
+    [-0.5, -0.5],
+    [0.5, -0.5],
+    [0.5, 0.5],
+    [-0.5, 0.5],
+  ].map(([u, v]) => worldOf(prop, u * prop.width, v * prop.height));
+}
+
+export function lyingSamples(prop: FirstPersonProp, stepPx: number): CellPoint[] {
+  const across = Math.max(1, Math.ceil(prop.width / stepPx));
+  const down = Math.max(1, Math.ceil(prop.height / stepPx));
+  const points: CellPoint[] = [];
+  for (let column = 0; column < across; column++) {
+    for (let row = 0; row < down; row++) {
+      points.push(
+        worldOf(prop, ((column + 0.5) / across - 0.5) * prop.width, ((row + 0.5) / down - 0.5) * prop.height)
+      );
+    }
+  }
+  return points;
+}
+
+export function propClip(prop: FirstPersonProp, eye: EyeFrame, nearPx: number, scale: number): string | null {
+  if (prop.kind === 'stand') return depthOf(eye, prop) > nearPx ? '' : null;
+  if (prop.kind === 'board') {
+    const along = { x: Math.cos(radiansOf(prop)) * (prop.width / 2), y: Math.sin(radiansOf(prop)) * (prop.width / 2) };
+    const span = clipSpanToEye(
+      eye,
+      { x: prop.x - along.x, y: prop.y - along.y },
+      { x: prop.x + along.x, y: prop.y + along.y },
+      nearPx
+    );
+    if (!span) return null;
+    if (span.t0 === 0 && span.t1 === 1) return '';
+    return `inset(0 ${percent(1 - span.t1)} 0 ${percent(span.t0)})`;
+  }
+  const corners = lyingCorners(prop);
+  if (corners.every((corner) => depthOf(eye, corner) >= nearPx)) return '';
+  const kept = clipPolygonToEye(eye, corners, nearPx);
+  if (kept.length === 0) return null;
+  const cos = Math.cos(radiansOf(prop));
+  const sin = Math.sin(radiansOf(prop));
+  const local = kept.map((point) => {
+    const dx = point.x - prop.x;
+    const dy = point.y - prop.y;
+    return `${px((dx * cos + dy * sin + prop.width / 2) * scale)} ${px((-dx * sin + dy * cos + prop.height / 2) * scale)}`;
+  });
+  return `polygon(${local.join(', ')})`;
+}
+
+function worldOf(prop: FirstPersonProp, u: number, v: number): CellPoint {
+  const cos = Math.cos(radiansOf(prop));
+  const sin = Math.sin(radiansOf(prop));
+  return { x: prop.x + u * cos - v * sin, y: prop.y + u * sin + v * cos };
+}
+
+function radiansOf(prop: FirstPersonProp): number {
+  return (prop.rotate * Math.PI) / 180;
+}
+
+function round(value: number): number {
+  const rounded = Math.round(value * 1000) / 1000;
+  return rounded === 0 ? 0 : rounded;
+}
+
+function px(value: number): string {
+  return `${round(value)}px`;
+}
+
+function deg(value: number): string {
+  return `${round(value)}deg`;
+}
+
+function percent(value: number): string {
+  return `${round(value * 100)}%`;
+}

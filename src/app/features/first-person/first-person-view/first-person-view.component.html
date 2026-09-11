@@ -47,12 +47,46 @@
         }
       </div>
     }
-    @for (glow of glowViews(); track glow.id) {
+    @for (prop of propViews(); track prop.id) {
       <div
-        class="absolute top-0 left-0 rounded-full bg-[radial-gradient(circle,rgba(255,214,140,0.95)_0%,rgba(255,170,60,0.45)_35%,rgba(255,140,0,0)_70%)]"
-        data-glow
-        [style]="glow.style"
-      ></div>
+        class="pointer-events-none absolute top-0 left-0 flex items-end justify-center"
+        [class.rounded-full]="prop.round"
+        [class.overflow-hidden]="prop.round"
+        [class.rounded-sm]="prop.what === 'card' || prop.what === 'stack'"
+        [attr.data-prop]="prop.what"
+        [style]="prop.style"
+        [style.opacity]="prop.opacity"
+        [style.background-color]="prop.image ? null : prop.color || null"
+      >
+        @if (prop.image) {
+          <img
+            class="size-full"
+            [class.object-contain]="!prop.fill"
+            [class.object-bottom]="prop.kind === 'stand'"
+            [class.object-fill]="prop.fill"
+            [class.brightness-0]="prop.dark"
+            [src]="prop.image"
+            alt=""
+            draggable="false"
+          />
+        } @else if (prop.what === 'light') {
+          <i class="material-icons text-[180px]! leading-none!" [style.color]="prop.color">lightbulb</i>
+        }
+        @if (prop.text) {
+          <span class="absolute inset-0 overflow-hidden p-6 text-3xl whitespace-pre-wrap text-stone-900">{{
+            prop.text
+          }}</span>
+        }
+        @if (prop.label) {
+          <span
+            class="absolute -top-10 left-1/2 -translate-x-1/2 rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
+            >{{ prop.label }}</span
+          >
+        }
+      </div>
+    }
+    @for (glow of glowViews(); track glow.id) {
+      <div class="pointer-events-none absolute top-0 left-0 rounded-full" data-glow [style]="glow.style"></div>
     }
   </div>
 </div>
