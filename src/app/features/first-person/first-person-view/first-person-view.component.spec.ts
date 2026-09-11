@@ -127,4 +127,10 @@ describe('FirstPersonViewComponent', () => {
     expect(view.querySelector('[data-testid="first-person-shared"]')).not.toBeNull();
     expect(view.querySelector('[data-testid="first-person-exit"]')).toBeNull();
   });
+
+  it('keeps a map of the ground about the piece in the corner', () => {
+    lookOutOf(pieceAt(4, 7));
+
+    expect(element(mount()).querySelector('[data-testid="first-person-minimap"]')).not.toBeNull();
+  });
 });

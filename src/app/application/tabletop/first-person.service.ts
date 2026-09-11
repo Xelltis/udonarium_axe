@@ -33,10 +33,13 @@ import {
 } from '@axe/domain/tabletop/first-person/first-person-target';
 import { FirstPersonWorld, firstPersonWorldOf } from '@axe/domain/tabletop/first-person/first-person-world';
 import { freeStepClear } from '@axe/domain/tabletop/first-person/free-step';
+import { MinimapView, minimapViewOf } from '@axe/domain/tabletop/first-person/minimap-view';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, CellGrid, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, CellPoint, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { computeVisibleCellsFor } from '@axe/domain/tabletop/fog/visible-cells';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
+import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
@@ -194,6 +197,30 @@ export class FirstPersonService {
       if (both.get(cell) && !reveal.get(cell)) both.unset(cell);
     }
     return both;
+  });
+
+  readonly minimap = computed<MinimapView | null>(() => {
+    this.worldEpoch();
+    const table = this.table();
+    const grid = this.grid();
+    const pose = this.pose();
+    if (!table || !grid || !pose) return null;
+    const doors = new Map<number, boolean>();
+    for (const terrain of table.terrains) {
+      if (!terrain.isDoor || surfaceOf(terrain) !== 'floor') continue;
+      const box = terrainBoxOf(terrain, table.gridSize);
+      forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => doors.set(cell, terrain.isDoorOpen));
+    }
+    return minimapViewOf(
+      {
+        grid,
+        walls: blockedByTerrain(grid, table.terrains),
+        noEntry: moveBlockMapOn(table)?.read(grid) ?? null,
+        doors,
+        reveal: this.reveal(),
+      },
+      pose
+    );
   });
 
   readonly canWalk = computed(() => {

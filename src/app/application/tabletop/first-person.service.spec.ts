@@ -316,4 +316,25 @@ describe('FirstPersonService', () => {
       expect(piece.location.x).toBe(5 * GRID);
     });
   });
+
+  describe('the map in the corner', () => {
+    it('marks the walls and the shut doors about the eye, and the ground it stands on', () => {
+      block(6 * GRID, 5 * GRID, 1, 1);
+      const door = block(4 * GRID + 0.375 * GRID, 5 * GRID, 0.25, 1);
+      door.doorStyle = DoorStyle.SWING;
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+      const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+
+      const tones = new Map(
+        service()
+          .minimap()!
+          .cells.map((cell) => [cell.index, cell.tone])
+      );
+
+      expect(tones.get(cellIndexOf(grid, 6, 5))).toBe('wall');
+      expect(tones.get(cellIndexOf(grid, 4, 5))).toBe('doorShut');
+      expect(tones.get(cellIndexOf(grid, 5, 5))).toBe('floor');
+    });
+  });
 });

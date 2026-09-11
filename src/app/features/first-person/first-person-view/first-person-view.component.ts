@@ -8,6 +8,7 @@ import {
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ImageService } from '@axe/application/storage/image.service';
@@ -43,6 +44,7 @@ import {
   wallQuadStyle,
 } from '@axe/features/first-person/first-person-style';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
+import { paintMinimap } from '@axe/infrastructure/first-person/minimap-painter';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const NEAR_CELLS = 0.05;
@@ -92,6 +94,7 @@ export class FirstPersonViewComponent {
   private readonly visualNovel = inject(VisualNovelModeService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly minimapCanvas = viewChild<ElementRef<HTMLCanvasElement>>('minimap');
 
   private readonly width = signal(0);
   private readonly shown = signal<FirstPersonPose | null>(null);
@@ -101,6 +104,11 @@ export class FirstPersonViewComponent {
     effect(() => {
       const target = this.firstPerson.pose();
       untracked(() => this.glideTo(target));
+    });
+    effect(() => {
+      const view = this.firstPerson.minimap();
+      const context = this.minimapCanvas()?.nativeElement.getContext('2d');
+      if (view && context) paintMinimap(context, view);
     });
     this.watchWidth();
     this.destroyRef.onDestroy(() => this.stopGlide());
