@@ -16,6 +16,7 @@ import {
   directionOf,
   eyePoseAt,
   facingIndexOf,
+  FIRST_PERSON_EYE_HEIGHT_CELLS,
   FirstPersonLattice,
   FirstPersonMove,
   FirstPersonPose,
@@ -159,7 +160,8 @@ export class FirstPersonService {
       const standing = this.standingPoint(piece, table, grid);
       if (!standing) return null;
       const yaw = snappedRotate(this.lattice(), piece.rotate);
-      return eyePoseAt(standing, yaw, eyeHeightPx(piece.altitude, piece.posZ, table.gridSize), table.gridSize);
+      const eyeZ = (piece.altitude + FIRST_PERSON_EYE_HEIGHT_CELLS) * table.gridSize + piece.posZ;
+      return eyePoseAt(standing, yaw, eyeZ, table.gridSize);
     },
     { equal: samePose }
   );
@@ -178,7 +180,7 @@ export class FirstPersonService {
       ...(own ?? { type: VisionType.NORMAL, owner: piece.owner, sourceId: piece.identifier }),
       x: pose.x,
       y: pose.y,
-      z: pose.z,
+      z: eyeHeightPx(piece.altitude, piece.posZ, scene.gridSize),
       rangePx: own && own.rangePx > 0 ? Math.min(own.rangePx, depth) : depth,
       direction: facingBearing(pose.yaw),
       lobes: [{ direction: 0, angle: FIRST_PERSON_FOV_DEG + SIGHT_MARGIN_DEG, rangeScale: 1 }],

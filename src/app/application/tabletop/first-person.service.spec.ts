@@ -82,7 +82,7 @@ describe('FirstPersonService', () => {
 
       expect(service().showing()).toBe(true);
       expect(service().forced()).toBe(false);
-      expect(service().pose()).toEqual({ x: 260, y: 275, z: 25, yaw: 90 });
+      expect(service().pose()).toEqual({ x: 260, y: 275, z: 40, yaw: 90 });
     });
 
     it('puts a player on the piece the table names while a game master is in the room', () => {
@@ -222,11 +222,11 @@ describe('FirstPersonService', () => {
     it('carries the eye along with the piece as it steps and turns', async () => {
       const piece = pieceAt(5, 5, 90);
       service().enterSeat(piece.identifier);
-      expect(service().pose()).toEqual({ x: 260, y: 275, z: 25, yaw: 90 });
+      expect(service().pose()).toEqual({ x: 260, y: 275, z: 40, yaw: 90 });
 
       await service().walk('forward');
       touch(piece.identifier);
-      expect(service().pose()).toEqual({ x: 310, y: 275, z: 25, yaw: 90 });
+      expect(service().pose()).toEqual({ x: 310, y: 275, z: 40, yaw: 90 });
 
       await service().turn(1);
       touch(piece.identifier);

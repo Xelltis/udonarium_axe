@@ -21,6 +21,8 @@ export interface FirstPersonPose {
 
 export const FIRST_PERSON_EYE_BACK = 0.3;
 
+export const FIRST_PERSON_EYE_HEIGHT_CELLS = 0.8;
+
 const SQUARE: FirstPersonLattice = {
   kind: 'square',
   facings: 4,
