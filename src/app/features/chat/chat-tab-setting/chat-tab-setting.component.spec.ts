@@ -1,5 +1,6 @@
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CHAT_LOG_STYLE_STORAGE_KEY } from '@axe/application/chat/chat-log-style-preference.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -97,22 +98,66 @@ describe('ChatTabSettingComponent', () => {
       tab.initialize();
       tab.guestCanView = false;
       component.selectedTab.set(tab);
-      const spy = vi.spyOn(saveData, 'saveHtmlChatLog').mockResolvedValue(undefined);
+      const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
 
       component.saveLog();
 
       expect(spy).toHaveBeenCalledOnce();
+      expect(spy.mock.calls[0][1]).toBe('tab');
+      expect(spy.mock.calls[0][2]).toEqual([tab]);
     });
 
     it('lets them save every tab, unfiltered', () => {
       PeerCursor.createMyCursor();
       PeerCursor.myCursor.role = PeerRole.Guest;
-      const spy = vi.spyOn(saveData, 'saveHtmlChatLogAll').mockResolvedValue(undefined);
+      const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
 
       component.saveAllLog();
 
       expect(spy).toHaveBeenCalledOnce();
-      expect(spy.mock.calls[0][1]).toEqual(component.chatTabs);
+      expect(spy.mock.calls[0][1]).toBe('all');
+      expect(spy.mock.calls[0][2]).toEqual(component.chatTabs);
+    });
+  });
+
+  describe('the style of the log', () => {
+    let saveData: SaveDataService;
+
+    beforeEach(() => {
+      localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
+      saveData = TestBed.inject(SaveDataService);
+    });
+
+    afterEach(() => {
+      localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
+      vi.restoreAllMocks();
+    });
+
+    it('saves in the style picked', () => {
+      const tab = new ChatTab();
+      tab.initialize();
+      component.selectedTab.set(tab);
+      const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
+
+      component.chooseLogStyle('washi');
+      component.saveLog();
+
+      expect(spy.mock.calls[0][0]).toBe('washi');
+    });
+
+    it('writes the standard layout for the system tab in place of the one other tools read', () => {
+      const systemTab = ChatTabList.instance.ensureSystemTab();
+      try {
+        component.selectedTab.set(systemTab);
+        const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
+
+        component.chooseLogStyle('coc');
+        component.saveLog();
+
+        expect(spy.mock.calls[0][0]).toBe('standard');
+      } finally {
+        systemTab.destroy();
+      }
     });
   });
 

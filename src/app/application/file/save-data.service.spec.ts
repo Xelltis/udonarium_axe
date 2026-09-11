@@ -121,7 +121,7 @@ describe('SaveDataService', () => {
 
   describe('the image registry in an exported log', () => {
     type RegistryApi = {
-      buildChatLogImageRegistry: (chatTabs: readonly unknown[]) => Promise<{
+      prepareChatLogImages: (chatTabs: readonly unknown[]) => Promise<{
         resolver: (image: ImageFile) => string;
         registryScript: string;
       }>;
@@ -145,7 +145,7 @@ describe('SaveDataService', () => {
       } as unknown as ImageFile;
       const tab = makeTab([{ image: portrait }, { image: portrait }, { image: portrait }]);
 
-      const { resolver, registryScript } = await api.buildChatLogImageRegistry([tab]);
+      const { resolver, registryScript } = await api.prepareChatLogImages([tab]);
 
       const key = resolver(portrait);
       expect(key).toMatch(/^i\d+$/);
@@ -165,7 +165,7 @@ describe('SaveDataService', () => {
       } as unknown as ImageFile;
       const tab = makeTab([{ image: portrait }]);
 
-      const { registryScript } = await api.buildChatLogImageRegistry([tab]);
+      const { registryScript } = await api.prepareChatLogImages([tab]);
 
       expect(registryScript).toContain("querySelectorAll('img[data-img-key]')");
       expect(registryScript).toContain("setAttribute('src'");
@@ -176,11 +176,11 @@ describe('SaveDataService', () => {
       const api = service as unknown as RegistryApi;
       const tab = makeTab([{}, {}]);
 
-      const { registryScript } = await api.buildChatLogImageRegistry([tab]);
+      const { registryScript } = await api.prepareChatLogImages([tab]);
       expect(registryScript).toBe('');
     });
 
-    it('shrinks a portrait to 48 square', async () => {
+    it('shrinks a portrait to 96 square', async () => {
       const service = TestBed.inject(SaveDataService);
       const privateApi = service as unknown as SaveDataServicePrivateApi;
       const api = service as unknown as RegistryApi;
@@ -192,9 +192,9 @@ describe('SaveDataService', () => {
       } as unknown as ImageFile;
       const tab = makeTab([{ image: portrait }]);
 
-      await api.buildChatLogImageRegistry([tab]);
+      await api.prepareChatLogImages([tab]);
 
-      expect(spy).toHaveBeenCalledWith(portrait, 48, true);
+      expect(spy).toHaveBeenCalledWith(portrait, 96, true);
     });
 
     it('shrinks an attachment to 360 on its longest side', async () => {
@@ -209,7 +209,7 @@ describe('SaveDataService', () => {
       } as unknown as ImageFile;
       const tab = makeTab([{ attachmentImages: [attachment] }]);
 
-      await api.buildChatLogImageRegistry([tab]);
+      await api.prepareChatLogImages([tab]);
 
       expect(spy).toHaveBeenCalledWith(attachment, 360, false);
     });

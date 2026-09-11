@@ -2710,7 +2710,6 @@
         "logSaveSection": "Save log",
         "saveThisTab": "This tab",
         "saveAllTabs": "All tabs",
-        "cocLogMode": "Export as CoC log",
         "logDeleteSection": "Clear log",
         "allowDeleteLog": "Enable clear",
         "deleteLogThisTab": "This tab",
@@ -2719,6 +2718,53 @@
         "noneMark": "—",
         "allTabsLogName": "All tabs",
         "systemTabNote": "A notice board: everyone sees it, no one writes in it. Its name and position are fixed, and it is never saved with the room."
+      },
+      "log": {
+        "styleLabel": "Style",
+        "styles": {
+          "standard": {
+            "name": "Standard",
+            "description": "The plain classic layout"
+          },
+          "parchment": {
+            "name": "Parchment",
+            "description": "For tales of sword and sorcery"
+          },
+          "eerie": {
+            "name": "Eerie",
+            "description": "For records of dread and madness"
+          },
+          "neon": {
+            "name": "Neon",
+            "description": "For near-future, cyber tables"
+          },
+          "washi": {
+            "name": "Washi",
+            "description": "For Japanese and period settings"
+          },
+          "messenger": {
+            "name": "Messenger",
+            "description": "For modern, everyday stories"
+          },
+          "coc": {
+            "name": "CoC log",
+            "description": "The classic layout other tools can read"
+          }
+        },
+        "labels": {
+          "secret": "Secret dice",
+          "edited": "edited",
+          "quote": "Quote",
+          "reply": "Reply to",
+          "critical": "Critical",
+          "fumble": "Fumble",
+          "success": "Success",
+          "failure": "Failure",
+          "allTabs": "All tabs",
+          "everyTab": "All",
+          "messages": "{{count}} lines",
+          "exportedWith": "Exported from Udonarium Axe"
+        }
       },
       "colorSetting": {
         "sample": "Hello, world!",

@@ -2710,7 +2710,6 @@
         "logSaveSection": "로그 저장",
         "saveThisTab": "이 탭",
         "saveAllTabs": "전체 탭",
-        "cocLogMode": "CoC 로그 형식으로 내보내기",
         "logDeleteSection": "로그 삭제",
         "allowDeleteLog": "삭제 사용",
         "deleteLogThisTab": "이 탭",
@@ -2719,6 +2718,53 @@
         "noneMark": "—",
         "allTabsLogName": "전체 탭",
         "systemTabNote": "알림 게시판입니다. 전원에게 보이고 아무도 쓸 수 없습니다. 이름과 순서는 고정이며 방 데이터에도 저장되지 않습니다."
+      },
+      "log": {
+        "styleLabel": "형식",
+        "styles": {
+          "standard": {
+            "name": "표준",
+            "description": "장식 없는 기존 형식"
+          },
+          "parchment": {
+            "name": "양피지",
+            "description": "검과 마법의 모험담에"
+          },
+          "eerie": {
+            "name": "괴기",
+            "description": "공포와 광기의 기록에"
+          },
+          "neon": {
+            "name": "전뇌",
+            "description": "근미래·사이버 세션에"
+          },
+          "washi": {
+            "name": "화지",
+            "description": "일본풍·시대물에"
+          },
+          "messenger": {
+            "name": "토크",
+            "description": "현대물·일상물에"
+          },
+          "coc": {
+            "name": "CoC 로그 형식",
+            "description": "다른 도구에서 읽을 수 있는 기존 형식"
+          }
+        },
+        "labels": {
+          "secret": "시크릿 다이스",
+          "edited": "편집됨",
+          "quote": "인용",
+          "reply": "답장 대상",
+          "critical": "크리티컬",
+          "fumble": "펌블",
+          "success": "성공",
+          "failure": "실패",
+          "allTabs": "전체 탭",
+          "everyTab": "전체",
+          "messages": "발언 {{count}}건",
+          "exportedWith": "Udonarium Axe에서 내보냄"
+        }
       },
       "colorSetting": {
         "sample": "안녕하세요!",

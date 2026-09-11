@@ -2710,7 +2710,6 @@
         "logSaveSection": "ログ保存",
         "saveThisTab": "このタブ",
         "saveAllTabs": "全タブ",
-        "cocLogMode": "CoCログ形式で出力",
         "logDeleteSection": "ログ消去",
         "allowDeleteLog": "消去を有効化",
         "deleteLogThisTab": "このタブ",
@@ -2719,6 +2718,53 @@
         "noneMark": "—",
         "allTabsLogName": "全タブ",
         "systemTabNote": "知らせの貼り紙です。全員に見え、誰も書き込めません。名前と並びは固定で、部屋データにも保存されません。"
+      },
+      "log": {
+        "styleLabel": "形式",
+        "styles": {
+          "standard": {
+            "name": "標準",
+            "description": "装飾なしの従来形式"
+          },
+          "parchment": {
+            "name": "羊皮紙",
+            "description": "剣と魔法の冒険譚に"
+          },
+          "eerie": {
+            "name": "怪奇",
+            "description": "恐怖と狂気の記録に"
+          },
+          "neon": {
+            "name": "電脳",
+            "description": "近未来・サイバーな卓に"
+          },
+          "washi": {
+            "name": "和紙",
+            "description": "和風・時代物に"
+          },
+          "messenger": {
+            "name": "トーク",
+            "description": "現代もの・日常ものに"
+          },
+          "coc": {
+            "name": "CoCログ形式",
+            "description": "他のツールで読み込める従来形式"
+          }
+        },
+        "labels": {
+          "secret": "シークレットダイス",
+          "edited": "編集済",
+          "quote": "引用",
+          "reply": "返信先",
+          "critical": "クリティカル",
+          "fumble": "ファンブル",
+          "success": "成功",
+          "failure": "失敗",
+          "allTabs": "全タブ",
+          "everyTab": "すべて",
+          "messages": "{{count}} 件の発言",
+          "exportedWith": "Udonarium Axe で書き出し"
+        }
       },
       "colorSetting": {
         "sample": "こんにちは！",
