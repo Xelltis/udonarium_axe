@@ -407,7 +407,19 @@ export class GameDataElementComponent {
   static readonly ICON_GROUPS: { labelKey: string; icons: string[] }[] = [
     {
       labelKey: 'feature.dataElement.iconGroup.character',
-      icons: ['person', 'face', 'account_circle', 'groups', 'man', 'woman', 'child_care', 'elderly'],
+      icons: [
+        'person',
+        'face',
+        'account_circle',
+        'groups',
+        'man',
+        'woman',
+        'child_care',
+        'elderly',
+        'back_hand',
+        'accessibility',
+        'roller_skating',
+      ],
     },
     {
       labelKey: 'feature.dataElement.iconGroup.combat',
