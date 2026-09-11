@@ -90,6 +90,7 @@ describe('FirstPersonService', () => {
       const party = pieceAt(5, 5);
       const mine = pieceAt(2, 2);
       service().enterSeat(mine.identifier);
+      expect(service().target()).toEqual({ piece: mine.identifier, shared: false });
 
       table.sharedViewPiece = party.identifier;
       touch(table.identifier);

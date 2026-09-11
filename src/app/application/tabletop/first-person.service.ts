@@ -78,12 +78,15 @@ export class FirstPersonService {
     );
   }
 
-  readonly table = computed<GameTable | null>(() => {
-    this.objectChange.versionOf(this.tableSelecter.identifier)();
-    const table = this.tableSelecter.viewTable;
-    if (table) this.objectChange.versionOf(table.identifier)();
-    return table;
-  });
+  readonly table = computed<GameTable | null>(
+    () => {
+      this.objectChange.versionOf(this.tableSelecter.identifier)();
+      const table = this.tableSelecter.viewTable;
+      if (table) this.objectChange.versionOf(table.identifier)();
+      return table;
+    },
+    { equal: () => false }
+  );
 
   readonly isGameMaster = computed(() => {
     this.objectChange.trackMyCursor();
@@ -138,16 +141,19 @@ export class FirstPersonService {
 
   readonly depthPx = computed(() => FIRST_PERSON_DEPTH_CELLS * (this.table()?.gridSize ?? 0));
 
-  readonly pose = computed<FirstPersonPose | null>(() => {
-    const piece = this.piece();
-    const table = this.table();
-    const grid = this.grid();
-    if (!piece || !table || !grid) return null;
-    const standing = this.standingPoint(piece, table, grid);
-    if (!standing) return null;
-    const yaw = snappedRotate(this.lattice(), piece.rotate);
-    return eyePoseAt(standing, yaw, eyeHeightPx(piece.altitude, piece.posZ, table.gridSize), table.gridSize);
-  });
+  readonly pose = computed<FirstPersonPose | null>(
+    () => {
+      const piece = this.piece();
+      const table = this.table();
+      const grid = this.grid();
+      if (!piece || !table || !grid) return null;
+      const standing = this.standingPoint(piece, table, grid);
+      if (!standing) return null;
+      const yaw = snappedRotate(this.lattice(), piece.rotate);
+      return eyePoseAt(standing, yaw, eyeHeightPx(piece.altitude, piece.posZ, table.gridSize), table.gridSize);
+    },
+    { equal: samePose }
+  );
 
   readonly sight = computed<CellBits | null>(() => {
     const pose = this.pose();
@@ -382,4 +388,10 @@ export class FirstPersonService {
       if (next) void this.run(next);
     }
   }
+}
+
+function samePose(a: FirstPersonPose | null, b: FirstPersonPose | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.x === b.x && a.y === b.y && a.z === b.z && a.yaw === b.yaw;
 }
