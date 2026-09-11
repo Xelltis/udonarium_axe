@@ -1,3 +1,30 @@
+## [1.53.0](https://github.com/Xelltis/udonarium_axe/compare/v1.52.0...v1.53.0) (2026-09-11)
+
+### ✨ Features
+
+* **chat:** add nine more log styles ([6d063d1](https://github.com/Xelltis/udonarium_axe/commit/6d063d1341ad3df7dbe0a3f7add7b40731cd77a8))
+* **chat:** choose the style a log is saved in ([031ea83](https://github.com/Xelltis/udonarium_axe/commit/031ea83b09525ce2e6dac6dedb8b8efc4cbce3c5))
+* **chat:** dress an exported log in a theme ([5bd31f0](https://github.com/Xelltis/udonarium_axe/commit/5bd31f0bc43daef8dcfc0e2bb3f6b6470b051a37))
+* **chat:** preview each log style before saving ([71afee1](https://github.com/Xelltis/udonarium_axe/commit/71afee1981ef9e9e3c86771964550e24f266412e))
+* **data-element:** copy a group or a section straight after itself ([48fe224](https://github.com/Xelltis/udonarium_axe/commit/48fe224a83d006c16f0a5dae6fe15055b3ba4b6d))
+* **data-element:** keep parts of a sheet on its piece as templates to edit and add anywhere ([187bbf5](https://github.com/Xelltis/udonarium_axe/commit/187bbf5bb6f3d30c623f8357ab639c7ba608e3d3))
+
+### 🐛 Bug Fixes
+
+* **character:** give the sample sheet a table of parts for each site of the body ([d6e4f7a](https://github.com/Xelltis/udonarium_axe/commit/d6e4f7a73fb95381b39ae2642b2e6c6d5ffb83ac))
+* **character:** keep a piece's templates out of what its menu can fire ([40759e0](https://github.com/Xelltis/udonarium_axe/commit/40759e02d141148e3bd4f2c95bff4260bdc14ace))
+* **data-element:** keep the icon picker above the rows of the group it opens on ([6bcc0a8](https://github.com/Xelltis/udonarium_axe/commit/6bcc0a88db1216a0cdc365207e8dd0f04469e43e))
+* **data-element:** offer icons for a hand, a body and a foot ([0f70c6f](https://github.com/Xelltis/udonarium_axe/commit/0f70c6fcd870157299e281ea9c5182b6a691f95b))
+
+### 📝 Documentation
+
+* **manual:** describe the log styles and their preview ([c79bae4](https://github.com/Xelltis/udonarium_axe/commit/c79bae4cd41cf5670551abbbfc8e0e8c669717b2))
+* **website:** say what else v1.52.0 fixed ([157bae8](https://github.com/Xelltis/udonarium_axe/commit/157bae81b8ceed1f8f21374340c97235be67bbd1))
+
+### ♻️ Refactor
+
+* **chat:** let the log exporter read any tab-shaped source ([254e15e](https://github.com/Xelltis/udonarium_axe/commit/254e15e73a06ca26e2d88fdcf63d9c660a74dee8))
+
 ## [1.52.0](https://github.com/Xelltis/udonarium_axe/compare/v1.51.0...v1.52.0) (2026-09-10)
 
 ### ✨ Features
