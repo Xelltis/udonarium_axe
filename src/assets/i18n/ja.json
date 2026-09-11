@@ -1318,7 +1318,10 @@
         "convertLegacyTables": "構造化テーブルに一括変換",
         "popupSetting": "ポップアップ設定",
         "popupWidth": "横幅",
-        "popupMaxHeight": "高さ最大"
+        "popupMaxHeight": "高さ最大",
+        "templates": "テンプレート",
+        "addTemplateToSheet": "シートに追加",
+        "noTemplates": "保存したテンプレートはまだありません"
       },
       "panel": {
         "folder": "フォルダ",
@@ -3952,7 +3955,10 @@
       "deleteSection": "このセクションを削除",
       "normalView": "通常表示",
       "tableView": "テーブル表示",
-      "duplicate": "複製"
+      "duplicate": "複製",
+      "saveTemplate": "テンプレートとして保存",
+      "addFromTemplate": "テンプレートから追加",
+      "deleteTemplate": "テンプレートを削除"
     },
     "defaults": {
       "newGroup": "グループ",

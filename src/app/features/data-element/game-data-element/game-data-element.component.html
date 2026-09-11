@@ -597,7 +597,7 @@
           class="relative z-1 m-0 mb-1 min-w-0 rounded-l-none rounded-r-xs border border-l-[3px] border-(--gde-row-border) border-l-(--gde-accent-border) bg-(--gde-section-bg) px-2 py-1.25 pl-2.5 text-[0.82em] shadow-(--gde-section-shadow)"
           [class.px-2!]="isEdit()"
           [class.py-1.25!]="isEdit()"
-          [class.z-100!]="iconPickerOpen()"
+          [class.z-100!]="iconPickerOpen() || templateMenuOpen()"
         >
           @if (!isTagLocked() && isEdit()) {
             <div
@@ -736,6 +736,16 @@
                   <i class="material-icons">library_add</i>
                 </button>
               }
+              @if (canSaveAsTemplate()) {
+                <button
+                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
+                  type="button"
+                  (click)="saveAsTemplate()"
+                  [title]="'feature.dataElement.action.saveTemplate' | transloco"
+                >
+                  <i class="material-icons">bookmark_add</i>
+                </button>
+              }
               @if (isImage()) {
                 <button
                   class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
@@ -755,6 +765,46 @@
                   >
                     <i class="material-icons">create_new_folder</i>
                   </button>
+                }
+                @if (elementTemplates().length > 0) {
+                  <div class="relative shrink-0">
+                    <button
+                      class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
+                      [class.bg-ui-accent-bg]="templateMenuOpen()"
+                      [class.text-ui-accent!]="templateMenuOpen()"
+                      type="button"
+                      (click)="templateMenuOpen.update((v) => !v)"
+                      [title]="'feature.dataElement.action.addFromTemplate' | transloco"
+                    >
+                      <i class="material-icons">bookmarks</i>
+                    </button>
+                    @if (templateMenuOpen()) {
+                      <div class="fixed inset-0 z-100" (click)="templateMenuOpen.set(false)"></div>
+                      <div
+                        class="elm-template-menu bg-ui-elevated border-ui-border-panel absolute top-[calc(100%+4px)] right-0 z-101 max-h-80 w-48 overflow-y-auto rounded-sm border p-1 shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+                      >
+                        @for (template of elementTemplates(); track template.identifier) {
+                          <div class="flex items-center gap-0.5">
+                            <button
+                              class="text-ui-text hover:bg-ui-hover min-w-0 flex-1 cursor-pointer truncate rounded-xs border-none bg-transparent px-1.5 py-1 text-left text-[0.85em]"
+                              type="button"
+                              (click)="insertTemplate(template)"
+                            >
+                              {{ template.name }}
+                            </button>
+                            <button
+                              class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent p-0 [&_.material-icons]:text-[14px]"
+                              type="button"
+                              (click)="deleteTemplate(template, $event)"
+                              [title]="'feature.dataElement.action.deleteTemplate' | transloco"
+                            >
+                              <i class="material-icons">close</i>
+                            </button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
                 }
                 @if (canAddChildFieldElement()) {
                   <button

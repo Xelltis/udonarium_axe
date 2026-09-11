@@ -1,4 +1,5 @@
 import { DataElement, DataElementRole, type DataElementRoleValue } from '@axe/domain/data/data-element';
+import { ELEMENT_TEMPLATES_NAME } from '@axe/domain/data/data-element-templates';
 
 export type DataElementDropPosition = 'before' | 'after' | 'inside';
 
@@ -23,7 +24,7 @@ export function canAcceptChildRole(parentElement: DataElement, childRole: DataEl
 export function getElementDepth(element: DataElement): number {
   let depth = 0;
   let parent = element.parent;
-  while (parent instanceof DataElement && parent.name !== 'detail') {
+  while (parent instanceof DataElement && parent.name !== 'detail' && parent.name !== ELEMENT_TEMPLATES_NAME) {
     depth++;
     parent = parent.parent;
   }

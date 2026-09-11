@@ -4,7 +4,18 @@ import {
   DataElementFieldType,
   DataElementRole,
 } from '@axe/domain/data/data-element';
-import type { DataElementDropPosition } from '@axe/features/data-element/game-data-element/game-data-element-structure-drop';
+import {
+  buildElementTemplate,
+  type ElementPlacement,
+  settleElementRole,
+} from '@axe/domain/data/data-element-templates';
+import {
+  canAcceptChildRole,
+  type DataElementDropPosition,
+  getElementDepth,
+  getSubtreeDepth,
+  MAX_STANDARD_DEPTH,
+} from '@axe/features/data-element/game-data-element/game-data-element-structure-drop';
 
 /**
  * Rearranges the items.
@@ -99,4 +110,30 @@ export function createGroupElement(
 function finishMove(element: DataElement): void {
   element.syncFieldRoleToHierarchy();
   element.update();
+}
+
+function canHoldTemplate(target: DataElement, template: DataElement): boolean {
+  if (target.name === 'detail') return true;
+  return (
+    canAcceptChildRole(target, DataElementRole.GROUP) &&
+    getElementDepth(target) + 1 + getSubtreeDepth(template) <= MAX_STANDARD_DEPTH
+  );
+}
+
+export function placeElementTemplate(template: DataElement, container: DataElement): ElementPlacement | null {
+  let anchor: DataElement | null = null;
+  let target: DataElement | null = container;
+  while (target) {
+    if (canHoldTemplate(target, template)) {
+      const element = buildElementTemplate(template, target);
+      if (!element) return null;
+      if (anchor) insertElementAfter(element, anchor, target);
+      else target.appendChild(element);
+      settleElementRole(element);
+      return { parent: target, element };
+    }
+    anchor = target;
+    target = target.parent instanceof DataElement ? target.parent : null;
+  }
+  return null;
 }

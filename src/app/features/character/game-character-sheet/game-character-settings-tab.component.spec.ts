@@ -11,6 +11,7 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { saveElementTemplate } from '@axe/domain/data/data-element-templates';
 import { GameCharacterSettingsTabComponent } from '@axe/features/character/game-character-sheet/game-character-settings-tab.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -41,6 +42,49 @@ describe('GameCharacterSettingsTabComponent', () => {
 
   it('can be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('templates kept on the piece', () => {
+    function partTables(): readonly DataElement[] {
+      return character.detailDataElement!.getFirstElementByName('パーツ')!.children;
+    }
+
+    it('lists the templates the piece keeps', () => {
+      saveElementTemplate(character, partTables()[0]);
+
+      expect(component.elementTemplates().map((template) => template.name)).toEqual(['頭']);
+    });
+
+    it('leaves the sheet and its names where they were found', () => {
+      const root = character.rootDataElement!;
+      saveElementTemplate(character, partTables()[0]);
+
+      expect(character.rootDataElement).toBe(root);
+      expect(character.detailDataElement?.parent).toBe(root);
+      expect(DataElement.findElementByReference(root, '義眼')).toBe(partTables()[0].children[0]);
+    });
+
+    it('opens every template in an editor of its own', () => {
+      const [head, arm] = partTables();
+      saveElementTemplate(character, head);
+      saveElementTemplate(character, arm);
+
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('.elm-template-editor')).toHaveLength(2);
+    });
+
+    it('adds a template to the end of the sheet as a section of its own', () => {
+      saveElementTemplate(character, partTables()[0]);
+
+      component.addTemplateToSheet(component.elementTemplates()[0]);
+
+      const added = character.detailDataElement!.children.at(-1)!;
+      expect(added.name).toBe('頭');
+      expect(added.fieldRole).toBe(DataElementRole.SECTION);
+      expect(added.viewMode).toBe(DataElementViewMode.TABLE);
+      expect(added.children.map((row) => row.name)).toEqual(['義眼', 'センサー']);
+    });
   });
 
   it('clamps the piece size, ends the drag and says it changed', () => {

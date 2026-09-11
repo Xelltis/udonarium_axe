@@ -1318,7 +1318,10 @@
         "convertLegacyTables": "구조화 테이블로 일괄 변환",
         "popupSetting": "팝업 설정",
         "popupWidth": "가로 폭",
-        "popupMaxHeight": "높이 최대"
+        "popupMaxHeight": "높이 최대",
+        "templates": "템플릿",
+        "addTemplateToSheet": "시트에 추가",
+        "noTemplates": "저장된 템플릿이 아직 없습니다"
       },
       "panel": {
         "folder": "폴더",
@@ -3727,7 +3730,10 @@
         "deleteSection": "이 섹션 삭제",
         "normalView": "일반 표시",
         "tableView": "테이블 표시",
-        "duplicate": "복제"
+        "duplicate": "복제",
+        "saveTemplate": "템플릿으로 저장",
+        "addFromTemplate": "템플릿에서 추가",
+        "deleteTemplate": "템플릿 삭제"
       },
       "defaults": {
         "newGroup": "그룹",

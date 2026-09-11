@@ -1318,7 +1318,10 @@
         "convertLegacyTables": "Convert to structured tables",
         "popupSetting": "Popup settings",
         "popupWidth": "Width",
-        "popupMaxHeight": "Max height"
+        "popupMaxHeight": "Max height",
+        "templates": "Templates",
+        "addTemplateToSheet": "Add to sheet",
+        "noTemplates": "No templates saved yet"
       },
       "panel": {
         "folder": "Folder",
@@ -3952,7 +3955,10 @@
       "deleteSection": "Delete this section",
       "normalView": "Normal view",
       "tableView": "Table view",
-      "duplicate": "Duplicate"
+      "duplicate": "Duplicate",
+      "saveTemplate": "Save as template",
+      "addFromTemplate": "Add from template",
+      "deleteTemplate": "Delete template"
     },
     "defaults": {
       "newGroup": "Group",

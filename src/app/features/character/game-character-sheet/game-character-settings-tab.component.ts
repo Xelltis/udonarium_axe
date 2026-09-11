@@ -10,15 +10,22 @@ import {
   convertLegacyCheckTableElements,
   countConvertibleCheckTableElements,
 } from '@axe/domain/data/check-table-converter';
+import type { DataElement } from '@axe/domain/data/data-element';
+import {
+  appendElementTemplateToSheet,
+  findElementTemplateHolder,
+  readElementTemplates,
+} from '@axe/domain/data/data-element-templates';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { clampInRange, floatOr, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
+import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   selector: 'game-character-settings-tab',
   templateUrl: './game-character-settings-tab.component.html',
   host: { class: 'block', '[attr.inert]': "isReadOnly() ? '' : null" },
-  imports: [FormsModule, TranslocoModule],
+  imports: [FormsModule, GameDataElementComponent, TranslocoModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GameCharacterSettingsTabComponent {
@@ -141,6 +148,24 @@ export class GameCharacterSettingsTabComponent {
     const convertedCount = convertLegacyCheckTableElements(char.detailDataElement);
     if (convertedCount < 1) return;
     this.objectChange.notifyChanged(char.detailDataElement.identifier);
+    char.update();
+  }
+
+  readonly elementTemplates = computed<DataElement[]>(() => {
+    const char = this.character();
+    this.objectChange.versionOf(char.identifier)();
+    const holder = findElementTemplateHolder(char);
+    if (holder) this.objectChange.versionOf(holder.identifier)();
+    return readElementTemplates(char);
+  });
+
+  addTemplateToSheet(template: DataElement): void {
+    const char = this.character();
+    if (!char.detailDataElement) return;
+    const placed = appendElementTemplateToSheet(char.detailDataElement, template);
+    if (!placed) return;
+    placed.element.update();
+    this.objectChange.notifyChanged(placed.parent.identifier);
     char.update();
   }
 }
