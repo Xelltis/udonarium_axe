@@ -9,11 +9,41 @@
       ></div>
     }
     @for (piece of pieceViews(); track piece.id) {
-      <div class="absolute top-0 left-0 flex items-end justify-center" data-piece [style]="piece.style">
+      <div
+        class="absolute top-0 left-0 flex cursor-pointer items-end justify-center"
+        [attr.data-piece]="piece.id"
+        [attr.data-targeted]="piece.targeted || null"
+        [style]="piece.style"
+        (click)="aim(piece.id)"
+      >
+        @if (piece.targeted) {
+          <span
+            class="absolute -bottom-3 left-1/2 h-8 w-4/5 -translate-x-1/2 rounded-[50%] border-4 border-red-500"
+          ></span>
+        }
         @if (piece.url) {
-          <img class="size-full object-contain object-bottom" [src]="piece.url" [alt]="piece.name" draggable="false" />
+          <img
+            class="size-full object-contain object-bottom"
+            [class.drop-shadow-[0_0_8px_#ff3b30]]="piece.targeted"
+            [src]="piece.url"
+            [alt]="piece.name"
+            draggable="false"
+          />
         } @else {
           <span class="rounded-sm bg-black/60 px-2 py-1 text-white">{{ piece.name }}</span>
+        }
+        @if (piece.label) {
+          <span
+            class="absolute -top-10 left-1/2 -translate-x-1/2 rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
+            [class.bg-red-700]="piece.targeted"
+            >{{ piece.label }}</span
+          >
+        }
+        @if (piece.pick) {
+          <span
+            class="absolute top-0 right-0 grid size-12 place-items-center rounded-full bg-amber-400 text-2xl font-bold text-black"
+            >{{ piece.pick }}</span
+          >
         }
       </div>
     }
@@ -26,6 +56,14 @@
     }
   </div>
 </div>
+
+@if (picking()) {
+  <div
+    class="pointer-events-none absolute top-16 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-4 py-1.5 text-sm text-white"
+  >
+    {{ 'feature.effect.pickingHint' | transloco }}
+  </div>
+}
 
 <div
   class="pointer-events-none absolute right-7 bottom-45 hidden size-28 sm:block"
@@ -134,6 +172,17 @@
         {{ 'feature.firstPerson.keysHint' | transloco }}
       }
     </span>
+    @if (anyTargeted()) {
+      <button
+        type="button"
+        class="flex h-10 items-center gap-1 rounded-sm bg-red-800/80 px-3 text-white hover:bg-red-800"
+        data-testid="first-person-clear-targets"
+        (click)="clearTargets()"
+      >
+        <i class="material-icons text-[18px]!">gps_off</i>
+        {{ 'feature.firstPerson.hud.clearTargets' | transloco }}
+      </button>
+    }
     @if (firstPerson.forced()) {
       <span class="flex h-10 items-center rounded-sm bg-amber-700/80 px-3" data-testid="first-person-shared">
         {{ 'feature.firstPerson.sharedBadge' | transloco }}

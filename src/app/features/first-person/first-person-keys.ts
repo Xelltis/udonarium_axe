@@ -5,13 +5,20 @@ import {
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 
 export type FirstPersonCommand =
-  { kind: 'move'; move: FirstPersonMove } | { kind: 'turn'; turn: 1 | -1 } | { kind: 'door' } | { kind: 'exit' };
+  | { kind: 'move'; move: FirstPersonMove }
+  | { kind: 'turn'; turn: 1 | -1 }
+  | { kind: 'door' }
+  | { kind: 'exit' }
+  | { kind: 'target' }
+  | { kind: 'clearTargets' };
 
 export interface FirstPersonKeyContext {
   typing: boolean;
   composing: boolean;
   chord: boolean;
   busy: boolean;
+  shift: boolean;
+  picking: boolean;
   forced: boolean;
   lattice: FirstPersonLattice;
 }
@@ -40,7 +47,8 @@ export function firstPersonKeyDown(code: string, context: FirstPersonKeyContext)
   if (move) return offersMove(context.lattice, move) ? { kind: 'move', move } : null;
   const turn = TURNS.get(code);
   if (turn) return { kind: 'turn', turn };
+  if (code === 'KeyT') return context.shift ? { kind: 'clearTargets' } : { kind: 'target' };
   if (code === 'Space') return { kind: 'door' };
-  if (code === 'Escape') return context.forced ? null : { kind: 'exit' };
+  if (code === 'Escape') return context.forced || context.picking ? null : { kind: 'exit' };
   return null;
 }

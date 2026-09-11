@@ -113,8 +113,8 @@
       "sharedBadge": "GM 공유 시점",
       "stopSharing": "공유 1인칭 시점 해제",
       "sharedMissing": "공유 중인 캐릭터가 테이블에 없습니다(눌러서 해제)",
-      "keysHint": "WASD·방향키로 이동 · Q/E로 방향 전환 · Space로 문",
-      "keysHintHex": "W/S·방향키로 앞뒤 · A/D로 앞 대각선 · Z/C로 뒤 대각선 · Q/E로 방향 전환 · Space로 문",
+      "keysHint": "WASD·방향키로 이동 · Q/E로 방향 전환 · Space로 문 · T로 타깃",
+      "keysHintHex": "W/S·방향키로 앞뒤 · A/D로 앞 대각선 · Z/C로 뒤 대각선 · Q/E로 방향 전환 · Space로 문 · T로 타깃",
       "facing": {
         "north": "북",
         "northEast": "북동",
@@ -136,7 +136,8 @@
         "backRight": "오른쪽 뒤로",
         "turnLeft": "왼쪽으로 돌기",
         "turnRight": "오른쪽으로 돌기",
-        "door": "문 열고 닫기"
+        "door": "문 열고 닫기",
+        "clearTargets": "타깃 해제"
       }
     },
     "role": {

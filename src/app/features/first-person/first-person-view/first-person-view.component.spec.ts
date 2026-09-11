@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -132,5 +133,42 @@ describe('FirstPersonViewComponent', () => {
     lookOutOf(pieceAt(4, 7));
 
     expect(element(mount()).querySelector('[data-testid="first-person-minimap"]')).not.toBeNull();
+  });
+
+  it('marks the piece it is looking at when it is clicked, and takes the mark off again', () => {
+    const enemy = pieceAt(4, 4);
+    lookOutOf(pieceAt(4, 7));
+    const fixture = mount();
+    const billboard = () => element(fixture).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+    billboard().click();
+    expect(enemy.targeted).toBe(true);
+
+    fixture.detectChanges();
+    billboard().click();
+    expect(enemy.targeted).toBe(false);
+  });
+
+  it('aims at the piece straight ahead with T, and lets it go with shift and T', () => {
+    const enemy = pieceAt(4, 4);
+    lookOutOf(pieceAt(4, 7));
+    mount();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', bubbles: true, cancelable: true }));
+    expect(enemy.targeted).toBe(true);
+
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'KeyT', shiftKey: true, bubbles: true, cancelable: true })
+    );
+    expect(enemy.targeted).toBe(false);
+  });
+
+  it('acts as the piece it looks out of, so an effect is cast from there', () => {
+    const viewer = pieceAt(4, 7);
+    lookOutOf(viewer);
+    mount();
+    TestBed.tick();
+
+    expect(TestBed.inject(SelectionSignalService).selectedObject()?.identifier).toBe(viewer.identifier);
   });
 });

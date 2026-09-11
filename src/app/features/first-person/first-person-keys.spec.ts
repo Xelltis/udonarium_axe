@@ -10,6 +10,8 @@ function contextOn(gridType: GridType, overrides: Partial<FirstPersonKeyContext>
     chord: false,
     busy: false,
     forced: false,
+    shift: false,
+    picking: false,
     lattice: latticeOf(gridType),
     ...overrides,
   };
@@ -63,5 +65,14 @@ describe('firstPersonKeyDown', () => {
   it('answers nothing to a key it does not use, however it is spelled', () => {
     expect(firstPersonKeyDown('KeyX', contextOn(GridType.SQUARE))).toBeNull();
     expect(firstPersonKeyDown('toString', contextOn(GridType.SQUARE))).toBeNull();
+  });
+
+  it('aims at what is ahead with T, and lets every mark go with shift and T', () => {
+    expect(firstPersonKeyDown('KeyT', contextOn(GridType.SQUARE))).toEqual({ kind: 'target' });
+    expect(firstPersonKeyDown('KeyT', contextOn(GridType.SQUARE, { shift: true }))).toEqual({ kind: 'clearTargets' });
+  });
+
+  it('leaves escape to the effect being aimed rather than leaving the view', () => {
+    expect(firstPersonKeyDown('Escape', contextOn(GridType.SQUARE, { picking: true }))).toBeNull();
   });
 });

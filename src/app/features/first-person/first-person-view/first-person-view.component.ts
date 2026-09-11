@@ -10,18 +10,22 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { DisclosureService } from '@axe/application/permission/disclosure.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { depthOf, eyeFrameOf } from '@axe/domain/tabletop/first-person/first-person-clip';
+import { depthOf, eyeFrameOf, lateralOf } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { FirstPersonMove, FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import {
   FIRST_PERSON_FOV_DEG,
@@ -30,7 +34,7 @@ import {
 } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
-import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { facingNameOf, isHexLattice, padRows } from '@axe/features/first-person/first-person-hud';
 import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
 import {
@@ -52,6 +56,7 @@ const GLIDE_MS = 160;
 const SNAP_CELLS = 3;
 const SNAP_TURN_DEG = 135;
 const COMPASS_TICKS: readonly number[] = Array.from({ length: 24 }, (_, index) => index * 15);
+const TARGET_CONE_DEG = 20;
 
 interface QuadView {
   id: string;
@@ -63,7 +68,11 @@ interface QuadView {
 interface PieceView {
   id: string;
   name: string;
+  label: string;
   url: string;
+  targeted: boolean;
+  pick: number;
+  bearing: number;
   style: QuadStyle;
 }
 
@@ -88,7 +97,11 @@ export class FirstPersonViewComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
-  private readonly disclosure = inject(DisclosureService);
+  private readonly rolePermission = inject(RolePermissionService);
+  private readonly pieceTarget = inject(PieceTargetService);
+  private readonly effectTargeting = inject(EffectTargetingService);
+  private readonly selection = inject(SelectionSignalService);
+  private readonly uiSignal = inject(UiSignalService);
   private readonly motion = inject(MotionService);
   private readonly modal = inject(ModalService);
   private readonly movePlan = inject(MovePlanService);
@@ -110,6 +123,15 @@ export class FirstPersonViewComponent {
       const view = this.firstPerson.minimap();
       const context = this.minimapCanvas()?.nativeElement.getContext('2d');
       if (view && context) paintMinimap(context, view);
+    });
+    effect(() => {
+      const viewer = this.firstPerson.piece();
+      if (!viewer || this.effectTargeting.isPicking()) return;
+      untracked(() => {
+        if (this.selection.selectedObject()?.identifier !== viewer.identifier) {
+          this.selection.selectObject(viewer.identifier, viewer.aliasName);
+        }
+      });
     });
     this.watchWidth();
     this.destroyRef.onDestroy(() => this.stopGlide());
@@ -161,19 +183,28 @@ export class FirstPersonViewComponent {
     if (!pose || !viewer || gridSize <= 0) return [];
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.fileVersion();
+    this.uiSignal.targetChange();
+    this.objectChange.trackMyCursor();
+    const master = this.rolePermission.canSeeHidden;
+    const picks = this.effectTargeting.picks();
+    const eye = eyeFrameOf(pose);
     const views: PieceView[] = [];
     for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (piece.identifier === viewer.identifier) continue;
       this.objectChange.versionOf(piece.identifier)();
-      if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor') continue;
-      if (!this.disclosure.canView(piece) || !this.vision.isTokenVisible(piece)) continue;
+      if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor' || boardSurfaceOf(piece) !== '') continue;
+      if (!this.vision.isTokenVisible(piece)) continue;
       const size = Math.max(1, piece.size) * gridSize;
       const centre = { x: piece.location.x + size / 2, y: piece.location.y + size / 2 };
       if (!this.inSight(pose, centre)) continue;
       views.push({
         id: piece.identifier,
         name: piece.name,
+        label: piece.hideName && !master ? '' : piece.name,
         url: piece.imageFile.url,
+        targeted: piece.targeted,
+        pick: picks.indexOf(piece.identifier) + 1,
+        bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depthOf(eye, centre)) * 180) / Math.PI),
         style: billboardStyle(
           { ...centre, z: piece.posZ + piece.altitude * gridSize },
           size * 0.9,
@@ -224,12 +255,36 @@ export class FirstPersonViewComponent {
 
   protected readonly isHex = computed(() => isHexLattice(this.firstPerson.lattice()));
 
+  protected readonly picking = this.effectTargeting.isPicking;
+
+  protected readonly anyTargeted = computed(() => {
+    this.uiSignal.targetChange();
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    return this.pieceTarget.anything();
+  });
+
+  protected aim(identifier: string): void {
+    const piece = this.objectStore.get<GameCharacter>(identifier);
+    if (!(piece instanceof GameCharacter)) return;
+    if (this.effectTargeting.isPicking()) {
+      this.selection.selectObject(piece.identifier, piece.aliasName);
+      return;
+    }
+    this.pieceTarget.toggle(piece);
+  }
+
+  protected clearTargets(): void {
+    this.pieceTarget.clear();
+  }
+
   onKeydown(event: KeyboardEvent): void {
     const command = firstPersonKeyDown(event.code, {
       typing: isTypingTarget(event.target),
       composing: event.isComposing,
       chord: event.ctrlKey || event.metaKey || event.altKey,
       busy: this.modal.isShow || this.visualNovel.active() || this.movePlan.isPlanning(),
+      shift: event.shiftKey,
+      picking: this.effectTargeting.isPicking(),
       forced: this.firstPerson.forced(),
       lattice: this.firstPerson.lattice(),
     });
@@ -268,7 +323,20 @@ export class FirstPersonViewComponent {
       case 'exit':
         this.exit();
         return;
+      case 'target':
+        this.targetAhead();
+        return;
+      case 'clearTargets':
+        this.clearTargets();
+        return;
     }
+  }
+
+  private targetAhead(): void {
+    const ahead = this.pieceViews()
+      .filter((view) => view.bearing <= TARGET_CONE_DEG)
+      .sort((a, b) => a.bearing - b.bearing)[0];
+    if (ahead) this.aim(ahead.id);
   }
 
   private inSight(pose: FirstPersonPose, centre: CellPoint): boolean {
