@@ -3951,7 +3951,8 @@
       "deleteRow": "Delete this row",
       "deleteSection": "Delete this section",
       "normalView": "Normal view",
-      "tableView": "Table view"
+      "tableView": "Table view",
+      "duplicate": "Duplicate"
     },
     "defaults": {
       "newGroup": "Group",

@@ -30,6 +30,7 @@ import {
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
 import { calcSourceIdentifiers, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
+import { duplicateDataElement } from '@axe/domain/data/data-element-templates';
 import {
   buildTableColumnHeaderGroups,
   canRenderAsTable as canRenderAsTableShared,
@@ -569,6 +570,21 @@ export class GameDataElementComponent {
   canAddSiblingFieldElement(): boolean {
     const parentElement = this.getDataElementParent();
     return !!parentElement && canAcceptChildRole(parentElement, DataElementRole.FIELD);
+  }
+
+  canDuplicateElement(): boolean {
+    return !this.isImage() && this.getDataElementParent() !== null;
+  }
+
+  duplicateElement(): void {
+    const element = this.gameDataElement();
+    const parentElement = this.getDataElementParent();
+    if (!parentElement || this.isImage()) return;
+
+    const copy = duplicateDataElement(element, parentElement);
+    if (!copy) return;
+    insertElementAfter(copy, element, parentElement);
+    this.notifyStructureChanged(parentElement, copy);
   }
 
   private newElementNames(): NewElementNames {

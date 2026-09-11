@@ -3726,7 +3726,8 @@
         "deleteRow": "이 행 삭제",
         "deleteSection": "이 섹션 삭제",
         "normalView": "일반 표시",
-        "tableView": "테이블 표시"
+        "tableView": "테이블 표시",
+        "duplicate": "복제"
       },
       "defaults": {
         "newGroup": "그룹",

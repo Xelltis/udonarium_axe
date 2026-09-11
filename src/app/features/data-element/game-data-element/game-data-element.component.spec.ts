@@ -75,6 +75,39 @@ describe('GameDataElementComponent', () => {
     });
   });
 
+  describe('copies and templates', () => {
+    function buildSheet(): { detail: DataElement; section: DataElement; part: DataElement } {
+      const root = DataElement.create('character', '');
+      const detail = DataElement.create('detail', '');
+      const section = DataElement.create('パーツ', '', { [DataElementAttribute.ROLE]: DataElementRole.SECTION });
+      const part = DataElement.create('義眼', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      part.appendChild(
+        DataElement.create('損傷', 0, {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK,
+        })
+      );
+      const shield = DataElement.create('盾', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      root.appendChild(detail);
+      detail.appendChild(section);
+      section.appendChild(part);
+      section.appendChild(shield);
+      return { detail, section, part };
+    }
+
+    it('puts a copy of a group straight after it, under a name of its own', () => {
+      const { section, part } = buildSheet();
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', part);
+      fixture.detectChanges();
+
+      component.duplicateElement();
+
+      expect(section.children.map((child) => child.name)).toEqual(['義眼', '義眼 2', '盾']);
+      expect(section.children[1].children.map((child) => child.name)).toEqual(['損傷']);
+    });
+  });
+
   describe('dragging the structure about', () => {
     it('moves an item back within its parent', () => {
       const parent = DataElement.create('parent', '');

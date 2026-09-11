@@ -726,6 +726,16 @@
               >
                 <i class="material-icons">open_in_new</i>
               </button>
+              @if (canDuplicateElement()) {
+                <button
+                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
+                  type="button"
+                  (click)="duplicateElement()"
+                  [title]="'feature.dataElement.action.duplicate' | transloco"
+                >
+                  <i class="material-icons">library_add</i>
+                </button>
+              }
               @if (isImage()) {
                 <button
                   class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"

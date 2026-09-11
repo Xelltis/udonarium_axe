@@ -3951,7 +3951,8 @@
       "deleteRow": "この行を削除",
       "deleteSection": "このセクションを削除",
       "normalView": "通常表示",
-      "tableView": "テーブル表示"
+      "tableView": "テーブル表示",
+      "duplicate": "複製"
     },
     "defaults": {
       "newGroup": "グループ",
