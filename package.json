@@ -31,7 +31,7 @@
     "@skyway-sdk/core": "^2.4.6",
     "base-x": "^5.0.1",
     "bcdice": "4.10.0",
-    "entities": "^8.0.0",
+    "entities": "^8.1.0",
     "eventemitter3": "^5.0.4",
     "fflate": "^0.8.3",
     "linkify-html": "^4.3.2",
