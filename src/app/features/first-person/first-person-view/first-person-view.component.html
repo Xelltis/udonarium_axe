@@ -39,7 +39,7 @@
   <div class="pointer-events-auto flex items-center gap-2">
     <button
       type="button"
-      class="grid size-12 place-items-center rounded-full bg-black/60 hover:bg-black/80 disabled:opacity-40"
+      class="grid size-12 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 disabled:opacity-40"
       data-turn="left"
       [disabled]="!firstPerson.canWalk()"
       [attr.aria-label]="'feature.firstPerson.hud.turnLeft' | transloco"
@@ -54,7 +54,7 @@
           @if (button) {
             <button
               type="button"
-              class="grid size-12 place-items-center rounded-sm bg-black/60 hover:bg-black/80 disabled:opacity-40"
+              class="grid size-12 place-items-center rounded-sm bg-black/60 text-white hover:bg-black/80 disabled:opacity-40"
               [attr.data-move]="button.move"
               [disabled]="!firstPerson.canWalk()"
               [attr.aria-label]="'feature.firstPerson.hud.' + button.label | transloco"
@@ -71,7 +71,7 @@
     </div>
     <button
       type="button"
-      class="grid size-12 place-items-center rounded-full bg-black/60 hover:bg-black/80 disabled:opacity-40"
+      class="grid size-12 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 disabled:opacity-40"
       data-turn="right"
       [disabled]="!firstPerson.canWalk()"
       [attr.aria-label]="'feature.firstPerson.hud.turnRight' | transloco"
@@ -82,7 +82,7 @@
     </button>
   </div>
   <div class="pointer-events-auto flex flex-wrap items-center justify-center gap-2 text-sm">
-    <span class="flex h-10 items-center gap-2 rounded-sm bg-black/60 px-3">
+    <span class="flex h-10 items-center gap-2 rounded-sm bg-black/60 px-3 text-white">
       <span class="font-bold">{{ pieceName() }}</span>
       <span class="opacity-80" [attr.data-facing]="facing()">{{
         'feature.firstPerson.facing.' + facing() | transloco
@@ -90,7 +90,7 @@
     </span>
     <button
       type="button"
-      class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 hover:bg-black/80 disabled:opacity-40"
+      class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80 disabled:opacity-40"
       data-testid="first-person-door"
       [disabled]="!firstPerson.canWalk()"
       (click)="door()"
@@ -112,7 +112,7 @@
     } @else {
       <button
         type="button"
-        class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 hover:bg-black/80"
+        class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80"
         data-testid="first-person-exit"
         (click)="exit()"
       >
