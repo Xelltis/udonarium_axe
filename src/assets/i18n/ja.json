@@ -2721,6 +2721,12 @@
       },
       "log": {
         "styleLabel": "形式",
+        "preview": "プレビュー",
+        "previewTitle": "ログのプレビュー",
+        "previewSave": "この形式で保存",
+        "previewFrameTitle": "書き出されるログの見本",
+        "previewLimited": "直近 {{count}} 件で表示しています。保存するとタブ全体が書き出されます。",
+        "previewSample": "まだ発言がないため、見本の会話で表示しています。",
         "styles": {
           "standard": {
             "name": "標準",
@@ -2764,6 +2770,17 @@
           "everyTab": "すべて",
           "messages": "{{count}} 件の発言",
           "exportedWith": "Udonarium Axe で書き出し"
+        },
+        "sample": {
+          "gm": "GM",
+          "hero": "アリア",
+          "sage": "ノア",
+          "narration1": "霧の立ちこめる森の奥に、苔むした石の門が現れた。",
+          "hero1": "……扉に何か刻まれてる。ノア、読めそう？",
+          "sage1": "任せて。古い言葉なら少しは分かる。",
+          "narration2": "刻まれた文字が淡く光り、門がゆっくりと開いていく。",
+          "hero2": "よし、行こう！",
+          "aside": "（そろそろ休憩にしませんか？）"
         }
       },
       "colorSetting": {

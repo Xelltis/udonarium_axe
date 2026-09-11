@@ -1,0 +1,115 @@
+<div class="text-ui-text grid h-full grid-cols-[208px_1fr] overflow-hidden text-[13px]">
+  <aside class="border-ui-border-panel bg-ui-panel flex flex-col overflow-hidden border-r border-solid">
+    <div
+      class="border-ui-border-panel text-ui-muted shrink-0 border-b border-solid px-2.5 py-2 text-[11px] font-semibold tracking-wider uppercase"
+    >
+      {{ 'feature.chat.log.styleLabel' | transloco }}
+    </div>
+
+    <ul class="m-0 flex-1 list-none overflow-y-auto p-1" role="listbox">
+      @for (option of styles; track option) {
+        <li
+          class="rounded-ui-sm hover:bg-ui-hover flex cursor-pointer items-center gap-2.5 px-2 py-1.5 transition-colors"
+          [class.bg-ui-accent-bg!]="option === style()"
+          role="option"
+          [attr.aria-selected]="option === style()"
+          [attr.data-testid]="'chat-log-style-' + option"
+          (click)="choose(option)"
+        >
+          <span
+            class="rounded-ui-sm border-ui-border-panel relative size-9 shrink-0 overflow-hidden border border-solid"
+            [style.background]="swatches[option].ground"
+          >
+            <span
+              class="absolute inset-x-1.5 top-1.5 bottom-0 rounded-t-[3px]"
+              [style.background]="swatches[option].surface"
+            ></span>
+            <span
+              class="absolute inset-x-3 top-3.5 h-0.75 rounded-full"
+              [style.background]="swatches[option].accent"
+            ></span>
+            <span
+              class="absolute inset-x-3 top-5.5 h-0.5 rounded-full opacity-40"
+              [style.background]="swatches[option].accent"
+            ></span>
+          </span>
+          <span class="flex min-w-0 flex-col leading-tight">
+            <span class="truncate text-[13px]" [class.text-ui-accent]="option === style()">{{
+              'feature.chat.log.styles.' + option + '.name' | transloco
+            }}</span>
+            <span class="text-ui-dim truncate text-[11px]">{{
+              'feature.chat.log.styles.' + option + '.description' | transloco
+            }}</span>
+          </span>
+        </li>
+      }
+    </ul>
+
+    <div class="border-ui-border-panel flex shrink-0 flex-col gap-2 border-t border-solid p-2">
+      @if (!isSystemTab()) {
+        <div
+          class="rounded-ui-sm border-ui-border-panel grid grid-cols-2 overflow-hidden border border-solid"
+          role="group"
+        >
+          <button
+            type="button"
+            class="text-ui-muted hover:bg-ui-hover m-0 cursor-pointer border-0 bg-transparent px-2 py-1 text-[12px] transition-colors hover:shadow-none"
+            [class.bg-ui-accent-bg!]="effectiveScope() === 'tab'"
+            [class.text-ui-accent!]="effectiveScope() === 'tab'"
+            [attr.aria-pressed]="effectiveScope() === 'tab'"
+            (click)="chooseScope('tab')"
+          >
+            {{ 'feature.chat.tabSetting.saveThisTab' | transloco }}
+          </button>
+          <button
+            type="button"
+            class="border-ui-border-panel text-ui-muted hover:bg-ui-hover m-0 cursor-pointer border-0 border-l border-solid bg-transparent px-2 py-1 text-[12px] transition-colors hover:shadow-none"
+            [class.bg-ui-accent-bg!]="effectiveScope() === 'all'"
+            [class.text-ui-accent!]="effectiveScope() === 'all'"
+            [attr.aria-pressed]="effectiveScope() === 'all'"
+            (click)="chooseScope('all')"
+          >
+            {{ 'feature.chat.tabSetting.saveAllTabs' | transloco }}
+          </button>
+        </div>
+      }
+      <button
+        type="button"
+        data-testid="chat-log-preview-save"
+        class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex cursor-pointer items-center justify-center gap-1.25 border-none px-3 py-1.5 text-[13px] font-medium text-white transition-[opacity,background] hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+        [disabled]="isSaving()"
+        (click)="save()"
+      >
+        @if (isSaving()) {
+          <i class="material-icons animate-spin">sync</i>
+        } @else {
+          <i class="material-icons">download</i>
+        }
+        {{ 'feature.chat.log.previewSave' | transloco }}
+      </button>
+    </div>
+  </aside>
+
+  <main class="bg-ui-elevated flex min-w-0 flex-col overflow-hidden">
+    @if (note(); as message) {
+      <div
+        class="border-ui-border-panel text-ui-dim flex shrink-0 items-center gap-1 border-b border-solid px-3 py-1.5 text-[11px] [&_.material-icons]:text-[13px]!"
+      >
+        <i class="material-icons">info_outline</i>{{ message }}
+      </div>
+    }
+    @if (html(); as doc) {
+      <iframe
+        data-testid="chat-log-preview-frame"
+        class="block min-h-0 w-full flex-1 border-0 bg-white"
+        sandbox="allow-scripts"
+        [title]="'feature.chat.log.previewFrameTitle' | transloco"
+        [srcdoc]="doc | safe: 'html'"
+      ></iframe>
+    } @else {
+      <div class="text-ui-dim flex flex-1 items-center justify-center">
+        <i class="material-icons animate-spin">sync</i>
+      </div>
+    }
+  </main>
+</div>

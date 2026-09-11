@@ -235,6 +235,14 @@
                 }
               </select>
             </label>
+            <button
+              type="button"
+              data-testid="chat-log-preview-open"
+              class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none [&_.material-icons]:text-[14px]!"
+              (click)="openLogPreview()"
+            >
+              <i class="material-icons">visibility</i>{{ 'feature.chat.log.preview' | transloco }}
+            </button>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
             <button

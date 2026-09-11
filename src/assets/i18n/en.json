@@ -2721,6 +2721,12 @@
       },
       "log": {
         "styleLabel": "Style",
+        "preview": "Preview",
+        "previewTitle": "Log preview",
+        "previewSave": "Save in this style",
+        "previewFrameTitle": "Sample of the exported log",
+        "previewLimited": "Showing the latest {{count}} lines. Saving writes out the whole tab.",
+        "previewSample": "Nothing has been said yet, so a sample conversation is shown.",
         "styles": {
           "standard": {
             "name": "Standard",
@@ -2764,6 +2770,17 @@
           "everyTab": "All",
           "messages": "{{count}} lines",
           "exportedWith": "Exported from Udonarium Axe"
+        },
+        "sample": {
+          "gm": "GM",
+          "hero": "Aria",
+          "sage": "Noah",
+          "narration1": "Deep in the misty forest, a moss-covered stone gate comes into view.",
+          "hero1": "…Something's carved on the door. Can you read it, Noah?",
+          "sage1": "Leave it to me. I know a little of the old tongue.",
+          "narration2": "The carved letters glow faintly, and the gate slowly swings open.",
+          "hero2": "Right, let's go!",
+          "aside": "(Shall we take a break soon?)"
         }
       },
       "colorSetting": {

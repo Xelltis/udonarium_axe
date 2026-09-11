@@ -2721,6 +2721,12 @@
       },
       "log": {
         "styleLabel": "형식",
+        "preview": "미리보기",
+        "previewTitle": "로그 미리보기",
+        "previewSave": "이 형식으로 저장",
+        "previewFrameTitle": "내보낼 로그 견본",
+        "previewLimited": "최근 {{count}}건으로 표시하고 있습니다. 저장하면 탭 전체가 내보내집니다.",
+        "previewSample": "아직 발언이 없어 견본 대화로 표시하고 있습니다.",
         "styles": {
           "standard": {
             "name": "표준",
@@ -2764,6 +2770,17 @@
           "everyTab": "전체",
           "messages": "발언 {{count}}건",
           "exportedWith": "Udonarium Axe에서 내보냄"
+        },
+        "sample": {
+          "gm": "GM",
+          "hero": "아리아",
+          "sage": "노아",
+          "narration1": "안개 자욱한 숲속, 이끼 낀 돌문이 모습을 드러냈다.",
+          "hero1": "……문에 뭔가 새겨져 있어. 노아, 읽을 수 있겠어?",
+          "sage1": "맡겨 줘. 옛말이라면 조금은 알아.",
+          "narration2": "새겨진 글자가 희미하게 빛나며 문이 천천히 열린다.",
+          "hero2": "좋아, 가자!",
+          "aside": "(슬슬 쉬었다 할까요?)"
         }
       },
       "colorSetting": {

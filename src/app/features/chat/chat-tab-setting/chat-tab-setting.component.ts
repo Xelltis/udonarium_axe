@@ -5,9 +5,11 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
@@ -15,6 +17,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -27,6 +30,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class ChatTabSettingComponent {
   private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
+  private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly saveDataService = inject(SaveDataService);
   private readonly logStylePreference = inject(ChatLogStylePreferenceService);
@@ -187,6 +191,15 @@ export class ChatTabSettingComponent {
 
   chooseLogStyle(style: ChatLogStyle): void {
     this.logStylePreference.choose(style);
+  }
+
+  openLogPreview(): void {
+    const coordinate = this.pointerDeviceService.pointers[0];
+    const component = this.panelService.open<ChatLogPreviewComponent>(ChatLogPreviewComponent, {
+      title: this.t('feature.chat.log.previewTitle'),
+      ...sheetPanelBox(coordinate, 820, 580),
+    });
+    component.tab.set(this.selectedTab());
   }
 
   saveLog() {
