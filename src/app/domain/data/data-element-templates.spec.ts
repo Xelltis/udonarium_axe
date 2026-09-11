@@ -15,6 +15,7 @@ import {
   findOwnerRootElement,
   readElementTemplates,
   saveElementTemplate,
+  sheetElementsOf,
 } from '@axe/domain/data/data-element-templates';
 
 function group(name: string): DataElement {
@@ -79,6 +80,14 @@ describe('copies and templates of a part of a sheet', () => {
 
     expect(findElementTemplateHolder(owner)).toBeNull();
     expect(readElementTemplates(owner)).toEqual([]);
+  });
+
+  it('reads the sheet of a piece without the templates kept beside it', () => {
+    const { owner, root, part } = buildSheet();
+
+    saveElementTemplate(owner, part);
+
+    expect(sheetElementsOf(owner)).toEqual([root]);
   });
 
   it('keeps a copy on the piece beside the sheet, where a name looked up on the sheet cannot find it', () => {

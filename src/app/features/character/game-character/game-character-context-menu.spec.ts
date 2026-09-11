@@ -1,10 +1,22 @@
+import { TestBed } from '@angular/core/testing';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ContextMenuType } from '@axe/application/ui/context-menu.service';
+import { ObjectNode } from '@axe/core/sync/object-node';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import {
+  DataElement,
+  DataElementAttribute,
+  DataElementFieldType,
+  DataElementRole,
+} from '@axe/domain/data/data-element';
+import { saveElementTemplate } from '@axe/domain/data/data-element-templates';
+import { encodeRangeShapeField } from '@axe/domain/data/range-shape-field';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   buildGameCharacterContextMenu,
   buildGameCharacterContextMenuModel,
+  collectRegisteredEffects,
+  collectRegisteredRangeShapes,
 } from '@axe/features/character/game-character/game-character-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
@@ -357,5 +369,71 @@ describe('buildGameCharacterContextMenu()', () => {
       t
     );
     expect(menu.filter((m) => m.type === ContextMenuType.SEPARATOR)).toHaveLength(3);
+  });
+});
+
+describe('what a piece can fire from its sheet', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+  });
+
+  function field(name: string, type: string, currentValue: string): DataElement {
+    return DataElement.create(name, '', {
+      [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+      [DataElementAttribute.FIELD_TYPE]: type,
+      currentValue,
+    });
+  }
+
+  function buildPiece(): { piece: GameCharacter; part: DataElement } {
+    const owner = new ObjectNode();
+    owner.initialize();
+    const root = DataElement.create('character', '');
+    const detail = DataElement.create('detail', '');
+    const part = DataElement.create('火球', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+    part.appendChild(field('効果', DataElementFieldType.EFFECT, '炎上'));
+    part.appendChild(
+      field(
+        '範囲',
+        DataElementFieldType.RANGE_SHAPE,
+        encodeRangeShapeField({
+          name: '爆風',
+          cellPattern: '1',
+          gridType: 'square',
+          gridColor: '#FFFF00',
+          rangeColor: '#000000',
+          isRotatable: false,
+        })
+      )
+    );
+    owner.appendChild(root);
+    root.appendChild(detail);
+    detail.appendChild(part);
+    return { piece: owner as unknown as GameCharacter, part };
+  }
+
+  it('offers the effects and the ranges written on the sheet', () => {
+    const { piece } = buildPiece();
+
+    expect(collectRegisteredEffects(piece)).toEqual(['炎上']);
+    expect(collectRegisteredRangeShapes(piece).map((shape) => shape.label)).toEqual(['爆風']);
+  });
+
+  it('does not offer a range twice for a template kept of its part', () => {
+    const { piece, part } = buildPiece();
+
+    saveElementTemplate(piece, part);
+
+    expect(collectRegisteredRangeShapes(piece).map((shape) => shape.label)).toEqual(['爆風']);
+  });
+
+  it('offers nothing from a template once its part has gone from the sheet', () => {
+    const { piece, part } = buildPiece();
+
+    saveElementTemplate(piece, part);
+    part.destroy();
+
+    expect(collectRegisteredEffects(piece)).toEqual([]);
+    expect(collectRegisteredRangeShapes(piece)).toEqual([]);
   });
 });

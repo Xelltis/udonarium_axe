@@ -33,6 +33,12 @@ export function readElementTemplates(owner: ObjectNode): DataElement[] {
   return [...(findElementTemplateHolder(owner)?.children ?? [])];
 }
 
+export function sheetElementsOf(owner: ObjectNode): DataElement[] {
+  return owner.children.filter(
+    (child): child is DataElement => child instanceof DataElement && child.name !== ELEMENT_TEMPLATES_NAME
+  );
+}
+
 function copyElementTree(element: DataElement): DataElement | null {
   const parsed = ObjectSerializer.instance.parseXml(element.toXml());
   if (parsed instanceof DataElement) return parsed;
