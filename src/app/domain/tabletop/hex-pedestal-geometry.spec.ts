@@ -4,7 +4,7 @@ import {
   buildVertexClusterOutline,
   calcHexFlowerParams,
   insetPolygon,
-} from '@axe/ui/tabletop/hex-pedestal-geometry';
+} from '@axe/domain/tabletop/hex-pedestal-geometry';
 
 describe('hex-pedestal-geometry', () => {
   describe('buildHexFlowerOutline', () => {

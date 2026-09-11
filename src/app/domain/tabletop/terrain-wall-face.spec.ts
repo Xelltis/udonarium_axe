@@ -1,4 +1,4 @@
-import { terrainWallFace, type WallSide } from '@axe/features/tabletop/terrain/terrain-wall-face';
+import { terrainWallFace, type WallSide } from '@axe/domain/tabletop/terrain-wall-face';
 
 const SIDES: WallSide[] = ['north', 'south', 'west', 'east'];
 
