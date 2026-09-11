@@ -27,35 +27,11 @@
   </div>
 </div>
 
-<div class="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3 text-white">
-  <div class="rounded-sm bg-black/60 px-3 py-1.5 text-sm">
-    <span class="font-bold">{{ pieceName() }}</span>
-    <span class="ml-2 opacity-80" [attr.data-facing]="facing()">{{
-      'feature.firstPerson.facing.' + facing() | transloco
-    }}</span>
-  </div>
-  @if (firstPerson.forced()) {
-    <div class="rounded-sm bg-amber-700/80 px-3 py-1.5 text-sm" data-testid="first-person-shared">
-      {{ 'feature.firstPerson.sharedBadge' | transloco }}
-    </div>
-  } @else {
-    <button
-      type="button"
-      class="pointer-events-auto flex items-center gap-1 rounded-sm bg-black/60 px-3 py-1.5 text-sm hover:bg-black/80"
-      data-testid="first-person-exit"
-      (click)="exit()"
-    >
-      <i class="material-icons text-[18px]!">close</i>
-      {{ 'feature.firstPerson.exit' | transloco }}
-    </button>
-  }
-</div>
-
 <canvas
   #minimap
   width="160"
   height="160"
-  class="pointer-events-none absolute top-16 right-3 size-40"
+  class="pointer-events-none absolute right-3 bottom-3 hidden size-40 sm:block"
   data-testid="first-person-minimap"
 ></canvas>
 
@@ -105,10 +81,16 @@
       <i class="material-icons">rotate_right</i>
     </button>
   </div>
-  <div class="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
+  <div class="pointer-events-auto flex flex-wrap items-center justify-center gap-2 text-sm">
+    <span class="flex h-10 items-center gap-2 rounded-sm bg-black/60 px-3">
+      <span class="font-bold">{{ pieceName() }}</span>
+      <span class="opacity-80" [attr.data-facing]="facing()">{{
+        'feature.firstPerson.facing.' + facing() | transloco
+      }}</span>
+    </span>
     <button
       type="button"
-      class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-sm hover:bg-black/80 disabled:opacity-40"
+      class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 hover:bg-black/80 disabled:opacity-40"
       data-testid="first-person-door"
       [disabled]="!firstPerson.canWalk()"
       (click)="door()"
@@ -116,12 +98,27 @@
       <i class="material-icons text-[18px]!">meeting_room</i>
       {{ 'feature.firstPerson.hud.door' | transloco }}
     </button>
-    <span class="hidden rounded-sm bg-black/40 px-2 py-1 text-xs text-white/80 sm:inline">
+    <span class="hidden rounded-sm bg-black/40 px-2 py-1 text-xs text-white/80 lg:inline">
       @if (isHex()) {
         {{ 'feature.firstPerson.keysHintHex' | transloco }}
       } @else {
         {{ 'feature.firstPerson.keysHint' | transloco }}
       }
     </span>
+    @if (firstPerson.forced()) {
+      <span class="flex h-10 items-center rounded-sm bg-amber-700/80 px-3" data-testid="first-person-shared">
+        {{ 'feature.firstPerson.sharedBadge' | transloco }}
+      </span>
+    } @else {
+      <button
+        type="button"
+        class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 hover:bg-black/80"
+        data-testid="first-person-exit"
+        (click)="exit()"
+      >
+        <i class="material-icons text-[18px]!">close</i>
+        {{ 'feature.firstPerson.exit' | transloco }}
+      </button>
+    }
   </div>
 </div>
