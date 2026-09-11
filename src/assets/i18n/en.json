@@ -2752,6 +2752,42 @@
             "name": "Messenger",
             "description": "For modern, everyday stories"
           },
+          "gothic": {
+            "name": "Gothic",
+            "description": "For vampires and dark romance"
+          },
+          "noir": {
+            "name": "Noir",
+            "description": "For detectives and hard-boiled tales"
+          },
+          "terminal": {
+            "name": "Terminal",
+            "description": "For hackers and retro sci-fi"
+          },
+          "cosmos": {
+            "name": "Cosmos",
+            "description": "For space adventure and wonder"
+          },
+          "military": {
+            "name": "Tactical",
+            "description": "For military and mecha"
+          },
+          "steampunk": {
+            "name": "Steampunk",
+            "description": "For brass, steam and machines"
+          },
+          "ocean": {
+            "name": "High Seas",
+            "description": "For voyages and sea adventure"
+          },
+          "notebook": {
+            "name": "Notebook",
+            "description": "For school life and coming-of-age"
+          },
+          "pop": {
+            "name": "Pop",
+            "description": "For comedy and lively tables"
+          },
           "coc": {
             "name": "CoC log",
             "description": "The classic layout other tools can read"

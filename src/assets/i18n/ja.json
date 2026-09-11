@@ -2752,6 +2752,42 @@
             "name": "トーク",
             "description": "現代もの・日常ものに"
           },
+          "gothic": {
+            "name": "ゴシック",
+            "description": "吸血鬼・耽美な物語に"
+          },
+          "noir": {
+            "name": "ノワール",
+            "description": "探偵・ハードボイルドに"
+          },
+          "terminal": {
+            "name": "ターミナル",
+            "description": "ハッカー・レトロSFに"
+          },
+          "cosmos": {
+            "name": "星海",
+            "description": "宇宙冒険・幻想譚に"
+          },
+          "military": {
+            "name": "作戦",
+            "description": "ミリタリー・メカものに"
+          },
+          "steampunk": {
+            "name": "蒸気",
+            "description": "スチームパンク・機械文明に"
+          },
+          "ocean": {
+            "name": "大海原",
+            "description": "海洋冒険・航海ものに"
+          },
+          "notebook": {
+            "name": "ノート",
+            "description": "学園もの・青春ものに"
+          },
+          "pop": {
+            "name": "ポップ",
+            "description": "コメディ・にぎやかな卓に"
+          },
           "coc": {
             "name": "CoCログ形式",
             "description": "他のツールで読み込める従来形式"

@@ -2752,6 +2752,42 @@
             "name": "토크",
             "description": "현대물·일상물에"
           },
+          "gothic": {
+            "name": "고딕",
+            "description": "흡혈귀·탐미적인 이야기에"
+          },
+          "noir": {
+            "name": "누아르",
+            "description": "탐정·하드보일드에"
+          },
+          "terminal": {
+            "name": "터미널",
+            "description": "해커·레트로 SF에"
+          },
+          "cosmos": {
+            "name": "성해",
+            "description": "우주 모험·환상담에"
+          },
+          "military": {
+            "name": "작전",
+            "description": "밀리터리·메카물에"
+          },
+          "steampunk": {
+            "name": "증기",
+            "description": "스팀펑크·기계 문명에"
+          },
+          "ocean": {
+            "name": "대해원",
+            "description": "해양 모험·항해물에"
+          },
+          "notebook": {
+            "name": "노트",
+            "description": "학원물·청춘물에"
+          },
+          "pop": {
+            "name": "팝",
+            "description": "코미디·떠들썩한 세션에"
+          },
           "coc": {
             "name": "CoC 로그 형식",
             "description": "다른 도구에서 읽을 수 있는 기존 형식"
