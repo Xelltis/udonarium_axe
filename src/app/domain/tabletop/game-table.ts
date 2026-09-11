@@ -69,6 +69,7 @@ export class GameTable extends ObjectNode {
   @SyncVar() gridSnapStyle: GridSnapStyle = GridSnapStyle.CENTER;
   @SyncVar() imageBillboard: boolean = false;
   @SyncVar() mode2d: boolean = false;
+  @SyncVar() sharedViewPiece: string = '';
   /**
    * How the flat table is drawn and reached; see {@link TabletopDisplaySettings}.
    *

@@ -98,6 +98,12 @@ describe('GameTable', () => {
       expect(table.gridType).toBe(GridType.SQUARE);
     });
 
+    it('names no piece for everyone to look through', () => {
+      const table = new GameTable();
+      table.initialize();
+      expect(table.sharedViewPiece).toBe('');
+    });
+
     it('starts with nothing over the background', () => {
       const table = new GameTable();
       table.initialize();
