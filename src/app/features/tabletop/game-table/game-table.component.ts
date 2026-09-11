@@ -22,6 +22,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -253,6 +254,7 @@ export class GameTableComponent {
   private _lastTableId: string | null = null;
   private _lastMode2dTableId: string | null = null;
   readonly gestureService = inject(GameTableGestureService);
+  private readonly firstPerson = inject(FirstPersonService);
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -283,6 +285,27 @@ export class GameTableComponent {
       this.tabletopService.mode2d();
       this.tabletopService.orthographicProjection();
       if (this._initialized) untracked(() => this.syncMode2d());
+    });
+    effect(() => {
+      const away = this.firstPerson.showing();
+      untracked(() => {
+        this.gestureService.suspended = away;
+        if (away) {
+          this.gestureService.cancelInput();
+          return;
+        }
+        if (!this._initialized) return;
+        this.setGameTableGrid(
+          this.currentTable.width,
+          this.currentTable.height,
+          this.currentTable.gridSize,
+          this.currentTable.gridType,
+          this.currentTable.gridColor,
+          this.currentTable.gridFontColor
+        );
+        this.syncMode2d();
+        this.snapToRealSize();
+      });
     });
     effect(() => {
       const focus = this.selectionSignalService.focusCoordinate();

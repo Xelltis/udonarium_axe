@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
@@ -46,6 +47,21 @@ describe('GameTableComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('holds its camera still while the first-person view is up, and lets it go after', () => {
+    fixture.detectChanges();
+    const piece = GameCharacter.create('コマ', 1, '');
+    piece.location = { name: 'table', x: 250, y: 250 };
+    const firstPerson = TestBed.inject(FirstPersonService);
+
+    firstPerson.enterSeat(piece.identifier);
+    TestBed.tick();
+    expect(component.gestureService.suspended).toBe(true);
+
+    firstPerson.exitSeat();
+    TestBed.tick();
+    expect(component.gestureService.suspended).toBe(false);
   });
 
   describe('what drifts under the board', () => {
