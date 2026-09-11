@@ -23,6 +23,7 @@ import { FACTION_PHASE_MODES, TURN_ORDER_MODES } from '@axe/domain/tabletop/turn
 import { LightPreset } from '@axe/domain/tabletop/vision-types';
 import { FAB_ENTRIES } from '@axe/domain/ui/fab-menu';
 import { VIEW_MODES } from '@axe/domain/ui/view-mode';
+import { FIRST_PERSON_FACING_NAMES, FIRST_PERSON_PAD_LABELS } from '@axe/features/first-person/first-person-hud';
 import { MAP_KINDS } from '@axe/features/tabletop/dungeon-generator/dungeon-generator.component';
 const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty'] as const;
 
@@ -34,6 +35,8 @@ const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty'
  * a raw key on someone's screen.
  */
 const CHOICES: Record<string, readonly string[]> = {
+  'feature.firstPerson.facing.': FIRST_PERSON_FACING_NAMES,
+  'feature.firstPerson.hud.': FIRST_PERSON_PAD_LABELS,
   'common.textures.': [...TEXTURE_IDS, ...WALL_TEXTURE_IDS, ...DUNGEON_PROP_IDS],
   'feature.light.skin.': LIGHT_SKIN_IDS,
   'feature.light.preset.': Object.values(LightPreset),

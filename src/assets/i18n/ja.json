@@ -108,6 +108,35 @@
     }
   },
   "feature": {
+    "firstPerson": {
+      "exit": "卓に戻る",
+      "sharedBadge": "GM の共有視点",
+      "keysHint": "WASD・矢印キーで移動　Q/E で向きを変える　Space で扉",
+      "keysHintHex": "W/S・矢印キーで前後　A/D で斜め前　Z/C で斜め後ろ　Q/E で向きを変える　Space で扉",
+      "facing": {
+        "north": "北",
+        "northEast": "北東",
+        "east": "東",
+        "southEast": "南東",
+        "south": "南",
+        "southWest": "南西",
+        "west": "西",
+        "northWest": "北西"
+      },
+      "hud": {
+        "forward": "前へ",
+        "back": "後ろへ",
+        "left": "左へ",
+        "right": "右へ",
+        "frontLeft": "左前へ",
+        "frontRight": "右前へ",
+        "backLeft": "左後ろへ",
+        "backRight": "右後ろへ",
+        "turnLeft": "左を向く",
+        "turnRight": "右を向く",
+        "door": "扉を開け閉めする"
+      }
+    },
     "role": {
       "gm": "ゲームマスター",
       "gmShort": "GM",

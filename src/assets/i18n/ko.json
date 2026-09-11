@@ -108,6 +108,35 @@
     }
   },
   "feature": {
+    "firstPerson": {
+      "exit": "테이블로 돌아가기",
+      "sharedBadge": "GM 공유 시점",
+      "keysHint": "WASD·방향키로 이동 · Q/E로 방향 전환 · Space로 문",
+      "keysHintHex": "W/S·방향키로 앞뒤 · A/D로 앞 대각선 · Z/C로 뒤 대각선 · Q/E로 방향 전환 · Space로 문",
+      "facing": {
+        "north": "북",
+        "northEast": "북동",
+        "east": "동",
+        "southEast": "남동",
+        "south": "남",
+        "southWest": "남서",
+        "west": "서",
+        "northWest": "북서"
+      },
+      "hud": {
+        "forward": "앞으로",
+        "back": "뒤로",
+        "left": "왼쪽으로",
+        "right": "오른쪽으로",
+        "frontLeft": "왼쪽 앞으로",
+        "frontRight": "오른쪽 앞으로",
+        "backLeft": "왼쪽 뒤로",
+        "backRight": "오른쪽 뒤로",
+        "turnLeft": "왼쪽으로 돌기",
+        "turnRight": "오른쪽으로 돌기",
+        "door": "문 열고 닫기"
+      }
+    },
     "role": {
       "gm": "게임 마스터",
       "gmShort": "GM",
