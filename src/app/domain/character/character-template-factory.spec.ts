@@ -182,6 +182,51 @@ describe('CharacterTemplateFactory', () => {
       expect(row4?.getFirstElementByName('肉体技能名')?.value).toBe('登攀');
       expect(row4?.getFirstElementByName('肉体技能習熟度')?.value).toBe('初級');
     });
+
+    it('builds a table of parts for each site, marking damage and use as two separate checks', () => {
+      const character = GameCharacter.create('パーツ確認', 1, '');
+
+      const section = character.detailDataElement!.getFirstElementByName('パーツ');
+      const tables = section?.children ?? [];
+
+      expect(section?.fieldRole).toBe(DataElementRole.SECTION);
+      expect(tables.map((table) => table.name)).toEqual(['頭', '腕', '胴', '脚']);
+      for (const table of tables) {
+        expect(table.fieldRole).toBe(DataElementRole.GROUP);
+        expect(table.viewMode).toBe(DataElementViewMode.TABLE);
+        for (const row of table.children) {
+          expect(row.fieldRole).toBe(DataElementRole.GROUP);
+          expect(row.children.map((cell) => cell.name)).toEqual([
+            '損傷',
+            '使用済み',
+            'タイミング',
+            'コスト',
+            '射程',
+            '効果',
+          ]);
+          expect(row.getFirstElementByName('損傷')?.fieldType).toBe(DataElementFieldType.CHECK);
+          expect(row.getFirstElementByName('使用済み')?.fieldType).toBe(DataElementFieldType.CHECK);
+          expect(row.children.every((cell) => cell.getAttribute(DataElementAttribute.CELL_KIND) === '')).toBe(true);
+        }
+      }
+      const claw = tables[1].getFirstElementByName('鉤爪');
+      const armour = tables[2].getFirstElementByName('装甲');
+      expect(claw?.getFirstElementByName('使用済み')?.value).toBe(1);
+      expect(claw?.getFirstElementByName('損傷')?.value).toBe(0);
+      expect(armour?.getFirstElementByName('損傷')?.value).toBe(1);
+      expect(armour?.getFirstElementByName('使用済み')?.value).toBe(0);
+    });
+
+    it('keeps every row of the part tables in its table when the sheet is tidied on load', () => {
+      const character = GameCharacter.create('パーツ確認', 1, '');
+      const section = character.detailDataElement!.getFirstElementByName('パーツ')!;
+      const before = section.children.map((table) => table.children.map((row) => row.name));
+
+      character.normalizeDetailDataElementHierarchy();
+
+      expect(section.children.map((table) => table.children.map((row) => row.name))).toEqual(before);
+      expect(section.children.every((table) => table.viewMode === DataElementViewMode.TABLE)).toBe(true);
+    });
   });
 
   describe('createCheckTable', () => {

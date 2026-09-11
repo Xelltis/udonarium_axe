@@ -150,6 +150,7 @@ export class CharacterTemplateFactory {
 
     character.detailDataElement!.appendChild(CharacterTemplateFactory.createGenericSkillTableElement(character));
     character.detailDataElement!.appendChild(CharacterTemplateFactory.createSkillTableType2Element(character));
+    character.detailDataElement!.appendChild(CharacterTemplateFactory.createPartsSectionElement(character));
   }
 
   private static appendAbilitySampleElements(character: GameCharacter): void {
@@ -647,6 +648,99 @@ export class CharacterTemplateFactory {
     }
 
     return tableElement;
+  }
+
+  private static createPartsSectionElement(character: GameCharacter): DataElement {
+    const sectionElement = CharacterTemplateFactory.createSectionElement('パーツ', `パーツ_${character.identifier}`);
+    sectionElement.setAttribute('cs-colspan', '2');
+    const sites = [
+      {
+        name: '頭',
+        parts: [
+          { name: '義眼', timing: '常時', cost: 0, range: '自身', effect: '判定+1', damaged: 0, used: 0 },
+          { name: 'センサー', timing: '行動', cost: 1, range: '0～2', effect: '索敵', damaged: 0, used: 0 },
+        ],
+      },
+      {
+        name: '腕',
+        parts: [
+          { name: '鉤爪', timing: '行動', cost: 2, range: '0', effect: '近接攻撃1', damaged: 0, used: 1 },
+          { name: '盾', timing: 'ダメージ', cost: 1, range: '0', effect: '防御1', damaged: 0, used: 0 },
+        ],
+      },
+      {
+        name: '胴',
+        parts: [
+          { name: '装甲', timing: 'ダメージ', cost: 1, range: '自身', effect: '防御1', damaged: 1, used: 0 },
+          { name: '予備動力', timing: '常時', cost: 0, range: '自身', effect: '行動値+1', damaged: 0, used: 0 },
+        ],
+      },
+      {
+        name: '脚',
+        parts: [
+          {
+            name: '強化脚',
+            timing: '割り込み',
+            cost: 0,
+            range: '自身',
+            effect: '移動1（1ターンに1回）',
+            damaged: 0,
+            used: 0,
+          },
+        ],
+      },
+    ];
+
+    for (const site of sites) {
+      const sitePrefix = `パーツ_${site.name}`;
+      const tableElement = CharacterTemplateFactory.createGroupElement(
+        site.name,
+        `${sitePrefix}_${character.identifier}`
+      );
+      tableElement.setAttribute(DataElementAttribute.VIEW_MODE, DataElementViewMode.TABLE);
+      sectionElement.appendChild(tableElement);
+
+      for (const part of site.parts) {
+        const prefix = `${sitePrefix}_${part.name}`;
+        const rowElement = CharacterTemplateFactory.createGroupElement(part.name, `${prefix}_${character.identifier}`);
+        tableElement.appendChild(rowElement);
+        const cells: [string, number | string, Record<string, number | string>][] = [
+          [
+            '損傷',
+            part.damaged,
+            { [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK, type: DataElementType.CHECK },
+          ],
+          [
+            '使用済み',
+            part.used,
+            { [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK, type: DataElementType.CHECK },
+          ],
+          [
+            'タイミング',
+            part.timing,
+            {
+              [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.SELECT,
+              [DataElementAttribute.CHOICES]: '常時,行動,判定,ダメージ,割り込み',
+            },
+          ],
+          ['コスト', part.cost, { [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.NUMBER }],
+          ['射程', part.range, { [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.TEXT }],
+          ['効果', part.effect, { [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.TEXT }],
+        ];
+        for (const [column, value, attributes] of cells) {
+          rowElement.appendChild(
+            CharacterTemplateFactory.createFieldElement(
+              column,
+              value,
+              attributes,
+              `${prefix}_${column}_${character.identifier}`
+            )
+          );
+        }
+      }
+    }
+
+    return sectionElement;
   }
 
   private static createFieldElement(
