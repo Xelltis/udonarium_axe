@@ -40,6 +40,7 @@ export class GameTableGestureService {
   orthographicProjection = false;
   /** A display lying flat under miniatures is touched constantly; the view holds still. */
   viewLocked = false;
+  suspended = false;
 
   private frame: number | null = null;
   private turned = false;
@@ -192,6 +193,7 @@ export class GameTableGestureService {
     _event: TableTouchGestureEvent,
     srcEvent: TouchEvent | MouseEvent | PointerEvent
   ): void {
+    if (this.suspended) return;
     if (!this.isTableTransformMode || document.body !== document.activeElement) return;
 
     // Only the movement is dropped: the long press that opens the menu is a separate path,
@@ -277,6 +279,7 @@ export class GameTableGestureService {
       }
     }
 
+    if (this.suspended) return;
     if (!this.isTableTransformMode || document.body !== document.activeElement) return;
 
     // The marquee above still runs, since locking holds the view rather than the selection.

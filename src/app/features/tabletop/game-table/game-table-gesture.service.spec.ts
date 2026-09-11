@@ -211,6 +211,59 @@ describe('GameTableGestureService', () => {
     });
   });
 
+  describe('suspended', () => {
+    const srcEvent = { cancelable: true, preventDefault: vi.fn() };
+
+    const moveTable = (tX: number, tY: number, tZ: number, rZ: number): void => {
+      service.isTableTransformMode = true;
+      const gesture = service as unknown as {
+        onTableTouchTransform(...args: unknown[]): void;
+        onTableMouseTransform(...args: unknown[]): void;
+      };
+      gesture.onTableTouchTransform(tX, tY, tZ, 0, 0, rZ, {}, srcEvent);
+      gesture.onTableMouseTransform(tX, tY, tZ, 0, 0, rZ, {}, srcEvent);
+    };
+
+    beforeEach(() => {
+      document.body.focus();
+      srcEvent.preventDefault.mockClear();
+    });
+
+    it('holds the view still against panning, zooming and turning, from the keys as well', () => {
+      service.suspended = true;
+      const before = {
+        x: service.viewPositionX,
+        y: service.viewPositionY,
+        z: service.viewPositionZ,
+        rotateZ: service.viewRotateZ,
+      };
+
+      moveTable(40, 30, -20, 15);
+
+      expect(service.viewPositionX).toBe(before.x);
+      expect(service.viewPositionY).toBe(before.y);
+      expect(service.viewPositionZ).toBe(before.z);
+      expect(service.viewRotateZ).toBe(before.rotateZ);
+    });
+
+    it('leaves the key to whatever is showing in place of the table', () => {
+      service.suspended = true;
+
+      moveTable(40, 30, -20, 15);
+
+      expect(srcEvent.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('moves the view again once it is let go', () => {
+      service.suspended = true;
+      service.suspended = false;
+
+      moveTable(40, 30, -20, 15);
+
+      expect(service.viewPositionX).not.toBe(100);
+    });
+  });
+
   describe('snapToViewPositionZ', () => {
     it('lands on the depth asked for, wherever the camera was', () => {
       service.viewPositionZ = -800;
