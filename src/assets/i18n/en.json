@@ -111,6 +111,8 @@
     "firstPerson": {
       "exit": "Back to the table",
       "sharedBadge": "Shared view (GM)",
+      "stopSharing": "Release the shared first-person view",
+      "sharedMissing": "The shared piece is not on the table (press to release)",
       "keysHint": "WASD or arrows to move · Q/E to turn · Space for doors",
       "keysHintHex": "W/S or arrows: forward and back · A/D: front left and right · Z/C: back left and right · Q/E: turn · Space: doors",
       "facing": {

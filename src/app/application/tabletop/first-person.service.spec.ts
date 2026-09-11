@@ -143,6 +143,19 @@ describe('FirstPersonService', () => {
       expect(service().canLookOutOf(piece)).toBe(false);
     });
 
+    it('says whether the piece the table names can still be shown', () => {
+      expect(service().sharedUsable()).toBe(false);
+
+      const piece = pieceAt(5, 5);
+      table.sharedViewPiece = piece.identifier;
+      touch(table.identifier);
+      expect(service().sharedUsable()).toBe(true);
+
+      piece.location = { ...piece.location, name: 'graveyard' };
+      touch(piece.identifier);
+      expect(service().sharedUsable()).toBe(false);
+    });
+
     it('hands the choice of a piece for everyone to the game master alone', () => {
       const piece = pieceAt(5, 5);
 

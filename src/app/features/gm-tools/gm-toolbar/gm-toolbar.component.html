@@ -53,6 +53,16 @@
       (press)="toggleFog()"
     />
 
+    @if (sharedView(); as shared) {
+      <ui-icon-button
+        icon="visibility"
+        [label]="(shared.missing ? 'feature.firstPerson.sharedMissing' : 'feature.firstPerson.stopSharing') | transloco"
+        [active]="!shared.missing"
+        [dim]="shared.missing"
+        (press)="stopSharing()"
+      />
+    }
+
     <ui-icon-button
       icon="style"
       [label]="'app.fab.handCards' | transloco"

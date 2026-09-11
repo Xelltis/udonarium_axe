@@ -105,6 +105,12 @@ export class FirstPersonService {
 
   readonly sharedPiece = computed(() => sharedViewPieceOf(this.table()));
 
+  readonly sharedUsable = computed(() => {
+    const table = this.table();
+    const piece = sharedViewPieceOf(table);
+    return piece !== '' && table !== null && this.pieceOn(table, piece) !== null;
+  });
+
   readonly target = computed<FirstPersonTarget | null>(() => {
     const table = this.table();
     if (!table) return null;

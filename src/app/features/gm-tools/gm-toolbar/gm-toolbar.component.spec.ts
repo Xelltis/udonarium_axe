@@ -7,6 +7,7 @@ import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.s
 import { Card } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameObjectListPanelComponent } from '@axe/features/gm-object-list/game-object-list-panel.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcBarService } from '@axe/features/gm-tools/npc-bar/npc-bar.service';
@@ -50,6 +51,34 @@ describe('GmToolbarComponent', () => {
 
     expect(fixture.nativeElement.querySelector('[data-testid="move-block-toggle"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid="move-block-erase"]')).toBeNull();
+  });
+
+  describe('the view everyone was put in', () => {
+    function sharingButton(): HTMLElement | undefined {
+      return Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('button')).find(
+        (candidate) => candidate.querySelector('i')?.textContent?.trim() === 'visibility'
+      );
+    }
+
+    it('shows nothing while no piece is named for everyone', () => {
+      PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+      new GameTable().initialize();
+      fixture.detectChanges();
+
+      expect(sharingButton()).toBeUndefined();
+    });
+
+    it('lets everyone go, even when the piece named has left the table', () => {
+      PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+      const table = new GameTable();
+      table.initialize();
+      table.sharedViewPiece = 'gone';
+      fixture.detectChanges();
+
+      sharingButton()!.click();
+
+      expect(table.sharedViewPiece).toBe('');
+    });
   });
 
   it('opens the object list', async () => {

@@ -111,6 +111,8 @@
     "firstPerson": {
       "exit": "卓に戻る",
       "sharedBadge": "GM の共有視点",
+      "stopSharing": "全員の一人称を解除",
+      "sharedMissing": "共有中のコマが卓にいません（押すと解除）",
       "keysHint": "WASD・矢印キーで移動　Q/E で向きを変える　Space で扉",
       "keysHintHex": "W/S・矢印キーで前後　A/D で斜め前　Z/C で斜め後ろ　Q/E で向きを変える　Space で扉",
       "facing": {

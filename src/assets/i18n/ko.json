@@ -111,6 +111,8 @@
     "firstPerson": {
       "exit": "테이블로 돌아가기",
       "sharedBadge": "GM 공유 시점",
+      "stopSharing": "공유 1인칭 시점 해제",
+      "sharedMissing": "공유 중인 캐릭터가 테이블에 없습니다(눌러서 해제)",
       "keysHint": "WASD·방향키로 이동 · Q/E로 방향 전환 · Space로 문",
       "keysHintHex": "W/S·방향키로 앞뒤 · A/D로 앞 대각선 · Z/C로 뒤 대각선 · Q/E로 방향 전환 · Space로 문",
       "facing": {

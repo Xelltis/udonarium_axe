@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -51,6 +52,7 @@ export class GmToolbarComponent {
   protected readonly widgets = inject(WidgetVisibilityService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
+  private readonly firstPerson = inject(FirstPersonService);
 
   private readonly barRef = viewChild<ElementRef<HTMLElement>>('bar');
   private savedLeft: string | null = null;
@@ -82,6 +84,15 @@ export class GmToolbarComponent {
 
   protected turnNext(): void {
     this.turnOrder.next();
+  }
+
+  protected readonly sharedView = computed(() => {
+    if (!this.firstPerson.sharedPiece()) return null;
+    return { missing: !this.firstPerson.sharedUsable() };
+  });
+
+  protected stopSharing(): void {
+    this.firstPerson.share(null);
   }
 
   protected toggleHandRail(): void {
