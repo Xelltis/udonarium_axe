@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectNode } from '@axe/core/sync/object-node';
 import {
   DataElement,
   DataElementAttribute,
@@ -47,6 +48,130 @@ describe('GameDataElementComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('the icon picker', () => {
+    it('lifts the heading it opens from above the headings of the children', () => {
+      const group = DataElement.create('頭', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      const row = DataElement.create('義眼', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      row.appendChild(
+        DataElement.create('損傷', 0, {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK,
+        })
+      );
+      group.appendChild(row);
+
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', group);
+      fixture.detectChanges();
+
+      const heading = (fixture.nativeElement as HTMLElement).querySelector('.elm-name-input')!.closest('.z-1')!;
+      expect(heading.classList.contains('z-100!')).toBe(false);
+
+      heading.querySelector<HTMLButtonElement>('.relative.shrink-0 > button')!.click();
+      fixture.detectChanges();
+
+      expect(heading.classList.contains('z-100!')).toBe(true);
+    });
+  });
+
+  describe('copies and templates', () => {
+    function buildSheet(): { detail: DataElement; section: DataElement; part: DataElement } {
+      const owner = new ObjectNode();
+      owner.initialize();
+      const root = DataElement.create('character', '');
+      owner.appendChild(root);
+      const detail = DataElement.create('detail', '');
+      const section = DataElement.create('パーツ', '', { [DataElementAttribute.ROLE]: DataElementRole.SECTION });
+      const part = DataElement.create('義眼', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      part.appendChild(
+        DataElement.create('損傷', 0, {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK,
+        })
+      );
+      const shield = DataElement.create('盾', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      root.appendChild(detail);
+      detail.appendChild(section);
+      section.appendChild(part);
+      section.appendChild(shield);
+      return { detail, section, part };
+    }
+
+    it('puts a copy of a group straight after it, under a name of its own', () => {
+      const { section, part } = buildSheet();
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', part);
+      fixture.detectChanges();
+
+      component.duplicateElement();
+
+      expect(section.children.map((child) => child.name)).toEqual(['義眼', '義眼 2', '盾']);
+      expect(section.children[1].children.map((child) => child.name)).toEqual(['損傷']);
+    });
+
+    it('offers a saved group where it fits and builds a fresh one there', () => {
+      const { section, part } = buildSheet();
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', part);
+      fixture.detectChanges();
+      component.saveAsTemplate();
+
+      fixture.componentRef.setInput('gameDataElement', section);
+      fixture.detectChanges();
+      expect(component.elementTemplates().map((template) => template.name)).toEqual(['義眼']);
+
+      component.insertTemplate(component.elementTemplates()[0]);
+
+      expect(section.children.map((child) => child.name)).toEqual(['義眼', '盾', '義眼 2']);
+      expect(section.children[2].identifier).not.toBe(part.identifier);
+    });
+
+    it('offers every template, and sets one that will not fit inside down just after the container', () => {
+      const { section } = buildSheet();
+      const table = DataElement.create('頭', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      const row = DataElement.create('義眼', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      row.appendChild(DataElement.create('損傷', 0, { [DataElementAttribute.ROLE]: DataElementRole.FIELD }));
+      table.appendChild(row);
+      section.insertBefore(table, section.children[1]);
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', table);
+      fixture.detectChanges();
+      component.saveAsTemplate();
+
+      expect(component.elementTemplates().map((template) => template.name)).toEqual(['頭']);
+      component.insertTemplate(component.elementTemplates()[0]);
+
+      expect(section.children.map((child) => child.name)).toEqual(['義眼', '頭', '頭 2', '盾']);
+    });
+
+    it('lets a section be kept as a template as well as a group', () => {
+      const { section } = buildSheet();
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', section);
+      fixture.detectChanges();
+
+      expect(component.canSaveAsTemplate()).toBe(true);
+      component.saveAsTemplate();
+
+      expect(component.elementTemplates().map((template) => template.name)).toEqual(['パーツ']);
+    });
+
+    it('offers neither saving nor adding templates inside a template itself', () => {
+      const { part } = buildSheet();
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', part);
+      fixture.detectChanges();
+      component.saveAsTemplate();
+      const template = component.elementTemplates()[0];
+
+      fixture.componentRef.setInput('gameDataElement', template);
+      fixture.detectChanges();
+
+      expect(component.canSaveAsTemplate()).toBe(false);
+      expect(component.elementTemplates()).toEqual([]);
+    });
   });
 
   describe('dragging the structure about', () => {

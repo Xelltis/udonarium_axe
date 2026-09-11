@@ -222,6 +222,29 @@
             {{ 'feature.chat.tabSetting.logSaveSection' | transloco }}
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
+            <label class="text-ui-muted inline-flex shrink-0 items-center gap-1.5 text-[12px]">
+              {{ 'feature.chat.log.styleLabel' | transloco }}
+              <select
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent border border-solid px-1.5 py-1 text-[12px] transition-colors outline-none"
+                name="log-style"
+                [ngModel]="logStyle()"
+                (ngModelChange)="chooseLogStyle($event)"
+              >
+                @for (option of logStyles; track option) {
+                  <option [ngValue]="option">{{ 'feature.chat.log.styles.' + option + '.name' | transloco }}</option>
+                }
+              </select>
+            </label>
+            <button
+              type="button"
+              data-testid="chat-log-preview-open"
+              class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none [&_.material-icons]:text-[14px]!"
+              (click)="openLogPreview()"
+            >
+              <i class="material-icons">visibility</i>{{ 'feature.chat.log.preview' | transloco }}
+            </button>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[14px]!"
@@ -241,19 +264,6 @@
               </button>
             }
           </div>
-          @if (!isSystemTabSelected) {
-            <label
-              class="text-ui-muted inline-flex shrink-0 cursor-pointer items-center gap-1.25 text-[12px] select-none"
-            >
-              <input
-                type="checkbox"
-                class="m-0 size-3.25 cursor-pointer [accent-color:var(--ui-accent)]"
-                name="mode-coc-log"
-                [(ngModel)]="modeCocLog"
-              />
-              {{ 'feature.chat.tabSetting.cocLogMode' | transloco }}
-            </label>
-          }
         </div>
 
         <hr class="border-ui-border-panel mx-0 my-2 border-0 border-t border-solid" />

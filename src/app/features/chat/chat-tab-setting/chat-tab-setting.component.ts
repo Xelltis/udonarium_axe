@@ -1,19 +1,23 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ChatLogStylePreferenceService } from '@axe/application/chat/chat-log-style-preference.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { Network } from '@axe/core/index';
+import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -26,8 +30,10 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class ChatTabSettingComponent {
   private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
+  private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly saveDataService = inject(SaveDataService);
+  private readonly logStylePreference = inject(ChatLogStylePreferenceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectSerializer = inject(ObjectSerializer);
   private readonly chatTabList = inject(ChatTabList);
@@ -37,6 +43,9 @@ export class ChatTabSettingComponent {
 
   readonly selectedTab = signal<ChatTab | null>(null);
   selectedTabXml = '';
+
+  readonly logStyles = CHAT_LOG_STYLES;
+  readonly logStyle = this.logStylePreference.style;
 
   get systemTabIndex(): number {
     return this.chatTabList.systemMessageTabIndex;
@@ -106,8 +115,9 @@ export class ChatTabSettingComponent {
     return !this.isSystemTabSelected;
   }
 
-  private get useCocLog(): boolean {
-    return this.modeCocLog && !this.isSystemTabSelected;
+  private get effectiveLogStyle(): ChatLogStyle {
+    const style = this.logStyle();
+    return style === 'coc' && this.isSystemTabSelected ? 'standard' : style;
   }
 
   get isEditable(): boolean {
@@ -123,7 +133,6 @@ export class ChatTabSettingComponent {
 
   allowDeleteLog = false;
   allowDeleteTab = false;
-  modeCocLog = false;
 
   constructor() {
     queueMicrotask(
@@ -180,47 +189,32 @@ export class ChatTabSettingComponent {
     }, 500);
   }
 
-  get roomName(): string {
-    const roomName =
-      Network.peerContext && 0 < Network.peerContext.roomName.length
-        ? Network.peerContext.roomName
-        : this.t('app.roomDataDefault');
-    return roomName;
+  chooseLogStyle(style: ChatLogStyle): void {
+    this.logStylePreference.choose(style);
   }
 
-  private appendTimestamp(fileName: string): string {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = ('00' + (date.getMonth() + 1)).slice(-2);
-    const day = ('00' + date.getDate()).slice(-2);
-    const hours = ('00' + date.getHours()).slice(-2);
-    const minutes = ('00' + date.getMinutes()).slice(-2);
-
-    return fileName + `_${year}-${month}-${day}_${hours}${minutes}`;
+  openLogPreview(): void {
+    const coordinate = this.pointerDeviceService.pointers[0];
+    const component = this.panelService.open<ChatLogPreviewComponent>(ChatLogPreviewComponent, {
+      title: this.t('feature.chat.log.previewTitle'),
+      ...sheetPanelBox(coordinate, 820, 580),
+    });
+    component.tab.set(this.selectedTab());
   }
 
   saveLog() {
-    if (!this.selectedTab()) return;
-    const fileName: string = this.roomName + '_log_' + this.selectedTab()!.name;
-    const fileName_: string = this.appendTimestamp(fileName);
-
-    if (this.useCocLog) {
-      this.saveDataService.saveHtmlChatLogCoc(this.selectedTab()!, fileName_);
-    } else {
-      this.saveDataService.saveHtmlChatLog(this.selectedTab()!, fileName_);
-    }
+    const tab = this.selectedTab();
+    if (!tab) return;
+    this.saveDataService.saveChatLog(this.effectiveLogStyle, 'tab', [tab], tab.name);
   }
 
   saveAllLog() {
-    const fileName: string = this.roomName + '_log_' + this.t('feature.chat.tabSetting.allTabsLogName');
-    const fileName_: string = this.appendTimestamp(fileName);
-    const tabs = this.chatMessageService.chatTabs;
-
-    if (this.useCocLog) {
-      this.saveDataService.saveHtmlChatLogAllCoc(fileName_, tabs);
-    } else {
-      this.saveDataService.saveHtmlChatLogAll(fileName_, tabs);
-    }
+    this.saveDataService.saveChatLog(
+      this.effectiveLogStyle,
+      'all',
+      this.chatMessageService.chatTabs,
+      this.t('feature.chat.tabSetting.allTabsLogName')
+    );
   }
 
   delete() {

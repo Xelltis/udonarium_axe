@@ -1,7 +1,45 @@
 import type { ImageFile } from '@axe/core/storage/image-file';
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
-import type { ChatTab } from '@axe/domain/chat/chat-tab';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
+
+export type ChatLogLine = Pick<
+  ChatMessage,
+  | 'name'
+  | 'text'
+  | 'messColor'
+  | 'timestamp'
+  | 'placedAt'
+  | 'from'
+  | 'to'
+  | 'fixd'
+  | 'isSecret'
+  | 'isSendFromSelf'
+  | 'isDisplayable'
+  | 'isSentBy'
+  | 'image'
+  | 'attachmentImages'
+  | 'quoteOf'
+  | 'quoteOfMessage'
+  | 'replyTo'
+  | 'replyToMessage'
+  | 'vnEmote'
+  | 'isSystemMessage'
+  | 'isDicebot'
+  | 'rollDetail'
+  | 'isOutOfStory'
+>;
+
+export interface ChatLogTab {
+  readonly name: string;
+  readonly chatMessages: readonly ChatLogLine[];
+  readonly isSystemTab?: boolean;
+}
+
+export interface ChatLogEntry {
+  readonly tab: ChatLogTab;
+  readonly tabIndex: number;
+  readonly message: ChatLogLine;
+}
 
 export type ChatLogImageSrcResolver = (image: ImageFile) => string;
 /** @deprecated Use {@link ChatLogImageSrcResolver}. Kept as alias for backward compatibility. */
@@ -12,7 +50,7 @@ export type ChatLogImageSrcResolver = (image: ImageFile) => string;
  */
 export type ChatLogTextDecoder = (text: string) => string;
 
-type MessageFormatter = (tabName: string, message: ChatMessage) => string;
+type MessageFormatter = (tabName: string, message: ChatLogLine) => string;
 
 const HTML_ESCAPE_MAP: Record<string, string> = {
   '&': '&amp;',
@@ -49,7 +87,7 @@ export class ChatLogExporter {
   static formatMessageStandard(
     isTime: boolean,
     tabName: string,
-    message: ChatMessage,
+    message: ChatLogLine,
     userId?: string,
     imageSrcResolver?: ChatLogImageSrcResolver,
     textDecoder?: ChatLogTextDecoder
@@ -80,7 +118,7 @@ export class ChatLogExporter {
     if (decodedName) str += ChatLogExporter.escapeHtml(decodedName);
     str += '</b>';
 
-    const canSee = userId != null ? message.isSentBy(userId) : message.isSendFromSelf;
+    const canSee = ChatLogExporter.canSee(message, userId);
     str += '：';
     if (!message.isSecret || canSee) {
       const decodedText = vnBodyOf(message.vnEmote, ChatLogExporter.decode(message.text, textDecoder));
@@ -97,7 +135,7 @@ export class ChatLogExporter {
 
   static formatMessageCoc(
     tabName: string,
-    message: ChatMessage,
+    message: ChatLogLine,
     userId?: string,
     imageSrcResolver?: ChatLogImageSrcResolver,
     textDecoder?: ChatLogTextDecoder
@@ -114,7 +152,7 @@ export class ChatLogExporter {
     const decodedName = ChatLogExporter.decode(message.name, textDecoder);
     str += `<span>${ChatLogExporter.escapeHtml(decodedName).replace('<', '').replace('>', '')}</span> `;
 
-    const canSee = userId != null ? message.isSentBy(userId) : message.isSendFromSelf;
+    const canSee = ChatLogExporter.canSee(message, userId);
     if (!message.isSecret || canSee) {
       const decodedText = vnBodyOf(message.vnEmote, ChatLogExporter.decode(message.text, textDecoder));
       if (decodedText) str += ChatLogExporter.escapeHtml(decodedText).replace(/\n/g, '<br>').replace(/→/g, '＞');
@@ -131,13 +169,17 @@ export class ChatLogExporter {
     return str;
   }
 
-  private static decode(text: string | null | undefined, textDecoder?: ChatLogTextDecoder): string {
+  static decode(text: string | null | undefined, textDecoder?: ChatLogTextDecoder): string {
     if (text == null) return '';
     return textDecoder ? textDecoder(text) : text;
   }
 
+  static canSee(message: ChatLogLine, userId?: string): boolean {
+    return userId != null ? message.isSentBy(userId) : message.isSendFromSelf;
+  }
+
   static exportTabHtml(
-    tab: ChatTab,
+    tab: ChatLogTab,
     userId?: string,
     imageSrcResolver?: ChatLogImageSrcResolver,
     textDecoder?: ChatLogTextDecoder
@@ -160,7 +202,7 @@ export class ChatLogExporter {
   }
 
   static exportTabHtmlCoc(
-    tab: ChatTab,
+    tab: ChatLogTab,
     userId?: string,
     imageSrcResolver?: ChatLogImageSrcResolver,
     textDecoder?: ChatLogTextDecoder
@@ -193,7 +235,7 @@ export class ChatLogExporter {
   }
 
   static exportAllTabsHtml(
-    tabs: readonly ChatTab[],
+    tabs: readonly ChatLogTab[],
     showTime: number | boolean,
     userId?: string,
     imageSrcResolver?: ChatLogImageSrcResolver,
@@ -218,7 +260,7 @@ export class ChatLogExporter {
   }
 
   static exportAllTabsHtmlCoc(
-    tabs: readonly ChatTab[],
+    tabs: readonly ChatLogTab[],
     userId?: string,
     imageSrcResolver?: ChatLogImageSrcResolver,
     textDecoder?: ChatLogTextDecoder
@@ -248,11 +290,11 @@ export class ChatLogExporter {
    * The system tab fills with arrivals and departures, and mixed in they sink the exchanges worth rereading.
    * A single-tab export can choose it, so it is there when it is wanted.
    */
-  static spokenTabs(tabs: readonly ChatTab[]): readonly ChatTab[] {
+  static spokenTabs(tabs: readonly ChatLogTab[]): readonly ChatLogTab[] {
     return tabs.filter((tab) => !tab.isSystemTab);
   }
 
-  static isVisibleMessage(message: ChatMessage, userId?: string): boolean {
+  static isVisibleMessage(message: ChatLogLine, userId?: string): boolean {
     const to = message.to;
     if (!to) return true;
     if (userId != null) {
@@ -261,11 +303,11 @@ export class ChatLogExporter {
     return message.isDisplayable;
   }
 
-  private static mergeTabMessages(tabs: readonly ChatTab[], formatter: MessageFormatter, userId?: string): string {
-    if (!tabs || tabs.length === 0) return '';
+  static mergeEntries(tabs: readonly ChatLogTab[], userId?: string): ChatLogEntry[] {
+    if (!tabs || tabs.length === 0) return [];
     const tabNum = tabs.length;
     const indexList = new Array<number>(tabNum).fill(0);
-    const parts: string[] = [];
+    const entries: ChatLogEntry[] = [];
 
     while (true) {
       let fastTabIndex = -1;
@@ -283,14 +325,20 @@ export class ChatLogExporter {
 
       const message = tabs[fastTabIndex].chatMessages[indexList[fastTabIndex]];
       if (ChatLogExporter.isVisibleMessage(message, userId)) {
-        parts.push(formatter(tabs[fastTabIndex].name, message));
+        entries.push({ tab: tabs[fastTabIndex], tabIndex: fastTabIndex, message });
       }
       indexList[fastTabIndex]++;
     }
-    return parts.join('');
+    return entries;
   }
 
-  private static formatPortraitImage(message: ChatMessage, imageSrcResolver?: ChatLogImageSrcResolver): string {
+  private static mergeTabMessages(tabs: readonly ChatLogTab[], formatter: MessageFormatter, userId?: string): string {
+    return ChatLogExporter.mergeEntries(tabs, userId)
+      .map((entry) => formatter(entry.tab.name, entry.message))
+      .join('');
+  }
+
+  private static formatPortraitImage(message: ChatLogLine, imageSrcResolver?: ChatLogImageSrcResolver): string {
     const portrait = message.image;
     const key = portrait ? (imageSrcResolver?.(portrait) ?? portrait.url) : '';
     if (!portrait || !key) {
@@ -302,7 +350,7 @@ export class ChatLogExporter {
 
   // The message quoted or replied to is put in front of the body as a small quotation,
   // trimmed to about the length the chat itself previews.
-  private static formatReferenceBlock(message: ChatMessage, textDecoder?: ChatLogTextDecoder): string {
+  private static formatReferenceBlock(message: ChatLogLine, textDecoder?: ChatLogTextDecoder): string {
     const quote = message.quoteOf ? message.quoteOfMessage : null;
     const reply = message.replyTo ? message.replyToMessage : null;
     if (!quote && !reply) return '';
@@ -333,19 +381,23 @@ export class ChatLogExporter {
     return blocks.join('');
   }
 
+  static referenceExcerpt(target: ChatLogLine, maxTextLength: number, textDecoder?: ChatLogTextDecoder): string {
+    const rawText = vnBodyOf(target.vnEmote, ChatLogExporter.decode(target.text, textDecoder))
+      .replace(/\s+/g, ' ')
+      .trim();
+    return rawText.length > maxTextLength ? rawText.slice(0, maxTextLength) + '…' : rawText;
+  }
+
   private static formatReferenceBlockBody(opts: {
     label: string;
     icon: string;
-    target: ChatMessage;
+    target: ChatLogLine;
     maxTextLength: number;
     textDecoder?: ChatLogTextDecoder;
   }): string {
     const { label, icon, target, maxTextLength, textDecoder } = opts;
     const rawName = ChatLogExporter.decode(target.name, textDecoder);
-    const rawText = vnBodyOf(target.vnEmote, ChatLogExporter.decode(target.text, textDecoder))
-      .replace(/\s+/g, ' ')
-      .trim();
-    const truncated = rawText.length > maxTextLength ? rawText.slice(0, maxTextLength) + '…' : rawText;
+    const truncated = ChatLogExporter.referenceExcerpt(target, maxTextLength, textDecoder);
     const name = ChatLogExporter.escapeHtml(rawName || label);
     const text = ChatLogExporter.escapeHtml(truncated);
     // It is drawn as a pale block with a rule down its left, so it reads apart from the body.
@@ -358,7 +410,7 @@ export class ChatLogExporter {
     );
   }
 
-  private static formatAttachmentImages(message: ChatMessage, imageSrcResolver?: ChatLogImageSrcResolver): string {
+  private static formatAttachmentImages(message: ChatLogLine, imageSrcResolver?: ChatLogImageSrcResolver): string {
     const images = message.attachmentImages ?? [];
     if (images.length < 1) return '';
 
@@ -376,7 +428,7 @@ export class ChatLogExporter {
     return `<span class="aw">${imageTags}</span>`;
   }
 
-  private static escapeAttribute(value: string): string {
+  static escapeAttribute(value: string): string {
     return value.replace(/[&'`"<>]/g, (match) => HTML_ESCAPE_MAP[match] ?? match);
   }
 }

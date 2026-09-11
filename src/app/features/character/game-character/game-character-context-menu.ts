@@ -16,6 +16,7 @@ import { BUFF_VIEW_MODES } from '@axe/domain/character/buff-view-mode';
 import { heldDiceOf } from '@axe/domain/character/character-dice';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
+import { sheetElementsOf } from '@axe/domain/data/data-element-templates';
 import { decodeRangeShapeField, RangeShapeFieldValue } from '@axe/domain/data/range-shape-field';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -61,9 +62,7 @@ export function collectRegisteredRangeShapes(char: GameCharacter): RegisteredRan
     }
     for (const child of element.children) walk(child);
   };
-  for (const child of char.children) {
-    if (child instanceof DataElement) walk(child);
-  }
+  for (const child of sheetElementsOf(char)) walk(child);
   return result;
 }
 
@@ -77,9 +76,7 @@ export function collectRegisteredEffects(char: GameCharacter): string[] {
     }
     for (const child of element.children) walk(child);
   };
-  for (const child of char.children) {
-    if (child instanceof DataElement) walk(child);
-  }
+  for (const child of sheetElementsOf(char)) walk(child);
   return names;
 }
 

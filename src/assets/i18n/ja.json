@@ -1318,7 +1318,10 @@
         "convertLegacyTables": "構造化テーブルに一括変換",
         "popupSetting": "ポップアップ設定",
         "popupWidth": "横幅",
-        "popupMaxHeight": "高さ最大"
+        "popupMaxHeight": "高さ最大",
+        "templates": "テンプレート",
+        "addTemplateToSheet": "シートに追加",
+        "noTemplates": "保存したテンプレートはまだありません"
       },
       "panel": {
         "folder": "フォルダ",
@@ -2707,7 +2710,6 @@
         "logSaveSection": "ログ保存",
         "saveThisTab": "このタブ",
         "saveAllTabs": "全タブ",
-        "cocLogMode": "CoCログ形式で出力",
         "logDeleteSection": "ログ消去",
         "allowDeleteLog": "消去を有効化",
         "deleteLogThisTab": "このタブ",
@@ -2716,6 +2718,106 @@
         "noneMark": "—",
         "allTabsLogName": "全タブ",
         "systemTabNote": "知らせの貼り紙です。全員に見え、誰も書き込めません。名前と並びは固定で、部屋データにも保存されません。"
+      },
+      "log": {
+        "styleLabel": "形式",
+        "preview": "プレビュー",
+        "previewTitle": "ログのプレビュー",
+        "previewSave": "この形式で保存",
+        "previewFrameTitle": "書き出されるログの見本",
+        "previewLimited": "直近 {{count}} 件で表示しています。保存するとタブ全体が書き出されます。",
+        "previewSample": "まだ発言がないため、見本の会話で表示しています。",
+        "styles": {
+          "standard": {
+            "name": "標準",
+            "description": "装飾なしの従来形式"
+          },
+          "parchment": {
+            "name": "羊皮紙",
+            "description": "剣と魔法の冒険譚に"
+          },
+          "eerie": {
+            "name": "怪奇",
+            "description": "恐怖と狂気の記録に"
+          },
+          "neon": {
+            "name": "電脳",
+            "description": "近未来・サイバーな卓に"
+          },
+          "washi": {
+            "name": "和紙",
+            "description": "和風・時代物に"
+          },
+          "messenger": {
+            "name": "トーク",
+            "description": "現代もの・日常ものに"
+          },
+          "gothic": {
+            "name": "ゴシック",
+            "description": "吸血鬼・耽美な物語に"
+          },
+          "noir": {
+            "name": "ノワール",
+            "description": "探偵・ハードボイルドに"
+          },
+          "terminal": {
+            "name": "ターミナル",
+            "description": "ハッカー・レトロSFに"
+          },
+          "cosmos": {
+            "name": "星海",
+            "description": "宇宙冒険・幻想譚に"
+          },
+          "military": {
+            "name": "作戦",
+            "description": "ミリタリー・メカものに"
+          },
+          "steampunk": {
+            "name": "蒸気",
+            "description": "スチームパンク・機械文明に"
+          },
+          "ocean": {
+            "name": "大海原",
+            "description": "海洋冒険・航海ものに"
+          },
+          "notebook": {
+            "name": "ノート",
+            "description": "学園もの・青春ものに"
+          },
+          "pop": {
+            "name": "ポップ",
+            "description": "コメディ・にぎやかな卓に"
+          },
+          "coc": {
+            "name": "CoCログ形式",
+            "description": "他のツールで読み込める従来形式"
+          }
+        },
+        "labels": {
+          "secret": "シークレットダイス",
+          "edited": "編集済",
+          "quote": "引用",
+          "reply": "返信先",
+          "critical": "クリティカル",
+          "fumble": "ファンブル",
+          "success": "成功",
+          "failure": "失敗",
+          "allTabs": "全タブ",
+          "everyTab": "すべて",
+          "messages": "{{count}} 件の発言",
+          "exportedWith": "Udonarium Axe で書き出し"
+        },
+        "sample": {
+          "gm": "GM",
+          "hero": "アリア",
+          "sage": "ノア",
+          "narration1": "霧の立ちこめる森の奥に、苔むした石の門が現れた。",
+          "hero1": "……扉に何か刻まれてる。ノア、読めそう？",
+          "sage1": "任せて。古い言葉なら少しは分かる。",
+          "narration2": "刻まれた文字が淡く光り、門がゆっくりと開いていく。",
+          "hero2": "よし、行こう！",
+          "aside": "（そろそろ休憩にしませんか？）"
+        }
       },
       "colorSetting": {
         "sample": "こんにちは！",
@@ -3951,7 +4053,11 @@
       "deleteRow": "この行を削除",
       "deleteSection": "このセクションを削除",
       "normalView": "通常表示",
-      "tableView": "テーブル表示"
+      "tableView": "テーブル表示",
+      "duplicate": "複製",
+      "saveTemplate": "テンプレートとして保存",
+      "addFromTemplate": "テンプレートから追加",
+      "deleteTemplate": "テンプレートを削除"
     },
     "defaults": {
       "newGroup": "グループ",

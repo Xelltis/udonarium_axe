@@ -1318,7 +1318,10 @@
         "convertLegacyTables": "구조화 테이블로 일괄 변환",
         "popupSetting": "팝업 설정",
         "popupWidth": "가로 폭",
-        "popupMaxHeight": "높이 최대"
+        "popupMaxHeight": "높이 최대",
+        "templates": "템플릿",
+        "addTemplateToSheet": "시트에 추가",
+        "noTemplates": "저장된 템플릿이 아직 없습니다"
       },
       "panel": {
         "folder": "폴더",
@@ -2707,7 +2710,6 @@
         "logSaveSection": "로그 저장",
         "saveThisTab": "이 탭",
         "saveAllTabs": "전체 탭",
-        "cocLogMode": "CoC 로그 형식으로 내보내기",
         "logDeleteSection": "로그 삭제",
         "allowDeleteLog": "삭제 사용",
         "deleteLogThisTab": "이 탭",
@@ -2716,6 +2718,106 @@
         "noneMark": "—",
         "allTabsLogName": "전체 탭",
         "systemTabNote": "알림 게시판입니다. 전원에게 보이고 아무도 쓸 수 없습니다. 이름과 순서는 고정이며 방 데이터에도 저장되지 않습니다."
+      },
+      "log": {
+        "styleLabel": "형식",
+        "preview": "미리보기",
+        "previewTitle": "로그 미리보기",
+        "previewSave": "이 형식으로 저장",
+        "previewFrameTitle": "내보낼 로그 견본",
+        "previewLimited": "최근 {{count}}건으로 표시하고 있습니다. 저장하면 탭 전체가 내보내집니다.",
+        "previewSample": "아직 발언이 없어 견본 대화로 표시하고 있습니다.",
+        "styles": {
+          "standard": {
+            "name": "표준",
+            "description": "장식 없는 기존 형식"
+          },
+          "parchment": {
+            "name": "양피지",
+            "description": "검과 마법의 모험담에"
+          },
+          "eerie": {
+            "name": "괴기",
+            "description": "공포와 광기의 기록에"
+          },
+          "neon": {
+            "name": "전뇌",
+            "description": "근미래·사이버 세션에"
+          },
+          "washi": {
+            "name": "화지",
+            "description": "일본풍·시대물에"
+          },
+          "messenger": {
+            "name": "토크",
+            "description": "현대물·일상물에"
+          },
+          "gothic": {
+            "name": "고딕",
+            "description": "흡혈귀·탐미적인 이야기에"
+          },
+          "noir": {
+            "name": "누아르",
+            "description": "탐정·하드보일드에"
+          },
+          "terminal": {
+            "name": "터미널",
+            "description": "해커·레트로 SF에"
+          },
+          "cosmos": {
+            "name": "성해",
+            "description": "우주 모험·환상담에"
+          },
+          "military": {
+            "name": "작전",
+            "description": "밀리터리·메카물에"
+          },
+          "steampunk": {
+            "name": "증기",
+            "description": "스팀펑크·기계 문명에"
+          },
+          "ocean": {
+            "name": "대해원",
+            "description": "해양 모험·항해물에"
+          },
+          "notebook": {
+            "name": "노트",
+            "description": "학원물·청춘물에"
+          },
+          "pop": {
+            "name": "팝",
+            "description": "코미디·떠들썩한 세션에"
+          },
+          "coc": {
+            "name": "CoC 로그 형식",
+            "description": "다른 도구에서 읽을 수 있는 기존 형식"
+          }
+        },
+        "labels": {
+          "secret": "시크릿 다이스",
+          "edited": "편집됨",
+          "quote": "인용",
+          "reply": "답장 대상",
+          "critical": "크리티컬",
+          "fumble": "펌블",
+          "success": "성공",
+          "failure": "실패",
+          "allTabs": "전체 탭",
+          "everyTab": "전체",
+          "messages": "발언 {{count}}건",
+          "exportedWith": "Udonarium Axe에서 내보냄"
+        },
+        "sample": {
+          "gm": "GM",
+          "hero": "아리아",
+          "sage": "노아",
+          "narration1": "안개 자욱한 숲속, 이끼 낀 돌문이 모습을 드러냈다.",
+          "hero1": "……문에 뭔가 새겨져 있어. 노아, 읽을 수 있겠어?",
+          "sage1": "맡겨 줘. 옛말이라면 조금은 알아.",
+          "narration2": "새겨진 글자가 희미하게 빛나며 문이 천천히 열린다.",
+          "hero2": "좋아, 가자!",
+          "aside": "(슬슬 쉬었다 할까요?)"
+        }
       },
       "colorSetting": {
         "sample": "안녕하세요!",
@@ -3726,7 +3828,11 @@
         "deleteRow": "이 행 삭제",
         "deleteSection": "이 섹션 삭제",
         "normalView": "일반 표시",
-        "tableView": "테이블 표시"
+        "tableView": "테이블 표시",
+        "duplicate": "복제",
+        "saveTemplate": "템플릿으로 저장",
+        "addFromTemplate": "템플릿에서 추가",
+        "deleteTemplate": "템플릿 삭제"
       },
       "defaults": {
         "newGroup": "그룹",

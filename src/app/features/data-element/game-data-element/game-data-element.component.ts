@@ -31,6 +31,13 @@ import {
 } from '@axe/domain/data/data-element';
 import { calcSourceIdentifiers, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
 import {
+  duplicateDataElement,
+  findElementTemplateHolder,
+  findElementTemplateOwner,
+  readElementTemplates,
+  saveElementTemplate,
+} from '@axe/domain/data/data-element-templates';
+import {
   buildTableColumnHeaderGroups,
   canRenderAsTable as canRenderAsTableShared,
   getRawTableRows,
@@ -52,6 +59,7 @@ import {
   insertElementAfter,
   moveStructureElement,
   type NewElementNames,
+  placeElementTemplate,
 } from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
 import { GameDataElementTableViewComponent } from '@axe/features/data-element/game-data-element/game-data-element-table-view.component';
 import { escapeHtml, isUrlText } from '@axe/features/data-element/game-data-element/game-data-element-utils';
@@ -403,11 +411,24 @@ export class GameDataElementComponent {
   });
 
   readonly iconPickerOpen = signal(false);
+  readonly templateMenuOpen = signal(false);
 
   static readonly ICON_GROUPS: { labelKey: string; icons: string[] }[] = [
     {
       labelKey: 'feature.dataElement.iconGroup.character',
-      icons: ['person', 'face', 'account_circle', 'groups', 'man', 'woman', 'child_care', 'elderly'],
+      icons: [
+        'person',
+        'face',
+        'account_circle',
+        'groups',
+        'man',
+        'woman',
+        'child_care',
+        'elderly',
+        'back_hand',
+        'accessibility',
+        'roller_skating',
+      ],
     },
     {
       labelKey: 'feature.dataElement.iconGroup.combat',
@@ -557,6 +578,65 @@ export class GameDataElementComponent {
   canAddSiblingFieldElement(): boolean {
     const parentElement = this.getDataElementParent();
     return !!parentElement && canAcceptChildRole(parentElement, DataElementRole.FIELD);
+  }
+
+  canDuplicateElement(): boolean {
+    return !this.isImage() && this.getDataElementParent() !== null;
+  }
+
+  duplicateElement(): void {
+    const element = this.gameDataElement();
+    const parentElement = this.getDataElementParent();
+    if (!parentElement || this.isImage()) return;
+
+    const copy = duplicateDataElement(element, parentElement);
+    if (!copy) return;
+    insertElementAfter(copy, element, parentElement);
+    this.notifyStructureChanged(parentElement, copy);
+  }
+
+  canSaveAsTemplate(): boolean {
+    const element = this.gameDataElement();
+    const role = element.fieldRole;
+    if (this.isImage() || (role !== DataElementRole.GROUP && role !== DataElementRole.SECTION)) return false;
+    return findElementTemplateOwner(element) !== null;
+  }
+
+  saveAsTemplate(): void {
+    if (!this.canSaveAsTemplate()) return;
+    const owner = findElementTemplateOwner(this.gameDataElement());
+    if (!owner) return;
+    const template = saveElementTemplate(owner, this.gameDataElement());
+    const holder = template?.parent;
+    if (template && holder instanceof DataElement) this.notifyStructureChanged(holder, template);
+    this.objectChange.notifyChanged(owner.identifier);
+  }
+
+  readonly elementTemplates = computed<DataElement[]>(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    if (this.isImage() || element.fieldRole === DataElementRole.FIELD) return [];
+    const owner = findElementTemplateOwner(element);
+    if (!owner) return [];
+    this.objectChange.versionOf(owner.identifier)();
+    const holder = findElementTemplateHolder(owner);
+    if (holder) this.objectChange.versionOf(holder.identifier)();
+    return readElementTemplates(owner);
+  });
+
+  insertTemplate(template: DataElement): void {
+    this.templateMenuOpen.set(false);
+    const placed = placeElementTemplate(template, this.gameDataElement());
+    if (!placed) return;
+    this.notifyStructureChanged(placed.parent, placed.element);
+  }
+
+  deleteTemplate(template: DataElement, event: Event): void {
+    event.stopPropagation();
+    const holder = template.parent;
+    template.destroy();
+    if (holder instanceof DataElement) this.notifyStructureChanged(holder);
+    if (this.elementTemplates().length < 1) this.templateMenuOpen.set(false);
   }
 
   private newElementNames(): NewElementNames {

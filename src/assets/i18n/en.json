@@ -1318,7 +1318,10 @@
         "convertLegacyTables": "Convert to structured tables",
         "popupSetting": "Popup settings",
         "popupWidth": "Width",
-        "popupMaxHeight": "Max height"
+        "popupMaxHeight": "Max height",
+        "templates": "Templates",
+        "addTemplateToSheet": "Add to sheet",
+        "noTemplates": "No templates saved yet"
       },
       "panel": {
         "folder": "Folder",
@@ -2707,7 +2710,6 @@
         "logSaveSection": "Save log",
         "saveThisTab": "This tab",
         "saveAllTabs": "All tabs",
-        "cocLogMode": "Export as CoC log",
         "logDeleteSection": "Clear log",
         "allowDeleteLog": "Enable clear",
         "deleteLogThisTab": "This tab",
@@ -2716,6 +2718,106 @@
         "noneMark": "—",
         "allTabsLogName": "All tabs",
         "systemTabNote": "A notice board: everyone sees it, no one writes in it. Its name and position are fixed, and it is never saved with the room."
+      },
+      "log": {
+        "styleLabel": "Style",
+        "preview": "Preview",
+        "previewTitle": "Log preview",
+        "previewSave": "Save in this style",
+        "previewFrameTitle": "Sample of the exported log",
+        "previewLimited": "Showing the latest {{count}} lines. Saving writes out the whole tab.",
+        "previewSample": "Nothing has been said yet, so a sample conversation is shown.",
+        "styles": {
+          "standard": {
+            "name": "Standard",
+            "description": "The plain classic layout"
+          },
+          "parchment": {
+            "name": "Parchment",
+            "description": "For tales of sword and sorcery"
+          },
+          "eerie": {
+            "name": "Eerie",
+            "description": "For records of dread and madness"
+          },
+          "neon": {
+            "name": "Neon",
+            "description": "For near-future, cyber tables"
+          },
+          "washi": {
+            "name": "Washi",
+            "description": "For Japanese and period settings"
+          },
+          "messenger": {
+            "name": "Messenger",
+            "description": "For modern, everyday stories"
+          },
+          "gothic": {
+            "name": "Gothic",
+            "description": "For vampires and dark romance"
+          },
+          "noir": {
+            "name": "Noir",
+            "description": "For detectives and hard-boiled tales"
+          },
+          "terminal": {
+            "name": "Terminal",
+            "description": "For hackers and retro sci-fi"
+          },
+          "cosmos": {
+            "name": "Cosmos",
+            "description": "For space adventure and wonder"
+          },
+          "military": {
+            "name": "Tactical",
+            "description": "For military and mecha"
+          },
+          "steampunk": {
+            "name": "Steampunk",
+            "description": "For brass, steam and machines"
+          },
+          "ocean": {
+            "name": "High Seas",
+            "description": "For voyages and sea adventure"
+          },
+          "notebook": {
+            "name": "Notebook",
+            "description": "For school life and coming-of-age"
+          },
+          "pop": {
+            "name": "Pop",
+            "description": "For comedy and lively tables"
+          },
+          "coc": {
+            "name": "CoC log",
+            "description": "The classic layout other tools can read"
+          }
+        },
+        "labels": {
+          "secret": "Secret dice",
+          "edited": "edited",
+          "quote": "Quote",
+          "reply": "Reply to",
+          "critical": "Critical",
+          "fumble": "Fumble",
+          "success": "Success",
+          "failure": "Failure",
+          "allTabs": "All tabs",
+          "everyTab": "All",
+          "messages": "{{count}} lines",
+          "exportedWith": "Exported from Udonarium Axe"
+        },
+        "sample": {
+          "gm": "GM",
+          "hero": "Aria",
+          "sage": "Noah",
+          "narration1": "Deep in the misty forest, a moss-covered stone gate comes into view.",
+          "hero1": "…Something's carved on the door. Can you read it, Noah?",
+          "sage1": "Leave it to me. I know a little of the old tongue.",
+          "narration2": "The carved letters glow faintly, and the gate slowly swings open.",
+          "hero2": "Right, let's go!",
+          "aside": "(Shall we take a break soon?)"
+        }
       },
       "colorSetting": {
         "sample": "Hello, world!",
@@ -3951,7 +4053,11 @@
       "deleteRow": "Delete this row",
       "deleteSection": "Delete this section",
       "normalView": "Normal view",
-      "tableView": "Table view"
+      "tableView": "Table view",
+      "duplicate": "Duplicate",
+      "saveTemplate": "Save as template",
+      "addFromTemplate": "Add from template",
+      "deleteTemplate": "Delete template"
     },
     "defaults": {
       "newGroup": "Group",

@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { Network } from '@axe/core/index';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -16,8 +17,10 @@ import { formatXml } from '@axe/core/util/format-xml';
 import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { xml2element } from '@axe/core/util/xml-util';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
-import { ChatLogExporter, ChatLogImageSrcResolver, ChatLogTextDecoder } from '@axe/domain/chat/chat-log-exporter';
-import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
+import { ChatLogImageSrcResolver, ChatLogTab, ChatLogTextDecoder } from '@axe/domain/chat/chat-log-exporter';
+import { ChatLogLabels, ChatLogScope } from '@axe/domain/chat/chat-log-rich';
+import { ChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
@@ -235,45 +238,55 @@ export class SaveDataService {
     return rawValue.split(/\n+/);
   }
 
-  async saveHtmlChatLog(chatTab: ChatTab, fileName: string): Promise<void> {
-    const { resolver, registryScript } = await this.buildChatLogImageRegistry([chatTab]);
-    const body: string = ChatLogExporter.exportTabHtml(chatTab, undefined, resolver, this.chatLogTextDecoder);
-    const text = SaveDataService.injectImageRegistry(body, registryScript);
+  async saveChatLog(
+    style: ChatLogStyle,
+    scope: ChatLogScope,
+    tabs: readonly ChatLogTab[],
+    label: string
+  ): Promise<void> {
+    const images = await this.prepareChatLogImages(tabs);
+    const text = this.renderChatLog(style, scope, tabs, images);
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    downloadBlob(blob, fileName + '.html');
+    downloadBlob(blob, this.appendTimestamp(`${this.chatLogRoomName()}_log_${label}`) + '.html');
   }
 
-  async saveHtmlChatLogAll(fileName: string, tabs: readonly ChatTab[] = this.chatTabList.chatTabs): Promise<void> {
-    const { resolver, registryScript } = await this.buildChatLogImageRegistry(tabs);
-    const body: string = ChatLogExporter.exportAllTabsHtml(
-      tabs,
-      this.chatTabList.simpleDispFlagTime,
-      undefined,
-      resolver,
-      this.chatLogTextDecoder
-    );
-    const text = SaveDataService.injectImageRegistry(body, registryScript);
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    downloadBlob(blob, fileName + '.html');
+  renderChatLog(style: ChatLogStyle, scope: ChatLogScope, tabs: readonly ChatLogTab[], images: ChatLogImages): string {
+    const body = exportChatLog(style, scope, tabs, {
+      imageSrcResolver: images.resolver,
+      textDecoder: this.chatLogTextDecoder,
+      showTime: this.chatTabList.simpleDispFlagTime,
+      roomName: Network.peerContext?.roomName || undefined,
+      labels: this.chatLogLabels(),
+      lang: document.documentElement.lang || undefined,
+      exportedAt: Date.now(),
+    });
+    return SaveDataService.injectImageRegistry(body, images.registryScript);
   }
 
-  async saveHtmlChatLogCoc(chatTab: ChatTab, fileName: string): Promise<void> {
-    const { resolver, registryScript } = await this.buildChatLogImageRegistry([chatTab]);
-    const body: string = ChatLogExporter.exportTabHtmlCoc(chatTab, undefined, resolver, this.chatLogTextDecoder);
-    const text = SaveDataService.injectImageRegistry(body, registryScript);
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    downloadBlob(blob, fileName + '.html');
+  private chatLogRoomName(): string {
+    return Network.peerContext?.roomName || this.translate('app.roomDataDefault');
   }
 
-  async saveHtmlChatLogAllCoc(fileName: string, tabs: readonly ChatTab[] = this.chatTabList.chatTabs): Promise<void> {
-    const { resolver, registryScript } = await this.buildChatLogImageRegistry(tabs);
-    const body: string = ChatLogExporter.exportAllTabsHtmlCoc(tabs, undefined, resolver, this.chatLogTextDecoder);
-    const text = SaveDataService.injectImageRegistry(body, registryScript);
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    downloadBlob(blob, fileName + '.html');
+  private chatLogLabels(): ChatLogLabels {
+    const label = (key: string, params?: Record<string, unknown>) =>
+      this.translate(`feature.chat.log.labels.${key}`, params);
+    return {
+      secret: label('secret'),
+      edited: label('edited'),
+      quote: label('quote'),
+      reply: label('reply'),
+      critical: label('critical'),
+      fumble: label('fumble'),
+      success: label('success'),
+      failure: label('failure'),
+      allTabs: label('allTabs'),
+      everyTab: label('everyTab'),
+      messages: (count) => label('messages', { count }),
+      exportedWith: label('exportedWith'),
+    };
   }
 
-  private static readonly PORTRAIT_MAX_DIMENSION = 48;
+  private static readonly PORTRAIT_MAX_DIMENSION = 96;
   private static readonly ATTACHMENT_MAX_DIMENSION = 360;
 
   /**
@@ -281,9 +294,7 @@ export class SaveDataService {
    * each image carries only that key. A script fills in the sources on load, which removes the
    * duplicated base64 and shrinks the html enormously.
    */
-  private async buildChatLogImageRegistry(
-    chatTabs: readonly ChatTab[]
-  ): Promise<{ resolver: ChatLogImageSrcResolver; registryScript: string }> {
+  async prepareChatLogImages(chatTabs: readonly ChatLogTab[]): Promise<ChatLogImages> {
     const portraitIds = new Set<string>();
     const seen = new Map<string, ImageFile>();
     for (const chatTab of chatTabs) {
