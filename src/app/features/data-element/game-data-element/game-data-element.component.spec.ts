@@ -49,6 +49,32 @@ describe('GameDataElementComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  describe('the icon picker', () => {
+    it('lifts the heading it opens from above the headings of the children', () => {
+      const group = DataElement.create('頭', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      const row = DataElement.create('義眼', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+      row.appendChild(
+        DataElement.create('損傷', 0, {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK,
+        })
+      );
+      group.appendChild(row);
+
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', group);
+      fixture.detectChanges();
+
+      const heading = (fixture.nativeElement as HTMLElement).querySelector('.elm-name-input')!.closest('.z-1')!;
+      expect(heading.classList.contains('z-100!')).toBe(false);
+
+      heading.querySelector<HTMLButtonElement>('.relative.shrink-0 > button')!.click();
+      fixture.detectChanges();
+
+      expect(heading.classList.contains('z-100!')).toBe(true);
+    });
+  });
+
   describe('dragging the structure about', () => {
     it('moves an item back within its parent', () => {
       const parent = DataElement.create('parent', '');

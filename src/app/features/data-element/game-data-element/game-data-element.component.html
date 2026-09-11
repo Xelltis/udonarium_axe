@@ -597,6 +597,7 @@
           class="relative z-1 m-0 mb-1 min-w-0 rounded-l-none rounded-r-xs border border-l-[3px] border-(--gde-row-border) border-l-(--gde-accent-border) bg-(--gde-section-bg) px-2 py-1.25 pl-2.5 text-[0.82em] shadow-(--gde-section-shadow)"
           [class.px-2!]="isEdit()"
           [class.py-1.25!]="isEdit()"
+          [class.z-100!]="iconPickerOpen()"
         >
           @if (!isTagLocked() && isEdit()) {
             <div
