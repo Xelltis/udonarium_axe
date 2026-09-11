@@ -219,6 +219,20 @@ describe('FirstPersonService', () => {
       expect(piece.location.y).toBe(5 * GRID);
     });
 
+    it('carries the eye along with the piece as it steps and turns', async () => {
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+      expect(service().pose()).toEqual({ x: 260, y: 275, z: 25, yaw: 90 });
+
+      await service().walk('forward');
+      touch(piece.identifier);
+      expect(service().pose()).toEqual({ x: 310, y: 275, z: 25, yaw: 90 });
+
+      await service().turn(1);
+      touch(piece.identifier);
+      expect(service().pose()?.yaw).toBe(180);
+    });
+
     it('will not walk into a wall', async () => {
       block(6 * GRID, 5 * GRID, 1, 1);
       const piece = pieceAt(5, 5, 90);

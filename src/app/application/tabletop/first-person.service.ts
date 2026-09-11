@@ -129,11 +129,14 @@ export class FirstPersonService {
 
   readonly forced = computed(() => this.target()?.shared === true);
 
-  readonly piece = computed<GameCharacter | null>(() => {
-    const target = this.target();
-    const table = this.table();
-    return target && table ? this.pieceOn(table, target.piece) : null;
-  });
+  readonly piece = computed<GameCharacter | null>(
+    () => {
+      const target = this.target();
+      const table = this.table();
+      return target && table ? this.pieceOn(table, target.piece) : null;
+    },
+    { equal: () => false }
+  );
 
   readonly lattice = computed<FirstPersonLattice>(() => latticeOf(this.table()?.gridType ?? GridType.SQUARE));
 
