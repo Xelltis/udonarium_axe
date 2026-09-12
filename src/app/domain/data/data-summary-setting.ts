@@ -2,10 +2,7 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
-
-function splitDataTag(dataTag: string): string[] {
-  return dataTag != null && dataTag.trim().length > 0 ? dataTag.trim().split(/\s+/) : [];
-}
+import { splitSummaryTags } from '@axe/domain/data/summary-tag-list';
 
 export enum SortOrder {
   ASC = 'ASC',
@@ -48,7 +45,7 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   get dataTags(): string[] {
     if (this._dataTag !== this.dataTag) {
       this._dataTag = this.dataTag;
-      this._dataTags = splitDataTag(this.dataTag);
+      this._dataTags = splitSummaryTags(this.dataTag);
     }
     return this._dataTags;
   }
@@ -58,7 +55,7 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   get tableDataTags(): string[] {
     if (this._tableDataTag !== this.tableDataTag) {
       this._tableDataTag = this.tableDataTag;
-      this._tableDataTags = splitDataTag(this.tableDataTag);
+      this._tableDataTags = splitSummaryTags(this.tableDataTag);
     }
     return this._tableDataTags;
   }

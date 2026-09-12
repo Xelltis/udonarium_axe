@@ -119,6 +119,12 @@ describe('DataSummarySetting', () => {
       expect(DataSummarySetting.instance.dataTags).toEqual(['HP', 'MP', '敏捷度', '精神力']);
     });
 
+    it('keeps a quoted item whole, so a path or a name with a space can be written', () => {
+      DataSummarySetting.instance.dataTag = 'HP "リソース/正気度" "所持金 合計"';
+
+      expect(DataSummarySetting.instance.dataTags).toEqual(['HP', 'リソース/正気度', '所持金 合計']);
+    });
+
     it('returns the same list again from the cache', () => {
       const tags1 = DataSummarySetting.instance.dataTags;
       const tags2 = DataSummarySetting.instance.dataTags;

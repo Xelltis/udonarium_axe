@@ -12,6 +12,7 @@ import { isHandLocation } from '@axe/domain/card/hand-location';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
+import { tagLeafNames } from '@axe/domain/data/summary-tag-list';
 
 type ObjectIdentifier = string;
 type LocationName = string;
@@ -170,10 +171,9 @@ export class GameObjectInventoryService {
         if (!(object instanceof DataElement) || !this.containsInGameCharacter(object)) return;
 
         const prevName = this.tagNameMap.get(object.identifier);
-        if (
-          (this.dataTags.includes(prevName ?? '') || this.dataTags.includes(object.name)) &&
-          object.name !== prevName
-        ) {
+        // By the name at the end of each item, so a column written as a path follows a rename too.
+        const watched = tagLeafNames(this.dataTags);
+        if ((watched.includes(prevName ?? '') || watched.includes(object.name)) && object.name !== prevName) {
           this.tagNameMap.set(object.identifier, object.name);
           this.refreshDataElements();
         }
