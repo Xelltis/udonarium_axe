@@ -142,6 +142,7 @@ Udonarium Axe が **追加** または **大きく拡張・再設計** した機
 
 - **`RANGE_SHAPE` フィールド型** — 射程シェイプをサムネイル付きで保持
 - **min/max の分割** — 基準値＋補正に分離し、実効上下限を算出
+- **リソースのスロットは 1 つの語彙** — 現在値・最大値・上下限のベースと補正値を `domain/data/resource-slot` の `ResourceSlot` に統一。`StatusAccessor`・チャットの `:` 記法・バフの `&!` 修整・リモコンが同じ語彙を使い、`HP^` / `HP_MAX` / `HP_MAX_BUFF` / `HP_MIN` / `HP_MIN_BUFF` の読み取りも `readNamedResourceSlot` の 1 か所。知らないスロット名は現在値として読むので、古いピアが書いたバフもそのまま動く
 - **チェック表（check-table）型** — 旧 Markdown レンダラを置換
 - 要素単位の原寸表示オプション（ポップアップ画像）
 - 型ピッカーを `ng-select` 化
