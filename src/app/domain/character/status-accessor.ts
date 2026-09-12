@@ -9,6 +9,17 @@ const SLOT_ATTRIBUTE: Partial<Record<SlotType, string>> = {
   minCorrection: DataElementAttribute.MIN_CORRECTION,
 };
 
+const CHANGEABLE_TYPES: ReadonlySet<string> = new Set([
+  DataElementType.NUMBER_RESOURCE,
+  DataElementType.TEXT,
+  DataElementType.NOTE,
+]);
+
+/** Whether an item of this kind is one a number or a line of text can be written to. */
+export function isChangeableElementType(type: string): boolean {
+  return CHANGEABLE_TYPES.has(type);
+}
+
 export class StatusAccessor {
   constructor(
     private readonly detailDataElement: DataElement | null,
@@ -18,11 +29,7 @@ export class StatusAccessor {
   canChangeName(name: string): boolean {
     const data = this.findData(name);
     if (!data) return false;
-    return (
-      data.type === DataElementType.NUMBER_RESOURCE ||
-      data.type === DataElementType.TEXT ||
-      data.type === DataElementType.NOTE
-    );
+    return isChangeableElementType(data.type);
   }
 
   canChange(name: string, nowOrMax: string): boolean {

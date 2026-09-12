@@ -33,7 +33,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
-import { SortOrder } from '@axe/domain/data/data-summary-setting';
+import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -46,7 +46,8 @@ import {
   RemoteControllerSelect,
 } from '@axe/features/controller/remote-controller/remote-controller-buff';
 import {
-  getCounterElements,
+  type ControllableResources,
+  controllableResourcesOf,
   getGameObjects,
   getInventory,
   getInventoryTags,
@@ -149,6 +150,10 @@ export class RemoteControllerComponent {
         untracked(() => (this.gameType = dicebot));
       }
     });
+    effect(() => {
+      this.counterChoices();
+      untracked(() => this.dropChosenIfGone());
+    });
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.character() && this.character()!.identifier === e.identifier) {
         this.panelService.close();
@@ -226,17 +231,14 @@ export class RemoteControllerComponent {
   readonly buffColors = BUFF_COLORS;
   readonly buffColorId = signal('');
   readonly counterSectionOpen = signal(true);
+  readonly otherResourcesOpen = signal(false);
 
   readonly chatTabidentifier = signal('');
   remoteNumber = 0;
 
   recoveryLimitFlag = false;
   recoveryLimitFlagMin = false;
-  remoteControllerSelect: RemoteControllerSelect = {
-    name: '',
-    nowOrMax: '',
-    dispName: '',
-  };
+  readonly remoteControllerSelect = signal<RemoteControllerSelect>({ name: '', nowOrMax: '', dispName: '' });
   readonly isEdit = signal(false);
   editPalette = '';
 
@@ -295,9 +297,13 @@ export class RemoteControllerComponent {
   }
 
   remoteSelect(name: string, nowOrMax: string, dispName: string) {
-    this.remoteControllerSelect.name = name;
-    this.remoteControllerSelect.nowOrMax = nowOrMax;
-    this.remoteControllerSelect.dispName = dispName;
+    this.remoteControllerSelect.set({ name, nowOrMax, dispName });
+  }
+
+  /** Whether this is the item the buttons are pointing at. */
+  isChosen(name: string, nowOrMax: string): boolean {
+    const chosen = this.remoteControllerSelect();
+    return chosen.name === name && chosen.nowOrMax === nowOrMax;
   }
 
   updatePanelTitle() {
@@ -375,13 +381,36 @@ export class RemoteControllerComponent {
     return object instanceof GameCharacter ? this.disclosureService.canView(object) : true;
   }
 
-  readonly counterElements = computed<DataElement[]>(() => {
-    const character = this.character();
-    if (!character) return [];
-    this.objectChange.versionOf(character.identifier)();
+  /**
+   * What the pieces being operated on carry between them.
+   *
+   * The buttons follow those pieces rather than the one the panel belongs to: an item is
+   * operated on by name, so one the reader's own piece happens not to have is still theirs to
+   * move on somebody else's, and one added to a sheet mid-session is there as soon as it is.
+   * With nothing picked out yet, the whole tab stands in, so the buttons are there before the
+   * first target is.
+   */
+  readonly counterChoices = computed<ControllableResources>(() => {
+    const characters = this.resourceTargets();
+    for (const character of characters) this.objectChange.versionOf(character.identifier)();
+    this.objectChange.versionOf(DataSummarySetting.instance.identifier)();
     this.objectChange.collectionOf('data')();
-    return getCounterElements(character, this.dataTags);
+    return controllableResourcesOf(characters, this.dataTags);
   });
+
+  private resourceTargets(): GameCharacter[] {
+    const targeted = this.getTargetCharacters(true);
+    return targeted.length > 0 ? targeted : this.getTargetCharacters(false);
+  }
+
+  /** Lets go of a chosen item the pieces no longer carry, so the buttons and the act agree. */
+  dropChosenIfGone(): void {
+    const chosen = this.remoteControllerSelect();
+    if (chosen.name === '') return;
+    const choices = this.counterChoices();
+    const offered = [...choices.tagged, ...choices.others].some((choice) => choice.name === chosen.name);
+    if (!offered) this.remoteSelect('', '', '');
+  }
 
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {
     this.objectChange.versionOf(gameObject.identifier)();
@@ -442,13 +471,14 @@ export class RemoteControllerComponent {
 
   remoteChangeValue() {
     const gameCharacters = this.getTargetCharacters(true);
-    if (this.remoteControllerSelect.name == '') {
+    const chosen = this.remoteControllerSelect();
+    if (chosen.name == '') {
       this.errorMessageController = this.t('feature.controller.remote.noChangeTarget');
       return;
     }
     const parts: string[] = [];
-    const name = this.remoteControllerSelect.name;
-    const nowOrMax = this.remoteControllerSelect.nowOrMax;
+    const name = chosen.name;
+    const nowOrMax = chosen.nowOrMax;
     const addValue = this.remoteNumber;
     for (const object of gameCharacters) {
       parts.push(
@@ -459,7 +489,7 @@ export class RemoteControllerComponent {
     if (text != '') {
       const sign = this.remoteNumber < 0 ? '' : '+';
       const mess = this.t('feature.controller.remote.changeValueMessage', {
-        name: this.remoteControllerSelect.dispName,
+        name: chosen.dispName,
         sign,
         value: this.remoteNumber,
         detail: text,

@@ -4,10 +4,11 @@ import { Network } from '@axe/core/index';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { parseBuffInput } from '@axe/features/controller/remote-controller/remote-controller-buff';
 import {
-  getCounterElements,
+  controllableResourcesOf,
   getGameObjects,
   getInventory,
   getInventoryTags,
@@ -120,30 +121,94 @@ describe('remote-controller-helpers', () => {
     });
   });
 
-  describe('getCounterElements', () => {
-    it('picks resources up in tag order however deep they sit', () => {
+  describe('controllableResourcesOf', () => {
+    function addField(character: GameCharacter, name: string, type: string): void {
+      character.detailDataElement!.appendChild(
+        DataElement.create(name, 0, {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          type,
+          currentValue: 0,
+        })
+      );
+    }
+
+    function namesOf(characters: GameCharacter[], tags: string[]): string[] {
+      const { tagged, others } = controllableResourcesOf(characters, tags);
+      return [...tagged, ...others].map((choice) => choice.name);
+    }
+
+    it('lists what the room shows of everybody first, in the order it lists them', () => {
       const char = createChar('カウンター対象');
 
-      const elements = getCounterElements(char, ['HP', 'MP']);
-
-      expect(elements.map((element) => element.name)).toEqual(['HP', 'MP']);
-      expect(elements.every((element) => element.isNumberResource)).toBe(true);
+      expect(controllableResourcesOf([char], ['MP', 'HP']).tagged).toEqual([
+        { name: 'MP', isResource: true },
+        { name: 'HP', isResource: true },
+      ]);
     });
 
-    it('passes over a tag that is not there', () => {
+    it('passes over a tag no piece carries', () => {
       const char = createChar('カウンター対象');
 
-      expect(getCounterElements(char, ['HP', '架空の項目', 'MP']).map((element) => element.name)).toEqual(['HP', 'MP']);
+      expect(controllableResourcesOf([char], ['HP', '架空の項目', 'MP']).tagged.map((choice) => choice.name)).toEqual([
+        'HP',
+        'MP',
+      ]);
     });
 
-    it('returns nothing twice', () => {
+    it('offers an item only one of the pieces carries', () => {
+      // Which is the point of it: an item is operated on by name, so one the reader's own
+      // piece has never had is still theirs to move on somebody else's.
+      const plain = createChar('ふつうのコマ');
+      const cursed = createChar('狂ったコマ');
+      addField(cursed, '正気度', DataElementType.NUMBER_RESOURCE);
+
+      expect(namesOf([plain, cursed], ['HP'])).toContain('正気度');
+    });
+
+    it('keeps an item the room does not show out of the first row', () => {
       const char = createChar('カウンター対象');
+      addField(char, '弾薬', DataElementType.NUMBER_RESOURCE);
 
-      expect(getCounterElements(char, ['HP', 'HP'])).toHaveLength(1);
+      const { tagged, others } = controllableResourcesOf([char], ['HP']);
+
+      expect(tagged.map((choice) => choice.name)).toEqual(['HP']);
+      expect(others.map((choice) => choice.name)).toContain('弾薬');
     });
 
-    it('returns nothing for no tags at all', () => {
-      expect(getCounterElements(createChar('カウンター対象'), [])).toEqual([]);
+    it('offers a name once however many pieces carry it', () => {
+      const first = createChar('a');
+      const second = createChar('b');
+
+      expect(namesOf([first, second], ['HP']).filter((name) => name === 'HP')).toHaveLength(1);
+    });
+
+    it('says which items have a maximum as well as a value', () => {
+      const char = createChar('カウンター対象');
+      addField(char, 'ひとこと', DataElementType.TEXT);
+
+      const { others } = controllableResourcesOf([char], []);
+
+      expect(others.find((choice) => choice.name === 'HP')?.isResource).toBe(true);
+      expect(others.find((choice) => choice.name === 'ひとこと')?.isResource).toBe(false);
+    });
+
+    it('leaves out an item nothing can be written to', () => {
+      const char = createChar('カウンター対象');
+      addField(char, '紋章', DataElementType.IMAGE);
+
+      expect(namesOf([char], [])).not.toContain('紋章');
+    });
+
+    it('leaves out a name one sheet carries twice, which nothing can point at', () => {
+      const char = createChar('カウンター対象');
+      addField(char, '副HP', DataElementType.NUMBER_RESOURCE);
+      addField(char, '副HP', DataElementType.NUMBER_RESOURCE);
+
+      expect(namesOf([char], [])).not.toContain('副HP');
+    });
+
+    it('offers nothing for no pieces at all', () => {
+      expect(controllableResourcesOf([], ['HP'])).toEqual({ tagged: [], others: [] });
     });
   });
 

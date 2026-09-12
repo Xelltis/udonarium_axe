@@ -3858,6 +3858,8 @@
       "sendTarget": "Target",
       "buffSectionTitle": "Apply buff",
       "counterSectionTitle": "Resource control",
+      "otherResources": "Other items ({{count}})",
+      "noResources": "Nothing here can be changed",
       "paletteEdit": "Edit palette",
       "confirm": "Done",
       "editing": "Editing",

@@ -3,6 +3,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { RemoteControllerComponent } from '@axe/features/controller/remote-controller/remote-controller.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -114,6 +115,65 @@ describe('RemoteControllerComponent', () => {
 
       const result = component.getTargetCharacters(true);
       expect(result).toEqual([char2]);
+    });
+  });
+
+  describe('counterChoices', () => {
+    function addResource(character: GameCharacter, name: string): void {
+      character.detailDataElement!.appendChild(
+        DataElement.create(name, 0, {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: 0,
+        })
+      );
+    }
+
+    function offeredNames(): string[] {
+      const choices = component.counterChoices();
+      return [...choices.tagged, ...choices.others].map((choice) => choice.name);
+    }
+
+    it('builds the buttons from the pieces that are targeted', () => {
+      const targeted = createChar('狙ったコマ');
+      const other = createChar('ほかのコマ');
+      addResource(targeted, '正気度');
+      addResource(other, '弾薬');
+      targeted.targeted = true;
+      other.targeted = false;
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([targeted, other]);
+
+      expect(offeredNames()).toContain('正気度');
+      expect(offeredNames()).not.toContain('弾薬');
+    });
+
+    it('stands in with every piece in the tab while none is targeted', () => {
+      const first = createChar('a');
+      const second = createChar('b');
+      addResource(second, '弾薬');
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([first, second]);
+
+      expect(offeredNames()).toContain('弾薬');
+    });
+
+    it('lets go of a chosen item the pieces no longer carry', () => {
+      const char = createChar('コマ');
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([char]);
+      component.remoteSelect('架空の項目', 'now', '架空の項目');
+
+      component.dropChosenIfGone();
+
+      expect(component.remoteControllerSelect().name).toBe('');
+    });
+
+    it('keeps one they do carry', () => {
+      const char = createChar('コマ');
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([char]);
+      component.remoteSelect('HP', 'now', 'HP現在値');
+
+      component.dropChosenIfGone();
+
+      expect(component.remoteControllerSelect().name).toBe('HP');
     });
   });
 

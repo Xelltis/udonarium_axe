@@ -3858,6 +3858,8 @@
       "sendTarget": "発言先",
       "buffSectionTitle": "バフ付与",
       "counterSectionTitle": "リソース操作",
+      "otherResources": "その他の項目 ({{count}})",
+      "noResources": "操作できる項目がありません",
       "paletteEdit": "パレット編集",
       "confirm": "確定",
       "editing": "編集中",

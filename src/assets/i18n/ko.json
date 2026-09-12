@@ -3633,6 +3633,8 @@
         "sendTarget": "발언 대상",
         "buffSectionTitle": "버프 부여",
         "counterSectionTitle": "리소스 조작",
+        "otherResources": "기타 항목 ({{count}})",
+        "noResources": "조작할 수 있는 항목이 없습니다",
         "paletteEdit": "팔레트 편집",
         "confirm": "확정",
         "editing": "편집 중",

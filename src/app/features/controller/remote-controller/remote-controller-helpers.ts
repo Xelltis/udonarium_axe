@@ -2,7 +2,8 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectInventory } from '@axe/application/inventory/object-inventory';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { DataElement } from '@axe/domain/data/data-element';
+import { isChangeableElementType } from '@axe/domain/character/status-accessor';
+import { DataElement, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface RemoteControllerInventoryContext {
@@ -62,19 +63,81 @@ export function getInventoryTags(
   return inventory.dataElementMap.get(gameCharacter.identifier) ?? [];
 }
 
-export function getCounterElements(gameCharacter: GameCharacter, dataTags: readonly string[]): DataElement[] {
-  const root = gameCharacter.rootDataElement;
-  if (!root) return [];
+export interface ResourceChoice {
+  /** What the item is called, which is what an operation is written against. */
+  name: string;
+  /** Whether it has a maximum as well as a value, which is two buttons rather than one. */
+  isResource: boolean;
+}
 
-  const elements: DataElement[] = [];
-  const seen = new Set<string>();
-  for (const tag of dataTags) {
-    const element = DataElement.findElementByReference(root, tag);
-    if (!element || seen.has(element.identifier)) continue;
-    seen.add(element.identifier);
-    elements.push(element);
+export interface ControllableResources {
+  /** The items the room shows of everybody, in the order the room lists them. */
+  tagged: ResourceChoice[];
+  /** Everything else the pieces carry, in the order their sheets read. */
+  others: ResourceChoice[];
+}
+
+/**
+ * What can be operated on across these pieces.
+ *
+ * An item is operated on by name, so the pieces being worked on are what decides the buttons:
+ * one that only somebody else carries is still theirs to move, and one written onto a sheet
+ * mid-session is there to press as soon as it exists.
+ *
+ * A name the same sheet carries twice is left out. Nothing can say which of the two is meant,
+ * so a button for it would do nothing at all.
+ */
+export function controllableResourcesOf(
+  characters: readonly GameCharacter[],
+  dataTags: readonly string[]
+): ControllableResources {
+  const found = new Map<string, boolean>();
+  for (const character of characters) {
+    for (const [name, isResource] of controllableNamesOf(character)) {
+      found.set(name, (found.get(name) ?? false) || isResource);
+    }
   }
-  return elements;
+
+  const taggedNames: string[] = [];
+  for (const tag of dataTags) {
+    const name = tag.trim();
+    if (found.has(name) && !taggedNames.includes(name)) taggedNames.push(name);
+  }
+
+  const tagged = taggedNames.map((name) => ({ name, isResource: found.get(name) === true }));
+  const others = [...found]
+    .filter(([name]) => !taggedNames.includes(name))
+    .map(([name, isResource]) => ({ name, isResource }));
+  return { tagged, others };
+}
+
+function controllableNamesOf(character: GameCharacter): Map<string, boolean> {
+  const detail = character.detailDataElement;
+  const names = new Map<string, boolean>();
+  if (!detail) return names;
+
+  const timesNamed = new Map<string, number>();
+  const walk = (element: DataElement): void => {
+    for (const child of element.children) {
+      const name = child.name.trim();
+      timesNamed.set(name, (timesNamed.get(name) ?? 0) + 1);
+      if (
+        name.length > 0 &&
+        child.fieldRole === DataElementRole.FIELD &&
+        isChangeableElementType(child.type) &&
+        !names.has(name)
+      ) {
+        names.set(name, child.type === DataElementType.NUMBER_RESOURCE);
+      }
+      walk(child);
+    }
+  };
+  walk(detail);
+
+  for (const name of [...names.keys()]) {
+    if (timesNamed.get(name) !== 1) names.delete(name);
+  }
+  return names;
 }
 
 export function getGameObjects(
