@@ -53,6 +53,7 @@ import {
   shadeFor,
   wallQuadStyle,
 } from '@axe/features/first-person/first-person-style';
+import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { paintMinimap } from '@axe/infrastructure/first-person/minimap-painter';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -102,7 +103,7 @@ interface GlowView {
     class: 'absolute inset-0 block select-none overflow-hidden bg-black',
     '(document:keydown)': 'onKeydown($event)',
   },
-  imports: [TranslocoModule, TableEffectOverlayComponent],
+  imports: [TranslocoModule, TableEffectOverlayComponent, TableWeatherOverlayComponent],
 })
 export class FirstPersonViewComponent {
   protected readonly firstPerson = inject(FirstPersonService);

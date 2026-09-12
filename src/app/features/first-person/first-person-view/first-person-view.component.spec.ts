@@ -136,6 +136,12 @@ describe('FirstPersonViewComponent', () => {
     expect(view.querySelector('[data-testid="first-person-exit"]')).toBeNull();
   });
 
+  it('lets the weather of the room fall over the view as well', () => {
+    lookOutOf(pieceAt(4, 7));
+
+    expect(element(mount()).querySelector('table-weather-overlay')).not.toBeNull();
+  });
+
   it('keeps a map of the ground about the piece in the corner', () => {
     lookOutOf(pieceAt(4, 7));
 

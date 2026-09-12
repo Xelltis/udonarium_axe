@@ -10,7 +10,10 @@ import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { groundSurfaceWash } from '@axe/domain/effect/ambience/ambience-ground';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
@@ -21,7 +24,8 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 
 export type FirstPersonPropKind = 'stand' | 'lie' | 'board';
 
-export type FirstPersonPropWhat = 'light' | 'card' | 'stack' | 'dice' | 'coin' | 'note' | 'mask' | 'trigger' | 'board';
+export type FirstPersonPropWhat =
+  'light' | 'card' | 'stack' | 'dice' | 'coin' | 'note' | 'mask' | 'trigger' | 'board' | 'scratch' | 'ambience';
 
 export interface FirstPersonProp {
   id: string;
@@ -35,6 +39,7 @@ export interface FirstPersonProp {
   rotate: number;
   image: string;
   color: string;
+  wash: string;
   opacity: number;
   dark: boolean;
   round: boolean;
@@ -54,6 +59,7 @@ export interface FirstPersonGlow {
 const CARD_ASPECT = 1.45;
 const LIFT_PX = 0.5;
 const UPRIGHT_BOARD_PITCH = 45;
+const SCRATCH_OPACITY = 0.6;
 
 @Injectable({ providedIn: 'root' })
 export class FirstPersonPropsService {
@@ -81,6 +87,8 @@ export class FirstPersonPropsService {
       ...this.masks(table, g),
       ...this.shownTriggers(g),
       ...this.boards(table, g),
+      ...this.scratchMasks(table, g),
+      ...this.ambiences(table, g),
     ];
   }
 
@@ -273,6 +281,33 @@ export class FirstPersonPropsService {
       });
   }
 
+  private scratchMasks(table: GameTable, g: number): FirstPersonProp[] {
+    this.objectChange.collectionOf(GameTableScratchMask.aliasName)();
+    return table.scratchMasks
+      .filter((mask) => this.onTheFloor(mask))
+      .map((mask) => {
+        this.objectChange.versionOf(mask.identifier)();
+        return {
+          ...this.rect(mask, 'scratch', Math.max(1, mask.width) * g, Math.max(1, mask.height) * g, g),
+          color: mask.color,
+          opacity: SCRATCH_OPACITY,
+        };
+      });
+  }
+
+  private ambiences(table: GameTable, g: number): FirstPersonProp[] {
+    this.objectChange.collectionOf(TableAmbience.aliasName)();
+    return table.ambiences
+      .filter((area) => this.onTheFloor(area))
+      .map((area) => {
+        this.objectChange.versionOf(area.identifier)();
+        return {
+          ...this.rect(area, 'ambience', Math.max(1, area.width) * g, Math.max(1, area.height) * g, g),
+          wash: groundSurfaceWash(area.kind, area.ambienceColor, area.density),
+        };
+      });
+  }
+
   private lying(
     object: TabletopObject & { rotate: number },
     what: FirstPersonPropWhat,
@@ -325,6 +360,7 @@ function blank(id: string, kind: FirstPersonPropKind, what: FirstPersonPropWhat)
     rotate: 0,
     image: '',
     color: '',
+    wash: '',
     opacity: 1,
     dark: false,
     round: false,

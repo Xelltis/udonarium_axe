@@ -7,7 +7,9 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -102,6 +104,31 @@ describe('FirstPersonPropsService', () => {
     table.appendChild(mask);
 
     expect(propOf(mask.identifier)).toMatchObject({ kind: 'lie', what: 'mask', x: 50, y: 50, width: 100 });
+  });
+
+  it('lays a scratch card over the floor in its own colour', () => {
+    const scratch = new GameTableScratchMask();
+    scratch.createDataElements();
+    scratch.initialize();
+    scratch.color = '#123456';
+    scratch.location = { name: 'table', x: 0, y: 0 };
+    table.appendChild(scratch);
+
+    expect(propOf(scratch.identifier)).toMatchObject({ kind: 'lie', what: 'scratch', color: '#123456', opacity: 0.6 });
+  });
+
+  it('washes the floor where the air of the room is drawn', () => {
+    const ambience = new TableAmbience();
+    ambience.createDataElements();
+    ambience.initialize();
+    ambience.ambienceKind = 'swamp';
+    ambience.location = { name: 'table', x: 0, y: 0 };
+    table.appendChild(ambience);
+
+    const prop = propOf(ambience.identifier);
+
+    expect(prop).toMatchObject({ kind: 'lie', what: 'ambience' });
+    expect(prop?.wash.length).toBeGreaterThan(0);
   });
 
   it('leaves out what is off the table', () => {

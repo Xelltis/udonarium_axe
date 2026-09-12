@@ -61,7 +61,8 @@
         [attr.data-prop]="prop.what"
         [style]="prop.style"
         [style.opacity]="prop.opacity"
-        [style.background-color]="prop.image ? null : prop.color || null"
+        [style.background]="prop.wash || null"
+        [style.background-color]="prop.image || prop.wash ? null : prop.color || null"
       >
         @if (prop.image) {
           <img
@@ -104,6 +105,8 @@
     }
   </div>
 </div>
+
+<table-weather-overlay />
 
 @if (flash()) {
   <div class="animate-effect-flash pointer-events-none absolute inset-0" [style.background]="flash()"></div>
