@@ -50,10 +50,13 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { eyeHeightPx, SceneVisionSource } from '@axe/domain/tabletop/vision-scene';
 import { facingBearing } from '@axe/domain/tabletop/vision-shape';
-import { VisionType } from '@axe/domain/tabletop/vision-types';
+import { applyLightPreset, LightPreset, VisionType } from '@axe/domain/tabletop/vision-types';
 
 export const FIRST_PERSON_DEPTH_CELLS = 6;
 const SIGHT_MARGIN_DEG = 40;
+
+/** How brightly a cell of ground is drawn: seen now, or only remembered. */
+export type FirstPersonCellTier = 'lit' | 'dim';
 
 type Action = () => Promise<boolean>;
 
@@ -166,13 +169,81 @@ export class FirstPersonService {
     { equal: samePose }
   );
 
-  readonly sight = computed<CellBits | null>(() => {
+  /**
+   * The ground the eye reaches by line of sight alone, with the light on the table left out.
+   *
+   * The game master is shown the room as it stands rather than as a lamp happens to light it,
+   * and ground the party has walked before is drawn from here as well: it is remembered, so it
+   * is still there to be drawn, however dark it has gone since.
+   */
+  private readonly reach = computed<CellBits | null>(() => this.eyeCells(true));
+
+  readonly sight = computed<CellBits | null>(() => (this.isGameMaster() ? this.reach() : this.eyeCells(false)));
+
+  readonly reveal = computed<CellBits | null>(() => {
+    if (this.isGameMaster()) return null;
+    const overlay = this.vision.overlayVision();
+    if (!overlay) return null;
+    const reveal = overlay.visible.copy();
+    if (overlay.rememberSeen) reveal.or(overlay.explored);
+    return reveal;
+  });
+
+  /** Ground the party has been shown and keeps, which the game master has no record of. */
+  private readonly remembered = computed<CellBits | null>(() => {
+    if (this.isGameMaster()) return null;
+    const overlay = this.vision.overlayVision();
+    return overlay?.rememberSeen ? overlay.explored : null;
+  });
+
+  /** The cells in plain sight from the eye, cut back to what the table shows this seat. */
+  readonly litCells = computed<CellBits | null>(() => {
+    const sight = this.sight();
+    if (!sight) return null;
+    const overlay = this.vision.overlayVision();
+    if (this.isGameMaster() || !overlay || overlay.visible.count !== sight.count) return sight;
+    return intersection(sight, overlay.visible);
+  });
+
+  /** Ground the eye reaches that the party remembers rather than sees, for drawing darker. */
+  readonly dimCells = computed<CellBits | null>(() => {
+    const lit = this.litCells();
+    const reach = this.reach();
+    if (!lit || !reach) return null;
+    const remembered = this.remembered();
+    if (!remembered || remembered.count !== reach.count) return new CellBits(lit.count);
+    const dim = intersection(reach, remembered);
+    for (let cell = 0; cell < dim.count; cell++) {
+      if (lit.get(cell)) dim.unset(cell);
+    }
+    return dim;
+  });
+
+  /** Everything the scene is asked to draw: what is in sight now, and what is remembered. */
+  readonly seen = computed<CellBits | null>(() => {
+    const lit = this.litCells();
+    if (!lit) return null;
+    const dim = this.dimCells();
+    if (!dim || dim.isEmpty) return lit;
+    const both = lit.copy();
+    both.or(dim);
+    return both;
+  });
+
+  tierOfCell(cell: number): FirstPersonCellTier | null {
+    if (this.litCells()?.get(cell)) return 'lit';
+    if (this.dimCells()?.get(cell)) return 'dim';
+    return null;
+  }
+
+  private eyeCells(ignoreDarkness: boolean): CellBits | null {
     const pose = this.pose();
     const piece = this.piece();
-    const scene = this.vision.scene();
+    const built = this.vision.scene();
     const grid = this.grid();
     const indexes = this.vision.sightIndexes();
-    if (!pose || !piece || !scene || !grid || !indexes) return null;
+    if (!pose || !piece || !built || !grid || !indexes) return null;
+    const scene = ignoreDarkness && built.darknessEnabled ? { ...built, darknessEnabled: false } : built;
     const blocking = this.vision.blockingCells();
     const own = scene.visionSources.find((source) => source.sourceId === piece.identifier);
     const depth = this.depthPx();
@@ -181,7 +252,7 @@ export class FirstPersonService {
       x: pose.x,
       y: pose.y,
       z: eyeHeightPx(piece.altitude, piece.posZ, scene.gridSize),
-      rangePx: own && own.rangePx > 0 ? Math.min(own.rangePx, depth) : depth,
+      rangePx: own && own.rangePx > 0 && !ignoreDarkness ? Math.min(own.rangePx, depth) : depth,
       direction: facingBearing(pose.yaw),
       lobes: [{ direction: 0, angle: FIRST_PERSON_FOV_DEG + SIGHT_MARGIN_DEG, rangeScale: 1 }],
     };
@@ -193,28 +264,7 @@ export class FirstPersonService {
       blockingTops: blocking?.tops,
       blockingBases: blocking?.bases,
     });
-  });
-
-  readonly reveal = computed<CellBits | null>(() => {
-    if (this.isGameMaster()) return null;
-    const overlay = this.vision.overlayVision();
-    if (!overlay) return null;
-    const reveal = overlay.visible.copy();
-    if (overlay.rememberSeen) reveal.or(overlay.explored);
-    return reveal;
-  });
-
-  readonly seen = computed<CellBits | null>(() => {
-    const sight = this.sight();
-    if (!sight) return null;
-    const reveal = this.reveal();
-    if (!reveal || reveal.count !== sight.count) return sight;
-    const both = sight.copy();
-    for (let cell = 0; cell < both.count; cell++) {
-      if (both.get(cell) && !reveal.get(cell)) both.unset(cell);
-    }
-    return both;
-  });
+  }
 
   readonly minimap = computed<MinimapView | null>(() => {
     this.worldEpoch();
@@ -247,8 +297,28 @@ export class FirstPersonService {
     const me = PeerCursor.myCursor;
     if (!me || me.isGuest) return false;
     if (piece.isLock || this.movePlan.isPlanning() || this.replay.isOpen()) return false;
-    return me.isGameMaster || isControllableByUser(piece, me.userId);
+    if (me.isGameMaster) return true;
+    // A view the game master has put up for the room is the owner's to walk and everyone
+    // else's to watch. A piece nobody has claimed is anyone's on the table, but here it is
+    // the game master's alone: they are the one who set it out in front of the room.
+    if (this.forced()) return piece.owner.length > 0 && isControllableByUser(piece, me.userId);
+    return isControllableByUser(piece, me.userId);
   });
+
+  /** Whether the piece being looked out of is carrying its own light. */
+  readonly torchLit = computed(() => this.piece()?.lightEnabled === true);
+
+  toggleTorch(): boolean {
+    const piece = this.piece();
+    if (!piece || !this.canWalk()) return false;
+    if (piece.lightEnabled) {
+      piece.lightEnabled = false;
+      return true;
+    }
+    if (piece.lightBrightRadius <= 0 && piece.lightDimRadius <= 0) applyLightPreset(piece, LightPreset.TORCH);
+    piece.lightEnabled = true;
+    return true;
+  }
 
   canLookOutOf(piece: GameCharacter): boolean {
     const table = this.table();
@@ -369,15 +439,25 @@ export class FirstPersonService {
         terrains: table.terrains,
         others: this.othersOf(piece, table),
       };
-      if (!freeStepClear(from, to, ground)) return false;
+      if (!freeStepClear(from, to, ground)) return this.blocked();
       await this.pieceStep.stepToPoint(piece, table, to, true);
-      return true;
+      return this.stepped();
     }
     const from = pieceCellOf(grid, piece, table.gridSize);
     const to = moveNeighbourToward(grid, from, direction);
-    if (to < 0 || !this.moveRange.canStepTo(piece, to)) return false;
+    if (to < 0 || !this.moveRange.canStepTo(piece, to)) return this.blocked();
     await this.pieceStep.step(piece, table, grid, to, true);
+    return this.stepped();
+  }
+
+  private stepped(): true {
+    SoundEffect.play(PresetSound.piecePut);
     return true;
+  }
+
+  private blocked(): false {
+    SoundEffect.play(PresetSound.blockPut);
+    return false;
   }
 
   private enqueue(action: Action): Promise<boolean> {
@@ -399,6 +479,14 @@ export class FirstPersonService {
       if (next) void this.run(next);
     }
   }
+}
+
+function intersection(bits: CellBits, mask: CellBits): CellBits {
+  const both = bits.copy();
+  for (let cell = 0; cell < both.count; cell++) {
+    if (both.get(cell) && !mask.get(cell)) both.unset(cell);
+  }
+  return both;
 }
 
 function samePose(a: FirstPersonPose | null, b: FirstPersonPose | null): boolean {

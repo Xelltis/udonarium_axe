@@ -1,19 +1,31 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { FogMemory } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { LightSource } from '@axe/domain/tabletop/light-source';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
+import { LightPreset } from '@axe/domain/tabletop/vision-types';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { vi } from 'vitest';
 
 const GRID = 50;
+
+function count(bits: CellBits): number {
+  let set = 0;
+  for (let cell = 0; cell < bits.count; cell++) if (bits.get(cell)) set++;
+  return set;
+}
 
 describe('FirstPersonService', () => {
   let table: GameTable;
@@ -28,6 +40,7 @@ describe('FirstPersonService', () => {
     table.initialize();
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.Player;
+    PeerCursor.myCursor.userId = 'me';
   });
 
   afterEach(() => localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY));
@@ -190,11 +203,6 @@ describe('FirstPersonService', () => {
       const monster = pieceAt(5, 8);
       monster.isNpc = true;
       service().enterSeat(monster.identifier);
-      const count = (bits: { count: number; get(cell: number): boolean }) => {
-        let set = 0;
-        for (let cell = 0; cell < bits.count; cell++) if (bits.get(cell)) set++;
-        return set;
-      };
 
       const sight = service().sight()!;
       const seen = service().seen()!;
@@ -205,6 +213,85 @@ describe('FirstPersonService', () => {
       for (let cell = 0; cell < seen.count; cell++) {
         if (seen.get(cell)) expect(reveal.get(cell)).toBe(true);
       }
+    });
+  });
+
+  describe('what the eye sees in the dark', () => {
+    function darkTable(): void {
+      table.darknessEnabled = true;
+      table.globalIllumination = 0;
+      touch(table.identifier);
+    }
+
+    function lampAt(col: number, row: number): LightSource {
+      const lamp = LightSource.create('灯り');
+      lamp.location = { name: 'table', x: col * GRID, y: row * GRID };
+      lamp.lightBrightRadius = 3;
+      lamp.lightDimRadius = 5;
+      table.appendChild(lamp);
+      touch(table.identifier, lamp.identifier);
+      return lamp;
+    }
+
+    it('shows a player with no light of their own no more ground than the table does', () => {
+      darkTable();
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+
+      const overlay = TestBed.inject(VisionService).overlayVision()!;
+      const seen = service().seen()!;
+
+      expect(count(seen)).toBe(0);
+      expect(count(overlay.visible)).toBe(0);
+    });
+
+    it('shows a player only ground the table has in sight once a lamp is lit', () => {
+      darkTable();
+      const piece = pieceAt(5, 5, 90);
+      lampAt(6, 5);
+      service().enterSeat(piece.identifier);
+
+      const overlay = TestBed.inject(VisionService).overlayVision()!;
+      const lit = service().litCells()!;
+
+      expect(count(lit)).toBeGreaterThan(0);
+      for (let cell = 0; cell < lit.count; cell++) {
+        if (lit.get(cell)) expect(overlay.visible.get(cell)).toBe(true);
+      }
+    });
+
+    it('shows the game master the room whether or not a lamp is burning in it', () => {
+      darkTable();
+      becomeGameMaster();
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+      const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+
+      const seen = service().seen()!;
+
+      expect(seen.get(cellIndexOf(grid, 7, 5))).toBe(true);
+    });
+
+    it('hands back ground the party remembers, told apart from ground in sight', () => {
+      darkTable();
+      table.fogEnabled = true;
+      const memory = new FogMemory();
+      memory.initialize();
+      table.appendChild(memory);
+      const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+      const walked = new CellBits(grid.cols * grid.rows);
+      walked.set(cellIndexOf(grid, 7, 5));
+      memory.write(grid, walked);
+      touch(table.identifier, memory.identifier);
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+
+      const ahead = cellIndexOf(grid, 7, 5);
+
+      expect(service().litCells()!.get(ahead)).toBe(false);
+      expect(service().dimCells()!.get(ahead)).toBe(true);
+      expect(service().seen()!.get(ahead)).toBe(true);
+      expect(service().tierOfCell(ahead)).toBe('dim');
     });
   });
 
@@ -351,6 +438,119 @@ describe('FirstPersonService', () => {
 
       expect(await service().walk('forward')).toBe(false);
       expect(piece.location.x).toBe(5 * GRID);
+    });
+  });
+
+  describe('who may walk a view the game master put up', () => {
+    function sharedView(owner: string): GameCharacter {
+      gameMasterInTheRoom();
+      const piece = pieceAt(5, 5, 90);
+      piece.owner = owner;
+      table.sharedViewPiece = piece.identifier;
+      touch(table.identifier, piece.identifier);
+      return piece;
+    }
+
+    it('lets the player whose piece it is walk it', () => {
+      sharedView(PeerCursor.myCursor.userId);
+
+      expect(service().forced()).toBe(true);
+      expect(service().canWalk()).toBe(true);
+    });
+
+    it('keeps another player to watching', () => {
+      sharedView('somebody-else');
+
+      expect(service().canWalk()).toBe(false);
+    });
+
+    it('keeps a piece nobody has claimed for the game master alone', async () => {
+      const piece = sharedView('');
+
+      expect(service().canWalk()).toBe(false);
+      expect(await service().walk('forward')).toBe(false);
+      expect(piece.location.x).toBe(5 * GRID);
+
+      becomeGameMaster();
+      service().enterSeat(piece.identifier);
+      expect(service().canWalk()).toBe(true);
+    });
+
+    it('still lets a seat walk a piece nobody has claimed when no view is forced', () => {
+      const piece = pieceAt(5, 5, 90);
+      piece.owner = '';
+      service().enterSeat(piece.identifier);
+
+      expect(service().forced()).toBe(false);
+      expect(service().canWalk()).toBe(true);
+    });
+  });
+
+  describe('the light the explorer carries', () => {
+    it('lights a torch on the piece being looked out of, and puts it out again', () => {
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+      expect(service().torchLit()).toBe(false);
+
+      expect(service().toggleTorch()).toBe(true);
+      touch(piece.identifier);
+
+      expect(piece.lightEnabled).toBe(true);
+      expect(piece.lightPreset).toBe(LightPreset.TORCH);
+      expect(piece.lightDimRadius).toBeGreaterThan(0);
+      expect(service().torchLit()).toBe(true);
+
+      expect(service().toggleTorch()).toBe(true);
+      touch(piece.identifier);
+      expect(piece.lightEnabled).toBe(false);
+      expect(service().torchLit()).toBe(false);
+    });
+
+    it('leaves a light the piece was already given as it stands', () => {
+      const piece = pieceAt(5, 5, 90);
+      piece.lightPreset = LightPreset.CANDLE;
+      piece.lightBrightRadius = 1;
+      piece.lightDimRadius = 2;
+      service().enterSeat(piece.identifier);
+
+      service().toggleTorch();
+
+      expect(piece.lightEnabled).toBe(true);
+      expect(piece.lightPreset).toBe(LightPreset.CANDLE);
+      expect(piece.lightDimRadius).toBe(2);
+    });
+
+    it('keeps a viewer of a forced view from striking a light on it', () => {
+      gameMasterInTheRoom();
+      const piece = pieceAt(5, 5, 90);
+      piece.owner = 'somebody-else';
+      table.sharedViewPiece = piece.identifier;
+      touch(table.identifier, piece.identifier);
+
+      expect(service().toggleTorch()).toBe(false);
+      expect(piece.lightEnabled).toBe(false);
+    });
+  });
+
+  describe('the sound of walking', () => {
+    it('plays one sound for a step taken and another for one that is blocked', async () => {
+      PresetSound.piecePut = 'step';
+      PresetSound.blockPut = 'bump';
+      const played: string[] = [];
+      vi.spyOn(SoundEffect, 'play').mockImplementation((arg) => {
+        played.push(typeof arg === 'string' ? arg : arg.identifier);
+      });
+      block(6 * GRID, 5 * GRID, 1, 1);
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+
+      expect(await service().walk('forward')).toBe(false);
+      expect(played).toEqual(['bump']);
+
+      piece.rotate = 270;
+      touch(piece.identifier);
+      expect(await service().walk('forward')).toBe(true);
+      expect(played).toEqual(['bump', 'step']);
     });
   });
 
