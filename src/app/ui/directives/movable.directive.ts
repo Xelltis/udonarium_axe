@@ -41,6 +41,7 @@ import {
   shouldTransitionTo,
   toTransformCss,
   unregisterLayer,
+  wheelSpin,
 } from '@axe/ui/directives/movable-helpers';
 import {
   dragPointer2d,
@@ -315,13 +316,14 @@ export class MovableDirective implements MovableInteractionContext {
     e.stopPropagation();
 
     const self = this.tabletopObject;
-    if (!self || e.deltaY === 0) return;
-    if (e.shiftKey && this.sendAloft(self, e.deltaY < 0)) return;
+    const spin = wheelSpin(e);
+    if (!self || spin === 0) return;
+    if (e.shiftKey && this.sendAloft(self, spin < 0)) return;
     if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
     const rider = this.contactRider(self);
     const center = this.coordinateService.convertToLocal(dragPointer2d(this), this.surfaceElement());
     const levels = contactRestLevels(this.contactProbe, center.x, center.y, rider);
-    const next = nextContactLevel(levels, rider.restingZ, e.deltaY < 0);
+    const next = nextContactLevel(levels, rider.restingZ, spin < 0);
     if (next === null) return;
 
     this.dragReachZ = next;
@@ -365,6 +367,20 @@ export class MovableDirective implements MovableInteractionContext {
   private followWithAltitudeGuide(): void {
     const self = this.tabletopObject;
     if (!self || this.altitudeGuide.guide()?.identifier !== self.identifier) return;
+    this.showAltitudeGuide(self.altitude);
+  }
+
+  /**
+   * The height a piece is at, drawn for as long as somebody has hold of it.
+   *
+   * A piece off the ground is being put somewhere in three directions rather than two, and
+   * the one that is hardest to read is the one the screen is flattest in. It is drawn from
+   * the moment the piece is picked up rather than only once the wheel is turned, so what is
+   * being moved is legible before it has been moved.
+   */
+  private showAltitudeGuideWhileHeld(): void {
+    const self = this.tabletopObject;
+    if (!self || surfaceOf(self) !== 'floor') return;
     this.showAltitudeGuide(self.altitude);
   }
 
@@ -536,6 +552,7 @@ export class MovableDirective implements MovableInteractionContext {
 
     if (this._multiAdapter) this.multiMovableService.beginDrag(this._multiAdapter);
     window.addEventListener('wheel', this.onWheelWhileGrabbed, { capture: true, passive: false });
+    this.showAltitudeGuideWhileHeld();
     handleInputStart(this, e);
   }
 

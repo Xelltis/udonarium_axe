@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { AltitudeGuideService } from '@axe/application/tabletop/altitude-guide.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ALTITUDE_STEP_CELLS, altitudeRungs } from '@axe/domain/tabletop/altitude-step';
+import { Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 /** The same yellow the planned way is drawn in, so a guide reads as a guide wherever it is. */
 export const ALTITUDE_GUIDE_STROKE = 'rgba(255, 236, 140, 0.95)';
@@ -35,7 +36,7 @@ export class TableAltitudeGuideOverlayComponent {
   protected readonly anchorCss = computed<string>(() => {
     const guide = this.guide();
     if (!guide) return '';
-    return `translate3d(${guide.x}px, ${guide.y}px, 0)`;
+    return `translate3d(${guide.x}px, ${guide.y}px, ${Z_OFFSET_RANGE_PX}px)`;
   });
 
   protected readonly poleHeightPx = computed<number>(() => {

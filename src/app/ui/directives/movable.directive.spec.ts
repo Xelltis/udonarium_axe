@@ -412,6 +412,31 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       expect(after).not.toEqual(before);
     });
 
+    it('takes the turn from the sideways spin a browser reports with the key held', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+      const sideways = new WheelEvent('wheel', { deltaY: 0, cancelable: true });
+      Object.defineProperty(sideways, 'shiftKey', { value: true });
+      Object.defineProperty(sideways, 'deltaX', { value: -100 });
+
+      directive['liftByWheel'](sideways);
+
+      expect(walker.altitude).toBe(1);
+    });
+
+    it('shows the guide from the moment a piece off the ground is picked up', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      walker.altitude = 2;
+      const directive = mount(walker, []);
+      const guides = TestBed.inject(AltitudeGuideService);
+
+      directive.onInputStart(new MouseEvent('mousedown'));
+
+      expect(guides.guide()?.identifier).toBe(walker.identifier);
+      expect(guides.guide()?.altitude).toBe(2);
+    });
+
     it('takes the guide away once the piece is let go of', () => {
       const walker = GameCharacter.create('walker', 1, '');
       const directive = mount(walker, []);

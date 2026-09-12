@@ -432,3 +432,13 @@ export function dropTargetSurface(dragged: Element, under: Element | null): HTML
   if (!surface || dragged.contains(surface)) return null;
   return surface;
 }
+
+/**
+ * Which way a turn of the wheel went, whichever axis the browser reported it on.
+ *
+ * Held with shift a wheel is taken for a sideways scroll, so the turn arrives on deltaX with
+ * deltaY flat. Reading whichever axis moved keeps one gesture out of two spellings.
+ */
+export function wheelSpin(e: WheelEvent): number {
+  return e.deltaY !== 0 ? e.deltaY : e.deltaX;
+}
