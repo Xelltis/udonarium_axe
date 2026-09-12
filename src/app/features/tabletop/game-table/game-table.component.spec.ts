@@ -11,6 +11,9 @@ import { ViewModePreferenceService } from '@axe/application/ui/view-mode-prefere
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { Party } from '@axe/domain/party/party';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
@@ -566,6 +569,66 @@ describe('GameTableComponent', () => {
       ]);
       expect(groupedActions).toEqual(expect.arrayContaining(legacyActions));
       expect(groupedActions).toHaveLength(legacyActions.length);
+    });
+
+    describe('gathering a party', () => {
+      const GATHER = 'この地点を中心にパーティを配置';
+      const made: (Party | GameCharacter)[] = [];
+
+      // The shared setup leaves this seat without a cursor, and a seat with no cursor is a
+      // player. The master has to be given one before the role can be written on it.
+      const beMaster = () => {
+        PeerCursor.createMyCursor();
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+      };
+
+      const makeParty = (name: string): Party => {
+        const party = new Party();
+        party.name = name;
+        party.initialize();
+        made.push(party);
+        const member = GameCharacter.create('花子', 1, '');
+        member.partyIdentifier = party.identifier;
+        member.setLocation('table');
+        made.push(member);
+        return party;
+      };
+
+      afterEach(() => {
+        PeerCursor.myCursor = null!;
+        for (const object of made.splice(0)) object.destroy();
+      });
+
+      it('offers it to the master, in both menus', () => {
+        beMaster();
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+
+        expect(model.actions.map((action) => action.name)).toContain(GATHER);
+        expect(model.rotatingGroups.map((group) => group.name)).toContain('同行');
+      });
+
+      it('keeps the two menus answering alike while it is offered', () => {
+        beMaster();
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+        const groupedActions = model.rotatingGroups.flatMap((group) => group.actions);
+        const legacyActions = model.actions.filter((action) => action.name.length > 0);
+
+        expect(groupedActions).toEqual(expect.arrayContaining(legacyActions));
+        expect(groupedActions).toHaveLength(legacyActions.length);
+      });
+
+      it('offers it to nobody else', () => {
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+
+        expect(model.actions.map((action) => action.name)).not.toContain(GATHER);
+        expect(model.rotatingGroups.map((group) => group.name)).not.toContain('同行');
+      });
     });
 
     it('splits the create items with a separator between the dice and the coin', () => {

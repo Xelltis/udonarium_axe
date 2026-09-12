@@ -155,7 +155,8 @@
         "unnamedCharacter": "Unnamed",
         "focus": "Focus on token",
         "gather": "Gather a party on this spot",
-        "gatherOffTable": "{{names}} are not on the table. Bring them on and gather them too?"
+        "gatherOnTable": "{{name}} (the {{count}} on the table)",
+        "gatherWithAway": "{{name}} (bring in {{count}} more)"
       }
     },
     "hotbar": {

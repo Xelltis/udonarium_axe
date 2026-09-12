@@ -155,7 +155,8 @@
         "unnamedCharacter": "이름 없음",
         "focus": "말로 이동",
         "gather": "이 지점을 중심으로 파티 배치",
-        "gatherOffTable": "{{names}}은(는) 테이블에 나와 있지 않습니다. 테이블에 내보내 함께 배치할까요?"
+        "gatherOnTable": "{{name}}（테이블의 {{count}}명）",
+        "gatherWithAway": "{{name}}（테이블 밖 {{count}}명도 내보내기）"
       }
     },
     "hotbar": {

@@ -155,7 +155,8 @@
         "unnamedCharacter": "名称未設定",
         "focus": "コマへ移動",
         "gather": "この地点を中心にパーティを配置",
-        "gatherOffTable": "{{names}} は卓に出ていません。卓に出して一緒に配置しますか？"
+        "gatherOnTable": "{{name}}（卓上の{{count}}体）",
+        "gatherWithAway": "{{name}}（卓外の{{count}}体も出す）"
       }
     },
     "hotbar": {

@@ -899,15 +899,12 @@ export class GameTableComponent {
     const tableSettingActions = [tableSettingAction, ...this.buildViewLockActions()];
     // Empty for anybody but the master, and for a room with no parties in it.
     const partyActions = this.tabletopActionService.getGatherPartyMenu(objectPosition);
+    // The entry goes in whole, the way the ambience entry does: the rotating menu opens what
+    // has sub-entries rather than being handed them, and a group holding the same entries the
+    // flat menu does is what keeps the two menus answering alike.
     const partyGroups =
       partyActions.length > 0
-        ? [
-            {
-              name: this.t('feature.gmTools.party.title'),
-              icon: 'group',
-              actions: partyActions.flatMap((action) => action.subActions ?? [action]),
-            },
-          ]
+        ? [{ name: this.t('feature.gmTools.party.title'), icon: 'group', actions: partyActions }]
         : [];
     return {
       actions: [

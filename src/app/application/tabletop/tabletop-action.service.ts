@@ -22,7 +22,6 @@ import {
   makeDefaultTable as _makeDefaultTable,
   makeDefaultTabletopObjects as _makeDefaultTabletopObjects,
 } from '@axe/application/tabletop/tabletop-default-setup';
-import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -76,7 +75,6 @@ export class TabletopActionService {
   private readonly tabletopService = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly partyService = inject(PartyService);
-  private readonly confirm = inject(ConfirmService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
@@ -425,20 +423,43 @@ export class TabletopActionService {
       {
         name: this.t('feature.gmTools.party.gather'),
         action: undefined,
-        subActions: parties.map((party) => this.getGatherOnePartyMenu(position, party)),
+        subActions: parties.flatMap((party) => this.getGatherOnePartyMenu(position, party)),
       },
     ];
   }
 
-  private getGatherOnePartyMenu(position: PointerCoordinate, party: Party): ContextMenuAction {
+  /**
+   * What a party is offered as, which is one entry unless some of it is off the table.
+   *
+   * A party with members put away is offered twice - the ones on the table, and all of them -
+   * rather than asked about after the fact. The entry says how many it will move, so which of
+   * the two was wanted is read before it is picked instead of in a dialogue afterwards.
+   */
+  private getGatherOnePartyMenu(position: PointerCoordinate, party: Party): ContextMenuAction[] {
     const name = party.name.length ? party.name : this.t('common.party.unnamed');
-    if (this.partyService.membersOf(party.identifier).length === 0) return { name, enabled: false };
-    return {
-      name,
-      action: () => {
-        void this.gatherParty(position, party);
-      },
-    };
+    const members = this.partyService.membersOf(party.identifier);
+    if (members.length === 0) return [{ name, enabled: false }];
+
+    const away = members.filter((member) => !member.isVisibleOnTable);
+    const here = members.length - away.length;
+    const entries: ContextMenuAction[] = [];
+    if (here > 0) {
+      entries.push({
+        name: away.length > 0 ? this.t('feature.gmTools.party.gatherOnTable', { name, count: here }) : name,
+        action: () => {
+          this.gatherParty(position, party);
+        },
+      });
+    }
+    if (away.length > 0) {
+      entries.push({
+        name: this.t('feature.gmTools.party.gatherWithAway', { name, count: away.length }),
+        action: () => {
+          this.gatherParty(position, party, true);
+        },
+      });
+    }
+    return entries;
   }
 
   /**
@@ -449,20 +470,16 @@ export class TabletopActionService {
    * on is left alone, and the pieces being gathered give up the ground they were on, so a party
    * asked to gather where it already stands does not have to squeeze past itself.
    *
-   * A member that is not on the table is left where it is unless the master says to bring it in:
-   * a piece that was put away was put away on purpose. Answers with how many were placed.
+   * A member that is not on the table is left where it is unless it was asked for by name: a
+   * piece that was put away was put away on purpose. Answers with how many were placed.
    */
-  async gatherParty(position: PointerCoordinate, party: Party): Promise<number> {
+  gatherParty(position: PointerCoordinate, party: Party, bringInAway = false): number {
     const table = this.getViewTable();
     if (!table || table.gridSize <= 0) return 0;
     const members = this.partyService.membersOf(party.identifier);
     if (members.length === 0) return 0;
 
-    const away = members.filter((member) => !member.isVisibleOnTable);
-    const gathering =
-      away.length > 0 && (await this.askToBringIn(away))
-        ? members
-        : members.filter((member) => member.isVisibleOnTable);
+    const gathering = bringInAway ? members : members.filter((member) => member.isVisibleOnTable);
     if (gathering.length === 0) return 0;
 
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
@@ -486,13 +503,6 @@ export class TabletopActionService {
     for (const spot of spots) this.objectChange.notifyChanged(spot.character.identifier);
     if (spots.length > 0) SoundEffect.play(PresetSound.piecePut);
     return spots.length;
-  }
-
-  private askToBringIn(away: readonly GameCharacter[]): Promise<boolean> {
-    const names = away
-      .map((member) => (member.name.length ? member.name : this.t('feature.gmTools.party.unnamedCharacter')))
-      .join(', ');
-    return this.confirm.ask({ message: this.t('feature.gmTools.party.gatherOffTable', { names }) });
   }
 
   private getCreateAmbienceMenu(position: PointerCoordinate): ContextMenuAction {
