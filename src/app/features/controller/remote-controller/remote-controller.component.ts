@@ -34,6 +34,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
+import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -238,7 +239,7 @@ export class RemoteControllerComponent {
 
   recoveryLimitFlag = false;
   recoveryLimitFlagMin = false;
-  readonly remoteControllerSelect = signal<RemoteControllerSelect>({ name: '', nowOrMax: '', dispName: '' });
+  readonly remoteControllerSelect = signal<RemoteControllerSelect>({ name: '', nowOrMax: 'now', dispName: '' });
   readonly isEdit = signal(false);
   editPalette = '';
 
@@ -296,12 +297,12 @@ export class RemoteControllerComponent {
     this.text.set('');
   }
 
-  remoteSelect(name: string, nowOrMax: string, dispName: string) {
+  remoteSelect(name: string, nowOrMax: ResourceSlot, dispName: string) {
     this.remoteControllerSelect.set({ name, nowOrMax, dispName });
   }
 
   /** Whether this is the item the buttons are pointing at. */
-  isChosen(name: string, nowOrMax: string): boolean {
+  isChosen(name: string, nowOrMax: ResourceSlot): boolean {
     const chosen = this.remoteControllerSelect();
     return chosen.name === name && chosen.nowOrMax === nowOrMax;
   }
@@ -409,7 +410,7 @@ export class RemoteControllerComponent {
     if (chosen.name === '') return;
     const choices = this.counterChoices();
     const offered = [...choices.tagged, ...choices.others].some((choice) => choice.name === chosen.name);
-    if (!offered) this.remoteSelect('', '', '');
+    if (!offered) this.remoteSelect('', 'now', '');
   }
 
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {

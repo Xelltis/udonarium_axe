@@ -1,6 +1,17 @@
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 type SlotType = 'value' | 'currentValue' | 'maxBase' | 'maxCorrection' | 'minBase' | 'minCorrection';
+
+/** Where on the element each slot of a resource is kept. */
+const STORAGE_OF_SLOT: Record<ResourceSlot, SlotType> = {
+  now: 'currentValue',
+  max: 'value',
+  maxBase: 'maxBase',
+  maxCorrection: 'maxCorrection',
+  minBase: 'minBase',
+  minCorrection: 'minCorrection',
+};
 
 const SLOT_ATTRIBUTE: Partial<Record<SlotType, string>> = {
   maxBase: DataElementAttribute.MAX_BASE,
@@ -32,38 +43,20 @@ export class StatusAccessor {
     return isChangeableElementType(data.type);
   }
 
-  canChange(name: string, nowOrMax: string): boolean {
+  /** A resource answers to every slot; anything else has only the one value to write to. */
+  canChange(name: string, nowOrMax: ResourceSlot): boolean {
     const data = this.findData(name);
     if (!data) return false;
-    if (data.type === DataElementType.NUMBER_RESOURCE) {
-      return (
-        nowOrMax === 'now' ||
-        nowOrMax === 'max' ||
-        nowOrMax === 'maxBase' ||
-        nowOrMax === 'maxCorrection' ||
-        nowOrMax === 'minBase' ||
-        nowOrMax === 'minCorrection'
-      );
-    }
-    if (data.type === DataElementType.TEXT || data.type === DataElementType.NOTE) {
-      return nowOrMax === 'now';
-    }
+    if (data.type === DataElementType.NUMBER_RESOURCE) return true;
+    if (data.type === DataElementType.TEXT || data.type === DataElementType.NOTE) return nowOrMax === 'now';
     return false;
   }
 
-  getType(name: string, nowOrMax: string): string | null {
+  getType(name: string, nowOrMax: ResourceSlot): string | null {
     const data = this.findData(name);
     if (!data) return null;
-    if (data.type === DataElementType.NUMBER_RESOURCE) {
-      if (nowOrMax === 'now') return 'currentValue';
-      if (nowOrMax === 'max') return 'value';
-      if (nowOrMax === 'maxBase') return 'maxBase';
-      if (nowOrMax === 'maxCorrection') return 'maxCorrection';
-      if (nowOrMax === 'minBase') return 'minBase';
-      if (nowOrMax === 'minCorrection') return 'minCorrection';
-    } else if (data.type === DataElementType.TEXT) {
-      if (nowOrMax === 'now') return 'value';
-    }
+    if (data.type === DataElementType.NUMBER_RESOURCE) return STORAGE_OF_SLOT[nowOrMax];
+    if (data.type === DataElementType.TEXT) return nowOrMax === 'now' ? 'value' : null;
     return null;
   }
 
@@ -73,7 +66,7 @@ export class StatusAccessor {
     return data.type === DataElementType.NUMBER_RESOURCE ? 'currentValue' : 'value';
   }
 
-  getValue(name: string, nowOrMax: string): number | null {
+  getValue(name: string, nowOrMax: ResourceSlot): number | null {
     const data = this.findData(name);
     if (!data) return null;
     const type = this.getType(name, nowOrMax) as SlotType | null;
@@ -87,7 +80,7 @@ export class StatusAccessor {
     return null;
   }
 
-  setValue(name: string, nowOrMax: string, setValue: number): boolean {
+  setValue(name: string, nowOrMax: ResourceSlot, setValue: number): boolean {
     const data = this.findData(name);
     if (!data) return false;
     const type = this.getType(name, nowOrMax) as SlotType | null;
@@ -165,7 +158,7 @@ export class StatusAccessor {
     return true;
   }
 
-  changeValue(name: string, nowOrMax: string, addValue: number, limitMin?: boolean, limitMax?: boolean): string {
+  changeValue(name: string, nowOrMax: ResourceSlot, addValue: number, limitMin?: boolean, limitMax?: boolean): string {
     const data = this.findData(name);
     if (!data) return '';
     const type = this.getType(name, nowOrMax) as SlotType | null;

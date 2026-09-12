@@ -1,14 +1,17 @@
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
-
-/** Which half of a resource a buff writes to. */
-export type BuffModifierSlot = 'now' | 'max';
+import {
+  asResourceSlot,
+  readNamedResourceSlot,
+  type ResourceSlot,
+  resourceSlotBadgePrefix,
+} from '@axe/domain/data/resource-slot';
 
 export type BuffModifierOperator = 'add' | 'set';
 
 export interface BuffModifier {
   /** The status the buff moves, by the name it has on the sheet. */
   target: string;
-  slot: BuffModifierSlot;
+  slot: ResourceSlot;
   operator: BuffModifierOperator;
   /** How far it moved the status, so taking the buff away can move it back. */
   applied: number;
@@ -27,11 +30,9 @@ const OPERATOR_TOKENS: Record<string, { operator: BuffModifierOperator; sign: nu
   固定: { operator: 'set', sign: 1 },
 };
 
-const SLOT_SUFFIX = /[\^＾]$/;
-
 export interface ParsedBuffModifierRequest {
   target: string;
-  slot: BuffModifierSlot;
+  slot: ResourceSlot;
   operator: BuffModifierOperator;
   /** What was asked for: an amount to move by, or the value to hold the status at. */
   amount: number;
@@ -52,9 +53,10 @@ export function parseBuffModifierRequest(
   const value = Number((amount ?? '').trim().replace(/[−－]/, '-').replace('＋', '+'));
   if (!Number.isFinite(value)) return null;
 
+  const named = readNamedResourceSlot(name);
   return {
-    target: name.replace(SLOT_SUFFIX, ''),
-    slot: SLOT_SUFFIX.test(name) ? 'max' : 'now',
+    target: named.name,
+    slot: named.slot,
     operator: resolved.operator,
     amount: resolved.operator === 'add' ? value * resolved.sign : value,
   };
@@ -62,7 +64,7 @@ export function parseBuffModifierRequest(
 
 /** How the buff reads on the badge and in the chat line that granted it. */
 export function describeBuffModifier(request: ParsedBuffModifierRequest): string {
-  const slot = request.slot === 'max' ? '最大' : '';
+  const slot = resourceSlotBadgePrefix(request.slot);
   if (request.operator === 'set') return `${slot}${request.target}=${request.amount}`;
   const sign = request.amount >= 0 ? '+' : '';
   return `${slot}${request.target}${sign}${request.amount}`;
@@ -77,7 +79,9 @@ export function readBuffModifier(element: DataElement): BuffModifier | null {
 
   return {
     target,
-    slot: element.getAttribute(DataElementAttribute.BUFF_MOD_SLOT) === 'max' ? 'max' : 'now',
+    // A slot this version does not know of is read as the value, which is what a buff written
+    // by an older one means by writing nothing.
+    slot: asResourceSlot(element.getAttribute(DataElementAttribute.BUFF_MOD_SLOT)) ?? 'now',
     operator: element.getAttribute(DataElementAttribute.BUFF_MOD_OPERATOR) === 'set' ? 'set' : 'add',
     applied,
   };
