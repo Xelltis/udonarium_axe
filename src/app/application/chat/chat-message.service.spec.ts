@@ -4,11 +4,13 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { setPortraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatMessageService', () => {
@@ -25,6 +27,36 @@ describe('ChatMessageService', () => {
   it('should ...', inject([ChatMessageService], (service: ChatMessageService) => {
     expect(service).toBeTruthy();
   }));
+
+  describe('showing a kept-back roll', () => {
+    const secretFrom = (mine: boolean) =>
+      ({ isSecret: true, isSendFromSelf: mine, tags: ['secret'], tag: 'secret' }) as unknown as ChatMessage;
+
+    const beSeat = (role: PeerRole) => {
+      PeerCursor.myCursor = { role, isGameMaster: role === PeerRole.GameMaster } as PeerCursor;
+    };
+
+    it('is for whoever rolled it, and for the master', inject([ChatMessageService], (service: ChatMessageService) => {
+      beSeat(PeerRole.Player);
+      expect(service.canDiscloseMessage(secretFrom(true))).toBe(true);
+      expect(service.canDiscloseMessage(secretFrom(false))).toBe(false);
+
+      beSeat(PeerRole.GameMaster);
+      expect(service.canDiscloseMessage(secretFrom(false))).toBe(true);
+
+      beSeat(PeerRole.Guest);
+      expect(service.canDiscloseMessage(secretFrom(false))).toBe(false);
+    }));
+
+    it('stays kept back when anybody else asks for it', inject([ChatMessageService], (service: ChatMessageService) => {
+      beSeat(PeerRole.Player);
+      const theirs = secretFrom(false);
+
+      service.discloseMessage(theirs);
+
+      expect(theirs.tag).toBe('secret');
+    }));
+  });
 
   it('sendSystemMessageToMainTab routes to the first chat tab', inject(
     [ChatMessageService],
@@ -45,6 +77,7 @@ describe('ChatMessageService', () => {
     let tab: ChatTab;
 
     beforeEach(() => {
+      beMyself('me');
       service = TestBed.inject(ChatMessageService);
       tab = ChatTabList.instance.addChatTab('テストタブ');
     });
@@ -115,6 +148,23 @@ describe('ChatMessageService', () => {
 
     it('says none for a die with no throw of it left kept back', () => {
       expect(service.discloseDieRolls('die-a')).toBe(0);
+    });
+
+    it('says none, and opens none, for a throw that is somebody else to open', () => {
+      const secret = service.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'me', undefined, ['die-a']);
+      beMyself('another-player');
+
+      expect(service.discloseDieRolls('die-a')).toBe(0);
+      expect(secret.isSecret).toBe(true);
+    });
+
+    it('opens the throw of a die that is somebody else for the master', () => {
+      const secret = service.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'me', undefined, ['die-a']);
+      beMyself('the-master');
+      PeerCursor.myCursor = { role: PeerRole.GameMaster } as PeerCursor;
+
+      expect(service.discloseDieRolls('die-a')).toBe(1);
+      expect(secret.isSecret).toBe(false);
     });
 
     it('finds the throw in whichever tab it was said in', () => {

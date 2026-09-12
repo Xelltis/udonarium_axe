@@ -192,7 +192,7 @@
                   }
                 </div>
               }
-              @if (isSecret() && chatMessage.isSendFromSelf) {
+              @if (canDisclose()) {
                 <button (click)="discloseMessage()">{{ 'feature.chat.message.discloseSecret' | transloco }}</button>
               }
             } @else {
@@ -311,7 +311,7 @@
                     }
                   </span>
                 }
-                @if (isSecret()) {
+                @if (canDisclose()) {
                   <button (click)="discloseMessage()">{{ 'feature.chat.message.discloseSecret' | transloco }}</button>
                 }
               } @else {

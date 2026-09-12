@@ -102,7 +102,9 @@ describe('VisualNovelPlaybackService', () => {
       const secret = tab.chatMessages[tab.chatMessages.length - 1];
       say('その間の発言', character.identifier);
 
+      beMe('roller');
       TestBed.inject(ChatMessageService).discloseMessage(secret);
+      beMe('reader');
       TestBed.inject(ObjectChangeService).notifyChanged(tab.identifier);
 
       expect(playback.messages().map((message) => message.text)).toEqual(['その間の発言', '隠しダイス → 6']);

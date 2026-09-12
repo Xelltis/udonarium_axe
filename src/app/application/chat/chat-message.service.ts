@@ -13,6 +13,7 @@ import {
   stripPortraitCommand,
 } from '@axe/application/chat/chat-message-helpers';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { emitDiceTableMessage, emitResourceEditMessage, emitSendMessage } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
@@ -37,6 +38,7 @@ const HOURS = 60 * 60 * 1000;
 @Injectable()
 export class ChatMessageService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly chatTabList = inject(ChatTabList);
 
@@ -441,14 +443,26 @@ export class ChatMessageService {
         if (!latest || latest.placedAt < message.placedAt) latest = message;
       }
     }
-    if (!latest) return 0;
+    if (!latest || !this.canDiscloseMessage(latest)) return 0;
 
     this.discloseMessage(latest);
     return 1;
   }
 
+  /**
+   * Whether this reader may show a kept-back roll to the table.
+   *
+   * Whoever rolled it may, since it was theirs to keep back, and the master may, since a roll
+   * nobody can be made to show is a roll the master cannot rule on. Nobody else: a die kept
+   * back is the one thing a seat holds against the rest of the table.
+   */
+  canDiscloseMessage(message: ChatMessage): boolean {
+    if (!message.isSecret) return false;
+    return message.isSendFromSelf || this.rolePermission.canSeeHidden;
+  }
+
   discloseMessage(message: ChatMessage): void {
-    if (!message.isSecret) return;
+    if (!this.canDiscloseMessage(message)) return;
     message.tag = message.tags.filter((tag) => tag !== 'secret').join(' ');
     const chatTab = message.parent;
     if (!(chatTab instanceof ChatTab)) return;

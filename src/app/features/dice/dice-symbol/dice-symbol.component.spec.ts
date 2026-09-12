@@ -14,6 +14,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('DiceSymbolComponent', () => {
@@ -340,6 +341,7 @@ describe('DiceSymbolComponent', () => {
     let dice: DiceSymbol;
 
     beforeEach(() => {
+      beMyself('me');
       tab = ChatTabList.instance.addChatTab('テストタブ');
       dice = DiceSymbol.create('隠しダイス', 1, 1);
       fixture.componentRef.setInput('diceSymbol', dice);
@@ -388,6 +390,20 @@ describe('DiceSymbolComponent', () => {
 
       reveal('6');
 
+      expect(callOut).toHaveBeenCalledOnce();
+      expect(callOut.mock.calls[0][0]).toContain('6');
+    });
+
+    it('calls the face out where the throw it found is somebody else to open', () => {
+      const chat = TestBed.inject(ChatMessageService);
+      const secret = chat.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'somebody-else', undefined, [
+        dice.identifier,
+      ]);
+      const callOut = vi.spyOn(chat, 'sendSystemMessageToMainTab');
+
+      reveal('6');
+
+      expect(secret.isSecret).toBe(true);
       expect(callOut).toHaveBeenCalledOnce();
       expect(callOut.mock.calls[0][0]).toContain('6');
     });
