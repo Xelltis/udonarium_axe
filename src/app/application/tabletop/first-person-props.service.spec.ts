@@ -131,6 +131,26 @@ describe('FirstPersonPropsService', () => {
     expect(prop?.wash.length).toBeGreaterThan(0);
   });
 
+  it('hangs a card on the wall it is pinned to, upright and facing into the room', () => {
+    table.wallHeight = 4;
+    table.showNorthWall = true;
+    const card = Card.create('札', 'front', 'back');
+    card.location = { name: 'table', x: 100, y: 30 };
+    card.location.surface = 'north-wall';
+
+    expect(propOf(card.identifier)).toMatchObject({ kind: 'board', what: 'card', y: 0, rotate: 0 });
+  });
+
+  it('leaves a card on a wall the table does not show out of it', () => {
+    table.wallHeight = 4;
+    table.showNorthWall = false;
+    const card = Card.create('札', 'front', 'back');
+    card.location = { name: 'table', x: 100, y: 30 };
+    card.location.surface = 'north-wall';
+
+    expect(propOf(card.identifier)).toBeUndefined();
+  });
+
   it('leaves out what is off the table', () => {
     const card = Card.create('札', 'front', 'back');
     card.location = { name: 'graveyard', x: 0, y: 0 };

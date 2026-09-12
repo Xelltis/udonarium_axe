@@ -28,7 +28,11 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { depthOf, eyeFrameOf, lateralOf } from '@axe/domain/tabletop/first-person/first-person-clip';
-import { FirstPersonMove, FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
+import {
+  FirstPersonMove,
+  FirstPersonPose,
+  headingVector,
+} from '@axe/domain/tabletop/first-person/first-person-lattice';
 import {
   FIRST_PERSON_FOV_DEG,
   FirstPersonQuad,
@@ -64,6 +68,7 @@ const SNAP_CELLS = 3;
 const SNAP_TURN_DEG = 135;
 const COMPASS_TICKS: readonly number[] = Array.from({ length: 24 }, (_, index) => index * 15);
 const TARGET_CONE_DEG = 20;
+const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
 
@@ -409,8 +414,13 @@ export class FirstPersonViewComponent {
   }
 
   private propInSight(pose: FirstPersonPose, prop: FirstPersonProp): boolean {
-    if (prop.kind !== 'lie') return this.inSight(pose, prop);
-    return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(pose, point));
+    if (prop.kind === 'lie') return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(pose, point));
+    if (prop.kind === 'board') {
+      const heading = headingVector(prop.rotate);
+      const step = this.gridSize() * BOARD_STEP_CELLS;
+      return this.inSight(pose, { x: prop.x - heading.x * step, y: prop.y - heading.y * step });
+    }
+    return this.inSight(pose, prop);
   }
 
   private urlOf(identifier: string): string {

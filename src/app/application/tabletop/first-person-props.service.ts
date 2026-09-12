@@ -11,13 +11,15 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { groundSurfaceWash } from '@axe/domain/effect/ambience/ambience-ground';
+import { wallPlacementOf } from '@axe/domain/tabletop/first-person/first-person-wall';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
+import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
-import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { eyeHeightPx } from '@axe/domain/tabletop/vision-scene';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
@@ -79,11 +81,11 @@ export class FirstPersonPropsService {
     const g = table.gridSize;
     return [
       ...this.lights(table, g),
-      ...this.cards(g),
-      ...this.stacks(g),
-      ...this.dice(g),
-      ...this.coins(g),
-      ...this.notes(g),
+      ...this.cards(table, g),
+      ...this.stacks(table, g),
+      ...this.dice(table, g),
+      ...this.coins(table, g),
+      ...this.notes(table, g),
       ...this.masks(table, g),
       ...this.shownTriggers(g),
       ...this.boards(table, g),
@@ -135,53 +137,111 @@ export class FirstPersonPropsService {
     return object.isVisibleOnTable && surfaceOf(object) === 'floor' && boardSurfaceOf(object) === '';
   }
 
-  private listed<T extends TabletopObject>(alias: string, type: abstract new (...args: never[]) => T): T[] {
+  private onShownSurface(table: GameTable, object: TabletopObject): boolean {
+    if (!object.isVisibleOnTable || boardSurfaceOf(object) !== '') return false;
+    const surface = surfaceOf(object);
+    return surface === 'floor' || this.shownWall(table, surface);
+  }
+
+  private shownWall(table: GameTable, surface: TableSurface): boolean {
+    if (table.wallHeight <= 0) return false;
+    if (surface === 'north-wall') return table.showNorthWall;
+    if (surface === 'east-wall') return table.showEastWall;
+    if (surface === 'south-wall') return table.showSouthWall;
+    if (surface === 'west-wall') return table.showWestWall;
+    return false;
+  }
+
+  private wallDims(table: GameTable, g: number): SurfaceDims {
+    return { widthPx: table.width * g, depthPx: table.height * g, wallHeightPx: table.wallHeight * g };
+  }
+
+  private hiddenByFog(object: TabletopObject, size: number): boolean {
+    return surfaceOf(object) === 'floor' && this.vision.isPieceHiddenByFog(object, size);
+  }
+
+  private placed(table: GameTable, g: number, object: TabletopObject, prop: FirstPersonProp): FirstPersonProp {
+    const surface = surfaceOf(object);
+    if (surface === 'floor') return prop;
+    return {
+      ...prop,
+      kind: 'board',
+      ...wallPlacementOf(
+        surface,
+        object.location.x,
+        object.location.y,
+        prop.width,
+        prop.height,
+        this.wallDims(table, g)
+      ),
+    };
+  }
+
+  private listed<T extends TabletopObject>(
+    table: GameTable,
+    alias: string,
+    type: abstract new (...args: never[]) => T
+  ): T[] {
     this.objectChange.collectionOf(alias)();
     const found = this.objectStore.getObjects<T>(type as never);
     for (const object of found) this.objectChange.versionOf(object.identifier)();
-    return found.filter((object) => this.onTheFloor(object));
+    return found.filter((object) => this.onShownSurface(table, object));
   }
 
   private lights(table: GameTable, g: number): FirstPersonProp[] {
     this.objectChange.collectionOf('light-source')();
     return lightSourcesOn(table)
-      .filter((light) => this.onTheFloor(light) && !this.vision.isPieceHiddenByFog(light))
-      .map((light) => ({
-        ...blank(light.identifier, 'stand', 'light'),
-        x: light.location.x + g / 2,
-        y: light.location.y + g / 2,
-        z: light.altitude * g + light.posZ,
-        width: g,
-        height: g,
-        image: urlOf(light.imageFile),
-        color: light.lightColor,
-        opacity: light.lightEnabled ? 1 : 0.4,
-      }));
+      .filter((light) => this.onShownSurface(table, light) && !this.hiddenByFog(light, 1))
+      .map((light) =>
+        this.placed(table, g, light, {
+          ...blank(light.identifier, 'stand', 'light'),
+          x: light.location.x + g / 2,
+          y: light.location.y + g / 2,
+          z: light.altitude * g + light.posZ,
+          width: g,
+          height: g,
+          image: urlOf(light.imageFile),
+          color: light.lightColor,
+          opacity: light.lightEnabled ? 1 : 0.4,
+        })
+      );
   }
 
-  private cards(g: number): FirstPersonProp[] {
-    return this.listed('card', Card)
-      .filter((card) => !this.vision.isPieceHiddenByFog(card, card.size))
-      .map((card) => this.lying(card, 'card', card.size * g, card.size * g * CARD_ASPECT, urlOf(card.imageFile), g));
+  private cards(table: GameTable, g: number): FirstPersonProp[] {
+    return this.listed(table, 'card', Card)
+      .filter((card) => !this.hiddenByFog(card, card.size))
+      .map((card) =>
+        this.placed(
+          table,
+          g,
+          card,
+          this.lying(card, 'card', card.size * g, card.size * g * CARD_ASPECT, urlOf(card.imageFile), g)
+        )
+      );
   }
 
-  private stacks(g: number): FirstPersonProp[] {
-    return this.listed('card-stack', CardStack)
-      .filter((stack) => !this.vision.isPieceHiddenByFog(stack, stack.topCard?.size ?? 2))
+  private stacks(table: GameTable, g: number): FirstPersonProp[] {
+    return this.listed(table, 'card-stack', CardStack)
+      .filter((stack) => !this.hiddenByFog(stack, stack.topCard?.size ?? 2))
       .map((stack) => {
         const width = (stack.topCard?.size ?? 2) * g;
-        return this.lying(stack, 'stack', width, width * CARD_ASPECT, urlOf(stack.imageFile), g);
+        return this.placed(
+          table,
+          g,
+          stack,
+          this.lying(stack, 'stack', width, width * CARD_ASPECT, urlOf(stack.imageFile), g)
+        );
       });
   }
 
-  private dice(g: number): FirstPersonProp[] {
+  private dice(table: GameTable, g: number): FirstPersonProp[] {
     const master = this.rolePermission.canSeeHidden;
-    return this.listed('dice-symbol', DiceSymbol)
-      .filter((dice) => !this.vision.isPieceHiddenByFog(dice, dice.size))
+    return this.listed(table, 'dice-symbol', DiceSymbol)
+      .filter((dice) => !this.hiddenByFog(dice, dice.size))
       .map((dice) => {
         const size = Math.max(1, dice.size) * g;
         const seen = dice.isVisible || master;
-        return {
+        return this.placed(table, g, dice, {
           ...blank(dice.identifier, 'stand', 'dice'),
           x: dice.location.x + size / 2,
           y: dice.location.y + size / 2,
@@ -192,29 +252,31 @@ export class FirstPersonPropsService {
           image: urlOf(dice.imageFile),
           dark: !seen,
           label: `${dice.name}: ${seen ? dice.face : '???'}`,
-        };
+        });
       });
   }
 
-  private coins(g: number): FirstPersonProp[] {
-    return this.listed('coin', Coin)
-      .filter((coin) => !this.vision.isPieceHiddenByFog(coin, coin.size))
-      .map((coin) => ({
-        ...this.lying(coin, 'coin', coin.size * g, coin.size * g, urlOf(coin.imageFile), g),
-        color: '#d4af37',
-        round: true,
-      }));
+  private coins(table: GameTable, g: number): FirstPersonProp[] {
+    return this.listed(table, 'coin', Coin)
+      .filter((coin) => !this.hiddenByFog(coin, coin.size))
+      .map((coin) =>
+        this.placed(table, g, coin, {
+          ...this.lying(coin, 'coin', coin.size * g, coin.size * g, urlOf(coin.imageFile), g),
+          color: '#d4af37',
+          round: true,
+        })
+      );
   }
 
-  private notes(g: number): FirstPersonProp[] {
-    return this.listed('text-note', TextNote)
-      .filter((note) => !this.vision.isPieceHiddenByFog(note, 1))
+  private notes(table: GameTable, g: number): FirstPersonProp[] {
+    return this.listed(table, 'text-note', TextNote)
+      .filter((note) => !this.hiddenByFog(note, 1))
       .map((note) => {
         const width = note.width * g;
         const height = note.height * g;
         const readable = this.disclosure.canView(note);
         const text = readable ? [note.title, note.text].filter(Boolean).join('\n') : '█████';
-        return {
+        return this.placed(table, g, note, {
           ...blank(note.identifier, note.isUpright ? 'stand' : 'lie', 'note'),
           x: note.location.x,
           y: note.isUpright ? note.location.y : note.location.y - height / 2,
@@ -225,7 +287,7 @@ export class FirstPersonPropsService {
           image: urlOf(note.imageFile),
           color: '#fdf6d8',
           text,
-        };
+        });
       });
   }
 
