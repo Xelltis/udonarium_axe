@@ -85,9 +85,9 @@
               }
               @if (piece.moreBadges > 0) {
                 <span
-                  class="inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 bg-black/70 text-2xl leading-none font-bold text-white tabular-nums shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
+                  class="inline-flex h-12 items-center justify-center rounded-full border-2 border-solid border-white/40 bg-black/70 px-3 text-2xl leading-none font-bold whitespace-nowrap text-white tabular-nums shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
                   data-testid="first-person-buff-more"
-                  >+{{ piece.moreBadges }}</span
+                  >{{ 'feature.character.buff.count' | transloco: { count: piece.moreBadges } }}</span
                 >
               }
             </span>
