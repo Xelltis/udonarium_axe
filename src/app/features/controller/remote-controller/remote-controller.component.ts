@@ -28,6 +28,7 @@ import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { type ResourceCatalogEntry, resourceCatalogOf } from '@axe/domain/character/resource-catalog';
 import { ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -47,13 +48,11 @@ import {
   RemoteControllerSelect,
 } from '@axe/features/controller/remote-controller/remote-controller-buff';
 import {
-  controllableResourcesOf,
   getGameObjects,
   getInventory,
   getInventoryTags,
   getTabTitleKey,
   getTargetCharacters,
-  type ResourceChoice,
 } from '@axe/features/controller/remote-controller/remote-controller-helpers';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -321,7 +320,7 @@ export class RemoteControllerComponent {
    * The slot stays where it stood, so a table working through a row of pieces keeps moving
    * the same part of each; an item that has only its value to write to takes that.
    */
-  chooseResource(choice: ResourceChoice): void {
+  chooseResource(choice: ResourceCatalogEntry): void {
     const slot = choice.isResource ? this.remoteControllerSelect().nowOrMax : 'now';
     this.remoteSelect(choice.name, slot, this.displayNameOf(choice, slot));
   }
@@ -333,7 +332,7 @@ export class RemoteControllerComponent {
   }
 
   /** How the operation reads in the chat line: the item, and which part of it was moved. */
-  private displayNameOf(choice: ResourceChoice, slot: ResourceSlot): string {
+  private displayNameOf(choice: ResourceCatalogEntry, slot: ResourceSlot): string {
     if (!choice.isResource) return choice.name;
     return `${choice.name}${this.t('feature.controller.remote.slotNameSeparator')}${this.slotLabel(slot)}`;
   }
@@ -422,12 +421,12 @@ export class RemoteControllerComponent {
    * With nothing picked out yet, the whole tab stands in, so the buttons are there before the
    * first target is.
    */
-  readonly counterChoices = computed<ResourceChoice[]>(() => {
+  readonly counterChoices = computed<ResourceCatalogEntry[]>(() => {
     const characters = this.resourceTargets();
     for (const character of characters) this.objectChange.versionOf(character.identifier)();
     this.objectChange.versionOf(DataSummarySetting.instance.identifier)();
     this.objectChange.collectionOf('data')();
-    return controllableResourcesOf(characters, this.dataTags);
+    return resourceCatalogOf(characters, { listFirst: this.dataTags });
   });
 
   private resourceTargets(): GameCharacter[] {
@@ -436,7 +435,7 @@ export class RemoteControllerComponent {
   }
 
   /** The item the buttons point at, as it stands among what the pieces carry. */
-  readonly chosenChoice = computed<ResourceChoice | null>(() => {
+  readonly chosenChoice = computed<ResourceCatalogEntry | null>(() => {
     const name = this.remoteControllerSelect().name;
     if (name === '') return null;
     return this.counterChoices().find((choice) => choice.name === name) ?? null;
