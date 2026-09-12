@@ -28,7 +28,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
+import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeNumbersOf, selectPieceGauges } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -82,7 +82,6 @@ const TARGET_CONE_DEG = 20;
 const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
-const BILLBOARD_BADGES_PER_ROW = 5;
 const PIECE_WIDE_RATIO = 0.9;
 const PIECE_TALL_RATIO = 1.5;
 
@@ -290,8 +289,8 @@ export class FirstPersonViewComponent {
         pick: picks.indexOf(piece.identifier) + 1,
         bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depth) * 180) / Math.PI),
         gauges: this.gaugesOf(piece),
-        badges: badges.slice(0, BILLBOARD_BADGES_PER_ROW),
-        moreBadges: Math.max(0, badges.length - BILLBOARD_BADGES_PER_ROW),
+        badges: badges.slice(0, BUFF_BADGES_PER_ROW),
+        moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
         style: billboardStyle(
           { ...centre, z: piece.posZ + piece.altitude * gridSize },
           size * PIECE_WIDE_RATIO * shrink,

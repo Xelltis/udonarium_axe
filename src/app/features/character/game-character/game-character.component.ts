@@ -48,7 +48,7 @@ import { callResourceChange, resourceChange$ } from '@axe/core/event/domain-even
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
+import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { isInternalResource } from '@axe/domain/character/internal-resource';
@@ -148,7 +148,6 @@ const BUFF_STACK_GAP_PX = 40;
 const TARGET_STACK_GAP_PX = 52;
 const BUFF_DETAIL_ROW_HEIGHT_PX = 12;
 const BUFF_BADGE_ROW_HEIGHT_PX = 22;
-const BUFF_BADGES_PER_ROW = 5;
 const ROLL_HANDLE_MIN_PX = 20;
 const ROLL_HANDLE_MAX_PX = 56;
 const ROLL_HANDLE_SIZE_RATIO = 0.56;
