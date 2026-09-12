@@ -796,6 +796,13 @@
       }
     },
     "dice": {
+      "createDialog": {
+        "title": "ダイスをまとめて作成",
+        "type": "種類",
+        "count": "個数",
+        "cancel": "キャンセル",
+        "create": "作成"
+      },
       "contextMenu": {
         "rollDice": "ダイスを振る",
         "showDice": "ダイスを公開",
@@ -1705,6 +1712,7 @@
         "createBlankCard": "ブランクカードを作成",
         "createTrump": "トランプの山札を作成",
         "createDice": "ダイスを作成",
+        "createDiceMany": "個数を指定して作成…",
         "createCoin": "コインを作成",
         "createRange": "射程範囲を作成",
         "createLight": "光源を作成",

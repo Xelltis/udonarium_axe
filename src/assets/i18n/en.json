@@ -796,6 +796,13 @@
       }
     },
     "dice": {
+      "createDialog": {
+        "title": "Create several dice",
+        "type": "Kind",
+        "count": "Count",
+        "cancel": "Cancel",
+        "create": "Create"
+      },
       "contextMenu": {
         "rollDice": "Roll dice",
         "showDice": "Reveal dice",
@@ -1705,6 +1712,7 @@
         "createBlankCard": "Create blank card",
         "createTrump": "Create trump deck",
         "createDice": "Create dice",
+        "createDiceMany": "Create several…",
         "createCoin": "Create a coin",
         "createRange": "Create range",
         "createLight": "Create light source",

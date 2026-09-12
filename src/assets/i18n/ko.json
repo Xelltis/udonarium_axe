@@ -796,6 +796,13 @@
       }
     },
     "dice": {
+      "createDialog": {
+        "title": "주사위 여러 개 만들기",
+        "type": "종류",
+        "count": "개수",
+        "cancel": "취소",
+        "create": "만들기"
+      },
       "contextMenu": {
         "rollDice": "주사위 굴리기",
         "showDice": "주사위 공개",
@@ -1705,6 +1712,7 @@
         "createBlankCard": "빈 카드 만들기",
         "createTrump": "트럼프 덱 만들기",
         "createDice": "주사위 만들기",
+        "createDiceMany": "개수를 지정해 만들기…",
         "createCoin": "코인 만들기",
         "createRange": "사거리 범위 만들기",
         "createLight": "광원 만들기",

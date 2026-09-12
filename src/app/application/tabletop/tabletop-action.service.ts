@@ -3,7 +3,12 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import {
+  type DiceCreateDialogOption,
+  type DiceCreateRequest,
+  type DiceMenuItem,
+  type DicePlacement,
   getDiceMenuItems,
+  getDicePlacements,
   getRangeMenuItems,
   getTrumpCardCodes,
   TERRAIN_TEXTURE_PATH,
@@ -15,6 +20,7 @@ import {
   makeDefaultTabletopObjects as _makeDefaultTabletopObjects,
 } from '@axe/application/tabletop/tabletop-default-setup';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -52,7 +58,11 @@ const BOARD_DEFAULT_HEIGHT = 4;
   providedIn: 'root',
 })
 export class TabletopActionService {
+  /** The dialogue for making several dice at once, handed over by the composition root. */
+  static diceCreateDialogComponentClass: { new (...args: unknown[]): unknown } | null = null;
+
   private readonly imageStorage = inject(ImageStorage);
+  private readonly modalService = inject(ModalService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
@@ -173,7 +183,13 @@ export class TabletopActionService {
     return textNote;
   }
 
-  createDiceSymbol(position: PointerCoordinate, name: string, diceType: DiceType, imagePathPrefix: string): DiceSymbol {
+  createDiceSymbol(
+    position: PointerCoordinate,
+    name: string,
+    diceType: DiceType,
+    imagePathPrefix: string,
+    placement?: DicePlacement
+  ): DiceSymbol {
     const diceSymbol = DiceSymbol.create(name, diceType, 1);
     diceSymbol.faces.forEach((face) => {
       const url: string = `./assets/images/dice/${imagePathPrefix}/${imagePathPrefix}[${face}].png`;
@@ -185,10 +201,23 @@ export class TabletopActionService {
       if (faceEl) faceEl.value = image.identifier;
     });
 
-    diceSymbol.location.x = position.x - 25;
-    diceSymbol.location.y = position.y - 25;
+    const place = placement ?? getDicePlacements(position, 1)[0];
+    diceSymbol.location.x = place.x;
+    diceSymbol.location.y = place.y;
     diceSymbol.posZ = position.z;
     return diceSymbol;
+  }
+
+  /**
+   * Makes several dice of one kind at once, laid out beside the point they were asked for.
+   *
+   * A handful of the same die is what a roll usually needs, and making them one press at a time
+   * left them in a pile on one spot to be pulled apart by hand.
+   */
+  createDiceSymbols(position: PointerCoordinate, item: DiceMenuItem, count: number): DiceSymbol[] {
+    return getDicePlacements(position, count).map((placement) =>
+      this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement)
+    );
   }
 
   createRangeArea(position: PointerCoordinate, typeName: string): RangeArea {
@@ -469,7 +498,32 @@ export class TabletopActionService {
         },
       });
     });
+    if (TabletopActionService.diceCreateDialogComponentClass) {
+      subMenus.push({
+        name: this.t('feature.tabletop.action.createDiceMany'),
+        action: () => void this.openDiceCreateDialog(position),
+      });
+    }
     return { name: this.t('feature.tabletop.action.createDice'), action: undefined, subActions: subMenus };
+  }
+
+  /** Asks which die and how many, then makes them. Nothing is made where the asking is dropped. */
+  private async openDiceCreateDialog(position: PointerCoordinate): Promise<void> {
+    const dialogClass = TabletopActionService.diceCreateDialogComponentClass;
+    if (!dialogClass) return;
+
+    const option: DiceCreateDialogOption = { defaultCount: 2 };
+    const request = await this.modalService
+      .open<DiceCreateRequest | null>(dialogClass, {
+        ...option,
+        title: this.t('feature.dice.createDialog.title'),
+      })
+      .catch(() => null);
+    if (!request) return;
+
+    const item = getDiceMenuItems()[request.typeIndex];
+    if (!item) return;
+    if (this.createDiceSymbols(position, item, request.count).length > 0) SoundEffect.play(PresetSound.dicePut);
   }
 
   createCoin(position: PointerCoordinate): Coin {

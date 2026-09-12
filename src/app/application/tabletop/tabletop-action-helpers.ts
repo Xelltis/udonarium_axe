@@ -38,6 +38,48 @@ export function getDiceMenuItems(): DiceMenuItem[] {
   ];
 }
 
+/** How far apart several dice made at once stand, and how many stand in a row before the next begins. */
+const DICE_PLACEMENT_STEP_PX = 55;
+const DICE_PLACEMENT_PER_ROW = 5;
+
+export interface DicePlacement {
+  x: number;
+  y: number;
+}
+
+/** What the dialogue for making several dice at once is opened with. */
+export interface DiceCreateDialogOption {
+  /** Which kind is offered first, by its place in the creation menu. */
+  typeIndex?: number;
+  defaultCount?: number;
+  maxCount?: number;
+}
+
+/** What it answers with: the kind, by its place in that menu, and how many of them. */
+export interface DiceCreateRequest {
+  typeIndex: number;
+  count: number;
+}
+
+/**
+ * Where each of several dice made at once goes.
+ *
+ * One die is made where the table was asked. Several would stand in a pile on that one spot, so
+ * they are laid out in rows from it: a handful can then be read and thrown without being pulled
+ * apart first, and a row wraps rather than running off the edge of the table.
+ */
+export function getDicePlacements(position: { x: number; y: number }, count: number): DicePlacement[] {
+  const wanted = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  const placements: DicePlacement[] = [];
+  for (let index = 0; index < wanted; index++) {
+    placements.push({
+      x: position.x - 25 + (index % DICE_PLACEMENT_PER_ROW) * DICE_PLACEMENT_STEP_PX,
+      y: position.y - 25 + Math.floor(index / DICE_PLACEMENT_PER_ROW) * DICE_PLACEMENT_STEP_PX,
+    });
+  }
+  return placements;
+}
+
 export function getRangeMenuItems(): RangeMenuItem[] {
   return [
     { menuName: 'feature.tabletop.action.rangeShapeLine', typeName: 'LINE' },
