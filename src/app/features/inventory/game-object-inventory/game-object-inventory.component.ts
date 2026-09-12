@@ -23,6 +23,7 @@ import {
   InventoryTableColumn,
   InventoryTableRow,
 } from '@axe/application/inventory/inventory-table';
+import { tableItemNames } from '@axe/application/inventory/summary-items';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -245,11 +246,17 @@ export class GameObjectInventoryComponent {
     this.objectChange.collectionOf('data')();
     // The table keeps a list of its own, so the elements are looked up against that rather
     // than taken from the map the full view's list is cached in.
-    const tags = this.inventoryService.tableDataTags;
+    const objects = this.filteredRows().map((row) => row.object);
+    const ailments = this.ailmentService.ailments();
+    const tags = tableItemNames(
+      this.inventoryService.tableDataTags,
+      objects,
+      ailments.map((ailment) => ailment.name)
+    );
     return buildInventoryTable(
-      this.filteredRows().map((row) => row.object),
+      objects,
       tags,
-      this.ailmentService.ailments(),
+      ailments,
       (object) => this.elementsOf(object, tags),
       this.newLineString,
       this.inventoryService.sortTag

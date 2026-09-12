@@ -109,13 +109,24 @@ describe('remote-controller-helpers', () => {
   });
 
   describe('getInventoryTags', () => {
-    it('should return empty array when no tags exist for character', () => {
+    it('returns nothing for a display item the character does not carry', () => {
+      DataSummarySetting.instance.dataTag = '架空の項目';
       const character = createChar('char-1');
       inventoryContext.tableInventory.refreshObjects();
       inventoryContext.tableInventory.refreshDataElements();
 
       const result = getInventoryTags(character, inventoryContext);
-      expect(result).toEqual([]);
+      expect(result).toEqual([null]);
+    });
+
+    it('returns what the room works out for itself while it names no items', () => {
+      DataSummarySetting.instance.dataTag = '';
+      const character = createChar('char-2');
+      inventoryContext.tableInventory.refreshObjects();
+      inventoryContext.tableInventory.refreshDataElements();
+
+      const result = getInventoryTags(character, inventoryContext);
+      expect(result.map((element) => element?.name)).toEqual(['HP', 'MP']);
     });
   });
 

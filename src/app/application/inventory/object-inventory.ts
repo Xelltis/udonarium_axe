@@ -1,4 +1,5 @@
 import { sortObjectsByTags } from '@axe/application/inventory/game-object-inventory-helpers';
+import { displayItemNames } from '@axe/application/inventory/summary-items';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -50,16 +51,24 @@ export class ObjectInventory {
     this.summarySetting.dataTag = dataTag;
   }
 
+  /** What the room named, or what its pieces carry while it has named none. */
   get dataTags(): string[] {
-    return this.summarySetting.dataTags;
+    return displayItemNames(this.summarySetting.dataTags, this.pieces());
   }
 
   private _tabletopObjects: TabletopObject[] = [];
-  get tabletopObjects(): TabletopObject[] {
+
+  /** The pieces of this inventory, before the order is settled: what is here, not how it reads. */
+  private pieces(): TabletopObject[] {
     if (this.needsRefreshObjects) {
       this._tabletopObjects = this.searchTabletopObjects();
       this.needsRefreshObjects = false;
     }
+    return this._tabletopObjects;
+  }
+
+  get tabletopObjects(): TabletopObject[] {
+    this.pieces();
     if (this.needsSort) {
       this._tabletopObjects = sortObjectsByTags(
         this._tabletopObjects,
@@ -74,11 +83,7 @@ export class ObjectInventory {
   }
 
   get length(): number {
-    if (this.needsRefreshObjects) {
-      this._tabletopObjects = this.searchTabletopObjects();
-      this.needsRefreshObjects = false;
-    }
-    return this._tabletopObjects.length;
+    return this.pieces().length;
   }
 
   private _dataElementMap: Map<ObjectIdentifier, (DataElement | null)[]> = new Map();

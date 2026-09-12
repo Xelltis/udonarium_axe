@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
-import { DEFAULT_STATUS_AILMENT_NAMES } from '@axe/domain/character/builtin-status-ailments';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
 
 describe('DataSummarySetting', () => {
@@ -36,8 +35,8 @@ describe('DataSummarySetting', () => {
   });
 
   describe('the defaults of the synchronised fields', () => {
-    it('starts sorting by how quick everybody is', () => {
-      expect(DataSummarySetting.instance.sortTag).toBe('敏捷度');
+    it('starts with nothing to sort by, since only the room knows what it is read by', () => {
+      expect(DataSummarySetting.instance.sortTag).toBe('');
     });
 
     it('starts with the quickest at the top, which is the order a fight is read in', () => {
@@ -52,24 +51,12 @@ describe('DataSummarySetting', () => {
       expect(DataSummarySetting.instance.sortOrder2nd).toBe(SortOrder.ASC);
     });
 
-    it('starts the full view on the two pools and the six abilities', () => {
-      expect(DataSummarySetting.instance.dataTags).toEqual([
-        'HP',
-        'MP',
-        '敏捷度',
-        '器用度',
-        '筋力',
-        '生命力',
-        '知力',
-        '精神力',
-      ]);
+    it('names no items of its own, so nothing of the sample sheet is a default for every room', () => {
+      expect(DataSummarySetting.instance.dataTags).toEqual([]);
     });
 
-    it('starts the table on those and every state a room keeps', () => {
-      const tags = DataSummarySetting.instance.tableDataTags;
-
-      expect(tags.slice(0, 8)).toEqual(DataSummarySetting.instance.dataTags);
-      expect(tags.slice(8)).toEqual([...DEFAULT_STATUS_AILMENT_NAMES]);
+    it('names none for the table either', () => {
+      expect(DataSummarySetting.instance.tableDataTags).toEqual([]);
     });
 
     it('keeps the two lists apart', () => {

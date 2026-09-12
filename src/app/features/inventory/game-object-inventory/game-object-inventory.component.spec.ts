@@ -890,8 +890,23 @@ describe('GameObjectInventoryComponent', () => {
         }
       });
 
-      it('says so when there is nothing to make columns of', () => {
+      it('works the columns out from the pieces when the room has named none', () => {
+        // The sample sheet marks its two pools to show on the piece, so those lead.
         putOnTable('ゴブリン');
+        TestBed.inject(GameObjectInventoryService).tableDataTag = '';
+        component.setViewMode('table');
+        fixture.detectChanges();
+
+        expect(tableRows()).toHaveLength(1);
+        expect(
+          component
+            .inventoryTable()
+            .columns.map((column) => column.name)
+            .slice(0, 2)
+        ).toEqual(['HP', 'MP']);
+      });
+
+      it('says so when there is nothing to make columns of', () => {
         TestBed.inject(GameObjectInventoryService).tableDataTag = '';
         component.setViewMode('table');
         fixture.detectChanges();
