@@ -3,6 +3,7 @@ import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { AltitudeGuideService } from '@axe/application/tabletop/altitude-guide.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
@@ -10,6 +11,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { clearRunAlong, MoveBlock } from '@axe/domain/tabletop/move/blocked-path';
@@ -71,6 +73,7 @@ export class MovableDirective implements MovableInteractionContext {
   readonly coordinateService = inject(CoordinateService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly altitudeGuide = inject(AltitudeGuideService);
   private readonly multiMovableService = inject(MultiMovableService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
@@ -313,6 +316,7 @@ export class MovableDirective implements MovableInteractionContext {
 
     const self = this.tabletopObject;
     if (!self || e.deltaY === 0) return;
+    if (e.shiftKey && this.sendAloft(self, e.deltaY < 0)) return;
     if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
     const rider = this.contactRider(self);
     const center = this.coordinateService.convertToLocal(dragPointer2d(this), this.surfaceElement());
@@ -322,6 +326,46 @@ export class MovableDirective implements MovableInteractionContext {
 
     this.dragReachZ = next;
     this.onInputMoveNow(e);
+  }
+
+  /**
+   * Holding a piece off the ground, rather than putting it down on what is under it.
+   *
+   * The wheel alone walks whatever the piece can stand on, which is what a table wants of it
+   * nearly always. Held with it, the wheel leaves the ground behind: the height goes into the
+   * piece's own altitude, which is the only height a piece keeps - what it is standing on is
+   * gravity's to write, and gravity would put a floating piece straight back down.
+   */
+  private sendAloft(self: TabletopObject, isUp: boolean): boolean {
+    if (surfaceOf(self) !== 'floor') return false;
+
+    const next = steppedAltitude(self.altitude, isUp, ALTITUDE_STEP_CELLS);
+    if (next !== self.altitude) {
+      self.altitude = next;
+      self.update();
+    }
+    this.showAltitudeGuide(next);
+    return true;
+  }
+
+  private showAltitudeGuide(altitude: number): void {
+    const self = this.tabletopObject;
+    if (!self) return;
+    this.altitudeGuide.show({
+      identifier: self.identifier,
+      x: this.posX,
+      y: this.posY,
+      widthPx: this.width,
+      heightPx: this.height,
+      altitude,
+      gridSize: this.tableGridSize(),
+    });
+  }
+
+  private followWithAltitudeGuide(): void {
+    const self = this.tabletopObject;
+    if (!self || this.altitudeGuide.guide()?.identifier !== self.identifier) return;
+    this.showAltitudeGuide(self.altitude);
   }
 
   private buildContactProbe(): ContactFootprint[] {
@@ -440,6 +484,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   cancel() {
     window.removeEventListener('wheel', this.onWheelWhileGrabbed, { capture: true });
+    this.altitudeGuide.hide(this.tabletopObject?.identifier);
     if (this.input) this.input.cancel();
     this.promoteWhileMoving(false);
     this.setPointerEvents(true);
@@ -500,6 +545,11 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private onInputMoveNow(e: MouseEvent | TouchEvent) {
+    this.moveWhileHeld(e);
+    this.followWithAltitudeGuide();
+  }
+
+  private moveWhileHeld(e: MouseEvent | TouchEvent) {
     const pointerSurface = this.surfaceUnderPointer();
     const overDifferentSurface = pointerSurface !== null && pointerSurface !== this.surfaceElement();
     if (overDifferentSurface && this.input?.isDragging && this.input.pointer) {
