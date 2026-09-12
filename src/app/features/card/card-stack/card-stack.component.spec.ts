@@ -105,6 +105,32 @@ describe('CardStackComponent', () => {
       cardStack.destroy();
     });
 
+    it('marks a stack as locked, without it being moved', async () => {
+      // The lock mark is the only thing on a stack that moves when it is locked, so it is the
+      // whole answer to the question. Nothing is checked by hand: it has to follow because the
+      // signals said so.
+      const cardStack = CardStack.create('テストスタック');
+      fixture.componentRef.setInput('cardStack', cardStack);
+      fixture.detectChanges();
+      const locks = () =>
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('i')].filter((i) => i.textContent === 'lock')
+          .length;
+      expect(locks()).toBe(0);
+
+      cardStack.isLock = true;
+      TestBed.inject(ObjectChangeService).notifyChanged(cardStack.identifier);
+      await fixture.whenStable();
+
+      expect(locks()).toBe(1);
+
+      cardStack.isLock = false;
+      TestBed.inject(ObjectChangeService).notifyChanged(cardStack.identifier);
+      await fixture.whenStable();
+
+      expect(locks()).toBe(0);
+      cardStack.destroy();
+    });
+
     it('holds the hidden icon in a signal', () => {
       expect(typeof component.isIconHidden).toBe('function');
       expect(component.isIconHidden()).toBe(false);

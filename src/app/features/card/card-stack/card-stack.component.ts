@@ -99,12 +99,11 @@ export class CardStackComponent {
 
   readonly cardStack = input.required<CardStack>();
 
-  get isLock(): boolean {
-    return this.cardStack().isLock;
-  }
-  set isLock(isLock: boolean) {
-    this.cardStack().isLock = isLock;
-  }
+  readonly isLock = computed(() => {
+    const cardStack = this.cardStack();
+    this.objectChange.versionOf(cardStack.identifier)();
+    return cardStack.isLock;
+  });
 
   readonly name = computed(() => {
     this.objectChange.versionOf(this.cardStack().identifier)();
