@@ -67,12 +67,14 @@ export class PeerCursorComponent {
     return roleBadgeClass(this.cursor().role);
   });
 
-  get name(): string {
+  readonly name = computed(() => {
+    this.objectChange.versionOf(this.cursor().identifier)();
     return this.cursor().name;
-  }
-  get isMine(): boolean {
+  });
+  readonly isMine = computed(() => {
+    this.objectChange.versionOf(this.cursor().identifier)();
     return this.cursor()?.isMine ?? false;
-  }
+  });
   get chatTabList(): ChatTabList {
     return this.objectStore.get<ChatTabList>('ChatTabList')!;
   }
@@ -139,7 +141,7 @@ export class PeerCursorComponent {
     }, this.destroyRef);
 
     afterNextRender(() => {
-      if (this.isMine) {
+      if (this.isMine()) {
         document.body.addEventListener('mousemove', this.callcack);
         document.body.addEventListener('touchmove', this.callcack);
       } else {
