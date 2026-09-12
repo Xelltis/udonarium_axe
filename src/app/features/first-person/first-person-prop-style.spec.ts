@@ -22,6 +22,7 @@ function prop(overrides: Partial<FirstPersonProp>): FirstPersonProp {
     rotate: 0,
     image: '',
     color: '',
+    wash: '',
     opacity: 1,
     dark: false,
     round: false,
