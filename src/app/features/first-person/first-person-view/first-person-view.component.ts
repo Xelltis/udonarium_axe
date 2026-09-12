@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -26,7 +27,11 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { gaugeNumbersOf, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { DataElement } from '@axe/domain/data/data-element';
+import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { depthOf, eyeFrameOf, lateralOf } from '@axe/domain/tabletop/first-person/first-person-clip';
 import {
   FirstPersonMove,
@@ -40,6 +45,7 @@ import {
 } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import {
   EffectEye,
   TableEffectOverlayComponent,
@@ -60,6 +66,7 @@ import {
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { paintMinimap } from '@axe/infrastructure/first-person/minimap-painter';
+import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const NEAR_CELLS = 0.05;
@@ -71,12 +78,24 @@ const TARGET_CONE_DEG = 20;
 const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
+const BILLBOARD_BADGES_PER_ROW = 5;
 
 interface QuadView {
   id: string;
+  cell: number;
   kind: FirstPersonQuad['kind'];
   tone: string;
+  remembered: boolean;
   style: QuadStyle;
+}
+
+interface GaugeView {
+  id: string;
+  name: string;
+  initial: string;
+  percent: number;
+  color: string;
+  numbers: string;
 }
 
 interface PieceView {
@@ -87,6 +106,9 @@ interface PieceView {
   targeted: boolean;
   pick: number;
   bearing: number;
+  gauges: GaugeView[];
+  badges: BuffBadge[];
+  moreBadges: number;
   style: QuadStyle;
 }
 
@@ -108,7 +130,7 @@ interface GlowView {
     class: 'absolute inset-0 block select-none overflow-hidden bg-black',
     '(document:keydown)': 'onKeydown($event)',
   },
-  imports: [TranslocoModule, TableEffectOverlayComponent, TableWeatherOverlayComponent],
+  imports: [TranslocoModule, EffectTargetOverlayComponent, TableEffectOverlayComponent, TableWeatherOverlayComponent],
 })
 export class FirstPersonViewComponent {
   protected readonly firstPerson = inject(FirstPersonService);
@@ -119,6 +141,7 @@ export class FirstPersonViewComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly disclosure = inject(DisclosureService);
   private readonly pieceTarget = inject(PieceTargetService);
   private readonly effectTargeting = inject(EffectTargetingService);
   private readonly selection = inject(SelectionSignalService);
@@ -211,9 +234,12 @@ export class FirstPersonViewComponent {
     return this.quads().map((quad) => {
       const url = this.urlOf(quad.image);
       const shade = shadeFor(quad.depth, depth);
+      const remembered = this.firstPerson.tierOfCell(quad.cell) === 'dim';
       const style =
-        quad.kind === 'wall' ? wallQuadStyle(quad, scale, url, shade) : planeQuadStyle(quad, scale, url, shade);
-      return { id: quad.id, kind: quad.kind, tone: toneOf(quad), style };
+        quad.kind === 'wall'
+          ? wallQuadStyle(quad, scale, url, shade, remembered)
+          : planeQuadStyle(quad, scale, url, shade, remembered);
+      return { id: quad.id, cell: quad.cell, kind: quad.kind, tone: toneOf(quad), remembered, style };
     });
   });
 
@@ -226,6 +252,7 @@ export class FirstPersonViewComponent {
     this.objectChange.fileVersion();
     this.uiSignal.targetChange();
     this.objectChange.trackMyCursor();
+    this.objectChange.collectionOf('data')();
     const master = this.rolePermission.canSeeHidden;
     const picks = this.effectTargeting.picks();
     const eye = eyeFrameOf(pose);
@@ -238,6 +265,7 @@ export class FirstPersonViewComponent {
       const size = Math.max(1, piece.size) * gridSize;
       const centre = { x: piece.location.x + size / 2, y: piece.location.y + size / 2 };
       if (!this.inSight(pose, centre)) continue;
+      const badges = this.badgesOf(piece);
       views.push({
         id: piece.identifier,
         name: piece.name,
@@ -246,6 +274,9 @@ export class FirstPersonViewComponent {
         targeted: piece.targeted,
         pick: picks.indexOf(piece.identifier) + 1,
         bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depthOf(eye, centre)) * 180) / Math.PI),
+        gauges: this.gaugesOf(piece),
+        badges: badges.slice(0, BILLBOARD_BADGES_PER_ROW),
+        moreBadges: Math.max(0, badges.length - BILLBOARD_BADGES_PER_ROW),
         style: billboardStyle(
           { ...centre, z: piece.posZ + piece.altitude * gridSize },
           size * 0.9,
@@ -257,6 +288,35 @@ export class FirstPersonViewComponent {
     }
     return views;
   });
+
+  private gaugesOf(piece: GameCharacter): GaugeView[] {
+    const detail = piece.detailDataElement;
+    if (!detail) return [];
+    this.trackTree(detail);
+    const readable = this.disclosure.canView(piece);
+    return selectPieceGauges(detail)
+      .slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES)
+      .map((gauge) => ({
+        id: gauge.identifier,
+        name: gauge.name,
+        initial: gauge.initial,
+        percent: gauge.ratio * 100,
+        color: gauge.color,
+        numbers: gaugeNumbersOf(gauge, readable),
+      }));
+  }
+
+  private badgesOf(piece: GameCharacter): BuffBadge[] {
+    const buff = piece.buffDataElement;
+    if (!buff || piece.hideBuff) return [];
+    this.trackTree(buff);
+    return toBuffBadges(buff);
+  }
+
+  private trackTree(root: DataElement): void {
+    this.objectChange.versionOf(root.identifier)();
+    for (const element of collectDataElements(root)) this.objectChange.versionOf(element.identifier)();
+  }
 
   private readonly props = computed(() => this.propsService.props());
 
@@ -298,6 +358,10 @@ export class FirstPersonViewComponent {
   protected readonly compassTurn = computed(() => -(this.shown()?.yaw ?? 0));
 
   protected readonly compassTicks = COMPASS_TICKS;
+
+  protected readonly torchLabelKey = computed(() =>
+    this.firstPerson.torchLit() ? 'feature.firstPerson.hud.torchOff' : 'feature.firstPerson.hud.torchOn'
+  );
 
   protected readonly padRows = computed(() => padRows(this.firstPerson.lattice()));
 
@@ -363,6 +427,10 @@ export class FirstPersonViewComponent {
     this.firstPerson.toggleDoorAhead();
   }
 
+  protected torch(): void {
+    this.firstPerson.toggleTorch();
+  }
+
   protected exit(): void {
     this.firstPerson.exitSeat();
   }
@@ -377,6 +445,9 @@ export class FirstPersonViewComponent {
         return;
       case 'door':
         this.door();
+        return;
+      case 'torch':
+        this.torch();
         return;
       case 'exit':
         this.exit();

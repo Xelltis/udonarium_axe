@@ -10,6 +10,8 @@
         class="absolute top-0 left-0 bg-no-repeat backface-hidden"
         [class]="quad.tone"
         [attr.data-quad]="quad.kind"
+        [attr.data-cell]="quad.cell"
+        [attr.data-remembered]="quad.remembered || null"
         [style]="quad.style"
       ></div>
     }
@@ -43,6 +45,71 @@
             [class.bg-red-700]="piece.targeted"
             >{{ piece.label }}</span
           >
+        }
+        @if (piece.badges.length > 0) {
+          <span
+            class="absolute -top-26 left-1/2 flex w-[160%] -translate-x-1/2 flex-nowrap justify-center gap-1.5"
+            data-testid="first-person-buffs"
+          >
+            @for (badge of piece.badges; track badge.identifier) {
+              <span
+                class="relative inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 text-2xl leading-none text-white shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
+                data-testid="first-person-buff"
+                [style.background]="badge.color"
+                [attr.title]="badge.name + (badge.effect ? ' / ' + badge.effect : '')"
+              >
+                @if (badge.iconUrl) {
+                  <img class="pointer-events-none size-8 object-contain" [src]="badge.iconUrl" alt="" />
+                } @else {
+                  {{ badge.icon }}
+                }
+                @if (badge.strength) {
+                  <span
+                    class="pointer-events-none absolute -top-2 -left-2 rounded-sm bg-amber-600 px-1 text-base/tight font-bold text-white"
+                    >{{ badge.strength }}</span
+                  >
+                }
+                @if (badge.expires) {
+                  <span
+                    class="pointer-events-none absolute -right-1.5 -bottom-1.5 rounded-sm border border-solid border-white/30 bg-black/90 px-1 text-base/tight font-bold text-white tabular-nums"
+                    data-testid="first-person-buff-rounds"
+                    >{{ badge.rounds }}</span
+                  >
+                }
+              </span>
+            }
+            @if (piece.moreBadges > 0) {
+              <span
+                class="inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 bg-black/70 text-2xl leading-none font-bold text-white tabular-nums shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
+                data-testid="first-person-buff-more"
+                >+{{ piece.moreBadges }}</span
+              >
+            }
+          </span>
+        }
+        @if (piece.gauges.length > 0) {
+          <span
+            class="pointer-events-none absolute top-0 left-1/2 flex w-[130%] -translate-x-1/2 flex-col gap-1"
+            data-testid="first-person-gauges"
+          >
+            @for (row of piece.gauges; track row.id) {
+              <span
+                class="flex items-center gap-1.5 text-xl leading-none whitespace-nowrap text-white [text-shadow:0_2px_3px_#000]"
+                data-testid="first-person-gauge"
+                [attr.title]="row.name"
+              >
+                <span class="w-5 shrink-0 text-center">{{ row.initial }}</span>
+                <span class="relative block h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-black/60">
+                  <span
+                    class="absolute inset-y-0 left-0 block rounded-full"
+                    [style.width.%]="row.percent"
+                    [style.background]="row.color"
+                  ></span>
+                </span>
+                <span class="shrink-0 tabular-nums">{{ row.numbers }}</span>
+              </span>
+            }
+          </span>
         }
         @if (piece.pick) {
           <span
@@ -101,6 +168,7 @@
         [style.transform]="effectScale()"
       >
         <table-effect-overlay [eye]="eye" />
+        <effect-target-overlay />
       </div>
     }
   </div>
@@ -142,7 +210,7 @@
 }
 
 <div
-  class="pointer-events-none absolute right-7 bottom-45 hidden size-28 sm:block"
+  class="pointer-events-none absolute top-2 right-2 size-16 sm:top-auto sm:right-7 sm:bottom-45 sm:size-28"
   role="img"
   data-testid="first-person-compass"
   [attr.data-facing]="facing()"
@@ -179,11 +247,14 @@
   #minimap
   width="160"
   height="160"
-  class="pointer-events-none absolute right-3 bottom-3 hidden size-40 sm:block"
+  class="pointer-events-none absolute top-20 right-2 size-24 sm:top-auto sm:right-3 sm:bottom-3 sm:size-40"
   data-testid="first-person-minimap"
 ></canvas>
 
-<div class="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 p-3 text-white">
+<div
+  class="pointer-events-none absolute bottom-0 left-0 flex max-w-full flex-col items-start gap-2 p-3 text-white sm:left-16 sm:max-w-[calc(100%-16rem)]"
+  data-testid="first-person-controls"
+>
   <div class="pointer-events-auto flex items-center gap-2">
     <button
       type="button"
@@ -229,7 +300,7 @@
       <i class="material-icons">rotate_right</i>
     </button>
   </div>
-  <div class="pointer-events-auto flex flex-wrap items-center justify-center gap-2 text-sm">
+  <div class="pointer-events-auto flex flex-wrap items-center justify-start gap-2 text-sm">
     <span class="flex h-10 items-center rounded-sm bg-black/60 px-3 font-bold text-white">{{ pieceName() }}</span>
     <button
       type="button"
@@ -240,6 +311,18 @@
     >
       <i class="material-icons text-[18px]!">meeting_room</i>
       {{ 'feature.firstPerson.hud.door' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="flex h-10 items-center gap-1 rounded-sm px-3 text-white disabled:opacity-40"
+      data-testid="first-person-torch"
+      [class]="firstPerson.torchLit() ? 'bg-amber-700/80 hover:bg-amber-700' : 'bg-black/60 hover:bg-black/80'"
+      [disabled]="!firstPerson.canWalk()"
+      [title]="torchLabelKey() | transloco"
+      (click)="torch()"
+    >
+      <i class="material-icons text-[18px]!">local_fire_department</i>
+      {{ torchLabelKey() | transloco }}
     </button>
     <span class="hidden rounded-sm bg-black/40 px-2 py-1 text-xs text-white/80 lg:inline">
       @if (isHex()) {

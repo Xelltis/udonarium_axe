@@ -8,14 +8,21 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
+import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { FogMemory } from '@axe/domain/tabletop/fog/fog-memory';
+import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { vi } from 'vitest';
 
 const GRID = 50;
@@ -266,6 +273,231 @@ describe('FirstPersonViewComponent', () => {
     expect(fire).toHaveBeenCalledWith(preset, [enemy], expect.anything());
     ObjectStore.instance.remove(preset);
     canvas.mockRestore();
+  });
+
+  it('keeps the controls out of the middle of the foot of the view, where the hotbar sits', () => {
+    lookOutOf(pieceAt(4, 7));
+
+    const controls = element(mount()).querySelector<HTMLElement>('[data-testid="first-person-controls"]')!;
+
+    expect(controls.className).toContain('left-16');
+    expect(controls.className).not.toContain('inset-x-0');
+    expect(controls.className).not.toContain('items-center');
+  });
+
+  it('lets the controls reach the corner on a phone, where no rail of buttons stands beside them', () => {
+    lookOutOf(pieceAt(4, 7));
+
+    const controls = element(mount()).querySelector<HTMLElement>('[data-testid="first-person-controls"]')!;
+
+    expect(controls.className).toContain('left-0');
+    expect(controls.className).toContain('sm:left-16');
+    expect(controls.className).toContain('sm:max-w-[calc(100%-16rem)]');
+  });
+
+  it('keeps the compass and the map in the view on a narrow screen, out of the way at the top', () => {
+    lookOutOf(pieceAt(4, 7));
+    const view = element(mount());
+
+    for (const testId of ['first-person-compass', 'first-person-minimap']) {
+      const widget = view.querySelector<HTMLElement>(`[data-testid="${testId}"]`)!;
+      expect(widget.className).not.toContain('hidden');
+      expect(widget.className).toContain('right-2');
+    }
+  });
+
+  it('hangs the bars of a piece it can see under its name', () => {
+    const enemy = pieceAt(4, 4);
+    enemy.detailDataElement!.getFirstElementByName('HP')!.currentValue = 3;
+    lookOutOf(pieceAt(4, 7));
+
+    const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+    const gauges = billboard.querySelectorAll<HTMLElement>('[data-testid="first-person-gauge"]');
+
+    expect(gauges.length).toBeGreaterThan(0);
+    expect(gauges[0].textContent).toContain('3/');
+  });
+
+  it('keeps back the readings of a piece that is not the reader to look at', () => {
+    const enemy = pieceAt(4, 4);
+    enemy.owner = 'somebody-else';
+    enemy.disclosureMode = DisclosureMode.GameMaster;
+    lookOutOf(pieceAt(4, 7));
+
+    const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+    expect(billboard.querySelector('[data-testid="first-person-gauge"]')?.textContent).toContain('???/???');
+  });
+
+  it('stands the marks a piece carries along the top of it, with the rounds they have left', () => {
+    const enemy = pieceAt(4, 4);
+    enemy.buffDataElement!.appendChild(DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE }));
+    lookOutOf(pieceAt(4, 7));
+
+    const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+    expect(billboard.querySelector('[data-testid="first-person-buff"]')).not.toBeNull();
+    expect(billboard.querySelector('[data-testid="first-person-buff-rounds"]')?.textContent?.trim()).toBe('2');
+  });
+
+  it('leaves the marks off a piece that keeps them to itself', () => {
+    const enemy = pieceAt(4, 4);
+    enemy.hideBuff = true;
+    enemy.buffDataElement!.appendChild(DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE }));
+    lookOutOf(pieceAt(4, 7));
+
+    const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+    expect(billboard.querySelector('[data-testid="first-person-buff"]')).toBeNull();
+  });
+
+  describe('the light the piece carries', () => {
+    function torchOf(fixture: ComponentFixture<FirstPersonViewComponent>): HTMLButtonElement {
+      return element(fixture).querySelector<HTMLButtonElement>('[data-testid="first-person-torch"]')!;
+    }
+
+    it('strikes and puts out the light from the second row of the controls', () => {
+      const piece = pieceAt(4, 7);
+      lookOutOf(piece);
+      const fixture = mount();
+
+      expect(torchOf(fixture).disabled).toBe(false);
+      expect(torchOf(fixture).textContent).toContain('明かりを灯す');
+
+      torchOf(fixture).click();
+      TestBed.inject(ObjectChangeService).notifyChanged(piece.identifier);
+      fixture.detectChanges();
+
+      expect(piece.lightEnabled).toBe(true);
+      expect(torchOf(fixture).textContent).toContain('明かりを消す');
+    });
+
+    it('strikes the light with F as well', () => {
+      const piece = pieceAt(4, 7);
+      lookOutOf(piece);
+      mount();
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF', bubbles: true, cancelable: true }));
+
+      expect(piece.lightEnabled).toBe(true);
+    });
+
+    it('stands the button down for a seat that may not walk the piece', () => {
+      const piece = pieceAt(4, 7);
+      piece.isLock = true;
+      lookOutOf(piece);
+
+      expect(torchOf(mount()).disabled).toBe(true);
+    });
+  });
+
+  describe('ground the party only remembers', () => {
+    function inTheDarkWithALampAt(col: number, row: number): void {
+      table.darknessEnabled = true;
+      table.globalIllumination = 0;
+      table.fogEnabled = true;
+      const memory = new FogMemory();
+      memory.initialize();
+      table.appendChild(memory);
+      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
+      const walked = new CellBits(grid.cols * grid.rows);
+      for (let cell = 0; cell < walked.count; cell++) walked.set(cell);
+      memory.write(grid, walked);
+      const lamp = LightSource.create('灯り');
+      lamp.location = { name: 'table', x: col * GRID, y: row * GRID };
+      lamp.lightBrightRadius = 2;
+      lamp.lightDimRadius = 2;
+      table.appendChild(lamp);
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+    }
+
+    function floorAt(view: HTMLElement, col: number, row: number): HTMLElement {
+      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
+      return view.querySelector<HTMLElement>(`[data-quad="floor"][data-cell="${cellIndexOf(grid, col, row)}"]`)!;
+    }
+
+    function veils(quad: HTMLElement): number {
+      return quad.style.backgroundImage.split('linear-gradient').length - 1;
+    }
+
+    it('draws it behind a veil, and the ground in sight without one', () => {
+      inTheDarkWithALampAt(4, 7);
+      lookOutOf(pieceAt(4, 7, 90));
+
+      const view = element(mount());
+      const lit = floorAt(view, 5, 7);
+      const remembered = floorAt(view, 7, 7);
+
+      expect(lit).not.toBeNull();
+      expect(remembered).not.toBeNull();
+      expect(lit.hasAttribute('data-remembered')).toBe(false);
+      expect(remembered.getAttribute('data-remembered')).toBe('true');
+      expect(veils(remembered)).toBe(veils(lit) + 1);
+      expect(remembered.style.backgroundImage).toContain(`rgba(0, 0, 0, ${FOG_VEIL_ALPHA})`);
+    });
+
+    it('leaves every quad unveiled on a table nobody has to remember', () => {
+      lookOutOf(pieceAt(4, 7, 90));
+
+      const quads = Array.from(element(mount()).querySelectorAll('[data-quad]'));
+
+      expect(quads.length).toBeGreaterThan(0);
+      expect(quads.some((quad) => quad.hasAttribute('data-remembered'))).toBe(false);
+    });
+  });
+
+  describe('what a piece in the view carries', () => {
+    function enemyWithGauges(count: number): GameCharacter {
+      const enemy = pieceAt(4, 4);
+      for (let index = 0; index < count; index++) {
+        const resource = DataElement.create(`資源${index}`, 10, { type: DataElementType.NUMBER_RESOURCE }, '10');
+        resource.setAttribute(DataElementAttribute.PIECE_GAUGE, 'true');
+        enemy.detailDataElement!.appendChild(resource);
+      }
+      return enemy;
+    }
+
+    it('hangs no more bars on it than the table hangs round it', () => {
+      const enemy = enemyWithGauges(MAX_MULTI_ANGLE_RESOURCE_GAUGES + 3);
+      lookOutOf(pieceAt(4, 7));
+
+      const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+      expect(billboard.querySelectorAll('[data-testid="first-person-gauge"]')).toHaveLength(
+        MAX_MULTI_ANGLE_RESOURCE_GAUGES
+      );
+    });
+
+    it('stands its marks in one row and counts the rest off on a chip', () => {
+      const enemy = pieceAt(4, 4);
+      for (let index = 0; index < 8; index++) {
+        enemy.buffDataElement!.appendChild(
+          DataElement.create(`加護${index}`, 2, { type: DataElementType.NUMBER_RESOURCE })
+        );
+      }
+      lookOutOf(pieceAt(4, 7));
+
+      const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+      expect(billboard.querySelectorAll('[data-testid="first-person-buff"]')).toHaveLength(5);
+      expect(billboard.querySelector('[data-testid="first-person-buff-more"]')?.textContent?.trim()).toBe('+3');
+    });
+
+    it('leaves the chip off a piece whose marks all fit', () => {
+      const enemy = pieceAt(4, 4);
+      enemy.buffDataElement!.appendChild(DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE }));
+      lookOutOf(pieceAt(4, 7));
+
+      const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+      expect(billboard.querySelector('[data-testid="first-person-buff-more"]')).toBeNull();
+    });
+  });
+
+  it('draws the line from the caster to what is being picked, as the table does', () => {
+    lookOutOf(pieceAt(4, 7));
+
+    expect(element(mount()).querySelector('effect-target-overlay')).not.toBeNull();
   });
 
   it('acts as the piece it looks out of, so an effect is cast from there', () => {
