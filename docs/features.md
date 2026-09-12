@@ -142,6 +142,7 @@ Udonarium Axe が **追加** または **大きく拡張・再設計** した機
 
 - **`RANGE_SHAPE` フィールド型** — 射程シェイプをサムネイル付きで保持
 - **min/max の分割** — 基準値＋補正に分離し、実効上下限を算出
+- **表示項目の既定はサンプル語彙から切り離した** — `DataSummarySetting` の `dataTag` / `tableDataTag` / `sortTag` の既定は**空**。空のあいだは卓のコマから推定する（`application/inventory/summary-items` の `derivedItemNames`：`cs-piece-gauge` 付きを先に、次に多くのコマが共有するリソース、上限 8 件。表は推定結果の後ろに登録済み状態異常を足すが、推定が空なら表も空＝「表示項目が空です」の案内が出る）。サンプル部屋を作ったときだけ `makeSampleSummaryItems()` が HP/MP＋6 能力値と `敏捷度` 降順を書き込む。既存の部屋は保存値をそのまま尊重し、推定で上書きしない
 - **リソースの棚卸しは 1 か所** — 「何がリソースか」「コマの集合で何を名前で操作できるか」は `domain/character/resource-catalog`（`isResourceElement` / `isResourceField` / `resourceElementsOf` / `resourceNamesOf` / `resourceCatalogOf`）。リモコン・PL ツールのインライン編集・コマのバーの増減演出・マップエディターの項目名一覧が同じ判定を使い、ICON/POS（シート内部の UI 状態）の除外もここだけに書いてある。画面ごとに線引きが違っていたのを揃えたもの
 - **リソースのスロットは 1 つの語彙** — 現在値・最大値・上下限のベースと補正値を `domain/data/resource-slot` の `ResourceSlot` に統一。`StatusAccessor`・チャットの `:` 記法・バフの `&!` 修整・リモコンが同じ語彙を使い、`HP^` / `HP_MAX` / `HP_MAX_BUFF` / `HP_MIN` / `HP_MIN_BUFF` の読み取りも `readNamedResourceSlot` の 1 か所。知らないスロット名は現在値として読むので、古いピアが書いたバフもそのまま動く
 - **チェック表（check-table）型** — 旧 Markdown レンダラを置換
