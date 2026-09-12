@@ -37,6 +37,7 @@ export interface FirstPersonWallQuad {
   seeThrough: boolean;
   door: boolean;
   depth: number;
+  cell: number;
 }
 
 export interface FirstPersonPlaneQuad {
@@ -54,6 +55,7 @@ export interface FirstPersonPlaneQuad {
   frame: FirstPersonFloor | null;
   glass: boolean;
   depth: number;
+  cell: number;
 }
 
 export type FirstPersonQuad = FirstPersonWallQuad | FirstPersonPlaneQuad;
@@ -99,9 +101,11 @@ export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[
     const polygon = clipPolygonToEye(scene.eye, cellPolygonOf(input.grid, index), input.nearPx);
     if (!keepsPlane(polygon, scene)) return;
     const floor = input.world.floor;
-    quads.push(planeQuadOf('floor', `floor:${index}`, '', polygon, 0, 'up', floor.image, floor, false, scene));
+    quads.push(planeQuadOf('floor', `floor:${index}`, index, '', polygon, 0, 'up', floor.image, floor, false, scene));
     if (ceilingPx > input.pose.z) {
-      quads.push(planeQuadOf('ceiling', `ceiling:${index}`, '', polygon, ceilingPx, 'down', '', null, false, scene));
+      quads.push(
+        planeQuadOf('ceiling', `ceiling:${index}`, index, '', polygon, ceilingPx, 'down', '', null, false, scene)
+      );
     }
   });
   return quads;
@@ -118,7 +122,8 @@ function wallQuadOf(wall: FirstPersonWall, scene: SceneFrame): FirstPersonWallQu
   const end = pointAlong(a, b, span.t1);
   if (Math.min(depthOf(eye, start), depthOf(eye, end)) > input.depthPx) return null;
   if (!inView([start, end], scene)) return null;
-  if (!wallSeen(wall, start, end, scene)) return null;
+  const cell = wallCell(wall, start, end, scene);
+  if (input.seen && cell < 0) return null;
   const fullLength = Math.hypot(b.x - a.x, b.y - a.y);
   const middle = pointAlong(start, end, 0.5);
   return {
@@ -138,20 +143,21 @@ function wallQuadOf(wall: FirstPersonWall, scene: SceneFrame): FirstPersonWallQu
     seeThrough: wall.seeThrough,
     door: wall.door,
     depth: depthOf(eye, middle),
+    cell,
   };
 }
 
-function wallSeen(wall: FirstPersonWall, start: CellPoint, end: CellPoint, scene: SceneFrame): boolean {
+function wallCell(wall: FirstPersonWall, start: CellPoint, end: CellPoint, scene: SceneFrame): number {
   const { seen, grid } = scene.input;
-  if (!seen) return true;
   const probe = PROBE_CELLS * grid.sizePx;
   const samples = Math.max(1, Math.ceil(Math.hypot(end.x - start.x, end.y - start.y) / (grid.sizePx / 2)));
   for (let sample = 0; sample < samples; sample++) {
     const at = pointAlong(start, end, (sample + 0.5) / samples);
     const cell = cellIndexAt(grid, at.x + wall.nx * probe, at.y + wall.ny * probe);
-    if (cell >= 0 && seen.get(cell)) return true;
+    if (cell < 0) continue;
+    if (!seen || seen.get(cell)) return cell;
   }
-  return false;
+  return -1;
 }
 
 function capQuadOf(cap: FirstPersonCap, scene: SceneFrame): FirstPersonPlaneQuad | null {
@@ -160,12 +166,10 @@ function capQuadOf(cap: FirstPersonCap, scene: SceneFrame): FirstPersonPlaneQuad
   if (cap.facing === 'up' ? eyeZ <= cap.zPx : eyeZ >= cap.zPx) return null;
   const polygon = clipPolygonToEye(scene.eye, cap.outline, input.nearPx);
   if (!keepsPlane(polygon, scene)) return null;
-  if (input.seen) {
-    const centre = centreOf(polygon);
-    const cell = cellIndexAt(input.grid, centre.x, centre.y);
-    if (cell < 0 || !input.seen.get(cell)) return null;
-  }
-  return planeQuadOf('cap', cap.id, cap.terrain, polygon, cap.zPx, cap.facing, cap.image, null, cap.glass, scene);
+  const centre = centreOf(polygon);
+  const cell = cellIndexAt(input.grid, centre.x, centre.y);
+  if (input.seen && (cell < 0 || !input.seen.get(cell))) return null;
+  return planeQuadOf('cap', cap.id, cell, cap.terrain, polygon, cap.zPx, cap.facing, cap.image, null, cap.glass, scene);
 }
 
 function keepsPlane(polygon: readonly CellPoint[], scene: SceneFrame): boolean {
@@ -188,6 +192,7 @@ function inView(points: readonly CellPoint[], scene: SceneFrame): boolean {
 function planeQuadOf(
   kind: FirstPersonPlaneQuad['kind'],
   id: string,
+  cell: number,
   terrain: string,
   polygon: CellPoint[],
   zPx: number,
@@ -216,6 +221,7 @@ function planeQuadOf(
     frame,
     glass,
     depth: depthOf(scene.eye, centreOf(polygon)),
+    cell,
   };
 }
 

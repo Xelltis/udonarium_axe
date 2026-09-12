@@ -1,4 +1,5 @@
 import { FirstPersonPlaneQuad, FirstPersonWallQuad } from '@axe/domain/tabletop/first-person/first-person-scene';
+import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import {
   billboardStyle,
   cameraTransform,
@@ -28,6 +29,7 @@ function wall(overrides: Partial<FirstPersonWallQuad> = {}): FirstPersonWallQuad
     seeThrough: false,
     door: false,
     depth: 10,
+    cell: 0,
     ...overrides,
   };
 }
@@ -53,6 +55,7 @@ function plane(overrides: Partial<FirstPersonPlaneQuad> = {}): FirstPersonPlaneQ
     frame: { x: 0, y: 0, width: 500, height: 400, image: 'floor' },
     glass: false,
     depth: 10,
+    cell: 0,
     ...overrides,
   };
 }
@@ -115,6 +118,17 @@ describe('placing a floor, a ceiling or a lid', () => {
     expect(style['clipPath']).toBe('polygon(0px 0px, 100px 0px, 100px 80px, 0px 80px)');
     expect(style['backgroundSize']).toBe('100% 100%, 1000px 800px');
     expect(style['backgroundPosition']).toBe('0 0, -200px -100px');
+  });
+
+  it('lays a second veil over ground the party only remembers, as deep as the one the table lays', () => {
+    const style = planeQuadStyle(plane(), 2, 'floor.png', 0.2, true);
+
+    expect(style['backgroundImage']).toBe(
+      `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA})), ` +
+        'linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url("floor.png")'
+    );
+    expect(style['backgroundSize']).toBe('100% 100%, 100% 100%, 1000px 800px');
+    expect(style['backgroundPosition']).toBe('0 0, 0 0, -200px -100px');
   });
 
   it('turns a ceiling over, so it faces down onto the eye', () => {

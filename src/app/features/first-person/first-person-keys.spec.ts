@@ -38,6 +38,11 @@ describe('firstPersonKeyDown', () => {
     expect(firstPersonKeyDown('Escape', contextOn(GridType.SQUARE))).toEqual({ kind: 'exit' });
   });
 
+  it('strikes and puts out the light the piece carries with F', () => {
+    expect(firstPersonKeyDown('KeyF', contextOn(GridType.SQUARE))).toEqual({ kind: 'torch' });
+    expect(firstPersonKeyDown('KeyF', contextOn(GridType.SQUARE, { typing: true }))).toBeNull();
+  });
+
   it('steps back to either side with Z and C on hexes, and nowhere on squares or without a grid', () => {
     expect(firstPersonKeyDown('KeyZ', contextOn(GridType.HEX_VERTICAL))).toEqual({ kind: 'move', move: 'backLeft' });
     expect(firstPersonKeyDown('KeyC', contextOn(GridType.HEX_HORIZONTAL))).toEqual({

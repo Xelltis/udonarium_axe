@@ -1,8 +1,10 @@
 import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { FirstPersonPlaneQuad, FirstPersonWallQuad } from '@axe/domain/tabletop/first-person/first-person-scene';
+import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 
 export const FIRST_PERSON_UNIT_PX = 256;
 const MAX_SHADE = 0.85;
+const REMEMBERED_VEIL = `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA}))`;
 
 export type QuadStyle = Record<string, string>;
 
@@ -29,18 +31,36 @@ export function shadeFor(depth: number, depthPx: number): number {
   return round(Math.min(Math.max(depth / depthPx, 0), 1) * MAX_SHADE);
 }
 
-export function wallQuadStyle(quad: FirstPersonWallQuad, scale: number, imageUrl: string, shade: number): QuadStyle {
+export function wallQuadStyle(
+  quad: FirstPersonWallQuad,
+  scale: number,
+  imageUrl: string,
+  shade: number,
+  remembered = false
+): QuadStyle {
   const top = (quad.basePx + quad.heightPx) * scale;
   return {
     width: px(quad.length * scale),
     height: px(quad.heightPx * scale),
     transformOrigin: '0 0',
     transform: `translate3d(${px(quad.x * scale)}, ${px(quad.y * scale)}, ${px(top)}) rotateZ(${deg(quad.angle)}) rotateX(-90deg)`,
-    ...backgroundOf(imageUrl, shade, `${px(quad.fullLength * scale)} 100%`, `${px(-quad.uStart * scale)} 0`),
+    ...backgroundOf(
+      imageUrl,
+      shade,
+      `${px(quad.fullLength * scale)} 100%`,
+      `${px(-quad.uStart * scale)} 0`,
+      remembered
+    ),
   };
 }
 
-export function planeQuadStyle(quad: FirstPersonPlaneQuad, scale: number, imageUrl: string, shade: number): QuadStyle {
+export function planeQuadStyle(
+  quad: FirstPersonPlaneQuad,
+  scale: number,
+  imageUrl: string,
+  shade: number,
+  remembered = false
+): QuadStyle {
   const up = quad.facing === 'up';
   const originY = up ? quad.minY : quad.minY + quad.height;
   const local = quad.polygon.map((point) => ({
@@ -56,7 +76,7 @@ export function planeQuadStyle(quad: FirstPersonPlaneQuad, scale: number, imageU
     transformOrigin: '0 0',
     transform: `translate3d(${px(quad.minX * scale)}, ${px(originY * scale)}, ${px(quad.zPx * scale)})${up ? '' : ' rotateX(180deg)'}`,
     clipPath: `polygon(${local.map((point) => `${px(point.x)} ${px(point.y)}`).join(', ')})`,
-    ...backgroundOf(imageUrl, shade, size, position),
+    ...backgroundOf(imageUrl, shade, size, position, remembered),
   };
 }
 
@@ -75,13 +95,22 @@ export function billboardStyle(
   };
 }
 
-function backgroundOf(imageUrl: string, shade: number, size: string, position: string): QuadStyle {
-  const veil = `linear-gradient(rgba(0, 0, 0, ${shade}), rgba(0, 0, 0, ${shade}))`;
-  if (!imageUrl) return { backgroundImage: veil, backgroundSize: '100% 100%', backgroundPosition: '0 0' };
+function backgroundOf(imageUrl: string, shade: number, size: string, position: string, remembered: boolean): QuadStyle {
+  const veils = [`linear-gradient(rgba(0, 0, 0, ${shade}), rgba(0, 0, 0, ${shade}))`];
+  if (remembered) veils.unshift(REMEMBERED_VEIL);
+  const veilSizes = veils.map(() => '100% 100%');
+  const veilPositions = veils.map(() => '0 0');
+  if (!imageUrl) {
+    return {
+      backgroundImage: veils.join(', '),
+      backgroundSize: veilSizes.join(', '),
+      backgroundPosition: veilPositions.join(', '),
+    };
+  }
   return {
-    backgroundImage: `${veil}, url("${imageUrl.replace(/"/g, '%22')}")`,
-    backgroundSize: `100% 100%, ${size}`,
-    backgroundPosition: `0 0, ${position}`,
+    backgroundImage: `${veils.join(', ')}, url("${imageUrl.replace(/"/g, '%22')}")`,
+    backgroundSize: `${veilSizes.join(', ')}, ${size}`,
+    backgroundPosition: `${veilPositions.join(', ')}, ${position}`,
   };
 }
 

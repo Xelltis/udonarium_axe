@@ -8,6 +8,7 @@ export type FirstPersonCommand =
   | { kind: 'move'; move: FirstPersonMove }
   | { kind: 'turn'; turn: 1 | -1 }
   | { kind: 'door' }
+  | { kind: 'torch' }
   | { kind: 'exit' }
   | { kind: 'target' }
   | { kind: 'clearTargets' }
@@ -52,6 +53,7 @@ export function firstPersonKeyDown(code: string, context: FirstPersonKeyContext)
   if (code === 'KeyT') return context.shift ? { kind: 'clearTargets' } : { kind: 'target' };
   if (code === 'Enter' || code === 'NumpadEnter') return context.picking ? { kind: 'castPicks' } : null;
   if (code === 'Space') return { kind: 'door' };
+  if (code === 'KeyF') return { kind: 'torch' };
   if (code === 'Escape') {
     if (context.picking) return { kind: 'cancelPicks' };
     return context.forced ? null : { kind: 'exit' };

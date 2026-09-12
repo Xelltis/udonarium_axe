@@ -79,6 +79,16 @@ describe('firstPersonScene on squares', () => {
     expect(depthOf(eyeFrameOf(eye), { x: side.x, y: side.y })).toBeCloseTo(NEAR);
   });
 
+  it('tells each face which cell of ground it is looked at across', () => {
+    const { left, right } = corridor();
+
+    const { quads, grid } = sceneOf(GridType.SQUARE, [left, right], eye);
+
+    for (const floor of planes(quads, 'floor')) expect(floor.id).toBe(`floor:${floor.cell}`);
+    const side = walls(quads).find((wall) => wall.id === `${left.identifier}:east`)!;
+    expect(side.cell % grid.cols).toBe(4);
+  });
+
   it('leaves out what stands behind the eye', () => {
     const behind = block(3, 9, 3, 1);
 
