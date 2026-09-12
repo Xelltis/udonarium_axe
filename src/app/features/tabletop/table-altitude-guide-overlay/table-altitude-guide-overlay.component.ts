@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { AltitudeGuideService } from '@axe/application/tabletop/altitude-guide.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ALTITUDE_STEP_CELLS, altitudeRungs } from '@axe/domain/tabletop/altitude-step';
 import { Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
@@ -18,7 +18,7 @@ const GROUND_MARK_INSET_PX = 2;
   host: { class: 'contents' },
 })
 export class TableAltitudeGuideOverlayComponent {
-  private readonly altitudeGuide = inject(AltitudeGuideService);
+  private readonly heldPiece = inject(HeldPieceService);
   private readonly uiSignal = inject(UiSignalService);
 
   protected readonly stroke = ALTITUDE_GUIDE_STROKE;
@@ -28,9 +28,9 @@ export class TableAltitudeGuideOverlayComponent {
 
   /** Drawn only once the piece is off the ground: on it, the ground itself says as much. */
   protected readonly guide = computed(() => {
-    const guide = this.altitudeGuide.guide();
-    if (!guide || Math.abs(guide.altitude) < ALTITUDE_STEP_CELLS / 2) return null;
-    return guide;
+    const held = this.heldPiece.held();
+    if (!held?.liftable || Math.abs(held.altitude) < ALTITUDE_STEP_CELLS / 2) return null;
+    return held;
   });
 
   protected readonly anchorCss = computed<string>(() => {

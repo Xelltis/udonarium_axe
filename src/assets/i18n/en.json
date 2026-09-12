@@ -1859,6 +1859,10 @@
         "doorStyleSlide": "Slides aside",
         "doorFlip": "Open the other way"
       },
+      "holdHint": {
+        "footing": "Wheel to step through what it can stand on",
+        "lift": "Shift and wheel to send it up a cell at a time"
+      },
       "tableSetting": {
         "title": "Table settings",
         "sidebarTitle": "Tables",

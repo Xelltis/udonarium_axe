@@ -392,6 +392,23 @@
     <span class="text-ui-muted min-w-0 text-[0.86em] leading-snug">{{ movePlanHintKey() | transloco }}</span>
   </div>
 }
+<!--
+  Said in the same band the planned move speaks from, and only when that band is quiet, so a
+  piece in hand never has two things talking over each other at the foot of the screen.
+-->
+@if (holdHint(); as hint) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-muted pointer-events-none absolute bottom-28 left-1/2 z-160 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-full px-4 py-1.5 text-[0.86em] leading-snug opacity-95"
+    data-testid="hold-hint"
+  >
+    <i class="material-icons text-ui-dim text-[15px]!">mouse</i>
+    <span class="min-w-0">{{ hint.footing | transloco }}</span>
+    @if (hint.lift) {
+      <span class="text-ui-dim">/</span>
+      <span class="min-w-0">{{ hint.lift | transloco }}</span>
+    }
+  </div>
+}
 @if (isPickingEffectTarget()) {
   <div
     class="bg-ui-panel text-ui-text pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm opacity-90"

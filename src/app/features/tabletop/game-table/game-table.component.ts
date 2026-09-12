@@ -22,6 +22,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -1031,6 +1032,25 @@ export class GameTableComponent {
   protected readonly movePlanHintKey = computed(() =>
     this.viewport.isTouch() ? 'feature.tabletop.movePlan.hintTouch' : 'feature.tabletop.movePlan.hint'
   );
+
+  private readonly heldPiece = inject(HeldPieceService);
+
+  /**
+   * What more a drag can be turned into, said while there is a piece in hand to turn.
+   *
+   * Left unsaid where there is no wheel to turn and no key to hold, and where the planned
+   * move is already speaking from this band. A piece on a wall has no height of its own, so
+   * it is offered the footholds and not the air.
+   */
+  protected readonly holdHint = computed<{ footing: string; lift: string | null } | null>(() => {
+    if (this.viewport.isTouch() || this.isPlanningMove()) return null;
+    const held = this.heldPiece.held();
+    if (!held) return null;
+    return {
+      footing: 'feature.tabletop.holdHint.footing',
+      lift: held.liftable ? 'feature.tabletop.holdHint.lift' : null,
+    };
+  });
 
   /** The two ways a move may be taken, offered as a pair so which one is on is plain to see. */
   protected readonly moveModes = [

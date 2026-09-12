@@ -1,13 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AltitudeGuide, AltitudeGuideService } from '@axe/application/tabletop/altitude-guide.service';
+import { HeldPiece, HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('TableAltitudeGuideOverlayComponent', () => {
   let fixture: ComponentFixture<TableAltitudeGuideOverlayComponent>;
-  let guides: AltitudeGuideService;
+  let guides: HeldPieceService;
 
-  const aloft = (altitude: number): AltitudeGuide => ({
+  const aloft = (altitude: number): HeldPiece => ({
     identifier: 'walker',
     x: 100,
     y: 200,
@@ -15,6 +15,7 @@ describe('TableAltitudeGuideOverlayComponent', () => {
     heightPx: 50,
     altitude,
     gridSize: 50,
+    liftable: true,
   });
 
   const drawn = async (): Promise<HTMLElement> => {
@@ -29,7 +30,7 @@ describe('TableAltitudeGuideOverlayComponent', () => {
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
     fixture = TestBed.createComponent(TableAltitudeGuideOverlayComponent);
-    guides = TestBed.inject(AltitudeGuideService);
+    guides = TestBed.inject(HeldPieceService);
   });
 
   it('draws nothing while nobody is holding a piece off the ground', async () => {
@@ -37,13 +38,13 @@ describe('TableAltitudeGuideOverlayComponent', () => {
   });
 
   it('draws nothing for a piece that is standing on the ground', async () => {
-    guides.show(aloft(0));
+    guides.take(aloft(0));
 
     expect((await drawn()).querySelector('[data-altitude-guide]')).toBeNull();
   });
 
   it('stands a pole as tall as the piece is high', async () => {
-    guides.show(aloft(3));
+    guides.take(aloft(3));
 
     const pole = (await drawn()).querySelector<HTMLElement>('[data-altitude-guide-pole]');
 
@@ -51,7 +52,7 @@ describe('TableAltitudeGuideOverlayComponent', () => {
   });
 
   it('marks the pole once a cell, so the height can be counted', async () => {
-    guides.show(aloft(3));
+    guides.take(aloft(3));
 
     const rungs = [...(await drawn()).querySelectorAll<HTMLElement>('[data-altitude-guide-rung]')];
 
@@ -59,15 +60,15 @@ describe('TableAltitudeGuideOverlayComponent', () => {
   });
 
   it('says the height, and says which way it is', async () => {
-    guides.show(aloft(3));
+    guides.take(aloft(3));
     expect((await drawn()).querySelector('[data-altitude-guide-reading]')?.textContent?.trim()).toBe('+3');
 
-    guides.show(aloft(-2));
+    guides.take(aloft(-2));
     expect((await drawn()).querySelector('[data-altitude-guide-reading]')?.textContent?.trim()).toBe('-2');
   });
 
   it('marks the ground the piece is being held over', async () => {
-    guides.show(aloft(3));
+    guides.take(aloft(3));
 
     const ground = (await drawn()).querySelector<HTMLElement>('[data-altitude-guide-ground]');
 
@@ -76,7 +77,7 @@ describe('TableAltitudeGuideOverlayComponent', () => {
   });
 
   it('puts the pole under a piece in a pit as well', async () => {
-    guides.show(aloft(-2));
+    guides.take(aloft(-2));
 
     const pole = (await drawn()).querySelector<HTMLElement>('[data-altitude-guide-pole]');
     const rungs = [...(await drawn()).querySelectorAll<HTMLElement>('[data-altitude-guide-rung]')];
@@ -86,18 +87,18 @@ describe('TableAltitudeGuideOverlayComponent', () => {
   });
 
   it('goes away once the piece is put down', async () => {
-    guides.show(aloft(3));
+    guides.take(aloft(3));
     expect((await drawn()).querySelector('[data-altitude-guide]')).not.toBeNull();
 
-    guides.hide('walker');
+    guides.letGo('walker');
 
     expect((await drawn()).querySelector('[data-altitude-guide]')).toBeNull();
   });
 
   it('stays where it is when somebody else lets go of their own piece', async () => {
-    guides.show(aloft(3));
+    guides.take(aloft(3));
 
-    guides.hide('somebody-else');
+    guides.letGo('somebody-else');
 
     expect((await drawn()).querySelector('[data-altitude-guide]')).not.toBeNull();
   });

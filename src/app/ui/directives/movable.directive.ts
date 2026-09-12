@@ -3,8 +3,8 @@ import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { AltitudeGuideService } from '@axe/application/tabletop/altitude-guide.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -74,7 +74,7 @@ export class MovableDirective implements MovableInteractionContext {
   readonly coordinateService = inject(CoordinateService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
-  private readonly altitudeGuide = inject(AltitudeGuideService);
+  private readonly heldPiece = inject(HeldPieceService);
   private readonly multiMovableService = inject(MultiMovableService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
@@ -346,14 +346,14 @@ export class MovableDirective implements MovableInteractionContext {
       self.altitude = next;
       self.update();
     }
-    this.showAltitudeGuide(next);
+    this.showHeldPiece(next);
     return true;
   }
 
-  private showAltitudeGuide(altitude: number): void {
+  private showHeldPiece(altitude: number): void {
     const self = this.tabletopObject;
     if (!self) return;
-    this.altitudeGuide.show({
+    this.heldPiece.take({
       identifier: self.identifier,
       x: this.posX,
       y: this.posY,
@@ -361,27 +361,28 @@ export class MovableDirective implements MovableInteractionContext {
       heightPx: this.height,
       altitude,
       gridSize: this.tableGridSize(),
+      liftable: surfaceOf(self) === 'floor',
     });
   }
 
-  private followWithAltitudeGuide(): void {
+  private followWithHeldPiece(): void {
     const self = this.tabletopObject;
-    if (!self || this.altitudeGuide.guide()?.identifier !== self.identifier) return;
-    this.showAltitudeGuide(self.altitude);
+    if (!self || this.heldPiece.held()?.identifier !== self.identifier) return;
+    this.showHeldPiece(self.altitude);
   }
 
   /**
-   * The height a piece is at, drawn for as long as somebody has hold of it.
+   * What is in hand, said for as long as it is in hand.
    *
-   * A piece off the ground is being put somewhere in three directions rather than two, and
-   * the one that is hardest to read is the one the screen is flattest in. It is drawn from
-   * the moment the piece is picked up rather than only once the wheel is turned, so what is
-   * being moved is legible before it has been moved.
+   * A drag can be turned into more than a drag, and the turns it takes are worth hearing
+   * about while the piece is held and worth nothing afterwards. Said from the moment the
+   * piece is picked up rather than once the wheel has already been turned, since somebody
+   * who does not know the wheel does anything never turns it.
    */
-  private showAltitudeGuideWhileHeld(): void {
+  private takeUpPiece(): void {
     const self = this.tabletopObject;
-    if (!self || surfaceOf(self) !== 'floor') return;
-    this.showAltitudeGuide(self.altitude);
+    if (!self) return;
+    this.showHeldPiece(self.altitude);
   }
 
   private buildContactProbe(): ContactFootprint[] {
@@ -500,7 +501,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   cancel() {
     window.removeEventListener('wheel', this.onWheelWhileGrabbed, { capture: true });
-    this.altitudeGuide.hide(this.tabletopObject?.identifier);
+    this.heldPiece.letGo(this.tabletopObject?.identifier);
     if (this.input) this.input.cancel();
     this.promoteWhileMoving(false);
     this.setPointerEvents(true);
@@ -552,7 +553,7 @@ export class MovableDirective implements MovableInteractionContext {
 
     if (this._multiAdapter) this.multiMovableService.beginDrag(this._multiAdapter);
     window.addEventListener('wheel', this.onWheelWhileGrabbed, { capture: true, passive: false });
-    this.showAltitudeGuideWhileHeld();
+    this.takeUpPiece();
     handleInputStart(this, e);
   }
 
@@ -563,7 +564,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private onInputMoveNow(e: MouseEvent | TouchEvent) {
     this.moveWhileHeld(e);
-    this.followWithAltitudeGuide();
+    this.followWithHeldPiece();
   }
 
   private moveWhileHeld(e: MouseEvent | TouchEvent) {

@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { AltitudeGuideService } from '@axe/application/tabletop/altitude-guide.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -390,7 +390,7 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
 
       shiftWheel(directive, true);
 
-      const guide = TestBed.inject(AltitudeGuideService).guide();
+      const guide = TestBed.inject(HeldPieceService).held();
       expect(guide?.identifier).toBe(walker.identifier);
       expect(guide?.altitude).toBe(1);
       expect({ x: guide?.x, y: guide?.y }).toEqual({ x: 300, y: 400 });
@@ -399,15 +399,15 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     it('keeps the guide under the piece as it carries on across the table', () => {
       const walker = GameCharacter.create('walker', 1, '');
       const directive = mount(walker, []);
-      const guides = TestBed.inject(AltitudeGuideService);
+      const guides = TestBed.inject(HeldPieceService);
       grab(directive, { x: 50, y: 50 });
       shiftWheel(directive, true);
-      const before = { x: guides.guide()?.x, y: guides.guide()?.y };
+      const before = { x: guides.held()?.x, y: guides.held()?.y };
 
       vi.spyOn(directive['coordinateService'], 'convertToLocal').mockReturnValue({ x: 400, y: 500, z: 0 });
       directive['onInputMoveNow'](new MouseEvent('mousemove'));
 
-      const after = { x: guides.guide()?.x, y: guides.guide()?.y };
+      const after = { x: guides.held()?.x, y: guides.held()?.y };
       expect(after).toEqual({ x: directive.posX, y: directive.posY });
       expect(after).not.toEqual(before);
     });
@@ -429,12 +429,12 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       const walker = GameCharacter.create('walker', 1, '');
       walker.altitude = 2;
       const directive = mount(walker, []);
-      const guides = TestBed.inject(AltitudeGuideService);
+      const guides = TestBed.inject(HeldPieceService);
 
       directive.onInputStart(new MouseEvent('mousedown'));
 
-      expect(guides.guide()?.identifier).toBe(walker.identifier);
-      expect(guides.guide()?.altitude).toBe(2);
+      expect(guides.held()?.identifier).toBe(walker.identifier);
+      expect(guides.held()?.altitude).toBe(2);
     });
 
     it('takes the guide away once the piece is let go of', () => {
@@ -445,7 +445,7 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
 
       directive.cancel();
 
-      expect(TestBed.inject(AltitudeGuideService).guide()).toBeNull();
+      expect(TestBed.inject(HeldPieceService).held()).toBeNull();
     });
 
     it('leaves a piece hung on a wall to the surfaces, which is all a wall has', () => {
@@ -457,7 +457,7 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       shiftWheel(directive, true);
 
       expect(hung.altitude).toBe(0);
-      expect(TestBed.inject(AltitudeGuideService).guide()).toBeNull();
+      expect(TestBed.inject(HeldPieceService).held()).toBeNull();
     });
   });
 

@@ -1859,6 +1859,10 @@
         "doorStyleSlide": "옆으로 미닫이",
         "doorFlip": "열리는 방향 반전"
       },
+      "holdHint": {
+        "footing": "휠로 발판을 오르내리기",
+        "lift": "Shift＋휠로 높이를 한 칸씩"
+      },
       "tableSetting": {
         "title": "테이블 설정",
         "sidebarTitle": "테이블",

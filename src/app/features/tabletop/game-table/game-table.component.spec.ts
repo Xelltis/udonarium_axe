@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
@@ -8,6 +9,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -379,6 +381,67 @@ describe('GameTableComponent', () => {
 
       expect(wrapper.style.getPropertyValue('mask')).toBe(component.tableSurfaceStyle()['mask']);
     });
+  });
+
+  describe('saying what more a drag can be turned into', () => {
+    const hint = (): HTMLElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="hold-hint"]');
+
+    const takeUp = (liftable: boolean) =>
+      TestBed.inject(HeldPieceService).take({
+        identifier: 'held',
+        x: 0,
+        y: 0,
+        widthPx: 50,
+        heightPx: 50,
+        altitude: 0,
+        gridSize: 50,
+        liftable,
+      });
+
+    it('says nothing while there is nothing in hand', () => {
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    it('offers the footholds and the air to a piece held on the table', () => {
+      takeUp(true);
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('ホイールで足場を上下に辿る');
+      expect(hint()?.textContent).toContain('Shift＋ホイールで高さを 1 マスずつ');
+    });
+
+    it('offers a piece held on a wall the footholds alone, having no height of its own', () => {
+      takeUp(false);
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('ホイールで足場を上下に辿る');
+      expect(hint()?.textContent).not.toContain('Shift');
+    });
+
+    it('says nothing where there is no wheel to turn', () => {
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      takeUp(true);
+
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    it('leaves the band to the planned move, which is already speaking from it', () => {
+      takeUp(true);
+      vi.spyOn(component, 'isPlanningMove').mockReturnValue(true);
+
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    afterEach(() => TestBed.inject(HeldPieceService).letGo());
   });
 
   describe('saying how a move is worked out', () => {

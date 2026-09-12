@@ -1859,6 +1859,10 @@
         "doorStyleSlide": "横にスライド",
         "doorFlip": "開く向きを反転"
       },
+      "holdHint": {
+        "footing": "ホイールで足場を上下に辿る",
+        "lift": "Shift＋ホイールで高さを 1 マスずつ"
+      },
       "tableSetting": {
         "title": "テーブル設定",
         "sidebarTitle": "テーブル",
