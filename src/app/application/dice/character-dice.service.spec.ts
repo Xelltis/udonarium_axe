@@ -132,6 +132,17 @@ describe('CharacterDiceService', () => {
     expect(ObjectStore.instance.get(symbol.identifier)).toBeNull();
   });
 
+  it('leaves a die the sheet could not keep on the table', () => {
+    const character = makeCharacter();
+    const symbol = makeSymbol();
+    for (const face of [...(symbol.imageDataElement?.children ?? [])]) face.destroy();
+
+    service.store(character, symbol);
+
+    expect(ObjectStore.instance.get(symbol.identifier)).toBe(symbol);
+    expect(service.held(character)).toEqual([]);
+  });
+
   it('reads back what a character keeps', () => {
     const character = makeCharacter();
     storeHeldDie(character, { name: 'ダイス', count: 2, faces: [{ label: '1', imageIdentifier: '' }] });
