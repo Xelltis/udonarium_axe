@@ -239,14 +239,6 @@ export class BuffManagerPanelComponent {
     this.setRounds((event.target as HTMLInputElement).valueAsNumber);
   }
 
-  onSetTiming(event: Event): void {
-    this.setTiming((event.target as HTMLSelectElement).value as BuffTiming);
-  }
-
-  onSetTrigger(event: Event): void {
-    this.setTrigger((event.target as HTMLSelectElement).value);
-  }
-
   private touch(element: DataElement): void {
     this.objectChange.notifyChanged(element.identifier);
     const owner = this.ownerOf(element);
