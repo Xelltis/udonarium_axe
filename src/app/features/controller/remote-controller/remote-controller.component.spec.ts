@@ -130,8 +130,7 @@ describe('RemoteControllerComponent', () => {
     }
 
     function offeredNames(): string[] {
-      const choices = component.counterChoices();
-      return [...choices.tagged, ...choices.others].map((choice) => choice.name);
+      return component.counterChoices().map((choice) => choice.name);
     }
 
     it('builds the buttons from the pieces that are targeted', () => {
@@ -174,6 +173,67 @@ describe('RemoteControllerComponent', () => {
       component.dropChosenIfGone();
 
       expect(component.remoteControllerSelect().name).toBe('HP');
+    });
+  });
+
+  describe('which part of an item is moved', () => {
+    function chooseHp(): void {
+      const char = createChar('コマ');
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([char]);
+      const hp = component.counterChoices().find((choice) => choice.name === 'HP')!;
+      component.chooseResource(hp);
+    }
+
+    it('offers every slot of a resource', () => {
+      chooseHp();
+
+      expect(component.chosenSlots()).toEqual(['now', 'max', 'maxBase', 'maxCorrection', 'minBase', 'minCorrection']);
+    });
+
+    it('offers none for an item that has only its value', () => {
+      const char = createChar('コマ');
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([char]);
+      const text = component.counterChoices().find((choice) => !choice.isResource)!;
+
+      component.chooseResource(text);
+
+      expect(component.chosenSlots()).toEqual([]);
+    });
+
+    it('starts on the value itself', () => {
+      chooseHp();
+
+      expect(component.isChosenSlot('now')).toBe(true);
+    });
+
+    it('takes a slot and says so in what the operation will read as', () => {
+      chooseHp();
+
+      component.chooseSlot('maxBase');
+
+      expect(component.remoteControllerSelect().nowOrMax).toBe('maxBase');
+      expect(component.remoteControllerSelect().dispName).toContain('HP');
+      expect(component.isChosenSlot('maxBase')).toBe(true);
+    });
+
+    it('keeps the slot as the item changes, so a row of pieces takes the same part', () => {
+      chooseHp();
+      component.chooseSlot('maxBase');
+      const mp = component.counterChoices().find((choice) => choice.name === 'MP')!;
+
+      component.chooseResource(mp);
+
+      expect(component.remoteControllerSelect()).toMatchObject({ name: 'MP', nowOrMax: 'maxBase' });
+    });
+
+    it('falls back to the value for an item with no other part to move', () => {
+      chooseHp();
+      component.chooseSlot('maxCorrection');
+      const text = component.counterChoices().find((choice) => !choice.isResource)!;
+
+      component.chooseResource(text);
+
+      expect(component.remoteControllerSelect().nowOrMax).toBe('now');
     });
   });
 

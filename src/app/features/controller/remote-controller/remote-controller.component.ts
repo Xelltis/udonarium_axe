@@ -34,7 +34,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
-import type { ResourceSlot } from '@axe/domain/data/resource-slot';
+import { RESOURCE_SLOTS, type ResourceSlot } from '@axe/domain/data/resource-slot';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -47,19 +47,28 @@ import {
   RemoteControllerSelect,
 } from '@axe/features/controller/remote-controller/remote-controller-buff';
 import {
-  type ControllableResources,
   controllableResourcesOf,
   getGameObjects,
   getInventory,
   getInventoryTags,
   getTabTitleKey,
   getTargetCharacters,
+  type ResourceChoice,
 } from '@axe/features/controller/remote-controller/remote-controller-helpers';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 export type MobileSection = 'targets' | 'buff' | 'resource';
+
+const SLOT_LABEL_KEYS: Record<ResourceSlot, string> = {
+  now: 'feature.controller.remote.slotNow',
+  max: 'feature.controller.remote.slotMax',
+  maxBase: 'feature.controller.remote.slotMaxBase',
+  maxCorrection: 'feature.controller.remote.slotMaxCorrection',
+  minBase: 'feature.controller.remote.slotMinBase',
+  minCorrection: 'feature.controller.remote.slotMinCorrection',
+};
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -82,12 +91,8 @@ export class RemoteControllerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
-  currentValueSuffix(): string {
-    return this.t('feature.controller.remote.currentValueSuffix');
-  }
-
-  maxValueSuffix(): string {
-    return this.t('feature.controller.remote.maxValueSuffix');
+  slotLabel(slot: ResourceSlot): string {
+    return this.t(SLOT_LABEL_KEYS[slot]);
   }
 
   get palette(): ChatPalette | null {
@@ -232,7 +237,6 @@ export class RemoteControllerComponent {
   readonly buffColors = BUFF_COLORS;
   readonly buffColorId = signal('');
   readonly counterSectionOpen = signal(true);
-  readonly otherResourcesOpen = signal(false);
 
   readonly chatTabidentifier = signal('');
   remoteNumber = 0;
@@ -302,9 +306,36 @@ export class RemoteControllerComponent {
   }
 
   /** Whether this is the item the buttons are pointing at. */
-  isChosen(name: string, nowOrMax: ResourceSlot): boolean {
-    const chosen = this.remoteControllerSelect();
-    return chosen.name === name && chosen.nowOrMax === nowOrMax;
+  isChosenName(name: string): boolean {
+    return this.remoteControllerSelect().name === name;
+  }
+
+  /** Whether this is the part of it they would move. */
+  isChosenSlot(slot: ResourceSlot): boolean {
+    return this.remoteControllerSelect().nowOrMax === slot;
+  }
+
+  /**
+   * Points the buttons at an item.
+   *
+   * The slot stays where it stood, so a table working through a row of pieces keeps moving
+   * the same part of each; an item that has only its value to write to takes that.
+   */
+  chooseResource(choice: ResourceChoice): void {
+    const slot = choice.isResource ? this.remoteControllerSelect().nowOrMax : 'now';
+    this.remoteSelect(choice.name, slot, this.displayNameOf(choice, slot));
+  }
+
+  chooseSlot(slot: ResourceSlot): void {
+    const choice = this.chosenChoice();
+    if (!choice) return;
+    this.remoteSelect(choice.name, slot, this.displayNameOf(choice, slot));
+  }
+
+  /** How the operation reads in the chat line: the item, and which part of it was moved. */
+  private displayNameOf(choice: ResourceChoice, slot: ResourceSlot): string {
+    if (!choice.isResource) return choice.name;
+    return `${choice.name}${this.t('feature.controller.remote.slotNameSeparator')}${this.slotLabel(slot)}`;
   }
 
   updatePanelTitle() {
@@ -391,7 +422,7 @@ export class RemoteControllerComponent {
    * With nothing picked out yet, the whole tab stands in, so the buttons are there before the
    * first target is.
    */
-  readonly counterChoices = computed<ControllableResources>(() => {
+  readonly counterChoices = computed<ResourceChoice[]>(() => {
     const characters = this.resourceTargets();
     for (const character of characters) this.objectChange.versionOf(character.identifier)();
     this.objectChange.versionOf(DataSummarySetting.instance.identifier)();
@@ -404,13 +435,28 @@ export class RemoteControllerComponent {
     return targeted.length > 0 ? targeted : this.getTargetCharacters(false);
   }
 
+  /** The item the buttons point at, as it stands among what the pieces carry. */
+  readonly chosenChoice = computed<ResourceChoice | null>(() => {
+    const name = this.remoteControllerSelect().name;
+    if (name === '') return null;
+    return this.counterChoices().find((choice) => choice.name === name) ?? null;
+  });
+
+  /**
+   * The parts of the chosen item that can be moved.
+   *
+   * A resource answers to every one of them; anything else has its value alone, and is left
+   * without a row of slots to read past.
+   */
+  readonly chosenSlots = computed<readonly ResourceSlot[]>(() =>
+    this.chosenChoice()?.isResource ? RESOURCE_SLOTS : []
+  );
+
   /** Lets go of a chosen item the pieces no longer carry, so the buttons and the act agree. */
   dropChosenIfGone(): void {
     const chosen = this.remoteControllerSelect();
     if (chosen.name === '') return;
-    const choices = this.counterChoices();
-    const offered = [...choices.tagged, ...choices.others].some((choice) => choice.name === chosen.name);
-    if (!offered) this.remoteSelect('', 'now', '');
+    if (!this.counterChoices().some((choice) => choice.name === chosen.name)) this.remoteSelect('', 'now', '');
   }
 
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {

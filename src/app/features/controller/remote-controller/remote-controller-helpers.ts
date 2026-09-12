@@ -66,23 +66,17 @@ export function getInventoryTags(
 export interface ResourceChoice {
   /** What the item is called, which is what an operation is written against. */
   name: string;
-  /** Whether it has a maximum as well as a value, which is two buttons rather than one. */
+  /** Whether it keeps a maximum and bounds as well as a value, which is every slot rather than one. */
   isResource: boolean;
 }
 
-export interface ControllableResources {
-  /** The items the room shows of everybody, in the order the room lists them. */
-  tagged: ResourceChoice[];
-  /** Everything else the pieces carry, in the order their sheets read. */
-  others: ResourceChoice[];
-}
-
 /**
- * What can be operated on across these pieces.
+ * Everything that can be operated on across these pieces, in one list.
  *
  * An item is operated on by name, so the pieces being worked on are what decides the buttons:
  * one that only somebody else carries is still theirs to move, and one written onto a sheet
- * mid-session is there to press as soon as it exists.
+ * mid-session is there to press as soon as it exists. Every item they carry is offered; what
+ * the room lists of everybody only comes first, being what a table reaches for most.
  *
  * A name the same sheet carries twice is left out. Nothing can say which of the two is meant,
  * so a button for it would do nothing at all.
@@ -90,7 +84,7 @@ export interface ControllableResources {
 export function controllableResourcesOf(
   characters: readonly GameCharacter[],
   dataTags: readonly string[]
-): ControllableResources {
+): ResourceChoice[] {
   const found = new Map<string, boolean>();
   for (const character of characters) {
     for (const [name, isResource] of controllableNamesOf(character)) {
@@ -98,17 +92,14 @@ export function controllableResourcesOf(
     }
   }
 
-  const taggedNames: string[] = [];
+  const listedFirst: string[] = [];
   for (const tag of dataTags) {
     const name = tag.trim();
-    if (found.has(name) && !taggedNames.includes(name)) taggedNames.push(name);
+    if (found.has(name) && !listedFirst.includes(name)) listedFirst.push(name);
   }
+  const rest = [...found.keys()].filter((name) => !listedFirst.includes(name));
 
-  const tagged = taggedNames.map((name) => ({ name, isResource: found.get(name) === true }));
-  const others = [...found]
-    .filter(([name]) => !taggedNames.includes(name))
-    .map(([name, isResource]) => ({ name, isResource }));
-  return { tagged, others };
+  return [...listedFirst, ...rest].map((name) => ({ name, isResource: found.get(name) === true }));
 }
 
 function controllableNamesOf(character: GameCharacter): Map<string, boolean> {

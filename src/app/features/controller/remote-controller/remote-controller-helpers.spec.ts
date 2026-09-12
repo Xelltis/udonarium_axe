@@ -133,14 +133,13 @@ describe('remote-controller-helpers', () => {
     }
 
     function namesOf(characters: GameCharacter[], tags: string[]): string[] {
-      const { tagged, others } = controllableResourcesOf(characters, tags);
-      return [...tagged, ...others].map((choice) => choice.name);
+      return controllableResourcesOf(characters, tags).map((choice) => choice.name);
     }
 
     it('lists what the room shows of everybody first, in the order it lists them', () => {
       const char = createChar('カウンター対象');
 
-      expect(controllableResourcesOf([char], ['MP', 'HP']).tagged).toEqual([
+      expect(controllableResourcesOf([char], ['MP', 'HP']).slice(0, 2)).toEqual([
         { name: 'MP', isResource: true },
         { name: 'HP', isResource: true },
       ]);
@@ -149,10 +148,7 @@ describe('remote-controller-helpers', () => {
     it('passes over a tag no piece carries', () => {
       const char = createChar('カウンター対象');
 
-      expect(controllableResourcesOf([char], ['HP', '架空の項目', 'MP']).tagged.map((choice) => choice.name)).toEqual([
-        'HP',
-        'MP',
-      ]);
+      expect(namesOf([char], ['HP', '架空の項目', 'MP']).slice(0, 2)).toEqual(['HP', 'MP']);
     });
 
     it('offers an item only one of the pieces carries', () => {
@@ -165,14 +161,16 @@ describe('remote-controller-helpers', () => {
       expect(namesOf([plain, cursed], ['HP'])).toContain('正気度');
     });
 
-    it('keeps an item the room does not show out of the first row', () => {
+    it('offers an item the room does not show, behind the ones it does', () => {
+      // The room's list only says what comes first. Nothing is kept out by it.
       const char = createChar('カウンター対象');
       addField(char, '弾薬', DataElementType.NUMBER_RESOURCE);
 
-      const { tagged, others } = controllableResourcesOf([char], ['HP']);
+      const names = namesOf([char], ['HP']);
 
-      expect(tagged.map((choice) => choice.name)).toEqual(['HP']);
-      expect(others.map((choice) => choice.name)).toContain('弾薬');
+      expect(names[0]).toBe('HP');
+      expect(names).toContain('弾薬');
+      expect(names.indexOf('弾薬')).toBeGreaterThan(0);
     });
 
     it('offers a name once however many pieces carry it', () => {
@@ -182,14 +180,14 @@ describe('remote-controller-helpers', () => {
       expect(namesOf([first, second], ['HP']).filter((name) => name === 'HP')).toHaveLength(1);
     });
 
-    it('says which items have a maximum as well as a value', () => {
+    it('says which items have a maximum and bounds as well as a value', () => {
       const char = createChar('カウンター対象');
       addField(char, 'ひとこと', DataElementType.TEXT);
 
-      const { others } = controllableResourcesOf([char], []);
+      const choices = controllableResourcesOf([char], []);
 
-      expect(others.find((choice) => choice.name === 'HP')?.isResource).toBe(true);
-      expect(others.find((choice) => choice.name === 'ひとこと')?.isResource).toBe(false);
+      expect(choices.find((choice) => choice.name === 'HP')?.isResource).toBe(true);
+      expect(choices.find((choice) => choice.name === 'ひとこと')?.isResource).toBe(false);
     });
 
     it('leaves out an item nothing can be written to', () => {
@@ -208,7 +206,7 @@ describe('remote-controller-helpers', () => {
     });
 
     it('offers nothing for no pieces at all', () => {
-      expect(controllableResourcesOf([], ['HP'])).toEqual({ tagged: [], others: [] });
+      expect(controllableResourcesOf([], ['HP'])).toEqual([]);
     });
   });
 
