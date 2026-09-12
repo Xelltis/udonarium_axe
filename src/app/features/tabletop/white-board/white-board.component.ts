@@ -96,6 +96,10 @@ export class WhiteBoardComponent {
     () => {
       const board = this.whiteBoard();
       this.objectChange.versionOf(board.identifier)();
+      // The picture a board wears arrives after the name of it does, so the bytes landing has
+      // to move the view as well; without it a board stayed blank for everybody else until it
+      // was dragged.
+      this.objectChange.fileVersion();
       return board;
     },
     { equal: () => false }

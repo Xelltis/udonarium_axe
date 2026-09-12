@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AnimatedImageService } from '@axe/application/media/animated-image.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_DESERIALIZE_SCENE, perfCounters } from '@axe/core/util/perf-counters';
@@ -47,6 +49,29 @@ describe('WhiteBoardComponent', () => {
 
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  it('wears a picture that arrived after the board did, without the board being moved', () => {
+    // The bytes of a picture follow the name of it, so the arrival has to move the view too;
+    // otherwise the board stood blank for everybody else until somebody dragged it.
+    const before = component.imageUrl();
+
+    const element = board.imageDataElement?.getFirstElementByName('imageIdentifier');
+    element!.value = 'board-picture';
+    ImageStorage.instance.add(
+      ImageFile.create({
+        identifier: 'board-picture',
+        name: 'test-board',
+        type: 'image/png',
+        blob: null,
+        url: './assets/images/test-board.png',
+        thumbnail: { type: '', blob: null, url: '' },
+      })
+    );
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+
+    expect(component.imageUrl()).not.toBe(before);
+    expect(component.imageUrl()).toContain('test-board');
   });
 
   it('parses its drawing only when the drawing itself changes', async () => {

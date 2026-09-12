@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ImageFile } from '@axe/core/storage/image-file';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card, CardState } from '@axe/domain/card/card';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
@@ -35,6 +37,34 @@ describe('CardComponent', () => {
       Object.defineProperty(objectChangeService, 'networkVersion', { value: spy, configurable: true });
       void component.name();
       expect(spy).toHaveBeenCalled();
+    });
+
+    it('shows a picture that arrived after the card did, without the card being moved', () => {
+      // A picture comes in two steps: the name of it with the card, the bytes when the room
+      // has passed them along. Read off the card rather than through the signals, neither step
+      // moved the view and the card stayed blank for everybody else until it was dragged.
+      // The name of the picture is already on the card, as it is for everybody the moment the
+      // card reaches them. Only the bytes are still on their way, so nothing about the card
+      // itself changes when they land - and that alone has to move the view.
+      const card = Card.create('テストカード', 'picture-front', 'picture-back');
+      fixture.componentRef.setInput('card', card);
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const before = component.displayedImageUrl();
+
+      ImageStorage.instance.add(
+        ImageFile.create({
+          identifier: 'picture-front',
+          name: 'test-front',
+          type: 'image/png',
+          blob: null,
+          url: './assets/images/test-front.png',
+          thumbnail: { type: '', blob: null, url: '' },
+        })
+      );
+      objectChange.fileVersion.update((version) => version + 1);
+
+      expect(component.displayedImageUrl()).not.toBe(before);
+      expect(component.displayedImageUrl()).toContain('test-front');
     });
 
     it('holds the hidden icon in a signal', () => {
