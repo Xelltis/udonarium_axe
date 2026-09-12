@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import {
   type DiceCreateDialogOption,
   type DiceCreateRequest,
@@ -23,6 +24,7 @@ import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -63,6 +65,7 @@ export class TabletopActionService {
 
   private readonly imageStorage = inject(ImageStorage);
   private readonly modalService = inject(ModalService);
+  private readonly tabletopService = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
@@ -214,10 +217,19 @@ export class TabletopActionService {
    * A handful of the same die is what a roll usually needs, and making them one press at a time
    * left them in a pile on one spot to be pulled apart by hand.
    */
-  createDiceSymbols(position: PointerCoordinate, item: DiceMenuItem, count: number): DiceSymbol[] {
-    return getDicePlacements(position, count).map((placement) =>
-      this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement)
-    );
+  createDiceSymbols(
+    position: PointerCoordinate,
+    item: DiceMenuItem,
+    count: number,
+    ownership: { ownerCharacterIdentifier?: string; hiddenToOthers?: boolean } = {}
+  ): DiceSymbol[] {
+    const owner = ownership.hiddenToOthers === true ? getPeerContext().userId : '';
+    return getDicePlacements(position, count).map((placement) => {
+      const dice = this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement);
+      if (ownership.ownerCharacterIdentifier) dice.ownerCharacterIdentifier = ownership.ownerCharacterIdentifier;
+      if (owner.length > 0) dice.owner = owner;
+      return dice;
+    });
   }
 
   createRangeArea(position: PointerCoordinate, typeName: string): RangeArea {
@@ -512,7 +524,14 @@ export class TabletopActionService {
     const dialogClass = TabletopActionService.diceCreateDialogComponentClass;
     if (!dialogClass) return;
 
-    const option: DiceCreateDialogOption = { defaultCount: 2 };
+    const option: DiceCreateDialogOption = {
+      defaultCount: 2,
+      // The same pieces the menu of a die already offers to give it to.
+      ownerCandidates: this.tabletopService.characters.map((character) => ({
+        identifier: character.identifier,
+        name: character.name,
+      })),
+    };
     const request = await this.modalService
       .open<DiceCreateRequest | null>(dialogClass, {
         ...option,
@@ -523,7 +542,11 @@ export class TabletopActionService {
 
     const item = getDiceMenuItems()[request.typeIndex];
     if (!item) return;
-    if (this.createDiceSymbols(position, item, request.count).length > 0) SoundEffect.play(PresetSound.dicePut);
+    const made = this.createDiceSymbols(position, item, request.count, {
+      ownerCharacterIdentifier: request.ownerCharacterIdentifier,
+      hiddenToOthers: request.hiddenToOthers,
+    });
+    if (made.length > 0) SoundEffect.play(PresetSound.dicePut);
   }
 
   createCoin(position: PointerCoordinate): Coin {

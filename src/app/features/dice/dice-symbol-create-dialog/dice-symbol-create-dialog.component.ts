@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import {
   type DiceCreateDialogOption,
   type DiceCreateRequest,
+  type DiceOwnerCandidate,
   getDiceMenuItems,
 } from '@axe/application/tabletop/tabletop-action-helpers';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -26,15 +27,24 @@ export class DiceSymbolCreateDialogComponent {
 
   typeIndex = this.option.typeIndex ?? 0;
   count = this.clampCount(this.option.defaultCount ?? 2);
+  /** Empty for dice that belong to nobody, which is what a die made from the menu is. */
+  ownerCharacterIdentifier = '';
+  hiddenToOthers = false;
 
   get maxCount(): number {
     return this.option.maxCount ?? DEFAULT_MAX_COUNT;
+  }
+
+  get ownerCandidates(): readonly DiceOwnerCandidate[] {
+    return this.option.ownerCandidates ?? [];
   }
 
   confirm(): void {
     const request: DiceCreateRequest = {
       typeIndex: this.clampTypeIndex(this.typeIndex),
       count: this.clampCount(this.count),
+      ownerCharacterIdentifier: this.knownOwner(this.ownerCharacterIdentifier),
+      hiddenToOthers: this.hiddenToOthers === true,
     };
     this.modalService.resolve(request);
   }
@@ -50,7 +60,13 @@ export class DiceSymbolCreateDialogComponent {
       typeIndex: option?.typeIndex == null ? undefined : this.normalizePositiveInteger(option.typeIndex, 0),
       defaultCount: option?.defaultCount == null ? undefined : this.normalizePositiveInteger(option.defaultCount, 2),
       maxCount,
+      ownerCandidates: Array.isArray(option?.ownerCandidates) ? option.ownerCandidates : [],
     };
+  }
+
+  /** A piece that is no longer on the table is nobody, rather than a name the dice keep pointing at. */
+  private knownOwner(identifier: string): string {
+    return this.ownerCandidates.some((candidate) => candidate.identifier === identifier) ? identifier : '';
   }
 
   private clampTypeIndex(value: number): number {

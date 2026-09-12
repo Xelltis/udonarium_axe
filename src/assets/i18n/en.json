@@ -800,6 +800,9 @@
         "title": "Create several dice",
         "type": "Kind",
         "count": "Count",
+        "owner": "Owner",
+        "ownerNone": "Nobody",
+        "hidden": "Only I may read them",
         "cancel": "Cancel",
         "create": "Create"
       },

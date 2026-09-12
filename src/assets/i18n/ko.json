@@ -800,6 +800,9 @@
         "title": "주사위 여러 개 만들기",
         "type": "종류",
         "count": "개수",
+        "owner": "소유자",
+        "ownerNone": "없음",
+        "hidden": "나만 보기(뒤집어 놓기)",
         "cancel": "취소",
         "create": "만들기"
       },

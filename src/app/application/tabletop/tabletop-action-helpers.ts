@@ -47,18 +47,30 @@ export interface DicePlacement {
   y: number;
 }
 
+/** A piece the dice can be made as the property of. */
+export interface DiceOwnerCandidate {
+  identifier: string;
+  name: string;
+}
+
 /** What the dialogue for making several dice at once is opened with. */
 export interface DiceCreateDialogOption {
   /** Which kind is offered first, by its place in the creation menu. */
   typeIndex?: number;
   defaultCount?: number;
   maxCount?: number;
+  /** The pieces they can be made for. Left empty where the table has none to offer. */
+  ownerCandidates?: readonly DiceOwnerCandidate[];
 }
 
-/** What it answers with: the kind, by its place in that menu, and how many of them. */
+/** What it answers with: the kind, by its place in that menu, how many, and whose they are. */
 export interface DiceCreateRequest {
   typeIndex: number;
   count: number;
+  /** The piece they belong to, or nothing where they belong to nobody. */
+  ownerCharacterIdentifier: string;
+  /** Whether the face is the maker's alone to read. */
+  hiddenToOthers: boolean;
 }
 
 /**
