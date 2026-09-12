@@ -20,7 +20,7 @@
     >
       <div
         class="absolute box-border size-full rounded-[5px] border-[6px] border-solid border-[rgb(216,139,75)] backface-hidden"
-        [class.border-ui-border-panel!]="hasOwner"
+        [class.border-ui-border-panel!]="hasOwner()"
       ></div>
       <div
         class="absolute box-border size-full rounded-[5px] border-2 border-solid border-[#212121] backface-hidden"
@@ -72,10 +72,10 @@
                   >
                     <div>
                       {{ name() }}:
-                      @if (isVisible) {
+                      @if (isVisible()) {
                         <span>{{ face }}</span>
                       }
-                      @if (!isVisible) {
+                      @if (!isVisible()) {
                         <span>???</span>
                       }
                       @if (isLock) {
@@ -101,7 +101,7 @@
                   </div>
                 </div>
               }
-              @if (hasOwner && ownerName) {
+              @if (hasOwner() && ownerName()) {
                 <div
                   class="absolute whitespace-nowrap transform-3d"
                   [ngStyle]="{
@@ -112,7 +112,7 @@
                     class="bg-ui-panel text-ui-text box-border rounded-md px-2.25 py-0.75 text-[12px] whitespace-nowrap transform-3d"
                     [ngStyle]="{ transform: billboardTransformOwner() }"
                   >
-                    <div class="max-w-72 truncate">{{ ownerName }}</div>
+                    <div class="max-w-72 truncate">{{ ownerName() }}</div>
                   </div>
                 </div>
               }
@@ -129,8 +129,8 @@
                   }"
                   (load)="imageView.onImageLoad($event)"
                   [src]="imageFile().url | safe: 'resourceUrl'"
-                  [class.is-black-mask]="!isVisible"
-                  [class.is-harf-black-mask]="isMine"
+                  [class.is-black-mask]="!isVisible()"
+                  [class.is-harf-black-mask]="isMine()"
                 />
               }
               @if (imageFile().url && !specifyImageFlag()) {
@@ -145,8 +145,8 @@
                   }"
                   (load)="imageView.onImageLoad($event)"
                   [src]="imageFile().url | safe: 'resourceUrl'"
-                  [class.is-black-mask]="!isVisible"
-                  [class.is-harf-black-mask]="isMine"
+                  [class.is-black-mask]="!isVisible()"
+                  [class.is-harf-black-mask]="isMine()"
                 />
               }
             </div>

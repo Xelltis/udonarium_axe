@@ -158,16 +158,52 @@ export class DiceSymbolComponent {
     { equal: imageFileEqual() }
   );
 
-  get isMine(): boolean {
-    return this.diceSymbol().isMine;
-  }
-  get hasOwner(): boolean {
-    return this.diceSymbol().hasOwner;
-  }
-  get ownerName(): string {
-    return this.diceSymbol().ownerName;
-  }
-  get isVisible(): boolean {
+  /**
+   * Whether the face is the reader's to see, and the rest of what keeping a die back looks like.
+   *
+   * Each of these follows the die itself, the peers coming and going (an owner's name is read
+   * off their cursor), and the reader's own role, which is what lets a master read a die that
+   * is somebody else's.
+   */
+  readonly isMine = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    this.objectChange.networkVersion();
+    this.objectChange.trackMyCursor();
+    return diceSymbol.isMine;
+  });
+
+  readonly hasOwner = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    return diceSymbol.hasOwner;
+  });
+
+  readonly ownerName = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    this.objectChange.networkVersion();
+    const cursor = diceSymbol.owner ? PeerCursor.findByUserId(diceSymbol.owner) : null;
+    if (cursor) this.objectChange.versionOf(cursor.identifier)();
+    return diceSymbol.ownerName;
+  });
+
+  readonly isVisible = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    this.objectChange.networkVersion();
+    this.objectChange.trackMyCursor();
+    return this.readsFace();
+  });
+
+  /**
+   * The same question asked once, off the die itself.
+   *
+   * What is drawn reads the signal, which answers from what it last heard. A throw settling or
+   * a double tap acts on the die as it stands at that moment, and has no reason to wait to be
+   * told, so it asks directly.
+   */
+  private readsFace(): boolean {
     return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden;
   }
 
@@ -310,7 +346,7 @@ export class DiceSymbolComponent {
     this.rollTimers.push(
       setTimeout(() => {
         // A die nobody may see calls nothing out; the face is the owner's to read.
-        if (!this.isVisible) return;
+        if (!this.readsFace()) return;
         this.rollResult.show(this.diceSymbol().face);
       }, TUMBLE_MS)
     );
@@ -354,7 +390,7 @@ export class DiceSymbolComponent {
     this.doubleTap.cancel();
     if (!this.rolePermission.canEditTabletop) return;
     if (!this.doubleTap.isInPlace()) return;
-    if (this.isVisible) this.diceRoll();
+    if (this.readsFace()) this.diceRoll();
   }
 
   onContextMenu(e: Event) {

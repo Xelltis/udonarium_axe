@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card, CardState } from '@axe/domain/card/card';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -65,6 +66,67 @@ describe('CardComponent', () => {
 
       expect(component.displayedImageUrl()).not.toBe(before);
       expect(component.displayedImageUrl()).toContain('test-front');
+    });
+
+    it('names the owner the moment a card is claimed, without it being moved', async () => {
+      // The card is somebody else's, so nothing else drawn on it moves with the claim and the
+      // label is the only answer to the question. Nothing is checked by hand either: it has to
+      // follow because the signals said so.
+      beMyself('onlooker');
+      const holder = new PeerCursor();
+      holder.userId = 'holder';
+      holder.name = '持ち主';
+      holder.initialize();
+      const card = Card.create('テストカード', 'front', 'back');
+      card.state = CardState.BACK;
+      fixture.componentRef.setInput('card', card);
+      fixture.detectChanges();
+      const label = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(label()).not.toContain('持ち主');
+
+      card.owner = holder.userId;
+      TestBed.inject(ObjectChangeService).notifyChanged(card.identifier);
+      await fixture.whenStable();
+
+      expect(label()).toContain('持ち主');
+
+      card.owner = '';
+      TestBed.inject(ObjectChangeService).notifyChanged(card.identifier);
+      await fixture.whenStable();
+
+      expect(label()).not.toContain('持ち主');
+      holder.destroy();
+    });
+
+    it('reads whose the card is through the signals rather than off the card', () => {
+      const holder = new PeerCursor();
+      holder.userId = 'holder';
+      holder.name = '持ち主';
+      holder.initialize();
+      const card = Card.create('テストカード', 'front', 'back');
+      card.owner = holder.userId;
+      fixture.componentRef.setInput('card', card);
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const versionOf = objectChange.versionOf.bind(objectChange);
+      const read: string[] = [];
+      Object.defineProperty(objectChange, 'versionOf', {
+        value: (identifier: string) => {
+          read.push(identifier);
+          return versionOf(identifier);
+        },
+        configurable: true,
+      });
+      const readsTheCard = (value: () => unknown): boolean => {
+        read.length = 0;
+        value();
+        return read.includes(card.identifier);
+      };
+
+      expect(readsTheCard(() => component.hasOwner())).toBe(true);
+      expect(readsTheCard(() => component.ownerName())).toBe(true);
+      expect(read).toContain(holder.identifier);
+
+      holder.destroy();
     });
 
     it('holds the hidden icon in a signal', () => {

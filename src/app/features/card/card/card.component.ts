@@ -137,14 +137,27 @@ export class CardComponent {
   get isVisible(): boolean {
     return this.card().isVisible;
   }
-  get hasOwner(): boolean {
-    return this.card().hasOwner;
-  }
+  /**
+   * Whose the card is, as the label over its back says it.
+   *
+   * It follows the card and the peers, since a name is read off the owner's cursor.
+   */
+  readonly hasOwner = computed(() => {
+    const card = this.card();
+    this.objectChange.versionOf(card.identifier)();
+    return card.hasOwner;
+  });
+
+  readonly ownerName = computed(() => {
+    const card = this.card();
+    this.objectChange.versionOf(card.identifier)();
+    this.objectChange.networkVersion();
+    const cursor = card.owner ? PeerCursor.findByUserId(card.owner) : null;
+    if (cursor) this.objectChange.versionOf(cursor.identifier)();
+    return card.ownerName;
+  });
   get ownerIsOnline(): boolean {
     return this.card().ownerIsOnline;
-  }
-  get ownerName(): string {
-    return this.card().ownerName;
   }
 
   readonly imageFile = computed(

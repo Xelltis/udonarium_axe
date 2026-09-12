@@ -7,9 +7,12 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
+import { ImageFile } from '@axe/core/storage/image-file';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -37,6 +40,82 @@ describe('DiceSymbolComponent', () => {
 
   beforeEach(useFlatTable);
   afterEach(useFlatTable);
+
+  it('blacks a die out the moment it is kept back, without it being moved', async () => {
+    // The mask on the picture is what the table sees. Nothing else drawn on the die may move
+    // with the claim, or that would answer the question instead: the name label is held back so
+    // it stays put whether the face is on show or not.
+    const die = DiceSymbol.create('D6', 0, 1);
+    die.hideName = true;
+    // The mask sits on the picture of the face, so the die has to be wearing one.
+    ImageStorage.instance.add(
+      ImageFile.create({
+        identifier: 'die-face',
+        name: 'die-face',
+        type: 'image/png',
+        blob: null,
+        url: './assets/images/test-die.png',
+        thumbnail: { type: '', blob: null, url: '' },
+      })
+    );
+    const face = die.imageDataElement?.getFirstElementByName(die.face);
+    if (face) face.value = 'die-face';
+    fixture.componentRef.setInput('diceSymbol', die);
+    fixture.detectChanges();
+    const masked = () => (fixture.nativeElement as HTMLElement).querySelectorAll('img.is-black-mask').length;
+    expect(masked()).toBe(0);
+
+    // Nothing is checked by hand from here on: the mask has to follow because the signals said
+    // so. A forced check would pass either way.
+    die.owner = 'somebody-else';
+    TestBed.inject(ObjectChangeService).notifyChanged(die.identifier);
+    await fixture.whenStable();
+
+    expect(masked()).toBeGreaterThan(0);
+
+    // Opening it again is the same question the other way round: the mask has to come off
+    // without the die being dragged either.
+    die.owner = '';
+    TestBed.inject(ObjectChangeService).notifyChanged(die.identifier);
+    await fixture.whenStable();
+
+    expect(masked()).toBe(0);
+    die.destroy();
+  });
+
+  it('reads the face and the owner through the signals rather than off the die', () => {
+    const die = DiceSymbol.create('D6', 0, 1);
+    die.owner = 'somebody-else';
+    const holder = new PeerCursor();
+    holder.userId = 'somebody-else';
+    holder.name = '持ち主';
+    holder.initialize();
+    fixture.componentRef.setInput('diceSymbol', die);
+    const objectChange = TestBed.inject(ObjectChangeService);
+    const versionOf = objectChange.versionOf.bind(objectChange);
+    const read: string[] = [];
+    Object.defineProperty(objectChange, 'versionOf', {
+      value: (identifier: string) => {
+        read.push(identifier);
+        return versionOf(identifier);
+      },
+      configurable: true,
+    });
+    const readsTheDie = (value: () => unknown): boolean => {
+      read.length = 0;
+      value();
+      return read.includes(die.identifier);
+    };
+
+    expect(readsTheDie(() => component.isVisible())).toBe(true);
+    expect(readsTheDie(() => component.isMine())).toBe(true);
+    expect(readsTheDie(() => component.hasOwner())).toBe(true);
+    expect(readsTheDie(() => component.ownerName())).toBe(true);
+    expect(read).toContain(holder.identifier);
+
+    holder.destroy();
+    die.destroy();
+  });
 
   it('should create', () => {
     expect(component).toBeTruthy();
