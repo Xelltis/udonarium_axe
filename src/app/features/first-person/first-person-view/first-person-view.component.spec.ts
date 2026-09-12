@@ -4,6 +4,7 @@ import { EffectPlaybackService } from '@axe/application/effect/effect-playback.s
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
@@ -282,18 +283,22 @@ describe('FirstPersonViewComponent', () => {
     const controls = element(mount()).querySelector<HTMLElement>('[data-testid="first-person-controls"]')!;
 
     expect(controls.className).toContain('left-16');
+    expect(controls.className).toContain('max-w-[calc(100%-16rem)]');
     expect(controls.className).not.toContain('inset-x-0');
     expect(controls.className).not.toContain('items-center');
   });
 
-  it('lets the controls reach the corner on a phone, where no rail of buttons stands beside them', () => {
+  it('lets the controls reach the corner of the mobile shell, where no rail of buttons stands beside them', () => {
+    const mobile = TestBed.inject(MobileLayoutService);
+    mobile.prefersDesktop.set(false);
+    Object.defineProperty(mobile, 'isActive', { value: () => true, configurable: true });
     lookOutOf(pieceAt(4, 7));
 
     const controls = element(mount()).querySelector<HTMLElement>('[data-testid="first-person-controls"]')!;
 
     expect(controls.className).toContain('left-0');
-    expect(controls.className).toContain('sm:left-16');
-    expect(controls.className).toContain('sm:max-w-[calc(100%-16rem)]');
+    expect(controls.className).toContain('max-w-full');
+    expect(controls.className).not.toContain('left-16');
   });
 
   it('keeps the compass and the map in the view on a narrow screen, out of the way at the top', () => {

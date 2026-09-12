@@ -21,6 +21,7 @@ import { FirstPersonProp, FirstPersonPropsService } from '@axe/application/table
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -153,6 +154,7 @@ export class FirstPersonViewComponent {
   private readonly selection = inject(SelectionSignalService);
   private readonly uiSignal = inject(UiSignalService);
   private readonly motion = inject(MotionService);
+  private readonly mobile = inject(MobileLayoutService);
   private readonly modal = inject(ModalService);
   private readonly movePlan = inject(MovePlanService);
   private readonly visualNovel = inject(VisualNovelModeService);
@@ -372,6 +374,10 @@ export class FirstPersonViewComponent {
   protected readonly compassTurn = computed(() => -(this.shown()?.yaw ?? 0));
 
   protected readonly compassTicks = COMPASS_TICKS;
+
+  protected readonly controlsPlace = computed(() =>
+    this.mobile.isActive() ? 'left-0 max-w-full' : 'left-16 max-w-[calc(100%-16rem)]'
+  );
 
   protected readonly torchLabelKey = computed(() =>
     this.firstPerson.torchLit() ? 'feature.firstPerson.hud.torchOff' : 'feature.firstPerson.hud.torchOn'

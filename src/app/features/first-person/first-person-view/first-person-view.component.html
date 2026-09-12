@@ -258,8 +258,9 @@
 ></canvas>
 
 <div
-  class="pointer-events-none absolute bottom-0 left-0 flex max-w-full flex-col items-start gap-2 p-3 text-white sm:left-16 sm:max-w-[calc(100%-16rem)]"
+  class="pointer-events-none absolute bottom-0 flex flex-col items-start gap-2 p-3 text-white"
   data-testid="first-person-controls"
+  [class]="controlsPlace()"
 >
   <div class="pointer-events-auto flex items-center gap-2">
     <button
