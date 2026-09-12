@@ -181,6 +181,7 @@ Udonarium Axe が **追加** または **大きく拡張・再設計** した機
 - **コマに持たせて連動** — ダイスシンボルの `ownerCharacterIdentifier` でコマの持ち物にできる（「自分だけ見る」の `owner` とは別）。チャットに `dice:コマ名` を書き添えると、そのロールの出目が卓上のダイスに乗る（`domain/dice/dice-chat-token` + `dice-link`、`features/dice/dice-chat-event-handler`）。面の数が合うダイスから順に埋め、その目を出せないダイスは動かさない。適用するのは送信者の端末だけ（面は SyncVar なので二重に当てない）
 - **キャラが持つダイス** — ダイスをキャラクターシートへ預けられる（`domain/character/character-dice`）。保存先はシートの「所持ダイス」節で、個数と面ごとの絵柄を持つ普通の DataElement なので、部屋データにもキャラの持ち出しにも一緒に乗り、詳細画面から手で直せる。盤の右クリック **コマにしまう** で預け（複数選択なら選択メニューから預け先を選んでまとめて）、キャラの右クリック **ダイスを展開する** でコマの隣へ並べ直す（`application/dice/character-dice.service`）。**しまったときの出目も 1 個ずつ残る**ので、展開するとその目のまま並ぶ。展開はシートから取り出す操作（`takeHeldDice`）で、1 個のダイスは盤の上かシートの中のどちらかにしか無い。取り出さないと押すたびに増える。詳細画面では viewMode=table の 1 行として出る（個数・出目・面の絵柄）。面の絵柄は `type="image"` なので保存 zip の画像収集にそのまま乗る。展開したダイスは最初からそのコマの持ち物なので `dice:コマ名` の連動がそのまま効く
 - **転がる演出** — 振ると卓の上を転がって止まり、出目が浮かび上がって消える（`styles.css` の `diceTumbleA/B/C` と `dicePop`）。転がり方は 3 通りを順に使うので、まとめて振っても同じ動きにならない。振った本人の画面でも回るよう、ネットワーク送信とは別にローカルへも通知する（送信は返ってこない。コインと同じ作り）。伏せられているダイスは出目を出さない
+- **まとめて作成** — 卓の右クリック「ダイスを作成」の末尾の **個数を指定して作成…** で種類と個数を選び、一度に置く（`features/dice/dice-symbol-create-dialog` ＋ `TabletopActionService.createDiceSymbols`）。配置は純関数 `getDicePlacements`（55px 刻み・5 個で折り返し）に切り出してあり、1 個だけ作る従来の経路も同じ関数を通る。ダイアログのクラスは `ConfirmService` と同じ流儀で composition root（`app.component.ts`）から静的に渡す（application 層から features を import しないため）
 - **ダイスシンボルシート** — 面ごとの画像設定、保存 / 複製
 - bcdice `StaticLoader` の遅延ロードで初期バンドルを削減
 - 名前・所有者ラベルのカメラ追従
