@@ -161,6 +161,127 @@ describe('ChatTabSettingComponent', () => {
     });
   });
 
+  describe('lets no spectator change the tabs themselves', () => {
+    const beSeat = (role: PeerRole) => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = role;
+    };
+
+    afterEach(() => {
+      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      PeerCursor.myCursor = null!;
+    });
+
+    it('offers a spectator none of it', () => {
+      beSeat(PeerRole.Guest);
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.selectedTab.set(tab);
+
+      expect(component.canEditTabs).toBe(false);
+      expect(component.isEditable).toBe(false);
+      expect(component.isDeletable).toBe(false);
+      expect(component.isMovable).toBe(false);
+    });
+
+    it('offers a player all of it', () => {
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.selectedTab.set(tab);
+
+      expect(component.canEditTabs).toBe(true);
+      expect(component.isDeletable).toBe(true);
+      expect(component.isMovable).toBe(true);
+    });
+
+    it('leaves the log where it is when a spectator asks for it to be cleared', () => {
+      beSeat(PeerRole.Guest);
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      tab.addMessage({ from: 'someone', name: '誰か', text: '残るはずの発言', timestamp: 1000 });
+      component.selectedTab.set(tab);
+      component.allowDeleteLog = true;
+
+      component.deleteLog();
+      component.deleteLogALL();
+
+      expect(tab.chatMessages).toHaveLength(1);
+    });
+
+    it('leaves the tab itself where it is', () => {
+      beSeat(PeerRole.Guest);
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+
+      component.delete();
+
+      expect(ChatTabList.instance.chatTabs.some((each) => each.identifier === tab.identifier)).toBe(true);
+    });
+
+    it('adds no tab and renames none', () => {
+      beSeat(PeerRole.Guest);
+      const tab = ChatTabList.instance.addChatTab('もとの名前');
+      component.selectedTab.set(tab);
+      const before = ChatTabList.instance.chatTabs.length;
+
+      component.create();
+      component.tabName = 'あとの名前';
+
+      expect(ChatTabList.instance.chatTabs).toHaveLength(before);
+      expect(tab.name).toBe('もとの名前');
+    });
+  });
+
+  describe('shows a spectator no way in', () => {
+    const iconNames = (): string[] =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('i.material-icons')].map(
+        (icon) => icon.textContent?.trim() ?? ''
+      );
+    const addButton = (): HTMLButtonElement | null => {
+      const icons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('i.material-icons')];
+      const icon = icons.find((each) => each.textContent?.trim() === 'add');
+      return (icon?.closest('button') as HTMLButtonElement | null) ?? null;
+    };
+
+    const openATabAs = (role: PeerRole) => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = role;
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+      component.allowDeleteLog = true;
+      fixture.detectChanges();
+      return tab;
+    };
+
+    afterEach(() => {
+      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      PeerCursor.myCursor = null!;
+    });
+
+    it('draws no way to delete a tab or clear a log', () => {
+      openATabAs(PeerRole.Guest);
+
+      expect(iconNames()).not.toContain('delete');
+      expect(iconNames()).not.toContain('delete_sweep');
+      expect(iconNames()).not.toContain('delete_forever');
+    });
+
+    it('draws the way to add a tab as unavailable', () => {
+      openATabAs(PeerRole.Guest);
+
+      expect(addButton()?.disabled).toBe(true);
+    });
+
+    it('draws all of it for a player', () => {
+      openATabAs(PeerRole.Player);
+
+      expect(iconNames()).toContain('delete');
+      expect(iconNames()).toContain('delete_sweep');
+      expect(iconNames()).toContain('delete_forever');
+      expect(addButton()?.disabled).toBe(false);
+    });
+  });
+
   describe('lets no spectator edit who may read or speak', () => {
     beforeEach(() => {});
 

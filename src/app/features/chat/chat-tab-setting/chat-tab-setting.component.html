@@ -8,6 +8,7 @@
         type="button"
         class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[16px]!"
         [title]="'feature.chat.tabSetting.addTabTooltip' | transloco"
+        [disabled]="!canEditTabs"
         (click)="create()"
       >
         <i class="material-icons">add</i>
@@ -51,6 +52,7 @@
         <button
           type="button"
           class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-3 py-1.25 text-[13px] font-medium text-white transition-[opacity,background] hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+          [disabled]="!canEditTabs"
           (click)="create()"
         >
           {{ 'feature.chat.tabSetting.createTab' | transloco }}
@@ -165,6 +167,7 @@
           <button
             type="button"
             class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-3 py-1.25 text-[13px] font-medium text-white transition-[opacity,background] hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+            [disabled]="!canEditTabs"
             (click)="restore()"
           >
             {{ 'feature.chat.tabSetting.restore' | transloco }}
@@ -268,40 +271,42 @@
 
         <hr class="border-ui-border-panel mx-0 my-2 border-0 border-t border-solid" />
 
-        <div class="mb-0.5 flex flex-col gap-1.5">
-          <div class="text-ui-muted mb-0.5 text-[11px] font-semibold tracking-[0.04em] uppercase">
-            {{ 'feature.chat.tabSetting.logDeleteSection' | transloco }}
+        @if (canEditTabs) {
+          <div class="mb-0.5 flex flex-col gap-1.5">
+            <div class="text-ui-muted mb-0.5 text-[11px] font-semibold tracking-[0.04em] uppercase">
+              {{ 'feature.chat.tabSetting.logDeleteSection' | transloco }}
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <label
+                class="text-ui-muted inline-flex shrink-0 cursor-pointer items-center gap-1.25 text-[12px] select-none"
+              >
+                <input
+                  type="checkbox"
+                  class="m-0 size-3.25 cursor-pointer [accent-color:var(--ui-accent)]"
+                  name="allow-delete-log"
+                  [(ngModel)]="allowDeleteLog"
+                />
+                {{ 'feature.chat.tabSetting.allowDeleteLog' | transloco }}
+              </label>
+              <button
+                type="button"
+                class="rounded-ui-sm border-ui-danger-ring text-ui-danger hover:border-ui-danger hover:bg-ui-danger-bg hover:text-ui-danger m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[14px]!"
+                [disabled]="!allowDeleteLog"
+                (click)="deleteLog()"
+              >
+                <i class="material-icons">delete_sweep</i>{{ 'feature.chat.tabSetting.deleteLogThisTab' | transloco }}
+              </button>
+              <button
+                type="button"
+                class="rounded-ui-sm border-ui-danger-ring text-ui-danger hover:border-ui-danger hover:bg-ui-danger-bg hover:text-ui-danger m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[14px]!"
+                [disabled]="!allowDeleteLog"
+                (click)="deleteLogALL()"
+              >
+                <i class="material-icons">delete_forever</i>{{ 'feature.chat.tabSetting.deleteLogAllTabs' | transloco }}
+              </button>
+            </div>
           </div>
-          <div class="flex flex-wrap items-center gap-1.5">
-            <label
-              class="text-ui-muted inline-flex shrink-0 cursor-pointer items-center gap-1.25 text-[12px] select-none"
-            >
-              <input
-                type="checkbox"
-                class="m-0 size-3.25 cursor-pointer [accent-color:var(--ui-accent)]"
-                name="allow-delete-log"
-                [(ngModel)]="allowDeleteLog"
-              />
-              {{ 'feature.chat.tabSetting.allowDeleteLog' | transloco }}
-            </label>
-            <button
-              type="button"
-              class="rounded-ui-sm border-ui-danger-ring text-ui-danger hover:border-ui-danger hover:bg-ui-danger-bg hover:text-ui-danger m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[14px]!"
-              [disabled]="!allowDeleteLog"
-              (click)="deleteLog()"
-            >
-              <i class="material-icons">delete_sweep</i>{{ 'feature.chat.tabSetting.deleteLogThisTab' | transloco }}
-            </button>
-            <button
-              type="button"
-              class="rounded-ui-sm border-ui-danger-ring text-ui-danger hover:border-ui-danger hover:bg-ui-danger-bg hover:text-ui-danger m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[14px]!"
-              [disabled]="!allowDeleteLog"
-              (click)="deleteLogALL()"
-            >
-              <i class="material-icons">delete_forever</i>{{ 'feature.chat.tabSetting.deleteLogAllTabs' | transloco }}
-            </button>
-          </div>
-        </div>
+        }
       }
     }
   </main>
