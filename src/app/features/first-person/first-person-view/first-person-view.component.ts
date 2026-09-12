@@ -299,6 +299,8 @@ export class FirstPersonViewComponent {
 
   protected readonly picking = this.effectTargeting.isPicking;
 
+  protected readonly pickCount = computed(() => this.effectTargeting.picks().length);
+
   protected readonly anyTargeted = computed(() => {
     this.uiSignal.targetChange();
     this.objectChange.collectionOf(GameCharacter.aliasName)();
@@ -317,6 +319,14 @@ export class FirstPersonViewComponent {
 
   protected clearTargets(): void {
     this.pieceTarget.clear();
+  }
+
+  protected castPicks(): void {
+    this.effectTargeting.confirm();
+  }
+
+  protected cancelPicks(): void {
+    this.effectTargeting.cancel();
   }
 
   onKeydown(event: KeyboardEvent): void {
@@ -370,6 +380,12 @@ export class FirstPersonViewComponent {
         return;
       case 'clearTargets':
         this.clearTargets();
+        return;
+      case 'castPicks':
+        this.castPicks();
+        return;
+      case 'cancelPicks':
+        this.cancelPicks();
         return;
     }
   }

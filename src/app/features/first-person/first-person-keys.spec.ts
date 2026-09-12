@@ -72,7 +72,17 @@ describe('firstPersonKeyDown', () => {
     expect(firstPersonKeyDown('KeyT', contextOn(GridType.SQUARE, { shift: true }))).toEqual({ kind: 'clearTargets' });
   });
 
-  it('leaves escape to the effect being aimed rather than leaving the view', () => {
-    expect(firstPersonKeyDown('Escape', contextOn(GridType.SQUARE, { picking: true }))).toBeNull();
+  it('gives up on the effect being aimed with escape, rather than leaving the view', () => {
+    expect(firstPersonKeyDown('Escape', contextOn(GridType.SQUARE, { picking: true }))).toEqual({
+      kind: 'cancelPicks',
+    });
+  });
+
+  it('fires the effect being aimed with enter, and leaves enter alone the rest of the time', () => {
+    const picking = contextOn(GridType.SQUARE, { picking: true });
+
+    expect(firstPersonKeyDown('Enter', picking)).toEqual({ kind: 'castPicks' });
+    expect(firstPersonKeyDown('NumpadEnter', picking)).toEqual({ kind: 'castPicks' });
+    expect(firstPersonKeyDown('Enter', contextOn(GridType.SQUARE))).toBeNull();
   });
 });

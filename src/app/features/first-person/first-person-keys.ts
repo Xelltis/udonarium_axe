@@ -10,7 +10,9 @@ export type FirstPersonCommand =
   | { kind: 'door' }
   | { kind: 'exit' }
   | { kind: 'target' }
-  | { kind: 'clearTargets' };
+  | { kind: 'clearTargets' }
+  | { kind: 'castPicks' }
+  | { kind: 'cancelPicks' };
 
 export interface FirstPersonKeyContext {
   typing: boolean;
@@ -48,7 +50,11 @@ export function firstPersonKeyDown(code: string, context: FirstPersonKeyContext)
   const turn = TURNS.get(code);
   if (turn) return { kind: 'turn', turn };
   if (code === 'KeyT') return context.shift ? { kind: 'clearTargets' } : { kind: 'target' };
+  if (code === 'Enter' || code === 'NumpadEnter') return context.picking ? { kind: 'castPicks' } : null;
   if (code === 'Space') return { kind: 'door' };
-  if (code === 'Escape') return context.forced || context.picking ? null : { kind: 'exit' };
+  if (code === 'Escape') {
+    if (context.picking) return { kind: 'cancelPicks' };
+    return context.forced ? null : { kind: 'exit' };
+  }
   return null;
 }

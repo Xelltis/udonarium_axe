@@ -110,10 +110,31 @@
 }
 
 @if (picking()) {
-  <div
-    class="pointer-events-none absolute top-16 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-4 py-1.5 text-sm text-white"
-  >
-    {{ 'feature.effect.pickingHint' | transloco }}
+  <div class="absolute top-16 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+    <div class="pointer-events-none rounded-full bg-black/70 px-4 py-1.5 text-sm text-white">
+      {{ 'feature.effect.pickingHint' | transloco }}
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="flex h-10 items-center gap-1 rounded-sm bg-amber-600 px-3 text-white hover:bg-amber-500 disabled:opacity-40"
+        data-testid="first-person-cast"
+        [disabled]="pickCount() < 1"
+        (click)="castPicks()"
+      >
+        <i class="material-icons text-[18px]!">bolt</i>
+        {{ 'feature.effect.fire' | transloco }}
+      </button>
+      <button
+        type="button"
+        class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80"
+        data-testid="first-person-cancel-pick"
+        (click)="cancelPicks()"
+      >
+        <i class="material-icons text-[18px]!">close</i>
+        {{ 'feature.effect.cancelPicking' | transloco }}
+      </button>
+    </div>
   </div>
 }
 
