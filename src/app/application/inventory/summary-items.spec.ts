@@ -27,10 +27,23 @@ describe('what to show of everybody', () => {
   });
 
   describe('working it out from the pieces', () => {
-    it('leads with what a sheet marks to show on its piece', () => {
-      // The sample sheet marks its two pools, so they lead without anybody saying so.
+    it('leads with what a sheet marks to show on its piece, ahead of what more pieces share', () => {
+      // Somebody chose to watch that one, which outweighs a number the rest happen to carry.
+      const first = makeCharacter('A');
+      const second = makeCharacter('B');
+      const third = makeCharacter('C');
+      addResource(first, '正気度', true);
+      addResource(first, '弾薬');
+      addResource(second, '弾薬');
+      addResource(third, '弾薬');
+
+      const names = derivedItemNames([first, second, third]);
+
+      expect(names.indexOf('正気度')).toBeLessThan(names.indexOf('弾薬'));
+    });
+
+    it('leads with the pools the sample sheet marks, without anybody saying so', () => {
       const character = makeCharacter();
-      addResource(character, '弾薬');
 
       expect(derivedItemNames([character]).slice(0, 2)).toEqual(['HP', 'MP']);
     });
