@@ -10,6 +10,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
@@ -35,6 +36,10 @@ import {
 } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import {
+  EffectEye,
+  TableEffectOverlayComponent,
+} from '@axe/features/effect/table-effect-overlay/table-effect-overlay.component';
 import { facingNameOf, isHexLattice, padRows } from '@axe/features/first-person/first-person-hud';
 import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
 import { glowStyle, lyingSamples, propClip, propStyle } from '@axe/features/first-person/first-person-prop-style';
@@ -58,6 +63,8 @@ const SNAP_CELLS = 3;
 const SNAP_TURN_DEG = 135;
 const COMPASS_TICKS: readonly number[] = Array.from({ length: 24 }, (_, index) => index * 15);
 const TARGET_CONE_DEG = 20;
+const EFFECT_LIFT_CELLS = 0.15;
+const EFFECT_RISE_CELLS = 0.3;
 
 interface QuadView {
   id: string;
@@ -95,11 +102,12 @@ interface GlowView {
     class: 'absolute inset-0 block select-none overflow-hidden bg-black',
     '(document:keydown)': 'onKeydown($event)',
   },
-  imports: [TranslocoModule],
+  imports: [TranslocoModule, TableEffectOverlayComponent],
 })
 export class FirstPersonViewComponent {
   protected readonly firstPerson = inject(FirstPersonService);
   private readonly propsService = inject(FirstPersonPropsService);
+  private readonly playback = inject(EffectPlaybackService);
   private readonly imageService = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
@@ -154,6 +162,26 @@ export class FirstPersonViewComponent {
     const pose = this.shown();
     return pose ? cameraTransform(pose, this.scale(), this.perspective()) : 'none';
   });
+
+  protected readonly effectEye = computed<EffectEye | null>(() => {
+    const pose = this.shown();
+    const gridSize = this.gridSize();
+    if (!pose || gridSize <= 0) return null;
+    return {
+      rotation: { x: 90, y: 0, z: -pose.yaw },
+      liftPx: gridSize * EFFECT_LIFT_CELLS,
+      risePx: gridSize * EFFECT_RISE_CELLS,
+    };
+  });
+
+  protected readonly effectScale = computed(() => {
+    const scale = this.scale();
+    return `scale3d(${scale}, ${scale}, ${scale})`;
+  });
+
+  protected readonly shake = this.playback.shake;
+
+  protected readonly flash = this.playback.flash;
 
   private readonly quads = computed<FirstPersonQuad[]>(() => {
     const pose = this.shown();

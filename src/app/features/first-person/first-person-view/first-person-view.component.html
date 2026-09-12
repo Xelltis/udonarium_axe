@@ -1,4 +1,9 @@
-<div class="absolute inset-0 overflow-hidden" [style.perspective.px]="perspective()">
+<div
+  class="absolute inset-0 overflow-hidden"
+  [class.animate-effect-shake-soft]="shake() === 'soft'"
+  [class.animate-effect-shake-hard]="shake() === 'hard'"
+  [style.perspective.px]="perspective()"
+>
   <div class="absolute top-1/2 left-1/2 size-0 transform-3d" [style.transform]="camera()">
     @for (quad of quadViews(); track quad.id) {
       <div
@@ -88,8 +93,21 @@
     @for (glow of glowViews(); track glow.id) {
       <div class="pointer-events-none absolute top-0 left-0 rounded-full" data-glow [style]="glow.style"></div>
     }
+    @if (effectEye(); as eye) {
+      <div
+        class="pointer-events-none absolute top-0 left-0 transform-3d"
+        data-testid="first-person-effects"
+        [style.transform]="effectScale()"
+      >
+        <table-effect-overlay [eye]="eye" />
+      </div>
+    }
   </div>
 </div>
+
+@if (flash()) {
+  <div class="animate-effect-flash pointer-events-none absolute inset-0" [style.background]="flash()"></div>
+}
 
 @if (picking()) {
   <div

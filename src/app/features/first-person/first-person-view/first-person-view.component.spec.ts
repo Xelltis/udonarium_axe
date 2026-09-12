@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -179,6 +182,54 @@ describe('FirstPersonViewComponent', () => {
     expect(view.querySelector('[data-prop="light"]')).not.toBeNull();
     expect(view.querySelector('[data-glow]')).not.toBeNull();
     expect(view.querySelector('[data-prop="card"]')).not.toBeNull();
+  });
+
+  it('plays an effect inside the view, turned to face the eye', () => {
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+    const preset = new EffectPreset();
+    preset.kind = 'burst';
+    preset.durationMs = 5000;
+    preset.staggerMs = 0;
+    ObjectStore.instance.add(preset, false);
+    const enemy = pieceAt(4, 4);
+    lookOutOf(pieceAt(4, 7, 90));
+    const fixture = mount();
+
+    TestBed.inject(EffectPlaybackService).play({
+      presetIdentifier: preset.identifier,
+      targets: [{ identifier: enemy.identifier, x: 4.5 * GRID, y: 4.5 * GRID, z: 0 }],
+      seed: 3,
+    });
+    fixture.detectChanges();
+
+    const sprites = Array.from(
+      element(fixture).querySelectorAll<HTMLElement>('[data-testid="first-person-effects"] table-effect-overlay > div')
+    );
+    expect(sprites.length).toBeGreaterThan(0);
+    expect(sprites.some((sprite) => sprite.style.transform.includes('rotateZ(90deg) rotateX(-90deg)'))).toBe(true);
+    ObjectStore.instance.remove(preset);
+    canvas.mockRestore();
+  });
+
+  it('shakes and burns the view as it would the table', () => {
+    const preset = new EffectPreset();
+    preset.kind = 'nova';
+    preset.grade = 3;
+    preset.durationMs = 5000;
+    ObjectStore.instance.add(preset, false);
+    lookOutOf(pieceAt(4, 7));
+    const fixture = mount();
+
+    TestBed.inject(EffectPlaybackService).play({
+      presetIdentifier: preset.identifier,
+      targets: [{ identifier: 'somewhere', x: 0, y: 0, z: 0 }],
+      seed: 3,
+    });
+    fixture.detectChanges();
+
+    expect(element(fixture).querySelector('.animate-effect-shake-hard')).not.toBeNull();
+    expect(element(fixture).querySelector<HTMLElement>('.animate-effect-flash')?.style.background).toContain('#ffd27f');
+    ObjectStore.instance.remove(preset);
   });
 
   it('acts as the piece it looks out of, so an effect is cast from there', () => {
