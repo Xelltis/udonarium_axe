@@ -205,7 +205,7 @@
       </div>
     }
 
-    @if (selectTab() === 'table' && shows('round')) {
+    @if (selectTab() === 'table' && shows('round') && (canEdit() || turnRound() > 0)) {
       <div
         class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1.5 border-b border-solid px-2.5 py-1.5"
         [class.bg-transparent!]="isGhost()"
@@ -215,58 +215,60 @@
             'feature.turnOrder.round' | transloco: { n: turnRound() }
           }}</span>
         }
-        <button
-          type="button"
-          class="rounded-ui-sm text-ui-text border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover ml-auto flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-2 py-1 text-[12px] font-semibold transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
-          [disabled]="!canUndoTurn()"
-          [title]="'feature.turnOrder.undo' | transloco"
-          (click)="turnPrev()"
-        >
-          <i class="material-icons">chevron_left</i>{{ 'feature.turnOrder.prev' | transloco }}
-        </button>
-        <button
-          type="button"
-          class="rounded-ui-sm bg-ui-accent flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border-none px-2 py-1 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[15px]!"
-          (click)="turnNext()"
-        >
-          {{ 'feature.turnOrder.next' | transloco }}<i class="material-icons">chevron_right</i>
-        </button>
-        <button
-          type="button"
-          class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
-          [disabled]="!canUndoTurn()"
-          [title]="'feature.turnOrder.retreatRound' | transloco"
-          (click)="turnRetreatRound()"
-        >
-          <i class="material-icons">fast_rewind</i>
-        </button>
-        <button
-          type="button"
-          class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[15px]!"
-          [title]="'feature.turnOrder.advanceRound' | transloco"
-          (click)="turnAdvanceRound()"
-        >
-          <i class="material-icons">fast_forward</i>
-        </button>
-        <button
-          type="button"
-          class="hover:bg-ui-hover flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] hover:shadow-none [&_.material-icons]:text-[15px]!"
-          [class.text-ui-accent]="buffDecay()"
-          [class.text-ui-dim]="!buffDecay()"
-          [title]="(buffDecay() ? 'feature.turnOrder.buffDecayOn' : 'feature.turnOrder.buffDecayOff') | transloco"
-          (click)="toggleBuffDecay()"
-        >
-          <i class="material-icons">hourglass_bottom</i>
-        </button>
-        <button
-          type="button"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
-          [disabled]="turnRound() === 0"
-          [title]="'feature.turnOrder.reset' | transloco"
-          (click)="turnReset()"
-        >
-          <i class="material-icons">restart_alt</i>
-        </button>
+        @if (canEdit()) {
+          <button
+            type="button"
+            class="rounded-ui-sm text-ui-text border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover ml-auto flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-2 py-1 text-[12px] font-semibold transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+            [disabled]="!canUndoTurn()"
+            [title]="'feature.turnOrder.undo' | transloco"
+            (click)="turnPrev()"
+          >
+            <i class="material-icons">chevron_left</i>{{ 'feature.turnOrder.prev' | transloco }}
+          </button>
+          <button
+            type="button"
+            class="rounded-ui-sm bg-ui-accent flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border-none px-2 py-1 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[15px]!"
+            (click)="turnNext()"
+          >
+            {{ 'feature.turnOrder.next' | transloco }}<i class="material-icons">chevron_right</i>
+          </button>
+          <button
+            type="button"
+            class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+            [disabled]="!canUndoTurn()"
+            [title]="'feature.turnOrder.retreatRound' | transloco"
+            (click)="turnRetreatRound()"
+          >
+            <i class="material-icons">fast_rewind</i>
+          </button>
+          <button
+            type="button"
+            class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[15px]!"
+            [title]="'feature.turnOrder.advanceRound' | transloco"
+            (click)="turnAdvanceRound()"
+          >
+            <i class="material-icons">fast_forward</i>
+          </button>
+          <button
+            type="button"
+            class="hover:bg-ui-hover flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] hover:shadow-none [&_.material-icons]:text-[15px]!"
+            [class.text-ui-accent]="buffDecay()"
+            [class.text-ui-dim]="!buffDecay()"
+            [title]="(buffDecay() ? 'feature.turnOrder.buffDecayOn' : 'feature.turnOrder.buffDecayOff') | transloco"
+            (click)="toggleBuffDecay()"
+          >
+            <i class="material-icons">hourglass_bottom</i>
+          </button>
+          <button
+            type="button"
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+            [disabled]="turnRound() === 0"
+            [title]="'feature.turnOrder.reset' | transloco"
+            (click)="turnReset()"
+          >
+            <i class="material-icons">restart_alt</i>
+          </button>
+        }
       </div>
     }
 
@@ -346,65 +348,67 @@
           'feature.turnOrder.round' | transloco: { n: turnRound() }
         }}</span>
       }
-      <div class="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
-        <div class="flex items-center gap-1.5">
-          <button
-            type="button"
-            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
-            [disabled]="!canUndoTurn()"
-            [title]="'feature.turnOrder.undo' | transloco"
-            (click)="turnPrev()"
-          >
-            <i class="material-icons">keyboard_arrow_up</i>
-          </button>
-          <button
-            type="button"
-            class="bg-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
-            [title]="'feature.turnOrder.next' | transloco"
-            (click)="turnNext()"
-          >
-            <i class="material-icons">keyboard_arrow_down</i>
-          </button>
+      @if (canEdit()) {
+        <div class="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+              [disabled]="!canUndoTurn()"
+              [title]="'feature.turnOrder.undo' | transloco"
+              (click)="turnPrev()"
+            >
+              <i class="material-icons">keyboard_arrow_up</i>
+            </button>
+            <button
+              type="button"
+              class="bg-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
+              [title]="'feature.turnOrder.next' | transloco"
+              (click)="turnNext()"
+            >
+              <i class="material-icons">keyboard_arrow_down</i>
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
+              [disabled]="!canUndoTurn()"
+              [title]="'feature.turnOrder.retreatRound' | transloco"
+              (click)="turnRetreatRound()"
+            >
+              <i class="material-icons">fast_rewind</i>
+            </button>
+            <button
+              type="button"
+              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
+              [title]="'feature.turnOrder.advanceRound' | transloco"
+              (click)="turnAdvanceRound()"
+            >
+              <i class="material-icons">fast_forward</i>
+            </button>
+            <button
+              type="button"
+              class="hover:bg-ui-hover flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
+              [class.text-ui-accent]="buffDecay()"
+              [class.text-ui-dim]="!buffDecay()"
+              [title]="(buffDecay() ? 'feature.turnOrder.buffDecayOn' : 'feature.turnOrder.buffDecayOff') | transloco"
+              (click)="toggleBuffDecay()"
+            >
+              <i class="material-icons">hourglass_bottom</i>
+            </button>
+            <button
+              type="button"
+              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
+              [disabled]="turnRound() === 0"
+              [title]="'feature.turnOrder.reset' | transloco"
+              (click)="turnReset()"
+            >
+              <i class="material-icons">restart_alt</i>
+            </button>
+          </div>
         </div>
-        <div class="flex items-center gap-1.5">
-          <button
-            type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
-            [disabled]="!canUndoTurn()"
-            [title]="'feature.turnOrder.retreatRound' | transloco"
-            (click)="turnRetreatRound()"
-          >
-            <i class="material-icons">fast_rewind</i>
-          </button>
-          <button
-            type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
-            [title]="'feature.turnOrder.advanceRound' | transloco"
-            (click)="turnAdvanceRound()"
-          >
-            <i class="material-icons">fast_forward</i>
-          </button>
-          <button
-            type="button"
-            class="hover:bg-ui-hover flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
-            [class.text-ui-accent]="buffDecay()"
-            [class.text-ui-dim]="!buffDecay()"
-            [title]="(buffDecay() ? 'feature.turnOrder.buffDecayOn' : 'feature.turnOrder.buffDecayOff') | transloco"
-            (click)="toggleBuffDecay()"
-          >
-            <i class="material-icons">hourglass_bottom</i>
-          </button>
-          <button
-            type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
-            [disabled]="turnRound() === 0"
-            [title]="'feature.turnOrder.reset' | transloco"
-            (click)="turnReset()"
-          >
-            <i class="material-icons">restart_alt</i>
-          </button>
-        </div>
-      </div>
+      }
     </div>
 
     @if (turnSides().length > 0) {
@@ -442,9 +446,11 @@
     <ng-template #turnPiece let-character>
       <button
         type="button"
-        class="relative shrink-0 cursor-pointer rounded-full border-none bg-transparent p-0 transition-transform"
+        class="relative shrink-0 rounded-full border-none bg-transparent p-0 transition-transform"
+        [class.cursor-pointer]="canEdit()"
         [class.scale-105]="currentTurnId() === character.identifier"
         [class.opacity-50]="currentTurnId() && currentTurnId() !== character.identifier"
+        [disabled]="!canEdit()"
         [title]="character.name"
         (click)="selectTurn(character)"
       >

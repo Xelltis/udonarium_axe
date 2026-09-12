@@ -61,6 +61,42 @@ describe('GameObjectInventoryComponent', () => {
     await expectPanelDragRecovery(GameObjectInventoryComponent);
   });
 
+  describe('moving the round', () => {
+    function beSeat(role: PeerRole): void {
+      PeerCursor.myCursor = { role, identifier: 'seat-cursor' } as PeerCursor;
+    }
+
+    async function draw(): Promise<string[]> {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll('i.material-icons')].map(
+        (icon) => icon.textContent?.trim() ?? ''
+      );
+    }
+
+    it('draws a spectator no way to press it', async () => {
+      beSeat(PeerRole.Guest);
+
+      const icons = await draw();
+
+      expect(icons).not.toContain('fast_forward');
+      expect(icons).not.toContain('fast_rewind');
+      expect(icons).not.toContain('restart_alt');
+      expect(icons).not.toContain('chevron_right');
+    });
+
+    it('draws it for a player', async () => {
+      beSeat(PeerRole.Player);
+
+      const icons = await draw();
+
+      expect(icons).toContain('fast_forward');
+      expect(icons).toContain('fast_rewind');
+      expect(icons).toContain('restart_alt');
+      expect(icons).toContain('chevron_right');
+    });
+  });
+
   describe('the round shown side by side', () => {
     function putOnTable(name: string, party = ''): GameCharacter {
       const character = GameCharacter.create(name, 1, '');

@@ -2,6 +2,7 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -36,6 +37,7 @@ export class TurnOrderService {
   private readonly confirm = inject(ConfirmService);
   private readonly chat = inject(ChatMessageService);
   private readonly selection = inject(SelectionSignalService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -127,7 +129,18 @@ export class TurnOrderService {
     return this.turnState.buffDecay;
   }
 
+  /**
+   * Whether the round is this reader's to move.
+   *
+   * The round is the table's own clock: a press of it takes turns away, runs buffs out and
+   * writes the announcement everybody reads. A seat that is only watching moves none of it.
+   */
+  get canTakeTurns(): boolean {
+    return this.rolePermission.canEditTabletop;
+  }
+
   setBuffDecay(enabled: boolean): void {
+    if (!this.canTakeTurns) return;
     this.turnState.buffDecay = enabled;
   }
 
@@ -174,6 +187,7 @@ export class TurnOrderService {
    * gets its start and its end exactly once however freely the side moves.
    */
   setCurrent(identifier: string): void {
+    if (!this.canTakeTurns) return;
     if (this.turnOrderMode === 'faction' && this.turnState.currentIdentifier === identifier) return;
     this.step(() => {
       const turnState = this.turnState;
@@ -192,6 +206,7 @@ export class TurnOrderService {
   }
 
   next(): void {
+    if (!this.canTakeTurns) return;
     this.step(() => {
       const turnState = this.turnState;
       if (this.turnOrderMode === 'faction') {
@@ -292,6 +307,7 @@ export class TurnOrderService {
    * made a second time.
    */
   async advanceRound(): Promise<void> {
+    if (!this.canTakeTurns) return;
     if (!(await this.mayLeaveTheseBehind())) return;
     this.step(() => {
       const turnState = this.turnState;
@@ -321,6 +337,7 @@ export class TurnOrderService {
    * extra press of the round button costs one press to put right however many turns it ate.
    */
   retreatRound(): void {
+    if (!this.canTakeTurns) return;
     const startedAt = this.turnState.round;
     const steps = parseTurnHistory(this.turnState.history);
     if (steps.length < 1) return;
@@ -343,6 +360,7 @@ export class TurnOrderService {
    * put those back.
    */
   prev(): void {
+    if (!this.canTakeTurns) return;
     const steps = parseTurnHistory(this.turnState.history);
     const last = steps.pop();
     if (!last) return;
@@ -353,6 +371,7 @@ export class TurnOrderService {
   }
 
   reset(): void {
+    if (!this.canTakeTurns) return;
     this.step(() => {
       this.toIdle();
       this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.resetAnnounce'));
