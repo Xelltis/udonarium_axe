@@ -52,33 +52,38 @@ export class GameTableScratchMaskComponent {
     this.objectChange.versionOf(mask.identifier)();
     return mask.name;
   });
-  get width(): number {
-    const mask = this.gameTableScratchMask();
+  /**
+   * The mask as it stands, once the read of its version has been taken.
+   *
+   * It is the same mask every time, so under the default equality a new version never reaches
+   * anything that reads this.
+   */
+  private readonly version = computed(
+    () => {
+      const mask = this.gameTableScratchMask();
+      if (mask) this.objectChange.versionOf(mask.identifier)();
+      return mask;
+    },
+    { equal: () => false }
+  );
+
+  readonly width = computed(() => {
+    const mask = this.version();
     return mask ? Math.max(1, mask.width) : 1;
-  }
-  get height(): number {
-    const mask = this.gameTableScratchMask();
+  });
+  readonly height = computed(() => {
+    const mask = this.version();
     return mask ? Math.max(1, mask.height) : 1;
-  }
-  get isLock(): boolean {
-    return this.gameTableScratchMask()?.isLock ?? false;
-  }
-  get color(): string {
-    return this.gameTableScratchMask()?.color ?? '';
-  }
+  });
+  readonly isLock = computed(() => this.version()?.isLock ?? false);
+  readonly color = computed(() => this.version()?.color ?? '');
   get isMine(): boolean {
     return this.gameTableScratchMask()?.isMine ?? false;
   }
 
-  get posX(): number {
-    return this.gameTableScratchMask()?.location.x ?? 0;
-  }
-  get posY(): number {
-    return this.gameTableScratchMask()?.location.y ?? 0;
-  }
-  get posZ(): number {
-    return this.gameTableScratchMask()?.posZ ?? 0;
-  }
+  readonly posX = computed(() => this.version()?.location.x ?? 0);
+  readonly posY = computed(() => this.version()?.location.y ?? 0);
+  readonly posZ = computed(() => this.version()?.posZ ?? 0);
 
   onMove() {}
   onMoved() {}
@@ -92,7 +97,7 @@ export class GameTableScratchMaskComponent {
     const coordinate = this.pointerDeviceService.pointers[0];
     const actions = buildScratchMaskContextMenu(
       mask,
-      this.isLock,
+      this.isLock(),
       {
         lock: () => this.lock(),
         unlock: () => this.unlock(),
