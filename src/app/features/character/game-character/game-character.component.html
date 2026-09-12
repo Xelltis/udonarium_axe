@@ -92,6 +92,14 @@
               [ngStyle]="pedestalStyleTargeted()"
             ></div>
           }
+          @if (isSharedView()) {
+            <div
+              data-testid="shared-view-ring"
+              class="pointer-events-none absolute box-border size-full rounded-[25px] border-4 border-solid border-[#ffd54f] filter-[drop-shadow(0_0_6px_rgba(255,213,79,0.95))] backface-hidden"
+              [ngStyle]="pedestalStyleSharedView()"
+              [title]="'feature.firstPerson.sharedBadge' | transloco"
+            ></div>
+          }
           @if (!isLock && canTurn()) {
             <div
               class="rotate-grab absolute -top-5.5 -left-1.5 z-[-1] h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 will-change-[opacity] backface-hidden group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"

@@ -1127,6 +1127,60 @@ describe('GameCharacterComponent', () => {
     expect(typeof component.isTargeted).toBe('function');
   });
 
+  describe('the ring on the piece everyone is looking out of', () => {
+    const ringOf = () => fixture.nativeElement.querySelector('[data-testid="shared-view-ring"]');
+
+    let table: GameTable;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 12;
+      table.height = 12;
+      table.gridSize = 50;
+      table.initialize();
+    });
+
+    afterEach(() => table.destroy());
+
+    function shareView(identifier: string): void {
+      table.sharedViewPiece = identifier;
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+      fixture.detectChanges();
+    }
+
+    it('marks the piece the table names, and lets it go again', () => {
+      const character = GameCharacter.create('共有コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        expect(ringOf()).toBeNull();
+
+        shareView(character.identifier);
+        expect(ringOf()).toBeTruthy();
+
+        shareView('');
+        expect(ringOf()).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('leaves every other piece unmarked', () => {
+      const character = GameCharacter.create('よそのコマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        shareView('somebody-else');
+
+        expect(ringOf()).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
+  });
+
   describe('the target marker', () => {
     const setTargeted = (character: GameCharacter, targeted: boolean) => {
       character.targeted = targeted;

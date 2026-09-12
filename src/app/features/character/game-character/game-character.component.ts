@@ -222,6 +222,12 @@ export class GameCharacterComponent {
     return this.gameCharacter()?.targeted ?? false;
   });
 
+  readonly isSharedView = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return false;
+    return this.firstPerson.sharedPiece() === char.identifier;
+  });
+
   readonly isPoster = computed(() => {
     const char = this.gameCharacter();
     if (!char) return false;
@@ -933,6 +939,7 @@ export class GameCharacterComponent {
   protected readonly pedestalStyleShown = computed(() => this.pedestalStyleOf('#FFCC80'));
   protected readonly pedestalStyleHidden = computed(() => this.pedestalStyleOf('#A0E0FF'));
   protected readonly pedestalStyleTargeted = computed(() => this.pedestalStyleOf('#ff3b30'));
+  protected readonly pedestalStyleSharedView = computed(() => this.pedestalStyleOf('#ffd54f'));
 
   // The pedestal styles ran as getters on every change-detection pass and built a fresh
   // record each time. Computed, they hand back the same object until something changes,

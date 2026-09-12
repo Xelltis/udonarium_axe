@@ -19,9 +19,14 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { findOrphanedOwnership } from '@axe/domain/tabletop/ownership';
 import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
+import {
+  FirstPersonShareChoice,
+  firstPersonShareChoices,
+} from '@axe/features/gm-tools/gm-toolbar/first-person-share-choices';
 import { NpcBarComponent } from '@axe/features/gm-tools/npc-bar/npc-bar.component';
 import { NpcBarService } from '@axe/features/gm-tools/npc-bar/npc-bar.service';
 import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
@@ -91,7 +96,34 @@ export class GmToolbarComponent {
     return { missing: !this.firstPerson.sharedUsable() };
   });
 
+  protected readonly shareOpen = signal(false);
+
+  protected readonly shareChoices = computed<FirstPersonShareChoice[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    return firstPersonShareChoices(
+      this.objectStore.getObjects<GameCharacter>(GameCharacter),
+      this.firstPerson.sharedPiece(),
+      (character) => this.firstPerson.canLookOutOf(character)
+    );
+  });
+
+  protected readonly shareLabelKey = computed(() => {
+    const shared = this.sharedView();
+    if (shared?.missing) return 'feature.firstPerson.sharedMissing';
+    return shared ? 'feature.firstPerson.sharing' : 'feature.firstPerson.shareMenu';
+  });
+
+  protected toggleShareMenu(): void {
+    this.shareOpen.update((open) => !open);
+  }
+
+  protected shareFirstPerson(identifier: string): void {
+    this.shareOpen.set(false);
+    this.firstPerson.share(identifier);
+  }
+
   protected stopSharing(): void {
+    this.shareOpen.set(false);
     this.firstPerson.share(null);
   }
 

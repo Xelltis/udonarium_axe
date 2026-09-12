@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -28,6 +29,7 @@ import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
 import { isOwnedByUser } from '@axe/features/pl-tools/owned-character-list/owned-characters';
+import { FirstPersonSeat, firstPersonSeats } from '@axe/features/pl-tools/pl-toolbar/first-person-seats';
 import { UiIconButtonComponent } from '@axe/ui/components/icon-button/icon-button.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -59,7 +61,60 @@ export class PlToolbarComponent {
   protected readonly widgets = inject(WidgetVisibilityService);
   protected readonly active = inject(ActiveCharacterService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
+  private readonly firstPerson = inject(FirstPersonService);
   private readonly t = inject(TRANSLATE_FN);
+
+  protected readonly firstPersonOpen = signal(false);
+
+  protected readonly firstPersonSeats = computed<FirstPersonSeat[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    this.objectChange.trackMyCursor();
+    return firstPersonSeats(
+      this.objectStore.getObjects<GameCharacter>(GameCharacter),
+      PeerCursor.myCursor?.userId ?? '',
+      (character) => this.firstPerson.canLookOutOf(character)
+    );
+  });
+
+  protected readonly firstPersonForced = computed(() => this.firstPerson.forced());
+
+  protected readonly firstPersonLeaves = computed(() => this.firstPerson.showing() && !this.firstPersonForced());
+
+  protected readonly firstPersonDisabled = computed(
+    () => this.firstPersonForced() || (!this.firstPersonLeaves() && this.firstPersonSeats().length < 1)
+  );
+
+  protected readonly firstPersonLabelKey = computed(() => {
+    if (this.firstPersonForced()) return 'feature.firstPerson.sharedByGm';
+    if (this.firstPersonLeaves()) return 'feature.firstPerson.exit';
+    const seats = this.firstPersonSeats().length;
+    if (seats < 1) return 'feature.firstPerson.noSeat';
+    return seats > 1 ? 'feature.firstPerson.chooseSeat' : 'feature.firstPerson.enter';
+  });
+
+  protected toggleFirstPerson(): void {
+    if (this.firstPersonForced()) return;
+    if (this.firstPersonLeaves()) {
+      this.firstPersonOpen.set(false);
+      this.firstPerson.exitSeat();
+      return;
+    }
+
+    const seats = this.firstPersonSeats();
+    if (seats.length < 1) return;
+    if (seats.length === 1) {
+      this.firstPersonOpen.set(false);
+      this.firstPerson.enterSeat(seats[0].identifier);
+      return;
+    }
+
+    this.firstPersonOpen.update((open) => !open);
+  }
+
+  protected enterFirstPerson(identifier: string): void {
+    this.firstPersonOpen.set(false);
+    this.firstPerson.enterSeat(identifier);
+  }
 
   protected readonly buffViewIcon = computed(() => BUFF_VIEW_ICONS[this.buffViewPreference.mode()]);
   protected readonly buffViewLabelKey = computed(() => BUFF_VIEW_LABEL_KEYS[this.buffViewPreference.mode()]);

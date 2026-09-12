@@ -110,7 +110,15 @@
   "feature": {
     "firstPerson": {
       "exit": "Back to the table",
+      "enter": "Look out of a piece",
+      "chooseSeat": "Choose the piece to look out of",
+      "noSeat": "No piece of yours on the table can be looked out of",
+      "shareMenu": "Choose the view everyone is put in",
+      "sharing": "Change the view everyone is in",
+      "shareEmpty": "No piece on the table can be looked out of",
+      "playerOwned": "PL",
       "sharedBadge": "Shared view (GM)",
+      "sharedByGm": "GM is sharing a view",
       "stopSharing": "Release the shared first-person view",
       "sharedMissing": "The shared piece is not on the table (press to release)",
       "keysHint": "WASD or arrows to move · Q/E to turn · Space for doors · T to target",
@@ -137,6 +145,8 @@
         "turnLeft": "Turn left",
         "turnRight": "Turn right",
         "door": "Open or close the door",
+        "torchOn": "Light your torch",
+        "torchOff": "Put out your torch",
         "clearTargets": "Clear targets"
       }
     },
@@ -275,6 +285,7 @@
         "diceDeploy": "Lay out or put away dice",
         "panel": "Open a panel",
         "focus": "Look at the piece",
+        "firstPerson": "Look out of the piece, and back",
         "sound": "Sound",
         "cutIn": "Cut-in",
         "prefill": "Draft into the chat box",
@@ -306,6 +317,7 @@
         "diceDeploy": "Lays out the dice the character is holding. Press it again while they are on the table to put them away.",
         "panel": "Opens one of that character's panels. Press it again to close it.",
         "focus": "Moves the camera to that character's piece.",
+        "firstPerson": "Puts you behind that character's eyes. Press it again while you are looking to come back to the table.",
         "sound": "Chosen from the sounds the table holds.",
         "cutIn": "Chosen from the cut-ins the table holds.",
         "prefill": "Puts the text in the chat box without sending it, for a long line you want to finish by hand.",
