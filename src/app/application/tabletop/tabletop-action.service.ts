@@ -536,6 +536,9 @@ export class TabletopActionService {
       .open<DiceCreateRequest | null>(dialogClass, {
         ...option,
         title: this.t('feature.dice.createDialog.title'),
+        // A few fields in a frame half the screen wide read as a mistake. It takes the width
+        // its own asking needs.
+        fitWidth: true,
       })
       .catch(() => null);
     if (!request) return;
