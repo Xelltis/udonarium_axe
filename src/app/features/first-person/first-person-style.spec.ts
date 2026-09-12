@@ -1,10 +1,16 @@
 import { FirstPersonPlaneQuad, FirstPersonWallQuad } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import {
+  billboardHudTransform,
+  billboardShrink,
   billboardStyle,
+  billboardTextScale,
   cameraTransform,
+  MAX_PIECE_SCREEN_FRACTION,
   perspectivePx,
   planeQuadStyle,
+  projectedHeightPx,
+  projectedScaleOf,
   scaleOf,
   shadeFor,
   wallQuadStyle,
@@ -162,5 +168,53 @@ describe('placing a piece', () => {
       transformOrigin: '0 0',
       transform: 'translate3d(200px, 100px, 0px) rotateZ(90deg) rotateX(-90deg) translate(-50%, -100%)',
     });
+  });
+});
+
+describe('how large a piece comes out on the screen', () => {
+  const SCALE = scaleOf(50);
+  const PERSPECTIVE = perspectivePx(1280, 90);
+  const NEAR_PX = 65;
+  const FAR_PX = 215;
+  const PIECE_PX = 75;
+  const VIEW_PX = 800;
+
+  it('blows up what stands near the eye and shrinks what stands away from it', () => {
+    expect(projectedScaleOf(NEAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(1.923, 3);
+    expect(projectedScaleOf(FAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(0.581, 3);
+  });
+
+  it('measures the height a piece takes on the screen from the eye it is seen with', () => {
+    expect(projectedHeightPx(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(738.46, 2);
+    expect(projectedHeightPx(PIECE_PX, FAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(223.26, 2);
+  });
+
+  it('pulls a piece that would stand taller than the view down to the share it is allowed', () => {
+    const shrink = billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, VIEW_PX);
+
+    expect(shrink).toBeLessThan(1);
+    expect(projectedHeightPx(PIECE_PX * shrink, NEAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(
+      VIEW_PX * MAX_PIECE_SCREEN_FRACTION,
+      3
+    );
+  });
+
+  it('leaves a piece that already fits at the size it is', () => {
+    expect(billboardShrink(PIECE_PX, FAR_PX, SCALE, PERSPECTIVE, VIEW_PX)).toBe(1);
+    expect(billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, 0)).toBe(1);
+  });
+
+  it('holds the writing on a near piece to a size that can be read, and asks nothing of a far one', () => {
+    const shrink = billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, VIEW_PX);
+    const near = billboardTextScale(shrink, NEAR_PX, SCALE, PERSPECTIVE);
+
+    expect(near * 24 * projectedScaleOf(NEAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(28, 3);
+    expect(near).toBeLessThanOrEqual(shrink);
+    expect(billboardTextScale(1, FAR_PX, SCALE, PERSPECTIVE)).toBe(1);
+  });
+
+  it('leaves the chrome of a piece alone until it has to be shrunk', () => {
+    expect(billboardHudTransform(1)).toBeNull();
+    expect(billboardHudTransform(0.6067)).toBe('scale(0.607)');
   });
 });

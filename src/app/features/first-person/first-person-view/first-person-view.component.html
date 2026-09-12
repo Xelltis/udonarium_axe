@@ -23,11 +23,6 @@
         [style]="piece.style"
         (click)="aim(piece.id)"
       >
-        @if (piece.targeted) {
-          <span
-            class="absolute -bottom-3 left-1/2 h-8 w-4/5 -translate-x-1/2 rounded-[50%] border-4 border-red-500"
-          ></span>
-        }
         @if (piece.url) {
           <img
             class="size-full object-contain object-bottom"
@@ -39,84 +34,95 @@
         } @else {
           <span class="rounded-sm bg-black/60 px-2 py-1 text-white">{{ piece.name }}</span>
         }
-        @if (piece.label) {
-          <span
-            class="absolute -top-10 left-1/2 -translate-x-1/2 rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
-            [class.bg-red-700]="piece.targeted"
-            >{{ piece.label }}</span
-          >
-        }
-        @if (piece.badges.length > 0) {
-          <span
-            class="absolute -top-26 left-1/2 flex w-[160%] -translate-x-1/2 flex-nowrap justify-center gap-1.5"
-            data-testid="first-person-buffs"
-          >
-            @for (badge of piece.badges; track badge.identifier) {
-              <span
-                class="relative inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 text-2xl leading-none text-white shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
-                data-testid="first-person-buff"
-                [style.background]="badge.color"
-                [attr.title]="badge.name + (badge.effect ? ' / ' + badge.effect : '')"
-              >
-                @if (badge.iconUrl) {
-                  <img class="pointer-events-none size-8 object-contain" [src]="badge.iconUrl" alt="" />
-                } @else {
-                  {{ badge.icon }}
-                }
-                @if (badge.strength) {
-                  <span
-                    class="pointer-events-none absolute -top-2 -left-2 rounded-sm bg-amber-600 px-1 text-base/tight font-bold text-white"
-                    >{{ badge.strength }}</span
-                  >
-                }
-                @if (badge.expires) {
-                  <span
-                    class="pointer-events-none absolute -right-1.5 -bottom-1.5 rounded-sm border border-solid border-white/30 bg-black/90 px-1 text-base/tight font-bold text-white tabular-nums"
-                    data-testid="first-person-buff-rounds"
-                    >{{ badge.rounds }}</span
-                  >
-                }
-              </span>
-            }
-            @if (piece.moreBadges > 0) {
-              <span
-                class="inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 bg-black/70 text-2xl leading-none font-bold text-white tabular-nums shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
-                data-testid="first-person-buff-more"
-                >+{{ piece.moreBadges }}</span
-              >
-            }
-          </span>
-        }
-        @if (piece.gauges.length > 0) {
-          <span
-            class="pointer-events-none absolute top-0 left-1/2 flex w-[130%] -translate-x-1/2 flex-col gap-1"
-            data-testid="first-person-gauges"
-          >
-            @for (row of piece.gauges; track row.id) {
-              <span
-                class="flex items-center gap-1.5 text-xl leading-none whitespace-nowrap text-white [text-shadow:0_2px_3px_#000]"
-                data-testid="first-person-gauge"
-                [attr.title]="row.name"
-              >
-                <span class="w-5 shrink-0 text-center">{{ row.initial }}</span>
-                <span class="relative block h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-black/60">
-                  <span
-                    class="absolute inset-y-0 left-0 block rounded-full"
-                    [style.width.%]="row.percent"
-                    [style.background]="row.color"
-                  ></span>
+        <span
+          class="absolute inset-0 origin-bottom"
+          data-testid="first-person-piece-chrome"
+          [style.transform]="piece.hud"
+        >
+          @if (piece.targeted) {
+            <span
+              class="absolute -bottom-3 left-1/2 h-8 w-4/5 -translate-x-1/2 rounded-[50%] border-4 border-red-500"
+            ></span>
+          }
+          @if (piece.label) {
+            <span
+              class="absolute -top-10 left-1/2 -translate-x-1/2 rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
+              [class.bg-red-700]="piece.targeted"
+              >{{ piece.label }}</span
+            >
+          }
+          @if (piece.badges.length > 0) {
+            <span
+              class="absolute -top-26 left-1/2 flex w-[160%] -translate-x-1/2 flex-nowrap justify-center gap-1.5"
+              data-testid="first-person-buffs"
+            >
+              @for (badge of piece.badges; track badge.identifier) {
+                <span
+                  class="relative inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 text-2xl leading-none text-white shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
+                  data-testid="first-person-buff"
+                  [style.background]="badge.color"
+                  [attr.title]="badge.name + (badge.effect ? ' / ' + badge.effect : '')"
+                >
+                  @if (badge.iconUrl) {
+                    <img class="pointer-events-none size-8 object-contain" [src]="badge.iconUrl" alt="" />
+                  } @else {
+                    {{ badge.icon }}
+                  }
+                  @if (badge.strength) {
+                    <span
+                      class="pointer-events-none absolute -top-2 -left-2 rounded-sm bg-amber-600 px-1 text-base/tight font-bold text-white"
+                      >{{ badge.strength }}</span
+                    >
+                  }
+                  @if (badge.expires) {
+                    <span
+                      class="pointer-events-none absolute -right-1.5 -bottom-1.5 rounded-sm border border-solid border-white/30 bg-black/90 px-1 text-base/tight font-bold text-white tabular-nums"
+                      data-testid="first-person-buff-rounds"
+                      >{{ badge.rounds }}</span
+                    >
+                  }
                 </span>
-                <span class="shrink-0 tabular-nums">{{ row.numbers }}</span>
-              </span>
-            }
-          </span>
-        }
-        @if (piece.pick) {
-          <span
-            class="absolute top-0 right-0 grid size-12 place-items-center rounded-full bg-amber-400 text-2xl font-bold text-black"
-            >{{ piece.pick }}</span
-          >
-        }
+              }
+              @if (piece.moreBadges > 0) {
+                <span
+                  class="inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 bg-black/70 text-2xl leading-none font-bold text-white tabular-nums shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
+                  data-testid="first-person-buff-more"
+                  >+{{ piece.moreBadges }}</span
+                >
+              }
+            </span>
+          }
+          @if (piece.gauges.length > 0) {
+            <span
+              class="pointer-events-none absolute top-0 left-1/2 flex w-[130%] -translate-x-1/2 flex-col gap-1"
+              data-testid="first-person-gauges"
+            >
+              @for (row of piece.gauges; track row.id) {
+                <span
+                  class="flex items-center gap-1.5 text-xl leading-none whitespace-nowrap text-white [text-shadow:0_2px_3px_#000]"
+                  data-testid="first-person-gauge"
+                  [attr.title]="row.name"
+                >
+                  <span class="w-5 shrink-0 text-center">{{ row.initial }}</span>
+                  <span class="relative block h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-black/60">
+                    <span
+                      class="absolute inset-y-0 left-0 block rounded-full"
+                      [style.width.%]="row.percent"
+                      [style.background]="row.color"
+                    ></span>
+                  </span>
+                  <span class="shrink-0 tabular-nums">{{ row.numbers }}</span>
+                </span>
+              }
+            </span>
+          }
+          @if (piece.pick) {
+            <span
+              class="absolute top-0 right-0 grid size-12 place-items-center rounded-full bg-amber-400 text-2xl font-bold text-black"
+              >{{ piece.pick }}</span
+            >
+          }
+        </span>
       </div>
     }
     @for (prop of propViews(); track prop.id) {

@@ -3,6 +3,9 @@ import { FirstPersonPlaneQuad, FirstPersonWallQuad } from '@axe/domain/tabletop/
 import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 
 export const FIRST_PERSON_UNIT_PX = 256;
+export const MAX_PIECE_SCREEN_FRACTION = 0.7;
+export const MAX_PIECE_TEXT_SCREEN_PX = 28;
+const BILLBOARD_TEXT_PX = 24;
 const MAX_SHADE = 0.85;
 const REMEMBERED_VEIL = `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA}))`;
 
@@ -93,6 +96,37 @@ export function billboardStyle(
     transformOrigin: '0 0',
     transform: `translate3d(${px(point.x * scale)}, ${px(point.y * scale)}, ${px(point.z * scale)}) rotateZ(${deg(yaw)}) rotateX(-90deg) translate(-50%, -100%)`,
   };
+}
+
+export function projectedScaleOf(depthPx: number, scale: number, perspective: number): number {
+  return perspective / Math.max(depthPx * scale, 1);
+}
+
+export function projectedHeightPx(heightPx: number, depthPx: number, scale: number, perspective: number): number {
+  return heightPx * scale * projectedScaleOf(depthPx, scale, perspective);
+}
+
+export function billboardShrink(
+  heightPx: number,
+  depthPx: number,
+  scale: number,
+  perspective: number,
+  viewHeightPx: number
+): number {
+  const limit = viewHeightPx * MAX_PIECE_SCREEN_FRACTION;
+  const projected = projectedHeightPx(heightPx, depthPx, scale, perspective);
+  if (limit <= 0 || projected <= limit) return 1;
+  return limit / projected;
+}
+
+export function billboardTextScale(shrink: number, depthPx: number, scale: number, perspective: number): number {
+  const projected = BILLBOARD_TEXT_PX * projectedScaleOf(depthPx, scale, perspective);
+  const fits = projected > 0 ? MAX_PIECE_TEXT_SCREEN_PX / projected : 1;
+  return Math.min(shrink, fits, 1);
+}
+
+export function billboardHudTransform(textScale: number): string | null {
+  return textScale >= 1 ? null : `scale(${round(textScale)})`;
 }
 
 function backgroundOf(imageUrl: string, shade: number, size: string, position: string, remembered: boolean): QuadStyle {

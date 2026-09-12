@@ -54,7 +54,10 @@ import { facingNameOf, isHexLattice, padRows } from '@axe/features/first-person/
 import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
 import { glowStyle, lyingSamples, propClip, propStyle } from '@axe/features/first-person/first-person-prop-style';
 import {
+  billboardHudTransform,
+  billboardShrink,
   billboardStyle,
+  billboardTextScale,
   cameraTransform,
   perspectivePx,
   planeQuadStyle,
@@ -79,6 +82,8 @@ const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
 const BILLBOARD_BADGES_PER_ROW = 5;
+const PIECE_WIDE_RATIO = 0.9;
+const PIECE_TALL_RATIO = 1.5;
 
 interface QuadView {
   id: string;
@@ -110,6 +115,7 @@ interface PieceView {
   badges: BuffBadge[];
   moreBadges: number;
   style: QuadStyle;
+  hud: string | null;
 }
 
 interface PropView extends FirstPersonProp {
@@ -155,6 +161,7 @@ export class FirstPersonViewComponent {
   private readonly minimapCanvas = viewChild<ElementRef<HTMLCanvasElement>>('minimap');
 
   private readonly width = signal(0);
+  private readonly height = signal(0);
   private readonly shown = signal<FirstPersonPose | null>(null);
   private frame: number | null = null;
 
@@ -177,7 +184,7 @@ export class FirstPersonViewComponent {
         }
       });
     });
-    this.watchWidth();
+    this.watchSize();
     this.destroyRef.onDestroy(() => this.stopGlide());
   }
 
@@ -256,6 +263,9 @@ export class FirstPersonViewComponent {
     const master = this.rolePermission.canSeeHidden;
     const picks = this.effectTargeting.picks();
     const eye = eyeFrameOf(pose);
+    const scale = this.scale();
+    const perspective = this.perspective();
+    const viewHeight = this.height();
     const views: PieceView[] = [];
     for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (piece.identifier === viewer.identifier) continue;
@@ -266,6 +276,9 @@ export class FirstPersonViewComponent {
       const centre = { x: piece.location.x + size / 2, y: piece.location.y + size / 2 };
       if (!this.inSight(pose, centre)) continue;
       const badges = this.badgesOf(piece);
+      const depth = depthOf(eye, centre);
+      const tall = size * PIECE_TALL_RATIO;
+      const shrink = billboardShrink(tall, depth, scale, perspective, viewHeight);
       views.push({
         id: piece.identifier,
         name: piece.name,
@@ -273,17 +286,18 @@ export class FirstPersonViewComponent {
         url: piece.imageFile.url,
         targeted: piece.targeted,
         pick: picks.indexOf(piece.identifier) + 1,
-        bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depthOf(eye, centre)) * 180) / Math.PI),
+        bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depth) * 180) / Math.PI),
         gauges: this.gaugesOf(piece),
         badges: badges.slice(0, BILLBOARD_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BILLBOARD_BADGES_PER_ROW),
         style: billboardStyle(
           { ...centre, z: piece.posZ + piece.altitude * gridSize },
-          size * 0.9,
-          size * 1.5,
+          size * PIECE_WIDE_RATIO * shrink,
+          tall * shrink,
           pose.yaw,
-          this.scale()
+          scale
         ),
+        hud: billboardHudTransform(billboardTextScale(shrink, depth, scale, perspective)),
       });
     }
     return views;
@@ -538,11 +552,15 @@ export class FirstPersonViewComponent {
     this.frame = null;
   }
 
-  private watchWidth(): void {
+  private watchSize(): void {
     const element = this.host.nativeElement;
-    this.width.set(element.clientWidth || window.innerWidth);
+    const read = (): void => {
+      this.width.set(element.clientWidth || window.innerWidth);
+      this.height.set(element.clientHeight || window.innerHeight);
+    };
+    read();
     if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => this.width.set(element.clientWidth || window.innerWidth));
+    const observer = new ResizeObserver(read);
     observer.observe(element);
     this.destroyRef.onDestroy(() => observer.disconnect());
   }

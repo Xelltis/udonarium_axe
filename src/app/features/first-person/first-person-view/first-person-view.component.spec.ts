@@ -20,6 +20,7 @@ import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { scaleOf } from '@axe/features/first-person/first-person-style';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
@@ -327,6 +328,31 @@ describe('FirstPersonViewComponent', () => {
     const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
 
     expect(billboard.querySelector('[data-testid="first-person-gauge"]')?.textContent).toContain('???/???');
+  });
+
+  it('pulls a piece on the next cell down to fit the frame, and leaves one four cells off alone', () => {
+    const near = pieceAt(4, 6);
+    const far = pieceAt(4, 3);
+    lookOutOf(pieceAt(4, 7));
+    const view = element(mount());
+    const billboardOf = (piece: GameCharacter) =>
+      view.querySelector<HTMLElement>(`[data-piece="${piece.identifier}"]`)!;
+    const heightOf = (piece: GameCharacter) => parseFloat(billboardOf(piece).style.height);
+
+    expect(heightOf(far)).toBeCloseTo(GRID * 1.5 * scaleOf(GRID), 1);
+    expect(heightOf(near)).toBeLessThan(heightOf(far));
+  });
+
+  it('holds the writing on a near piece to a size that can be read, and asks nothing of a far one', () => {
+    const near = pieceAt(4, 6);
+    const far = pieceAt(4, 3);
+    lookOutOf(pieceAt(4, 7));
+    const view = element(mount());
+    const chromeOf = (piece: GameCharacter) =>
+      view.querySelector<HTMLElement>(`[data-piece="${piece.identifier}"] [data-testid="first-person-piece-chrome"]`)!;
+
+    expect(chromeOf(near).style.transform).toMatch(/^scale\(0\./);
+    expect(chromeOf(far).style.transform).toBe('');
   });
 
   it('stands the marks a piece carries along the top of it, with the rounds they have left', () => {
