@@ -1,13 +1,21 @@
 import { TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card, CardState } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { ImageTag } from '@axe/domain/media/image-tag';
+import { Party } from '@axe/domain/party/party';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { MAX_BOARD_PITCH } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -153,6 +161,179 @@ describe('TabletopActionService', () => {
       first.destroy();
 
       expect(service.createWhiteBoard({ x: 0, y: 0, z: 0 }).location.x).toBe(0);
+    });
+  });
+
+  describe('gatherParty()', () => {
+    const position = { x: 225, y: 225, z: 0 };
+    let table: GameTable;
+    const made: (Party | GameCharacter)[] = [];
+    const wasMe = PeerCursor.myCursor;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 10;
+      table.height = 10;
+      table.gridSize = 50;
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+      PeerCursor.myCursor = { userId: 'gm', role: PeerRole.GameMaster, isGameMaster: true } as PeerCursor;
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = wasMe;
+      for (const object of made.splice(0)) object.destroy();
+      table.destroy();
+    });
+
+    const makeParty = (name: string): Party => {
+      const party = new Party();
+      party.name = name;
+      party.initialize();
+      made.push(party);
+      return party;
+    };
+
+    const makeMember = (party: Party | null, name: string, onTable = true): GameCharacter => {
+      const character = GameCharacter.create(name, 1, '');
+      character.partyIdentifier = party?.identifier ?? '';
+      character.setLocation(onTable ? 'table' : 'graveyard');
+      character.location.x = 0;
+      character.location.y = 0;
+      made.push(character);
+      return character;
+    };
+
+    const cellOf = (character: GameCharacter): number => {
+      const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+      return pieceCellOf(grid, character, table.gridSize);
+    };
+
+    it('offers nothing to anybody but the master', () => {
+      makeMember(makeParty('パーティA'), '花子');
+      PeerCursor.myCursor = { userId: 'pl', role: PeerRole.Player, isGameMaster: false } as PeerCursor;
+
+      expect(service.getGatherPartyMenu(position)).toEqual([]);
+    });
+
+    it('offers nothing in a room that keeps no parties', () => {
+      expect(service.getGatherPartyMenu(position)).toEqual([]);
+    });
+
+    it('names every party the room keeps', () => {
+      makeMember(makeParty('パーティA'), '花子');
+      makeParty('パーティB');
+
+      const [menu] = service.getGatherPartyMenu(position);
+
+      expect(menu.subActions?.map((action) => action.name)).toEqual(['パーティA', 'パーティB']);
+    });
+
+    it('offers a party nobody belongs to without letting it be picked', () => {
+      makeParty('空のパーティ');
+
+      const [menu] = service.getGatherPartyMenu(position);
+
+      expect(menu.subActions?.[0].enabled).toBe(false);
+      expect(menu.subActions?.[0].action).toBeUndefined();
+    });
+
+    it('stands the party around the spot it was asked for', async () => {
+      const party = makeParty('パーティA');
+      const members = [makeMember(party, '花子'), makeMember(party, '太郎'), makeMember(party, '次郎')];
+
+      const placed = await service.gatherParty(position, party);
+
+      expect(placed).toBe(3);
+      const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+      const asked = cellIndexAt(grid, position.x, position.y);
+      const cells = members.map(cellOf);
+      expect(cells).toContain(asked);
+      // Each of them is on its own ground, and none of them is left where it started.
+      expect(new Set(cells).size).toBe(3);
+      expect(cells).not.toContain(pieceCellOf(grid, members[0], table.gridSize, { x: 0, y: 0 }));
+    });
+
+    it('leaves a member that is not on the table where it is', async () => {
+      const party = makeParty('パーティA');
+      const here = makeMember(party, '花子');
+      const away = makeMember(party, '次郎', false);
+      const asked = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+
+      const placed = await service.gatherParty(position, party);
+
+      expect(asked).toHaveBeenCalled();
+      expect(placed).toBe(1);
+      expect(away.isVisibleOnTable).toBe(false);
+      expect(away.location.x).toBe(0);
+      expect(cellOf(here)).toBe(
+        cellIndexAt(cellGridOf(table.width, table.height, table.gridSize, table.gridType), position.x, position.y)
+      );
+    });
+
+    it('brings a member onto the table when the master says so', async () => {
+      const party = makeParty('パーティA');
+      makeMember(party, '花子');
+      const away = makeMember(party, '次郎', false);
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      const placed = await service.gatherParty(position, party);
+
+      expect(placed).toBe(2);
+      expect(away.isVisibleOnTable).toBe(true);
+    });
+
+    it('asks nothing when every member is already on the table', async () => {
+      const party = makeParty('パーティA');
+      makeMember(party, '花子');
+      const asked = vi.spyOn(TestBed.inject(ConfirmService), 'ask');
+
+      await service.gatherParty(position, party);
+
+      expect(asked).not.toHaveBeenCalled();
+    });
+
+    it('tells the room and this screen about every piece it moved', async () => {
+      // A piece moved only in this browser is the worst of the failures this can have: the
+      // master sees the party gathered and nobody else does. Both readings are taken from
+      // state rather than from what was called, so the check holds however it is carried out.
+      const party = makeParty('パーティA');
+      const members = [makeMember(party, '花子'), makeMember(party, '太郎')];
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const announced = members.map((member) => member.majorVersion);
+      const seen = members.map((member) => objectChange.versionOf(member.identifier)());
+
+      await service.gatherParty(position, party);
+
+      members.forEach((member, index) => {
+        expect(member.majorVersion).toBeGreaterThan(announced[index]);
+        expect(objectChange.versionOf(member.identifier)()).toBeGreaterThan(seen[index]);
+      });
+    });
+
+    it('leaves alone a piece that belongs to no party', async () => {
+      const party = makeParty('パーティA');
+      makeMember(party, '花子');
+      const outsider = makeMember(null, '通行人');
+      outsider.location.x = 225;
+      outsider.location.y = 225;
+      const stood = cellOf(outsider);
+
+      await service.gatherParty(position, party);
+
+      expect(cellOf(outsider)).toBe(stood);
+    });
+
+    it('does not stand the party on ground somebody else holds', async () => {
+      const party = makeParty('パーティA');
+      const member = makeMember(party, '花子');
+      const outsider = makeMember(null, '通行人');
+      outsider.location.x = 200;
+      outsider.location.y = 200;
+
+      await service.gatherParty(position, party);
+
+      expect(cellOf(member)).not.toBe(cellOf(outsider));
     });
   });
 

@@ -153,7 +153,9 @@
         "emptyMembers": "No members yet.",
         "emptyParties": "No parties yet. Use \"Add party\" to create one.",
         "unnamedCharacter": "Unnamed",
-        "focus": "Focus on token"
+        "focus": "Focus on token",
+        "gather": "Gather a party on this spot",
+        "gatherOffTable": "{{names}} are not on the table. Bring them on and gather them too?"
       }
     },
     "hotbar": {

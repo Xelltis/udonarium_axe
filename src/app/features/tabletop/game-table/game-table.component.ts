@@ -897,12 +897,25 @@ export class GameTableComponent {
       },
     };
     const tableSettingActions = [tableSettingAction, ...this.buildViewLockActions()];
+    // Empty for anybody but the master, and for a room with no parties in it.
+    const partyActions = this.tabletopActionService.getGatherPartyMenu(objectPosition);
+    const partyGroups =
+      partyActions.length > 0
+        ? [
+            {
+              name: this.t('feature.gmTools.party.title'),
+              icon: 'group',
+              actions: partyActions.flatMap((action) => action.subActions ?? [action]),
+            },
+          ]
+        : [];
     return {
       actions: [
         ...primaryCreateActions,
         ContextMenuSeparator,
         ...secondaryCreateActions,
         ContextMenuSeparator,
+        ...(partyActions.length > 0 ? [...partyActions, ContextMenuSeparator] : []),
         ...tableSettingActions,
       ],
       rotatingGroups: [
@@ -916,6 +929,7 @@ export class GameTableComponent {
           icon: 'add_box',
           actions: secondaryCreateActions,
         },
+        ...partyGroups,
         {
           name: this.t('feature.tabletop.tableSetting.title'),
           icon: 'tune',

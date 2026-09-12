@@ -153,7 +153,9 @@
         "emptyMembers": "소속 캐릭터가 없습니다.",
         "emptyParties": "파티가 없습니다. \"파티 추가\"로 만들어 주세요.",
         "unnamedCharacter": "이름 없음",
-        "focus": "말로 이동"
+        "focus": "말로 이동",
+        "gather": "이 지점을 중심으로 파티 배치",
+        "gatherOffTable": "{{names}}은(는) 테이블에 나와 있지 않습니다. 테이블에 내보내 함께 배치할까요?"
       }
     },
     "hotbar": {

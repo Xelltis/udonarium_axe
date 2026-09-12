@@ -153,7 +153,9 @@
         "emptyMembers": "所属キャラクターはいません。",
         "emptyParties": "パーティがありません。「パーティ追加」から作成してください。",
         "unnamedCharacter": "名称未設定",
-        "focus": "コマへ移動"
+        "focus": "コマへ移動",
+        "gather": "この地点を中心にパーティを配置",
+        "gatherOffTable": "{{names}} は卓に出ていません。卓に出して一緒に配置しますか？"
       }
     },
     "hotbar": {

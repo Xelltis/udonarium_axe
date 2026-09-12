@@ -1,7 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
+import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import {
   type DiceCreateDialogOption,
@@ -20,12 +22,14 @@ import {
   makeDefaultTable as _makeDefaultTable,
   makeDefaultTabletopObjects as _makeDefaultTabletopObjects,
 } from '@axe/application/tabletop/tabletop-default-setup';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { GameObject } from '@axe/core/sync/game-object';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { toDeckCardSources } from '@axe/domain/card/deck-builder';
@@ -36,11 +40,15 @@ import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { type AmbienceKind, GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
+import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -67,6 +75,9 @@ export class TabletopActionService {
   private readonly modalService = inject(ModalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly partyService = inject(PartyService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly viewMode = inject(ViewModePreferenceService);
@@ -396,6 +407,92 @@ export class TabletopActionService {
         this.getCreateAmbienceMenu(position),
       ],
     ];
+  }
+
+  /**
+   * Gathering a party on one spot, which is the master's to offer.
+   *
+   * A room may keep several parties - the players, and whoever is travelling with them - so each
+   * is named and picked in turn rather than the table guessing which one was meant. A party
+   * nobody belongs to is shown and cannot be picked, since a party that has lost its members
+   * should say so rather than going quiet.
+   */
+  getGatherPartyMenu(position: PointerCoordinate): ContextMenuAction[] {
+    if (!this.rolePermission.isGameMaster) return [];
+    const parties = this.partyService.parties();
+    if (parties.length === 0) return [];
+    return [
+      {
+        name: this.t('feature.gmTools.party.gather'),
+        action: undefined,
+        subActions: parties.map((party) => this.getGatherOnePartyMenu(position, party)),
+      },
+    ];
+  }
+
+  private getGatherOnePartyMenu(position: PointerCoordinate, party: Party): ContextMenuAction {
+    const name = party.name.length ? party.name : this.t('common.party.unnamed');
+    if (this.partyService.membersOf(party.identifier).length === 0) return { name, enabled: false };
+    return {
+      name,
+      action: () => {
+        void this.gatherParty(position, party);
+      },
+    };
+  }
+
+  /**
+   * Standing a party's pieces around one spot, the nearest ground first.
+   *
+   * The spot itself is taken and the rest are laid around it, so a party gathered on a doorway
+   * stands in the doorway rather than in a row running off it. Ground anybody else is standing
+   * on is left alone, and the pieces being gathered give up the ground they were on, so a party
+   * asked to gather where it already stands does not have to squeeze past itself.
+   *
+   * A member that is not on the table is left where it is unless the master says to bring it in:
+   * a piece that was put away was put away on purpose. Answers with how many were placed.
+   */
+  async gatherParty(position: PointerCoordinate, party: Party): Promise<number> {
+    const table = this.getViewTable();
+    if (!table || table.gridSize <= 0) return 0;
+    const members = this.partyService.membersOf(party.identifier);
+    if (members.length === 0) return 0;
+
+    const away = members.filter((member) => !member.isVisibleOnTable);
+    const gathering =
+      away.length > 0 && (await this.askToBringIn(away))
+        ? members
+        : members.filter((member) => member.isVisibleOnTable);
+    if (gathering.length === 0) return 0;
+
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const start = cellIndexAt(grid, position.x, position.y);
+    if (start < 0) return 0;
+
+    const moving = new Set(gathering.map((member) => member.identifier));
+    const standing = this.partyService.characters().filter((character) => !moving.has(character.identifier));
+    const spots = GameObject.batch(() => {
+      for (const member of gathering) if (!member.isVisibleOnTable) member.setLocation('table');
+      const placed = gatherSpotsAround(grid, table.gridSize, start, gathering, occupiedCells(grid, standing, ''));
+      for (const spot of placed) {
+        spot.character.location.x = spot.x;
+        spot.character.location.y = spot.y;
+        spot.character.location.surface = undefined;
+        spot.character.posZ = 0;
+        spot.character.update();
+      }
+      return placed;
+    });
+    for (const spot of spots) this.objectChange.notifyChanged(spot.character.identifier);
+    if (spots.length > 0) SoundEffect.play(PresetSound.piecePut);
+    return spots.length;
+  }
+
+  private askToBringIn(away: readonly GameCharacter[]): Promise<boolean> {
+    const names = away
+      .map((member) => (member.name.length ? member.name : this.t('feature.gmTools.party.unnamedCharacter')))
+      .join(', ');
+    return this.confirm.ask({ message: this.t('feature.gmTools.party.gatherOffTable', { names }) });
   }
 
   private getCreateAmbienceMenu(position: PointerCoordinate): ContextMenuAction {
