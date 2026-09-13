@@ -43,13 +43,7 @@ export class NetworkEventHandlerService {
       const peer = Network.peerContext;
       PeerCursor.myCursor.peerId = peer.peerId;
       PeerCursor.myCursor.userId = peer.userId;
-      saveIdentity({
-        userId: peer.userId,
-        roomId: peer.roomId,
-        roomName: peer.roomName,
-        role: PeerCursor.myCursor.role,
-        reConnectPass: PeerCursor.myCursor.reConnectPass,
-      });
+      this.rememberIdentity(peer);
     }, this.destroyRef);
     this.objectChange.networkError$.subscribe((event) => {
       if (this.localMode) return;
@@ -107,6 +101,25 @@ export class NetworkEventHandlerService {
       },
       this.destroyRef
     );
+  }
+
+  /**
+   * Writes down who this tab is, so a reload can pick up where it left off.
+   *
+   * A reload opens the waiting connection before any room, and that connection belongs to no
+   * room. Written down as it stands, it would wipe out the room the tab had just been in, and a
+   * game master coming back to their own table could no longer be told from one walking into
+   * somebody else's. Outside a room, the room last written down is kept.
+   */
+  private rememberIdentity(peer: { userId: string; roomId: string; roomName: string; isRoom: boolean }): void {
+    const last = peer.isRoom ? null : loadIdentity();
+    saveIdentity({
+      userId: peer.userId,
+      roomId: last?.roomId ?? peer.roomId,
+      roomName: last?.roomName ?? peer.roomName,
+      role: PeerCursor.myCursor.role,
+      reConnectPass: PeerCursor.myCursor.reConnectPass,
+    });
   }
 
   private handleServerErrorReconnect(): void {

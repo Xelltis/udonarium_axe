@@ -8,6 +8,7 @@ import {
 } from '@axe/application/sync/object-change-network-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
+import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
@@ -49,6 +50,7 @@ describe('NetworkEventHandlerService', () => {
   });
 
   afterEach(() => {
+    clearIdentity();
     vi.restoreAllMocks();
     // The tests hand the static cursor a new one, which leaves whoever held the post
     // before it in the store for the next spec to count as a peer at the table.
@@ -70,6 +72,40 @@ describe('NetworkEventHandlerService', () => {
 
     expect(PeerCursor.myCursor.peerId).toBe('p123');
     expect(PeerCursor.myCursor.userId).toBe('u456');
+  });
+
+  it('keeps the room this tab was last in while it waits outside any room', () => {
+    PeerCursor.myCursor = new PeerCursor();
+    saveIdentity({ userId: 'u', roomId: 'abc', roomName: 'room', role: 'gm', reConnectPass: '' });
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
+      peerId: 'p',
+      userId: 'u',
+      roomId: '',
+      roomName: '',
+      isRoom: false,
+    } as never);
+
+    stubChange.networkOpen$.emit({ peerId: 'p' });
+
+    expect(loadIdentity()?.roomId).toBe('abc');
+    expect(loadIdentity()?.roomName).toBe('room');
+  });
+
+  it('writes down the room a connection opens into', () => {
+    PeerCursor.myCursor = new PeerCursor();
+    saveIdentity({ userId: 'u', roomId: 'abc', roomName: 'room', role: 'gm', reConnectPass: '' });
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
+      peerId: 'p',
+      userId: 'u',
+      roomId: 'xyz',
+      roomName: 'other',
+      isRoom: true,
+    } as never);
+
+    stubChange.networkOpen$.emit({ peerId: 'p' });
+
+    expect(loadIdentity()?.roomId).toBe('xyz');
+    expect(loadIdentity()?.roomName).toBe('other');
   });
 
   it('calibrates the clock as a peer connects', () => {

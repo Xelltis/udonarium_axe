@@ -5,6 +5,7 @@ import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/index';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
+import { clearIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -47,6 +48,7 @@ describe('RoomJoinService', () => {
   });
 
   afterEach(() => {
+    clearIdentity();
     PeerCursor.myCursor = originalMyCursor;
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
@@ -113,6 +115,24 @@ describe('RoomJoinService', () => {
       await service.join([], '');
 
       expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('keeps a game master coming back to the room this tab was last in', () => {
+      saveIdentity({ userId: 'user', roomId: 'abc', roomName: 'room', role: PeerRole.GameMaster, reConnectPass: '' });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+
+      void service.join([peerContext('peer-1', 'abc', 'room')], '');
+
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('puts a game master down in any room but the one this tab was last in', () => {
+      saveIdentity({ userId: 'user', roomId: 'xyz', roomName: 'other', role: PeerRole.GameMaster, reConnectPass: '' });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+
+      void service.join([peerContext('peer-1', 'abc', 'room')], '');
+
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
     });
 
     it('reports success when a connection survives every attempt', async () => {
