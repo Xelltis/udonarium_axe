@@ -3,6 +3,7 @@ import {
   decorateChatStyleText,
   decorateQuoteLines,
   escapeHtml,
+  splitRubyNotation,
 } from '@axe/ui/text-decoration/decorate-chat-text';
 
 describe('decorate-chat-text', () => {
@@ -26,6 +27,52 @@ describe('decorate-chat-text', () => {
     it('accepts the full-width pipe too', () => {
       const result = applyRubyMarkup('｜熟語《じゅくご》');
       expect(result).toBe('<ruby class="chat-ruby"><rb>熟語</rb><rt>じゅくご</rt></ruby>');
+    });
+  });
+
+  describe('splitRubyNotation', () => {
+    it('gives nothing for an empty line', () => {
+      expect(splitRubyNotation('')).toEqual([]);
+    });
+
+    it('keeps a line with no notation as one plain run', () => {
+      expect(splitRubyNotation('こんにちは')).toEqual([{ text: 'こんにちは', reading: '' }]);
+    });
+
+    it('cuts the words with a reading out of the text around them', () => {
+      expect(splitRubyNotation('今日の|天気《てんき》は｜晴《は》れ')).toEqual([
+        { text: '今日の', reading: '' },
+        { text: '天気', reading: 'てんき' },
+        { text: 'は', reading: '' },
+        { text: '晴', reading: 'は' },
+        { text: 'れ', reading: '' },
+      ]);
+    });
+
+    it('leaves the text as it is written rather than escaping it', () => {
+      expect(splitRubyNotation('<b>|&《アンド》')).toEqual([
+        { text: '<b>', reading: '' },
+        { text: '&', reading: 'アンド' },
+      ]);
+    });
+
+    it('reads the notation where the chat does', () => {
+      for (const line of [
+        'a|漢字《かんじ》b',
+        '|漢 字《かんじ》',
+        '|漢字《》',
+        '||漢字《かんじ》',
+        '一\\s二|三《さん》',
+      ]) {
+        const html = splitRubyNotation(line)
+          .map((part) =>
+            part.reading.length > 0
+              ? `<ruby class="chat-ruby"><rb>${part.text}</rb><rt>${part.reading}</rt></ruby>`
+              : part.text
+          )
+          .join('');
+        expect(html).toBe(applyRubyMarkup(line));
+      }
     });
   });
 
