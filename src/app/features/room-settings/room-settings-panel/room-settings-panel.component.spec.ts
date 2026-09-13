@@ -249,6 +249,25 @@ describe('RoomSettingsPanelComponent', () => {
       expect(component.cellDistance).toBe(0);
     });
 
+    it('starts a table turned over to cells again at one cell a cell', () => {
+      component.cellDistanceUnit = 'foot';
+      component.cellDistance = 1.5;
+
+      component.cellDistanceUnit = 'cell';
+
+      expect(component.cellDistance).toBe(1);
+    });
+
+    it('keeps what a cell stands for on a table that was counted in cells already', () => {
+      component.cellDistanceUnit = 'cell';
+      component.cellDistance = 0.5;
+
+      component.cellDistanceUnit = 'cell';
+      component.cellDistanceUnit = 'metre';
+
+      expect(component.cellDistance).toBe(0.5);
+    });
+
     it('opens on the general part and shows only that part', async () => {
       fixture.detectChanges();
       await fixture.whenStable();

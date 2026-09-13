@@ -31,7 +31,7 @@ import {
   DiagonalMove,
 } from '@axe/domain/tabletop/move/diagonal-move';
 import { asBreakOutMode, BREAK_OUT_MODES, BreakOutMode } from '@axe/domain/tabletop/move/engagement';
-import { DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
+import { DEFAULT_CELL_DISTANCE, DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
 import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { asZocMode, ZOC_MODES, ZocMode } from '@axe/domain/tabletop/move/zone-of-control';
 import { DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS, MultiAngleMotionMode } from '@axe/domain/tabletop/multi-angle';
@@ -565,8 +565,14 @@ export class RoomSettingsPanelComponent {
   get cellDistanceUnit(): MoveUnit {
     return parseMoveUnit(this.rules.cellDistanceUnit) ?? DEFAULT_CELL_DISTANCE_UNIT;
   }
+  /**
+   * A table turned over to cells starts again at one cell a cell: a distance written for
+   * metres or feet would otherwise go on dividing every sheet without saying so.
+   */
   set cellDistanceUnit(value: MoveUnit) {
-    if (this.isEditable) this.config.cellDistanceUnit = value;
+    if (!this.isEditable) return;
+    if (value === 'cell' && this.cellDistanceUnit !== 'cell') this.config.cellDistance = DEFAULT_CELL_DISTANCE;
+    this.config.cellDistanceUnit = value;
   }
 
   get zocMode(): ZocMode {
