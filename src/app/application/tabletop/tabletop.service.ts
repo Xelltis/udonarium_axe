@@ -24,7 +24,7 @@ import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { resolveTabletopDisplay, TabletopDisplaySettings } from '@axe/domain/tabletop/tabletop-display';
-import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { surfaceKeyOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
@@ -322,14 +322,14 @@ export class TabletopService {
   private shouldRefreshCache(object: TabletopObject): boolean {
     return (
       this.locationMap.get(object.identifier) !== object.location.name ||
-      this.surfaceMap.get(object.identifier) !== (object.location.surface ?? 'floor') ||
+      this.surfaceMap.get(object.identifier) !== surfaceKeyOf(object) ||
       this.parentMap.get(object.identifier) !== object.parentId
     );
   }
 
   private updateMap(object: TabletopObject) {
     this.locationMap.set(object.identifier, object.location.name);
-    this.surfaceMap.set(object.identifier, object.location.surface ?? 'floor');
+    this.surfaceMap.set(object.identifier, surfaceKeyOf(object));
     this.parentMap.set(object.identifier, object.parentId);
   }
 

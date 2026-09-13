@@ -1,3 +1,4 @@
+import { networkSend } from '@axe/core/network/network-messaging';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -101,6 +102,7 @@ export class Room extends GameObject implements InnerXml {
       for (const object of objects) {
         object.destroy();
       }
+      this.announceWhatIsComingBack(element);
       for (let i = 0; i < element.children.length; i++) {
         ObjectSerializer.instance.parseXml(element.children[i]);
       }
@@ -109,5 +111,23 @@ export class Room extends GameObject implements InnerXml {
       if (ObjectStore.instance.getObjects(CutIn).length < 1) createDefaultCutIns(ImageStorage.instance);
       clearOwnership(ObjectStore.instance.getObjects());
     }
+  }
+
+  /**
+   * Says which names the room is bringing back, having just taken them away.
+   *
+   * Most of what a room carries is made afresh under a name of its own, and nobody minds. What
+   * it carries under a name of its own keeping - the effect library, the sample cut-ins - was
+   * deleted a moment ago in front of everybody, and a seat that watched that answers the first
+   * word of it by having the loader delete it again. Naming them first is what stops that.
+   */
+  private announceWhatIsComingBack(element: Element): void {
+    const returning = Array.from(element.querySelectorAll('[identifier]'))
+      .map((child) => child.getAttribute('identifier') ?? '')
+      .filter((identifier) => identifier.length > 0);
+    if (returning.length < 1) return;
+
+    ObjectStore.instance.forgetDeleted(returning);
+    networkSend('FORGET_DELETED_OBJECTS', { identifiers: returning });
   }
 }

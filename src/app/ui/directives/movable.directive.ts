@@ -17,7 +17,13 @@ import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { clearRunAlong, MoveBlock } from '@axe/domain/tabletop/move/blocked-path';
 import { SurfaceDims, surfaceWorldBox, WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import {
+  boardSurfaceOf,
+  isOffTheFloor,
+  surfaceOf,
+  TableSurface,
+  TabletopObject,
+} from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { InputHandler } from '@axe/ui/directives/input-handler';
@@ -913,7 +919,7 @@ export class MovableDirective implements MovableInteractionContext {
   private isOnWallSurface(): boolean {
     const object = this.tabletopObject;
     if (!object?.location) return false;
-    return surfaceOf(object) !== 'floor' || boardSurfaceOf(object).length > 0;
+    return isOffTheFloor(object);
   }
 
   private setPosition(object: TabletopObject) {

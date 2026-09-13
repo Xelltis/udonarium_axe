@@ -39,6 +39,17 @@ function namedSurface(object: { location: { surface?: string } }): string {
   return NOT_A_SURFACE.has(surface) ? '' : surface;
 }
 
+/** The face an object stands on by name, with the floor named where it names none. */
+export function surfaceKeyOf(object: { location: { surface?: string } }): string {
+  const surface = namedSurface(object);
+  return surface.length > 0 ? surface : 'floor';
+}
+
+/** Whether an object stands on something other than the floor: one of the walls, or a board. */
+export function isOffTheFloor(object: { location: { surface?: string } }): boolean {
+  return surfaceKeyOf(object) !== 'floor';
+}
+
 export function surfaceOf(object: { location: { surface?: string } }): TableSurface {
   const surface = namedSurface(object) as TableSurface;
   return TABLE_SURFACES.includes(surface) ? surface : 'floor';

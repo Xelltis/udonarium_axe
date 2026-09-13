@@ -17,6 +17,7 @@ const OBJECT_SYNC_EVENTS: ReadonlySet<string> = new Set([
   'SYNCHRONIZE_GAME_OBJECT',
   'REQUEST_GAME_OBJECT',
   'REQUEST_CATALOG',
+  'FORGET_DELETED_OBJECTS',
 ]);
 
 const CATALOG_BATCH = 2048;
@@ -93,6 +94,18 @@ export class ObjectSynchronizer {
               object = this.createObject(context);
               if (object) markForChanged(object, msg.sendFrom);
             }
+            break;
+          }
+          // A room being loaded takes objects away and puts some of them back under the names
+          // they were saved under. To a seat that only watched, each of those is a deletion
+          // being undone, and it answers by having the loader delete it again - so the effect
+          // library and the sample cut-ins went missing from a room that had just been loaded,
+          // but only ever while somebody else was connected. The loader says which names are
+          // coming back, and they leave the graveyard before they arrive.
+          case 'FORGET_DELETED_OBJECTS': {
+            if (msg.isSendFromSelf) break;
+            const { identifiers } = msg.data as { identifiers?: ObjectIdentifier[] };
+            ObjectStore.instance.forgetDeleted(identifiers ?? []);
             break;
           }
           case 'DELETE_GAME_OBJECT': {

@@ -35,6 +35,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { buildDiceSymbolContextMenu } from '@axe/features/dice/dice-symbol/dice-symbol-context-menu';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
@@ -237,7 +238,7 @@ export class DiceSymbolComponent {
   readonly isPoster = computed(() => {
     const dice = this.diceSymbol();
     this.objectChange.versionOf(dice.identifier)();
-    return (dice.location.surface ?? 'floor') !== 'floor';
+    return isOffTheFloor(dice);
   });
 
   readonly billboardTransform = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(30)));
