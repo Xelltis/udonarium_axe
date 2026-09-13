@@ -25,6 +25,7 @@ import { chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
@@ -38,6 +39,7 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
     NgSelectComponent,
     FormsModule,
     NgOptionComponent,
+    NgSelectWindowDirective,
     NgStyle,
     PortraitPickerComponent,
     SafePipe,

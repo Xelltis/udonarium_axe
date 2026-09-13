@@ -265,7 +265,7 @@
           @if (speakerName().length > 0) {
             <span class="block text-[11px] font-bold text-gray-500">{{ speakerName() }}</span>
           }
-          <span class="whitespace-pre-line">{{ displayedText() }}</span>
+          <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
           @if (isTyping()) {
             <span class="animate-blinking">▏</span>
           }
@@ -303,7 +303,7 @@
             >{{ mark.char }}</span
           >
         }
-        <span class="whitespace-pre-line">{{ displayedText() }}</span>
+        <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
         @if (isTyping()) {
           <span class="animate-blinking">▏</span>
         }
@@ -330,7 +330,7 @@
         @if (speakerName().length > 0) {
           <span class="text-ui-accent mb-2 block text-sm font-bold">{{ speakerName() }}</span>
         }
-        <span class="whitespace-pre-line">{{ displayedText() }}</span>
+        <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
         @if (isTyping()) {
           <span class="animate-blinking">▏</span>
         }
@@ -353,7 +353,7 @@
         <div class="vn-enter-scene flex w-full flex-col items-center gap-3 bg-black/80 px-8 py-14 backdrop-blur-sm">
           <div class="text-ui-dim text-xs tracking-[0.5em]">✦ ✦ ✦</div>
           <div class="text-center text-xl font-semibold tracking-[0.25em] wrap-break-word text-white/90">
-            {{ currentFullText() }}
+            <ruby-text [parts]="currentFullParts()" />
           </div>
           @if (!isLatest()) {
             <span class="animate-bounce text-white/60">▼</span>
@@ -365,7 +365,7 @@
           <div
             class="px-4 text-center text-[clamp(1.8rem,4.5vw,3.2rem)] font-semibold tracking-[0.3em] wrap-break-word text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
           >
-            {{ currentFullText() }}
+            <ruby-text [parts]="currentFullParts()" />
           </div>
           <div class="h-px w-[min(40rem,70vw)] bg-white/50"></div>
           @if (!isLatest()) {
@@ -377,7 +377,7 @@
           class="vn-enter-narration w-full bg-black/45 px-[12%] py-6 text-center tracking-wider wrap-break-word text-white/95 backdrop-blur-xs"
           [class]="narrationTextSizeClass()"
         >
-          <span class="whitespace-pre-line">{{ displayedText() }}</span>
+          <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
           @if (isTyping()) {
             <span class="animate-blinking">▏</span>
           }
@@ -404,7 +404,7 @@
         @if (command.name.length > 0) {
           <span class="shrink-0 text-white/60">{{ command.name }}:</span>
         }
-        <span class="min-w-0">{{ displayedText() }}</span>
+        <span class="min-w-0"><ruby-text [parts]="displayedParts()" /></span>
         @if (!isLatest()) {
           <span class="animate-bounce text-white/60">▼</span>
         }
@@ -458,7 +458,7 @@
               </span>
             }
           </span>
-          <span class="whitespace-pre-line">{{ displayedText() }}</span>
+          <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
           @if (isTyping()) {
             <span class="animate-blinking">▏</span>
           }

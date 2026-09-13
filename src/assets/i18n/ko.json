@@ -153,7 +153,10 @@
         "emptyMembers": "소속 캐릭터가 없습니다.",
         "emptyParties": "파티가 없습니다. \"파티 추가\"로 만들어 주세요.",
         "unnamedCharacter": "이름 없음",
-        "focus": "말로 이동"
+        "focus": "말로 이동",
+        "gather": "이 지점을 중심으로 파티 배치",
+        "gatherOnTable": "{{name}}（테이블의 {{count}}명）",
+        "gatherWithAway": "{{name}}（테이블 밖 {{count}}명도 내보내기）"
       }
     },
     "hotbar": {
@@ -796,6 +799,16 @@
       }
     },
     "dice": {
+      "createDialog": {
+        "title": "주사위 여러 개 만들기",
+        "type": "종류",
+        "count": "개수",
+        "owner": "소유자",
+        "ownerNone": "없음",
+        "hidden": "나만 보기(뒤집어 놓기)",
+        "cancel": "취소",
+        "create": "만들기"
+      },
       "contextMenu": {
         "rollDice": "주사위 굴리기",
         "showDice": "주사위 공개",
@@ -806,6 +819,8 @@
         "storeToOwner": "말에 넣어두기",
         "hideNameOn": "☑ 이름 숨기기",
         "hideNameOff": "☐ 이름 숨기기",
+        "usedOn": "☑ 사용함",
+        "usedOff": "☐ 사용함",
         "editDice": "주사위 설정 편집",
         "diceSheet": "주사위 눈 시트"
       },
@@ -1188,7 +1203,7 @@
         "sortAsc": "오름차순",
         "sortDesc": "내림차순",
         "displayItems": "표시 항목",
-        "dataTagPlaceholder": "공백으로 태그 이름 구분, 슬래시로 줄바꿈 예: HP MP / 메모",
+        "dataTagPlaceholder": "공백으로 태그 이름 구분, 슬래시로 줄바꿈, 인용부호로 경로나 공백 포함 이름 예: HP MP / \"리소스/이성\"",
         "multiMoveLabel": "일괄 이동",
         "selectAll": "전체 선택",
         "deselectAll": "전체 해제",
@@ -1348,7 +1363,7 @@
         "asc": "오름차순",
         "desc": "내림차순",
         "displayItems": "표시 항목",
-        "dataTagPlaceholder": "공백으로 태그 이름 구분, 슬래시로 줄바꿈 예: HP MP / 메모",
+        "dataTagPlaceholder": "공백으로 태그 이름 구분, 슬래시로 줄바꿈, 인용부호로 경로나 공백 포함 이름 예: HP MP / \"리소스/이성\"",
         "selectAll": "전체 선택",
         "deselectAll": "전체 해제",
         "moveTargetLabel": "이동 대상:",
@@ -1705,6 +1720,7 @@
         "createBlankCard": "빈 카드 만들기",
         "createTrump": "트럼프 덱 만들기",
         "createDice": "주사위 만들기",
+        "createDiceMany": "개수를 지정해 만들기…",
         "createCoin": "코인 만들기",
         "createRange": "사거리 범위 만들기",
         "createLight": "광원 만들기",
@@ -1845,6 +1861,10 @@
         "doorStyleSlide": "옆으로 미닫이",
         "doorFlip": "열리는 방향 반전"
       },
+      "holdHint": {
+        "footing": "휠로 발판을 오르내리기",
+        "lift": "Shift＋휠로 높이를 한 칸씩"
+      },
       "tableSetting": {
         "title": "테이블 설정",
         "sidebarTitle": "테이블",
@@ -1961,7 +1981,7 @@
         "piecesShareCells": "같은 칸에 여러 말을 놓을 수 있음 (끄면 다른 말이 있는 칸은 이동 대상에서 제외)",
         "moveRangeElementNames": "참조할 항목",
         "cellDistanceUnit": "칸 단위",
-        "moveRangeHint": "항목 이름은 쉼표로 구분하며 시트에서 먼저 찾은 것을 사용합니다. 시트의 값을 한 칸의 거리로 나누어 칸 수로 만듭니다(0이면 나누지 않음). 시트의 단위가 탁자와 다르면 피트와 미터를 환산하고, 시트가 칸이면 그대로 칸 수로 읽습니다.",
+        "moveRangeHint": "항목 이름은 쉼표로 구분하며 시트에서 먼저 찾은 것을 사용합니다. 시트의 값을 한 칸의 거리로 나누어 칸 수로 만듭니다(0이면 나누지 않음). 단위가 칸이어도 마찬가지라서, 한 칸의 거리를 0.5로 하면 시트의 1칸이 탁자의 2칸이 됩니다. 시트의 단위가 탁자와 다르면 피트와 미터를 환산하고, 탁자가 미터나 피트인데 시트가 칸이면 그대로 칸 수로 읽습니다.",
         "zocMode": "ZOC(지배 영역)",
         "zocMode_none": "없음",
         "zocMode_stop": "발묶기 (들어가면 이동 종료)",
@@ -2201,7 +2221,7 @@
       "diagonalMoveHint": "번갈아 계산하는 방식은 D&D 3.5e나 패스파인더 1e의 계산법으로, 첫 대각선은 한 칸, 두 번째는 두 칸이 됩니다.",
       "piecesShareCells": "같은 칸에 여러 말을 놓을 수 있음 (끄면 다른 말이 있는 칸은 이동 대상에서 제외)",
       "moveRangeElementNames": "참조할 항목",
-      "moveRangeHint": "항목 이름은 쉼표로 구분하며 시트에서 먼저 찾은 것을 사용합니다. 시트의 값을 한 칸의 거리로 나누어 칸 수로 만듭니다(0이면 나누지 않음). 시트의 단위가 탁자와 다르면 피트와 미터를 환산하고, 시트가 칸이면 그대로 칸 수로 읽습니다.",
+      "moveRangeHint": "항목 이름은 쉼표로 구분하며 시트에서 먼저 찾은 것을 사용합니다. 시트의 값을 한 칸의 거리로 나누어 칸 수로 만듭니다(0이면 나누지 않음). 단위가 칸이어도 마찬가지라서, 한 칸의 거리를 0.5로 하면 시트의 1칸이 탁자의 2칸이 됩니다. 시트의 단위가 탁자와 다르면 피트와 미터를 환산하고, 탁자가 미터나 피트인데 시트가 칸이면 그대로 칸 수로 읽습니다.",
       "cellDistance": "한 칸의 거리",
       "cellDistanceUnit": "칸 단위",
       "cellUnit": {
@@ -3633,6 +3653,7 @@
         "sendTarget": "발언 대상",
         "buffSectionTitle": "버프 부여",
         "counterSectionTitle": "리소스 조작",
+        "noResources": "조작할 수 있는 항목이 없습니다",
         "paletteEdit": "팔레트 편집",
         "confirm": "확정",
         "editing": "편집 중",
@@ -3653,8 +3674,14 @@
         "execute": "조작",
         "maxLimit": "최대값 제한",
         "minLimit": "0 하한 제한",
-        "currentValueSuffix": "현재값",
-        "maxValueSuffix": "최대값",
+        "slotSectionTitle": "슬롯",
+        "slotNameSeparator": " ",
+        "slotNow": "현재값",
+        "slotMax": "최대값",
+        "slotMaxBase": "최대값 기준",
+        "slotMaxCorrection": "최대값 보정",
+        "slotMinBase": "최소값 기준",
+        "slotMinCorrection": "최소값 보정",
         "tabTable": "테이블",
         "tabPersonal": "개인",
         "tabGraveyard": "무덤",

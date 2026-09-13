@@ -30,7 +30,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { collectDataElements } from '@axe/domain/data/data-element-tree';
+import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import {
   isTextureId,
@@ -246,13 +246,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
    */
   protected readonly resourceNames = computed<string[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
-    const names = new Set<string>();
-    for (const character of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-      for (const element of collectDataElements(character.detailDataElement)) {
-        if (element.isNumberResource && element.name.trim().length > 0) names.add(element.name.trim());
-      }
-    }
-    return [...names].sort();
+    return resourceNamesOf(this.objectStore.getObjects<GameCharacter>(GameCharacter));
   });
 
   protected readonly terrainFaces = TERRAIN_FACE_KEYS;

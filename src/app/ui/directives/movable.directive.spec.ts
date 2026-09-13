@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -318,6 +319,146 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
 
     expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+  });
+
+  describe('holding a piece off the ground', () => {
+    /**
+     * A turn of the wheel with the key held down.
+     *
+     * The WheelEvent here is built on UIEvent rather than MouseEvent, so it carries no
+     * modifiers of its own and the key has to be put on by hand. A browser carries it.
+     */
+    function shiftWheel(directive: MovableDirective, isUp: boolean): void {
+      const wheel = new WheelEvent('wheel', { deltaY: isUp ? -1 : 1, cancelable: true });
+      Object.defineProperty(wheel, 'shiftKey', { value: true });
+      directive['liftByWheel'](wheel);
+    }
+
+    it('sends the piece up a cell at a time, however empty the air above it is', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+
+      shiftWheel(directive, true);
+      shiftWheel(directive, true);
+
+      expect(walker.altitude).toBe(2);
+    });
+
+    it('brings it back down the same way, and on below the ground', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+
+      shiftWheel(directive, true);
+      shiftWheel(directive, false);
+      shiftWheel(directive, false);
+
+      expect(walker.altitude).toBe(-1);
+    });
+
+    it('goes past what it could stand on rather than settling onto it', () => {
+      const rock = block({ identifier: 'rock', h: 1, altitude: 3 });
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: rock, w: 2, d: 2 }]);
+      grab(directive, { x: 50, y: 50 });
+
+      shiftWheel(directive, true);
+
+      expect(walker.altitude).toBe(1);
+      expect(walker.posZ).toBe(0);
+    });
+
+    it('leaves the height alone without the key, which is what walks the surfaces', () => {
+      const rock = block({ identifier: 'rock', h: 1, altitude: 3 });
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: rock, w: 2, d: 2 }]);
+      grab(directive, { x: 50, y: 50 });
+
+      directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+
+      expect(walker.altitude).toBe(0);
+      expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+    });
+
+    it('shows how high it is being held, and where it is being held over', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+      directive.posX = 300;
+      directive.posY = 400;
+
+      shiftWheel(directive, true);
+
+      const guide = TestBed.inject(HeldPieceService).held();
+      expect(guide?.identifier).toBe(walker.identifier);
+      expect(guide?.altitude).toBe(1);
+      expect({ x: guide?.x, y: guide?.y }).toEqual({ x: 300, y: 400 });
+    });
+
+    it('keeps the guide under the piece as it carries on across the table', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      const guides = TestBed.inject(HeldPieceService);
+      grab(directive, { x: 50, y: 50 });
+      shiftWheel(directive, true);
+      const before = { x: guides.held()?.x, y: guides.held()?.y };
+
+      vi.spyOn(directive['coordinateService'], 'convertToLocal').mockReturnValue({ x: 400, y: 500, z: 0 });
+      directive['onInputMoveNow'](new MouseEvent('mousemove'));
+
+      const after = { x: guides.held()?.x, y: guides.held()?.y };
+      expect(after).toEqual({ x: directive.posX, y: directive.posY });
+      expect(after).not.toEqual(before);
+    });
+
+    it('takes the turn from the sideways spin a browser reports with the key held', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+      const sideways = new WheelEvent('wheel', { deltaY: 0, cancelable: true });
+      Object.defineProperty(sideways, 'shiftKey', { value: true });
+      Object.defineProperty(sideways, 'deltaX', { value: -100 });
+
+      directive['liftByWheel'](sideways);
+
+      expect(walker.altitude).toBe(1);
+    });
+
+    it('shows the guide from the moment a piece off the ground is picked up', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      walker.altitude = 2;
+      const directive = mount(walker, []);
+      const guides = TestBed.inject(HeldPieceService);
+
+      directive.onInputStart(new MouseEvent('mousedown'));
+
+      expect(guides.held()?.identifier).toBe(walker.identifier);
+      expect(guides.held()?.altitude).toBe(2);
+    });
+
+    it('takes the guide away once the piece is let go of', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+      shiftWheel(directive, true);
+
+      directive.cancel();
+
+      expect(TestBed.inject(HeldPieceService).held()).toBeNull();
+    });
+
+    it('leaves a piece hung on a wall to the surfaces, which is all a wall has', () => {
+      const hung = GameCharacter.create('hung', 1, '');
+      hung.location.surface = 'north-wall';
+      const directive = mount(hung, []);
+      grab(directive, { x: 50, y: 50 });
+
+      shiftWheel(directive, true);
+
+      expect(hung.altitude).toBe(0);
+      expect(TestBed.inject(HeldPieceService).held()).toBeNull();
+    });
   });
 
   it('keeps the wheel to itself while a piece is held, so the table does not zoom under it', () => {

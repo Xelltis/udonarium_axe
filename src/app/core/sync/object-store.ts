@@ -170,6 +170,17 @@ export class ObjectStore {
     this.garbageMap.clear();
   }
 
+  /**
+   * Takes the named objects out of the graveyard, so they may be made again under those names.
+   *
+   * Deleting is remembered so that a seat which never heard about it cannot put the object
+   * back. A room being loaded is the other case: what it brings under a name that was just
+   * taken away is meant to come back, and every seat has to be told so before it arrives.
+   */
+  forgetDeleted(identifiers: readonly ObjectIdentifier[]) {
+    for (const identifier of identifiers) this.garbageMap.delete(identifier);
+  }
+
   private runGarbageCollection(ms: number): void {
     const nowDate = performance.now();
     let checkLength = this.garbageMap.size - GARBAGE_MAP_LIMIT;

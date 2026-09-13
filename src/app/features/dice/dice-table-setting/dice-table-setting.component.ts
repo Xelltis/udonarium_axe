@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -10,6 +11,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceTablePalette } from '@axe/domain/chat/chat-palette';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { DiceTable } from '@axe/domain/dice/dice-table';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -18,7 +20,7 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
   selector: 'dice-table-setting',
   templateUrl: './dice-table-setting.component.html',
   host: { class: 'block h-full' },
-  imports: [FormsModule, NgSelectComponent, NgOptionComponent, TranslocoModule],
+  imports: [FormsModule, NgSelectComponent, NgOptionComponent, NgSelectWindowDirective, TranslocoModule],
 })
 export class DiceTableSettingComponent {
   private readonly modalService = inject(ModalService);
@@ -26,6 +28,7 @@ export class DiceTableSettingComponent {
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly tableName = computed<string>(() => this.readSyncVar((t) => t.name));
@@ -48,22 +51,22 @@ export class DiceTableSettingComponent {
 
   setTableName(value: string): void {
     const table = this.selectedTable;
-    if (this.isEditable && table) table.name = value;
+    if (this.isWritable && table) table.name = value;
   }
 
   setTableDice(value: string): void {
     const table = this.selectedTable;
-    if (this.isEditable && table) table.dice = value;
+    if (this.isWritable && table) table.dice = value;
   }
 
   setTableCommand(value: string): void {
     const table = this.selectedTable;
-    if (this.isEditable && table) table.command = value;
+    if (this.isWritable && table) table.command = value;
   }
 
   setGameType(value: string): void {
     const table = this.selectedTable;
-    if (!this.isEditable || !table) return;
+    if (!this.isWritable || !table) return;
     const palette = this.findDiceTablePalette(table);
     if (palette) palette.dicebot = value;
   }
@@ -74,7 +77,7 @@ export class DiceTableSettingComponent {
   }
   set tableText(tableText: string) {
     const table = this.selectedTable;
-    if (this.isEditable && table) table.text = tableText + '';
+    if (this.isWritable && table) table.text = tableText + '';
   }
 
   readonly palettes = computed<readonly string[]>(() => {
@@ -132,6 +135,22 @@ export class DiceTableSettingComponent {
     return !this.isEmpty && this.isSelected && !this.isDeleted;
   }
 
+  /**
+   * Whether the tables are this reader's to change.
+   *
+   * A dice table is kept with the room and answers for everybody who rolls on it, so making
+   * one, rewriting one or throwing one away is a change to what the table has. A seat that is
+   * only watching reads them and changes none.
+   */
+  get canEditTables(): boolean {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  }
+
+  get isWritable(): boolean {
+    return this.isEditable && this.canEditTables;
+  }
+
   readonly isSaving = signal(false);
   readonly progressPercent = signal(0);
 
@@ -150,6 +169,7 @@ export class DiceTableSettingComponent {
   }
 
   createDiceTable() {
+    if (!this.canEditTables) return;
     const diceTable = DiceTable.create();
     this.selectDiceTable(diceTable.identifier);
   }
@@ -172,12 +192,14 @@ export class DiceTableSettingComponent {
   }
 
   delete() {
+    if (!this.canEditTables) return;
     if (!this.isEmpty && this.selectedTable) {
       this.selectedTable.destroy();
     }
   }
 
   toggleEditMode() {
+    if (!this.canEditTables) return;
     this.isEdit.update((v) => !v);
     const table = this.selectedTable;
     if (!table) return;

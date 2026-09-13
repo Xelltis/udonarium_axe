@@ -49,8 +49,8 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { isInternalResource } from '@axe/domain/character/internal-resource';
 import { gaugeNumbersOf, isGaugeInverted, PieceGauge, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import {
   diffResourceSnapshots,
   loudestChange,
@@ -83,6 +83,7 @@ import {
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
+import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
@@ -222,8 +223,7 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (!char) return false;
     this.objectChange.versionOf(char.identifier)();
-    const surface = char.location.surface ?? 'floor';
-    return surface !== 'floor';
+    return isOffTheFloor(char);
   });
 
   constructor() {
@@ -640,7 +640,7 @@ export class GameCharacterComponent {
     this.objectChange.collectionOf('data')();
     for (const element of collectDataElements(detail)) {
       this.objectChange.versionOf(element.identifier)();
-      if (!element.isNumberResource || isInternalResource(element)) continue;
+      if (!isResourceElement(element)) continue;
       snapshot.set(element.identifier, {
         current: Number(element.currentValue),
         max: Number(element.value),

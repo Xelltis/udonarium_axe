@@ -7,7 +7,6 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { parseBuffInput } from '@axe/features/controller/remote-controller/remote-controller-buff';
 import {
-  getCounterElements,
   getGameObjects,
   getInventory,
   getInventoryTags,
@@ -110,40 +109,24 @@ describe('remote-controller-helpers', () => {
   });
 
   describe('getInventoryTags', () => {
-    it('should return empty array when no tags exist for character', () => {
+    it('returns nothing for a display item the character does not carry', () => {
+      DataSummarySetting.instance.dataTag = '架空の項目';
       const character = createChar('char-1');
       inventoryContext.tableInventory.refreshObjects();
       inventoryContext.tableInventory.refreshDataElements();
 
       const result = getInventoryTags(character, inventoryContext);
-      expect(result).toEqual([]);
-    });
-  });
-
-  describe('getCounterElements', () => {
-    it('picks resources up in tag order however deep they sit', () => {
-      const char = createChar('カウンター対象');
-
-      const elements = getCounterElements(char, ['HP', 'MP']);
-
-      expect(elements.map((element) => element.name)).toEqual(['HP', 'MP']);
-      expect(elements.every((element) => element.isNumberResource)).toBe(true);
+      expect(result).toEqual([null]);
     });
 
-    it('passes over a tag that is not there', () => {
-      const char = createChar('カウンター対象');
+    it('returns what the room works out for itself while it names no items', () => {
+      DataSummarySetting.instance.dataTag = '';
+      const character = createChar('char-2');
+      inventoryContext.tableInventory.refreshObjects();
+      inventoryContext.tableInventory.refreshDataElements();
 
-      expect(getCounterElements(char, ['HP', '架空の項目', 'MP']).map((element) => element.name)).toEqual(['HP', 'MP']);
-    });
-
-    it('returns nothing twice', () => {
-      const char = createChar('カウンター対象');
-
-      expect(getCounterElements(char, ['HP', 'HP'])).toHaveLength(1);
-    });
-
-    it('returns nothing for no tags at all', () => {
-      expect(getCounterElements(createChar('カウンター対象'), [])).toEqual([]);
+      const result = getInventoryTags(character, inventoryContext);
+      expect(result.map((element) => element?.name)).toEqual(['HP', 'MP']);
     });
   });
 

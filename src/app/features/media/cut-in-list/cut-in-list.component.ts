@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -27,6 +29,8 @@ export class CutInListComponent {
   private readonly saveDataService = inject(SaveDataService);
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly rolePermission = inject(RolePermissionService);
+  private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
 
   selectedCutIn: CutIn | null = null;
@@ -64,8 +68,19 @@ export class CutInListComponent {
     return this.selectedCutIn !== null;
   }
 
+  /**
+   * Whether the cut-ins are this reader's to change.
+   *
+   * A cut-in plays to the whole table and is kept with the room, so making one or throwing one
+   * away is a change to what everybody has. A seat that is only watching makes neither.
+   */
+  get canEditCutIns(): boolean {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  }
+
   get isEditable(): boolean {
-    return !this.isEmpty && this.isSelected;
+    return !this.isEmpty && this.isSelected && this.canEditCutIns;
   }
 
   get isEmpty(): boolean {
@@ -85,6 +100,7 @@ export class CutInListComponent {
   }
 
   createCutIn() {
+    if (!this.canEditCutIns) return;
     const cutIn = new CutIn();
     cutIn.name = this.t('feature.media.cutIn.defaultName');
     cutIn.imageIdentifier = 'testTableBackgroundImage_image';
@@ -111,6 +127,7 @@ export class CutInListComponent {
   }
 
   delete() {
+    if (!this.canEditCutIns) return;
     if (!this.isEmpty && this.selectedCutIn) {
       this.selectedCutIn.destroy();
       this.selectedCutIn = null;

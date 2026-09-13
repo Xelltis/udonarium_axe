@@ -89,6 +89,23 @@ describe('BuffManagerPanelComponent', () => {
     expect(bar.trigger).toBe('術者');
   });
 
+  it('shows the timing a buff already carries, rather than the first choice on the list', async () => {
+    // A buff granted from the chat arrives with its timing already set. Read through a plain
+    // value binding, the select stood on whatever came first and said "round end" for a buff
+    // that runs out on somebody's turn - right underneath, and wrong on the screen.
+    const buffed = makeCharacter('バフ持ち');
+    buffed.buffs.addRound('練技', '筋力+2', 3, { timing: 'turnStart', trigger: '術者' });
+    onTable([buffed]);
+    component.select(component.rows()[0].bars[0]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const timing = fixture.nativeElement.querySelector('select[name="selectedTiming"]') as HTMLSelectElement;
+    const chosen = timing.options[timing.selectedIndex];
+
+    expect(chosen?.textContent).toContain('手番開始');
+  });
+
   it('takes a buff off the piece from the chart', () => {
     const buffed = makeCharacter('バフ持ち');
     buffed.buffs.addRound('猛攻撃', '命中+2', 3);

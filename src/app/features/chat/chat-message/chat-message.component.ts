@@ -219,6 +219,11 @@ export class ChatMessageComponent {
     return this.objectStore.get<ChatTabList>('ChatTabList')!;
   }
 
+  /** Whether the button to show a kept-back roll is this reader's to press. */
+  canDisclose(): boolean {
+    return this.chatMessageService.canDiscloseMessage(this.chatMessage);
+  }
+
   discloseMessage() {
     this.chatMessageService.discloseMessage(this.chatMessage);
   }

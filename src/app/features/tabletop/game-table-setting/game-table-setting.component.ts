@@ -50,6 +50,7 @@ import {
   MapImageGridAdjusterResult,
 } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-adjuster.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
@@ -59,7 +60,15 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
   selector: 'game-table-setting',
   templateUrl: './game-table-setting.component.html',
   host: { class: 'block', '[attr.inert]': "isReadOnly() ? '' : null" },
-  imports: [NgClass, FormsModule, NgSelectComponent, NgOptionComponent, SafePipe, TranslocoModule],
+  imports: [
+    NgClass,
+    FormsModule,
+    NgSelectComponent,
+    NgOptionComponent,
+    NgSelectWindowDirective,
+    SafePipe,
+    TranslocoModule,
+  ],
 })
 export class GameTableSettingComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;

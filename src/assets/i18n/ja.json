@@ -153,7 +153,10 @@
         "emptyMembers": "所属キャラクターはいません。",
         "emptyParties": "パーティがありません。「パーティ追加」から作成してください。",
         "unnamedCharacter": "名称未設定",
-        "focus": "コマへ移動"
+        "focus": "コマへ移動",
+        "gather": "この地点を中心にパーティを配置",
+        "gatherOnTable": "{{name}}（卓上の{{count}}体）",
+        "gatherWithAway": "{{name}}（卓外の{{count}}体も出す）"
       }
     },
     "hotbar": {
@@ -796,6 +799,16 @@
       }
     },
     "dice": {
+      "createDialog": {
+        "title": "ダイスをまとめて作成",
+        "type": "種類",
+        "count": "個数",
+        "owner": "所有者",
+        "ownerNone": "なし",
+        "hidden": "自分だけ見る（伏せて置く）",
+        "cancel": "キャンセル",
+        "create": "作成"
+      },
       "contextMenu": {
         "rollDice": "ダイスを振る",
         "showDice": "ダイスを公開",
@@ -806,6 +819,8 @@
         "storeToOwner": "コマにしまう",
         "hideNameOn": "☑ 名前を隠す",
         "hideNameOff": "☐ 名前を隠す",
+        "usedOn": "☑ 使用済み",
+        "usedOff": "☐ 使用済み",
         "editDice": "ダイス設定を編集",
         "diceSheet": "ダイス目シート"
       },
@@ -1188,7 +1203,7 @@
         "sortAsc": "昇順",
         "sortDesc": "降順",
         "displayItems": "表示項目",
-        "dataTagPlaceholder": "スペース区切りでタグ名、スラッシュで改行 例: HP MP / メモ",
+        "dataTagPlaceholder": "スペース区切りでタグ名、スラッシュで改行、引用符でパスや空白入りの名前 例: HP MP / \"リソース/正気度\"",
         "multiMoveLabel": "一括移動",
         "selectAll": "全選択",
         "deselectAll": "全解除",
@@ -1348,7 +1363,7 @@
         "asc": "昇順",
         "desc": "降順",
         "displayItems": "表示項目",
-        "dataTagPlaceholder": "スペース区切りでタグ名、スラッシュで改行 例: HP MP / メモ",
+        "dataTagPlaceholder": "スペース区切りでタグ名、スラッシュで改行、引用符でパスや空白入りの名前 例: HP MP / \"リソース/正気度\"",
         "selectAll": "全選択",
         "deselectAll": "全解除",
         "moveTargetLabel": "移動先:",
@@ -1705,6 +1720,7 @@
         "createBlankCard": "ブランクカードを作成",
         "createTrump": "トランプの山札を作成",
         "createDice": "ダイスを作成",
+        "createDiceMany": "個数を指定して作成…",
         "createCoin": "コインを作成",
         "createRange": "射程範囲を作成",
         "createLight": "光源を作成",
@@ -1845,6 +1861,10 @@
         "doorStyleSlide": "横にスライド",
         "doorFlip": "開く向きを反転"
       },
+      "holdHint": {
+        "footing": "ホイールで足場を上下に辿る",
+        "lift": "Shift＋ホイールで高さを 1 マスずつ"
+      },
       "tableSetting": {
         "title": "テーブル設定",
         "sidebarTitle": "テーブル",
@@ -1961,7 +1981,7 @@
         "piecesShareCells": "同じマスに複数のコマを置ける（切ると、他のコマがいるマスは移動先に出さない）",
         "moveRangeElementNames": "参照する項目",
         "cellDistanceUnit": "マスの単位",
-        "moveRangeHint": "項目名はカンマ区切りで、シートに先に見つかったものを使う。シートの値を 1 マスの距離で割ってマス数にする（0 なら割らない）。シートの単位が卓と違えば、フィートとメートルは換算する。シートが「マス」ならそのままマス数として読む。",
+        "moveRangeHint": "項目名はカンマ区切りで、シートに先に見つかったものを使う。シートの値を 1 マスの距離で割ってマス数にする（0 なら割らない）。単位がマスでも同じで、1 マスの距離を 0.5 にするとシートの 1 マスが卓の 2 マスになる。シートの単位が卓と違えば、フィートとメートルは換算する。卓がメートルかフィートでシートが「マス」なら、そのままマス数として読む。",
         "zocMode": "ZOC（支配領域）",
         "zocMode_none": "なし",
         "zocMode_stop": "足止め（入ったらそこで移動終了）",
@@ -2201,7 +2221,7 @@
       "diagonalMoveHint": "交互に数えるのは D&D 3.5e やパスファインダー 1e の数え方。1 回目の斜めが 1 マス、2 回目が 2 マスになる。",
       "piecesShareCells": "同じマスに複数のコマを置ける（切ると、他のコマがいるマスは移動先に出さない）",
       "moveRangeElementNames": "参照する項目",
-      "moveRangeHint": "項目名はカンマ区切りで、シートに先に見つかったものを使う。シートの値を 1 マスの距離で割ってマス数にする（0 なら割らない）。シートの単位が卓と違えば、フィートとメートルは換算する。シートが「マス」ならそのままマス数として読む。",
+      "moveRangeHint": "項目名はカンマ区切りで、シートに先に見つかったものを使う。シートの値を 1 マスの距離で割ってマス数にする（0 なら割らない）。単位がマスでも同じで、1 マスの距離を 0.5 にするとシートの 1 マスが卓の 2 マスになる。シートの単位が卓と違えば、フィートとメートルは換算する。卓がメートルかフィートでシートが「マス」なら、そのままマス数として読む。",
       "cellDistance": "1 マスの距離",
       "cellDistanceUnit": "マスの単位",
       "cellUnit": {
@@ -3858,6 +3878,7 @@
       "sendTarget": "発言先",
       "buffSectionTitle": "バフ付与",
       "counterSectionTitle": "リソース操作",
+      "noResources": "操作できる項目がありません",
       "paletteEdit": "パレット編集",
       "confirm": "確定",
       "editing": "編集中",
@@ -3878,8 +3899,14 @@
       "execute": "操作",
       "maxLimit": "最大値制限",
       "minLimit": "0下限制限",
-      "currentValueSuffix": "現在値",
-      "maxValueSuffix": "最大値",
+      "slotSectionTitle": "スロット",
+      "slotNameSeparator": "",
+      "slotNow": "現在値",
+      "slotMax": "最大値",
+      "slotMaxBase": "最大値ベース",
+      "slotMaxCorrection": "最大値補正",
+      "slotMinBase": "最小値ベース",
+      "slotMinCorrection": "最小値補正",
       "tabTable": "テーブル",
       "tabPersonal": "個人",
       "tabGraveyard": "墓場",

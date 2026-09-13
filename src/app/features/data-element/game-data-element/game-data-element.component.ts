@@ -65,6 +65,7 @@ import { GameDataElementTableViewComponent } from '@axe/features/data-element/ga
 import { escapeHtml, isUrlText } from '@axe/features/data-element/game-data-element/game-data-element-utils';
 import { GameDataElementRangeShapeComponent } from '@axe/features/data-element/game-data-element-range-shape/game-data-element-range-shape.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -80,6 +81,7 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
     SafePipe,
     NgSelectComponent,
     NgOptionComponent,
+    NgSelectWindowDirective,
     GameDataElementTableViewComponent,
     TranslocoModule,
     GameDataElementRangeShapeComponent,

@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -41,6 +42,93 @@ describe('CardStackComponent', () => {
       Object.defineProperty(objectChangeService, 'networkVersion', { value: spy, configurable: true });
       void component.name();
       expect(spy).toHaveBeenCalled();
+    });
+
+    it('names who is looking through the stack, without it being moved', async () => {
+      // The stack is somebody else's, so nothing else drawn on it moves with the claim and the
+      // label is the only answer to the question. Nothing is checked by hand either: it has to
+      // follow because the signals said so.
+      const holder = new PeerCursor();
+      holder.userId = 'holder';
+      holder.name = '持ち主';
+      holder.initialize();
+      const cardStack = CardStack.create('テストスタック');
+      fixture.componentRef.setInput('cardStack', cardStack);
+      fixture.detectChanges();
+      const label = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(label()).not.toContain('持ち主');
+
+      cardStack.owner = holder.userId;
+      TestBed.inject(ObjectChangeService).notifyChanged(cardStack.identifier);
+      await fixture.whenStable();
+
+      expect(label()).toContain('持ち主');
+
+      cardStack.owner = '';
+      TestBed.inject(ObjectChangeService).notifyChanged(cardStack.identifier);
+      await fixture.whenStable();
+
+      expect(label()).not.toContain('持ち主');
+      holder.destroy();
+      cardStack.destroy();
+    });
+
+    it('reads who is looking through it from the signals rather than off the stack', () => {
+      const holder = new PeerCursor();
+      holder.userId = 'holder';
+      holder.name = '持ち主';
+      holder.initialize();
+      const cardStack = CardStack.create('テストスタック');
+      cardStack.owner = holder.userId;
+      fixture.componentRef.setInput('cardStack', cardStack);
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const versionOf = objectChange.versionOf.bind(objectChange);
+      const read: string[] = [];
+      Object.defineProperty(objectChange, 'versionOf', {
+        value: (identifier: string) => {
+          read.push(identifier);
+          return versionOf(identifier);
+        },
+        configurable: true,
+      });
+      const readsTheStack = (value: () => unknown): boolean => {
+        read.length = 0;
+        value();
+        return read.includes(cardStack.identifier);
+      };
+
+      expect(readsTheStack(() => component.hasOwner())).toBe(true);
+      expect(readsTheStack(() => component.ownerName())).toBe(true);
+      expect(read).toContain(holder.identifier);
+
+      holder.destroy();
+      cardStack.destroy();
+    });
+
+    it('marks a stack as locked, without it being moved', async () => {
+      // The lock mark is the only thing on a stack that moves when it is locked, so it is the
+      // whole answer to the question. Nothing is checked by hand: it has to follow because the
+      // signals said so.
+      const cardStack = CardStack.create('テストスタック');
+      fixture.componentRef.setInput('cardStack', cardStack);
+      fixture.detectChanges();
+      const locks = () =>
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('i')].filter((i) => i.textContent === 'lock')
+          .length;
+      expect(locks()).toBe(0);
+
+      cardStack.isLock = true;
+      TestBed.inject(ObjectChangeService).notifyChanged(cardStack.identifier);
+      await fixture.whenStable();
+
+      expect(locks()).toBe(1);
+
+      cardStack.isLock = false;
+      TestBed.inject(ObjectChangeService).notifyChanged(cardStack.identifier);
+      await fixture.whenStable();
+
+      expect(locks()).toBe(0);
+      cardStack.destroy();
     });
 
     it('holds the hidden icon in a signal', () => {

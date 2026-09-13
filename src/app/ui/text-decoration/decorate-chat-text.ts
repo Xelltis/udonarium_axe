@@ -16,10 +16,42 @@ export function escapeHtml(text: unknown): string {
   return text.replace(/[&'`"<>]/g, (match) => HTML_ESCAPE_MAP[match] ?? match);
 }
 
+const RUBY_NOTATION = /[|｜]([^|｜\s]+?)《(.+?)》/g;
+
+const ESCAPED_SPACE = /\\s/g;
+
 export function applyRubyMarkup(escapedHtml: string): string {
   return escapedHtml
-    .replace(/[|｜]([^|｜\s]+?)《(.+?)》/g, '<ruby class="chat-ruby"><rb>$1</rb><rt>$2</rt></ruby>')
-    .replace(/\\s/g, ' ');
+    .replace(RUBY_NOTATION, '<ruby class="chat-ruby"><rb>$1</rb><rt>$2</rt></ruby>')
+    .replace(ESCAPED_SPACE, ' ');
+}
+
+/** A run of a line: plain text, or text with a reading written over it. */
+export interface RubyPart {
+  readonly text: string;
+  /** Empty for plain text. */
+  readonly reading: string;
+}
+
+/**
+ * Cuts a line at the ruby notation (`|word《reading》`), the same way {@link applyRubyMarkup} reads it.
+ *
+ * The runs stay text rather than becoming html, for a place that shows a line a little at a time
+ * and so cannot hand over a finished piece of markup.
+ */
+export function splitRubyNotation(text: string): RubyPart[] {
+  const parts: RubyPart[] = [];
+  const plain = (from: number, to: number) => {
+    if (to > from) parts.push({ text: text.slice(from, to).replace(ESCAPED_SPACE, ' '), reading: '' });
+  };
+  let at = 0;
+  for (const match of text.matchAll(RUBY_NOTATION)) {
+    plain(at, match.index);
+    parts.push({ text: match[1].replace(ESCAPED_SPACE, ' '), reading: match[2].replace(ESCAPED_SPACE, ' ') });
+    at = match.index + match[0].length;
+  }
+  plain(at, text.length);
+  return parts;
 }
 
 export function decorateQuoteLines(html: string): string {

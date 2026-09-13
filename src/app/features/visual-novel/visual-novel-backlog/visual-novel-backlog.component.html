@@ -200,7 +200,9 @@
               </span>
             </span>
           } @else {
-            <span class="text-ui-text line-clamp-3 text-[13px] whitespace-pre-line">{{ entry.text }}</span>
+            <span class="text-ui-text line-clamp-3 text-[13px] whitespace-pre-line"
+              ><ruby-text [parts]="entry.parts"
+            /></span>
           }
         </span>
       </div>

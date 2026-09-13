@@ -1,4 +1,4 @@
-@if (!isMine) {
+@if (!isMine()) {
   <div
     #cursor
     class="pointer-events-none absolute overflow-visible will-change-transform select-none [-moz-user-drag:none] [-webkit-transform-style:preserve-3d] [-webkit-user-drag:none] [transition:transform_133ms_linear,opacity_0.5s_ease-out] transform-3d"
@@ -23,7 +23,7 @@
             <div
               class="bg-ui-accent absolute -top-6.5 left-1/2 box-border -translate-x-1/2 rounded-[14px] px-1.5 py-0.5 text-[9px] font-bold whitespace-nowrap text-white"
             >
-              <span class="whitespace-nowrap">{{ name }}</span>
+              <span class="whitespace-nowrap">{{ name() }}</span>
               @if (showRoleBadge()) {
                 <span class="ml-1 rounded-sm px-1 text-[8px] font-bold" [class]="roleBadgeClass()">{{
                   roleBadgeText()

@@ -4,7 +4,7 @@
   [style.width.px]="size * gridSize"
   appMovable
   [movable.option]="movableOption()"
-  [movable.disable]="isLock"
+  [movable.disable]="isLock()"
   [appSelectable]="cardStack()"
   (movable.ondragstart)="onMove()"
   (movable.ondragend)="onMoved()"
@@ -51,7 +51,7 @@
         </div>
         <card-face-text [card]="topCard" [rotation]="topCard.rotate" />
       }
-      @if (!isIconHidden() && !isLock) {
+      @if (!isIconHidden() && !isLock()) {
         @for (
           pos of [
             '-top-[14px] -left-[14px]',
@@ -69,7 +69,7 @@
           </div>
         }
       }
-      @if (isLock) {
+      @if (isLock()) {
         <div
           class="bg-ui-panel text-ui-text absolute top-1.25 z-1 box-border size-7 rounded-full p-0.5 text-[8px] whitespace-nowrap will-change-[opacity] [-webkit-transform-style:preserve-3d] transform-3d"
           [ngStyle]="{ transform: 'translateY(0%) translateX(-50%) translateX(' + (size * gridSize) / 2 + 'px)' }"
@@ -85,12 +85,12 @@
           <span>{{ 'feature.cardStack.stack.countLabel' | transloco: { count: cards.length } }}</span>
         </div>
       }
-      @if (hasOwner) {
+      @if (hasOwner()) {
         <div
           class="bg-ui-panel text-ui-text absolute top-1/2 box-border max-w-[18em] truncate rounded-3xl px-2.25 py-0.75 text-[15px] will-change-[opacity] [-webkit-transform-style:preserve-3d] transform-3d"
           [ngStyle]="{ transform: 'translateY(50%) translateX(-50%) translateX(' + (size * gridSize) / 2 + 'px)' }"
         >
-          <span>{{ 'feature.cardStack.stack.checkingBy' | transloco: { name: ownerName } }}</span>
+          <span>{{ 'feature.cardStack.stack.checkingBy' | transloco: { name: ownerName() } }}</span>
         </div>
       }
     </div>

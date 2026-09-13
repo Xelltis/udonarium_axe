@@ -52,6 +52,7 @@ export class ChatTabSettingComponent {
   }
 
   set systemTabIndex(index: number) {
+    if (!this.canEditTabs) return;
     this.chatTabList.systemMessageTabIndex = index;
   }
 
@@ -99,7 +100,7 @@ export class ChatTabSettingComponent {
 
   /** It cannot be deleted; with nowhere for the arrivals and departures to go, they come back into the conversation. */
   get isDeletable(): boolean {
-    return !this.isEmpty && !!this.selectedTab() && !this.isSystemTabSelected;
+    return !this.isEmpty && !!this.selectedTab() && !this.isSystemTabSelected && this.canEditTabs;
   }
 
   get isRenamable(): boolean {
@@ -107,7 +108,7 @@ export class ChatTabSettingComponent {
   }
 
   get isMovable(): boolean {
-    return !this.isDeleted && !this.isSystemTabSelected;
+    return !this.isDeleted && !this.isSystemTabSelected && this.canEditTabs;
   }
 
   /** Whether it travels with the room data. The system tab is no part of the room. */
@@ -121,11 +122,23 @@ export class ChatTabSettingComponent {
   }
 
   get isEditable(): boolean {
-    return !this.isEmpty && !this.isDeleted;
+    return !this.isEmpty && !this.isDeleted && this.canEditTabs;
   }
-  get canEditPermission(): boolean {
+
+  /**
+   * Whether the tabs are this reader's to change.
+   *
+   * The tabs and their logs belong to the room rather than to a seat: deleting one takes the
+   * conversation from everybody, and clearing a log takes it from everybody for good. A seat
+   * that is only watching changes neither.
+   */
+  get canEditTabs(): boolean {
     this.objectChange.trackMyCursor();
-    return this.isEditable && canRoleEdit(PeerCursor.myRole);
+    return canRoleEdit(PeerCursor.myRole);
+  }
+
+  get canEditPermission(): boolean {
+    return this.isEditable && this.canEditTabs;
   }
 
   readonly isSaving = signal(false);
@@ -169,6 +182,7 @@ export class ChatTabSettingComponent {
   }
 
   create() {
+    if (!this.canEditTabs) return;
     this.chatTabList.addChatTab(this.t('feature.chat.tabSetting.defaultTabName'));
   }
 
@@ -237,7 +251,7 @@ export class ChatTabSettingComponent {
   }
 
   deleteLog() {
-    if (!this.allowDeleteLog) return;
+    if (!this.allowDeleteLog || !this.canEditTabs) return;
 
     if (!this.isEmpty && this.selectedTab()) {
       while (this.selectedTab()!.children.length > 0) {
@@ -250,7 +264,7 @@ export class ChatTabSettingComponent {
   }
 
   deleteLogALL() {
-    if (!this.allowDeleteLog) return;
+    if (!this.allowDeleteLog || !this.canEditTabs) return;
 
     const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
 
@@ -275,6 +289,7 @@ export class ChatTabSettingComponent {
   }
 
   restore() {
+    if (!this.canEditTabs) return;
     if (this.selectedTab() && this.selectedTabXml) {
       const restoreTable = this.objectSerializer.parseXml(this.selectedTabXml)! as ChatTab;
       this.chatTabList.addChatTab(restoreTable);
@@ -283,6 +298,7 @@ export class ChatTabSettingComponent {
   }
 
   chkSystemTabIndex() {
+    if (!this.canEditTabs) return;
     const list = this.chatTabList;
     if (this.systemTabIndex >= list.children.length) this.systemTabIndex = list.children.length - 1;
     if (this.systemTabIndex < 0) this.systemTabIndex = 0;

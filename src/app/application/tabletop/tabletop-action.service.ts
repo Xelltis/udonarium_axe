@@ -1,9 +1,17 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
+import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import {
+  type DiceCreateDialogOption,
+  type DiceCreateRequest,
+  type DiceMenuItem,
+  type DicePlacement,
   getDiceMenuItems,
+  getDicePlacements,
   getRangeMenuItems,
   getTrumpCardCodes,
   TERRAIN_TEXTURE_PATH,
@@ -15,9 +23,12 @@ import {
   makeDefaultTabletopObjects as _makeDefaultTabletopObjects,
 } from '@axe/application/tabletop/tabletop-default-setup';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { GameObject } from '@axe/core/sync/game-object';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { toDeckCardSources } from '@axe/domain/card/deck-builder';
@@ -28,11 +39,15 @@ import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { type AmbienceKind, GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
+import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -52,8 +67,15 @@ const BOARD_DEFAULT_HEIGHT = 4;
   providedIn: 'root',
 })
 export class TabletopActionService {
+  /** The dialogue for making several dice at once, handed over by the composition root. */
+  static diceCreateDialogComponentClass: { new (...args: unknown[]): unknown } | null = null;
+
   private readonly imageStorage = inject(ImageStorage);
+  private readonly modalService = inject(ModalService);
+  private readonly tabletopService = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly partyService = inject(PartyService);
+  private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly viewMode = inject(ViewModePreferenceService);
@@ -173,7 +195,13 @@ export class TabletopActionService {
     return textNote;
   }
 
-  createDiceSymbol(position: PointerCoordinate, name: string, diceType: DiceType, imagePathPrefix: string): DiceSymbol {
+  createDiceSymbol(
+    position: PointerCoordinate,
+    name: string,
+    diceType: DiceType,
+    imagePathPrefix: string,
+    placement?: DicePlacement
+  ): DiceSymbol {
     const diceSymbol = DiceSymbol.create(name, diceType, 1);
     diceSymbol.faces.forEach((face) => {
       const url: string = `./assets/images/dice/${imagePathPrefix}/${imagePathPrefix}[${face}].png`;
@@ -185,10 +213,32 @@ export class TabletopActionService {
       if (faceEl) faceEl.value = image.identifier;
     });
 
-    diceSymbol.location.x = position.x - 25;
-    diceSymbol.location.y = position.y - 25;
+    const place = placement ?? getDicePlacements(position, 1)[0];
+    diceSymbol.location.x = place.x;
+    diceSymbol.location.y = place.y;
     diceSymbol.posZ = position.z;
     return diceSymbol;
+  }
+
+  /**
+   * Makes several dice of one kind at once, laid out beside the point they were asked for.
+   *
+   * A handful of the same die is what a roll usually needs, and making them one press at a time
+   * left them in a pile on one spot to be pulled apart by hand.
+   */
+  createDiceSymbols(
+    position: PointerCoordinate,
+    item: DiceMenuItem,
+    count: number,
+    ownership: { ownerCharacterIdentifier?: string; hiddenToOthers?: boolean } = {}
+  ): DiceSymbol[] {
+    const owner = ownership.hiddenToOthers === true ? getPeerContext().userId : '';
+    return getDicePlacements(position, count).map((placement) => {
+      const dice = this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement);
+      if (ownership.ownerCharacterIdentifier) dice.ownerCharacterIdentifier = ownership.ownerCharacterIdentifier;
+      if (owner.length > 0) dice.owner = owner;
+      return dice;
+    });
   }
 
   createRangeArea(position: PointerCoordinate, typeName: string): RangeArea {
@@ -357,6 +407,104 @@ export class TabletopActionService {
     ];
   }
 
+  /**
+   * Gathering a party on one spot, which is the master's to offer.
+   *
+   * A room may keep several parties - the players, and whoever is travelling with them - so each
+   * is named and picked in turn rather than the table guessing which one was meant. A party
+   * nobody belongs to is shown and cannot be picked, since a party that has lost its members
+   * should say so rather than going quiet.
+   */
+  getGatherPartyMenu(position: PointerCoordinate): ContextMenuAction[] {
+    if (!this.rolePermission.isGameMaster) return [];
+    const parties = this.partyService.parties();
+    if (parties.length === 0) return [];
+    return [
+      {
+        name: this.t('feature.gmTools.party.gather'),
+        action: undefined,
+        subActions: parties.flatMap((party) => this.getGatherOnePartyMenu(position, party)),
+      },
+    ];
+  }
+
+  /**
+   * What a party is offered as, which is one entry unless some of it is off the table.
+   *
+   * A party with members put away is offered twice - the ones on the table, and all of them -
+   * rather than asked about after the fact. The entry says how many it will move, so which of
+   * the two was wanted is read before it is picked instead of in a dialogue afterwards.
+   */
+  private getGatherOnePartyMenu(position: PointerCoordinate, party: Party): ContextMenuAction[] {
+    const name = party.name.length ? party.name : this.t('common.party.unnamed');
+    const members = this.partyService.membersOf(party.identifier);
+    if (members.length === 0) return [{ name, enabled: false }];
+
+    const away = members.filter((member) => !member.isVisibleOnTable);
+    const here = members.length - away.length;
+    const entries: ContextMenuAction[] = [];
+    if (here > 0) {
+      entries.push({
+        name: away.length > 0 ? this.t('feature.gmTools.party.gatherOnTable', { name, count: here }) : name,
+        action: () => {
+          this.gatherParty(position, party);
+        },
+      });
+    }
+    if (away.length > 0) {
+      entries.push({
+        name: this.t('feature.gmTools.party.gatherWithAway', { name, count: away.length }),
+        action: () => {
+          this.gatherParty(position, party, true);
+        },
+      });
+    }
+    return entries;
+  }
+
+  /**
+   * Standing a party's pieces around one spot, the nearest ground first.
+   *
+   * The spot itself is taken and the rest are laid around it, so a party gathered on a doorway
+   * stands in the doorway rather than in a row running off it. Ground anybody else is standing
+   * on is left alone, and the pieces being gathered give up the ground they were on, so a party
+   * asked to gather where it already stands does not have to squeeze past itself.
+   *
+   * A member that is not on the table is left where it is unless it was asked for by name: a
+   * piece that was put away was put away on purpose. Answers with how many were placed.
+   */
+  gatherParty(position: PointerCoordinate, party: Party, bringInAway = false): number {
+    const table = this.getViewTable();
+    if (!table || table.gridSize <= 0) return 0;
+    const members = this.partyService.membersOf(party.identifier);
+    if (members.length === 0) return 0;
+
+    const gathering = bringInAway ? members : members.filter((member) => member.isVisibleOnTable);
+    if (gathering.length === 0) return 0;
+
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const start = cellIndexAt(grid, position.x, position.y);
+    if (start < 0) return 0;
+
+    const moving = new Set(gathering.map((member) => member.identifier));
+    const standing = this.partyService.characters().filter((character) => !moving.has(character.identifier));
+    const spots = GameObject.batch(() => {
+      const placed = gatherSpotsAround(grid, table.gridSize, start, gathering, occupiedCells(grid, standing, ''));
+      for (const spot of placed) {
+        if (!spot.character.isVisibleOnTable) spot.character.setLocation('table');
+        spot.character.location.x = spot.x;
+        spot.character.location.y = spot.y;
+        spot.character.location.surface = undefined;
+        spot.character.posZ = 0;
+        spot.character.update();
+      }
+      return placed;
+    });
+    for (const spot of spots) this.objectChange.notifyChanged(spot.character.identifier);
+    if (spots.length > 0) SoundEffect.play(PresetSound.piecePut);
+    return spots.length;
+  }
+
   private getCreateAmbienceMenu(position: PointerCoordinate): ContextMenuAction {
     return {
       name: this.t('feature.tabletop.action.createAmbience'),
@@ -469,7 +617,46 @@ export class TabletopActionService {
         },
       });
     });
+    if (TabletopActionService.diceCreateDialogComponentClass) {
+      subMenus.push({
+        name: this.t('feature.tabletop.action.createDiceMany'),
+        action: () => void this.openDiceCreateDialog(position),
+      });
+    }
     return { name: this.t('feature.tabletop.action.createDice'), action: undefined, subActions: subMenus };
+  }
+
+  /** Asks which die and how many, then makes them. Nothing is made where the asking is dropped. */
+  private async openDiceCreateDialog(position: PointerCoordinate): Promise<void> {
+    const dialogClass = TabletopActionService.diceCreateDialogComponentClass;
+    if (!dialogClass) return;
+
+    const option: DiceCreateDialogOption = {
+      defaultCount: 2,
+      // The same pieces the menu of a die already offers to give it to.
+      ownerCandidates: this.tabletopService.characters.map((character) => ({
+        identifier: character.identifier,
+        name: character.name,
+      })),
+    };
+    const request = await this.modalService
+      .open<DiceCreateRequest | null>(dialogClass, {
+        ...option,
+        title: this.t('feature.dice.createDialog.title'),
+        // A few fields in a frame half the screen wide read as a mistake. It takes the width
+        // its own asking needs.
+        fitWidth: true,
+      })
+      .catch(() => null);
+    if (!request) return;
+
+    const item = getDiceMenuItems()[request.typeIndex];
+    if (!item) return;
+    const made = this.createDiceSymbols(position, item, request.count, {
+      ownerCharacterIdentifier: request.ownerCharacterIdentifier,
+      hiddenToOthers: request.hiddenToOthers,
+    });
+    if (made.length > 0) SoundEffect.play(PresetSound.dicePut);
   }
 
   createCoin(position: PointerCoordinate): Coin {

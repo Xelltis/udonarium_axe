@@ -4,18 +4,26 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { clearRunAlong, MoveBlock } from '@axe/domain/tabletop/move/blocked-path';
 import { SurfaceDims, surfaceWorldBox, WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import {
+  boardSurfaceOf,
+  isOffTheFloor,
+  surfaceOf,
+  TableSurface,
+  TabletopObject,
+} from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { InputHandler } from '@axe/ui/directives/input-handler';
@@ -39,6 +47,7 @@ import {
   shouldTransitionTo,
   toTransformCss,
   unregisterLayer,
+  wheelSpin,
 } from '@axe/ui/directives/movable-helpers';
 import {
   dragPointer2d,
@@ -71,6 +80,7 @@ export class MovableDirective implements MovableInteractionContext {
   readonly coordinateService = inject(CoordinateService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly heldPiece = inject(HeldPieceService);
   private readonly multiMovableService = inject(MultiMovableService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
@@ -312,16 +322,73 @@ export class MovableDirective implements MovableInteractionContext {
     e.stopPropagation();
 
     const self = this.tabletopObject;
-    if (!self || e.deltaY === 0) return;
+    const spin = wheelSpin(e);
+    if (!self || spin === 0) return;
+    if (e.shiftKey && this.sendAloft(self, spin < 0)) return;
     if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
     const rider = this.contactRider(self);
     const center = this.coordinateService.convertToLocal(dragPointer2d(this), this.surfaceElement());
     const levels = contactRestLevels(this.contactProbe, center.x, center.y, rider);
-    const next = nextContactLevel(levels, rider.restingZ, e.deltaY < 0);
+    const next = nextContactLevel(levels, rider.restingZ, spin < 0);
     if (next === null) return;
 
     this.dragReachZ = next;
     this.onInputMoveNow(e);
+  }
+
+  /**
+   * Holding a piece off the ground, rather than putting it down on what is under it.
+   *
+   * The wheel alone walks whatever the piece can stand on, which is what a table wants of it
+   * nearly always. Held with it, the wheel leaves the ground behind: the height goes into the
+   * piece's own altitude, which is the only height a piece keeps - what it is standing on is
+   * gravity's to write, and gravity would put a floating piece straight back down.
+   */
+  private sendAloft(self: TabletopObject, isUp: boolean): boolean {
+    if (surfaceOf(self) !== 'floor') return false;
+
+    const next = steppedAltitude(self.altitude, isUp, ALTITUDE_STEP_CELLS);
+    if (next !== self.altitude) {
+      self.altitude = next;
+      self.update();
+    }
+    this.showHeldPiece(next);
+    return true;
+  }
+
+  private showHeldPiece(altitude: number): void {
+    const self = this.tabletopObject;
+    if (!self) return;
+    this.heldPiece.take({
+      identifier: self.identifier,
+      x: this.posX,
+      y: this.posY,
+      widthPx: this.width,
+      heightPx: this.height,
+      altitude,
+      gridSize: this.tableGridSize(),
+      liftable: surfaceOf(self) === 'floor',
+    });
+  }
+
+  private followWithHeldPiece(): void {
+    const self = this.tabletopObject;
+    if (!self || this.heldPiece.held()?.identifier !== self.identifier) return;
+    this.showHeldPiece(self.altitude);
+  }
+
+  /**
+   * What is in hand, said for as long as it is in hand.
+   *
+   * A drag can be turned into more than a drag, and the turns it takes are worth hearing
+   * about while the piece is held and worth nothing afterwards. Said from the moment the
+   * piece is picked up rather than once the wheel has already been turned, since somebody
+   * who does not know the wheel does anything never turns it.
+   */
+  private takeUpPiece(): void {
+    const self = this.tabletopObject;
+    if (!self) return;
+    this.showHeldPiece(self.altitude);
   }
 
   private buildContactProbe(): ContactFootprint[] {
@@ -440,6 +507,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   cancel() {
     window.removeEventListener('wheel', this.onWheelWhileGrabbed, { capture: true });
+    this.heldPiece.letGo(this.tabletopObject?.identifier);
     if (this.input) this.input.cancel();
     this.promoteWhileMoving(false);
     this.setPointerEvents(true);
@@ -491,6 +559,7 @@ export class MovableDirective implements MovableInteractionContext {
 
     if (this._multiAdapter) this.multiMovableService.beginDrag(this._multiAdapter);
     window.addEventListener('wheel', this.onWheelWhileGrabbed, { capture: true, passive: false });
+    this.takeUpPiece();
     handleInputStart(this, e);
   }
 
@@ -500,6 +569,11 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private onInputMoveNow(e: MouseEvent | TouchEvent) {
+    this.moveWhileHeld(e);
+    this.followWithHeldPiece();
+  }
+
+  private moveWhileHeld(e: MouseEvent | TouchEvent) {
     const pointerSurface = this.surfaceUnderPointer();
     const overDifferentSurface = pointerSurface !== null && pointerSurface !== this.surfaceElement();
     if (overDifferentSurface && this.input?.isDragging && this.input.pointer) {
@@ -843,8 +917,9 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private isOnWallSurface(): boolean {
-    const surface = this.tabletopObject?.location?.surface;
-    return !!surface && surface !== 'floor';
+    const object = this.tabletopObject;
+    if (!object?.location) return false;
+    return isOffTheFloor(object);
   }
 
   private setPosition(object: TabletopObject) {

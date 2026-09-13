@@ -62,21 +62,6 @@ export function getInventoryTags(
   return inventory.dataElementMap.get(gameCharacter.identifier) ?? [];
 }
 
-export function getCounterElements(gameCharacter: GameCharacter, dataTags: readonly string[]): DataElement[] {
-  const root = gameCharacter.rootDataElement;
-  if (!root) return [];
-
-  const elements: DataElement[] = [];
-  const seen = new Set<string>();
-  for (const tag of dataTags) {
-    const element = DataElement.findElementByReference(root, tag);
-    if (!element || seen.has(element.identifier)) continue;
-    seen.add(element.identifier);
-    elements.push(element);
-  }
-  return elements;
-}
-
 export function getGameObjects(
   inventoryType: string,
   inventoryService: RemoteControllerInventoryContext | GameObjectInventoryService

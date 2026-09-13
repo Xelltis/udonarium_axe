@@ -19,6 +19,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -50,6 +51,7 @@ import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-setting
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
+import { DiceSymbolCreateDialogComponent } from '@axe/features/dice/dice-symbol-create-dialog/dice-symbol-create-dialog.component';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
@@ -338,4 +340,5 @@ ContextMenuService.loadFourWayRadialMenuComponent = () =>
   );
 ModalService.ModalComponentClass = ModalComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
+TabletopActionService.diceCreateDialogComponentClass = DiceSymbolCreateDialogComponent;
 TooltipDirective.TooltipPanelComponentClass = OverviewPanelComponent;

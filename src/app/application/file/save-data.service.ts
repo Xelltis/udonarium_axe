@@ -31,6 +31,20 @@ import { Room } from '@axe/domain/peer/room';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 type UpdateCallback = (percent: number) => void;
 
+/**
+ * What an attribute naming a picture is called, rather than a list of the ones thought of.
+ *
+ * A save carries the pictures the room points at and finds them by walking its own XML, so a
+ * picture named by an attribute nobody looks for is left behind: the room comes back with the
+ * thing it was hanging on gone. A list has to be added to whenever a picture is, and the four
+ * walls were never added - the room came back with blank walls and every piece standing on one
+ * with nowhere to be drawn. The name is the rule instead, as it already is for a replay.
+ */
+const IMAGE_ATTRIBUTE = /ImageIdentifier$|^imageIdentifier$/;
+
+/** Several pictures under one name, which is its own spelling and read on its own terms. */
+const ATTACHMENT_IMAGE_ATTRIBUTE = 'attachmentImageIdentifiers';
+
 const CHAT_LOG_IMAGE_DECODE_LIMIT = 4;
 
 @Injectable({
@@ -193,24 +207,19 @@ export class SaveDataService {
     if (!xmlElement) return files;
 
     const images: { [identifier: string]: ImageFile | null } = {};
-    let imageElements = xmlElement.ownerDocument.querySelectorAll('*[type="image"]');
+    const imageElements = xmlElement.ownerDocument.querySelectorAll('*[type="image"]');
 
     for (let i = 0; i < imageElements.length; i++) {
       const identifier = imageElements[i].innerHTML;
       images[identifier] = this.imageStorage.get(identifier);
     }
 
-    imageElements = xmlElement.ownerDocument.querySelectorAll(
-      '*[imageIdentifier], *[backgroundImageIdentifier], *[attachmentImageIdentifiers]'
-    );
-
-    for (let i = 0; i < imageElements.length; i++) {
-      const identifier = imageElements[i].getAttribute('imageIdentifier');
-      if (identifier) images[identifier] = this.imageStorage.get(identifier);
-      const backgroundImageIdentifier = imageElements[i].getAttribute('backgroundImageIdentifier');
-      if (backgroundImageIdentifier)
-        images[backgroundImageIdentifier] = this.imageStorage.get(backgroundImageIdentifier);
-      const attachmentImageIdentifiers = imageElements[i].getAttribute('attachmentImageIdentifiers') ?? '';
+    for (const element of Array.from(xmlElement.ownerDocument.querySelectorAll('*'))) {
+      for (const { name, value } of Array.from(element.attributes)) {
+        if (!value || !IMAGE_ATTRIBUTE.test(name)) continue;
+        images[value] = this.imageStorage.get(value);
+      }
+      const attachmentImageIdentifiers = element.getAttribute(ATTACHMENT_IMAGE_ATTRIBUTE) ?? '';
       for (const attachmentImageIdentifier of this.parseAttachmentImageIdentifiers(attachmentImageIdentifiers)) {
         if (attachmentImageIdentifier) {
           images[attachmentImageIdentifier] = this.imageStorage.get(attachmentImageIdentifier);

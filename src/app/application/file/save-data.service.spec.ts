@@ -7,6 +7,7 @@ import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -272,6 +273,39 @@ describe('SaveDataService', () => {
       const found = privateApi.searchImageFiles(ObjectSerializer.instance.toXml(cutIn));
 
       expect(found.map((image) => image.identifier)).toContain('layer-image-01');
+    });
+  });
+
+  describe('the pictures a table hangs on its walls', () => {
+    it('bundles the picture of every wall, not the floor alone', () => {
+      const service = TestBed.inject(SaveDataService);
+      const privateApi = service as unknown as SaveDataServicePrivateApi;
+      const papers = ['north-paper', 'east-paper', 'south-paper', 'west-paper'];
+      for (const paper of papers) ImageStorage.instance.add(ImageFile.createEmpty(paper));
+
+      const table = new GameTable();
+      table.initialize();
+      table.northWallImageIdentifier = 'north-paper';
+      table.eastWallImageIdentifier = 'east-paper';
+      table.southWallImageIdentifier = 'south-paper';
+      table.westWallImageIdentifier = 'west-paper';
+      try {
+        const found = privateApi.searchImageFiles(ObjectSerializer.instance.toXml(table));
+
+        expect(found.map((image) => image.identifier).sort()).toEqual(papers.sort());
+      } finally {
+        table.destroy();
+      }
+    });
+
+    it('goes by what the attribute is called, so a picture added later is carried too', () => {
+      const service = TestBed.inject(SaveDataService);
+      const privateApi = service as unknown as SaveDataServicePrivateApi;
+      ImageStorage.instance.add(ImageFile.createEmpty('ceiling-paper'));
+
+      const found = privateApi.searchImageFiles('<game-table ceilingImageIdentifier="ceiling-paper"></game-table>');
+
+      expect(found.map((image) => image.identifier)).toEqual(['ceiling-paper']);
     });
   });
 

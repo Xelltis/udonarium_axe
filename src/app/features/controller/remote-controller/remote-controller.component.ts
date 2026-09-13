@@ -28,12 +28,14 @@ import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { type ResourceCatalogEntry, resourceCatalogOf } from '@axe/domain/character/resource-catalog';
 import { ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
-import { SortOrder } from '@axe/domain/data/data-summary-setting';
+import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
+import { RESOURCE_SLOTS, type ResourceSlot } from '@axe/domain/data/resource-slot';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -46,7 +48,6 @@ import {
   RemoteControllerSelect,
 } from '@axe/features/controller/remote-controller/remote-controller-buff';
 import {
-  getCounterElements,
   getGameObjects,
   getInventory,
   getInventoryTags,
@@ -58,6 +59,15 @@ import { TranslocoModule } from '@jsverse/transloco';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 export type MobileSection = 'targets' | 'buff' | 'resource';
+
+const SLOT_LABEL_KEYS: Record<ResourceSlot, string> = {
+  now: 'feature.controller.remote.slotNow',
+  max: 'feature.controller.remote.slotMax',
+  maxBase: 'feature.controller.remote.slotMaxBase',
+  maxCorrection: 'feature.controller.remote.slotMaxCorrection',
+  minBase: 'feature.controller.remote.slotMinBase',
+  minCorrection: 'feature.controller.remote.slotMinCorrection',
+};
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -80,12 +90,8 @@ export class RemoteControllerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
-  currentValueSuffix(): string {
-    return this.t('feature.controller.remote.currentValueSuffix');
-  }
-
-  maxValueSuffix(): string {
-    return this.t('feature.controller.remote.maxValueSuffix');
+  slotLabel(slot: ResourceSlot): string {
+    return this.t(SLOT_LABEL_KEYS[slot]);
   }
 
   get palette(): ChatPalette | null {
@@ -148,6 +154,10 @@ export class RemoteControllerComponent {
       if (0 < dicebot.length) {
         untracked(() => (this.gameType = dicebot));
       }
+    });
+    effect(() => {
+      this.counterChoices();
+      untracked(() => this.dropChosenIfGone());
     });
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.character() && this.character()!.identifier === e.identifier) {
@@ -232,11 +242,7 @@ export class RemoteControllerComponent {
 
   recoveryLimitFlag = false;
   recoveryLimitFlagMin = false;
-  remoteControllerSelect: RemoteControllerSelect = {
-    name: '',
-    nowOrMax: '',
-    dispName: '',
-  };
+  readonly remoteControllerSelect = signal<RemoteControllerSelect>({ name: '', nowOrMax: 'now', dispName: '' });
   readonly isEdit = signal(false);
   editPalette = '';
 
@@ -294,10 +300,41 @@ export class RemoteControllerComponent {
     this.text.set('');
   }
 
-  remoteSelect(name: string, nowOrMax: string, dispName: string) {
-    this.remoteControllerSelect.name = name;
-    this.remoteControllerSelect.nowOrMax = nowOrMax;
-    this.remoteControllerSelect.dispName = dispName;
+  remoteSelect(name: string, nowOrMax: ResourceSlot, dispName: string) {
+    this.remoteControllerSelect.set({ name, nowOrMax, dispName });
+  }
+
+  /** Whether this is the item the buttons are pointing at. */
+  isChosenName(name: string): boolean {
+    return this.remoteControllerSelect().name === name;
+  }
+
+  /** Whether this is the part of it they would move. */
+  isChosenSlot(slot: ResourceSlot): boolean {
+    return this.remoteControllerSelect().nowOrMax === slot;
+  }
+
+  /**
+   * Points the buttons at an item.
+   *
+   * The slot stays where it stood, so a table working through a row of pieces keeps moving
+   * the same part of each; an item that has only its value to write to takes that.
+   */
+  chooseResource(choice: ResourceCatalogEntry): void {
+    const slot = choice.isResource ? this.remoteControllerSelect().nowOrMax : 'now';
+    this.remoteSelect(choice.name, slot, this.displayNameOf(choice, slot));
+  }
+
+  chooseSlot(slot: ResourceSlot): void {
+    const choice = this.chosenChoice();
+    if (!choice) return;
+    this.remoteSelect(choice.name, slot, this.displayNameOf(choice, slot));
+  }
+
+  /** How the operation reads in the chat line: the item, and which part of it was moved. */
+  private displayNameOf(choice: ResourceCatalogEntry, slot: ResourceSlot): string {
+    if (!choice.isResource) return choice.name;
+    return `${choice.name}${this.t('feature.controller.remote.slotNameSeparator')}${this.slotLabel(slot)}`;
   }
 
   updatePanelTitle() {
@@ -375,13 +412,51 @@ export class RemoteControllerComponent {
     return object instanceof GameCharacter ? this.disclosureService.canView(object) : true;
   }
 
-  readonly counterElements = computed<DataElement[]>(() => {
-    const character = this.character();
-    if (!character) return [];
-    this.objectChange.versionOf(character.identifier)();
+  /**
+   * What the pieces being operated on carry between them.
+   *
+   * The buttons follow those pieces rather than the one the panel belongs to: an item is
+   * operated on by name, so one the reader's own piece happens not to have is still theirs to
+   * move on somebody else's, and one added to a sheet mid-session is there as soon as it is.
+   * With nothing picked out yet, the whole tab stands in, so the buttons are there before the
+   * first target is.
+   */
+  readonly counterChoices = computed<ResourceCatalogEntry[]>(() => {
+    const characters = this.resourceTargets();
+    for (const character of characters) this.objectChange.versionOf(character.identifier)();
+    this.objectChange.versionOf(DataSummarySetting.instance.identifier)();
     this.objectChange.collectionOf('data')();
-    return getCounterElements(character, this.dataTags);
+    return resourceCatalogOf(characters, { listFirst: this.dataTags });
   });
+
+  private resourceTargets(): GameCharacter[] {
+    const targeted = this.getTargetCharacters(true);
+    return targeted.length > 0 ? targeted : this.getTargetCharacters(false);
+  }
+
+  /** The item the buttons point at, as it stands among what the pieces carry. */
+  readonly chosenChoice = computed<ResourceCatalogEntry | null>(() => {
+    const name = this.remoteControllerSelect().name;
+    if (name === '') return null;
+    return this.counterChoices().find((choice) => choice.name === name) ?? null;
+  });
+
+  /**
+   * The parts of the chosen item that can be moved.
+   *
+   * A resource answers to every one of them; anything else has its value alone, and is left
+   * without a row of slots to read past.
+   */
+  readonly chosenSlots = computed<readonly ResourceSlot[]>(() =>
+    this.chosenChoice()?.isResource ? RESOURCE_SLOTS : []
+  );
+
+  /** Lets go of a chosen item the pieces no longer carry, so the buttons and the act agree. */
+  dropChosenIfGone(): void {
+    const chosen = this.remoteControllerSelect();
+    if (chosen.name === '') return;
+    if (!this.counterChoices().some((choice) => choice.name === chosen.name)) this.remoteSelect('', 'now', '');
+  }
 
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {
     this.objectChange.versionOf(gameObject.identifier)();
@@ -442,13 +517,14 @@ export class RemoteControllerComponent {
 
   remoteChangeValue() {
     const gameCharacters = this.getTargetCharacters(true);
-    if (this.remoteControllerSelect.name == '') {
+    const chosen = this.remoteControllerSelect();
+    if (chosen.name == '') {
       this.errorMessageController = this.t('feature.controller.remote.noChangeTarget');
       return;
     }
     const parts: string[] = [];
-    const name = this.remoteControllerSelect.name;
-    const nowOrMax = this.remoteControllerSelect.nowOrMax;
+    const name = chosen.name;
+    const nowOrMax = chosen.nowOrMax;
     const addValue = this.remoteNumber;
     for (const object of gameCharacters) {
       parts.push(
@@ -459,7 +535,7 @@ export class RemoteControllerComponent {
     if (text != '') {
       const sign = this.remoteNumber < 0 ? '' : '+';
       const mess = this.t('feature.controller.remote.changeValueMessage', {
-        name: this.remoteControllerSelect.dispName,
+        name: chosen.dispName,
         sign,
         value: this.remoteNumber,
         detail: text,

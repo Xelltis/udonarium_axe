@@ -153,7 +153,10 @@
         "emptyMembers": "No members yet.",
         "emptyParties": "No parties yet. Use \"Add party\" to create one.",
         "unnamedCharacter": "Unnamed",
-        "focus": "Focus on token"
+        "focus": "Focus on token",
+        "gather": "Gather a party on this spot",
+        "gatherOnTable": "{{name}} (the {{count}} on the table)",
+        "gatherWithAway": "{{name}} (bring in {{count}} more)"
       }
     },
     "hotbar": {
@@ -796,6 +799,16 @@
       }
     },
     "dice": {
+      "createDialog": {
+        "title": "Create several dice",
+        "type": "Kind",
+        "count": "Count",
+        "owner": "Owner",
+        "ownerNone": "Nobody",
+        "hidden": "Only I may read them",
+        "cancel": "Cancel",
+        "create": "Create"
+      },
       "contextMenu": {
         "rollDice": "Roll dice",
         "showDice": "Reveal dice",
@@ -806,6 +819,8 @@
         "storeToOwner": "Put away into the piece",
         "hideNameOn": "☑ Hide name",
         "hideNameOff": "☐ Hide name",
+        "usedOn": "☑ Spent",
+        "usedOff": "☐ Spent",
         "editDice": "Edit dice settings",
         "diceSheet": "Dice face sheet"
       },
@@ -1188,7 +1203,7 @@
         "sortAsc": "Ascending",
         "sortDesc": "Descending",
         "displayItems": "Display items",
-        "dataTagPlaceholder": "Space-separated tag names, slash for newline. e.g. HP MP / memo",
+        "dataTagPlaceholder": "Space-separated tag names, slash for newline, quotes for a path or a name with spaces. e.g. HP MP / \"リソース/正気度\"",
         "multiMoveLabel": "Move multiple",
         "selectAll": "Select all",
         "deselectAll": "Deselect all",
@@ -1348,7 +1363,7 @@
         "asc": "Ascending",
         "desc": "Descending",
         "displayItems": "Display items",
-        "dataTagPlaceholder": "Space-separated tag names, slash for newline. e.g. HP MP / memo",
+        "dataTagPlaceholder": "Space-separated tag names, slash for newline, quotes for a path or a name with spaces. e.g. HP MP / \"リソース/正気度\"",
         "selectAll": "Select all",
         "deselectAll": "Deselect all",
         "moveTargetLabel": "Target:",
@@ -1705,6 +1720,7 @@
         "createBlankCard": "Create blank card",
         "createTrump": "Create trump deck",
         "createDice": "Create dice",
+        "createDiceMany": "Create several…",
         "createCoin": "Create a coin",
         "createRange": "Create range",
         "createLight": "Create light source",
@@ -1845,6 +1861,10 @@
         "doorStyleSlide": "Slides aside",
         "doorFlip": "Open the other way"
       },
+      "holdHint": {
+        "footing": "Wheel to step through what it can stand on",
+        "lift": "Shift and wheel to send it up a cell at a time"
+      },
       "tableSetting": {
         "title": "Table settings",
         "sidebarTitle": "Tables",
@@ -1961,7 +1981,7 @@
         "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
         "moveRangeElementNames": "Sheet fields",
         "cellDistanceUnit": "Cell unit",
-        "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing). Feet and metres are converted where the sheet is written in the other one; a sheet written in cells is read as cells.",
+        "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing), in cells as much as in a length: at 0.5, one cell on the sheet is two on the table. Feet and metres are converted where the sheet is written in the other one; a sheet written in cells on a table ruled in feet or metres is read as cells.",
         "zocMode": "Zone of control",
         "zocMode_none": "None",
         "zocMode_stop": "Halt (the walk ends on entering)",
@@ -2201,7 +2221,7 @@
       "diagonalMoveHint": "Counting by turns is how D&D 3.5e and Pathfinder 1e read a corner: the first one costs a cell, the second two.",
       "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
       "moveRangeElementNames": "Sheet fields",
-      "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing). Feet and metres are converted where the sheet is written in the other one; a sheet written in cells is read as cells.",
+      "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing), in cells as much as in a length: at 0.5, one cell on the sheet is two on the table. Feet and metres are converted where the sheet is written in the other one; a sheet written in cells on a table ruled in feet or metres is read as cells.",
       "cellDistance": "One cell stands for",
       "cellDistanceUnit": "Cell unit",
       "cellUnit": {
@@ -3858,6 +3878,7 @@
       "sendTarget": "Target",
       "buffSectionTitle": "Apply buff",
       "counterSectionTitle": "Resource control",
+      "noResources": "Nothing here can be changed",
       "paletteEdit": "Edit palette",
       "confirm": "Done",
       "editing": "Editing",
@@ -3878,8 +3899,14 @@
       "execute": "Apply",
       "maxLimit": "Max limit",
       "minLimit": "0 lower limit",
-      "currentValueSuffix": " current",
-      "maxValueSuffix": " max",
+      "slotSectionTitle": "Slot",
+      "slotNameSeparator": " ",
+      "slotNow": "current",
+      "slotMax": "maximum",
+      "slotMaxBase": "max base",
+      "slotMaxCorrection": "max correction",
+      "slotMinBase": "min base",
+      "slotMinCorrection": "min correction",
       "tabTable": "Table",
       "tabPersonal": "Personal",
       "tabGraveyard": "Graveyard",

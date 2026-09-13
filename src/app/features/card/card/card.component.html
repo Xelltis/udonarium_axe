@@ -28,18 +28,18 @@
           transform: imageTransform(),
         }"
         (load)="onImageLoad($event)"
-        [src]="(isFront ? frontImage.url : backImage.url) | safe: 'resourceUrl'"
+        [src]="displayedImageUrl() | safe: 'resourceUrl'"
       />
     }
-    @if (!isFront && hasOwner && 0 < ownerName.length) {
+    @if (!showsFront() && hasOwner() && 0 < ownerName().length) {
       <div
         class="bg-ui-panel text-ui-text! absolute top-0 z-10 box-border max-w-[18em] truncate rounded-3xl px-2.25 py-0.75 text-[15px] whitespace-nowrap opacity-90 will-change-[opacity]"
         [ngStyle]="{ transform: 'translateY(-75%) translateX(-50%) translateX(' + (size * gridSize) / 2 + 'px)' }"
       >
-        <span class="transform-3d">{{ ownerName }}</span>
+        <span class="transform-3d">{{ ownerName() }}</span>
       </div>
     }
-    @if (isPeeking && frontImage) {
+    @if (canPeek() && peekImageUrl().length > 0) {
       <img
         class="pointer-events-none absolute block object-contain filter-[opacity(0.8)] will-change-[opacity] [transform-style:inherit]"
         [ngStyle]="{
@@ -51,10 +51,10 @@
           transform: peekTransform(),
         }"
         (load)="onPeekImageLoad($event)"
-        [src]="frontImage.url | safe: 'resourceUrl'"
+        [src]="peekImageUrl() | safe: 'resourceUrl'"
       />
     }
-    @if (isPeeking && !isFront && frontImage) {
+    @if (canPeek() && !showsFront() && peekImageUrl().length > 0) {
       <!-- Match the text plane to the front pixels inside the back image's object-contain box. -->
       <div
         class="card-peek-face pointer-events-none absolute z-2 origin-center opacity-80"

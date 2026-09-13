@@ -1,9 +1,11 @@
 import { BuffAppearance, parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 export interface RemoteControllerSelect {
+  /** The item the buttons point at. Empty where none has been picked out. */
   name: string;
-  nowOrMax: string;
+  nowOrMax: ResourceSlot;
   dispName: string;
 }
 

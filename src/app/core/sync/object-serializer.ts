@@ -58,7 +58,10 @@ export class ObjectSerializer {
       return ObjectSerializer.array2attributes(item, key);
     } else if (item != null && typeof item === 'object') {
       return ObjectSerializer.object2attributes(item as Record<string, unknown>, key);
-    } else if (item === undefined) {
+    } else if (item == null) {
+      // Nothing is nothing, however it is spelled. A value cleared here travels to the others
+      // as undefined and comes back from them as null, and written out as the word it turns
+      // into something the next load reads as a real answer.
       return {};
     } else {
       return { [key]: item as string | number };

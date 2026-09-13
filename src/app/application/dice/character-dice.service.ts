@@ -46,10 +46,12 @@ export class CharacterDiceService {
    * die, and six of them at once was six of the same noise over one another.
    */
   putAway(character: GameCharacter): number {
-    const dice = this.laidOut(character);
-    for (const die of dice) this.take(character, die);
-    if (dice.length > 0) SoundEffect.play(PresetSound.sweep);
-    return dice.length;
+    let taken = 0;
+    for (const die of this.laidOut(character)) {
+      if (this.take(character, die)) taken++;
+    }
+    if (taken > 0) SoundEffect.play(PresetSound.sweep);
+    return taken;
   }
 
   /**
@@ -80,16 +82,17 @@ export class CharacterDiceService {
    * Takes a die off the table and onto the character's sheet.
    *
    * The die itself goes: what is kept is its name, its faces and how many there are, and
-   * leaving the object behind as well would put the same die in two places.
+   * leaving the object behind as well would put the same die in two places. One the sheet
+   * could not keep stays where it stands, rather than being lost between the two.
    */
   store(character: GameCharacter, symbol: DiceSymbol): void {
-    this.take(character, symbol);
-    SoundEffect.play(PresetSound.sweep);
+    if (this.take(character, symbol)) SoundEffect.play(PresetSound.sweep);
   }
 
-  private take(character: GameCharacter, symbol: DiceSymbol): void {
-    storeHeldDie(character, heldDieOfSymbol(symbol));
+  private take(character: GameCharacter, symbol: DiceSymbol): boolean {
+    if (!storeHeldDie(character, heldDieOfSymbol(symbol))) return false;
     symbol.destroy();
+    return true;
   }
 
   /** Puts one back onto the sheet without a die on the table to take it from. */

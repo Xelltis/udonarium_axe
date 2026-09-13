@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
@@ -8,13 +9,18 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { Party } from '@axe/domain/party/party';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import {
@@ -378,6 +384,109 @@ describe('GameTableComponent', () => {
     });
   });
 
+  describe('a piece standing on a face the table is not drawing', () => {
+    it('comes back to the floor rather than being drawn nowhere at all', () => {
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: 'north-wall' };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).toContain(piece.identifier);
+        expect(component.charactersBySurface()['north-wall']).toEqual([]);
+      } finally {
+        piece.destroy();
+      }
+    });
+
+    it('leaves a piece on a board that another table is drawing to that board', () => {
+      const board = new WhiteBoard();
+      board.initialize();
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: board.identifier };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).not.toContain(piece.identifier);
+      } finally {
+        piece.destroy();
+        board.destroy();
+      }
+    });
+
+    it('comes back from a board that is no longer on the table', () => {
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: 'a-board-that-went-away' };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).toContain(piece.identifier);
+      } finally {
+        piece.destroy();
+      }
+    });
+  });
+
+  describe('saying what more a drag can be turned into', () => {
+    const hint = (): HTMLElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="hold-hint"]');
+
+    const takeUp = (liftable: boolean) =>
+      TestBed.inject(HeldPieceService).take({
+        identifier: 'held',
+        x: 0,
+        y: 0,
+        widthPx: 50,
+        heightPx: 50,
+        altitude: 0,
+        gridSize: 50,
+        liftable,
+      });
+
+    it('says nothing while there is nothing in hand', () => {
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    it('offers the footholds and the air to a piece held on the table', () => {
+      takeUp(true);
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('ホイールで足場を上下に辿る');
+      expect(hint()?.textContent).toContain('Shift＋ホイールで高さを 1 マスずつ');
+    });
+
+    it('offers a piece held on a wall the footholds alone, having no height of its own', () => {
+      takeUp(false);
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('ホイールで足場を上下に辿る');
+      expect(hint()?.textContent).not.toContain('Shift');
+    });
+
+    it('says nothing where there is no wheel to turn', () => {
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      takeUp(true);
+
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    it('leaves the band to the planned move, which is already speaking from it', () => {
+      takeUp(true);
+      vi.spyOn(component, 'isPlanningMove').mockReturnValue(true);
+
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    afterEach(() => TestBed.inject(HeldPieceService).letGo());
+  });
+
   describe('saying how a move is worked out', () => {
     const hint = (): HTMLElement | null =>
       (fixture.nativeElement as HTMLElement).querySelector('[data-testid="move-plan-hint"]');
@@ -566,6 +675,66 @@ describe('GameTableComponent', () => {
       ]);
       expect(groupedActions).toEqual(expect.arrayContaining(legacyActions));
       expect(groupedActions).toHaveLength(legacyActions.length);
+    });
+
+    describe('gathering a party', () => {
+      const GATHER = 'この地点を中心にパーティを配置';
+      const made: (Party | GameCharacter)[] = [];
+
+      // The shared setup leaves this seat without a cursor, and a seat with no cursor is a
+      // player. The master has to be given one before the role can be written on it.
+      const beMaster = () => {
+        PeerCursor.createMyCursor();
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+      };
+
+      const makeParty = (name: string): Party => {
+        const party = new Party();
+        party.name = name;
+        party.initialize();
+        made.push(party);
+        const member = GameCharacter.create('花子', 1, '');
+        member.partyIdentifier = party.identifier;
+        member.setLocation('table');
+        made.push(member);
+        return party;
+      };
+
+      afterEach(() => {
+        PeerCursor.myCursor = null!;
+        for (const object of made.splice(0)) object.destroy();
+      });
+
+      it('offers it to the master, in both menus', () => {
+        beMaster();
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+
+        expect(model.actions.map((action) => action.name)).toContain(GATHER);
+        expect(model.rotatingGroups.map((group) => group.name)).toContain('同行');
+      });
+
+      it('keeps the two menus answering alike while it is offered', () => {
+        beMaster();
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+        const groupedActions = model.rotatingGroups.flatMap((group) => group.actions);
+        const legacyActions = model.actions.filter((action) => action.name.length > 0);
+
+        expect(groupedActions).toEqual(expect.arrayContaining(legacyActions));
+        expect(groupedActions).toHaveLength(legacyActions.length);
+      });
+
+      it('offers it to nobody else', () => {
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+
+        expect(model.actions.map((action) => action.name)).not.toContain(GATHER);
+        expect(model.rotatingGroups.map((group) => group.name)).not.toContain('同行');
+      });
     });
 
     it('splits the create items with a separator between the dice and the coin', () => {

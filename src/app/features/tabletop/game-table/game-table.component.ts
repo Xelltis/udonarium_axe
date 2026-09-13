@@ -22,6 +22,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -59,8 +60,9 @@ import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { boardSurfaceOf, surfaceOf, TABLE_SURFACES, TableSurface } from '@axe/domain/tabletop/tabletop-object';
+import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import type { DeckBuilderResult } from '@axe/features/card/deck-builder-dialog/deck-builder-dialog.component';
@@ -86,6 +88,7 @@ import {
 } from '@axe/features/tabletop/game-table/game-table-walls';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
+import { bucketBySurface, DrawnSurfaces } from '@axe/features/tabletop/game-table/surface-buckets';
 import { TableMarqueeOverlayComponent } from '@axe/features/tabletop/game-table/table-marquee-overlay/table-marquee-overlay.component';
 import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
 import {
@@ -95,6 +98,7 @@ import {
 import { GameTableScratchMaskComponent } from '@axe/features/tabletop/game-table-scratch-mask/game-table-scratch-mask.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
+import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
 import { TableBeamOverlayComponent } from '@axe/features/tabletop/table-beam-overlay/table-beam-overlay.component';
 import { TableMoveBlockOverlayComponent } from '@axe/features/tabletop/table-move-block-overlay/table-move-block-overlay.component';
@@ -195,6 +199,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TableVisionVolumeOverlayComponent,
     TableBeamOverlayComponent,
     TableTargetOverlayComponent,
+    TableAltitudeGuideOverlayComponent,
     TableMoveRangeOverlayComponent,
     TableMoveBlockOverlayComponent,
     TableTriggerOverlayComponent,
@@ -763,32 +768,28 @@ export class GameTableComponent {
     return this.tabletopService.peerCursors;
   });
 
-  /** Anything standing on a board is drawn by that board, so the table passes it over. */
-  private static bySurface<T extends { location: { surface?: string } }>(
-    list: readonly T[]
-  ): Record<TableSurface, T[]> {
-    const result = TABLE_SURFACES.reduce(
-      (acc, s) => {
-        acc[s] = [];
-        return acc;
-      },
-      {} as Record<TableSurface, T[]>
-    );
-    for (const item of list) {
-      if (boardSurfaceOf(item)) continue;
-      result[surfaceOf(item)].push(item);
-    }
-    return result;
-  }
+  /**
+   * The faces there are to stand on: the walls this table draws, and every board in the room.
+   *
+   * Every board rather than this table's alone, since a piece on another table's board is that
+   * board's to draw and is only passing through here.
+   */
+  private readonly drawnSurfaces = computed<DrawnSurfaces>(() => {
+    this.objectChangeService.collectionOf('white-board')();
+    return {
+      walls: new Set(this.activeWalls().map((wall) => wall.surface)),
+      boards: new Set(this.objectStore.getObjects(WhiteBoard).map((board) => board.identifier)),
+    };
+  });
 
-  readonly charactersBySurface = computed(() => GameTableComponent.bySurface(this.characters()));
-  readonly cardsBySurface = computed(() => GameTableComponent.bySurface(this.cards()));
-  readonly cardStacksBySurface = computed(() => GameTableComponent.bySurface(this.cardStacks()));
-  readonly rangesBySurface = computed(() => GameTableComponent.bySurface(this.ranges()));
-  readonly textNotesBySurface = computed(() => GameTableComponent.bySurface(this.textNotes()));
-  readonly diceSymbolsBySurface = computed(() => GameTableComponent.bySurface(this.diceSymbols()));
-  readonly coinsBySurface = computed(() => GameTableComponent.bySurface(this.coins()));
-  readonly terrainsBySurface = computed(() => GameTableComponent.bySurface(this.terrains()));
+  readonly charactersBySurface = computed(() => bucketBySurface(this.characters(), this.drawnSurfaces()));
+  readonly cardsBySurface = computed(() => bucketBySurface(this.cards(), this.drawnSurfaces()));
+  readonly cardStacksBySurface = computed(() => bucketBySurface(this.cardStacks(), this.drawnSurfaces()));
+  readonly rangesBySurface = computed(() => bucketBySurface(this.ranges(), this.drawnSurfaces()));
+  readonly textNotesBySurface = computed(() => bucketBySurface(this.textNotes(), this.drawnSurfaces()));
+  readonly diceSymbolsBySurface = computed(() => bucketBySurface(this.diceSymbols(), this.drawnSurfaces()));
+  readonly coinsBySurface = computed(() => bucketBySurface(this.coins(), this.drawnSurfaces()));
+  readonly terrainsBySurface = computed(() => bucketBySurface(this.terrains(), this.drawnSurfaces()));
 
   readonly beamTopGrids = computed<readonly BeamTopGrid[]>(() => {
     const table = this.currentTable;
@@ -897,12 +898,22 @@ export class GameTableComponent {
       },
     };
     const tableSettingActions = [tableSettingAction, ...this.buildViewLockActions()];
+    // Empty for anybody but the master, and for a room with no parties in it.
+    const partyActions = this.tabletopActionService.getGatherPartyMenu(objectPosition);
+    // The entry goes in whole, the way the ambience entry does: the rotating menu opens what
+    // has sub-entries rather than being handed them, and a group holding the same entries the
+    // flat menu does is what keeps the two menus answering alike.
+    const partyGroups =
+      partyActions.length > 0
+        ? [{ name: this.t('feature.gmTools.party.title'), icon: 'group', actions: partyActions }]
+        : [];
     return {
       actions: [
         ...primaryCreateActions,
         ContextMenuSeparator,
         ...secondaryCreateActions,
         ContextMenuSeparator,
+        ...(partyActions.length > 0 ? [...partyActions, ContextMenuSeparator] : []),
         ...tableSettingActions,
       ],
       rotatingGroups: [
@@ -916,6 +927,7 @@ export class GameTableComponent {
           icon: 'add_box',
           actions: secondaryCreateActions,
         },
+        ...partyGroups,
         {
           name: this.t('feature.tabletop.tableSetting.title'),
           icon: 'tune',
@@ -1018,6 +1030,25 @@ export class GameTableComponent {
   protected readonly movePlanHintKey = computed(() =>
     this.viewport.isTouch() ? 'feature.tabletop.movePlan.hintTouch' : 'feature.tabletop.movePlan.hint'
   );
+
+  private readonly heldPiece = inject(HeldPieceService);
+
+  /**
+   * What more a drag can be turned into, said while there is a piece in hand to turn.
+   *
+   * Left unsaid where there is no wheel to turn and no key to hold, and where the planned
+   * move is already speaking from this band. A piece on a wall has no height of its own, so
+   * it is offered the footholds and not the air.
+   */
+  protected readonly holdHint = computed<{ footing: string; lift: string | null } | null>(() => {
+    if (this.viewport.isTouch() || this.isPlanningMove()) return null;
+    const held = this.heldPiece.held();
+    if (!held) return null;
+    return {
+      footing: 'feature.tabletop.holdHint.footing',
+      lift: held.liftable ? 'feature.tabletop.holdHint.lift' : null,
+    };
+  });
 
   /** The two ways a move may be taken, offered as a pair so which one is on is plain to see. */
   protected readonly moveModes = [

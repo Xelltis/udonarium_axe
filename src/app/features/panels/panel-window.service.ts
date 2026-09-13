@@ -22,11 +22,14 @@ import { PanelWindowLayerComponent } from '@axe/features/panels/panel-window-lay
  * to describe, and a second set of window controls inside a window is only confusing. What
  * the panel's content put in the bar is left alone: those work on what it is showing, not on
  * the frame, and are the same use here as anywhere.
+ *
+ * Only the window's own panel is told this. A panel opened from it stands in the window as it
+ * would on the table, frame and all.
  */
 const WINDOW_SHEET = `
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--ui-bg); }
-  [data-panel-frame-controls] { display: none !important; }
-  .draggable-panel {
+  [data-panel-window-frame] [data-panel-frame-controls] { display: none !important; }
+  [data-panel-window-frame] .draggable-panel {
     position: static !important;
     inset: auto !important;
     width: 100% !important;
@@ -93,6 +96,11 @@ export class PanelWindowService {
 
   private readonly windows = new Map<string, OpenWindow>();
 
+  /** Watches the app's head for sheets added while a window is out, and is let go once none is. */
+  private sheetWatch: MutationObserver | null = null;
+  /** The copies made of each such sheet, so they can go when it does. */
+  private sheetCopies = new WeakMap<Node, Element[]>();
+
   /** Which panels are currently in windows of their own. */
   readonly detached = signal<readonly string[]>([]);
 
@@ -129,6 +137,7 @@ export class PanelWindowService {
 
     const target = opened.document;
     this.dress(target);
+    this.watchSheets();
     AttachedDocuments.attach(target);
 
     const layer = createComponent(PanelWindowLayerComponent, {
@@ -137,7 +146,7 @@ export class PanelWindowService {
     });
     this.appRef.attachView(layer.hostView);
     layer.changeDetectorRef.detectChanges();
-    OverlayLayers.attach(target, layer.instance.layer());
+    OverlayLayers.attach(target, layer.instance.overlay());
     request.open(layer.instance.layer());
 
     const watchdog = setInterval(() => this.look(request.key), 500);
@@ -219,6 +228,11 @@ export class PanelWindowService {
     this.windows.delete(key);
     this.detached.set([...this.windows.keys()]);
     clearInterval(held.watchdog);
+    if (this.windows.size === 0) {
+      this.sheetWatch?.disconnect();
+      this.sheetWatch = null;
+      this.sheetCopies = new WeakMap();
+    }
 
     if (comingHome && held.request.leaving) held.request.leaving();
     AttachedDocuments.detach(held.document);
@@ -248,5 +262,43 @@ export class PanelWindowService {
     const sheet = target.createElement('style');
     sheet.textContent = WINDOW_SHEET;
     target.head.appendChild(sheet);
+  }
+
+  /**
+   * Carries a sheet the app adds to its head while a window is out over to every window.
+   *
+   * A window is given the app's sheets as they stand when it opens, and some come later: the
+   * rules a select's list is laid out by are put in the first time a list is opened, which can
+   * be over in a window. Without them that list is laid out as if it were part of the page.
+   */
+  private watchSheets(): void {
+    if (this.sheetWatch) return;
+    const Observer = this.document.defaultView?.MutationObserver;
+    if (!Observer) return;
+    this.sheetWatch = new Observer((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) if (PanelWindowService.isSheet(node)) this.copySheet(node);
+        for (const node of record.removedNodes) {
+          for (const copy of this.sheetCopies.get(node) ?? []) copy.remove();
+          this.sheetCopies.delete(node);
+        }
+      }
+    });
+    this.sheetWatch.observe(this.document.head, { childList: true });
+  }
+
+  private copySheet(sheet: Element): void {
+    const copies = this.sheetCopies.get(sheet) ?? [];
+    for (const held of this.windows.values()) {
+      const copy = held.document.importNode(sheet, true);
+      held.document.head.appendChild(copy);
+      copies.push(copy);
+    }
+    this.sheetCopies.set(sheet, copies);
+  }
+
+  private static isSheet(node: Node): node is Element {
+    if (node.nodeName === 'STYLE') return true;
+    return node.nodeName === 'LINK' && (node as Element).getAttribute('rel') === 'stylesheet';
   }
 }

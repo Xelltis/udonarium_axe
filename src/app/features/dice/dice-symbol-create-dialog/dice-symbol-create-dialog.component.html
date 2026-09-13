@@ -1,0 +1,61 @@
+<form class="box-border flex w-80 max-w-full flex-col gap-2" (ngSubmit)="confirm()">
+  <div class="grid grid-cols-[3.25em_minmax(0,1fr)_2.5em_3.75em] items-center gap-x-2 gap-y-1.5 text-[12px]">
+    <label class="text-ui-muted" for="dice-type">{{ 'feature.dice.createDialog.type' | transloco }}</label>
+    <select
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-full min-w-0 border border-solid px-1.5 py-1 text-[13px]"
+      id="dice-type"
+      name="dice-type"
+      [(ngModel)]="typeIndex"
+    >
+      @for (item of diceItems; track item.menuName; let index = $index) {
+        <option [ngValue]="index">{{ item.menuName }}</option>
+      }
+    </select>
+
+    <label class="text-ui-muted" for="dice-count">{{ 'feature.dice.createDialog.count' | transloco }}</label>
+    <input
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-full min-w-0 border border-solid px-1.5 py-1 text-right text-[13px]"
+      id="dice-count"
+      name="dice-count"
+      type="number"
+      min="1"
+      [max]="maxCount"
+      step="1"
+      [(ngModel)]="count"
+      autofocus
+    />
+
+    @if (ownerCandidates.length > 0) {
+      <label class="text-ui-muted" for="dice-owner">{{ 'feature.dice.createDialog.owner' | transloco }}</label>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text col-span-3 box-border w-full min-w-0 border border-solid px-1.5 py-1 text-[13px]"
+        id="dice-owner"
+        name="dice-owner"
+        [(ngModel)]="ownerCharacterIdentifier"
+      >
+        <option [ngValue]="''">{{ 'feature.dice.createDialog.ownerNone' | transloco }}</option>
+        @for (candidate of ownerCandidates; track candidate.identifier) {
+          <option [ngValue]="candidate.identifier">{{ candidate.name }}</option>
+        }
+      </select>
+    }
+  </div>
+
+  <div class="flex items-center justify-between gap-3">
+    <label
+      class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 text-[12px] [accent-color:var(--ui-accent)]"
+    >
+      <input name="dice-hidden" type="checkbox" [(ngModel)]="hiddenToOthers" />
+      {{ 'feature.dice.createDialog.hidden' | transloco }}
+    </label>
+
+    <div class="flex shrink-0 gap-1.5">
+      <button class="px-2 py-1 text-[12px]" type="button" (click)="cancel()">
+        {{ 'feature.dice.createDialog.cancel' | transloco }}
+      </button>
+      <button class="border-ui-accent bg-ui-accent px-2 py-1 text-[12px] text-white" type="submit">
+        {{ 'feature.dice.createDialog.create' | transloco }}
+      </button>
+    </div>
+  </div>
+</form>

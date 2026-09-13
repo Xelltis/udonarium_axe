@@ -99,12 +99,11 @@ export class CardStackComponent {
 
   readonly cardStack = input.required<CardStack>();
 
-  get isLock(): boolean {
-    return this.cardStack().isLock;
-  }
-  set isLock(isLock: boolean) {
-    this.cardStack().isLock = isLock;
-  }
+  readonly isLock = computed(() => {
+    const cardStack = this.cardStack();
+    this.objectChange.versionOf(cardStack.identifier)();
+    return cardStack.isLock;
+  });
 
   readonly name = computed(() => {
     this.objectChange.versionOf(this.cardStack().identifier)();
@@ -139,12 +138,25 @@ export class CardStackComponent {
     return card ? card.size : 2;
   }
 
-  get hasOwner(): boolean {
-    return this.cardStack().hasOwner;
-  }
-  get ownerName(): string {
-    return this.cardStack().ownerName;
-  }
+  /**
+   * Who is looking through the stack, as the label under it says.
+   *
+   * It follows the stack and the peers, since a name is read off the owner's cursor.
+   */
+  readonly hasOwner = computed(() => {
+    const cardStack = this.cardStack();
+    this.objectChange.versionOf(cardStack.identifier)();
+    return cardStack.hasOwner;
+  });
+
+  readonly ownerName = computed(() => {
+    const cardStack = this.cardStack();
+    this.objectChange.versionOf(cardStack.identifier)();
+    this.objectChange.networkVersion();
+    const cursor = cardStack.owner ? PeerCursor.findByUserId(cardStack.owner) : null;
+    if (cursor) this.objectChange.versionOf(cursor.identifier)();
+    return cardStack.ownerName;
+  });
 
   get topCard(): Card | null {
     return this.cardStack().topCard;

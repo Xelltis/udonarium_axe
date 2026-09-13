@@ -8,6 +8,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -52,6 +54,57 @@ describe('TurnOrderService', () => {
     sendSpy = vi
       .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageToMainTab')
       .mockReturnValue(undefined as never);
+  });
+
+  describe('a seat that is only watching', () => {
+    const beSeat = (role: PeerRole) => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = role;
+    };
+
+    it('moves no round of its own', async () => {
+      beSeat(PeerRole.Player);
+      service.next();
+      const standing = { round: turnState.round, current: turnState.currentIdentifier, history: turnState.history };
+
+      beSeat(PeerRole.Guest);
+      service.next();
+      await service.advanceRound();
+      service.prev();
+      service.retreatRound();
+      service.reset();
+      service.setCurrent(chars[2].identifier);
+      service.setBuffDecay(false);
+
+      expect(turnState.round).toBe(standing.round);
+      expect(turnState.currentIdentifier).toBe(standing.current);
+      expect(turnState.history).toBe(standing.history);
+      expect(turnState.buffDecay).toBe(true);
+    });
+
+    it('is not asked what to do about the pieces still waiting', async () => {
+      beSeat(PeerRole.Player);
+      service.next();
+      askedToLeaveBehind.mockClear();
+
+      beSeat(PeerRole.Guest);
+      await service.advanceRound();
+
+      expect(askedToLeaveBehind).not.toHaveBeenCalled();
+    });
+
+    it('says nothing to the table in its name', () => {
+      beSeat(PeerRole.Player);
+      service.next();
+      sendSpy.mockClear();
+
+      beSeat(PeerRole.Guest);
+      service.next();
+      service.prev();
+      service.reset();
+
+      expect(sendSpy).not.toHaveBeenCalled();
+    });
   });
 
   it('should create', () => {

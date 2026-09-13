@@ -273,6 +273,46 @@ describe('GameCharacterComponent', () => {
     });
   });
 
+  describe('standing up or lying flat', () => {
+    function pieceOn(surface?: string) {
+      const character = GameCharacter.create('コマ', 1, '');
+      character.location.surface = surface;
+      fixture.componentRef.setInput('gameCharacter', character);
+      return character;
+    }
+
+    it('lies flat against a wall, which is what a wall is for', () => {
+      const character = pieceOn('north-wall');
+      try {
+        expect(component.isPoster()).toBe(true);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('stands up on the floor', () => {
+      const character = pieceOn(undefined);
+      try {
+        expect(component.isPoster()).toBe(false);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('stands up again where the face it was on says nothing in words', () => {
+      // A face cleared by one seat reaches another as nothing and can come back written out
+      // as the word for it. Read as a face, the piece went on lying down on the floor.
+      for (const word of ['null', 'undefined', '']) {
+        const character = pieceOn(word);
+        try {
+          expect(component.isPoster()).toBe(false);
+        } finally {
+          character.destroy();
+        }
+      }
+    });
+  });
+
   describe('the pedestal', () => {
     type Pedestals = {
       pedestalStyleShown(): Record<string, string>;

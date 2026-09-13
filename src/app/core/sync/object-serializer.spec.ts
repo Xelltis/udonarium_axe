@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 
 describe('ObjectSerializer', () => {
@@ -121,20 +122,33 @@ describe('ObjectSerializer', () => {
       expect(attrs['location.x']).toBe(10);
       expect(Object.keys(attrs)).not.toContain('location.surface');
     });
+
+    it('leaves out a value that came back from a peer as nothing, which arrives as null', () => {
+      const syncData = { location: { name: 'table', x: 10, y: 20, surface: null } };
+      const attrs = ObjectSerializer.toAttributes(syncData);
+
+      expect(attrs['location.x']).toBe(10);
+      expect(Object.keys(attrs)).not.toContain('location.surface');
+    });
   });
 
   describe('undefined attributes in the xml', () => {
-    it('never writes an undefined surface as the word undefined', () => {
-      const element = DataElement.create('name', 'hello', { type: 'text' });
-      (element as unknown as { location: Record<string, unknown> }).location = {
-        name: 'table',
-        x: 1,
-        y: 2,
-        surface: undefined,
-      };
-      const xml = serializer.toXml(element);
+    function xmlWithSurface(surface: unknown): string {
+      const piece = GameCharacter.create('コマ', 1, '');
+      (piece.location as unknown as Record<string, unknown>)['surface'] = surface;
+      try {
+        return serializer.toXml(piece);
+      } finally {
+        piece.destroy();
+      }
+    }
 
-      expect(xml).not.toContain('surface="undefined"');
+    it('never writes an undefined surface as the word undefined', () => {
+      expect(xmlWithSurface(undefined)).not.toContain('surface="undefined"');
+    });
+
+    it('never writes a surface that came back as null as the word null', () => {
+      expect(xmlWithSurface(null)).not.toContain('surface="null"');
     });
   });
 

@@ -137,14 +137,27 @@ export class CardComponent {
   get isVisible(): boolean {
     return this.card().isVisible;
   }
-  get hasOwner(): boolean {
-    return this.card().hasOwner;
-  }
+  /**
+   * Whose the card is, as the label over its back says it.
+   *
+   * It follows the card and the peers, since a name is read off the owner's cursor.
+   */
+  readonly hasOwner = computed(() => {
+    const card = this.card();
+    this.objectChange.versionOf(card.identifier)();
+    return card.hasOwner;
+  });
+
+  readonly ownerName = computed(() => {
+    const card = this.card();
+    this.objectChange.versionOf(card.identifier)();
+    this.objectChange.networkVersion();
+    const cursor = card.owner ? PeerCursor.findByUserId(card.owner) : null;
+    if (cursor) this.objectChange.versionOf(cursor.identifier)();
+    return card.ownerName;
+  });
   get ownerIsOnline(): boolean {
     return this.card().ownerIsOnline;
-  }
-  get ownerName(): string {
-    return this.card().ownerName;
   }
 
   readonly imageFile = computed(
@@ -163,11 +176,41 @@ export class CardComponent {
     return this.imageService.getSkeletonOr(this.card().backImage);
   }
 
-  private readonly displayedImageUrl = computed(() => {
+  /**
+   * The face the table sees, read through the signals rather than off the card.
+   *
+   * A picture arrives in two steps: the name of it comes with the card, and the bytes follow
+   * when the room has passed them along. Read straight off the card, neither step moves the
+   * view, so the card stayed blank for everybody else until it was dragged and the change
+   * detection happened to run.
+   */
+  readonly displayedImageUrl = computed(() => {
     this.objectChange.fileVersion();
     const card = this.card();
     this.objectChange.versionOf(card.identifier)();
     return this.imageService.getSkeletonOr(card.isFront ? card.frontImage : card.backImage).url;
+  });
+
+  /** The face the owner is allowed to peek at, read the same way. */
+  readonly peekImageUrl = computed(() => {
+    this.objectChange.fileVersion();
+    const card = this.card();
+    this.objectChange.versionOf(card.identifier)();
+    return this.imageService.getSkeletonOr(card.frontImage).url;
+  });
+
+  readonly showsFront = computed(() => {
+    const card = this.card();
+    this.objectChange.versionOf(card.identifier)();
+    this.objectChange.networkVersion();
+    return card.isFront;
+  });
+
+  readonly canPeek = computed(() => {
+    const card = this.card();
+    this.objectChange.versionOf(card.identifier)();
+    this.objectChange.networkVersion();
+    return card.isPeeking;
   });
 
   private readonly imageNaturalSize = linkedSignal<string, { width: number; height: number } | null>({
