@@ -819,6 +819,8 @@
         "storeToOwner": "Put away into the piece",
         "hideNameOn": "☑ Hide name",
         "hideNameOff": "☐ Hide name",
+        "usedOn": "☑ Spent",
+        "usedOff": "☐ Spent",
         "editDice": "Edit dice settings",
         "diceSheet": "Dice face sheet"
       },

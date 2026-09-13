@@ -819,6 +819,8 @@
         "storeToOwner": "コマにしまう",
         "hideNameOn": "☑ 名前を隠す",
         "hideNameOff": "☐ 名前を隠す",
+        "usedOn": "☑ 使用済み",
+        "usedOff": "☐ 使用済み",
         "editDice": "ダイス設定を編集",
         "diceSheet": "ダイス目シート"
       },

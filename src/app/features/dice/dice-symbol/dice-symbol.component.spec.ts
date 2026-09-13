@@ -336,6 +336,42 @@ describe('DiceSymbolComponent', () => {
     });
   });
 
+  describe('a die marked as spent', () => {
+    let dice: DiceSymbol;
+
+    beforeEach(() => {
+      dice = DiceSymbol.create('テストダイス', 1, 1);
+      fixture.componentRef.setInput('diceSymbol', dice);
+    });
+
+    afterEach(() => dice.destroy());
+
+    const dimmed = async (): Promise<number> => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return (fixture.nativeElement as HTMLElement).querySelectorAll('.is-used').length;
+    };
+
+    it('is drawn no darker while it is still to be used', async () => {
+      expect(await dimmed()).toBe(0);
+    });
+
+    it('is darkened once it is marked', async () => {
+      dice.isUsed = true;
+
+      expect(await dimmed()).toBeGreaterThan(0);
+    });
+
+    it('comes back to itself when the mark is taken off', async () => {
+      dice.isUsed = true;
+      expect(await dimmed()).toBeGreaterThan(0);
+
+      dice.isUsed = false;
+
+      expect(await dimmed()).toBe(0);
+    });
+  });
+
   describe('opening a die that was somebody’s alone', () => {
     let tab: ChatTab;
     let dice: DiceSymbol;

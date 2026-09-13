@@ -208,6 +208,13 @@ export class DiceSymbolComponent {
     return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden;
   }
 
+  /** Whether the die is marked as spent, which only dims it: it rolls and moves as it always did. */
+  readonly isUsed = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    return diceSymbol.isUsed;
+  });
+
   get isLock(): boolean {
     return this.diceSymbol().isLock;
   }

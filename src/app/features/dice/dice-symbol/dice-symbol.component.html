@@ -19,11 +19,13 @@
       (rotable.ondragend)="onMoved()"
     >
       <div
-        class="absolute box-border size-full rounded-[5px] border-[6px] border-solid border-[rgb(216,139,75)] backface-hidden"
+        class="absolute box-border size-full rounded-[5px] border-[6px] border-solid border-[rgb(216,139,75)] backface-hidden [&.is-used]:filter-[brightness(0.45)]"
         [class.border-ui-border-panel!]="hasOwner()"
+        [class.is-used]="isUsed()"
       ></div>
       <div
-        class="absolute box-border size-full rounded-[5px] border-2 border-solid border-[#212121] backface-hidden"
+        class="absolute box-border size-full rounded-[5px] border-2 border-solid border-[#212121] backface-hidden [&.is-used]:filter-[brightness(0.45)]"
+        [class.is-used]="isUsed()"
       ></div>
       @if (!isIconHidden()) {
         @if (!isLock && !mode2dEnabled()) {
@@ -118,7 +120,7 @@
               }
               @if (imageFile().url && specifyImageFlag()) {
                 <img
-                  class="chrome-smooth-image-trick bottom-0 inline-block h-auto align-bottom filter-[none!] [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]!"
+                  class="chrome-smooth-image-trick bottom-0 inline-block h-auto align-bottom filter-[none!] [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]! [&.is-used]:filter-[brightness(0.45)]"
                   [ngStyle]="{
                     height: +imageHeignt() * imageView.supersample() + 'px',
                     width: 'auto',
@@ -131,11 +133,12 @@
                   [src]="imageFile().url | safe: 'resourceUrl'"
                   [class.is-black-mask]="!isVisible()"
                   [class.is-harf-black-mask]="isMine()"
+                  [class.is-used]="isUsed()"
                 />
               }
               @if (imageFile().url && !specifyImageFlag()) {
                 <img
-                  class="chrome-smooth-image-trick bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]!"
+                  class="chrome-smooth-image-trick bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]! [&.is-used]:filter-[brightness(0.45)]"
                   [ngStyle]="{
                     width: imageView.supersamplePercent(),
                     maxWidth: 'none',
@@ -147,6 +150,7 @@
                   [src]="imageFile().url | safe: 'resourceUrl'"
                   [class.is-black-mask]="!isVisible()"
                   [class.is-harf-black-mask]="isMine()"
+                  [class.is-used]="isUsed()"
                 />
               }
             </div>

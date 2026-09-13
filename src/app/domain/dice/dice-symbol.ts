@@ -18,6 +18,8 @@ export enum DiceType {
 export class DiceSymbol extends OwnedTabletopObject {
   @SyncVar() isLock: boolean = false;
   @SyncVar() hideName: boolean = false;
+  /** Whether this die has been spent. A die is no less a die for it; it is only marked as done. */
+  @SyncVar() isUsed: boolean = false;
 
   @SyncVar() face: string = '0';
   @SyncVar() owner: string = '';

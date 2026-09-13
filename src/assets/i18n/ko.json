@@ -819,6 +819,8 @@
         "storeToOwner": "말에 넣어두기",
         "hideNameOn": "☑ 이름 숨기기",
         "hideNameOff": "☐ 이름 숨기기",
+        "usedOn": "☑ 사용함",
+        "usedOff": "☐ 사용함",
         "editDice": "주사위 설정 편집",
         "diceSheet": "주사위 눈 시트"
       },

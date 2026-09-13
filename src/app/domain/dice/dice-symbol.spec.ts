@@ -118,6 +118,21 @@ describe('DiceSymbol', () => {
       const dice = DiceSymbol.create('d6', DiceType.D6, 1);
       expect(dice.rotate).toBe(0);
     });
+
+    it('starts still to be used', () => {
+      const dice = DiceSymbol.create('d6', DiceType.D6, 1);
+      expect(dice.isUsed).toBe(false);
+    });
+
+    it('reads a die from a room that had no such mark as still to be used', () => {
+      const dice = DiceSymbol.create('d6', DiceType.D6, 1);
+      const context = dice.toContext();
+      delete (context.syncData as Record<string, unknown>)['isUsed'];
+
+      dice.apply(context);
+
+      expect(dice.isUsed).toBeFalsy();
+    });
   });
 
   describe('faces', () => {
