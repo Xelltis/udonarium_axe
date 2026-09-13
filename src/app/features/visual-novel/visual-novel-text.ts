@@ -1,3 +1,5 @@
+import { RubyPart, splitRubyNotation } from '@axe/ui/text-decoration/decorate-chat-text';
+
 function createGraphemeSegmenter(): Intl.Segmenter | null {
   if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') return null;
   try {
@@ -30,4 +32,57 @@ export function graphemeEnds(text: string): number[] {
     ends.push(at);
   }
   return ends;
+}
+
+/**
+ * A line as it is typed out: the runs the ruby notation cuts it into, and its letters.
+ *
+ * Only the letters a reader sees are typed. The notation itself never shows, and a reading is
+ * written over its word from the word's first letter on.
+ */
+export interface TypedLine {
+  readonly parts: readonly RubyPart[];
+  /** What a reader sees of the whole line, the readings left out. */
+  readonly text: string;
+  /** Where each letter ends in {@link text}. */
+  readonly ends: readonly number[];
+  /** Which run each letter is in. */
+  readonly partOfLetter: readonly number[];
+  /** Where each run begins in {@link text}. */
+  readonly partStarts: readonly number[];
+}
+
+export function typedLineOf(line: string): TypedLine {
+  const parts = splitRubyNotation(line);
+  const ends: number[] = [];
+  const partOfLetter: number[] = [];
+  const partStarts: number[] = [];
+  let at = 0;
+  parts.forEach((part, index) => {
+    partStarts.push(at);
+    for (const end of graphemeEnds(part.text)) {
+      ends.push(at + end);
+      partOfLetter.push(index);
+    }
+    at += part.text.length;
+  });
+  return { parts, text: parts.map((part) => part.text).join(''), ends, partOfLetter, partStarts };
+}
+
+/** What a reader sees of a line once this many of its letters are typed. */
+export function typedTextOf(line: TypedLine, typed: number): string {
+  if (typed < 1) return '';
+  if (typed >= line.ends.length) return line.text;
+  return line.text.slice(0, line.ends[typed - 1]);
+}
+
+/** The runs of a line once this many of its letters are typed, the last one cut where typing stands. */
+export function typedPartsOf(line: TypedLine, typed: number): readonly RubyPart[] {
+  if (typed < 1) return [];
+  if (typed >= line.ends.length) return line.parts;
+  const index = line.partOfLetter[typed - 1];
+  const part = line.parts[index];
+  const shown = line.parts.slice(0, index);
+  shown.push({ text: part.text.slice(0, line.ends[typed - 1] - line.partStarts[index]), reading: part.reading });
+  return shown;
 }

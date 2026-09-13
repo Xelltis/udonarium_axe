@@ -153,6 +153,23 @@ describe('VisualNovelOverlayComponent', () => {
     expect(component.isTyping()).toBe(false);
   });
 
+  it('writes a reading over its word as the line is typed, never the notation', () => {
+    vi.useFakeTimers();
+    addMessage('あ|漢字《かんじ》い');
+    createComponent();
+    vi.advanceTimersByTime(60);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('ruby.chat-ruby rb')?.textContent).toBe('漢');
+    expect(host.querySelector('ruby.chat-ruby rt')?.textContent).toBe('かんじ');
+
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(component.displayedText()).toBe('あ漢字い');
+    expect(host.querySelector('ruby.chat-ruby rb')?.textContent).toBe('漢字');
+    expect(host.textContent).not.toMatch(/[|｜《》]/);
+  });
+
   it('goes back, forward and to the latest through the history', () => {
     addMessage('m1');
     addMessage('m2');

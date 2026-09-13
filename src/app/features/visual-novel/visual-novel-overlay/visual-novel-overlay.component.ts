@@ -89,6 +89,7 @@ import {
   VnStageCharacter,
   VnStageSource,
 } from '@axe/features/visual-novel/visual-novel-stage';
+import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
 import { spotBeside } from '@axe/ui/panel-spot';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_VISUAL_NOVEL_PANEL, Z_VISUAL_NOVEL_PANEL_ABOVE } from '@axe/ui/z-layers';
@@ -137,6 +138,7 @@ type VisualNovelPopover = 'soundBoard' | 'slotGuide' | 'palette' | 'shortcutHelp
     TranslocoModule,
     NgSelectComponent,
     NgOptionComponent,
+    RubyTextComponent,
     VisualNovelSoundBoardComponent,
   ],
 })
@@ -258,8 +260,10 @@ export class VisualNovelOverlayComponent {
   readonly currentMessage = this.playback.currentMessage;
   readonly isLatest = this.playback.isLatest;
   readonly displayedText = this.playback.displayedText;
+  readonly displayedParts = this.playback.displayedParts;
   readonly isTyping = this.playback.isTyping;
   readonly currentFullText = this.playback.currentFullText;
+  readonly currentFullParts = this.playback.currentFullParts;
   readonly currentIsDiceCommand = this.playback.currentIsDiceCommand;
 
   private readonly currentEmote = this.playback.currentEmote;
@@ -272,7 +276,7 @@ export class VisualNovelOverlayComponent {
   readonly announcedLine = computed(() => {
     if (this.isTyping()) return '';
     const name = this.speakerName();
-    const text = this.currentFullText();
+    const text = this.playback.currentVisibleText();
     if (text.length < 1) return '';
     return name.length > 0 ? `${name}: ${text}` : text;
   });

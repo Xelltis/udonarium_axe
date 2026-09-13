@@ -18,7 +18,7 @@ import {
   VisualNovelSettingsService,
   VN_TYPEWRITER_INTERVAL_MS,
 } from '@axe/features/visual-novel/visual-novel-settings.service';
-import { graphemeEnds } from '@axe/features/visual-novel/visual-novel-text';
+import { typedLineOf, typedPartsOf, typedTextOf } from '@axe/features/visual-novel/visual-novel-text';
 
 const AUTO_PLAY_BASE_WAIT_MS = 1200;
 const AUTO_PLAY_PER_CHAR_MS = 35;
@@ -165,17 +165,21 @@ export class VisualNovelPlaybackService {
     return vnBodyOf(message?.vnEmote, readableMessageText(message, this.translate));
   });
 
-  private readonly currentGraphemeEnds = computed(() => graphemeEnds(this.currentFullText()));
+  private readonly currentLine = computed(() => typedLineOf(this.currentFullText()));
 
-  readonly displayedText = computed(() => {
-    const typed = this.typedLength();
-    if (typed < 1) return '';
-    const ends = this.currentGraphemeEnds();
-    if (typed >= ends.length) return this.currentFullText();
-    return this.currentFullText().slice(0, ends[typed - 1]);
-  });
+  /** The line being read whole, in the runs the ruby notation cuts it into. */
+  readonly currentFullParts = computed(() => this.currentLine().parts);
 
-  readonly isTyping = computed(() => this.typedLength() < this.currentGraphemeEnds().length);
+  /** What a reader sees of the line being read once it is all out, the notation gone from it. */
+  readonly currentVisibleText = computed(() => this.currentLine().text);
+
+  /** What a reader sees of the line so far, the readings left out. */
+  readonly displayedText = computed(() => typedTextOf(this.currentLine(), this.typedLength()));
+
+  /** The line so far, in runs, with the readings over the words that have one. */
+  readonly displayedParts = computed(() => typedPartsOf(this.currentLine(), this.typedLength()));
+
+  readonly isTyping = computed(() => this.typedLength() < this.currentLine().ends.length);
 
   readonly currentIsDiceCommand = computed(() => this.isDiceCommandAt(this.currentIndex()));
 
@@ -273,7 +277,7 @@ export class VisualNovelPlaybackService {
   advance(): void {
     if (this.isTyping()) {
       this.stopTypewriter();
-      this.typedLength.set(this.currentGraphemeEnds().length);
+      this.typedLength.set(this.currentLine().ends.length);
       return;
     }
     const index = this.currentIndex();
@@ -405,7 +409,7 @@ export class VisualNovelPlaybackService {
     this.stopTypewriter();
     const readable = readableMessageText(message, this.translate);
     const emote = vnEmoteOf(message?.vnEmote, readable);
-    const total = graphemeEnds(vnBodyOf(message?.vnEmote, readable)).length;
+    const total = typedLineOf(vnBodyOf(message?.vnEmote, readable)).ends.length;
     const interval = VN_TYPEWRITER_INTERVAL_MS[this.settings.typewriterSpeed()];
     const isDiceCommand = this.currentIsDiceCommand();
     if (this.revealInstantly || interval < 1 || emote.kind === 'location' || emote.kind === 'scene' || isDiceCommand) {
