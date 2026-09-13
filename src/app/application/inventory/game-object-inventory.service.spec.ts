@@ -20,6 +20,7 @@ describe('GameObjectInventoryService', () => {
 
     it('lays the columns out again when a piece renames a resource', async () => {
       const service = TestBed.inject(GameObjectInventoryService);
+      service.dataTag = '';
       const [renaming, other] = ['A', 'B'].map((name) => {
         const character = GameCharacter.create(name, 1, '');
         character.setLocation('table');
