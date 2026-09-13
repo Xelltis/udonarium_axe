@@ -24,9 +24,24 @@ export const TABLE_SURFACES: readonly TableSurface[] = [
   'west-wall',
 ] as const;
 
+/** The words a face is called by that are not the name of a face: nothing, said aloud. */
+const NOT_A_SURFACE: ReadonlySet<string> = new Set(['', 'null', 'undefined']);
+
+/**
+ * The name an object gives for the face it stands on, or nothing where it gives none.
+ *
+ * A face left behind travels between seats as nothing and can come back written out as the
+ * word for it. Read as a name it is the name of a face nobody has, which is a piece standing
+ * somewhere that is not on the table at all.
+ */
+function namedSurface(object: { location: { surface?: string } }): string {
+  const surface = object.location.surface ?? '';
+  return NOT_A_SURFACE.has(surface) ? '' : surface;
+}
+
 export function surfaceOf(object: { location: { surface?: string } }): TableSurface {
-  const surface = object.location.surface as TableSurface | undefined;
-  return surface && TABLE_SURFACES.includes(surface) ? surface : 'floor';
+  const surface = namedSurface(object) as TableSurface;
+  return TABLE_SURFACES.includes(surface) ? surface : 'floor';
 }
 
 /**
@@ -36,9 +51,8 @@ export function surfaceOf(object: { location: { surface?: string } }): TableSurf
  * faces the table has is the name of a board.
  */
 export function boardSurfaceOf(object: { location: { surface?: string } }): string {
-  const surface = object.location.surface;
-  if (!surface || TABLE_SURFACES.includes(surface as TableSurface)) return '';
-  return surface;
+  const surface = namedSurface(object);
+  return TABLE_SURFACES.includes(surface as TableSurface) ? '' : surface;
 }
 
 @SyncObject('TabletopObject')

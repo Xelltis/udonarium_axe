@@ -911,8 +911,9 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private isOnWallSurface(): boolean {
-    const surface = this.tabletopObject?.location?.surface;
-    return !!surface && surface !== 'floor';
+    const object = this.tabletopObject;
+    if (!object?.location) return false;
+    return surfaceOf(object) !== 'floor' || boardSurfaceOf(object).length > 0;
   }
 
   private setPosition(object: TabletopObject) {
