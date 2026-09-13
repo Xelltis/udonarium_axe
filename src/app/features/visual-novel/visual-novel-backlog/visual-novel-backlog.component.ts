@@ -37,7 +37,9 @@ import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/vis
 import { readableMessageName, readableMessageText } from '@axe/features/visual-novel/visual-novel-message';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
 import { VN_STAGE_SLOT_COUNT } from '@axe/features/visual-novel/visual-novel-stage';
+import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { RubyPart, splitRubyNotation } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const BACKLOG_PAGE_SIZE = 200;
@@ -48,6 +50,8 @@ export interface VnBacklogEntry {
   /** Read in the reader's language, which matters for what the room says of itself. */
   name: string;
   text: string;
+  /** The text as it is shown, with the readings the ruby notation gives it. */
+  parts: readonly RubyPart[];
   suffix: string;
   imageUrl: string;
 }
@@ -57,7 +61,7 @@ export interface VnBacklogEntry {
   selector: 'visual-novel-backlog',
   templateUrl: './visual-novel-backlog.component.html',
   host: { class: 'contents' },
-  imports: [DatePipe, FormsModule, SafePipe, TranslocoModule],
+  imports: [DatePipe, FormsModule, RubyTextComponent, SafePipe, TranslocoModule],
 })
 export class VisualNovelBacklogComponent {
   private readonly objectChange = inject(ObjectChangeService);
@@ -119,6 +123,7 @@ export class VisualNovelBacklogComponent {
         index,
         name: readableMessageName(message, this.translate),
         text,
+        parts: splitRubyNotation(text),
         suffix,
         imageUrl: hasPortrait ? this.imageService.getEmptyOr(message.imageIdentifier).url : '',
       };
