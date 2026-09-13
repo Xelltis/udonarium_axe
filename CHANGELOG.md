@@ -1,3 +1,80 @@
+## [1.54.0](https://github.com/Xelltis/udonarium_axe/compare/v1.53.0...v1.54.0) (2026-09-13)
+
+### ✨ Features
+
+* **dice:** let a die be marked as spent ([5657ad7](https://github.com/Xelltis/udonarium_axe/commit/5657ad7232a3148e4c5d8a52169d5d2c50408791))
+* **dice:** make several dice of a kind at once ([faa643d](https://github.com/Xelltis/udonarium_axe/commit/faa643da62eb7f091c3ccb9fadc64a84436dda7c))
+* **dice:** say whose the dice are as they are made ([a4e757f](https://github.com/Xelltis/udonarium_axe/commit/a4e757f1d2083efd57f8dcc9fc845b9e31a2ae7d))
+* **inventory:** let a display item be written as a path, or with a space in it ([905f9c4](https://github.com/Xelltis/udonarium_axe/commit/905f9c4fc04518372a570f963581f3a581288294))
+* **move-range:** let a table counted in cells say what one cell stands for ([9a9f91f](https://github.com/Xelltis/udonarium_axe/commit/9a9f91fa72aeedd23dbf7e9629c85a7061803899))
+* **tabletop:** gather a party on the spot the master points at ([ea550b8](https://github.com/Xelltis/udonarium_axe/commit/ea550b8548ad8c8ed18021ecb3d12c514eca0828))
+* **tabletop:** hold a piece off the ground with the wheel and the shift key ([a0ff857](https://github.com/Xelltis/udonarium_axe/commit/a0ff857e227ab59e5fe3d159e0d80955684deaa9))
+* **tabletop:** say what a drag can be turned into while the piece is held ([bfbd2e4](https://github.com/Xelltis/udonarium_axe/commit/bfbd2e40b37d58dbb570e3782484ce38c115acf3))
+
+### 🐛 Bug Fixes
+
+* **buff:** show the timing a buff already carries in the editor ([36ffa1b](https://github.com/Xelltis/udonarium_axe/commit/36ffa1bd853edcaedc948339b606360b317a7af9))
+* **card:** mark a stack as locked without it being moved ([e920215](https://github.com/Xelltis/udonarium_axe/commit/e920215362a9f257e8c9b427c195a23c979bc0a9))
+* **card:** name who is looking through a stack without it being moved ([6c3041b](https://github.com/Xelltis/udonarium_axe/commit/6c3041bdbbfb5212e5258c637ca6ca3e6e71fd9a))
+* **chat:** let no spectator change the tabs themselves ([a78be52](https://github.com/Xelltis/udonarium_axe/commit/a78be5265da40c3814022732e48e44ec5f727f65))
+* **chat:** show a kept-back roll only to its roller and the master ([ef86349](https://github.com/Xelltis/udonarium_axe/commit/ef8634930950c0d40b51010f4779b089c12132c9))
+* **controller:** build the remote's resource buttons from the pieces it acts on ([77640ea](https://github.com/Xelltis/udonarium_axe/commit/77640ea2ff83ec2f7739f7755e0715a772d385dd))
+* **controller:** let the remote reach every item the pieces carry ([d8f5a3c](https://github.com/Xelltis/udonarium_axe/commit/d8f5a3c6db545b1dfe64d3065e4024334a2a1c7c))
+* **dice:** keep a character's dice when they are put away a second time ([63462c4](https://github.com/Xelltis/udonarium_axe/commit/63462c4f80f7baf6712e3a92384c7f713f9012fa))
+* **dice:** let no spectator make or rewrite a dice table ([f864b9b](https://github.com/Xelltis/udonarium_axe/commit/f864b9b1faf1389f32a780a60db3d5e04b75c2e2))
+* **dice:** let the dice dialogue take only the width it needs ([4c1249a](https://github.com/Xelltis/udonarium_axe/commit/4c1249a192c31ad8a53bcfe14a0bdab62ce4074a))
+* **file:** carry the pictures hung on a table's walls into the save ([4d68e1f](https://github.com/Xelltis/udonarium_axe/commit/4d68e1f3267c779168c8b12da738bd7d8e71911c))
+* **inventory:** follow a resource being renamed in a room that names no items ([31dff01](https://github.com/Xelltis/udonarium_axe/commit/31dff01ce240197b05883f34249392b5e1f8de39))
+* **inventory:** start a room on what its pieces carry, not on the sample sheet ([c4c1f34](https://github.com/Xelltis/udonarium_axe/commit/c4c1f345a5d42b551ceb35633b73a58b05841e2a))
+* **lobby:** come into a room somebody else opened as a player ([043debb](https://github.com/Xelltis/udonarium_axe/commit/043debbf26d626a02bbd2a95cb7eaf5837d3cd8f))
+* **lobby:** follow a peer renaming themselves, and let their cursor be picked up ([67c6692](https://github.com/Xelltis/udonarium_axe/commit/67c66925e2ebaf9caa77bc49fce51b5107ef06ae))
+* **lobby:** let a game master come back to their own room as one ([ca31598](https://github.com/Xelltis/udonarium_axe/commit/ca31598db7009e5b9aead06a183c359e0abf708c))
+* **media:** let no spectator make or throw away a cut-in ([fc3a4de](https://github.com/Xelltis/udonarium_axe/commit/fc3a4dea93fbd96f3f0dd9fcba5e759bb9a0d021))
+* **move-range:** start a table turned over to cells at one cell a cell ([211d926](https://github.com/Xelltis/udonarium_axe/commit/211d926b046adaff4ab5fe38bf12962a2e4d3207))
+* **overview:** redraw the detail of a piece when the piece changes ([a3e5a90](https://github.com/Xelltis/udonarium_axe/commit/a3e5a90c523a1bcbd9bcb37612df6c0b394a88fd))
+* **panels:** open a panel in the window the panel it came from stands in ([f697a9b](https://github.com/Xelltis/udonarium_axe/commit/f697a9bf5b12d046f54456f8e1996e1778f62afb))
+* **panels:** open a select's list in the window the select stands in ([6a2bf1d](https://github.com/Xelltis/udonarium_axe/commit/6a2bf1d93e2aa2dee38feaec9924b6c6f5e2d8ec))
+* **tabletop:** draw a piece whose face has gone rather than losing it ([44ea6f5](https://github.com/Xelltis/udonarium_axe/commit/44ea6f5d566aabc00b7867487d740ace3ee6d868))
+* **tabletop:** follow a die or card being claimed without it being moved ([5c937b2](https://github.com/Xelltis/udonarium_axe/commit/5c937b2f13e4f7a33bad5ef54cd10415a6ba9ee2))
+* **tabletop:** follow a scratch mask being resized, recoloured or locked ([31bbd1c](https://github.com/Xelltis/udonarium_axe/commit/31bbd1c57b94e40919b9510c678b6d6377d24030))
+* **tabletop:** keep a piece off the wall once it has been taken off it ([c678312](https://github.com/Xelltis/udonarium_axe/commit/c6783127761ec827321ad3cd9403a1efb0cf7884))
+* **tabletop:** leave a member with no room to stand in off the table ([26c6e1e](https://github.com/Xelltis/udonarium_axe/commit/26c6e1e4a6f46ad4bc5bbe151fb831912533ffa1))
+* **tabletop:** let the wheel lift a piece while the shift key is down ([c1d2639](https://github.com/Xelltis/udonarium_axe/commit/c1d2639646be6bceefb015c639d7f0be27a85376))
+* **tabletop:** show a picture on a card or a board as soon as it arrives ([ce123d6](https://github.com/Xelltis/udonarium_axe/commit/ce123d6c1e792f0fd73db0c0d04fec9003544405))
+* **tabletop:** stand a piece back up once it is off the wall ([1b2e912](https://github.com/Xelltis/udonarium_axe/commit/1b2e91225e3e8c17c9614fcba4ad7658ab18c4d9))
+* **turn-order:** let no spectator move the round ([15d53dc](https://github.com/Xelltis/udonarium_axe/commit/15d53dcca9e25a640f282c3181eca279336765a2))
+* **visual-novel:** write a reading over its word on the stage ([6cea35d](https://github.com/Xelltis/udonarium_axe/commit/6cea35db7b3765a66f81c3c86473a7179be1ba94))
+* **visual-novel:** write a reading smaller over its word ([58d739f](https://github.com/Xelltis/udonarium_axe/commit/58d739f1ac476f3ee4f7117c1958f31dfaa9405d))
+* **visual-novel:** write the readings over their words in the backlog ([98d3eed](https://github.com/Xelltis/udonarium_axe/commit/98d3eed6a75881843f1ce3e18df9495ffa874018))
+
+### 📝 Documentation
+
+* **character:** say where the account of a piece's resources lives ([5f67c67](https://github.com/Xelltis/udonarium_axe/commit/5f67c67c047c0878f512a10d3e3274455e51b38d))
+* **controller:** say how the remote works out its resource buttons ([ef96b67](https://github.com/Xelltis/udonarium_axe/commit/ef96b6742e36ee71e6d2c06d169bf4780d0628db))
+* **controller:** say how the remote's items and slots are offered ([ee9e440](https://github.com/Xelltis/udonarium_axe/commit/ee9e44005df06aefae6b6587d256e815b598e800))
+* **data:** describe the shared slots of a resource ([c5269ad](https://github.com/Xelltis/udonarium_axe/commit/c5269ad3a1d7691d217ce8bbdce537b9f7ac9464))
+* **dice:** say how to make several dice at once ([42e3647](https://github.com/Xelltis/udonarium_axe/commit/42e36477d77236fd0bd13005435f2c9ca32ff462))
+* **dice:** say that the dice dialogue asks whose they are ([34cf3d2](https://github.com/Xelltis/udonarium_axe/commit/34cf3d2a131daefe733ef24cff55118c25ca2bd3))
+* **inventory:** say how to write a display item in quotes ([7d5c90f](https://github.com/Xelltis/udonarium_axe/commit/7d5c90fb369f63ad73457e710e631f3a3315a786))
+* **inventory:** say where a room's display items come from ([1361b29](https://github.com/Xelltis/udonarium_axe/commit/1361b2987d8bc97f7ccb6c5315664a1a2c6ac603))
+* **manual:** describe copying parts of a sheet and keeping them as templates ([ab0b896](https://github.com/Xelltis/udonarium_axe/commit/ab0b896fe99d100a53d074a722611b5964642c36))
+* **manual:** say how to lift a piece off the ground ([d38fc98](https://github.com/Xelltis/udonarium_axe/commit/d38fc982d3058e820a6b7d018f15559d09c9d853))
+* **manual:** say that a spectator can switch out of the role ([d7c2099](https://github.com/Xelltis/udonarium_axe/commit/d7c2099fe07d03595b55ad0f00393f69b1df433b))
+* **manual:** say what a held piece can be asked to do ([aee8359](https://github.com/Xelltis/udonarium_axe/commit/aee8359128cdd16fa9070a38cc55c4faf12b357c))
+* **party:** say how to gather a party on a spot ([e3f100b](https://github.com/Xelltis/udonarium_axe/commit/e3f100b6dc2235c3cabd3abfdc32cf3b66e04b70))
+* **party:** say that the gathering choice is made in the menu ([2c930d3](https://github.com/Xelltis/udonarium_axe/commit/2c930d3863b17872d04d95bec6479b70181083b5))
+* **website:** answer why a piece falls to the ground ([d912cf3](https://github.com/Xelltis/udonarium_axe/commit/d912cf35c2a8c7df7db7ba3a2542d01cf3f6bff4))
+* **website:** follow the manual to what changed on this branch ([9c75621](https://github.com/Xelltis/udonarium_axe/commit/9c75621794c005733ed4763e8e52d7c5083b3bb4))
+* **website:** name cut-ins where the answer about stopped motion is ([7ab139a](https://github.com/Xelltis/udonarium_axe/commit/7ab139a579a002083e12eda90b98eb4f55ad6441))
+* **website:** write the release note for v1.53.0 ([68ff8f0](https://github.com/Xelltis/udonarium_axe/commit/68ff8f0e471ff84228bf25a48b64c1c64c08ce80))
+
+### ♻️ Refactor
+
+* **character:** keep one account of what the pieces carry ([e9f17f2](https://github.com/Xelltis/udonarium_axe/commit/e9f17f2b409f2e37a182bb0497a682a696b200e1))
+* **data:** one vocabulary for the parts of a resource ([d4bfd48](https://github.com/Xelltis/udonarium_axe/commit/d4bfd48c19fee8817dd979077990e03c28ca26c0))
+* **tabletop:** choose in the menu who gathers, rather than in a dialogue ([beecfb0](https://github.com/Xelltis/udonarium_axe/commit/beecfb08d3e39331304bbd7f07c1f77551aeac72))
+* **ui:** cut a line at the ruby notation into runs of text ([8e2697c](https://github.com/Xelltis/udonarium_axe/commit/8e2697ca69b89cabe9ebd9ccd72249ded453be10))
+
 ## [1.53.0](https://github.com/Xelltis/udonarium_axe/compare/v1.52.0...v1.53.0) (2026-09-11)
 
 ### ✨ Features
