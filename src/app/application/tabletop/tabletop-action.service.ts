@@ -489,9 +489,9 @@ export class TabletopActionService {
     const moving = new Set(gathering.map((member) => member.identifier));
     const standing = this.partyService.characters().filter((character) => !moving.has(character.identifier));
     const spots = GameObject.batch(() => {
-      for (const member of gathering) if (!member.isVisibleOnTable) member.setLocation('table');
       const placed = gatherSpotsAround(grid, table.gridSize, start, gathering, occupiedCells(grid, standing, ''));
       for (const spot of placed) {
+        if (!spot.character.isVisibleOnTable) spot.character.setLocation('table');
         spot.character.location.x = spot.x;
         spot.character.location.y = spot.y;
         spot.character.location.surface = undefined;

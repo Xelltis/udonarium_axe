@@ -291,6 +291,19 @@ describe('TabletopActionService', () => {
       expect(cellOf(away)).not.toBe(cellOf(here));
     });
 
+    it('leaves a member brought in with no room to stand in off the table', () => {
+      table.width = 1;
+      table.height = 1;
+      const party = makeParty('パーティA');
+      makeMember(party, '花子');
+      const away = makeMember(party, '次郎', false);
+
+      const placed = service.gatherParty({ x: 25, y: 25, z: 0 }, party, true);
+
+      expect(placed).toBe(1);
+      expect(away.isVisibleOnTable).toBe(false);
+    });
+
     it('tells the room and this screen about every piece it moved', () => {
       // A piece moved only in this browser is the worst of the failures this can have: the
       // master sees the party gathered and nobody else does. Both readings are taken from
