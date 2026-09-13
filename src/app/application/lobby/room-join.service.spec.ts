@@ -6,6 +6,7 @@ import { Network } from '@axe/core/index';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 class StubObjectChangeService {
@@ -81,6 +82,37 @@ describe('RoomJoinService', () => {
 
       stubChange.networkOpen$.emit({ peerId: 'my-peer' });
       expect(Network.connect).toHaveBeenCalledTimes(2);
+    });
+
+    it('comes into the room as a player when this seat was left as game master, before anyone sees it', () => {
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+      let roleWhenOpened: PeerRole | null = null;
+      vi.mocked(Network.open).mockImplementation(() => {
+        roleWhenOpened = PeerCursor.myCursor.role;
+      });
+
+      void service.join([peerContext('peer-1', 'abc', 'room')], '');
+
+      expect(roleWhenOpened).toBe(PeerRole.Player);
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
+    });
+
+    it('leaves a player and a guest as they chose', () => {
+      for (const role of [PeerRole.Player, PeerRole.Guest]) {
+        PeerCursor.myCursor = { peerId: '', role } as PeerCursor;
+
+        void service.join([peerContext('peer-1', 'abc', 'room')], '');
+
+        expect(PeerCursor.myCursor.role).toBe(role);
+      }
+    });
+
+    it('keeps the role when there is no room to join', async () => {
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+
+      await service.join([], '');
+
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
     });
 
     it('reports success when a connection survives every attempt', async () => {

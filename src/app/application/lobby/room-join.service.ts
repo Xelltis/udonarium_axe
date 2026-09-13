@@ -5,6 +5,7 @@ import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 
 const JOIN_TIMEOUT_MS = 15_000;
 
@@ -19,10 +20,21 @@ export class RoomJoinService {
     return rooms.find((room) => room.id === roomId) ?? null;
   }
 
+  /**
+   * Joins a room somebody else has already opened.
+   *
+   * A game master joining one comes in as a player. The role is chosen on this browser before
+   * there is any room, and kept there from one room to the next, so a seat left as game master
+   * would otherwise walk into a room that has its own and be handed everything it keeps from
+   * the players. It is put down before the room is opened, so the others never see it arrive
+   * as one. A role an invite hands out is given after the join and still stands; a guest stays
+   * a guest.
+   */
   join(peerContexts: readonly IPeerContext[], password: string): Promise<boolean> {
     const context = peerContexts[0];
     if (!context) return Promise.resolve(false);
 
+    if (PeerCursor.myCursor.role === PeerRole.GameMaster) PeerCursor.myCursor.role = PeerRole.Player;
     const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
     Network.open(userId, context.roomId, context.roomName, password);
     PeerCursor.myCursor.peerId = Network.peerId;
