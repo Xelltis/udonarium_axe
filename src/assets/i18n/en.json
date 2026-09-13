@@ -1981,7 +1981,7 @@
         "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
         "moveRangeElementNames": "Sheet fields",
         "cellDistanceUnit": "Cell unit",
-        "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing). Feet and metres are converted where the sheet is written in the other one; a sheet written in cells is read as cells.",
+        "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing), in cells as much as in a length: at 0.5, one cell on the sheet is two on the table. Feet and metres are converted where the sheet is written in the other one; a sheet written in cells on a table ruled in feet or metres is read as cells.",
         "zocMode": "Zone of control",
         "zocMode_none": "None",
         "zocMode_stop": "Halt (the walk ends on entering)",
@@ -2221,7 +2221,7 @@
       "diagonalMoveHint": "Counting by turns is how D&D 3.5e and Pathfinder 1e read a corner: the first one costs a cell, the second two.",
       "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
       "moveRangeElementNames": "Sheet fields",
-      "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing). Feet and metres are converted where the sheet is written in the other one; a sheet written in cells is read as cells.",
+      "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing), in cells as much as in a length: at 0.5, one cell on the sheet is two on the table. Feet and metres are converted where the sheet is written in the other one; a sheet written in cells on a table ruled in feet or metres is read as cells.",
       "cellDistance": "One cell stands for",
       "cellDistanceUnit": "Cell unit",
       "cellUnit": {

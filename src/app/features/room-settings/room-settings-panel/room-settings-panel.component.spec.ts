@@ -209,14 +209,6 @@ describe('RoomSettingsPanelComponent', () => {
       expect(component.showsDiagonalOption).toBe(false);
     });
 
-    it('asks what a cell stands for only where it is not ruled in cells', () => {
-      component.cellDistanceUnit = 'cell';
-      expect(component.showsCellDistance).toBe(false);
-
-      component.cellDistanceUnit = 'foot';
-      expect(component.showsCellDistance).toBe(true);
-    });
-
     it('asks nothing more where an enemy holds no ground', () => {
       component.zocMode = 'none';
 

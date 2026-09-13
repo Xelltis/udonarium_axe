@@ -409,10 +409,6 @@ export class RoomSettingsPanelComponent {
     return !isHexGrid(table?.gridType ?? 0);
   }
 
-  get showsCellDistance(): boolean {
-    return this.cellDistanceUnit !== 'cell';
-  }
-
   /** A table where an enemy holds no ground is asked nothing about how much of it. */
   get showsZocOptions(): boolean {
     return this.zocMode !== 'none';
