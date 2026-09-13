@@ -7,6 +7,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatTabComponent', () => {
@@ -172,6 +173,7 @@ describe('ChatTabComponent', () => {
         await new Promise<void>((resolve) => queueMicrotask(resolve));
       };
 
+      beMyself('me');
       const secret = chatTab.addMessage({ from: 'me', name: 'ダイス', text: '→ 6', timestamp: 1000, tag: 'secret' });
       const said = chatTab.addMessage({ from: 'me', name: 'アリス', text: 'そのあと', timestamp: 2000 });
       TestBed.inject(ChatMessageService).discloseMessage(secret);
@@ -194,6 +196,7 @@ describe('ChatTabComponent', () => {
         await new Promise<void>((resolve) => queueMicrotask(resolve));
       };
 
+      beMyself('me');
       const secret = chatTab.addMessage({ from: 'me', name: 'ダイス', text: '→ 6', timestamp: 1000, tag: 'secret' });
       chatTab.addMessage({ from: 'me', name: 'アリス', text: 'そのあと', timestamp: 2000 });
       await flush();
