@@ -10,6 +10,7 @@ import { Network } from '@axe/core/index';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isHandLocation } from '@axe/domain/card/hand-location';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { tagLeafNames } from '@axe/domain/data/summary-tag-list';
@@ -171,9 +172,7 @@ export class GameObjectInventoryService {
         if (!(object instanceof DataElement) || !this.containsInGameCharacter(object)) return;
 
         const prevName = this.tagNameMap.get(object.identifier);
-        // By the name at the end of each item, so a column written as a path follows a rename too.
-        const watched = tagLeafNames(this.dataTags);
-        if ((watched.includes(prevName ?? '') || watched.includes(object.name)) && object.name !== prevName) {
+        if (this.isWatchedName(object, prevName) && object.name !== prevName) {
           this.tagNameMap.set(object.identifier, object.name);
           this.refreshDataElements();
         }
@@ -210,6 +209,19 @@ export class GameObjectInventoryService {
     this.objectChange.fileSyncList$.subscribe((e) => {
       if (e.isSendFromSelf) this.callInventoryUpdate();
     }, this.destroyRef);
+  }
+
+  /**
+   * Whether a change to this item's name can change the columns.
+   *
+   * A room that names its items is watched by the name at the end of each, so a column written
+   * as a path follows a rename too. A room that names none shows what its pieces carry, so any
+   * resource being named, renamed or added can bring a column in or take one away.
+   */
+  private isWatchedName(element: DataElement, prevName: string | undefined): boolean {
+    if (this.dataTags.length < 1) return isResourceElement(element);
+    const watched = tagLeafNames(this.dataTags);
+    return watched.includes(prevName ?? '') || watched.includes(element.name);
   }
 
   private containsInGameCharacter(element: DataElement): boolean {
