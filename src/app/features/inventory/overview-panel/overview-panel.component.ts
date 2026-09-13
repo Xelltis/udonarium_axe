@@ -134,12 +134,19 @@ export class OverviewPanelComponent {
     return null;
   }
 
+  /**
+   * Moves whenever the object or any of its data does, which is what redraws the panel.
+   *
+   * The panel reads the object straight off the model - whose a die is, whether its face is on
+   * show - so something drawn has to change for those to be read again. Versions only go up,
+   * so their sum changes whenever any one of them does.
+   */
   readonly objectVersion = computed(() => {
     if (!this.tabletopObject) return 0;
-    this.objectChange.versionOf(this.tabletopObject.identifier)();
+    let version = this.objectChange.versionOf(this.tabletopObject.identifier)();
     const trackChildren = (elms: readonly DataElement[]) => {
       for (const elm of elms) {
-        this.objectChange.versionOf(elm.identifier)();
+        version += this.objectChange.versionOf(elm.identifier)();
         if (elm.children.length) trackChildren(elm.children as DataElement[]);
       }
     };
@@ -147,7 +154,7 @@ export class OverviewPanelComponent {
       trackChildren(this.tabletopObject.commonDataElement.children as DataElement[]);
     if (this.tabletopObject.detailDataElement)
       trackChildren(this.tabletopObject.detailDataElement.children as DataElement[]);
-    return 1;
+    return version;
   });
 
   get inventoryDataElms(): DataElement[] {

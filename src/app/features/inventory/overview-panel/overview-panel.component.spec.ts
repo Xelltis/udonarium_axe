@@ -11,6 +11,7 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { OverviewPanelComponent } from '@axe/features/inventory/overview-panel/overview-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -34,6 +35,22 @@ describe('OverviewPanelComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('hides the face of a die kept back while its detail is open', async () => {
+    const die = DiceSymbol.create('D6', 0, 1);
+    component.tabletopObject = die;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const read = () => (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(read()).toContain(`D6: ${die.face}`);
+
+    die.owner = 'somebody-else';
+    await Promise.resolve();
+    await fixture.whenStable();
+
+    expect(read()).not.toContain(`D6: ${die.face}`);
+    die.destroy();
   });
 
   it('rotates the detail toward the hover area supplied by the tooltip', () => {
