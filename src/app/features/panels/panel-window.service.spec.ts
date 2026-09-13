@@ -65,14 +65,28 @@ describe('PanelWindowService', () => {
       return windows;
     }
 
-    it("offers the window's layer to whatever the panel opens over it", () => {
+    it('offers a layer of the window to whatever the panel opens over it', () => {
       let host: ViewContainerRef | null = null;
       open((layer) => (host = layer));
 
       vi.spyOn(opened.document, 'hasFocus').mockReturnValue(true);
 
       expect(host).not.toBeNull();
-      expect(OverlayLayers.current()).toBe(host);
+      expect(OverlayLayers.current()).not.toBeNull();
+      expect(OverlayLayers.layerFor(opened.document)).toBe(OverlayLayers.current());
+    });
+
+    it("keeps what is opened over the panel out of the window's own frame", () => {
+      let host: ViewContainerRef | null = null;
+      open((layer) => (host = layer));
+
+      const own = host!.createComponent(StandInPanelComponent).location.nativeElement as HTMLElement;
+      const over = OverlayLayers.layerFor(opened.document)!.createComponent(StandInPanelComponent).location
+        .nativeElement as HTMLElement;
+
+      expect(own.closest('[data-panel-window-frame]')).not.toBeNull();
+      expect(over.closest('[data-panel-window-frame]')).toBeNull();
+      expect(over.ownerDocument).toBe(opened.document);
     });
 
     it('closes a window whose panel closed itself, without opening the panel again', () => {

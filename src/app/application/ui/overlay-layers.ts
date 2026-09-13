@@ -31,6 +31,17 @@ export class OverlayLayers {
     return null;
   }
 
+  /**
+   * The layer of the window a document belongs to, or nothing for the main window.
+   *
+   * Asked by something that knows where it is standing, which is surer than asking which
+   * window has the focus: a panel opened from a panel in a window belongs in that window
+   * however the focus has moved since.
+   */
+  static layerFor(document: Document | null | undefined): ViewContainerRef | null {
+    return document ? (OverlayLayers.windows.get(document) ?? null) : null;
+  }
+
   static reset(): void {
     OverlayLayers.windows.clear();
   }

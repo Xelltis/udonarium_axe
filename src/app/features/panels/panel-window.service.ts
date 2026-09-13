@@ -22,11 +22,14 @@ import { PanelWindowLayerComponent } from '@axe/features/panels/panel-window-lay
  * to describe, and a second set of window controls inside a window is only confusing. What
  * the panel's content put in the bar is left alone: those work on what it is showing, not on
  * the frame, and are the same use here as anywhere.
+ *
+ * Only the window's own panel is told this. A panel opened from it stands in the window as it
+ * would on the table, frame and all.
  */
 const WINDOW_SHEET = `
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--ui-bg); }
-  [data-panel-frame-controls] { display: none !important; }
-  .draggable-panel {
+  [data-panel-window-frame] [data-panel-frame-controls] { display: none !important; }
+  [data-panel-window-frame] .draggable-panel {
     position: static !important;
     inset: auto !important;
     width: 100% !important;
@@ -137,7 +140,7 @@ export class PanelWindowService {
     });
     this.appRef.attachView(layer.hostView);
     layer.changeDetectorRef.detectChanges();
-    OverlayLayers.attach(target, layer.instance.layer());
+    OverlayLayers.attach(target, layer.instance.overlay());
     request.open(layer.instance.layer());
 
     const watchdog = setInterval(() => this.look(request.key), 500);

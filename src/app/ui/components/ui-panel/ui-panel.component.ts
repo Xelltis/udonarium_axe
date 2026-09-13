@@ -186,6 +186,10 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     return { left: Math.round(box.left), top: Math.round(box.top) };
   }
 
+  frameDocument(): Document {
+    return this.draggablePanel().nativeElement.ownerDocument;
+  }
+
   panelCount(): number {
     return this.tabCount();
   }
@@ -725,18 +729,25 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     panel.style.height = `${height}px`;
   }
 
+  /**
+   * Pulls the panel back inside the window it stands in.
+   *
+   * That window is not always the main one: a panel opened from a panel in a window of its own
+   * is put up there, at a place worked out from the pointer in the main window.
+   */
   private clampPanelToViewport(panel: HTMLElement): void {
+    const view = panel.ownerDocument.defaultView ?? window;
     const rect = panel.getBoundingClientRect();
     let diffX = 0;
     let diffY = 0;
 
-    if (window.innerWidth < rect.width) diffX = window.innerWidth / 2 - (rect.left + rect.width / 2);
+    if (view.innerWidth < rect.width) diffX = view.innerWidth / 2 - (rect.left + rect.width / 2);
     else if (rect.left < 0) diffX = -rect.left;
-    else if (window.innerWidth < rect.right) diffX = window.innerWidth - rect.right;
+    else if (view.innerWidth < rect.right) diffX = view.innerWidth - rect.right;
 
-    if (window.innerHeight < rect.height) diffY = window.innerHeight / 2 - (rect.top + rect.height / 2);
+    if (view.innerHeight < rect.height) diffY = view.innerHeight / 2 - (rect.top + rect.height / 2);
     else if (rect.top < 0) diffY = -rect.top;
-    else if (window.innerHeight < rect.bottom) diffY = window.innerHeight - rect.bottom;
+    else if (view.innerHeight < rect.bottom) diffY = view.innerHeight - rect.bottom;
 
     if (diffX === 0 && diffY === 0) return;
     this.left = panel.offsetLeft + diffX;

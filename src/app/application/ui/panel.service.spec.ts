@@ -1,5 +1,6 @@
 import { Component, ComponentRef, computed, ViewContainerRef } from '@angular/core';
-import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
+import { PanelFrame, PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { Logger } from '@axe/core/logging/logger';
 
 class DummyBodyComponent {}
@@ -192,6 +193,51 @@ describe('PanelService', () => {
     expect(childPanelService.height).toBe(240);
     expect(setInput).toHaveBeenCalledWith('width', 320);
     expect(setInput).toHaveBeenCalledWith('height', 240);
+  });
+
+  describe('a panel opened from a panel in a window of its own', () => {
+    const table = { createComponent: () => expect.unreachable('opened on the table') } as unknown as ViewContainerRef;
+
+    function standingIn(service: PanelService, paper: Document): void {
+      service.attachTo({ frameDocument: () => paper } as unknown as PanelFrame);
+    }
+
+    afterEach(() => OverlayLayers.reset());
+
+    it('opens in that window, and knows it is in one', () => {
+      const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
+      const paper = document.implementation.createHTMLDocument('window');
+      OverlayLayers.attach(paper, parentViewContainerRef);
+      PanelService.defaultParentViewContainerRef = table;
+      standingIn(service, paper);
+
+      service.open(DummyBodyComponent, { title: 'chat settings' });
+
+      expect(childPanelService.windowed()).toBe(true);
+    });
+
+    it('opens in that window once a lazy panel has loaded', async () => {
+      const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
+      const paper = document.implementation.createHTMLDocument('window');
+      OverlayLayers.attach(paper, parentViewContainerRef);
+      PanelService.defaultParentViewContainerRef = table;
+      standingIn(service, paper);
+
+      service.openLazy(() => Promise.resolve(DummyBodyComponent));
+
+      await vi.waitFor(() => expect(childPanelService.windowed()).toBe(true));
+    });
+
+    it('opens on the table from a panel standing on the table', () => {
+      const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
+      OverlayLayers.attach(document.implementation.createHTMLDocument('window'), table);
+      PanelService.defaultParentViewContainerRef = parentViewContainerRef;
+      standingIn(service, document);
+
+      service.open(DummyBodyComponent);
+
+      expect(childPanelService.windowed()).toBe(false);
+    });
   });
 
   it('destroys the panel through the child service that made it', () => {

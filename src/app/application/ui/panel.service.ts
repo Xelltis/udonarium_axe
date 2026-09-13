@@ -1,4 +1,5 @@
 import { ComponentRef, Injectable, reflectComponentType, signal, ViewContainerRef } from '@angular/core';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Logger } from '@axe/core/logging/logger';
@@ -119,6 +120,8 @@ export interface PanelFrame {
   frameSize: () => { width: number; height: number };
   /** Where the frame is standing right now, read off the screen rather than off the panel. */
   framePlace: () => { left: number; top: number };
+  /** The document the frame is drawn in, which is another window's once it has been taken out. */
+  frameDocument: () => Document;
   /** The frame goes, whatever it is holding. */
   dismissFrame: () => void;
 }
@@ -290,9 +293,22 @@ export class PanelService {
     return PanelService.opening.has(name) || PanelService.singles.has(name);
   }
 
+  /**
+   * The layer of the window this panel stands in, for what it opens, or nothing on the table.
+   *
+   * A panel opened from a panel in a window of its own belongs over there with it. Put on the
+   * table instead, it opens in a window the reader is not looking at and has to be fetched back
+   * across to be put away.
+   */
+  private windowLayer(): ViewContainerRef | null {
+    return OverlayLayers.layerFor(this.frame?.frameDocument());
+  }
+
   open<T>(childComponent: Type<T>, option?: PanelOption, parentViewContainerRef?: ViewContainerRef): T {
+    const windowLayer = parentViewContainerRef ? null : this.windowLayer();
+    if (windowLayer) option = { ...option, windowed: true };
     if (!parentViewContainerRef) {
-      parentViewContainerRef = PanelService.defaultParentViewContainerRef;
+      parentViewContainerRef = windowLayer ?? PanelService.defaultParentViewContainerRef;
     }
     const injector = parentViewContainerRef.injector;
 
