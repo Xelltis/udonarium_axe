@@ -20,6 +20,7 @@ import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import {
@@ -380,6 +381,48 @@ describe('GameTableComponent', () => {
       ) as HTMLElement;
 
       expect(wrapper.style.getPropertyValue('mask')).toBe(component.tableSurfaceStyle()['mask']);
+    });
+  });
+
+  describe('a piece standing on a face the table is not drawing', () => {
+    it('comes back to the floor rather than being drawn nowhere at all', () => {
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: 'north-wall' };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).toContain(piece.identifier);
+        expect(component.charactersBySurface()['north-wall']).toEqual([]);
+      } finally {
+        piece.destroy();
+      }
+    });
+
+    it('leaves a piece on a board that another table is drawing to that board', () => {
+      const board = new WhiteBoard();
+      board.initialize();
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: board.identifier };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).not.toContain(piece.identifier);
+      } finally {
+        piece.destroy();
+        board.destroy();
+      }
+    });
+
+    it('comes back from a board that is no longer on the table', () => {
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: 'a-board-that-went-away' };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).toContain(piece.identifier);
+      } finally {
+        piece.destroy();
+      }
     });
   });
 

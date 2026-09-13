@@ -60,8 +60,9 @@ import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { boardSurfaceOf, surfaceOf, TABLE_SURFACES, TableSurface } from '@axe/domain/tabletop/tabletop-object';
+import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import type { DeckBuilderResult } from '@axe/features/card/deck-builder-dialog/deck-builder-dialog.component';
@@ -87,6 +88,7 @@ import {
 } from '@axe/features/tabletop/game-table/game-table-walls';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
+import { bucketBySurface, DrawnSurfaces } from '@axe/features/tabletop/game-table/surface-buckets';
 import { TableMarqueeOverlayComponent } from '@axe/features/tabletop/game-table/table-marquee-overlay/table-marquee-overlay.component';
 import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
 import {
@@ -766,32 +768,28 @@ export class GameTableComponent {
     return this.tabletopService.peerCursors;
   });
 
-  /** Anything standing on a board is drawn by that board, so the table passes it over. */
-  private static bySurface<T extends { location: { surface?: string } }>(
-    list: readonly T[]
-  ): Record<TableSurface, T[]> {
-    const result = TABLE_SURFACES.reduce(
-      (acc, s) => {
-        acc[s] = [];
-        return acc;
-      },
-      {} as Record<TableSurface, T[]>
-    );
-    for (const item of list) {
-      if (boardSurfaceOf(item)) continue;
-      result[surfaceOf(item)].push(item);
-    }
-    return result;
-  }
+  /**
+   * The faces there are to stand on: the walls this table draws, and every board in the room.
+   *
+   * Every board rather than this table's alone, since a piece on another table's board is that
+   * board's to draw and is only passing through here.
+   */
+  private readonly drawnSurfaces = computed<DrawnSurfaces>(() => {
+    this.objectChangeService.collectionOf('white-board')();
+    return {
+      walls: new Set(this.activeWalls().map((wall) => wall.surface)),
+      boards: new Set(this.objectStore.getObjects(WhiteBoard).map((board) => board.identifier)),
+    };
+  });
 
-  readonly charactersBySurface = computed(() => GameTableComponent.bySurface(this.characters()));
-  readonly cardsBySurface = computed(() => GameTableComponent.bySurface(this.cards()));
-  readonly cardStacksBySurface = computed(() => GameTableComponent.bySurface(this.cardStacks()));
-  readonly rangesBySurface = computed(() => GameTableComponent.bySurface(this.ranges()));
-  readonly textNotesBySurface = computed(() => GameTableComponent.bySurface(this.textNotes()));
-  readonly diceSymbolsBySurface = computed(() => GameTableComponent.bySurface(this.diceSymbols()));
-  readonly coinsBySurface = computed(() => GameTableComponent.bySurface(this.coins()));
-  readonly terrainsBySurface = computed(() => GameTableComponent.bySurface(this.terrains()));
+  readonly charactersBySurface = computed(() => bucketBySurface(this.characters(), this.drawnSurfaces()));
+  readonly cardsBySurface = computed(() => bucketBySurface(this.cards(), this.drawnSurfaces()));
+  readonly cardStacksBySurface = computed(() => bucketBySurface(this.cardStacks(), this.drawnSurfaces()));
+  readonly rangesBySurface = computed(() => bucketBySurface(this.ranges(), this.drawnSurfaces()));
+  readonly textNotesBySurface = computed(() => bucketBySurface(this.textNotes(), this.drawnSurfaces()));
+  readonly diceSymbolsBySurface = computed(() => bucketBySurface(this.diceSymbols(), this.drawnSurfaces()));
+  readonly coinsBySurface = computed(() => bucketBySurface(this.coins(), this.drawnSurfaces()));
+  readonly terrainsBySurface = computed(() => bucketBySurface(this.terrains(), this.drawnSurfaces()));
 
   readonly beamTopGrids = computed<readonly BeamTopGrid[]>(() => {
     const table = this.currentTable;
