@@ -46,6 +46,7 @@ import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
@@ -62,6 +63,7 @@ const COLOR_SETTING_PANEL = 'chat-color-setting';
     NgSelectComponent,
     FormsModule,
     NgOptionComponent,
+    NgSelectWindowDirective,
     NgStyle,
     PortraitPickerComponent,
     SafePipe,

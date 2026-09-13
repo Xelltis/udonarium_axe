@@ -96,6 +96,11 @@ export class PanelWindowService {
 
   private readonly windows = new Map<string, OpenWindow>();
 
+  /** Watches the app's head for sheets added while a window is out, and is let go once none is. */
+  private sheetWatch: MutationObserver | null = null;
+  /** The copies made of each such sheet, so they can go when it does. */
+  private sheetCopies = new WeakMap<Node, Element[]>();
+
   /** Which panels are currently in windows of their own. */
   readonly detached = signal<readonly string[]>([]);
 
@@ -132,6 +137,7 @@ export class PanelWindowService {
 
     const target = opened.document;
     this.dress(target);
+    this.watchSheets();
     AttachedDocuments.attach(target);
 
     const layer = createComponent(PanelWindowLayerComponent, {
@@ -222,6 +228,11 @@ export class PanelWindowService {
     this.windows.delete(key);
     this.detached.set([...this.windows.keys()]);
     clearInterval(held.watchdog);
+    if (this.windows.size === 0) {
+      this.sheetWatch?.disconnect();
+      this.sheetWatch = null;
+      this.sheetCopies = new WeakMap();
+    }
 
     if (comingHome && held.request.leaving) held.request.leaving();
     AttachedDocuments.detach(held.document);
@@ -251,5 +262,43 @@ export class PanelWindowService {
     const sheet = target.createElement('style');
     sheet.textContent = WINDOW_SHEET;
     target.head.appendChild(sheet);
+  }
+
+  /**
+   * Carries a sheet the app adds to its head while a window is out over to every window.
+   *
+   * A window is given the app's sheets as they stand when it opens, and some come later: the
+   * rules a select's list is laid out by are put in the first time a list is opened, which can
+   * be over in a window. Without them that list is laid out as if it were part of the page.
+   */
+  private watchSheets(): void {
+    if (this.sheetWatch) return;
+    const Observer = this.document.defaultView?.MutationObserver;
+    if (!Observer) return;
+    this.sheetWatch = new Observer((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) if (PanelWindowService.isSheet(node)) this.copySheet(node);
+        for (const node of record.removedNodes) {
+          for (const copy of this.sheetCopies.get(node) ?? []) copy.remove();
+          this.sheetCopies.delete(node);
+        }
+      }
+    });
+    this.sheetWatch.observe(this.document.head, { childList: true });
+  }
+
+  private copySheet(sheet: Element): void {
+    const copies = this.sheetCopies.get(sheet) ?? [];
+    for (const held of this.windows.values()) {
+      const copy = held.document.importNode(sheet, true);
+      held.document.head.appendChild(copy);
+      copies.push(copy);
+    }
+    this.sheetCopies.set(sheet, copies);
+  }
+
+  private static isSheet(node: Node): node is Element {
+    if (node.nodeName === 'STYLE') return true;
+    return node.nodeName === 'LINK' && (node as Element).getAttribute('rel') === 'stylesheet';
   }
 }

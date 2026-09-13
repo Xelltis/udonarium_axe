@@ -89,6 +89,18 @@ describe('PanelWindowService', () => {
       expect(over.ownerDocument).toBe(opened.document);
     });
 
+    it('carries a sheet the app adds after the window opened over to the window, and takes it away again', async () => {
+      open((layer) => layer.createComponent(StandInPanelComponent));
+      const sheet = document.createElement('style');
+      sheet.textContent = '.late-sheet { position: fixed; }';
+
+      document.head.appendChild(sheet);
+      await vi.waitFor(() => expect(opened.document.head.textContent).toContain('.late-sheet'));
+
+      sheet.remove();
+      await vi.waitFor(() => expect(opened.document.head.textContent).not.toContain('.late-sheet'));
+    });
+
     it('closes a window whose panel closed itself, without opening the panel again', () => {
       vi.useFakeTimers();
       let panel: ComponentRef<StandInPanelComponent> | null = null;

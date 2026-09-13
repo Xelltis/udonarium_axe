@@ -90,6 +90,7 @@ import {
   VnStageSource,
 } from '@axe/features/visual-novel/visual-novel-stage';
 import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { spotBeside } from '@axe/ui/panel-spot';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_VISUAL_NOVEL_PANEL, Z_VISUAL_NOVEL_PANEL_ABOVE } from '@axe/ui/z-layers';
@@ -138,6 +139,7 @@ type VisualNovelPopover = 'soundBoard' | 'slotGuide' | 'palette' | 'shortcutHelp
     TranslocoModule,
     NgSelectComponent,
     NgOptionComponent,
+    NgSelectWindowDirective,
     RubyTextComponent,
     VisualNovelSoundBoardComponent,
   ],

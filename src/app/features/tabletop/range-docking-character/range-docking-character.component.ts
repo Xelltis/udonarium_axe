@@ -9,6 +9,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
@@ -17,7 +18,7 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
   selector: 'range-docking-character',
   templateUrl: './range-docking-character.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgSelectComponent, FormsModule, NgOptionComponent, SafePipe, TranslocoModule],
+  imports: [NgSelectComponent, FormsModule, NgOptionComponent, NgSelectWindowDirective, SafePipe, TranslocoModule],
 })
 export class RangeDockingCharacterComponent {
   private readonly panelService = inject(PanelService);
