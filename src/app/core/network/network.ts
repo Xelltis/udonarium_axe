@@ -11,41 +11,63 @@ const unknownPeer = PeerContext.parse('???');
 
 export class Network {
   private static _instance: Network;
+  /** The network shared by the whole app, created on first use. */
   static get instance(): Network {
     if (!Network._instance) Network._instance = new Network();
     return Network._instance;
   }
 
+  /** Whether this device has an open SkyWay session. */
   static get isOpen(): boolean {
     return Network.instance.isOpen;
   }
+  /** This device's peer id, or the placeholder '???' before a session exists. */
   static get peerId(): string {
     return Network.instance.peerId;
   }
+  /** Ids of the peers with an open connection, as a new array; empty without a connection. */
   static get peerIds(): string[] {
     return Network.instance.peerIds;
   }
+  /** This device's peer context, or a placeholder before a session exists. */
   static get peer(): IPeerContext {
     return Network.instance.peer;
   }
+  /** Contexts of every peer connected or still connecting, as a new array. */
   static get peers(): IPeerContext[] {
     return Network.instance.peers;
   }
+  /** This device's peer context; the same value as peer. */
   static get peerContext(): IPeerContext {
     return Network.instance.peerContext;
   }
+  /** Contexts of every peer connected or still connecting; the same value as peers. */
   static get peerContexts(): IPeerContext[] {
     return Network.instance.peerContexts;
   }
+  /** Bytes in transit: sent but not yet on the channel, or received but not yet handed on. */
   static get bandwidthUsage(): number {
     return Network.instance.bandwidthUsage;
   }
+  /** Keeps the app config, such as the backend URL, for the connection made on the next open. */
   static configure(config: Record<string, unknown>) {
     Network.instance.configure(config);
   }
+  /**
+   * Opens a network session in no room, closing any session first.
+   *
+   * The connection code loads on first use, so this returns before the session is open; the
+   * OPEN_NETWORK event follows once it is.
+   */
   static openStandby(userId?: string): void {
     Network.instance.openStandby(userId);
   }
+  /**
+   * Opens a network session in a room, closing any session first.
+   *
+   * This returns before the session is open; the OPEN_NETWORK event follows once it is. From then
+   * on, leaving the page asks for confirmation and hiding it leaves the room.
+   */
   static open(userId: string, roomId: string, roomName: string, password: string): void {
     Network.instance.open(userId, roomId, roomName, password);
   }
@@ -147,11 +169,13 @@ export class Network {
     Logger.debug('[Network] close');
   }
 
+  /** Starts connecting to a peer; false when there is no connection or the peer is refused. */
   async connect(peer: IPeerContext): Promise<boolean> {
     if (this.connection) return this.connection.connect(peer);
     return false;
   }
 
+  /** Closes the connection to a peer without reconnecting; does nothing without a connection. */
   disconnect(peer: IPeerContext) {
     if (!this.connection) return;
     if (this.connection.disconnect(peer)) {
@@ -210,10 +234,12 @@ export class Network {
     }
   }
 
+  /** Peer ids of every lobby member, refreshed at most every 10 s; empty without a connection. */
   listAllPeers(): Promise<string[]> {
     return this.connection ? this.connection.listAllPeers() : Promise.resolve([]);
   }
 
+  /** The rooms listed in the lobby; empty without a connection. */
   listAllRooms(): Promise<IRoomInfo[]> {
     return this.connection ? this.connection.listAllRooms() : Promise.resolve([]);
   }

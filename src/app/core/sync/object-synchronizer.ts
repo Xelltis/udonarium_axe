@@ -25,6 +25,7 @@ const CATALOG_TICK_MS = 16;
 
 export class ObjectSynchronizer {
   private static _instance: ObjectSynchronizer;
+  /** The synchronizer shared by the whole app, created on first use. */
   static get instance(): ObjectSynchronizer {
     if (!ObjectSynchronizer._instance) ObjectSynchronizer._instance = new ObjectSynchronizer();
     return ObjectSynchronizer._instance;
@@ -37,6 +38,12 @@ export class ObjectSynchronizer {
 
   private constructor() {}
 
+  /**
+   * Starts handling object sync with peers: catalogs, object requests, updates and deletions.
+   *
+   * Calling it again replaces the earlier subscription. Each newly connected peer is sent the
+   * catalog of this device. While the network is isolated, sync messages are ignored.
+   */
   initialize() {
     this.destroy();
 
@@ -118,6 +125,7 @@ export class ObjectSynchronizer {
     );
   }
 
+  /** Stops handling sync messages and cancels catalogs still being sent out. */
   destroy() {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
@@ -125,6 +133,7 @@ export class ObjectSynchronizer {
     this.catalogSenders.clear();
   }
 
+  /** Syncs again with every open peer by trading catalogs with each; gives how many were asked. */
   requestFullSync(): number {
     const peerIds = Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId);
     for (const peerId of peerIds) {

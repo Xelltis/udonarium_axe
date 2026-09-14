@@ -8,6 +8,11 @@ const ZIP_MIME_TYPE = 'application/zip';
 
 let isWorkerBroken = false;
 
+/**
+ * Packs files into a zip in a worker, or on the main thread when no worker can be used.
+ *
+ * Images, audio, video and archives are stored as they are rather than compressed again.
+ */
 export async function createZipBlob(files: readonly File[]): Promise<Blob> {
   const entries: ZipEntry[] = files.map((file) => ({ name: file.name, type: file.type, blob: file }));
   const response = await requestWorker((id) => ({ id, kind: 'zip', entries }));
@@ -15,12 +20,17 @@ export async function createZipBlob(files: readonly File[]): Promise<Blob> {
   return createZipBlobOnMainThread(files);
 }
 
+/** Unpacks a zip into entries typed by their extensions, in a worker when one can be used. */
 export async function readZipEntries(blob: Blob): Promise<ZipEntry[]> {
   const response = await requestWorker((id) => ({ id, kind: 'unzip', blob }));
   if (response?.kind === 'unzip') return response.entries;
   return readZipEntriesOnMainThread(blob);
 }
 
+/**
+ * Packs files into a zip without a worker, compressing only what is not already compressed;
+ * `createZipBlob` falls back to this.
+ */
 export async function createZipBlobOnMainThread(files: readonly File[]): Promise<Blob> {
   const zipData: AsyncZippable = {};
   for (const file of files) {
@@ -35,6 +45,10 @@ export async function createZipBlobOnMainThread(files: readonly File[]): Promise
   });
 }
 
+/**
+ * Unpacks a zip without a worker, typing each entry by its extension and leaving unknown ones
+ * untyped; `readZipEntries` falls back to this.
+ */
 export async function readZipEntriesOnMainThread(blob: Blob): Promise<ZipEntry[]> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const unzipped = await new Promise<Unzipped>((resolve, reject) => {

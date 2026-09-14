@@ -9,6 +9,7 @@ export type CatalogItem = {
 
 export class ImageStorage {
   private static _instance: ImageStorage;
+  /** The one image store for the page, created on first use. */
   static get instance(): ImageStorage {
     if (!ImageStorage._instance) ImageStorage._instance = new ImageStorage();
     return ImageStorage._instance;
@@ -16,6 +17,7 @@ export class ImageStorage {
 
   private imageHash: { [identifier: string]: ImageFile } = {};
 
+  /** Every image this seat knows of, including placeholders whose data has not arrived. */
   get images(): ImageFile[] {
     return Object.values(this.imageHash);
   }
@@ -32,12 +34,26 @@ export class ImageStorage {
     }
   }
 
+  /**
+   * Reads a file the user added into the store, with its thumbnail, and tells peers about it
+   * shortly after.
+   *
+   * Adding an image already held merges into the existing entry and returns that one.
+   */
   async addAsync(arg: Blob): Promise<ImageFile> {
     const image: ImageFile = await ImageFile.createAsync(arg);
 
     return this._add(image);
   }
 
+  /**
+   * Adds an image from a link, an entry or a context received from a peer,
+   * returning the entry the store keeps.
+   *
+   * When the identifier is already held, the new data fills in what that entry lacks and the
+   * existing entry is returned. A complete image also schedules a catalogue broadcast, except a
+   * context merged into an entry already held.
+   */
   add(arg: string | ImageFile | ImageContext): ImageFile {
     let image: ImageFile;
     if (typeof arg === 'string') {
@@ -67,6 +83,10 @@ export class ImageStorage {
     return false;
   }
 
+  /**
+   * Removes the image and revokes its object URLs, returning false when it was not held. Peers are
+   * not told.
+   */
   delete(identifier: string): boolean {
     const deleteImage: ImageFile = this.imageHash[identifier];
     if (deleteImage) {
@@ -77,6 +97,7 @@ export class ImageStorage {
     return false;
   }
 
+  /** The image held under this identifier, or null when this seat has never heard of it. */
   get(identifier: string): ImageFile | null {
     return this.imageHash[identifier] ?? null;
   }
@@ -91,6 +112,10 @@ export class ImageStorage {
     this.catalogSchedule.later(ms, peer);
   }
 
+  /**
+   * The images this seat holds in full or as a link, which is what it advertises so that peers can
+   * request what they lack. Thumbnail-only images are left out.
+   */
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const image of this.images) {

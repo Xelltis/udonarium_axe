@@ -39,12 +39,14 @@ export const VIDEO_ENCODE_QUEUE_LIMIT = 8;
 export const AUDIO_FRAME_SAMPLES = 1024;
 export const AUDIO_BITRATE = 128_000;
 
+/** Whether this browser has the WebCodecs video encoder and OffscreenCanvas for a fast export. */
 export function isVideoEncodingSupported(): boolean {
   return (
     typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined' && typeof OffscreenCanvas !== 'undefined'
   );
 }
 
+/** Whether this browser has the WebCodecs audio encoder; without it a fast export has no sound. */
 export function isAudioEncodingSupported(): boolean {
   return typeof AudioEncoder !== 'undefined' && typeof AudioData !== 'undefined';
 }
@@ -75,10 +77,12 @@ export async function audioCodecFor(sound: EncodedAudio): Promise<{ codec: 'aac'
   return null;
 }
 
+/** The bitrate in bits per second when a request names none, scaled by pixels and frame rate. */
 export function defaultVideoBitrate(width: number, height: number, fps: number): number {
   return Math.round(width * height * fps * 0.09);
 }
 
+/** The H.264 High profile codec whose level fits the frame: 3.1 to 720p, 4.0 to 1080p, else 5.1. */
 export function avcCodecFor(width: number, height: number): string {
   const pixels = width * height;
   if (pixels > 1920 * 1080) return 'avc1.640033';
@@ -88,11 +92,13 @@ export function avcCodecFor(width: number, height: number): string {
 
 export class VideoEncoderGateway {
   private static _instance: VideoEncoderGateway;
+  /** The gateway shared by the whole app, created on first use. */
   static get instance(): VideoEncoderGateway {
     if (!VideoEncoderGateway._instance) VideoEncoderGateway._instance = new VideoEncoderGateway();
     return VideoEncoderGateway._instance;
   }
 
+  /** Whether this browser can export video at all, with WebCodecs or by recording in real time. */
   get isSupported(): boolean {
     return isVideoEncodingSupported() || isMediaRecordingSupported();
   }
@@ -102,16 +108,29 @@ export class VideoEncoderGateway {
     return !isVideoEncodingSupported() && isMediaRecordingSupported();
   }
 
+  /**
+   * Exports a video with WebCodecs when available and by recording in real time otherwise.
+   *
+   * Null when the export fails or is cancelled.
+   */
   encode(request: VideoEncodeRequest): Promise<EncodedVideo | null> {
     return isVideoEncodingSupported() ? encodeVideo(request) : recordVideo(request);
   }
 
+  /** Downloads an exported video, skipping a null blob, which was already written to a file. */
   save(blob: Blob | null, fileName: string): void {
     // Where a destination was given, the file is already written.
     if (blob) downloadBlob(blob, fileName);
   }
 }
 
+/**
+ * Encodes the frames and sound of a request into an MP4 with WebCodecs, faster than real time.
+ *
+ * A short video is built in memory with its index first. A long one, or any given a destination
+ * file, is written in fragmented form, straight to that file when there is one, and the blob comes
+ * back null. Null overall when WebCodecs is missing, encoding fails or the request is cancelled.
+ */
 export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedVideo | null> {
   if (!isVideoEncodingSupported()) {
     Logger.warn('[VideoEncoder] この環境では動画を書き出せません');

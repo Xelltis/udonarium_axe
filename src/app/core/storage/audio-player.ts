@@ -21,6 +21,12 @@ type AudioCache = { url: string; blob: Blob };
 
 export class AudioPlayer {
   private static _audioContext: AudioContext;
+  /**
+   * The one Web Audio context every player and sound effect on the page goes
+   * through, created on first use.
+   *
+   * Browsers keep it suspended until the user interacts with the page; see `resumeAudioContext`.
+   */
   static get audioContext(): AudioContext {
     if (!AudioPlayer._audioContext)
       AudioPlayer._audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -28,6 +34,12 @@ export class AudioPlayer {
   }
 
   private static _volume: number = 0.5;
+  /**
+   * The volume of the master channel, from 0 to 1, which players use unless given another volume
+   * type.
+   *
+   * Setting it glides the channel to the new level over a few milliseconds rather than jumping.
+   */
   static get volume(): number {
     return AudioPlayer._volume;
   }
@@ -37,6 +49,13 @@ export class AudioPlayer {
   }
 
   private static _auditionVolume: number = 0.5;
+  /**
+   * The volume of the audition channel, from 0 to 1, which the preview players of the jukebox and
+   * of the cut-in music picker play through, on this device alone.
+   *
+   * The jukebox sets it from its audition slider scaled by the room volume. The channel runs straight
+   * to the speakers, so the master volume does not touch it.
+   */
   static get auditionVolume(): number {
     return AudioPlayer._auditionVolume;
   }
@@ -72,6 +91,10 @@ export class AudioPlayer {
   }
 
   private static _seVolume: number = 0.5;
+  /**
+   * The volume of the sound-effect channel, from 0 to 1, which every one-shot effect from `play`
+   * and `playSE` goes through, along with players set to the SE volume type.
+   */
   static get seVolume(): number {
     return AudioPlayer._seVolume;
   }
@@ -91,12 +114,18 @@ export class AudioPlayer {
     return AudioPlayer._seGainNode;
   }
 
+  /** The master channel gain node, which players on the master volume type connect to. */
   static get rootNode(): AudioNode {
     return AudioPlayer.masterGainNode;
   }
+  /**
+   * The audition channel gain node, which players on the audition volume type connect to: the
+   * preview players of the jukebox and of the cut-in music picker.
+   */
   static get auditionNode(): AudioNode {
     return AudioPlayer.auditionGainNode;
   }
+  /** The sound-effect channel gain node, which one-shot effects and SE players connect to. */
   static get seNode(): AudioNode {
     return AudioPlayer.seGainNode;
   }
@@ -132,6 +161,11 @@ export class AudioPlayer {
   private _volume: number = 1;
   private _loop: boolean = false;
 
+  /**
+   * This player's own volume, from 0 to 1, applied on top of its channel's volume.
+   *
+   * It can be set before anything has played and carries over once the player starts.
+   */
   get volume(): number {
     return this._audioElm?.volume ?? this._volume;
   }
@@ -139,6 +173,7 @@ export class AudioPlayer {
     this._volume = volume;
     if (this._audioElm) this._audioElm.volume = volume;
   }
+  /** Whether the track starts again when it ends; like the volume, it can be set before anything plays. */
   get loop(): boolean {
     return this._audioElm?.loop ?? this._loop;
   }
@@ -146,14 +181,20 @@ export class AudioPlayer {
     this._loop = loop;
     if (this._audioElm) this._audioElm.loop = loop;
   }
+  /** Whether nothing is playing, which is also true before the player has played anything. */
   get paused(): boolean {
     return this._audioElm?.paused ?? true;
   }
 
+  /** The playback position in seconds, or 0 before anything has played. */
   get currentTime(): number {
     return this._audioElm?.currentTime ?? 0;
   }
 
+  /**
+   * The loaded track's length in seconds: 0 before anything has played, and NaN
+   * while the track is still loading.
+   */
   get duration(): number {
     return this._audioElm?.duration ?? 0;
   }
@@ -165,6 +206,10 @@ export class AudioPlayer {
     this.audio = audio;
   }
 
+  /**
+   * Forgets the fetched copy and decoded sound effect held for this audio,
+   * revoking the cached object URL.
+   */
   static removeCache(identifier: string) {
     const cache = AudioPlayer.cacheMap.get(identifier);
     if (cache) {
@@ -174,6 +219,7 @@ export class AudioPlayer {
     AudioPlayer.decodedBuffers.delete(identifier);
   }
 
+  /** Forgets every fetched copy and decoded sound effect, revoking the cached object URLs. */
   static clearAllCache() {
     for (const [, cache] of AudioPlayer.cacheMap) {
       URL.revokeObjectURL(cache.url);
@@ -190,10 +236,23 @@ export class AudioPlayer {
     }
   }
 
+  /**
+   * Plays the audio once as a sound effect at the given volume and forgets about it.
+   *
+   * Nothing is kept to stop it with or to report it as playing; use `playSE` for an
+   * effect that may need stopping.
+   */
   static play(audio: AudioFile, volume: number = 1.0) {
     this.playBufferAsync(audio, volume);
   }
 
+  /**
+   * Plays a track from the start through this player's channel, replacing whatever it was playing.
+   *
+   * With no audio passed it plays the current one again, and does nothing if there is none. For
+   * link-only audio the bytes are also fetched into a cache in the background so later plays load
+   * locally. A browser refusing to start playback is logged, not thrown.
+   */
   play(audio?: AudioFile) {
     this.stop();
     if (audio !== undefined) this.audio = audio;
@@ -218,10 +277,17 @@ export class AudioPlayer {
     });
   }
 
+  /** Pauses playback where it is, keeping the position; does nothing before anything has played. */
   pause() {
     this._audioElm?.pause();
   }
 
+  /**
+   * Moves playback to a position in seconds; does nothing before anything has played.
+   *
+   * If the track's metadata has not loaded yet, the move waits for it, since browsers
+   * ignore a position set earlier.
+   */
   seekTo(time: number) {
     if (!this._audioElm) return;
     // Some browsers ignore currentTime before HAVE_METADATA; defer to the loadedmetadata event.
@@ -237,6 +303,12 @@ export class AudioPlayer {
     }
   }
 
+  /**
+   * Glides this player's volume to a target over a duration, resolving when it gets there.
+   *
+   * A later fade cuts an earlier one short, which then resolves where it stopped. With nothing
+   * played yet, no real change or no duration, the volume is set and the promise resolves at once.
+   */
   fadeVolumeTo(target: number, durationMs: number): Promise<void> {
     if (!this._audioElm) return Promise.resolve();
     const audioElm = this._audioElm;
@@ -266,6 +338,7 @@ export class AudioPlayer {
 
   private _fadeToken = 0;
 
+  /** Stops playback, rewinds and unloads the track; does nothing before anything has played. */
   stop() {
     if (!this._audioElm) return;
     this._audioElm.pause();
@@ -309,12 +382,24 @@ export class AudioPlayer {
   private static readonly seSources = new Map<string, Set<{ source: AudioBufferSourceNode; gain: GainNode }>>();
   private static readonly sePending = new Map<string, number>();
 
+  /**
+   * Plays the audio as a sound effect that `stopSE` can cut off and `isSePlaying` reports
+   * from the moment it is asked for.
+   *
+   * The effect is decoded once and kept, so repeated and overlapping plays of it are cheap.
+   */
   static playSE(audio: AudioFile): void {
     const identifier = audio.identifier;
     AudioPlayer.sePending.set(identifier, (AudioPlayer.sePending.get(identifier) ?? 0) + 1);
     AudioPlayer.playSeBufferAsync(audio, identifier);
   }
 
+  /**
+   * Stops every play of this sound effect that has started sounding.
+   *
+   * A play still being decoded stops being reported by `isSePlaying`, but it will
+   * still sound once decoding finishes.
+   */
   static stopSE(identifier: string): void {
     const entries = AudioPlayer.seSources.get(identifier);
     if (entries) {
@@ -330,11 +415,19 @@ export class AudioPlayer {
     AudioPlayer.sePending.delete(identifier);
   }
 
+  /**
+   * Stops every sound effect started with `playSE`, with the same caveat as `stopSE`
+   * for plays still being decoded.
+   */
   static stopAllSE(): void {
     for (const identifier of [...AudioPlayer.seSources.keys()]) AudioPlayer.stopSE(identifier);
     AudioPlayer.sePending.clear();
   }
 
+  /**
+   * Whether a sound effect from `playSE` is sounding, or still being decoded, for this audio, which
+   * the jukebox and sound board show as playing.
+   */
   static isSePlaying(identifier: string): boolean {
     return (AudioPlayer.seSources.get(identifier)?.size ?? 0) > 0 || (AudioPlayer.sePending.get(identifier) ?? 0) > 0;
   }

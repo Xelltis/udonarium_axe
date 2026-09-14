@@ -14,6 +14,7 @@ const CATALOG_BROADCAST_DELAY_MS = 1000;
 
 export class AudioSharingSystem {
   private static _instance: AudioSharingSystem;
+  /** The one audio sharing system for the page, created on first use. */
   static get instance(): AudioSharingSystem {
     if (!AudioSharingSystem._instance) AudioSharingSystem._instance = new AudioSharingSystem();
     return AudioSharingSystem._instance;
@@ -35,6 +36,12 @@ export class AudioSharingSystem {
 
   private constructor() {}
 
+  /**
+   * Starts answering the network messages that trade audio between peers: catalogues,
+   * requests, transfers and cancellations.
+   *
+   * Calling it again drops the earlier subscription first, so it never listens twice.
+   */
   initialize() {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];

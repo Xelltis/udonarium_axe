@@ -26,16 +26,20 @@ export class SkyWayConnection implements Connection {
     return [...this.peers.filter((p) => p.userId.length > 0).map((p) => p.userId), this.peer.userId];
   }
 
+  /** This device's peer id, or the placeholder '???' until a SkyWay session opens. */
   get peerId(): string {
     return this.peer.peerId;
   }
+  /** Ids of the peers whose data channel is open, sorted. */
   get peerIds(): string[] {
     return this.streams.peerIds;
   }
 
+  /** This device's peer context in the SkyWay session. */
   get peer(): PeerContext {
     return this.skyWay.peer;
   }
+  /** Contexts of every peer with a stream, including ones still connecting, sorted by peer id. */
   get peers(): PeerContext[] {
     return this.streams.peers;
   }
@@ -56,28 +60,38 @@ export class SkyWayConnection implements Connection {
   private readonly pendingRelayMapUpdates: Map<string, Promise<void>> = new Map();
   private readonly maybeUnavailablePeerIds: Set<string> = new Set();
 
+  /** Takes the backend URL from the app config; token requests on the next open go there. */
   configure(config: Record<string, unknown>) {
     this.skyWay.url = ((config.backend as Record<string, unknown>)?.url as string) ?? '';
   }
 
+  /** Opens a session in no room, as the given user or a new one; callback reports the result. */
   openStandby(userId?: string): void {
     PeerContext.create(userId ?? PeerContext.generateUserId()).then((peer) => this.openSkyWay(peer));
   }
 
+  /**
+   * Opens a SkyWay session in a room, with a peer id derived from the user, room and password.
+   *
+   * Opening is asynchronous and reported through callback.onOpen or onError. No peer is connected yet.
+   */
   open(userId: string, roomId: string, roomName: string, password: string): void {
     PeerContext.createRoom(userId, roomId, roomName, password).then((peer) => this.openSkyWay(peer));
   }
 
+  /** Disconnects every peer, cancels pending reconnects and leaves the SkyWay session. */
   close() {
     this.reconnectScheduler.cancelAll();
     this.disconnectAll();
     this.skyWay.close();
   }
 
+  /** Starts leaving the room and lobby without waiting, for a page being hidden or unloaded. */
   leaveImmediately() {
     this.skyWay.leaveImmediately();
   }
 
+  /** Joins again after leaveImmediately if the page stayed after all, reconnecting its peers. */
   async rejoinAfterLeave() {
     await this.skyWay.rejoinAfterLeave();
     for (const peerId of [...this.trustedPeerIds]) {
@@ -87,6 +101,13 @@ export class SkyWayConnection implements Connection {
     }
   }
 
+  /**
+   * Starts a data connection to a member of the room.
+   *
+   * False, with nothing started, when the session is not open, the peer is this device or already
+   * has a stream, fails the room and password check, or is not in the room. True means the attempt
+   * started; callback.onConnect reports when the channel opens.
+   */
   async connect(peer: IPeerContext): Promise<boolean> {
     if (!(await this.shouldConnect(peer.peerId))) {
       return false;
@@ -121,6 +142,7 @@ export class SkyWayConnection implements Connection {
     return true;
   }
 
+  /** Closes the connection to a peer and cancels its pending reconnect; false when there was none. */
   disconnect(peer: IPeerContext): boolean {
     this.reconnectScheduler.reset(peer.peerId);
     const stream = this.streams.find(peer.peerId);
@@ -129,12 +151,20 @@ export class SkyWayConnection implements Connection {
     return true;
   }
 
+  /** Closes the connection to every peer, without reconnecting. */
   disconnectAll() {
     for (const peer of [...this.peers]) {
       this.disconnect(peer);
     }
   }
 
+  /**
+   * Sends data to one peer, or to every connected peer when sendTo is omitted.
+   *
+   * The data is encoded, and a large batch without file chunks is compressed; sends go out in call
+   * order after the current task. Nothing is sent while no peer is connected, and a message for a
+   * peer whose channel is not open is dropped.
+   */
   send(data: unknown, sendTo?: string) {
     if (this.peers.length < 1) return;
     const container: DataContainer = {
@@ -198,6 +228,7 @@ export class SkyWayConnection implements Connection {
     }
   }
 
+  /** Peer ids of every lobby member, fetched at most every ten seconds and cached in between. */
   async listAllPeers(): Promise<string[]> {
     const now = performance.now();
     if (now >= this.httpRequestInterval) {
@@ -208,6 +239,7 @@ export class SkyWayConnection implements Connection {
     return this.listAllPeersCache;
   }
 
+  /** The rooms visible in the lobby, built from its members and the room names they carry. */
   async listAllRooms(): Promise<IRoomInfo[]> {
     const members = await this.skyWay.listAllLobbyMembers();
     return RoomInfo.listFromMembers(members);

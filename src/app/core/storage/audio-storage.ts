@@ -10,6 +10,7 @@ export type CatalogItem = {
 
 export class AudioStorage {
   private static _instance: AudioStorage;
+  /** The one audio store for the page, created on first use. */
   static get instance(): AudioStorage {
     if (!AudioStorage._instance) AudioStorage._instance = new AudioStorage();
     return AudioStorage._instance;
@@ -20,6 +21,7 @@ export class AudioStorage {
   );
   private hash: { [identifier: string]: AudioFile } = {};
 
+  /** Every audio this seat knows of, including placeholders whose bytes have not arrived. */
   get audios(): AudioFile[] {
     return Object.values(this.hash);
   }
@@ -32,12 +34,26 @@ export class AudioStorage {
     }
   }
 
+  /**
+   * Reads a file the user added into the store, keyed by the hash of its bytes, and
+   * tells peers about it shortly after.
+   *
+   * Adding audio already held merges into the existing entry and returns that one.
+   */
   async addAsync(arg: Blob): Promise<AudioFile> {
     const audio: AudioFile = await AudioFile.createAsync(arg);
 
     return this._add(audio);
   }
 
+  /**
+   * Adds audio from a link, an entry or a context received from a peer,
+   * returning the entry the store keeps.
+   *
+   * When the identifier is already held, the new data fills in what that entry lacks and the
+   * existing entry is returned. Complete audio also schedules a catalogue broadcast, except a
+   * context merged into an entry already held.
+   */
   add(arg: string | AudioFile | AudioFileContext): AudioFile {
     let audio: AudioFile;
     if (typeof arg === 'string') {
@@ -67,6 +83,10 @@ export class AudioStorage {
     return false;
   }
 
+  /**
+   * Removes the audio and revokes its object URLs, returning false when it was not held. Peers are
+   * not told.
+   */
   delete(identifier: string): boolean {
     const audio: AudioFile = this.hash[identifier];
     if (audio) {
@@ -77,6 +97,7 @@ export class AudioStorage {
     return false;
   }
 
+  /** The audio held under this identifier, or null when this seat has never heard of it. */
   get(identifier: string): AudioFile | null {
     return this.hash[identifier] ?? null;
   }
@@ -91,6 +112,10 @@ export class AudioStorage {
     this.catalogSchedule.later(ms, peer);
   }
 
+  /**
+   * The audio this seat holds in full or as a link, which is what it advertises so that
+   * peers can request what they lack.
+   */
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const audio of AudioStorage.instance.audios) {

@@ -17,6 +17,7 @@ const CATALOG_BROADCAST_DELAY_MS = 1000;
 
 export class ImageSharingSystem {
   private static _instance: ImageSharingSystem;
+  /** The one image sharing system for the page, created on first use. */
   static get instance(): ImageSharingSystem {
     if (!ImageSharingSystem._instance) ImageSharingSystem._instance = new ImageSharingSystem();
     return ImageSharingSystem._instance;
@@ -30,6 +31,12 @@ export class ImageSharingSystem {
 
   private constructor() {}
 
+  /**
+   * Starts answering the network messages that trade images between peers, and registers image URLs
+   * found in loaded XML as linked images.
+   *
+   * Calling it again drops the earlier subscriptions first, so it never listens twice.
+   */
   initialize() {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];

@@ -33,6 +33,13 @@ const nodeBatches = new Set<string>();
 
 let isBatching = false;
 
+/**
+ * Queues an objectChanged$ notice for the object, and childrenChanged$ for its ancestors if a node.
+ *
+ * Notices are gathered and delivered together in a microtask, one per object however often it
+ * changed, followed by a LOCAL_OBJECT_UPDATED message. sendFrom decides whether listeners see the
+ * change as their own; the last one given for an object wins.
+ */
 export function markForChanged(object: GameObject, sendFrom: string = Network.peerId) {
   if (!object) return;
   objectBatches.set(object.identifier, {
@@ -44,6 +51,11 @@ export function markForChanged(object: GameObject, sendFrom: string = Network.pe
   startBatching();
 }
 
+/**
+ * Queues a childrenChanged$ notice for the node and every ancestor above it.
+ *
+ * They go out in the same microtask as queued object changes. A null node adds nothing.
+ */
 export function markForChildrenChanged(node: ObjectNode | null) {
   let current = node;
   while (current) {

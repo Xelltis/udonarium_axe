@@ -15,6 +15,7 @@ const GARBAGE_SWEEP_INTERVAL_MS = 1000;
 
 export class ObjectStore {
   private static _instance: ObjectStore;
+  /** The store of every live game object, shared by the whole app and created on first use. */
   static get instance(): ObjectStore {
     if (!ObjectStore._instance) ObjectStore._instance = new ObjectStore();
     return ObjectStore._instance;
@@ -29,6 +30,14 @@ export class ObjectStore {
 
   private constructor() {}
 
+  /**
+   * Puts an object in the store, runs its onStoreAdded hook and announces it on objectAdded$.
+   *
+   * Null when the identifier is already stored. A deleted identifier is refused for an object from
+   * the network (shouldBroadcast false) but let back in for a local add, which is sent to the room.
+   * beforeLifecycle runs once the object can be looked up and before onStoreAdded; received sync
+   * data is applied there.
+   */
   add(object: GameObject, shouldBroadcast: boolean = true, beforeLifecycle?: () => void): GameObject | null {
     if (this.get(object.identifier) != null) return null;
     if (this.isDeleted(object.identifier)) {
@@ -53,6 +62,11 @@ export class ObjectStore {
     return object;
   }
 
+  /**
+   * Takes an object out of the store, running onStoreRemoved and announcing it on objectRemoved$.
+   *
+   * Nothing is recorded as deleted and nothing is sent; delete does both. Null when not stored.
+   */
   remove(object: GameObject): GameObject | null {
     if (!this.identifierMap.has(object.identifier)) return null;
 
@@ -64,6 +78,12 @@ export class ObjectStore {
     return object;
   }
 
+  /**
+   * Deletes an object given as an instance or identifier, and by default tells the room.
+   *
+   * The identifier is recorded as deleted even when nothing is stored under it, so a late copy from
+   * a peer is refused. Null when nothing was removed, in which case nothing is sent either.
+   */
   delete(arg: GameObject | string, shouldBroadcast: boolean = true): GameObject | null {
     const identifier = typeof arg === 'string' ? arg : arg.identifier;
     const object = typeof arg === 'string' ? this.get(arg) : arg;
@@ -95,10 +115,12 @@ export class ObjectStore {
     this.runGarbageCollection(GARBAGE_TTL_MS);
   }
 
+  /** The stored object with this identifier, or null. */
   get<T extends GameObject>(identifier: string): T | null {
     return (this.identifierMap.get(identifier) as T) ?? null;
   }
 
+  /** Stored objects of a class or alias in the order added, or all of them when given neither. */
   getObjects<T extends GameObject>(constructor: Type<T>): T[];
   getObjects<T extends GameObject>(aliasName: string): T[];
   getObjects<T extends GameObject>(): T[];
@@ -109,6 +131,12 @@ export class ObjectStore {
     return objectsMap ? (Array.from(objectsMap.values()) as T[]) : [];
   }
 
+  /**
+   * Sends an object's context to the room and counts it as a local change.
+   *
+   * A send of the same object still waiting in the queue is replaced. An identifier that is not
+   * stored does nothing. GameObject.update comes through here; changes from peers do not.
+   */
   update(arg: string | ObjectContext) {
     let context: ObjectContext | null = null;
     if (typeof arg === 'string') {
@@ -132,22 +160,31 @@ export class ObjectStore {
     return this.localChanges.get(identifier) ?? 0;
   }
 
+  /**
+   * Whether the identifier is on the record of deletions, so copies from peers are refused.
+   *
+   * The oldest records are dropped once the record grows past its limit.
+   */
   isDeleted(identifier: string) {
     return this.garbageMap.has(identifier);
   }
 
+  /** The identifier and version of every stored object, which peers compare to find what they lack. */
   getCatalog(): CatalogItem[] {
     return Array.from(this.identifierMap.values(), (o) => ({ identifier: o.identifier, version: o.version }));
   }
 
+  /** A copy of the record of deletions, to put back later with replaceDeleteHistory. */
   snapshotDeleteHistory(): Map<ObjectIdentifier, TimeStamp> {
     return new Map(this.garbageMap);
   }
 
+  /** Replaces the record of deletions with the given one, such as a snapshot taken earlier. */
   replaceDeleteHistory(history: ReadonlyMap<ObjectIdentifier, TimeStamp>) {
     this.garbageMap = new Map(history);
   }
 
+  /** Forgets all deletions so those identifiers may be added again, as on joining or reconnecting. */
   clearDeleteHistory() {
     this.garbageMap.clear();
   }

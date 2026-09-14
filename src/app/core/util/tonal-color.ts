@@ -33,6 +33,10 @@ function labFInverse(t: number): number {
   return cubed > 216 / 24389 ? cubed : (108 / 841) * (t - 4 / 29);
 }
 
+/**
+ * Reads a `#rgb` or `#rrggbb` colour, with or without the `#`, into channels from 0 to
+ * 1, or null when it is not one.
+ */
 export function parseHexColor(hex: string): [number, number, number] | null {
   const clean = hex.replace(/^#/, '');
   if (clean.length !== 3 && clean.length !== 6) return null;
@@ -51,15 +55,18 @@ export function parseHexColor(hex: string): [number, number, number] | null {
   ];
 }
 
+/** The WCAG relative luminance of a colour given as channels from 0 to 1. */
 export function relativeLuminance([r, g, b]: [number, number, number]): number {
   return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 }
 
+/** The WCAG contrast ratio between two relative luminances, taken in either order, from 1 to 21. */
 export function contrastRatio(a: number, b: number): number {
   const [hi, lo] = a > b ? [a, b] : [b, a];
   return (hi + 0.05) / (lo + 0.05);
 }
 
+/** Converts channels from 0 to 1 into tone, chroma and hue against a D65 white, the reverse of `lchToRgb`. */
 export function rgbToLch([r, g, b]: [number, number, number]): Lch {
   const lr = toLinear(r) * 100;
   const lg = toLinear(g) * 100;
@@ -125,6 +132,7 @@ function clamp([r, g, b]: [number, number, number]): [number, number, number] {
   return [r, g, b].map((c) => Math.min(1, Math.max(0, c))) as [number, number, number];
 }
 
+/** Writes channels from 0 to 1 as a CSS `rgb()` colour, clamping each into range first. */
 export function rgbToCss([r, g, b]: [number, number, number]): string {
   const byte = (c: number) => Math.round(Math.min(1, Math.max(0, c)) * 255);
   return `rgb(${byte(r)},${byte(g)},${byte(b)})`;

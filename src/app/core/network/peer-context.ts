@@ -43,9 +43,11 @@ export class PeerContext implements IPeerContext {
     description: '',
   };
 
+  /** Whether the peer id carries a room, as opposed to a peer on standby. */
   get isRoom(): boolean {
     return this.roomId.length > 0;
   }
+  /** Whether the room has a password, known from the password or from the digest in the peer id. */
   get hasPassword(): boolean {
     return this.password.length + this.digestPassword.length > 0;
   }
@@ -67,6 +69,11 @@ export class PeerContext implements IPeerContext {
     this.digestUserId = peerId;
   }
 
+  /**
+   * Whether the password matches the digests in this peer's id.
+   *
+   * The room name is part of the digest and is not in the id, so it must be set first.
+   */
   async verifyPassword(password: string): Promise<boolean> {
     const digest = await calcDigestPassword(this.digestUserId, this.roomId, this.roomName, password);
     return digest === this.digestPassword && (await this.verifyRoomId(password));
@@ -77,6 +84,11 @@ export class PeerContext implements IPeerContext {
     return checksumedRoomId === this.roomId;
   }
 
+  /**
+   * Whether another peer id belongs to the same room, checking the password digest when there is one.
+   *
+   * For a room with a password this context must hold the password itself, or the check fails.
+   */
   async verifyPeer(peerId: string): Promise<boolean> {
     const peer = PeerContext.parse(peerId);
     if (
@@ -100,10 +112,16 @@ export class PeerContext implements IPeerContext {
     return peer.verifyPassword(this.password);
   }
 
+  /**
+   * Reads a peer id into a context; an id not in room form is taken as a standby peer.
+   *
+   * The id does not carry the user id, room name or password, so those stay empty.
+   */
   static parse(peerId: string): PeerContext {
     return new PeerContext(peerId);
   }
 
+  /** A standby context for the user, whose peer id is the digest of the user id. */
   static async create(userId: string = ''): Promise<PeerContext> {
     const digestUserId = await calcDigest(userId);
     const peer = new PeerContext(digestUserId);
@@ -111,6 +129,12 @@ export class PeerContext implements IPeerContext {
     return peer;
   }
 
+  /**
+   * A context for joining a room, its peer id built from digests of the user, room name and password.
+   *
+   * The room id carries a checksum of the password. The plain room name and password stay on the
+   * context for verifying other peers; the id alone does not give them away.
+   */
   static async createRoom(
     userId: string = '',
     roomId: string = '',
@@ -129,11 +153,13 @@ export class PeerContext implements IPeerContext {
     return peer;
   }
 
+  /** A random base62 string in the format, each * replaced by one character; used for room ids. */
   static generateId(format: string = '********'): string {
     const h = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     return format.replace(/\*/g, () => h[Math.floor(Math.random() * h.length)]);
   }
 
+  /** A new random user id (a UUID) for a device that does not have one yet. */
   static generateUserId(): string {
     return crypto.randomUUID();
   }

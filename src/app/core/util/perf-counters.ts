@@ -43,6 +43,10 @@ class PerfCounters {
 /** What the table does to itself, counted only while somebody is watching. */
 export const perfCounters = new PerfCounters();
 
+/**
+ * Runs the computation and returns its value, adding the milliseconds it took under `<label>.ms`
+ * while the performance counters are enabled.
+ */
 export function perfTimed<T>(label: string, compute: () => T): T {
   if (!perfCounters.enabled) return compute();
   const started = performance.now();

@@ -16,6 +16,7 @@ const CANDIDATE_TYPES = [
   'video/webm',
 ] as const;
 
+/** Whether MediaRecorder can export here in real time, the fallback when WebCodecs is missing. */
 export function isMediaRecordingSupported(): boolean {
   return typeof MediaRecorder !== 'undefined' && typeof HTMLCanvasElement !== 'undefined';
 }
@@ -31,6 +32,7 @@ export function mediaRecordingType(): string | null {
   return null;
 }
 
+/** The file extension for a recorded MIME type: mp4 for any video/mp4 type, webm for the rest. */
 export function extensionOfMediaType(type: string): string {
   return type.startsWith('video/mp4') ? 'mp4' : 'webm';
 }

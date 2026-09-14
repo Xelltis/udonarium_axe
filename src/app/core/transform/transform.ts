@@ -27,6 +27,7 @@ export class Transform {
     this.initialize(element);
   }
 
+  /** Lets go of the element and resets the own matrix, as when the instance goes back to a pool. */
   clear(): Transform {
     this.element = null;
     this.matrix.identity();
@@ -72,6 +73,13 @@ export class Transform {
     return this;
   }
 
+  /**
+   * Converts a point in page coordinates to this element's coordinates, through every CSS
+   * transform and perspective above it.
+   *
+   * The result lies on the element plane, so a pointer over a tilted table lands on its surface.
+   * The layout is the one captured when the transform was made or reinitialised.
+   */
   globalToLocal(x: number, y: number, z: number = 0): IPoint3D {
     const ret: IPoint3D = { x: x, y: y, z: z, w: 1 };
     this.inverseSceneTransform.unproject(ret, ret);
@@ -79,6 +87,10 @@ export class Transform {
     return ret;
   }
 
+  /**
+   * Converts a point in this element's coordinates to page coordinates, using the layout captured
+   * when the transform was made or reinitialised.
+   */
   localToGlobal(x: number, y: number, z: number = 0): IPoint3D {
     const ret: IPoint3D = { x: x, y: y, z: z, w: 1 };
     this.sceneTransform.project(ret, ret);
@@ -86,6 +98,12 @@ export class Transform {
     return ret;
   }
 
+  /**
+   * Converts a point in this element's coordinates into another element's, building a transform for
+   * the other element and throwing it away afterwards.
+   *
+   * When converting repeatedly, keep a transform for the target and use `localToLocalUsing`.
+   */
   localToLocal(x: number, y: number, z: number, to: HTMLElement): IPoint3D {
     const transformer: Transform = new Transform(to);
     const ret = this.localToLocalUsing(x, y, z, transformer);

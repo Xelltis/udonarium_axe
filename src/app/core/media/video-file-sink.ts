@@ -19,6 +19,7 @@ function picker(): SaveFilePicker | null {
   return typeof candidate === 'function' ? candidate : null;
 }
 
+/** Whether this browser can ask for a save location, so an export streams straight to disk. */
 export function isVideoFileSinkSupported(): boolean {
   return picker() != null;
 }
