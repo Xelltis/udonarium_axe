@@ -33,6 +33,11 @@ export class CardStackListImageComponent {
 
   readonly cardAreaWidth = signal(0);
 
+  /**
+   * A fixed vertical offset of -26px for a portrait drawn over the card list.
+   *
+   * This component's template does not read it.
+   */
   get portraitYPos(): number {
     return 0 - 26;
   }

@@ -21,6 +21,7 @@ export function detachFromBoard(board: WhiteBoard, object: TabletopObject): void
   object.update();
 }
 
+/** Puts every piece standing on a board back on the table, each where it appeared to be. */
 export function detachAllFrom(board: WhiteBoard, standing: readonly TabletopObject[]): void {
   for (const object of standing) detachFromBoard(board, object);
 }

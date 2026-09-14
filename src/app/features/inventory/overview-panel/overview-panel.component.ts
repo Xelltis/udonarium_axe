@@ -91,6 +91,10 @@ export class OverviewPanelComponent {
     return this.rolePermission.canEditTabletop;
   }
 
+  /**
+   * Whether the reader may see the details of the panel's object; characters, notes, cards and dice
+   * follow their disclosure, and anything else is always shown.
+   */
   canViewObject(): boolean {
     const object = this.tabletopObject;
     if (
@@ -104,6 +108,7 @@ export class OverviewPanelComponent {
     return true;
   }
 
+  /** Sets a check field on the object from its tick box; ignored for a reader who may not edit the table. */
   setCheckValue(element: DataElement, value: number): void {
     if (!this.canEdit) return;
     element.value = value;
@@ -127,6 +132,10 @@ export class OverviewPanelComponent {
   });
   readonly hasImage = computed(() => this.imageUrl().length > 0);
 
+  /**
+   * The card whose face the panel previews: the card itself, a stack's top card, or null for
+   * anything else.
+   */
   get overviewFaceCard(): Card | null {
     const object = this.tabletopObject;
     if (object instanceof Card) return object;
@@ -157,6 +166,13 @@ export class OverviewPanelComponent {
     return version;
   });
 
+  /**
+   * The data fields the panel lists for the object.
+   *
+   * They are the fields the inventory shows for it. For a character, fields marked to pop up or
+   * picked for its overview are added too, kept in inventory order, and a field is left out when a
+   * field containing it is already listed.
+   */
   get inventoryDataElms(): DataElement[] {
     if (!this.tabletopObject) return [];
     const char = this.tabletopObject instanceof GameCharacter ? this.tabletopObject : null;
@@ -247,6 +263,7 @@ export class OverviewPanelComponent {
     return false;
   }
 
+  /** Whether a data field is set to show as a table and has the rows and columns to draw one. */
   shouldRenderTableView(element: DataElement): boolean {
     return (
       element.viewMode === DataElementViewMode.TABLE &&
@@ -256,44 +273,57 @@ export class OverviewPanelComponent {
     );
   }
 
+  /** The body rows of a data field drawn as a table. */
   getTableRows(element: DataElement): DataElement[] {
     return getTableBodyRows(element);
   }
 
+  /** The columns of a data field drawn as a table. */
   getTableColumns(element: DataElement): OverviewTableColumn[] {
     return getTableColumns(element);
   }
 
+  /** Whether any of the table's columns belongs to a group, which adds a grouped header row. */
   hasTableColumnGroups(element: DataElement): boolean {
     return this.getTableColumns(element).some((column) => column.group.length > 0);
   }
 
+  /** The grouped header cells spanning the table's columns. */
   getTableColumnHeaderGroups(element: DataElement): OverviewTableColumnHeaderGroup[] {
     return buildTableColumnHeaderGroups(this.getTableColumns(element));
   }
 
+  /** The caption set for the table's row header column; empty when none is set. */
   getTableRowHeaderLabel(element: DataElement): string {
     return element.getAttribute(DataElementAttribute.ROW_HEADER_LABEL).trim();
   }
 
+  /** The cell of a table row in the named column, or null when the row has none. */
   getTableCell(row: DataElement, columnName: string): DataElement | null {
     return getTableCell(row, columnName);
   }
 
+  /** Whether a table column is a gap between data columns, whose gap cell carries a check in the header. */
   isGapTableColumn(column: OverviewTableColumn): boolean {
     return isGapColumn(column);
   }
 
+  /** Whether a gap column's check is ticked; false when the column has no gap cell. */
   isGapTableColumnActive(element: DataElement, column: OverviewTableColumn): boolean {
     const gapCell = this.getGapTableColumnCell(element, column);
     return gapCell ? this.isTableCheckCellChecked(gapCell) : false;
   }
 
+  /** The header title of a gap column: its gap cell's text, or the column's own label. */
   getGapTableColumnTitle(element: DataElement, column: OverviewTableColumn): string {
     const gapCell = this.getGapTableColumnCell(element, column);
     return gapCell ? this.getTableCellLabel(gapCell) || column.label : column.label;
   }
 
+  /**
+   * Flips a gap column's check from its header, keeping the click from reaching the rest of the
+   * panel; does nothing for other columns.
+   */
   toggleGapTableColumn(element: DataElement, column: OverviewTableColumn, event?: Event): void {
     if (!this.isGapTableColumn(column)) return;
     event?.stopPropagation();
@@ -302,6 +332,7 @@ export class OverviewPanelComponent {
     this.toggleTableCheckCell(gapCell);
   }
 
+  /** Sets a gap column's check from its header tick box; ignored for a reader who may not edit the table. */
   setGapTableColumnActive(element: DataElement, column: OverviewTableColumn, event: Event): void {
     if (!this.canEdit) return;
     event.stopPropagation();
@@ -319,6 +350,10 @@ export class OverviewPanelComponent {
   /** Every cell asks while the table is being drawn, and they all read the same sheets. */
   private readonly calcPass = turnCache(createCalcPass);
 
+  /**
+   * The text shown in a table cell: current over maximum for a resource, the cell text for a check,
+   * the result for a calculation, and otherwise the value with its whitespace collapsed.
+   */
   getTableCellDisplayText(cell: DataElement): string {
     switch (cell.fieldType) {
       case DataElementFieldType.RESOURCE:
@@ -334,85 +369,116 @@ export class OverviewPanelComponent {
     }
   }
 
+  /** Whether a data field is a calculation, which is shown as its result. */
   isCalcElement(element: DataElement): boolean {
     return element.fieldType === DataElementFieldType.CALC;
   }
 
+  /** The evaluated result of a calculation field. */
   calcText(element: DataElement): string {
     return evaluateCalcElement(element, this.calcPass());
   }
 
+  /** The choices a select cell offers. */
   getTableSelectOptions(cell: DataElement): string[] {
     return getSelectOptions(cell);
   }
 
+  /** Whether a select cell's current value is one of its choices. */
   isTableSelectValueListed(cell: DataElement): boolean {
     return isSelectValueListed(cell);
   }
 
+  /** Writes a select cell's value; ignored for a reader who may not edit the table. */
   setTableSelectCellValue(cell: DataElement, value: string): void {
     if (!this.canEdit) return;
     cell.value = value;
   }
 
+  /**
+   * Writes a select cell's value from its dropdown's change event; ignored for a reader who may not
+   * edit the table.
+   */
   setTableSelectCellValueFromEvent(cell: DataElement, event: Event): void {
     if (!this.canEdit) return;
     cell.value = event.target instanceof HTMLSelectElement ? event.target.value : '';
   }
 
+  /**
+   * The URL of an image field's picture, looked up in image storage by identifier; a value that is
+   * not a stored image is used as a URL itself.
+   */
   getTableCellImageUrl(cell: DataElement): string {
     this.objectChange.fileVersion();
     const value = String(cell.value ?? '').trim();
     return this.imageStorage.get(value)?.url ?? value;
   }
 
+  /** Whether an image field asks to be shown at its original size in the overview. */
   isImagePopupOriginal(element: DataElement): boolean {
     return element.getAttribute(DataElementAttribute.IMAGE_POPUP_ORIGINAL) === 'true';
   }
 
+  /** The text set on a cell, which a check cell shows as its label. */
   getTableCellLabel(cell: DataElement): string {
     return getCellLabel(cell);
   }
 
+  /**
+   * The colour a field's current value is written in, or null for the default grey so the
+   * stylesheet decides.
+   */
   getPopupCurrentValueColor(element: DataElement): string | null {
     const color = element.nowValueColor.trim().toLowerCase();
     return color === '#444' ? null : color;
   }
 
+  /** Whether a check cell is ticked. */
   isTableCheckCellChecked(cell: DataElement): boolean {
     return isCheckCellChecked(cell);
   }
 
+  /** Moves a check cell to its next value; ignored for a reader who may not edit the table. */
   toggleTableCheckCell(cell: DataElement, event?: Event): void {
     if (!this.canEdit) return;
     cell.value = nextCheckCellValue(cell, event);
   }
 
+  /** The top-level fields of the object's detail data; empty when it has none. */
   get dataElms(): DataElement[] {
     return this.tabletopObject && this.tabletopObject.detailDataElement
       ? this.tabletopObject.detailDataElement.children.filter((e) => e != null)
       : [];
   }
+  /** Whether the object has any detail fields to list. */
   get hasDataElms(): boolean {
     return this.dataElms.length > 0;
   }
 
+  /** The top-level fields of the object's common data; empty when it has none. */
   get rangeElms(): DataElement[] {
     return this.tabletopObject && this.tabletopObject.commonDataElement
       ? this.tabletopObject.commonDataElement.children.filter((e) => e != null)
       : [];
   }
+  /** Whether the object has any common data fields to list. */
   get hasRangeElms(): boolean {
     return this.rangeElms.length > 0;
   }
 
+  /** The marker the inventory uses for a line break inside a field's value. */
   get newLineString(): string {
     return this.inventoryService.newLineString;
   }
+  /** Whether a pointer drag is under way, during which the panel lets pointer events pass through. */
   get isPointerDragging(): boolean {
     return this.pointerDeviceService.isDragging;
   }
 
+  /**
+   * The pointer-events classes for the panel, which takes no input during a drag or while pinned to
+   * a screen edge.
+   */
   get pointerEventsStyle(): Record<string, boolean> {
     // A detail pinned to an edge is for reading from across the table, so it takes no input at all.
     const interactive = !this.isPointerDragging && this.edgeSeat === null;
@@ -556,6 +622,7 @@ export class OverviewPanelComponent {
     panel.style.top = panel.offsetTop + diffTop + 'px';
   }
 
+  /** Opens or closes the enlarged view of the object's picture. */
   chanageImageView(isOpen: boolean) {
     this.isOpenImageView = isOpen;
   }
@@ -564,6 +631,7 @@ export class OverviewPanelComponent {
     return this.inventoryService.tableInventory.dataElementMap.get(gameObject.identifier) ?? [];
   }
 
+  /** The width of a note's overview, from the note's own setting held between 250 and 800 pixels. */
   get overViewNoteWidth(): number {
     const note = this.tabletopObject as TextNote;
     if (!note) return 250;
@@ -574,6 +642,7 @@ export class OverviewPanelComponent {
     return width;
   }
 
+  /** The tallest a note's overview grows, from the note's own setting held between 250 and 1000 pixels. */
   get overViewNoteMaxHeight(): number {
     const note = this.tabletopObject as TextNote;
     if (!note) return 250;
@@ -584,6 +653,10 @@ export class OverviewPanelComponent {
     return maxHeight;
   }
 
+  /**
+   * The width of a character's overview, from the character's own setting held between 270 and 800
+   * pixels.
+   */
   get overViewCharacterWidth(): number {
     const character = this.tabletopObject as GameCharacter;
     if (!character) return 270;
@@ -594,6 +667,10 @@ export class OverviewPanelComponent {
     return width;
   }
 
+  /**
+   * The tallest a character's overview grows, from the character's own setting held between 250 and
+   * 1000 pixels.
+   */
   get overViewCharacterMaxHeight(): number {
     const character = this.tabletopObject as GameCharacter;
     if (!character) return 250;
@@ -604,6 +681,10 @@ export class OverviewPanelComponent {
     return maxHeight;
   }
 
+  /**
+   * The width of a card's or card stack's overview, from its own setting held between 250 and 1000
+   * pixels.
+   */
   get overViewCardWidth(): number {
     const card = this.tabletopObject as Card;
     const cardStack = this.tabletopObject as CardStack;
@@ -622,12 +703,20 @@ export class OverviewPanelComponent {
     return width;
   }
 
+  /**
+   * The room left for a card's text in its overview, less the frame and, when there is a picture,
+   * the picture's column.
+   */
   get overViewCardWidthNoMargin(): number {
     if (this.hasImage()) return this.overViewCardWidth - 60 - 12 - 2;
 
     return this.overViewCardWidth - 12 - 2;
   }
 
+  /**
+   * The tallest a card's or card stack's overview grows, from its own setting held between 250 and
+   * 1000 pixels.
+   */
   get overViewCardMaxHeight(): number {
     const card = this.tabletopObject as Card;
     const cardStack = this.tabletopObject as CardStack;
@@ -645,6 +734,7 @@ export class OverviewPanelComponent {
     return maxHeight;
   }
 
+  /** Escapes a field's text for HTML, before any links in it are turned into anchors. */
   escapeHtml(text: string) {
     return text
       .replace(/&/g, '&amp;')
@@ -654,11 +744,21 @@ export class OverviewPanelComponent {
       .replace(/'/g, '&#039;');
   }
 
+  /**
+   * The room's markdown helper, looked up under its identifier or the misspelled one older peers
+   * still use.
+   */
   get markdown(): MarkDown {
     // 'markdwon' is the legacy identifier; keep as fallback for old peers in P2P sessions
     return (this.objectStore.get<MarkDown>('markdown') ?? this.objectStore.get<MarkDown>('markdwon'))!;
   }
 
+  /**
+   * Renders a markdown field's text as trusted HTML, with its check boxes and tables drawn and its
+   * line breaks kept.
+   *
+   * The check boxes get ids from `baseId`, which is how a click on one is traced back to the field.
+   */
   escapeHtmlMarkDown(text: string, baseId: string): SafeHtml {
     const textCheckBox = this.markdown.markDownCheckBox(text, baseId);
     const textTable = this.markdown.markDownTable(textCheckBox);
@@ -666,6 +766,10 @@ export class OverviewPanelComponent {
     return this.domSanitizer.bypassSecurityTrustHtml(textTable.replace(/\n/g, '<br>'));
   }
 
+  /**
+   * Passes a click on the panel to the markdown helper, which ticks the markdown check box it
+   * landed on, if any.
+   */
   onClick(event: MouseEvent) {
     if (this.markdown) {
       this.markdown.changeMarkDownCheckBox((event.target as HTMLElement).id, event.timeStamp);
@@ -674,16 +778,19 @@ export class OverviewPanelComponent {
 
   protected editCheckedIds = new Set<string>();
 
+  /** Whether a URL field is being edited, which shows its input in place of the link. */
   isEditUrl(dataElmIdentifier: string) {
     return this.editCheckedIds.has(dataElmIdentifier);
   }
 
+  /** Whether a field's text starts with http:// or https://, and so is shown as a link. */
   isUrlText(text: string) {
     if (text.match(/^https:\/\//)) return true;
     if (text.match(/^http:\/\//)) return true;
     return false;
   }
 
+  /** Switches a URL field between being edited and being shown as a link. */
   changeChk(dataElmIdentifier: string) {
     if (this.editCheckedIds.has(dataElmIdentifier)) {
       this.editCheckedIds.delete(dataElmIdentifier);
@@ -692,6 +799,7 @@ export class OverviewPanelComponent {
     }
   }
 
+  /** Keeps a URL field in edit mode once its input takes focus. */
   textFocus(dataElmIdentifier: string) {
     this.editCheckedIds.add(dataElmIdentifier);
   }

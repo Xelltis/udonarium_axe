@@ -16,6 +16,10 @@ import {
 } from '@axe/features/map-editor/model/scene';
 import { normalizeTextureId } from '@axe/features/map-editor/model/textures';
 
+/**
+ * The JSON text of a scene, stamped with the current scene version, as map files and whiteboards
+ * store it.
+ */
 export function serializeScene(scene: MapScene): string {
   return JSON.stringify({ ...scene, version: MAP_SCENE_VERSION });
 }
@@ -138,6 +142,12 @@ function isValidLayer(layer: unknown): boolean {
   return true;
 }
 
+/**
+ * Whether a value has the outline of a scene: a numeric version, positive columns, rows and cell
+ * size, and layers that each have an id, a known kind and a name.
+ *
+ * Only the outline is checked; the layers' contents are cleaned by `deserializeScene`.
+ */
 export function isMapScene(value: unknown): value is MapScene {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
@@ -217,6 +227,13 @@ function sanitizeLayer(raw: Record<string, unknown>): MapLayer {
   }
 }
 
+/**
+ * Reads a scene from JSON text, cleaning it as it goes, or null when the text is not JSON or not a
+ * scene.
+ *
+ * Layers of unknown kinds are dropped, missing settings fall back to their defaults, and shapes and
+ * images that cannot be drawn are left out. The result always carries the current scene version.
+ */
 export function deserializeScene(json: string): MapScene | null {
   let parsed: unknown;
   try {

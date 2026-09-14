@@ -131,6 +131,13 @@ export function makeCustomHitTest(
   };
 }
 
+/**
+ * Draws a custom-shaped range onto its two canvases and measures how far it reaches.
+ *
+ * The painted cells, turned by quarter turns, are filled on the grid canvas lined up with the table's
+ * grid, and a dot marks the cell the range stands in on the outline canvas. The extent it returns is
+ * what the range's clip is sized from; an empty pattern reaches half a cell.
+ */
 export function renderCustom(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,

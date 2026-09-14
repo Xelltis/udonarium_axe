@@ -99,6 +99,7 @@ export class ChatPaletteComponent {
   /** Whether this palette stands in a window of its own. */
   readonly windowed = this.panelService.windowed;
 
+  /** The selected character's chat palette, or null when no character is selected. */
   get palette(): ChatPalette | null {
     return this.character()?.chatPalette ?? null;
   }
@@ -108,6 +109,12 @@ export class ChatPaletteComponent {
   private _timeId: string = '';
   private _autoCompleteEnable = false;
 
+  /**
+   * The dice bot lines from this palette are rolled with.
+   *
+   * Setting it also writes the choice to the selected character's palette, so it stays with the
+   * character.
+   */
   get gameType(): string {
     return this._gameType();
   }
@@ -117,6 +124,10 @@ export class ChatPaletteComponent {
     if (char?.chatPalette) char.chatPalette.dicebot = gameType;
   }
 
+  /**
+   * The identifier of the character the palette speaks as, or empty; setting it selects that
+   * character.
+   */
   get sendFrom(): string {
     return this.character()?.identifier ?? '';
   }
@@ -152,20 +163,28 @@ export class ChatPaletteComponent {
   private doubleClickTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
 
+  /** The dice bots there are to choose from, as listed by the dice bot catalog. */
   get diceBotInfos() {
     return this.diceBotCatalog.infos();
   }
 
+  /** The chat tab lines from the palette are sent to, as picked from the tab pills at the top. */
   get chatTab(): ChatTab {
     return this.objectStore.get<ChatTab>(this.chatTabidentifier())!;
   }
+  /** The cursor of the local peer, the player using this palette. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
+  /** Every peer cursor in the room, the local peer's own included. */
   get otherPeers(): PeerCursor[] {
     return this.objectStore.getObjects(PeerCursor);
   }
 
+  /**
+   * Switches the palette to a character, for the NPC bar and the owned-character list to call
+   * through the palette registry.
+   */
   setCharacterById(identifier: string): void {
     this.onSelectedCharacter(identifier);
   }
@@ -194,12 +213,23 @@ export class ChatPaletteComponent {
     });
   }
 
+  /**
+   * Sets the panel title to name the selected character, or to the plain palette title when none is
+   * selected.
+   */
   updatePanelTitle() {
     this.panelService.title = this.character()
       ? this.t('feature.chat.palette.panelTitleWith', { name: this.character()!.name })
       : this.t('feature.chat.palette.panelTitle');
   }
 
+  /**
+   * Switches the palette to the character with this identifier.
+   *
+   * An open edit is saved first, and the character's dice bot is taken up when it has one. An
+   * identifier that is not a character leaves the selection as it was but still refreshes the
+   * title.
+   */
   onSelectedCharacter(identifier: string) {
     if (this.isEdit()) this.toggleEditMode();
     const object = this.objectStore.get(identifier);
@@ -212,6 +242,7 @@ export class ChatPaletteComponent {
     this.updatePanelTitle();
   }
 
+  /** Asks the chat input to refit its height to the text it holds. */
   resizeChatInput() {
     this.chatInputComponent().kickCalcFitHeight();
   }
@@ -223,6 +254,12 @@ export class ChatPaletteComponent {
     this.chatTabSwitchRelative(direction);
   }
 
+  /**
+   * Moves the target chat tab one step either way, wrapping round at the ends; Ctrl+Left and
+   * Ctrl+Right call it.
+   *
+   * Does nothing when the current tab is no longer in the list.
+   */
   chatTabSwitchRelative(direction: number) {
     const chatTabs = this.chatMessageService.chatTabs;
     const index = chatTabs.findIndex((elm) => elm.identifier == this.chatTabidentifier());
@@ -241,6 +278,13 @@ export class ChatPaletteComponent {
     this.chatTabidentifier.set(chatTabs[nextIndex].identifier);
   }
 
+  /**
+   * Moves the highlight in the autocomplete list up or down when the chat input asks with the arrow
+   * keys.
+   *
+   * It stops at the last entry, and does nothing when it would move above the first or when no list
+   * is showing.
+   */
   autoCompleteSwitchRelative(direction: number) {
     const selectObj = this.completeSelectRef()?.nativeElement;
     if (!selectObj) {
@@ -259,12 +303,20 @@ export class ChatPaletteComponent {
     selectObj.selectedIndex = newIndex;
   }
 
+  /**
+   * Takes the highlighted autocomplete entry into the input when the chat input asks for it,
+   * provided the index it passes is still the highlighted one.
+   */
   autoCompleteDoRelative(index: number) {
     const selectObj = this.completeSelectRef()?.nativeElement;
     if (!selectObj || index != selectObj.selectedIndex) return;
     this.selectAutoComplete(this.text(), selectObj.value);
   }
 
+  /**
+   * Puts a palette line into the input, turning each written `\n` into a real line break, and
+   * clears the autocomplete highlight.
+   */
   selectPalette(line: string) {
     const multiLine = line.replace(/\\n/g, '\n');
     this.text.set(multiLine);
@@ -274,6 +326,10 @@ export class ChatPaletteComponent {
     }
   }
 
+  /**
+   * Takes an autocomplete entry into the input and scrolls the palette to the line it matched; does
+   * nothing when no list is open.
+   */
   selectAutoComplete(text: string, selectText: string) {
     const selectObj = this.completeSelectRef()?.nativeElement;
     if (!selectObj || !this.palette) return;
@@ -282,15 +338,24 @@ export class ChatPaletteComponent {
     this.selectPalette(selectText);
   }
 
+  /**
+   * The index highlighted in the autocomplete list, or -1 when nothing is highlighted or the list
+   * is closed.
+   */
   completeIndex(): number {
     const selectObj = this.completeSelectRef()?.nativeElement;
     return selectObj ? selectObj.selectedIndex : -1;
   }
 
+  /** The palette lines matching what is typed; empty until at least two characters are typed. */
   autoCompleteList(): string[] {
     return this.autoCompleteListSignal();
   }
 
+  /**
+   * Puts a clicked palette line into the input, and sends it when the same line is clicked again
+   * within 400 ms.
+   */
   clickPalette(line: string) {
     const multiLine = line.replace(/\\n/g, '\n');
     if (this.doubleClickTimer && this.text() === multiLine) {
@@ -305,6 +370,13 @@ export class ChatPaletteComponent {
     }
   }
 
+  /**
+   * Sends what the chat input submitted, as the selected character and through that character's
+   * macros.
+   *
+   * Does nothing without a chat tab, a character or a palette. A line sent with the ticker switch
+   * on is shown on the ticker as well.
+   */
   sendChat(value: ChatOutgoing) {
     const character = this.character();
     if (!this.chatTab || !character || !this.palette) return;
@@ -325,6 +397,10 @@ export class ChatPaletteComponent {
     if (sent && value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
   }
 
+  /**
+   * Highlights the command row the user clicked and puts its line into the input, sending it on a
+   * second click.
+   */
   onClickPaletteRow(row: PaletteRow): void {
     this.selectedLine.set(row.lineIndex);
     this.clickPalette(row.text);
@@ -362,10 +438,15 @@ export class ChatPaletteComponent {
     );
   }
 
+  /** Clears the highlight from the palette list. */
   resetPaletteSelect() {
     this.selectedLine.set(-1);
   }
 
+  /**
+   * Switches between the palette list and a read-only view of the character's details, saving any
+   * open edit first.
+   */
   toggleCharacterDataView() {
     if (this.isEdit()) this.toggleEditMode();
     this.viewMode.update((m) => (m === 'palette' ? 'character' : 'palette'));
@@ -378,6 +459,13 @@ export class ChatPaletteComponent {
     return [...char.detailDataElement.children];
   });
 
+  /**
+   * Opens the palette text for editing, or writes the edited text back to the palette when editing
+   * ends.
+   *
+   * On opening, the text area is scrolled to about where the list was. It also runs when the panel
+   * closes mid-edit, so an edit is never lost by closing.
+   */
   toggleEditMode() {
     this.isEdit.update((v) => !v);
     if (!this.palette) return;
@@ -397,6 +485,7 @@ export class ChatPaletteComponent {
     }
   }
 
+  /** Focuses the palette text area and puts the caret at the 600th character. */
   moveTest() {
     const textEl = this.editTextRef()?.nativeElement;
     if (!textEl) return;
@@ -406,6 +495,10 @@ export class ChatPaletteComponent {
     }, 10);
   }
 
+  /**
+   * Highlights a palette line and scrolls it into view; a heading picked from the headings menu or
+   * list lands here.
+   */
   japmIndex(lineNo: number) {
     this.selectedLine.set(lineNo);
     const el = this.paletteListRef()?.nativeElement;
@@ -414,6 +507,7 @@ export class ChatPaletteComponent {
     row?.scrollIntoView({ block: 'nearest' });
   }
 
+  /** Takes the entry the user clicked or moved to in the autocomplete dropdown into the input. */
   onSelectAutoComplete(text: string, event: Event): void {
     this.selectAutoComplete(text, (event.target as HTMLInputElement).value);
   }
@@ -427,6 +521,13 @@ export class ChatPaletteComponent {
     this.japmIndex(Number(picked));
   }
 
+  /**
+   * Opens the headings menu at the palette's top-left corner, where picking a heading jumps the
+   * list to it.
+   *
+   * Does nothing without a palette. The menu entries carry this palette's own id, so the jump comes
+   * back to this panel rather than another open palette.
+   */
   indexBtn() {
     if (!this.palette) return;
     const panel: HTMLElement = this.rootElementRef().nativeElement;

@@ -82,6 +82,7 @@ export class WhiteBoardComponent {
     setupMovableRotableForPiece(this, { target: this.whiteBoard });
   }
 
+  /** The table's grid cell size in pixels, which the board's width and height are counted in. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -200,18 +201,26 @@ export class WhiteBoardComponent {
       this.diceSymbols().length
   );
 
+  /** Plays the pick-up sound when a drag or a turn of the board begins. */
   onMove(): void {
     SoundEffect.play(PresetSound.cardPick);
   }
 
+  /** Plays the put-down sound when a drag or a turn of the board ends. */
   onMoved(): void {
     SoundEffect.play(PresetSound.cardPut);
   }
 
+  /** Writes the angle the board has been turned to onto the synced board. */
   onRotated(degree: number): void {
     this.whiteBoard().rotate = degree;
   }
 
+  /**
+   * Opens the board's right-click menu at the pointer.
+   *
+   * When several pieces are selected, the menu for the selection opens instead.
+   */
   onContextMenu(e: Event): void {
     e.stopPropagation();
     e.preventDefault();

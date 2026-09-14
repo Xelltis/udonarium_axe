@@ -118,6 +118,14 @@ export function resolveRangeThumbnail(object: TabletopObject): RangeThumbnail | 
   };
 }
 
+/**
+ * Flattens a tabletop object into a row of the game master's object list.
+ *
+ * Its location is sorted into the table, the shared area, the graveyard, a peer's private area
+ * (named through `resolvePeerName`) or elsewhere. Fields only some kinds of object have, such as
+ * owner, disclosure, lock and hidden flags, are read when present and left empty or false
+ * otherwise.
+ */
 export function buildObjectRow(
   object: TabletopObject,
   typeKey: string,
@@ -167,6 +175,10 @@ export function buildObjectRow(
   };
 }
 
+/**
+ * Whether a row matches the object list's search text by name or owner name, ignoring case; an
+ * empty query matches every row.
+ */
 export function matchesObjectRowQuery(row: ObjectRow, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;

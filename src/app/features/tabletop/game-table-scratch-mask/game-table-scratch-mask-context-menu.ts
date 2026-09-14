@@ -8,6 +8,7 @@ interface ScratchMaskContextMenuCallbacks {
   unlock: () => void;
 }
 
+/** The right-click menu for a scratch mask: lock or unlock through the callbacks, and delete. */
 export function buildScratchMaskContextMenu(
   mask: GameTableScratchMask,
   isLocked: boolean,

@@ -316,6 +316,10 @@ export class GameCharacterComponent {
     return !this.visionService.isTokenVisible(char);
   });
 
+  /**
+   * Whether the piece is locked in place, read and written on the character; false while no
+   * character is bound.
+   */
   get isLock(): boolean {
     const char = this.gameCharacter();
     return char?.isLock ?? false;
@@ -354,6 +358,7 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char?.identifier ?? '')();
     return char?.altitude ?? 0;
   });
+  /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
   setAltitude(altitude: number) {
     const char = this.gameCharacter();
     if (char) char.altitude = altitude;
@@ -368,6 +373,10 @@ export class GameCharacterComponent {
     },
     { equal: imageFileEqual() }
   );
+  /**
+   * The piece's turn on the table in degrees, read and written on the character; 0 while no
+   * character is bound.
+   */
   get rotate(): number {
     const char = this.gameCharacter();
     return char?.rotate ?? 0;
@@ -376,6 +385,10 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (char) char.rotate = rotate;
   }
+  /**
+   * The piece's tilt in degrees, read and written on the character and set by the roll handles; 0
+   * while no character is bound.
+   */
   get roll(): number {
     const char = this.gameCharacter();
     return char?.roll ?? 0;
@@ -402,6 +415,7 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.specifyKomaImageFlag;
   });
+  /** Whether the piece casts a drop shadow under its picture. */
   get isDropShadow(): boolean {
     const char = this.gameCharacter();
     return char?.isDropShadow ?? false;
@@ -410,6 +424,7 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (char) char.isDropShadow = isDropShadow;
   }
+  /** Whether the piece shows its elevation label while it is raised or lowered by half a cell or more. */
   get isAltitudeIndicate(): boolean {
     const char = this.gameCharacter();
     return char?.isAltitudeIndicate ?? false;
@@ -438,6 +453,7 @@ export class GameCharacterComponent {
     this.buffViewMode.update(nextBuffViewMode);
   }
 
+  /** The size of one grid cell on the current table, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -991,21 +1007,35 @@ export class GameCharacterComponent {
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private unhighlightTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /**
+   * The piece's height in grid cells, its base position and altitude together, rounded to one
+   * decimal for the elevation label.
+   */
   get elevation(): number {
     const char = this.gameCharacter();
     if (!char) return 0;
     return +((char.posZ + this.altitude() * this.gridSize) / this.gridSize).toFixed(1);
   }
 
+  /** How far a chat bubble over the piece is lifted, in pixels; always 0 for this component. */
   get chatBubbleAltitude(): number {
     return 0;
   }
 
+  /** Stops the browser's native drag of the piece's images, so only the movable directive moves it. */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /**
+   * Takes every press straight back off the piece's own input handler, which has nothing to do with
+   * a move or a release.
+   *
+   * The handler adds document-wide move and release listeners on each press, and cancelling removes
+   * them at once. The press itself is not stopped: moving and turning the piece are left to the
+   * movable and rotable directives, which listen for it themselves.
+   */
   onInputStart(_e: MouseEvent | TouchEvent) {
     if (this.input) this.input.cancel();
   }
@@ -1120,6 +1150,12 @@ export class GameCharacterComponent {
     }
   }
 
+  /**
+   * Opens the character's context menu at the pointer, if the reader may view the piece.
+   *
+   * When several pieces are selected the shared selection menu opens instead. Seen from above with
+   * a radial menu style chosen, the menu opens as a radial menu around the piece.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -1266,11 +1302,13 @@ export class GameCharacterComponent {
     return char.zindex;
   });
 
+  /** Brings the piece to the top and plays the pick-up sound when a drag or turn starts. */
   onMove() {
     this.gameCharacter()?.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
   }
 
+  /** Plays the put-down sound when a drag or turn ends. */
   onMoved() {
     SoundEffect.play(PresetSound.piecePut);
   }
@@ -1324,6 +1362,7 @@ export class GameCharacterComponent {
     return this.objectStore.get<Config>('Config')?.moveStrict === true;
   }
 
+  /** Starts carrying the piece: raises it, shows how far it may move and fires its pick-up triggers. */
   onPickUp() {
     this.onMove();
     const character = this.gameCharacter();
@@ -1332,6 +1371,10 @@ export class GameCharacterComponent {
     this.triggerFire.pickedUp(character);
   }
 
+  /**
+   * Puts the carried piece down: plays the put-down sound, hides the move range and fires its
+   * put-down triggers.
+   */
   onPutDown() {
     this.onMoved();
     this.moveRangeService.hide();
@@ -1339,10 +1382,15 @@ export class GameCharacterComponent {
     if (character) this.triggerFire.putDown(character);
   }
 
+  /** Hides the move range once the press on the piece ends, whether or not it was dragged. */
   onLetGo() {
     this.moveRangeService.hide();
   }
 
+  /**
+   * Aims at the piece on an Alt press, or clears every aim on Shift+Alt, swallowing the press so it
+   * does not also start a drag.
+   */
   checkKey(event: KeyboardEvent | MouseEvent) {
     const key_event = (event || window.event) as KeyboardEvent | MouseEvent;
     const key_shift = key_event.shiftKey;
@@ -1372,6 +1420,7 @@ export class GameCharacterComponent {
     this.uiSignalService.notifyTargetChange(char.identifier, char.aliasName);
   }
 
+  /** Takes the aim mark off every character in the room, signalling each change so its marker redraws. */
   clearEveryTarget(): void {
     for (const object of this.objectStore.getObjects(GameCharacter)) {
       if (!object.targeted) continue;

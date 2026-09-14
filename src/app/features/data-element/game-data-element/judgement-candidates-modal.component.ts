@@ -18,10 +18,15 @@ export class JudgementCandidatesModalComponent {
   readonly closed = output<void>();
   readonly sendToChat = output<SkillJudgementCandidate>();
 
+  /** Tells the table to close the list, from the close button or a click on the backdrop. */
   onClose(): void {
     this.closed.emit();
   }
 
+  /**
+   * Hands the chosen candidate to the table to roll in chat, without the click reaching the
+   * backdrop and closing the list first.
+   */
   onSendToChat(candidate: SkillJudgementCandidate, event: Event): void {
     event.stopPropagation();
     this.sendToChat.emit(candidate);

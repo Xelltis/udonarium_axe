@@ -69,11 +69,19 @@ export const MIN_STAGE_ZOOM = 1;
 export const MAX_STAGE_ZOOM = 8;
 export const STAGE_ZOOM_STEP = 1.5;
 
+/** Holds a stage zoom between fitting and eight times that; anything not a number goes back to fitting. */
 export function clampStageZoom(zoom: number): number {
   if (!Number.isFinite(zoom)) return MIN_STAGE_ZOOM;
   return Math.min(MAX_STAGE_ZOOM, Math.max(MIN_STAGE_ZOOM, zoom));
 }
 
+/**
+ * How the scene is drawn inside the room the editor gives it, at a zoom.
+ *
+ * Fitting shrinks the scene to the room but never grows it past its own size; the zoom then scales
+ * that up, and the result is centred, running past the room's edges when leaned in. A scene or room
+ * not yet measured gives a scale of 1 at the origin.
+ */
 export function stageFit(scene: StageBox, room: StageBox, zoom = 1): StageFit {
   if (scene.width < 1 || scene.height < 1 || room.width < 1 || room.height < 1) {
     return { scale: 1, offsetX: 0, offsetY: 0 };

@@ -14,6 +14,14 @@ export interface DiceOwnerCandidate {
   name: string;
 }
 
+/**
+ * Builds the right-click menu for a die on the table.
+ *
+ * It offers rolling, opening a kept face or keeping it to oneself, which piece the die belongs to
+ * and storing it on that piece, setting the face, locking, hiding the name, marking it spent, the
+ * detail sheet, copying and deleting. A die whose face the reader cannot see offers no roll and no
+ * face to set. The entries change the die directly and play their own sounds.
+ */
 export function buildDiceSymbolContextMenu(
   diceSymbol: DiceSymbol,
   gridSize: number,

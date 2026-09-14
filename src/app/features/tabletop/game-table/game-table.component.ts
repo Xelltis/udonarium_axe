@@ -448,9 +448,11 @@ export class GameTableComponent {
   readonly gameObjects = viewChild.required<ElementRef<HTMLElement>>('gameObjects');
   readonly gridCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('gridCanvas');
 
+  /** The room's table selector, which says which table is in use. */
   get tableSelecter(): TableSelecter {
     return this.tabletopService.tableSelecter;
   }
+  /** The table in use, whose size, grid and pictures this view draws. */
   get currentTable(): GameTable {
     return this.tabletopService.currentTable;
   }
@@ -531,6 +533,10 @@ export class GameTableComponent {
   private readonly gridFaces = new GridFaceCache();
   private glideTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * The CSS background for a wall: its picture, with the grid picture laid over it when there is
+   * one.
+   */
   wallBackground(imageUrl: string, gridUrl: string): WallBackground {
     return wallBackground(imageUrl, gridUrl);
   }
@@ -696,14 +702,19 @@ export class GameTableComponent {
     return { background: background || 'none' };
   });
 
+  /** The picture laid behind the table, or the empty image when the table has none. */
   get backgroundImage(): ImageFile {
     return this.imageService.getEmptyOr(this.currentTable.backgroundImageIdentifier);
   }
 
+  /** The tint the background picture is drawn with: white, black, or empty for none. */
   get backgroundFilterType(): FilterType {
     return this.currentTable.backgroundFilterType;
   }
 
+  /**
+   * Whether something on the table is being dragged, which turns the cursor into a grabbing hand.
+   */
   get isPointerDragging(): boolean {
     return this.pointerDeviceService.isDragging;
   }
@@ -867,10 +878,21 @@ export class GameTableComponent {
     }
   }
 
+  /**
+   * The entries of the table's plain right-click menu for a point on the table, as
+   * `buildContextMenuModel` lists them.
+   */
   buildContextMenuActions(objectPosition: PointerCoordinate): ContextMenuAction[] {
     return this.buildContextMenuModel(objectPosition).actions;
   }
 
+  /**
+   * Builds the table's right-click menu for a point on the table, both as a plain list and as the
+   * groups of the rotating menu.
+   *
+   * It offers making objects there, making a deck, gathering a party for the game master, the
+   * table's settings and, in 2D, holding the view still.
+   */
   buildContextMenuModel(objectPosition: PointerCoordinate): {
     actions: ContextMenuAction[];
     rotatingGroups: ContextMenuRadialGroup[];
@@ -975,6 +997,10 @@ export class GameTableComponent {
     return actions;
   }
 
+  /**
+   * Opens the table's menu at the pointer on a right click over the table, where the table has the
+   * focus and the pointer allows a menu.
+   */
   onContextMenu(e: MouseEvent) {
     if (!document.activeElement?.contains(this.gameObjects().nativeElement)) return;
     e.preventDefault();
@@ -986,6 +1012,10 @@ export class GameTableComponent {
     this.openTableContextMenu(menuPosition, objectPosition);
   }
 
+  /**
+   * Opens the table's menu at a place on the screen for a point on the table. In 2D with a rotating
+   * style chosen it opens as the rotating menu; otherwise as a plain list.
+   */
   openTableContextMenu(menuPosition: PointerCoordinate, objectPosition: PointerCoordinate): void {
     const menu = this.buildContextMenuModel(objectPosition);
     const table = this.currentTable;
@@ -1004,14 +1034,20 @@ export class GameTableComponent {
     }
     this.contextMenuService.open(menuPosition, menu.actions, table.name);
   }
+  /** Forgets that the last press moved the view, as any new mouse press begins. */
   onDocumentMouseDown(_e: MouseEvent) {
     this.gestureService.isTableTransformed = false;
   }
 
+  /** Forgets that the last press moved the view, as any new touch begins. */
   onDocumentTouchStart(_e: TouchEvent) {
     this.gestureService.isTableTransformed = false;
   }
 
+  /**
+   * Swallows the browser's menu after a press that moved the view, where the pointer would not open
+   * the table's own, so turning the view does not end in a menu.
+   */
   onDocumentContextMenu(e: MouseEvent) {
     if (this.gestureService.isTableTransformed && !this.pointerDeviceService.isAllowedToOpenContextMenu)
       e.preventDefault();
@@ -1078,6 +1114,10 @@ export class GameTableComponent {
     if (this.isJumpingMove() !== jumping) this.movePlan.toggleJump();
   }
 
+  /**
+   * Backs out on Escape: from picking an effect's targets first, then from picking a card's target,
+   * and otherwise clears the selection.
+   */
   onEscapeKey(_e: Event) {
     if (this.effectTargetingService.cancel()) return;
     if (this.cardTargetService.cancelPicking()) return;

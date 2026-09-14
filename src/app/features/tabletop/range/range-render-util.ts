@@ -49,6 +49,12 @@ export interface GridOffsets {
   offSetY_px: number;
 }
 
+/**
+ * How a range's canvas lines up with the table grid.
+ *
+ * The canvas origin sits at its middle, and the grid offset is how far the first grid line falls
+ * behind the range's position, shifted half a cell on an axis the range is set to offset on.
+ */
 export function calcGridOffsets(setting: RangeRenderSetting): GridOffsets {
   const gridSize = setting.gridSize;
   const offSetX_px = (setting.areaWidth * gridSize) / 2;
@@ -81,6 +87,12 @@ export function calcGridOffsets(setting: RangeRenderSetting): GridOffsets {
 // A shared buffer, so the hot loop allocates nothing. Safe on a single thread.
 const _gridPos: GridPosition = { gx: 0, gy: 0 };
 
+/**
+ * A function giving the pixel corner of the cell at column `w`, row `h` across a range's canvas.
+ *
+ * Hex grids shift every other column or row by half a cell, in step with where the range stands.
+ * The returned position is one shared object overwritten on each call, so read it before calling again.
+ */
 export function generateCalcGridPositionFunc(
   gridType: GridType,
   centerX: number,
@@ -119,6 +131,7 @@ export function generateCalcGridPositionFunc(
   }
 }
 
+/** Sets a canvas up to draw a range in one colour: stroke and fill, a 1px line, and a label font scaled to the grid. */
 export function makeBrush(
   context: CanvasRenderingContext2D,
   gridSize: number,
@@ -154,14 +167,17 @@ export function chkOuterProduct(
   return calc >= -0.01; // 丸め誤差対策で許容範囲を少し広くする。
 }
 
+/** Whether a point, relative to a circle's centre, lies inside or on a circle of that radius. */
 export function chkInCircle(radius: number, pchkx: number, pchky: number): boolean {
   return radius * radius >= pchkx * pchkx + pchky * pchky;
 }
 
+/** Fills one square grid cell whose top-left corner is at (gx, gy). */
 export function fillSquare(context: CanvasRenderingContext2D, gx: number, gy: number, gridSize: number): void {
   context.fillRect(gx, gy, gridSize, gridSize);
 }
 
+/** Whether the table's grid is made of hexagons, either way up. */
 export function isHexGrid(gridType: GridType): boolean {
   return isHexGridType(gridType);
 }

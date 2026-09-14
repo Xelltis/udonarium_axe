@@ -10,6 +10,9 @@ export interface OutlineSegment {
 
 const EDGE_PROBE_OVERSHOOT = 1.2;
 
+/**
+ * The outline of every marked cell, one polygon per cell, for filling in the area on an overlay.
+ */
 export function moveRangePolygons(grid: CellGrid, cells: CellBits): CellPoint[][] {
   const polygons: CellPoint[][] = [];
   for (let index = 0; index < cells.count; index++) {
@@ -18,6 +21,12 @@ export function moveRangePolygons(grid: CellGrid, cells: CellBits): CellPoint[][
   return polygons;
 }
 
+/**
+ * The edges round the outside of the marked cells, leaving out every edge two marked cells share.
+ *
+ * Each edge is checked by probing just past its midpoint, which serves square and hex cells alike.
+ * Empty for a grid without a size.
+ */
 export function moveRangeOutline(grid: CellGrid, cells: CellBits): OutlineSegment[] {
   const edges: OutlineSegment[] = [];
   if (grid.sizePx <= 0) return edges;

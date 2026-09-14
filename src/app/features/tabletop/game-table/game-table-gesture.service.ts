@@ -53,6 +53,12 @@ export class GameTableGestureService {
   private gridCanvasEl!: HTMLCanvasElement;
   private getGridShow!: () => boolean;
 
+  /**
+   * Wires the mouse, touch and marquee gestures to the table's elements, once the view is built.
+   *
+   * `getGridShow` says whether the grid stays visible, since the grid canvas is shown while a piece
+   * is dragged and put back to that afterwards.
+   */
   initialize(
     rootEl: HTMLElement,
     gameTableEl: HTMLElement,
@@ -86,6 +92,7 @@ export class GameTableGestureService {
     this.touchGesture.onSynthesizeContextMenu = () => this.pointerDeviceService.cancelPendingContextMenu();
   }
 
+  /** Takes the gestures off the table, and drops a view update still waiting for its frame. */
   destroy(): void {
     if (this.frame !== null) cancelAnimationFrame(this.frame);
     this.frame = null;
@@ -97,6 +104,12 @@ export class GameTableGestureService {
     this.marqueeGesture = null;
   }
 
+  /**
+   * Ends whatever press is under way on the table, a mouse drag or a marquee, and puts the grid
+   * back to shown or hidden as the table has it.
+   *
+   * Does nothing before `initialize`.
+   */
   cancelInput(): void {
     if (!this.gridCanvasEl) return;
     this.mouseGesture?.cancel();

@@ -19,6 +19,7 @@ export class AlarmWindowComponent {
   private readonly objectStore = inject(ObjectStore);
 
   private timestamp = 0;
+  /** The room's one shared alarm, looked up in the object store under its fixed identifier. */
   get alarm(): Alarm {
     return this.objectStore.get<Alarm>('Alarm')!;
   }

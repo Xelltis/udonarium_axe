@@ -28,6 +28,11 @@ const WALL_PREFIX: Partial<Record<TableSurface, string>> = {
 
 const FACE_LIFT_PX = 5.0;
 
+/**
+ * Where the grid over the top of a terrain standing out from a wall is laid: its footprint on the
+ * table and the height of its top. Null for terrain on the floor, terrain without a grid, or a
+ * footprint with no area.
+ */
 export function beamTopGridGeometry(terrain: Terrain, dims: SurfaceDims, gridSize: number): BeamTopGridGeometry | null {
   const surface = surfaceOf(terrain);
   if (surface === 'floor' || !terrain.isGrid) return null;
@@ -47,6 +52,13 @@ export function beamTopGridGeometry(terrain: Terrain, dims: SurfaceDims, gridSiz
   return { left: box.minX, top: box.minY, width, height, z: box.maxZ };
 }
 
+/**
+ * How to lay a grid over the face of a terrain standing out from a wall.
+ *
+ * The answer is a CSS matrix that sets the grid just in front of the face, the grid's size, where
+ * it starts on the wall and the wall's letter for the cell labels. Null for terrain on the floor,
+ * terrain without a grid, or a face with no area.
+ */
 export function beamWallFaceGrid(terrain: Terrain, dims: SurfaceDims, gridSize: number): BeamWallFaceGrid | null {
   const surface = surfaceOf(terrain);
   if (surface === 'floor' || !terrain.isGrid) return null;

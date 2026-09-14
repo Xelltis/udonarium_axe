@@ -62,6 +62,10 @@ export class RangeDockingCharacterComponent {
     return 0;
   });
 
+  /**
+   * Docks the range to the character picked in the list, so it follows that piece about the table,
+   * and closes the panel. With no character picked the panel only closes.
+   */
   followring() {
     if (!this.tabletopObject) return;
     const object = this.objectStore.get(this.sendFrom());
@@ -75,6 +79,7 @@ export class RangeDockingCharacterComponent {
     this.panelService.close();
   }
 
+  /** Closes the panel without docking the range. */
   cancel() {
     this.panelService.close();
   }

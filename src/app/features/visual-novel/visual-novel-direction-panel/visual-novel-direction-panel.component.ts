@@ -26,6 +26,11 @@ export class VisualNovelDirectionPanelComponent {
 
   readonly transitionOptions = VN_STAGE_TRANSITIONS;
 
+  /**
+   * Clears the stage of the tab being read, for everybody: a notice goes into the log, and nothing
+   * said before it stays on the stage. Only the game master may do it, and with no tab nothing
+   * happens.
+   */
   resetStage(): void {
     const tab = this.playback.chatTab();
     if (tab) this.scene.resetStage(tab);

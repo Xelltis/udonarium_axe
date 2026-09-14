@@ -7,6 +7,14 @@ import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 
+/**
+ * Places a copy of a piece from its sheet, offset down and to the right of the original, and plays
+ * the sound for its kind.
+ *
+ * The copy joins the same parent as the original. A copied terrain, card, card stack or mask starts
+ * unlocked, and a copied card or stack starts with nobody peeking at it; cards, stacks and notes
+ * are brought to the top.
+ */
 export function cloneTabletopObject(source: CharacterSheetTarget, offsetPx = 50): void {
   const cloneObject = source.clone();
   cloneObject.location.x += offsetPx;

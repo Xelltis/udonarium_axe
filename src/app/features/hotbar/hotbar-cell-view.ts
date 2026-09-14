@@ -39,6 +39,10 @@ export function namedCharacter(slot: HotbarSlot, controllable: readonly GameChar
   return findSlotActorAmong(slot, controllable)?.character ?? null;
 }
 
+/**
+ * Describes a slot of the bar with nothing in it, keeping only where it is and the key that fires
+ * it.
+ */
 export function emptyCellView(slotIndex: number, key: string): HotbarCellView {
   return {
     slotIndex,
@@ -53,6 +57,14 @@ export function emptyCellView(slotIndex: number, key: string): HotbarCellView {
   };
 }
 
+/**
+ * Describes a slot of the bar for drawing: its label, icon and colour, whether it needs a
+ * character, and who it acts as when fired.
+ *
+ * A slot that names a piece acts as that piece, or as nobody when the piece cannot be found among
+ * those the reader may work. Only a slot that names nobody acts as whoever the chat is set to speak
+ * as.
+ */
 export function hotbarCellView(slot: HotbarSlot | null, slotIndex: number, context: HotbarCellContext): HotbarCellView {
   const key = context.keyOf(slotIndex);
   if (!slot) return emptyCellView(slotIndex, key);

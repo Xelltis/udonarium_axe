@@ -26,18 +26,22 @@ function fillStyleEquals(a: FillStyle | null, b: FillStyle | null): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+/** Whether a cell lies within the scene's columns and rows. */
 export function inBounds(scene: MapScene, col: number, row: number): boolean {
   return col >= 0 && col < scene.cols && row >= 0 && row < scene.rows;
 }
 
+/** Paints one cell of a cell layer with a fill, replacing whatever was there. */
 export function setCell(layer: CellLayer, col: number, row: number, fill: FillStyle): void {
   layer.cells[cellKey(col, row)] = fill;
 }
 
+/** Clears one cell of a cell layer. */
 export function eraseCell(layer: CellLayer, col: number, row: number): void {
   delete layer.cells[cellKey(col, row)];
 }
 
+/** The fill painted on one cell of a cell layer, or null when the cell is unpainted. */
 export function getCell(layer: CellLayer, col: number, row: number): FillStyle | null {
   return layer.cells[cellKey(col, row)] ?? null;
 }
@@ -47,10 +51,18 @@ export function setFunctionCell(layer: FunctionLayer, col: number, row: number):
   layer.cells[cellKey(col, row)] = true;
 }
 
+/** Clears one cell of a function layer. */
 export function eraseFunctionCell(layer: FunctionLayer, col: number, row: number): void {
   delete layer.cells[cellKey(col, row)];
 }
 
+/**
+ * Paints the connected run of cells that match the starting cell's fill, as the bucket tool does.
+ *
+ * Cells join through shared edges on the scene's own grid, hex included, and the fill never leaves
+ * the scene. An unpainted start spreads only over unpainted cells. Nothing happens outside the
+ * scene or when the start already has this fill.
+ */
 export function floodFill(scene: MapScene, layer: CellLayer, col: number, row: number, fill: FillStyle): void {
   if (!inBounds(scene, col, row)) return;
   const startFill = getCell(layer, col, row);
@@ -76,19 +88,26 @@ export function floodFill(scene: MapScene, layer: CellLayer, col: number, row: n
   }
 }
 
+/** Puts a layer on top of the others. */
 export function addLayer(scene: MapScene, layer: MapLayer): void {
   scene.layers.push(layer);
 }
 
+/** Removes the layer with this id; nothing happens when there is none. */
 export function removeLayer(scene: MapScene, layerId: string): void {
   const idx = scene.layers.findIndex((l) => l.id === layerId);
   if (idx !== -1) scene.layers.splice(idx, 1);
 }
 
+/** The layer with this id, or undefined when the scene has none. */
 export function findLayer(scene: MapScene, layerId: string): MapLayer | undefined {
   return scene.layers.find((l) => l.id === layerId);
 }
 
+/**
+ * Moves a layer `delta` places through the stack, a positive delta towards the top, stopping at
+ * either end.
+ */
 export function moveLayer(scene: MapScene, layerId: string, delta: number): void {
   const idx = scene.layers.findIndex((l) => l.id === layerId);
   if (idx === -1) return;
@@ -98,6 +117,10 @@ export function moveLayer(scene: MapScene, layerId: string, delta: number): void
   scene.layers.splice(target, 0, layer);
 }
 
+/**
+ * Moves a layer to a given place in the stack, clamped to the stack; nothing happens when there is
+ * no such layer.
+ */
 export function reorderLayer(scene: MapScene, layerId: string, toIndex: number): void {
   const idx = scene.layers.findIndex((l) => l.id === layerId);
   if (idx === -1) return;
@@ -107,66 +130,97 @@ export function reorderLayer(scene: MapScene, layerId: string, toIndex: number):
   scene.layers.splice(clamped, 0, layer);
 }
 
+/** Adds a shape to a shape layer, giving it a fresh id when it arrives without one. */
 export function addShape(layer: ShapeLayer, item: ShapeItem): void {
   if (!item.id) item.id = newId();
   layer.items.push(item);
 }
 
+/**
+ * Merges changes into the shape with this id, which keeps its id; nothing happens when there is
+ * none.
+ */
 export function updateShape(layer: ShapeLayer, id: string, patch: Partial<ShapeItem>): void {
   const idx = layer.items.findIndex((i) => i.id === id);
   if (idx !== -1) layer.items[idx] = { ...layer.items[idx], ...patch, id };
 }
 
+/** Removes the shape with this id from the layer, when it is there. */
 export function removeShape(layer: ShapeLayer, id: string): void {
   const idx = layer.items.findIndex((i) => i.id === id);
   if (idx !== -1) layer.items.splice(idx, 1);
 }
 
+/** Adds a stamp to a stamp layer, giving it a fresh id when it arrives without one. */
 export function addStamp(layer: StampLayer, item: StampItem): void {
   if (!item.id) item.id = newId();
   layer.items.push(item);
 }
 
+/**
+ * Merges changes into the stamp with this id, which keeps its id; nothing happens when there is
+ * none.
+ */
 export function updateStamp(layer: StampLayer, id: string, patch: Partial<StampItem>): void {
   const idx = layer.items.findIndex((i) => i.id === id);
   if (idx !== -1) layer.items[idx] = { ...layer.items[idx], ...patch, id };
 }
 
+/** Removes the stamp with this id from the layer, when it is there. */
 export function removeStamp(layer: StampLayer, id: string): void {
   const idx = layer.items.findIndex((i) => i.id === id);
   if (idx !== -1) layer.items.splice(idx, 1);
 }
 
+/** Adds an image to an image layer, giving it a fresh id when it arrives without one. */
 export function addImage(layer: ImageLayer, item: ImageItem): void {
   if (!item.id) item.id = newId();
   layer.items.push(item);
 }
 
+/**
+ * Merges changes into the image with this id, which keeps its id; nothing happens when there is
+ * none.
+ */
 export function updateImage(layer: ImageLayer, id: string, patch: Partial<ImageItem>): void {
   const idx = layer.items.findIndex((i) => i.id === id);
   if (idx !== -1) layer.items[idx] = { ...layer.items[idx], ...patch, id };
 }
 
+/** Removes the image with this id from the layer, when it is there. */
 export function removeImage(layer: ImageLayer, id: string): void {
   const idx = layer.items.findIndex((i) => i.id === id);
   if (idx !== -1) layer.items.splice(idx, 1);
 }
 
+/** Adds a freehand stroke to the layer, giving it a fresh id when it arrives without one. */
 export function addStroke(layer: FreehandLayer, stroke: FreehandStroke): void {
   if (!stroke.id) stroke.id = newId();
   layer.strokes.push(stroke);
 }
 
+/** Removes the stroke with this id from the layer, when it is there. */
 export function removeStroke(layer: FreehandLayer, id: string): void {
   const idx = layer.strokes.findIndex((s) => s.id === id);
   if (idx !== -1) layer.strokes.splice(idx, 1);
 }
 
+/**
+ * Merges changes into the stroke with this id, which keeps its id; nothing happens when there is
+ * none.
+ */
 export function updateStroke(layer: FreehandLayer, id: string, patch: Partial<FreehandStroke>): void {
   const idx = layer.strokes.findIndex((s) => s.id === id);
   if (idx !== -1) layer.strokes[idx] = { ...layer.strokes[idx], ...patch, id };
 }
 
+/**
+ * Rubs a circle out of a freehand stroke and returns the pieces left on either side of it.
+ *
+ * Points inside the circle go, and a piece of fewer than two points is dropped with them. The
+ * pieces keep the stroke's colour and width but have an empty id, for the caller to add in place of
+ * the stroke. Null when the circle touches no point, so the stroke can be left as it is.
+ */
 export function eraseStrokeAtPoint(
   stroke: FreehandStroke,
   ex: number,
@@ -192,21 +246,33 @@ export function eraseStrokeAtPoint(
   return runs.map((points) => ({ ...stroke, id: '', points }));
 }
 
+/** Adds a text item to a text layer, giving it a fresh id when it arrives without one. */
 export function addText(layer: TextLayer, item: TextItem): void {
   if (!item.id) item.id = newId();
   layer.items.push(item);
 }
 
+/**
+ * Merges changes into the text item with this id, which keeps its id; nothing happens when there is
+ * none.
+ */
 export function updateText(layer: TextLayer, id: string, patch: Partial<TextItem>): void {
   const idx = layer.items.findIndex((i) => i.id === id);
   if (idx !== -1) layer.items[idx] = { ...layer.items[idx], ...patch, id };
 }
 
+/** Removes the text item with this id from the layer, when it is there. */
 export function removeText(layer: TextLayer, id: string): void {
   const idx = layer.items.findIndex((i) => i.id === id);
   if (idx !== -1) layer.items.splice(idx, 1);
 }
 
+/**
+ * Changes the scene's size in cells and drops painted and function cells that fall outside it.
+ *
+ * Shapes, stamps, strokes, text and images keep their positions, even where those now lie off the
+ * scene.
+ */
 export function resizeScene(scene: MapScene, cols: number, rows: number): void {
   scene.cols = cols;
   scene.rows = rows;

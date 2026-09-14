@@ -3,6 +3,12 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 
+/**
+ * Whether a dragged element may be dropped before one of the cards of a character's sheet.
+ *
+ * The target has to be a card at the top of that sheet, and the dragged element may not be the
+ * sheet itself or anything that contains it.
+ */
 export function canReorderDetailElement(
   char: GameCharacter | null,
   objectStore: ObjectStore,
@@ -16,6 +22,12 @@ export function canReorderDetailElement(
   return !draggedEl.contains(char.detailDataElement);
 }
 
+/**
+ * Moves an element to just before a card of a character's sheet and tells the room.
+ *
+ * The element takes the role that fits its new place in the sheet, and its old and new parents are
+ * both marked changed. Does nothing when the character, the element or the target cannot be found.
+ */
 export function reorderDetailElement(
   char: GameCharacter | null,
   objectStore: ObjectStore,

@@ -120,6 +120,14 @@ function canHoldTemplate(target: DataElement, template: DataElement): boolean {
   );
 }
 
+/**
+ * Puts a copy of a saved template into the nearest element that can hold it, starting from the
+ * container and climbing out through its parents.
+ *
+ * Once it has climbed out of an element the copy goes just after that element rather than at the
+ * end of the parent, so it lands next to where it was asked for. Null when nothing up the line can
+ * hold it or the template cannot be copied.
+ */
 export function placeElementTemplate(template: DataElement, container: DataElement): ElementPlacement | null {
   let anchor: DataElement | null = null;
   let target: DataElement | null = container;

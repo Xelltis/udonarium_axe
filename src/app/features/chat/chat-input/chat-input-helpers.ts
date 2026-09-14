@@ -1,6 +1,13 @@
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
 
+/**
+ * Whether a character may be picked as the speaker in this seat's chat input.
+ *
+ * Characters in the graveyard never speak, and neither do those in the private inventory of another
+ * connected peer. Anywhere else a character marked as non-talking is left out too, unless
+ * `ignoreNonTalk` is set, as it is for inputs that offer only characters.
+ */
 export function allowsChat(gameCharacter: GameCharacter, myPeerId: string, ignoreNonTalk = false): boolean {
   switch (gameCharacter.location.name) {
     case 'table':

@@ -110,6 +110,12 @@ function buildHexMaskSvg(params: BuildMaskCssParams): string {
   return buildHexSvgMask(polygons, geo.pixelW, geo.pixelH);
 }
 
+/**
+ * A CSS mask in the shape of a mask's hex cells, each grown by a pixel so neighbours meet without a
+ * seam.
+ *
+ * Empty on a square grid or when there are no cells.
+ */
 export function buildHexOutlineMask(gridSize: number, gridType: GridType, width: number, height: number): string {
   const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
   if (!geo) return '';
@@ -184,6 +190,12 @@ function hexNeighborOffset(col: number, row: number, edgeIdx: number, isFlatTop:
       )[edgeIdx];
 }
 
+/**
+ * A CSS background tracing a light line round the outer edge of a mask's hex cells, leaving the
+ * inner edges out.
+ *
+ * Empty on a square grid or when there are no cells.
+ */
 export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, width: number, height: number): string {
   const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
   if (!geo) return '';
@@ -219,6 +231,12 @@ export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, wid
   return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}") 0px 0px / ${geo.pixelW}px ${geo.pixelH}px no-repeat`;
 }
 
+/**
+ * The CSS mask that cuts the scratched-open cells out of a mask.
+ *
+ * In preview mode, a cell a pending scratch would change is shown as it will be once the scratch is
+ * done. An empty string leaves the mask whole, and on a hex grid the mask is drawn as SVG.
+ */
 export function buildMaskCss(params: BuildMaskCssParams): string {
   if (isHexGrid(params.gridType)) return buildHexMaskSvg(params);
 
@@ -242,6 +260,14 @@ export function buildMaskCss(params: BuildMaskCssParams): string {
   return masks.length ? masks.join(',') : EMPTY_MASK;
 }
 
+/**
+ * The markers drawn over cells while a mask is being scratched, one for each cell that is open,
+ * picked, or both.
+ *
+ * Each marker carries its cell's centre and a state: `scrached` for an open cell, `scraching` for a
+ * picked covered cell, and `restore` for an open cell that is picked to be covered again. Hex cells
+ * also carry an inset outline.
+ */
 export function buildScratchingGridInfos(params: BuildScratchingGridInfosParams): ScratchGridInfo[] {
   const ret: ScratchGridInfo[] = [];
   if (!params.hasGameTableMask || (params.isNonScratching && params.isNonScratched)) return ret;

@@ -430,6 +430,14 @@ function drawGridLines(ctx: CanvasRenderingContext2D, scene: MapScene, width: nu
   ctx.restore();
 }
 
+/**
+ * Draws the map onto the canvas: its background, then each visible layer in order at its own
+ * opacity, then the grid.
+ *
+ * The cells painted for what they do are drawn only when asked for, and the grid follows the
+ * scene's own setting unless the options say otherwise. A text being edited in place can be left
+ * out.
+ */
 export function renderScene(
   ctx: CanvasRenderingContext2D,
   scene: MapScene,

@@ -20,6 +20,13 @@ export interface MaskMenuParams {
   t: TranslateFn;
 }
 
+/**
+ * The right-click menu for a mask: altitude, lock and lock mark, scratching, edit, copy, delete,
+ * and creating an object where the menu was opened.
+ *
+ * A user who is not scratching this mask is offered to start; the one who is gets finish and
+ * cancel, which the callbacks carry out. A copy is placed one cell down and to the right, unlocked.
+ */
 export function buildGameTableMaskContextMenu(params: MaskMenuParams): ContextMenuAction[] {
   const {
     mask,

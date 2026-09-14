@@ -40,14 +40,19 @@ export class VisualNovelEmotePanelComponent {
   readonly selectedEmotionMark = this.selection.emotionMark;
   readonly selectedExit = this.selection.exited;
 
+  /** The character drawn for an emotion mark's button; empty for no mark. */
   emotionMarkLabel(mark: VnEmotionMark): string {
     return mark === 'none' ? '' : VN_EMOTION_MARK_CHARS[mark];
   }
 
+  /**
+   * Puts every staging choice for the next line back to its default, from the panel's reset button.
+   */
   resetEmote(): void {
     this.selection.reset();
   }
 
+  /** Marks the next line as one the speaker leaves the stage on, or clears that mark. */
   toggleSelectedExit(): void {
     this.selection.toggleExit();
   }

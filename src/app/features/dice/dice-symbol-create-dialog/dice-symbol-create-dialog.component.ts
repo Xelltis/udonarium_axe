@@ -31,14 +31,22 @@ export class DiceSymbolCreateDialogComponent {
   ownerCharacterIdentifier = '';
   hiddenToOthers = false;
 
+  /** The most dice that can be made at once, as the opener set it, or 30 when it set none. */
   get maxCount(): number {
     return this.option.maxCount ?? DEFAULT_MAX_COUNT;
   }
 
+  /** The characters the dice can be given to; the owner picker is hidden when there are none. */
   get ownerCandidates(): readonly DiceOwnerCandidate[] {
     return this.option.ownerCandidates ?? [];
   }
 
+  /**
+   * Closes the dialog with the chosen dice when the form is submitted.
+   *
+   * The type and count are clamped to what is on offer, and an owner that is not among the
+   * candidates is dropped so the dice belong to nobody.
+   */
   confirm(): void {
     const request: DiceCreateRequest = {
       typeIndex: this.clampTypeIndex(this.typeIndex),
@@ -49,6 +57,7 @@ export class DiceSymbolCreateDialogComponent {
     this.modalService.resolve(request);
   }
 
+  /** Closes the dialog without making any dice; the opener receives null. */
   cancel(): void {
     this.modalService.resolve(null);
   }

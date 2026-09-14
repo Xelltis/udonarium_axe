@@ -34,6 +34,7 @@ export class GameTableScratchMaskComponent {
 
   readonly gameTableScratchMask = input<GameTableScratchMask | null>(null);
 
+  /** The size of one table cell, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -77,6 +78,7 @@ export class GameTableScratchMaskComponent {
   });
   readonly isLock = computed(() => this.version()?.isLock ?? false);
   readonly color = computed(() => this.version()?.color ?? '');
+  /** Whether the scratch mask is owned by the local user. */
   get isMine(): boolean {
     return this.gameTableScratchMask()?.isMine ?? false;
   }
@@ -85,9 +87,18 @@ export class GameTableScratchMaskComponent {
   readonly posY = computed(() => this.version()?.location.y ?? 0);
   readonly posZ = computed(() => this.version()?.posZ ?? 0);
 
+  /**
+   * Called when a drag of the scratch mask starts; the scratch mask plays no sound, so it does
+   * nothing.
+   */
   onMove() {}
+  /** Called when a drag of the scratch mask ends; it does nothing. */
   onMoved() {}
 
+  /**
+   * Opens the scratch mask's right-click menu, with lock or unlock and delete; not once the pointer
+   * has moved since the press.
+   */
   onContextMenu(event: Event) {
     event.stopPropagation();
     event.preventDefault();
@@ -107,18 +118,24 @@ export class GameTableScratchMaskComponent {
     this.contextMenuService.open(coordinate, actions, this.name());
   }
 
+  /** Locks the scratch mask in place, which stops it being dragged, and plays the lock sound. */
   lock() {
     const mask = this.gameTableScratchMask();
     if (mask) mask.isLock = true;
     SoundEffect.play(PresetSound.lock);
   }
 
+  /** Unlocks the scratch mask so it can be dragged again, and plays the unlock sound. */
   unlock() {
     const mask = this.gameTableScratchMask();
     if (mask) mask.isLock = false;
     SoundEffect.play(PresetSound.unlock);
   }
 
+  /**
+   * Opens the scratch mask's detail sheet in a panel, keeping the triggering event from reaching
+   * the table.
+   */
   openSheet(e: Event) {
     e.stopPropagation();
     const mask = this.gameTableScratchMask();

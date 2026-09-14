@@ -4,6 +4,15 @@ import { Network } from '@axe/core/index';
 import { Card, CardState } from '@axe/domain/card/card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 
+/**
+ * The right-click menu of a card on the table: lock, flip, peek, take into the hand, stack, flip
+ * cut-in, target, edit, copy and delete.
+ *
+ * Entries that only touch the card act on it and play their sound here; anything that needs a
+ * service goes through the callbacks. The lock mark entry appears only while the card is locked,
+ * and clearing the target only while it has one. A copy is placed one grid step down and to the
+ * right of the original.
+ */
 export function buildCardContextMenu(
   card: Card,
   gridSize: number,

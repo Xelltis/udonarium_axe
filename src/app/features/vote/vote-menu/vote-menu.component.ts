@@ -34,12 +34,15 @@ export class VoteMenuComponent {
   isRollCall = true;
   includSelf = false;
 
+  /** Every peer connected to the room, one row each in the vote menu. */
   get peerList() {
     return this.networkService.peerContexts;
   }
+  /** This user's own cursor. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
+  /** The room's single shared vote object. */
   get vote(): Vote {
     return this.objectStore.get<Vote>('Vote')!;
   }
@@ -49,11 +52,16 @@ export class VoteMenuComponent {
     this.setDefaultCheck();
   }
 
+  /**
+   * Whether a peer has dropped out of the room, or has no cursor yet; such rows are dimmed and
+   * start unticked.
+   */
   isPeerIsDisConnect(peerId: string): boolean {
     const cursor = PeerCursor.findByPeerId(peerId);
     return cursor ? cursor.isDisConnect : true;
   }
 
+  /** Ticks every connected peer and unticks those who have dropped out, as the menu opens. */
   setDefaultCheck() {
     this.checkedPeers.clear();
     for (const peer of this.peerList) {
@@ -63,10 +71,15 @@ export class VoteMenuComponent {
     }
   }
 
+  /** How many users the vote will be sent to, this user included when they chose to be. */
   selectedNum(): number {
     return this.selectedList().length;
   }
 
+  /**
+   * The peer ids the vote will be sent to: the ticked peers, and this user when they chose to
+   * include themselves.
+   */
   selectedList(): string[] {
     const sendList = [...this.checkedPeers];
     if (this.includSelf) {
@@ -75,6 +88,13 @@ export class VoteMenuComponent {
     return sendList;
   }
 
+  /**
+   * Starts a roll call or vote for the chosen users, announces it in the chat tab and closes the
+   * menu.
+   *
+   * A roll call asks a fixed ready answer. A vote takes its choices from the choices field split on
+   * spaces, or a default choice when the field is empty.
+   */
   send() {
     const vote = this.vote;
     let voteTitle: string;
@@ -99,10 +119,12 @@ export class VoteMenuComponent {
     this.panelService.close();
   }
 
+  /** Switches the menu between a roll call and a vote, from the type radio buttons. */
   onChangeType(value: string) {
     this.isRollCall = value === 'rollcall';
   }
 
+  /** Ticks or unticks a peer as a recipient, from a click on their row. */
   voteBlockClick(id: string) {
     if (this.checkedPeers.has(id)) {
       this.checkedPeers.delete(id);
@@ -111,26 +133,31 @@ export class VoteMenuComponent {
     }
   }
 
+  /** The user id of the peer's cursor, or an empty string when it has none. */
   findUserId(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.userId : '';
   }
 
+  /** The name of the peer's cursor, or an empty string when it has none. */
   findPeerName(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.name : '';
   }
 
+  /** The name of the character the peer last spoke as, or an empty string when there is none. */
   findPeerLastControlName(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.lastControlCharacterName : '';
   }
 
+  /** The picture of the peer's cursor, or null when it has none. */
   findPeerImage(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.image : null;
   }
 
+  /** The picture of the character the peer last spoke as, or null when there is none. */
   findPeerLastControlImage(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.lastControlImage : null;

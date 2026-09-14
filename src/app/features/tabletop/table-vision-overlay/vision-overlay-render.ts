@@ -16,6 +16,10 @@ interface ResolvedSurface extends OverlaySurface {
   heightPx: number;
 }
 
+/**
+ * A CSS `rgba()` colour from a hex colour of three or six digits, with or without the `#`; anything
+ * unreadable gives white at the same alpha.
+ */
 export function hexToRgba(color: string, alpha: number): string {
   let hex = color.trim();
   if (hex.startsWith('#')) hex = hex.slice(1);
@@ -28,6 +32,10 @@ export function hexToRgba(color: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/**
+ * How brightly an animated light glows at a moment, as a multiplier: a pulse swells slowly between
+ * about half and full, a flicker jitters between 0.6 and full, and anything else stays at 1.
+ */
 export function animationIntensity(animation: string | undefined, timeMs: number): number {
   switch (animation) {
     case 'pulse':
@@ -590,6 +598,10 @@ function unwalkedMask(vision: OverlayVision): CellMask {
   return cellMaskOf(vision, unwalkedPaths, (index) => !vision.explored.get(index));
 }
 
+/**
+ * Fills the cells nobody has explored yet with the context's current fill, softened by the blur;
+ * the outline is traced once per vision and reused.
+ */
 export function fillUnwalkedCells(ctx: CanvasRenderingContext2D, vision: OverlayVision, blurPx = 0): void {
   fillMask(ctx, vision.grid, unwalkedMask(vision), blurPx);
 }
@@ -606,6 +618,10 @@ function fillMask(ctx: CanvasRenderingContext2D, grid: CellGrid, mask: CellMask,
   if (blurPx > 0) ctx.filter = previous;
 }
 
+/**
+ * Fills the cells the predicate keeps with the context's current fill, softened by a blur when one
+ * is given.
+ */
 export function fillCells(
   ctx: CanvasRenderingContext2D,
   grid: CellGrid,
@@ -847,6 +863,15 @@ function paintShadows(
   }
 }
 
+/**
+ * Draws one frame of the lighting and vision overlay: the darkness, the glowing lights and the
+ * shadows.
+ *
+ * A bake of the same size and scale supplies what does not change, so over it only the lights that
+ * animate are drawn again, and given a dirty rectangle only that part of the canvas is redrawn.
+ * Without a usable bake the whole plan is drawn. The margin widens the canvas around the table on
+ * every side.
+ */
 export function drawOverlayPlan(
   ctx: CanvasRenderingContext2D,
   plan: OverlayPlan,

@@ -65,6 +65,9 @@ export class ChatTabStripComponent {
     });
   }
 
+  /**
+   * Works out whether the strip can scroll either way, which shows or hides the arrow at that end.
+   */
   updateTabScrollState(): void {
     const el = this.container()?.nativeElement;
     if (!el) return;
@@ -72,18 +75,27 @@ export class ChatTabStripComponent {
     this.canScrollRight.set(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
   }
 
+  /** Keeps the arrows in step as the strip scrolls. */
   onTabPillsScroll(): void {
     this.updateTabScrollState();
   }
 
+  /** Slides the strip left by a fixed step when the left arrow is clicked. */
   scrollTabsLeft(): void {
     this.container()?.nativeElement.scrollBy({ left: -ARROW_STEP_PX, behavior: 'smooth' });
   }
 
+  /** Slides the strip right by a fixed step when the right arrow is clicked. */
   scrollTabsRight(): void {
     this.container()?.nativeElement.scrollBy({ left: ARROW_STEP_PX, behavior: 'smooth' });
   }
 
+  /**
+   * Selects the next or previous tab as the wheel turns over the strip.
+   *
+   * Travel is gathered until it makes up a step, so a trackpad does not run through several tabs at
+   * once, and turning back starts the count again. A sideways push is left to scroll the strip.
+   */
   switchTabByWheel(event: WheelEvent): void {
     const delta = wheelTravelOf(event);
     if (delta === 0) return;
@@ -99,6 +111,10 @@ export class ChatTabStripComponent {
     if (!this.switchTabWithinEnds(delta > 0 ? 1 : -1)) this.scrollActiveTabIntoView();
   }
 
+  /**
+   * Opens the menu for a tab the user right-clicked, which includes opening or closing the tab as a
+   * stream panel.
+   */
   onChatTabContextMenu(event: Event, chatTab: ChatTab): void {
     event.preventDefault();
     event.stopPropagation();

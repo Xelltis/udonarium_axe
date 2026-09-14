@@ -44,6 +44,10 @@ export class CutInListComponent {
   private readonly display = inject(TabletopDisplayService);
   protected readonly multiDirectionModes = CUT_IN_MULTI_DIRECTION_MODES;
 
+  /**
+   * How cut-ins face the sides of a table seen from above, kept in this screen's display settings
+   * rather than in the room.
+   */
   get multiDirectionMode(): CutInMultiDirectionMode {
     return this.display.settingsNow().cutInMultiDirectionMode;
   }
@@ -64,6 +68,7 @@ export class CutInListComponent {
     );
   }
 
+  /** Whether a cut-in is picked in the list. */
   get isSelected(): boolean {
     return this.selectedCutIn !== null;
   }
@@ -79,26 +84,38 @@ export class CutInListComponent {
     return this.rolePermission.canEditTabletop;
   }
 
+  /**
+   * Whether the editors accept changes: a cut-in is picked, there are cut-ins, and the reader may
+   * edit them.
+   */
   get isEditable(): boolean {
     return !this.isEmpty && this.isSelected && this.canEditCutIns;
   }
 
+  /** Whether the room has no cut-ins. */
   get isEmpty(): boolean {
     return this.getCutIns().length <= 0;
   }
 
+  /** Every cut-in in the room, for the list. */
   getCutIns(): CutIn[] {
     return this.objectStore.getObjects(CutIn);
   }
 
+  /** Picks the cut-in with the given identifier for editing, or clears the pick when it is not found. */
   selectCutIn(identifier: string) {
     this.selectedCutIn = this.objectStore.get<CutIn>(identifier);
   }
 
+  /** Picks the cut-in named by a select element's value, from its change event. */
   onSelectCutIn(event: Event): void {
     this.selectCutIn((event.target as HTMLInputElement).value);
   }
 
+  /**
+   * Makes a new cut-in in the room with the default name and sample picture, and picks it; does
+   * nothing for a reader who may not edit cut-ins.
+   */
   createCutIn() {
     if (!this.canEditCutIns) return;
     const cutIn = new CutIn();
@@ -108,6 +125,7 @@ export class CutInListComponent {
     this.selectCutIn(cutIn.identifier);
   }
 
+  /** Saves the picked cut-in to a file named after it, showing progress while the file is written. */
   async save() {
     if (!this.selectedCutIn) return;
     this.isSaving.set(true);
@@ -126,6 +144,10 @@ export class CutInListComponent {
     }, 500);
   }
 
+  /**
+   * Destroys the picked cut-in for everyone and clears the pick; does nothing for a reader who may
+   * not edit cut-ins.
+   */
   delete() {
     if (!this.canEditCutIns) return;
     if (!this.isEmpty && this.selectedCutIn) {

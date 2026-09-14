@@ -37,9 +37,14 @@ export class LobbyComponent {
 
   help = signal(this.t('feature.lobby.lobby.hintInitial'));
 
+  /**
+   * The id of the room this peer is in, which disables joining that same room from the list; empty
+   * outside a room.
+   */
   get currentRoom(): string {
     return Network.peerContext.roomId;
   }
+  /** This peer's id on the network. */
   get peerId(): string {
     return Network.peerId;
   }
@@ -48,6 +53,7 @@ export class LobbyComponent {
     return Network.peerIds.length > 1;
   });
 
+  /** The reader's own cursor, which keeps the password of a joined room for reconnecting. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
@@ -82,6 +88,12 @@ export class LobbyComponent {
     }
   }
 
+  /**
+   * Fetches the open rooms and lists them sorted, with a hint underneath.
+   *
+   * The list is emptied while it loads. The fetch gives up after 15 seconds, and a failure is shown
+   * as the hint.
+   */
   async reload() {
     this.isReloading.set(true);
     this.help.set(this.t('feature.lobby.lobby.hintSearching'));
@@ -111,6 +123,12 @@ export class LobbyComponent {
     }
   }
 
+  /**
+   * Joins the room a list entry stands for, asking for its password first when it has one.
+   *
+   * The password is kept on the reader's cursor for reconnecting. A wrong password leaves the lobby
+   * open; a successful join closes it.
+   */
   async connect(peerContexts: PeerContext[]) {
     const context = peerContexts[0];
     let password = '';
@@ -132,6 +150,10 @@ export class LobbyComponent {
     });
   }
 
+  /**
+   * Opens the dialog for creating a room, and refreshes the room list when it closes without
+   * creating one.
+   */
   async showRoomSetting() {
     const created = await this.modalService.open<boolean>(RoomSettingComponent, {
       width: 700,

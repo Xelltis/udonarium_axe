@@ -116,10 +116,18 @@ export class RoomSettingsPanelComponent {
 
   readonly isKeeping = this.roomSnapshot.isKeeping;
 
+  /**
+   * Opens the character import panel, which brings a piece in from an outside character sheet
+   * service.
+   */
   openCharacterImport(): void {
     this.roomPanels.open('characterImport');
   }
 
+  /**
+   * Starts or stops keeping copies of the room on this device, from the checkbox; the copies never
+   * leave the device.
+   */
   setKeeping(event: Event): void {
     this.roomSnapshot.setKeeping((event.target as HTMLInputElement).checked);
   }
@@ -189,6 +197,11 @@ export class RoomSettingsPanelComponent {
     triggerUpdateGameObject(table.toContext());
   }
 
+  /**
+   * Whether lines sent with the ticker button run round the edges of this screen.
+   *
+   * Like every display setting here, it is set for this screen alone.
+   */
   get tickerEnabled(): boolean {
     return this.displaySettings.multiAngleTickerEnabled;
   }
@@ -196,6 +209,7 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ multiAngleTickerEnabled: value });
   }
 
+  /** How fast the edge ticker runs, in pixels per second; set for this screen alone. */
   get tickerPixelsPerSecond(): number {
     return this.displaySettings.multiAngleTickerPixelsPerSecond;
   }
@@ -203,6 +217,10 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ multiAngleTickerPixelsPerSecond: Number(value) });
   }
 
+  /**
+   * The real width of one square on this screen, in millimetres, clamped to the range allowed; set
+   * for this screen alone.
+   */
   get cellMm(): number {
     return this.displaySettings.cellMm;
   }
@@ -222,6 +240,10 @@ export class RoomSettingsPanelComponent {
     };
   });
 
+  /**
+   * Whether common windows carry a button that turns them a quarter at a time to face another side
+   * of the table; set for this screen alone.
+   */
   get panelRotationEnabled(): boolean {
     return this.displaySettings.panelRotationEnabled;
   }
@@ -229,6 +251,10 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ panelRotationEnabled: value });
   }
 
+  /**
+   * Whether the table is drawn without perspective, for a screen laid flat; set for this screen
+   * alone.
+   */
   get orthographicProjection(): boolean {
     return this.displaySettings.orthographicProjection;
   }
@@ -236,6 +262,10 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ orthographicProjection: value });
   }
 
+  /**
+   * Where the detail of a hovered piece appears; set for this screen alone. An unknown value is
+   * corrected on the way in.
+   */
   get hoverDetailPlacement(): HoverDetailPlacement {
     return this.displaySettings.hoverDetailPlacement;
   }
@@ -265,6 +295,10 @@ export class RoomSettingsPanelComponent {
     if (wanted) this.viewMode.choose('flat');
   }
 
+  /**
+   * Which shape the right-click menu takes while the table is seen from above: a plain list,
+   * four-way or turning; set for this screen alone.
+   */
   get tabletopMenuStyle(): TabletopMenuStyle {
     return this.displaySettings.tabletopMenuStyle;
   }
@@ -272,6 +306,7 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ tabletopMenuStyle: value });
   }
 
+  /** How fast the turning right-click menu spins; set for this screen alone. */
   get radialMenuRotationSpeed(): number {
     return this.displaySettings.radialMenuRotationSpeed;
   }
@@ -279,6 +314,7 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ radialMenuRotationSpeed: Number(value) });
   }
 
+  /** Whether piece names curve and orbit round the pieces; set for this screen alone. */
   get multiAngleEnabled(): boolean {
     return this.displaySettings.multiAngleEnabled;
   }
@@ -286,6 +322,10 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ multiAngleEnabled: value });
   }
 
+  /**
+   * Whether up to four resources and buffs orbit a piece along with its name; set for this screen
+   * alone.
+   */
   get multiAngleResourceBuffEnabled(): boolean {
     return this.displaySettings.multiAngleResourceBuffEnabled;
   }
@@ -293,6 +333,10 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ multiAngleResourceBuffEnabled: value });
   }
 
+  /**
+   * How large the text in the menus and the ticker is drawn; set for this screen alone. An unknown
+   * value is corrected on the way in.
+   */
   get multiAngleFontScale(): MultiAngleFontScale {
     return this.displaySettings.multiAngleFontScale;
   }
@@ -300,6 +344,13 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ multiAngleFontScale: asMultiAngleFontScale(value) });
   }
 
+  /**
+   * How orbiting names move: turning without stopping, or a quarter turn and a pause, for
+   * everything or the piece alone.
+   *
+   * Choosing a mode also resets the time a piece takes for a lap, to the default for continuous
+   * motion and to five seconds otherwise. It is set for this screen alone.
+   */
   get multiAngleMotionMode(): MultiAngleMotionMode {
     return this.displaySettings.multiAngleMotionMode;
   }
@@ -311,6 +362,7 @@ export class RoomSettingsPanelComponent {
     });
   }
 
+  /** How many seconds orbiting names take for one lap; set for this screen alone. */
   get multiAngleRevolutionSeconds(): number {
     return this.displaySettings.multiAngleRevolutionSeconds;
   }
@@ -318,6 +370,7 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ multiAngleRevolutionSeconds: Number(value) });
   }
 
+  /** How many seconds orbiting names rest after each quarter turn; set for this screen alone. */
   get multiAnglePauseSeconds(): number {
     return this.displaySettings.multiAnglePauseSeconds;
   }
@@ -325,6 +378,10 @@ export class RoomSettingsPanelComponent {
     this.displaySet({ multiAnglePauseSeconds: Number(value) });
   }
 
+  /**
+   * How many seconds a piece takes for one lap when the piece turns on its own; set for this screen
+   * alone.
+   */
   get multiAnglePieceRevolutionSeconds(): number {
     return this.displaySettings.multiAnglePieceRevolutionSeconds;
   }
@@ -339,6 +396,10 @@ export class RoomSettingsPanelComponent {
   protected readonly calibrationDpi = this.displayCalibration.dpi;
   protected readonly needsRecalibration = this.displayCalibration.needsRecalibration;
 
+  /**
+   * Whether the view is locked against panning, zooming and turning; it belongs to this browser
+   * alone.
+   */
   get viewLocked(): boolean {
     return this.viewLock.locked();
   }
@@ -346,6 +407,12 @@ export class RoomSettingsPanelComponent {
     this.viewLock.set(value);
   }
 
+  /**
+   * Whether one square is drawn at its real width on this screen.
+   *
+   * Asking for it before the screen has been measured opens the calibration dialog instead, and
+   * leaves it off.
+   */
   get realSizeEnabled(): boolean {
     return this.displayCalibration.realSizeEnabled();
   }
@@ -358,11 +425,16 @@ export class RoomSettingsPanelComponent {
     this.displayCalibration.setRealSizeEnabled(value);
   }
 
+  /** Opens the dialog that measures this screen against an ID-1 card. */
   openCalibration(): void {
     // Without this the shell holds a fixed 800px and clips the frame the card is matched against.
     void this.modalService.open(DisplayCalibrationComponent, { fitWidth: true });
   }
 
+  /**
+   * Makes the measured square larger or smaller by a number of steps, for the buttons beside the
+   * measurement.
+   */
   nudgeScale(steps: number): void {
     this.displayCalibration.nudge(steps);
   }
@@ -419,6 +491,12 @@ export class RoomSettingsPanelComponent {
     return this.zocMode === 'cost';
   }
 
+  /**
+   * How the round is taken, read from the room's config.
+   *
+   * Setting it writes to the config, which reaches every peer; ignored for a user who cannot edit
+   * the tabletop.
+   */
   get turnOrderMode(): TurnOrderMode {
     this.objectChange.versionOf('Config')();
     return this.config.turnOrderMode;
@@ -427,10 +505,17 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.turnOrderMode = mode;
   }
 
+  /** Whether the round is taken side by side, which is when the faction settings are shown. */
   get takesRoundBySides(): boolean {
     return this.turnOrderMode === 'faction';
   }
 
+  /**
+   * How pieces take their turns within a side's phase, read from the room's config.
+   *
+   * Setting it writes to the config, which reaches every peer; ignored for a user who cannot edit
+   * the tabletop.
+   */
   get factionPhaseMode(): FactionPhaseMode {
     this.objectChange.versionOf('Config')();
     return this.config.factionPhaseMode;
@@ -439,6 +524,13 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.factionPhaseMode = mode;
   }
 
+  /**
+   * Whether pieces on no party sit the round out when it is taken by sides, read from the room's
+   * config.
+   *
+   * Setting it writes to the config, which reaches every peer; ignored for a user who cannot edit
+   * the tabletop.
+   */
   get factionSkipUnassigned(): boolean {
     this.objectChange.versionOf('Config')();
     return this.config.factionSkipUnassigned;
@@ -468,6 +560,12 @@ export class RoomSettingsPanelComponent {
     this.config.factionOrder = encodeFactionOrder(order);
   }
 
+  /**
+   * Whether buffs count down as the round goes.
+   *
+   * Setting it goes through the turn order service; ignored for a user who cannot edit the
+   * tabletop.
+   */
   get buffDecay(): boolean {
     this.objectChange.versionOf('TurnState')();
     return this.turnOrder.buffDecay;
@@ -480,10 +578,16 @@ export class RoomSettingsPanelComponent {
     return this.objectStore.getObjects<Party>(Party);
   }
 
+  /** The dice bots there are to choose the room's default from. */
   get diceBotInfos() {
     return this.diceBotCatalog.infos();
   }
 
+  /**
+   * The dice bot everyone joining the room starts on, read from the room's config.
+   *
+   * Only a user allowed to change the shared settings can set it.
+   */
   get defaultDiceBot(): string {
     this.objectChange.versionOf('Config')();
     return this.config.defaultDiceBot;
@@ -492,10 +596,20 @@ export class RoomSettingsPanelComponent {
     if (!this.isSharedReadOnly()) this.config.defaultDiceBot = gameType;
   }
 
+  /**
+   * Loads a dice bot as soon as it is picked, by fetching its help text in the background; the text
+   * itself is not used here.
+   */
   loadDiceBot(gameType: string): void {
     DiceBot.getHelpMessage(gameType).then(() => {});
   }
 
+  /**
+   * How a piece shows which way it faces, as the rules in force have it.
+   *
+   * Only a user allowed to change the shared settings can set it, which writes the room's own
+   * answer.
+   */
   get facingMark(): TableFacingMark {
     return asTableFacingMark(this.rules.facingMark);
   }
@@ -503,6 +617,13 @@ export class RoomSettingsPanelComponent {
     if (!this.isSharedReadOnly()) this.config.facingMark = asTableFacingMark(value);
   }
 
+  /**
+   * Whether a tall piece picture is held inside its cell while the table is seen from above, as the
+   * rules in force have it.
+   *
+   * Only a user allowed to change the shared settings can set it, which writes the room's own
+   * answer.
+   */
   get pieceImageInCell(): boolean {
     return this.rules.pieceImageInCell;
   }
@@ -510,6 +631,13 @@ export class RoomSettingsPanelComponent {
     if (!this.isSharedReadOnly()) this.config.pieceImageInCell = value;
   }
 
+  /**
+   * Whether the cells a piece can walk to are shown while it is picked up, as the rules in force
+   * have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop.
+   */
   get moveRangeEnabled(): boolean {
     return this.rules.moveRangeEnabled;
   }
@@ -517,6 +645,12 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.moveRangeEnabled = value;
   }
 
+  /**
+   * Whether the reach of the picked piece stays shown, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop.
+   */
   get moveRangeAlways(): boolean {
     return this.rules.moveRangeAlways;
   }
@@ -524,6 +658,12 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.moveRangeAlways = value;
   }
 
+  /**
+   * How a step across a corner is counted, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop. An unknown value falls back to the default.
+   */
   get diagonalMove(): DiagonalMove {
     return this.rules.diagonalMove;
   }
@@ -531,6 +671,13 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.diagonalMove = asDiagonalMove(value) ?? DEFAULT_DIAGONAL_MOVE;
   }
 
+  /**
+   * Whether two pieces may stand on one cell, as the rules in force have it; when off, an occupied
+   * cell is no place to stop.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop.
+   */
   get piecesShareCells(): boolean {
     return this.rules.piecesShareCells;
   }
@@ -538,6 +685,14 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.piecesShareCells = value;
   }
 
+  /**
+   * Whether a piece walks the cheapest drawn way to where it is set down, stopping at walls and at
+   * the end of its movement.
+   *
+   * It is read from the room's config directly rather than from the rules in force. Setting it
+   * writes to the config, which reaches every peer; ignored for a user who cannot edit the
+   * tabletop.
+   */
   get moveStrict(): boolean {
     this.objectChange.versionOf('Config')();
     return this.config.moveStrict;
@@ -546,6 +701,13 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.moveStrict = value;
   }
 
+  /**
+   * The comma-separated sheet fields a piece's movement is read from, the first one the sheet has
+   * being used; as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop.
+   */
   get moveRangeElementNames(): string {
     return this.rules.moveRangeElementNames;
   }
@@ -553,6 +715,12 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.moveRangeElementNames = value;
   }
 
+  /**
+   * What one cell stands for in the chosen unit, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop. Anything but a positive number is stored as 0.
+   */
   get cellDistance(): number {
     return this.rules.cellDistance;
   }
@@ -575,6 +743,12 @@ export class RoomSettingsPanelComponent {
     this.config.cellDistanceUnit = value;
   }
 
+  /**
+   * Whether and how enemy pieces hold the ground around them, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop. An unknown value is corrected on the way in.
+   */
   get zocMode(): ZocMode {
     return this.rules.zocMode;
   }
@@ -582,6 +756,12 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.zocMode = asZocMode(value);
   }
 
+  /**
+   * How many cells the ground an enemy piece holds reaches, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop. Anything but a whole number above zero is stored as 0.
+   */
   get zocRange(): number {
     return this.rules.zocRange;
   }
@@ -589,6 +769,12 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.zocRange = wholeCells(value);
   }
 
+  /**
+   * Whether the ground held against the picked piece stays shown, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop.
+   */
   get zocAlways(): boolean {
     return this.rules.zocAlways;
   }
@@ -596,6 +782,12 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.zocAlways = value;
   }
 
+  /**
+   * What a step into held ground costs on top, in cells, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop. Anything but a whole number above zero is stored as 0.
+   */
   get zocExtraCost(): number {
     return this.rules.zocExtraCost;
   }
@@ -603,6 +795,13 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.zocExtraCost = wholeCells(value);
   }
 
+  /**
+   * Whether pieces meeting in held ground are held as one fight that charges for the step leaving
+   * it, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop.
+   */
   get zocEngages(): boolean {
     return this.rules.zocEngages;
   }
@@ -610,6 +809,12 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.zocEngages = value;
   }
 
+  /**
+   * How a piece leaves a fight, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop. An unknown value is corrected on the way in.
+   */
   get breakOutMode(): BreakOutMode {
     return this.rules.breakOutMode;
   }
@@ -617,6 +822,12 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.breakOutMode = asBreakOutMode(value);
   }
 
+  /**
+   * What leaving a fight costs, in cells, as the rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop. Anything but a whole number above zero is stored as 0.
+   */
   get breakOutCost(): number {
     return this.rules.breakOutCost;
   }
@@ -624,6 +835,13 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.breakOutCost = wholeCells(value);
   }
 
+  /**
+   * Whether a piece is weighed in a fight by the ground it covers rather than one apiece, as the
+   * rules in force have it.
+   *
+   * Setting it writes the room's own answer to its config, which reaches every peer; ignored for a
+   * user who cannot edit the tabletop.
+   */
   get engagementCountsSize(): boolean {
     return this.rules.engagementCountsSize;
   }

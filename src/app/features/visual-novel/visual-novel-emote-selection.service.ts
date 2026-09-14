@@ -53,6 +53,7 @@ export class VisualNovelEmoteSelectionService {
     this.isGameMaster() ? VN_MESSAGE_KINDS : VN_MESSAGE_KINDS.filter((kind) => kind !== 'scene')
   );
 
+  /** Puts every staging choice back to the default, as after a line is sent or novel mode closes. */
   reset(): void {
     this.kind.set(VN_EMOTE_DEFAULT.kind);
     this.shape.set(VN_EMOTE_DEFAULT.shape);
@@ -62,6 +63,7 @@ export class VisualNovelEmoteSelectionService {
     this.exited.set(VN_EMOTE_DEFAULT.exited);
   }
 
+  /** Flips whether the next line marks its speaker as leaving the stage. */
   toggleExit(): void {
     this.exited.update((exited) => !exited);
   }

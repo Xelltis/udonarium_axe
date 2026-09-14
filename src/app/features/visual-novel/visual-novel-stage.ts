@@ -54,6 +54,7 @@ export function slotBandLeft(slot: number): number {
   return (leftOfSlot(slot - 1) + leftOfSlot(slot)) / 2;
 }
 
+/** How wide a slot's strip of the slot guide is, as a percentage of the stage, the end strips running to the edge. */
 export function slotBandWidth(slot: number): number {
   const right = slot >= VN_STAGE_SLOT_COUNT - 1 ? 100 : (leftOfSlot(slot) + leftOfSlot(slot + 1)) / 2;
   return right - slotBandLeft(slot);
@@ -74,6 +75,7 @@ export function stageIdentityOf(source: VnStageSource): string {
   return source.sendFrom.length > 0 ? source.sendFrom : source.name;
 }
 
+/** A portrait position as a stage slot, taking anything missing or off the stage as slot 0. */
 export function slotOf(imagePos: number | null): number {
   if (imagePos == null || imagePos < 0 || imagePos >= VN_STAGE_SLOT_COUNT) return 0;
   return imagePos;
@@ -132,6 +134,15 @@ export function stageCutFor(resetAt: number, currentPlacedAt: number, isLatest: 
   return isLatest || currentPlacedAt >= resetAt ? resetAt : 0;
 }
 
+/**
+ * Who stands on the novel stage for the last line of `window`, and where.
+ *
+ * Reading back from that line, it gathers up to six characters with a portrait, one per piece, and
+ * stops at a scene change or at `cut`. System lines, dice and dice commands are passed over; a
+ * character who left the stage is dropped, unless the current line is the one they leave on. A
+ * location or scene line clears the stage. The cast is ordered by slot, spread apart, and the
+ * speaker of an ordinary current line is marked active.
+ */
 export function buildVnStage(
   window: readonly VnStageSource[],
   resolveUrl: (imageIdentifier: string) => string,

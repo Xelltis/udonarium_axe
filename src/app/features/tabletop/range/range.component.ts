@@ -195,9 +195,11 @@ export class RangeComponent {
     clip06y: -50,
   };
 
+  /** The room's table selector, which knows which table is being viewed. */
   get tableSelecter(): TableSelecter {
     return this.tabletopService.tableSelecter;
   }
+  /** The table being viewed, whose grid type the range lines its cells up with. */
   get currentTable(): GameTable {
     return this.tabletopService.currentTable;
   }
@@ -293,6 +295,7 @@ export class RangeComponent {
 
   private readonly _clipVersion = signal(0);
 
+  /** The table's grid cell size in pixels, which the range's length, width and altitude are measured in. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -348,15 +351,23 @@ export class RangeComponent {
     return this.inputRef.current;
   }
 
+  /** Stops the browser's own drag of the range's element, so only the table's drag moves it. */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /** Lets go of a press that starts on the range, so it does not hold on to the pointer. */
   onInputStart(_e: MouseEvent | TouchEvent) {
     this.input?.cancel();
   }
 
+  /**
+   * Opens the range's right-click menu at the pointer.
+   *
+   * On a 2D table set to a radial menu style it opens as a radial menu. When several pieces are
+   * selected, the menu for the selection opens instead.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -393,6 +404,7 @@ export class RangeComponent {
     this.contextMenuService.open(menuPosition, menu.actions, this.name());
   }
 
+  /** Opens the panel for choosing a character for the range to follow, from the follow menu entry. */
   dockingWindowOpen() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -406,14 +418,17 @@ export class RangeComponent {
     component.tabletopObject = this.range();
   }
 
+  /** Plays the pick-up sound when a drag or a turn of the range begins. */
   onMove() {
     SoundEffect.play(PresetSound.cardPick);
   }
 
+  /** Plays the put-down sound when a drag or a turn of the range ends. */
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
   }
 
+  /** Redraws the range at the angle it is being turned to, while the rotate grip is dragged. */
   onRotateChanged(degree: number) {
     this.setRange(degree);
   }

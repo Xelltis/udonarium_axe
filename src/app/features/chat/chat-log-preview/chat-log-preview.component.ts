@@ -80,14 +80,22 @@ export class ChatLogPreviewComponent {
     });
   }
 
+  /** Switches the log style shown in the preview, remembering it as this player's preference. */
   choose(style: ChatLogStyle): void {
     this.preference.choose(style);
   }
 
+  /** Switches between saving the one tab and saving every tab; a system tab always saves alone. */
   chooseScope(scope: ChatLogScope): void {
     this.scope.set(scope);
   }
 
+  /**
+   * Saves the log in the style and scope being previewed.
+   *
+   * The whole log is written, not the trimmed preview. Does nothing while a save is already under way
+   * or when there is no tab to save.
+   */
   async save(): Promise<void> {
     const scope = this.effectiveScope();
     const tabs = this.sourceTabs(this.tab(), scope);

@@ -21,10 +21,12 @@ export class TableAmbienceSettingsComponent {
 
   readonly kinds = GROUND_AMBIENCE_KINDS;
 
+  /** The translated name of a kind of ground ambience, for the kind dropdown. */
   kindLabel(kind: AmbienceKind): string {
     return this.t(`feature.ambience.kind.${kind}`);
   }
 
+  /** The ambience's name as shown on the table. */
   get name(): string {
     return this.target?.name ?? '';
   }
@@ -32,6 +34,7 @@ export class TableAmbienceSettingsComponent {
     if (this.target) this.target.name = value;
   }
 
+  /** Which kind of ground ambience is drawn, such as a swamp; a change is sent to the room. */
   get kind(): string {
     return this.target?.kind ?? 'swamp';
   }
@@ -41,6 +44,7 @@ export class TableAmbienceSettingsComponent {
     this.target.update();
   }
 
+  /** How dense the ambience is, as a percentage; a change is sent to the room. */
   get densityPercent(): number {
     return Math.round((this.target?.density ?? 0) * 100);
   }
@@ -60,16 +64,19 @@ export class TableAmbienceSettingsComponent {
     this.target.update();
   }
 
+  /** Whether no colour of its own is set, which disables the reset button. */
   get isDefaultColor(): boolean {
     return (this.target?.ambienceColor ?? '').trim().length < 1;
   }
 
+  /** Clears the ambience's own colour so it goes back to its kind's default, from the reset button. */
   resetColor(): void {
     if (!this.target) return;
     this.target.ambienceColor = '';
     this.target.update();
   }
 
+  /** How many cells wide the ambience is, held between 1 and 100. */
   get width(): number {
     return this.target?.width ?? 1;
   }
@@ -77,6 +84,7 @@ export class TableAmbienceSettingsComponent {
     if (this.target) this.target.width = clampCells(value);
   }
 
+  /** How many cells tall the ambience is, held between 1 and 100. */
   get height(): number {
     return this.target?.height ?? 1;
   }
@@ -84,6 +92,7 @@ export class TableAmbienceSettingsComponent {
     if (this.target) this.target.height = clampCells(value);
   }
 
+  /** Whether the ambience is locked in place on the table. */
   get isLock(): boolean {
     return this.target?.isLock ?? false;
   }

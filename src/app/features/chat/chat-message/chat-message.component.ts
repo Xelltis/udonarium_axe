@@ -100,10 +100,12 @@ export class ChatMessageComponent {
   get canChange(): boolean {
     return !this.readOnly() && (this.chatMessage?.changeable ?? false);
   }
+  /** The message this row draws, as passed in through the `chatMessage` input. */
   get chatMessage(): ChatMessage {
     return this.chatMessageInput();
   }
 
+  /** Whether the line was posted by the app itself, whose name and text are translation keys to decode. */
   get isSystemMessage(): boolean {
     return !!this.chatMessage?.isSystemMessage;
   }
@@ -289,6 +291,7 @@ export class ChatMessageComponent {
     });
   }
 
+  /** The room's list of chat tabs, which the tabs a line can be copied into are chosen from. */
   get chatTabList(): ChatTabList {
     return this.objectStore.get<ChatTabList>('ChatTabList')!;
   }
@@ -298,6 +301,7 @@ export class ChatMessageComponent {
     return this.chatMessageService.canDiscloseMessage(this.chatMessage);
   }
 
+  /** Reveals a kept-back roll to the room, from the button shown on the hidden line. */
   discloseMessage() {
     this.chatMessageService.discloseMessage(this.chatMessage);
   }
@@ -306,6 +310,12 @@ export class ChatMessageComponent {
   readonly isEditing = computed(() => this.editDraft() !== null);
   readonly editingTextArea = viewChild<ElementRef<HTMLTextAreaElement>>('editingTextArea');
 
+  /**
+   * Opens the line for editing in place, from the pencil button or the line's menu.
+   *
+   * The draft starts from the words alone, without any novel-mode staging, and the text area is
+   * focused with the caret at the end once it is drawn. Does nothing for a line that may not change.
+   */
   startEdit() {
     if (!this.chatMessage.changeable) return;
     this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
@@ -319,6 +329,12 @@ export class ChatMessageComponent {
     });
   }
 
+  /**
+   * Writes the draft back to the message and closes the editor.
+   *
+   * Trailing space is dropped, and a draft left empty is treated as a cancel. A change marks the line
+   * as edited and reaches the room through the synced message; an unchanged draft writes nothing.
+   */
   saveEdit() {
     const draft = this.editDraft();
     if (draft === null) return;
@@ -338,16 +354,19 @@ export class ChatMessageComponent {
     this.editDraft.set(null);
   }
 
+  /** Closes the editor and throws the draft away, leaving the message as it was. */
   cancelEdit() {
     this.editDraft.set(null);
   }
 
+  /** Keeps the draft in step with the edit box and grows the box to fit, up to its height limit. */
   onEditInput(value: string) {
     this.editDraft.set(value);
     const el = this.editingTextArea()?.nativeElement;
     if (el) this.autoFitHeight(el);
   }
 
+  /** Escape cancels the edit and Enter saves it; Shift+Enter and keys pressed mid-composition type as usual. */
   onEditKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -429,27 +448,32 @@ export class ChatMessageComponent {
     return formatChatTickerMessage(message) != null;
   });
 
+  /** Asks the chat input to reply to this line, from the reply button or the line's menu. */
   clickReply() {
     if (!this.canInteract) return;
     this.uiSignalService.requestChatReply(this.chatMessage.identifier);
   }
 
+  /** Asks the chat input to quote this line, from the quote button or the line's menu. */
   clickQuote() {
     if (!this.canInteract) return;
     this.uiSignalService.requestChatQuote(this.chatMessage.identifier);
   }
 
+  /** Puts this line in the ticker running round the table, where that ticker is shown at all. */
   clickShowInTicker() {
     if (!this.canShowInTicker()) return;
     this.chatTickerSelection.showMessage(this.chatMessage.identifier);
   }
 
+  /** Scrolls the log to the line this one replies to and flashes it, from the reply preview. */
   jumpToReplyTarget() {
     const target = this.chatMessage?.replyTo;
     if (!target) return;
     this.uiSignalService.requestChatJump(target);
   }
 
+  /** Scrolls the log to the line this one quotes and flashes it, from the quote preview. */
   jumpToQuoteTarget() {
     const target = this.chatMessage?.quoteOf;
     if (!target) return;
@@ -493,11 +517,17 @@ export class ChatMessageComponent {
     return this.canInteract && this.copyTargets().length > 0;
   }
 
+  /** Opens or closes the list of tabs to copy the line into, from the copy button. */
   toggleCopyPicker(): void {
     if (!this.canCopyToTab) return;
     this.isCopyPickerOpen.update((open) => !open);
   }
 
+  /**
+   * Posts a copy of this line into another tab, closing the tab list and playing the card sound.
+   *
+   * Nothing is sent when the line may not be copied or this player's role may not speak in that tab.
+   */
   copyToTab(tab: ChatTab): void {
     this.isCopyPickerOpen.set(false);
     if (!this.canCopyToTab) return;
@@ -508,6 +538,12 @@ export class ChatMessageComponent {
     SoundEffect.play(PresetSound.cardPut);
   }
 
+  /**
+   * Lays the line on the table as a text note titled with the speaker's name.
+   *
+   * The note is sized from the length and number of lines of the text, stood upright unless the table
+   * is in 2D, and dropped near the table's centre. An empty line makes no note.
+   */
   clickShareAsMemo() {
     if (!this.canShareAsMemo) return;
     const msg = this.chatMessage;
@@ -556,12 +592,19 @@ export class ChatMessageComponent {
     });
   });
 
+  /** The speaker's name as shown, translated for a system line and redrawn when the language changes. */
   displayName(name: string): string {
     this.language.currentLang();
     if (!this.isSystemMessage) return name;
     return decodeI18nMessage(name, this.t);
   }
 
+  /**
+   * A short tag for who sent the line, shown beside the name.
+   *
+   * The first six characters of the sender's peer ID while they are connected, otherwise the user ID
+   * itself, cut to six characters when it is longer than eight.
+   */
   shortFrom(from: string): string {
     if (!from) return '';
     const peerId = PeerCursor.findByUserId(from)?.peerId;
@@ -569,6 +612,12 @@ export class ChatMessageComponent {
     return from.length > 8 ? from.slice(0, 6) : from;
   }
 
+  /**
+   * The line's body as HTML, with markup escaped and ruby and the chat's text decorations applied.
+   *
+   * Any novel-mode staging suffix is left out, a system line is translated first, and the result is
+   * recomputed when the language or the message changes.
+   */
   escapeHtmlAndRuby(text: string) {
     this.language.currentLang();
     this.objectChange.versionOf(this.chatMessage?.identifier)();

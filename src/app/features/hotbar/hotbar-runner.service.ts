@@ -74,6 +74,12 @@ export class HotbarRunnerService {
     });
   }
 
+  /**
+   * Fires a slot as the given character, and says whether it ran or why it did not.
+   *
+   * The cell is where the slot sits. What the slot lays on the table is marked with it, so a second
+   * press takes that away again. A kind of slot that acts through a character fails without one.
+   */
   run(slot: HotbarSlot, character: GameCharacter | null, cell: HotbarCell): HotbarRunResult {
     const kind = slot.slotKind;
     if (hotbarSlotNeedsCharacter(kind) && !character) return failed('noCharacter');

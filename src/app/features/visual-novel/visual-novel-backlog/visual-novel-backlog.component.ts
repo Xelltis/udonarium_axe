@@ -156,14 +156,20 @@ export class VisualNovelBacklogComponent {
     this.playback.jumpToIdentifier(identifier);
   }
 
+  /** Narrows the backlog to the lines this reader sent, or lifts that narrowing. */
   toggleOnlyMine(): void {
     this.onlyMine.update((only) => !only);
   }
 
+  /** Narrows the backlog to the lines that carry an emote, or lifts that narrowing. */
   toggleOnlyEmote(): void {
     this.onlyEmote.update((only) => !only);
   }
 
+  /**
+   * Scrolls the backlog to the line now on the stage. Does nothing when that line is not among
+   * those listed.
+   */
   scrollToCurrent(): void {
     this.rowFor(this.currentIdentifier())?.scrollIntoView({ block: 'center' });
   }
@@ -182,6 +188,10 @@ export class VisualNovelBacklogComponent {
 
   readonly hiddenCount = computed(() => this.filteredEntries().length - this.windowedEntries().length);
 
+  /**
+   * Lists another 200 earlier lines above those already listed, which are cut short to keep a long
+   * log quick to draw.
+   */
   loadMoreEntries(): void {
     this.visibleCount.update((count) => count + BACKLOG_PAGE_SIZE);
   }
@@ -205,6 +215,10 @@ export class VisualNovelBacklogComponent {
     return list?.querySelector<HTMLElement>(`[data-vn-log-id="${identifier}"]`) ?? null;
   }
 
+  /**
+   * The character an emotion mark is shown as among the choices of the edit form; empty for no
+   * mark.
+   */
   emotionMarkLabel(mark: VnEmotionMark): string {
     return mark === 'none' ? '' : VN_EMOTION_MARK_CHARS[mark];
   }
@@ -228,6 +242,10 @@ export class VisualNovelBacklogComponent {
     this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, entry.name);
   }
 
+  /**
+   * Opens the edit form on a line, filled in with its text, its emote and where its portrait
+   * stands. Does nothing for a line that may not be changed.
+   */
   startEditEntry(entry: { message: ChatMessage; index: number }): void {
     if (!entry.message.changeable) return;
     const raw = entry.message.text ?? '';
@@ -245,10 +263,17 @@ export class VisualNovelBacklogComponent {
     this.editingIdentifier.set(entry.message.identifier);
   }
 
+  /** Closes the edit form without keeping what was changed in it. */
   cancelEditEntry(): void {
     this.editingIdentifier.set('');
   }
 
+  /**
+   * Writes the edit form back to the line and closes the form.
+   *
+   * Empty text is not kept, and the form stays open for it. The line is marked as edited only where
+   * its text or emote changed; a line that may no longer be changed closes the form without a word.
+   */
   saveEditEntry(): void {
     const message = this.playback.logMessages().find((candidate) => candidate.identifier === this.editingIdentifier());
     if (!message?.changeable) {

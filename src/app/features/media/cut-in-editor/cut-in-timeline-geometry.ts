@@ -42,6 +42,7 @@ export const MIN_TIMELINE_ZOOM = 1;
 export const MAX_TIMELINE_ZOOM = 32;
 export const TIMELINE_ZOOM_STEP = 1.5;
 
+/** Holds a timeline zoom between fitting and 32 times that; anything not a number goes back to fitting. */
 export function clampZoom(zoom: number): number {
   if (!Number.isFinite(zoom)) return MIN_TIMELINE_ZOOM;
   return Math.min(MAX_TIMELINE_ZOOM, Math.max(MIN_TIMELINE_ZOOM, zoom));
@@ -81,6 +82,12 @@ export function scrollToHold(
  */
 export const MAGNET_PX = 7;
 
+/**
+ * Where a dragged moment lands, held inside the scene.
+ *
+ * The nearest of `nearby` within the magnet's reach on screen wins; with none that close the moment
+ * is rounded to the grid instead.
+ */
 export function snapToNearby(
   ms: number,
   nearby: readonly number[],
@@ -159,10 +166,12 @@ export function pxPerSecFor(durationMs: number, width: number): number {
   return (width * 1000) / durationMs;
 }
 
+/** How far along the track, in pixels, a moment falls at a scale. */
 export function msToX(ms: number, pxPerSec: number): number {
   return (ms * pxPerSec) / 1000;
 }
 
+/** The moment at a distance along the track; a scale of zero or less gives 0. */
 export function xToMs(x: number, pxPerSec: number): number {
   if (pxPerSec <= 0) return 0;
   return (x * 1000) / pxPerSec;

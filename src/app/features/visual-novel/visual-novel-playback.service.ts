@@ -247,10 +247,16 @@ export class VisualNovelPlaybackService {
     });
   }
 
+  /** Starts playback when the novel screen opens, so lines are typed out and auto play can run. */
   attach(): void {
     this.attached.set(true);
   }
 
+  /**
+   * Stops playback when the novel screen closes.
+   *
+   * Typing, auto play and skipping all stop, and reading goes back to following the latest line.
+   */
   detach(): void {
     this.attached.set(false);
     this.stopAutoPlay();
@@ -260,6 +266,11 @@ export class VisualNovelPlaybackService {
     this.cursor.set(-1);
   }
 
+  /**
+   * Reads a different chat tab, remembering the choice in this browser for next time.
+   *
+   * Auto play stops and reading starts from that tab's latest line.
+   */
   setChatTab(identifier: string): void {
     this.stopAutoPlay();
     this._chatTabIdentifier.set(identifier);
@@ -274,6 +285,12 @@ export class VisualNovelPlaybackService {
     return tabs.length > 0 ? tabs[0].identifier : '';
   }
 
+  /**
+   * Moves reading on by one step.
+   *
+   * A line still being typed is shown whole first. Otherwise the next line is read, and reaching the
+   * last line goes back to following the latest.
+   */
   advance(): void {
     if (this.isTyping()) {
       this.stopTypewriter();
@@ -289,6 +306,7 @@ export class VisualNovelPlaybackService {
     this.cursor.set(index + 1 >= lastIndex ? -1 : index + 1);
   }
 
+  /** Steps back to the line before, shown whole at once; does nothing on the first line. */
   back(): void {
     const index = this.currentIndex();
     if (index <= 0) return;
@@ -296,21 +314,29 @@ export class VisualNovelPlaybackService {
     this.cursor.set(index - 1);
   }
 
+  /** Moves reading on because the reader asked to, which stops auto play first. */
   userAdvance(): void {
     this.stopAutoPlay();
     this.advance();
   }
 
+  /** Steps back because the reader asked to, which stops auto play first. */
   userBack(): void {
     this.stopAutoPlay();
     this.back();
   }
 
+  /** Stops auto play and goes to the latest line, following new lines as they arrive. */
   toLatest(): void {
     this.stopAutoPlay();
     this.cursor.set(-1);
   }
 
+  /**
+   * Stops auto play and reads the line at an index of the script, shown whole at once.
+   *
+   * The last line or beyond goes back to following the latest; a negative index does nothing.
+   */
   jumpTo(index: number): void {
     this.stopAutoPlay();
     const lastIndex = this.messages().length - 1;
@@ -319,10 +345,18 @@ export class VisualNovelPlaybackService {
     this.cursor.set(index >= lastIndex ? -1 : index);
   }
 
+  /** Goes to the latest line, as after this reader sends one, without stopping auto play. */
   followLatest(): void {
     this.cursor.set(-1);
   }
 
+  /**
+   * Reads the line with this message identifier, as when following the director or picking from the backlog.
+   *
+   * A line the script leaves out resumes at the nearest line before it that the script has, or at the
+   * first line when none comes before. An empty or unknown identifier does nothing. Auto play is not
+   * stopped.
+   */
   jumpToIdentifier(identifier: string): void {
     if (identifier.length < 1) return;
     const messages = this.messages();
@@ -348,6 +382,7 @@ export class VisualNovelPlaybackService {
     if (messages.length > 0) this.cursor.set(messages.length > 1 ? 0 : -1);
   }
 
+  /** Starts auto play from the line being read, or stops it; it will not start on the latest line. */
   toggleAutoPlay(): void {
     if (this.autoPlay()) {
       this.stopAutoPlay();
@@ -358,6 +393,7 @@ export class VisualNovelPlaybackService {
     this.autoPlay.set(true);
   }
 
+  /** Goes back to the first line and plays the tab through automatically; does nothing on an empty tab. */
   playFromStart(): void {
     this.stopAutoPlay();
     if (this.messages().length < 1) return;
@@ -366,11 +402,18 @@ export class VisualNovelPlaybackService {
     this.autoPlay.set(true);
   }
 
+  /** Stops auto play and cancels the wait before its next line. */
   stopAutoPlay(): void {
     this.autoPlay.set(false);
     this.clearAutoPlayTimer();
   }
 
+  /**
+   * Starts fast-forwarding, as while Control is held.
+   *
+   * Auto play stops, and lines are shown whole and stepped through quickly until the latest is
+   * reached or skipping is stopped. A second call while skipping does nothing.
+   */
   startSkip(): void {
     if (this.skipTimer != null) return;
     this.stopAutoPlay();
@@ -379,6 +422,7 @@ export class VisualNovelPlaybackService {
     this.skipTimer = setInterval(() => this.skipStep(), SKIP_INTERVAL_MS);
   }
 
+  /** Stops fast-forwarding, leaving reading on whatever line it reached. */
   stopSkip(): void {
     this.isSkipping.set(false);
     if (this.skipTimer == null) return;
@@ -395,6 +439,11 @@ export class VisualNovelPlaybackService {
     this.advance();
   }
 
+  /**
+   * Whether the script line at an index is the command a dice roll was asked for with.
+   *
+   * Such a line is shown whole at once rather than typed, and is kept off the stage.
+   */
   isDiceCommandAt(index: number): boolean {
     return isDiceCommandAmong(this.messages(), index);
   }

@@ -10,6 +10,13 @@ import { particleTexture } from '@axe/features/effect/effect-canvas/particle-tex
  */
 export type TextureProvider = (shape: EffectParticle['shape'], color: string) => CanvasImageSource | null;
 
+/**
+ * Clears the canvas and draws one frame of a particle layer at the given pixel ratio.
+ *
+ * Smoke and chunks are painted normally first, and every other shape is added over them with
+ * additive blending. Textures come from the shared particle texture cache unless another provider
+ * is passed; a particle whose texture cannot be made is skipped.
+ */
 export function drawParticleLayer(
   context: CanvasRenderingContext2D,
   layer: EffectParticleLayer,

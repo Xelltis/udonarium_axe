@@ -2,6 +2,13 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 
 export type ScrollPosition = { top: number; bottom: number; clientHeight: number; scrollHeight: number };
 
+/**
+ * The index to start rendering from so that the last `dispLength` displayable messages are
+ * included.
+ *
+ * Messages that are not displayable are passed over without being counted. When there are fewer
+ * displayable messages than that, the result is -1 and the caller clamps it.
+ */
 export function findDisplayableTopIndex(chatMessages: readonly ChatMessage[], dispLength: number): number {
   const len = chatMessages.length;
   let count = 0;
@@ -13,6 +20,10 @@ export function findDisplayableTopIndex(chatMessages: readonly ChatMessage[], di
   return i;
 }
 
+/**
+ * Reads a panel's scroll position with the top clamped to the scrollable range, so an overscroll
+ * bounce never reports a place past either end.
+ */
 export function getBoundedScrollPosition(panel: HTMLDivElement): ScrollPosition {
   let top = panel.scrollTop;
   const clientHeight = panel.clientHeight;
@@ -23,6 +34,7 @@ export function getBoundedScrollPosition(panel: HTMLDivElement): ScrollPosition 
   return { top, bottom, clientHeight, scrollHeight };
 }
 
+/** The height of the tallest rendered message, and never less than the minimum message height. */
 export function calcMaxElementHeight(elements: ArrayLike<{ clientHeight: number }>, minMessageHeight: number): number {
   let maxHeight = minMessageHeight;
   for (let i = elements.length - 1; 0 <= i; i--) {
@@ -46,6 +58,14 @@ type CalcIndexRangeParams = {
   isIOS: boolean;
 };
 
+/**
+ * Works out which messages to render for the current scroll position.
+ *
+ * When the rendered block lies wholly outside the widened viewport, as after a long jump, the range
+ * is rebuilt from the scroll position at the minimum message height. Otherwise each end is grown or
+ * shrunk by whole steps of the tallest message. On iOS the range only grows, since narrowing it
+ * under a momentum scroll makes the view jump. The result is clamped to the message list.
+ */
 export function calcIndexRange(params: CalcIndexRangeParams): { topIndex: number; bottomIndex: number } {
   const {
     topIndex,

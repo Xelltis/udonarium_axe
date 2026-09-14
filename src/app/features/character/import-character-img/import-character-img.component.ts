@@ -41,6 +41,7 @@ export class ImportCharacterImgComponent {
     this.sendFrom = this.gameCharacters().length >= 1 ? this.gameCharacters()[0].identifier : '';
   }
 
+  /** The first picture of the character chosen to copy from, or the empty image when it has none. */
   get imageFile(): ImageFile {
     const object = this.objectStore.get(this.sendFrom);
     if (object instanceof GameCharacter) {
@@ -50,6 +51,7 @@ export class ImportCharacterImgComponent {
     return ImageFile.Empty;
   }
 
+  /** How many pictures the character chosen to copy from has registered, or 0 when none is chosen. */
   get portraitCount() {
     const object = this.objectStore.get(this.sendFrom);
     if (object instanceof GameCharacter) {
@@ -58,6 +60,12 @@ export class ImportCharacterImgComponent {
     return 0;
   }
 
+  /**
+   * Copies the chosen character's pictures onto the character whose sheet opened this panel.
+   *
+   * The target's picture list is grown or shrunk to match (always keeping at least one), each entry
+   * is overwritten in order, and the ICON selector is held within the new number of pictures.
+   */
   importImages() {
     if (!this.tabletopObject) return;
     const object = this.objectStore.get(this.sendFrom);
@@ -98,6 +106,7 @@ export class ImportCharacterImgComponent {
     }
   }
 
+  /** Closes the panel without copying anything. */
   cancel() {
     this.panelService.close();
   }

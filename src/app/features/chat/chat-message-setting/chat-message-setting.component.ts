@@ -61,20 +61,35 @@ export class ChatMessageSettingComponent {
     return this.rolePermission.canEditTabletop;
   });
 
+  /**
+   * Shows or hides System-chan, the avatar beside system messages and dice rolls, for everyone in
+   * the room. Only a role that may edit the table can change it.
+   */
   setSystemAvatarVisible(visible: boolean): void {
     if (!this.canEditRoom()) return;
     this.systemAvatar.setVisible(visible);
   }
 
+  /**
+   * Sets whether dice results show whoever rolled in place of System-chan, for everyone in the
+   * room. Only a role that may edit the table can change it.
+   */
   setSpeakerAvatarVisible(visible: boolean): void {
     if (!this.canEditRoom()) return;
     this.systemAvatar.setSpeakerVisible(visible);
   }
 
+  /**
+   * Opens the image picker to change System-chan's picture for system messages or for dice rolls.
+   */
   changeSystemAvatarImage(kind: SystemAvatarKind): void {
     this.systemAvatarMenu.changeImage(kind);
   }
 
+  /**
+   * Puts System-chan's picture for system messages or for dice rolls back to the default. Only a
+   * role that may edit the table can do it.
+   */
   resetSystemAvatarImage(kind: SystemAvatarKind): void {
     if (!this.canEditRoom()) return;
     this.systemAvatar.resetImage(kind);
@@ -86,33 +101,59 @@ export class ChatMessageSettingComponent {
   readonly minFontSize = CHAT_FONT_SIZE_MIN;
   readonly maxFontSize = CHAT_FONT_SIZE_MAX;
 
+  /**
+   * Sets whether the chat log scrolls down to follow new messages as they arrive, for this reader.
+   */
   setAutoFollowScroll(v: boolean): void {
     this.chatPrefs.setAutoFollowScroll(v);
   }
 
+  /**
+   * Sets whether the expressions chosen in novel mode appear beside chat lines, for this reader.
+   */
   setShowVnEmoteBadge(v: boolean): void {
     this.chatPrefs.setShowVnEmoteBadge(v);
   }
 
+  /**
+   * Sets the chat text size from its box, rounded and kept within the sizes allowed; an emptied box
+   * goes back to the default size.
+   */
   onChangeFontSize(event: Event): void {
     this.chatPrefs.setFontSize((event.target as HTMLInputElement).valueAsNumber);
   }
 
   chatTabidentifier: string = '';
 
+  /**
+   * The chat tab this settings panel was opened from, or null when none was given or the tab is
+   * gone.
+   */
   get chatTab(): ChatTab | null {
     return this.objectStore.get<ChatTab>(this.chatTabidentifier) ?? null;
   }
 
+  /**
+   * The room's list of chat tabs, which holds the portrait and compact display settings edited
+   * here.
+   */
   get chatTabList(): ChatTabList {
     return this.objectStore.get<ChatTabList>('ChatTabList')!;
   }
 
+  /**
+   * Pulls the portrait size back to the smallest or largest allowed when the number given falls
+   * outside them.
+   */
   chkHeight(newNum: number) {
     if (newNum <= this.chatTabList.minPortraitSize) this.chatTabList.portraitHeight = this.chatTabList.minPortraitSize;
     if (newNum >= this.chatTabList.maxPortraitSize) this.chatTabList.portraitHeight = this.chatTabList.maxPortraitSize;
   }
 
+  /**
+   * Checks the portrait size box once its number is committed, pulling it back within the sizes
+   * allowed.
+   */
   onChkHeight(event: Event): void {
     this.chkHeight((event.target as HTMLInputElement).valueAsNumber);
   }
@@ -154,16 +195,27 @@ export class ChatMessageSettingComponent {
     if (scope === 'all') this.setPortraitForAll(this.portraitForAll());
   }
 
+  /**
+   * Chooses whether the compact display is one answer for every tab or set tab by tab. Taking one
+   * answer writes it onto every tab.
+   */
   setSimpleScope(scope: ChatSettingScope): void {
     this.chatPrefs.setSimple({ scope, all: this.chatPrefs.simple().all });
     if (scope === 'all') this.setSimpleForAll(this.simpleForAll());
   }
 
+  /**
+   * Shows or hides portraits on every tab at once, and keeps that as the one answer for all tabs.
+   */
   setPortraitForAll(shown: boolean): void {
     this.chatPrefs.setPortrait({ scope: 'all', all: shown ? 1 : 0 });
     for (const tab of this.chatTabList.chatTabs) tab.portraitDisplayFlag = shown ? 1 : 0;
   }
 
+  /**
+   * Turns the compact display on or off for every tab at once, keeps that as the one answer for all
+   * tabs, and redraws the chat.
+   */
   setSimpleForAll(simple: boolean): void {
     this.chatPrefs.setSimple({ scope: 'all', all: simple ? 1 : 0 });
     for (const tab of this.chatTabList.chatTabs) tab.chatSimpleDispFlag = simple ? 1 : 0;
@@ -197,40 +249,63 @@ export class ChatMessageSettingComponent {
       });
   });
 
+  /** Chooses whether the sound a message makes is one setting for every tab or set tab by tab. */
   setSoundScope(scope: ChatSettingScope): void {
     this.chatPrefs.setSound({ ...this.chatPrefs.sound(), scope });
   }
 
+  /**
+   * Changes the parts given of the message sound used for every tab, keeping the rest as they were.
+   */
   setSoundForAll(sound: Partial<ChatSoundSetting>): void {
     const setting = this.chatPrefs.sound();
     this.chatPrefs.setSound({ ...setting, all: { ...setting.all, ...sound } });
   }
 
+  /**
+   * Changes the parts given of the message sound for the tab of this name, keeping the rest as they
+   * were. Tabs are kept by name, so two tabs of one name share it.
+   */
   setSoundOfTab(name: string, sound: Partial<ChatSoundSetting>): void {
     this.chatPrefs.setSoundOfTab(name, { ...this.chatPrefs.soundOfTab(name), ...sound });
   }
 
+  /**
+   * Plays a sound at its volume so the reader can hear what it will be like; nothing plays at no
+   * volume.
+   */
   playSoundPreview(sound: ChatSoundSetting): void {
     this.chatSound.preview(sound.type, sound.volume);
   }
 
+  /** Turns the percentage from the volume slider into the 0 to 1 volume a sound setting keeps. */
   toVolume(value: string): number {
     return Number(value) / 100;
   }
 
+  /** Turns a kept 0 to 1 volume into the whole percentage the slider and its label show. */
   toPercent(volume: number): number {
     return Math.round(volume * 100);
   }
 
+  /**
+   * Reads the choice from the sound dropdown as a sound type; the dropdown offers only known types,
+   * so it is not checked.
+   */
   asSoundType(value: string): ChatSoundType {
     return value as ChatSoundType;
   }
 
+  /** Shows or hides portraits on one tab. Does nothing for a tab that is gone. */
   setPortraitOfTab(identifier: string, shown: boolean): void {
     const tab = this.objectStore.get<ChatTab>(identifier);
     if (tab) tab.portraitDisplayFlag = shown ? 1 : 0;
   }
 
+  /**
+   * Turns the compact display on or off for one tab, and redraws the chat. Does nothing for a tab
+   * that is gone.
+   */
   setSimpleOfTab(identifier: string, simple: boolean): void {
     const tab = this.objectStore.get<ChatTab>(identifier);
     if (!tab) return;
@@ -238,19 +313,30 @@ export class ChatMessageSettingComponent {
     this.uiSignalService.notifyChatRedraw();
   }
 
+  /** Redraws the chat after the compact display is changed. */
   changeSimpleDisp() {
     this.uiSignalService.notifyChatRedraw();
   }
 
+  /** Redraws the chat once the box for showing times in the compact display is clicked. */
   changeDispFlagTime() {
     this.uiSignalService.notifyChatRedraw();
   }
 
+  /** Redraws the chat once the box for showing IDs in the compact display is clicked. */
   changeDispFlagUserId() {
     this.uiSignalService.notifyChatRedraw();
   }
 
+  /**
+   * Answers a click on the box for showing portraits inside the window. The box writes the setting
+   * itself, so there is nothing more to do.
+   */
   changePortraitInWindow() {}
 
+  /**
+   * Answers a click on the box for keeping portraits outside the window. The box writes the setting
+   * itself, so there is nothing more to do.
+   */
   changeKeepPortraitOutWindow() {}
 }

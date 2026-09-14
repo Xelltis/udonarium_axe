@@ -111,6 +111,10 @@ import { createImageTexturePattern } from '@axe/features/map-editor/render/textu
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/**
+ * The SVG polygon points for the icon of a generated shape, drawn in a 24 by 24 box; empty for
+ * shapes that are not polygons or stars.
+ */
 export function buildShapeKindPoints(kind: ShapeGeneratorKind): string {
   const cx = 12;
   const cy = 12;

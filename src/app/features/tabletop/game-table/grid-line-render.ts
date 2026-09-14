@@ -26,6 +26,12 @@ export class GridLineRender {
     context.textAlign = 'center';
   }
 
+  /**
+   * Draws the grid over a whole table onto the canvas, its width and height counted in squares,
+   * with each cell labelled column-row.
+   *
+   * The canvas is sized even for a negative grid type, which draws no grid.
+   */
   render(
     width: number,
     height: number,
@@ -58,6 +64,13 @@ export class GridLineRender {
     }
   }
 
+  /**
+   * Draws only the stretch of grid a surface shows, sized in pixels and offset into the table, with
+   * labels that can be left off or prefixed with a wall's letter.
+   *
+   * False only when the canvas cannot be drawn on; a negative grid type draws nothing and still
+   * counts as drawn.
+   */
   renderViewport(
     widthPx: number,
     heightPx: number,

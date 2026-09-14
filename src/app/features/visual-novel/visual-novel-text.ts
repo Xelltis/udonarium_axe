@@ -11,6 +11,11 @@ function createGraphemeSegmenter(): Intl.Segmenter | null {
 
 const graphemeSegmenter = createGraphemeSegmenter();
 
+/**
+ * Splits text into the letters a reader sees, keeping emoji and combined characters whole.
+ *
+ * Where the browser has no grapheme segmenter it falls back to splitting by code point.
+ */
 export function toGraphemes(text: string): string[] {
   if (text.length < 1) return [];
   if (!graphemeSegmenter) return Array.from(text);
@@ -52,6 +57,7 @@ export interface TypedLine {
   readonly partStarts: readonly number[];
 }
 
+/** Prepares a line for typing out: cut into ruby runs, with every letter's end and run worked out once. */
 export function typedLineOf(line: string): TypedLine {
   const parts = splitRubyNotation(line);
   const ends: number[] = [];

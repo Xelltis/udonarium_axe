@@ -249,9 +249,11 @@ export class TerrainComponent {
   readonly is3D = input(false);
   readonly gridCanvases = viewChildren<ElementRef<HTMLCanvasElement>>('gridCanvas');
 
+  /** The table selecter, which says which table is on view. */
   get tableSelecter(): TableSelecter {
     return this.tabletopService.tableSelecter;
   }
+  /** The table currently shown, which the menu's surface entries work against. */
   get currentTable(): GameTable {
     return this.tabletopService.currentTable;
   }
@@ -453,6 +455,7 @@ export class TerrainComponent {
     return surfaceOf(this.terrain()) !== 'floor';
   });
 
+  /** The size of one table cell, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -569,6 +572,9 @@ export class TerrainComponent {
 
   readonly terrainGridClipStyle = computed<Record<string, string>>(() => this.makeTerrainGridClipStyle());
 
+  /**
+   * The style that lays the grid over one step of a stepped hex slope, masked to that step's hexes.
+   */
   terrainGridClipStepStyle(step: HexSlopeStepFloor): Record<string, string> {
     return this.makeTerrainGridClipStyle(step);
   }
@@ -648,15 +654,23 @@ export class TerrainComponent {
   private _initialized = false;
   readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
 
+  /** Stops the browser starting a native drag on the terrain. */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /** Cancels the input handler's gesture as soon as a press starts. */
   onInputStart(_e: MouseEvent | TouchEvent) {
     this.input?.cancel();
   }
 
+  /**
+   * Opens the terrain's right-click menu, or the menu for the whole selection when the terrain is
+   * part of one.
+   *
+   * In the flat view with a radial menu style chosen, it opens as a radial menu.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -701,10 +715,12 @@ export class TerrainComponent {
     this.contextMenuService.open(menuPosition, menu.actions, this.name());
   }
 
+  /** Plays the block pick-up sound when a drag or turn of the terrain starts. */
   onMove() {
     SoundEffect.play(PresetSound.blockPick);
   }
 
+  /** Plays the block put-down sound when a drag or turn of the terrain ends. */
   onMoved() {
     SoundEffect.play(PresetSound.blockPut);
   }

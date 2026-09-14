@@ -47,6 +47,12 @@ export class ChatTabSettingComponent {
   readonly logStyles = CHAT_LOG_STYLES;
   readonly logStyle = this.logStylePreference.style;
 
+  /**
+   * The position of the tab that system messages go to when the room has no system tab.
+   *
+   * It is kept on the room's tab list, so a change reaches every peer. Writes are ignored for a
+   * seat that may not change the tabs.
+   */
   get systemTabIndex(): number {
     return this.chatTabList.systemMessageTabIndex;
   }
@@ -56,10 +62,18 @@ export class ChatTabSettingComponent {
     this.chatTabList.systemMessageTabIndex = index;
   }
 
+  /**
+   * The tab system messages currently land in, or null when there is none, as shown at the top of
+   * the panel.
+   */
   systemTab(): ChatTab | null {
     return this.chatTabList.systemMessageTab;
   }
 
+  /**
+   * The selected tab's name; renaming is ignored for the system tab and for a seat that may not
+   * change the tabs.
+   */
   get tabName(): string {
     if (this.selectedTab()) this.objectChange.versionOf(this.selectedTab()!.identifier)();
     return this.selectedTab()?.name ?? '';
@@ -68,10 +82,19 @@ export class ChatTabSettingComponent {
     if (this.isEditable && this.isRenamable && this.selectedTab()) this.selectedTab()!.name = tabName;
   }
 
+  /**
+   * Whether players or guests may read or speak in the selected tab; false when no tab is selected.
+   */
   perm(key: 'plCanView' | 'plCanSpeak' | 'guestCanView' | 'guestCanSpeak'): boolean {
     if (this.selectedTab()) this.objectChange.versionOf(this.selectedTab()!.identifier)();
     return this.selectedTab()?.[key] ?? false;
   }
+  /**
+   * Sets whether players or guests may read or speak in the selected tab.
+   *
+   * Allowing speech also allows reading, and taking reading away also takes speech away. Ignored
+   * for the system tab and for a seat that may not change permissions.
+   */
   setPerm(key: 'plCanView' | 'plCanSpeak' | 'guestCanView' | 'guestCanSpeak', value: boolean): void {
     const tab = this.selectedTab();
     if (!this.canEditPermission || !tab || tab.isSystemTab) return;
@@ -83,13 +106,19 @@ export class ChatTabSettingComponent {
     else if (key === 'guestCanView' && !value) tab.guestCanSpeak = false;
   }
 
+  /** Every chat tab in the room, in the order they are listed. */
   get chatTabs(): readonly ChatTab[] {
     this.objectChange.collectionOf('chat-tab')();
     return this.chatMessageService.chatTabs;
   }
+  /** Whether the room has no chat tabs at all. */
   get isEmpty(): boolean {
     return this.chatMessageService.chatTabs.length < 1;
   }
+  /**
+   * Whether the selected tab no longer exists in the room, which is when the panel offers to
+   * restore it.
+   */
   get isDeleted(): boolean {
     return this.selectedTab() ? this.objectStore.get(this.selectedTab()!.identifier) == null : false;
   }
@@ -103,10 +132,15 @@ export class ChatTabSettingComponent {
     return !this.isEmpty && !!this.selectedTab() && !this.isSystemTabSelected && this.canEditTabs;
   }
 
+  /** Whether the selected tab's name may be changed, which the system tab's may not. */
   get isRenamable(): boolean {
     return !this.isSystemTabSelected;
   }
 
+  /**
+   * Whether the selected tab can be moved up or down the list: it still exists, is not the system
+   * tab, and this seat may change the tabs.
+   */
   get isMovable(): boolean {
     return !this.isDeleted && !this.isSystemTabSelected && this.canEditTabs;
   }
@@ -121,6 +155,10 @@ export class ChatTabSettingComponent {
     return style === 'coc' && this.isSystemTabSelected ? 'standard' : style;
   }
 
+  /**
+   * Whether the selected tab's settings can be changed from this seat: a tab that still exists is
+   * selected and the seat may change the tabs.
+   */
   get isEditable(): boolean {
     return !this.isEmpty && !this.isDeleted && this.canEditTabs;
   }
@@ -137,6 +175,7 @@ export class ChatTabSettingComponent {
     return canRoleEdit(PeerCursor.myRole);
   }
 
+  /** Whether the read and speak permissions of the selected tab can be changed from this seat. */
   get canEditPermission(): boolean {
     return this.isEditable && this.canEditTabs;
   }
@@ -176,16 +215,28 @@ export class ChatTabSettingComponent {
     );
   }
 
+  /** Selects the tab with the identifier, forgetting any copy kept for restoring a deleted tab. */
   onChangeSelectTab(identifier: string) {
     this.selectedTab.set(this.objectStore.get<ChatTab>(identifier));
     this.selectedTabXml = '';
   }
 
+  /**
+   * Adds a new tab with the default name to the room; does nothing for a seat that may not change
+   * the tabs.
+   */
   create() {
     if (!this.canEditTabs) return;
     this.chatTabList.addChatTab(this.t('feature.chat.tabSetting.defaultTabName'));
   }
 
+  /**
+   * Downloads the selected tab, log and all, as a save file, showing progress until shortly after
+   * it finishes.
+   *
+   * Does nothing while a save is running, and nothing for the system tab, which is no part of the
+   * room.
+   */
   async save() {
     if (!this.selectedTab() || this.isSaving() || !this.isExportable) return;
     this.isSaving.set(true);
@@ -203,10 +254,12 @@ export class ChatTabSettingComponent {
     }, 500);
   }
 
+  /** Picks the format logs are previewed and downloaded in, remembered in this browser. */
   chooseLogStyle(style: ChatLogStyle): void {
     this.logStylePreference.choose(style);
   }
 
+  /** Opens a panel previewing the selected tab's log in the chosen format. */
   openLogPreview(): void {
     const coordinate = this.pointerDeviceService.pointers[0];
     const component = this.panelService.open<ChatLogPreviewComponent>(ChatLogPreviewComponent, {
@@ -216,12 +269,17 @@ export class ChatTabSettingComponent {
     component.tab.set(this.selectedTab());
   }
 
+  /**
+   * Downloads the selected tab's log in the chosen format; the system tab falls back to the
+   * standard format where the chosen one does not apply.
+   */
   saveLog() {
     const tab = this.selectedTab();
     if (!tab) return;
     this.saveDataService.saveChatLog(this.effectiveLogStyle, 'tab', [tab], tab.name);
   }
 
+  /** Downloads the logs of every tab together in the chosen format. */
   saveAllLog() {
     this.saveDataService.saveChatLog(
       this.effectiveLogStyle,
@@ -231,6 +289,12 @@ export class ChatTabSettingComponent {
     );
   }
 
+  /**
+   * Removes the selected tab from the room for every peer.
+   *
+   * A copy is kept so the tab can be restored, and the system message position moves with the tabs
+   * that follow it. Does nothing for a tab that may not be deleted.
+   */
   delete() {
     if (!this.isDeletable) return;
     if (!this.isEmpty && this.selectedTab()) {
@@ -246,10 +310,17 @@ export class ChatTabSettingComponent {
     }
   }
 
+  /** This seat's own peer cursor. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
 
+  /**
+   * Clears every message from the selected tab for every peer and posts who cleared it.
+   *
+   * Needs the confirmation box ticked and a seat that may change the tabs; the tab's portraits are
+   * reset along with the log.
+   */
   deleteLog() {
     if (!this.allowDeleteLog || !this.canEditTabs) return;
 
@@ -263,6 +334,10 @@ export class ChatTabSettingComponent {
     }
   }
 
+  /**
+   * Clears the logs of every tab for every peer, posting who cleared them in each; needs the
+   * confirmation box ticked and a seat that may change the tabs.
+   */
   deleteLogALL() {
     if (!this.allowDeleteLog || !this.canEditTabs) return;
 
@@ -288,6 +363,10 @@ export class ChatTabSettingComponent {
     return name || cursor?.identifier || '';
   }
 
+  /**
+   * Puts the last deleted tab back into the room from the copy kept when it was removed, then
+   * forgets the copy.
+   */
   restore() {
     if (!this.canEditTabs) return;
     if (this.selectedTab() && this.selectedTabXml) {
@@ -297,6 +376,7 @@ export class ChatTabSettingComponent {
     }
   }
 
+  /** Clamps the system message position to the tabs that exist. */
   chkSystemTabIndex() {
     if (!this.canEditTabs) return;
     const list = this.chatTabList;
@@ -304,6 +384,10 @@ export class ChatTabSettingComponent {
     if (this.systemTabIndex < 0) this.systemTabIndex = 0;
   }
 
+  /**
+   * Moves the selected tab one place up the list, keeping the system message position on the same
+   * tab.
+   */
   upTabIndex() {
     if (!this.selectedTab() || !this.isMovable) return;
     const parentElement = this.selectedTab()!.parent!;
@@ -320,6 +404,10 @@ export class ChatTabSettingComponent {
     }
   }
 
+  /**
+   * Moves the selected tab one place down the list, keeping the system message position on the same
+   * tab.
+   */
   downTabIndex() {
     if (!this.selectedTab() || !this.isMovable) return;
     const parentElement = this.selectedTab()!.parent!;
@@ -336,6 +424,7 @@ export class ChatTabSettingComponent {
     }
   }
 
+  /** Selects the tab whose identifier is the value of the control that fired the event. */
   onSelectTab(event: Event): void {
     this.onChangeSelectTab((event.target as HTMLInputElement).value);
   }

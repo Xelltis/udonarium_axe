@@ -39,10 +39,14 @@ export class InventoryObjectDrag {
 
   constructor(private readonly host: ObjectDragHost) {}
 
+  /** Whether the piece is one of those being dragged. */
   isDragging(gameObject: GameObject): boolean {
     return this.draggingIdentifiers().has(gameObject.identifier);
   }
 
+  /**
+   * Whether the drag is over the folder heading with this path, which marks it as the drop target.
+   */
   isDropFolder(folderPath: string): boolean {
     return this.dropFolderPath() === folderPath;
   }
@@ -54,6 +58,12 @@ export class InventoryObjectDrag {
     return suppressed;
   }
 
+  /**
+   * Arms a drag when a character's row is pressed with the primary button, capturing the pointer.
+   *
+   * Presses on the row's buttons and inputs are left alone, and so is any press with nowhere to
+   * drop: no folders to file into and no game master's bar to hand over to.
+   */
   down(event: PointerEvent, gameObject: GameObject): void {
     if (event.button !== 0 || !(gameObject instanceof GameCharacter)) return;
     if ((event.target as HTMLElement).closest('button, input')) return;
@@ -74,6 +84,13 @@ export class InventoryObjectDrag {
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   }
 
+  /**
+   * Follows the pointer during an armed press.
+   *
+   * Past a few pixels the press becomes a drag of the piece and whatever travels with it, starting
+   * a hand-over to the game master's bar where allowed. From then on it tracks the folder heading
+   * under the pointer.
+   */
   move(event: PointerEvent): void {
     const pending = this.pending;
     if (!pending) return;
@@ -95,6 +112,12 @@ export class InventoryObjectDrag {
     this.dropFolderPath.set(null);
   }
 
+  /**
+   * Ends the press and drops whatever was dragged.
+   *
+   * Released over a folder heading, the pieces are filed into it. Otherwise a hand-over is accepted
+   * only over the game master's bar. After a real drag the click that follows is swallowed.
+   */
   up(event: PointerEvent): void {
     const pending = this.pending;
     const folderPath = this.dropFolderPath();

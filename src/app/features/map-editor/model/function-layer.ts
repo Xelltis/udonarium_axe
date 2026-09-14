@@ -23,10 +23,12 @@ export const FUNCTION_ROLE_INK: Record<MapFunctionRole, string> = {
   trigger: 'rgba(200, 80, 40, 0.42)',
 };
 
+/** The i18n key naming a function role in the layer drawer. */
 export function functionRoleLabelKey(role: MapFunctionRole): string {
   return `feature.mapEditor.function.role_${role}`;
 }
 
+/** Every role a function layer can be painted for, in the order the layer drawer offers them. */
 export function everyFunctionRole(): readonly MapFunctionRole[] {
   return MAP_FUNCTION_ROLES;
 }

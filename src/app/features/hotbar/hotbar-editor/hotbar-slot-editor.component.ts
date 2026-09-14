@@ -341,6 +341,13 @@ export class HotbarSlotEditorComponent {
     return options.kind === 'range' && options.shiftY;
   });
 
+  /**
+   * Loads the slot the hotbar opened this editor for: which page and slot it is, and the draft to
+   * start from.
+   *
+   * The draft is copied, payload included, so editing here never changes the object the hotbar
+   * passed in.
+   */
   setFrom(cell: HotbarCell, draft: HotbarSlotDraft): void {
     this.cell.set(cell);
     this.draft.set({ ...draft, payload: { ...draft.payload } });

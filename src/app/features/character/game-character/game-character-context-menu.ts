@@ -50,6 +50,13 @@ export interface GameCharacterContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
+/**
+ * Collects the range shapes registered on a character sheet, in sheet order, for the menu's
+ * invoke-range entry.
+ *
+ * Each is labelled with the shape's own name, else the field's name, else left empty. Fields whose
+ * value does not decode as a shape are skipped.
+ */
 export function collectRegisteredRangeShapes(char: GameCharacter): RegisteredRangeShape[] {
   const result: RegisteredRangeShape[] = [];
   const walk = (element: DataElement): void => {
@@ -84,6 +91,10 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+/**
+ * The flat list of entries for a character's context menu, as `buildGameCharacterContextMenuModel`
+ * builds them, without the radial grouping.
+ */
 export function buildGameCharacterContextMenu(
   char: GameCharacter,
   gridSize: number,
@@ -106,6 +117,14 @@ export function buildGameCharacterContextMenu(
   ).actions;
 }
 
+/**
+ * Builds a character's context menu, both as a flat list and grouped for the radial menu.
+ *
+ * An entry whose callback is left out is left out of the menu, as are range shapes, effects and
+ * held dice the character does not have. Overlap entries lead the flat list and surface entries
+ * close it. The display toggles write the character directly and tell the inventory to refresh, and
+ * the NPC toggle is offered only to the game master.
+ */
 export function buildGameCharacterContextMenuModel(
   char: GameCharacter,
   gridSize: number,

@@ -47,6 +47,14 @@ export interface CutInEditorKeyAction {
 export const NUDGE_PX = 1;
 export const NUDGE_FAR_PX = 10;
 
+/**
+ * The command a key press asks of the cut-in editor, or null when it asks for nothing.
+ *
+ * Ctrl/Cmd+Z undoes, Ctrl/Cmd+Y or Shift+Z redoes, and Ctrl/Cmd+C and V copy and paste the selected
+ * layer's pose. Delete or Backspace removes the selection and Space plays or pauses. Up and down nudge
+ * the selected layer; left and right step the playhead, jump between keys with Shift, or nudge the
+ * layer sideways with Alt. Home and End go to either end of the scene.
+ */
 export function cutInEditorKeyDown(key: string, context: CutInEditorKeyContext): CutInEditorKeyAction | null {
   if (context.typing) return null;
 

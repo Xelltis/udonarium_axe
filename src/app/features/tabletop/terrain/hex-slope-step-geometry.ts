@@ -21,6 +21,15 @@ export interface HexSlopeStepData {
   walls: HexSlopeStepWall[];
 }
 
+/**
+ * Breaks a slope on a hex terrain into flat steps, one for each row of hexes across the slope's
+ * direction.
+ *
+ * The terrain is taken as a hexagon of hexes `size` cells across, up to 6. Each floor gets its
+ * height and an SVG mask over its hexes; each wall is a face dropping from a step to a lower one or
+ * to the ground, with its placement, height, base and shading. Nothing comes back for a size that
+ * is not a whole number of at least 2, or for a terrain with no slope.
+ */
 export function computeHexSlopeSteps(
   size: number,
   gridSize: number,

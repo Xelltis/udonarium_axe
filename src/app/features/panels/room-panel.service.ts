@@ -17,6 +17,14 @@ export class RoomPanelService {
 
   private opened = 0;
 
+  /**
+   * Opens one of the room's named panels, loading its component on first use.
+   *
+   * Each panel opened steps a little down and right of the last, and `extra` overrides that place
+   * and the panel's default size. `setup` is handed the component once it exists. `host` is the layer
+   * of a window of its own to draw into; without it the panel stands on the table with a button to
+   * move it into one.
+   */
   open<T = unknown>(
     name: RoomPanelName,
     extra: PanelOption = {},

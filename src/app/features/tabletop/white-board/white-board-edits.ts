@@ -469,6 +469,7 @@ export function jointUnder(scene: MapScene, ref: MarkRef, at: BoardPoint, slack:
   return null;
 }
 
+/** Moves one corner of a path or other jointed shape to a point; does nothing when there is no such corner. */
 export function moveJoint(scene: MapScene, ref: MarkRef, joint: number, to: BoardPoint): void {
   const item = jointedShape(scene, ref);
   if (!item || joint * 2 + 1 >= item.points.length) return;

@@ -1,4 +1,8 @@
 import type { ShapeGeneratorKind } from '@axe/features/map-editor/model/editor-tool';
+/**
+ * The corners of a regular polygon as a flat x,y list, going round from the start angle; never
+ * fewer than three sides.
+ */
 export function regularPolygonPoints(
   cx: number,
   cy: number,
@@ -15,6 +19,10 @@ export function regularPolygonPoints(
   return points;
 }
 
+/**
+ * The outline of a star as a flat x,y list, alternating outer tips and inner corners from the start
+ * angle; never fewer than two tips.
+ */
 export function starPoints(
   cx: number,
   cy: number,

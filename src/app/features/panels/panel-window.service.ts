@@ -113,6 +113,7 @@ export class PanelWindowService {
     return typeof this.document.defaultView?.open === 'function';
   }
 
+  /** Whether the panel with this key is out in a window of its own right now. */
   isDetached(key: string): boolean {
     return this.windows.has(key);
   }
@@ -244,6 +245,11 @@ export class PanelWindowService {
     if (comingHome && !held.request.leaving) held.request.restore();
   }
 
+  /**
+   * Shuts every panel window without putting the panels back on the table.
+   *
+   * Called as the app's page goes away, when there is no table left to put them on.
+   */
   closeAll(): void {
     for (const key of [...this.windows.keys()]) this.bringBack(key, false);
   }

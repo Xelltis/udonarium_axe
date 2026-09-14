@@ -60,15 +60,19 @@ export class InventoryFilterPanelComponent {
     inject(DestroyRef).onDestroy(() => this.closed?.());
   }
 
+  /** The text the inventory is narrowed by, which the search box reads and writes. */
   get searchQuery() {
     return this.filter.searchQuery;
   }
+  /** Whether the search text holds anything to narrow by, which shows the button that clears it. */
   get hasQuery() {
     return this.filter.hasQuery;
   }
+  /** Whether hidden pieces are listed along with the rest, on their own, or not at all. */
   get hiddenFilter() {
     return this.filter.hiddenFilter;
   }
+  /** Whether hidden pieces are drawn dimmed or at full strength in the list. */
   get hiddenDisplay() {
     return this.filter.hiddenDisplay;
   }
@@ -94,6 +98,10 @@ export class InventoryFilterPanelComponent {
     return this.rolePermission.canEditTabletop;
   });
 
+  /**
+   * The name of the data the inventory is sorted by first, in the summary setting every inventory
+   * shares.
+   */
   get sortTag(): string {
     return this.filter.sortTag;
   }
@@ -101,6 +109,7 @@ export class InventoryFilterPanelComponent {
     this.filter.sortTag = value;
   }
 
+  /** Whether the first sort runs ascending or descending. */
   get sortOrder(): string {
     return this.filter.sortOrder;
   }
@@ -108,6 +117,7 @@ export class InventoryFilterPanelComponent {
     this.filter.sortOrder = value as typeof this.filter.sortOrder;
   }
 
+  /** The name of the data the inventory is sorted by where the first sort leaves pieces level. */
   get sortTag2nd(): string {
     return this.filter.sortTag2nd;
   }
@@ -115,6 +125,7 @@ export class InventoryFilterPanelComponent {
     this.filter.sortTag2nd = value;
   }
 
+  /** Whether the second sort runs ascending or descending. */
   get sortOrder2nd(): string {
     return this.filter.sortOrder2nd;
   }
@@ -122,6 +133,10 @@ export class InventoryFilterPanelComponent {
     this.filter.sortOrder2nd = value as typeof this.filter.sortOrder2nd;
   }
 
+  /**
+   * Which data each piece shows in the full list, written as space-separated tag names with a slash
+   * for a new line.
+   */
   get dataTag(): string {
     return this.filter.dataTag;
   }
@@ -129,6 +144,7 @@ export class InventoryFilterPanelComponent {
     this.filter.dataTag = value;
   }
 
+  /** Which data each piece shows in the table list, written the same way as the full list's. */
   get tableDataTag(): string {
     return this.filter.tableDataTag;
   }
@@ -146,14 +162,17 @@ export class InventoryFilterPanelComponent {
     return this.viewPreference.shows(part);
   }
 
+  /** Shows or puts away one of the strips above the list. The choice is kept in this browser. */
   setShown(part: InventoryChromePart, shown: boolean): void {
     this.viewPreference.setShown(part, shown);
   }
 
+  /** Empties the search text, so everything is listed again. */
   clearSearch(): void {
     this.filter.clearSearch();
   }
 
+  /** Switches hidden pieces between dimmed and full strength in the list. */
   toggleHiddenDisplay(): void {
     this.filter.toggleHiddenDisplay();
   }

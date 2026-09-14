@@ -99,10 +99,12 @@ export class BuffManagerPanelComponent {
   readonly canZoomIn = computed(() => this.columnWidth() < COLUMN_WIDTH_MAX_PX);
   readonly canZoomOut = computed(() => this.columnWidth() > COLUMN_WIDTH_MIN_PX);
 
+  /** Draws each round one step wider, up to the widest the chart allows. */
   zoomIn(): void {
     this.columnWidth.update((width) => Math.min(COLUMN_WIDTH_MAX_PX, width + COLUMN_WIDTH_STEP_PX));
   }
 
+  /** Draws each round one step narrower, down to the narrowest the chart allows. */
   zoomOut(): void {
     this.columnWidth.update((width) => Math.max(COLUMN_WIDTH_MIN_PX, width - COLUMN_WIDTH_STEP_PX));
   }
@@ -120,10 +122,15 @@ export class BuffManagerPanelComponent {
     return barColumns(bar.rounds, this.span());
   }
 
+  /** How long a buff's bar is drawn at the current zoom, in pixels. */
   barWidthPx(bar: BuffTimelineBar): number {
     return this.barWidth(bar) * this.columnWidth();
   }
 
+  /**
+   * Whether the buff lasts past the last round the chart shows, so its bar is cut off at the edge
+   * and marked as going on.
+   */
   isRunningOff(bar: BuffTimelineBar): boolean {
     return bar.rounds > this.span();
   }
@@ -137,6 +144,10 @@ export class BuffManagerPanelComponent {
 
   readonly selected = signal<string>('');
 
+  /**
+   * Picks a buff's bar to edit in the form under the chart; picking the one already picked lets it
+   * go.
+   */
   select(bar: BuffTimelineBar): void {
     this.selected.update((current) => (current === bar.identifier ? '' : bar.identifier));
   }
@@ -179,6 +190,9 @@ export class BuffManagerPanelComponent {
     return null;
   }
 
+  /**
+   * Renames the picked buff, trimmed of surrounding space. Does nothing while no buff is picked.
+   */
   setName(value: string): void {
     const element = this.selectedElement();
     if (!element) return;
@@ -186,6 +200,7 @@ export class BuffManagerPanelComponent {
     this.touch(element);
   }
 
+  /** Sets the modifier text the picked buff applies. Does nothing while no buff is picked. */
   setEffect(value: string): void {
     const element = this.selectedElement();
     if (!element) return;
@@ -193,6 +208,12 @@ export class BuffManagerPanelComponent {
     this.touch(element);
   }
 
+  /**
+   * Sets how many rounds the picked buff has left.
+   *
+   * The number is rounded to a whole round and kept at zero or above; a value that is not a finite
+   * number, such as an emptied box, is ignored.
+   */
   setRounds(value: number): void {
     const element = this.selectedElement();
     if (!element || !Number.isFinite(value)) return;
@@ -200,6 +221,12 @@ export class BuffManagerPanelComponent {
     this.touch(element);
   }
 
+  /**
+   * Sets when the picked buff's rounds are counted down.
+   *
+   * Counting down at the end of the round needs nobody's turn, so choosing it drops any trigger the
+   * buff had.
+   */
   setTiming(value: BuffTiming): void {
     const element = this.selectedElement();
     if (!element) return;
@@ -208,6 +235,10 @@ export class BuffManagerPanelComponent {
     this.touch(element);
   }
 
+  /**
+   * Sets the character whose turn counts the picked buff down, by name; an empty name clears the
+   * trigger.
+   */
   setTrigger(value: string): void {
     const element = this.selectedElement();
     if (!element) return;
@@ -217,6 +248,10 @@ export class BuffManagerPanelComponent {
     this.touch(element);
   }
 
+  /**
+   * Takes the picked buff off the character that carries it, or destroys it outright when it
+   * belongs to none, and clears the pick.
+   */
   removeSelected(): void {
     const element = this.selectedElement();
     if (!element) return;
@@ -227,14 +262,17 @@ export class BuffManagerPanelComponent {
     this.refresh();
   }
 
+  /** Commits the name box of the edit form once its text is changed. */
   onSetName(event: Event): void {
     this.setName((event.target as HTMLInputElement).value);
   }
 
+  /** Commits the effect box of the edit form once its text is changed. */
   onSetEffect(event: Event): void {
     this.setEffect((event.target as HTMLInputElement).value);
   }
 
+  /** Commits the rounds box of the edit form once its number is changed. */
   onSetRounds(event: Event): void {
     this.setRounds((event.target as HTMLInputElement).valueAsNumber);
   }
@@ -283,6 +321,13 @@ export class BuffManagerPanelComponent {
     this.roomPanels.open('statusAilment');
   }
 
+  /**
+   * Copies the `&!` command the builder has put together to the clipboard, and shows the copied
+   * mark for a moment.
+   *
+   * When the browser refuses the clipboard nothing is shown; the command stays on screen to copy by
+   * hand.
+   */
   async copyCommand(): Promise<void> {
     try {
       await navigator.clipboard.writeText(this.builderCommand());

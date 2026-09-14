@@ -95,6 +95,12 @@ export class GameCharacterSheetComponent {
   });
 
   private readonly _tabletopObject = signal<CharacterSheetTarget | null>(null);
+  /**
+   * The piece whose sheet this panel shows.
+   *
+   * Setting it first writes out face text still waiting for the previous card, closes every card
+   * opened for editing and returns to the sheet tab.
+   */
   get tabletopObject(): CharacterSheetTarget | null {
     return this._tabletopObject();
   }
@@ -110,10 +116,12 @@ export class GameCharacterSheetComponent {
 
   readonly editingIds = signal(new Set<string>());
 
+  /** Whether the card of the sheet with this identifier is open for editing. */
   isElementEditing(id: string): boolean {
     return this.editingIds().has(id);
   }
 
+  /** Opens a card of the sheet for editing or closes it, from its edit button. */
   toggleElementEdit(id: string) {
     this.editingIds.update((set) => {
       const next = new Set(set);
@@ -126,18 +134,27 @@ export class GameCharacterSheetComponent {
   readonly dragOverId = signal<string | null>(null);
   private _draggedId: string | null = null;
 
+  /**
+   * Starts dragging a card of the sheet by its handle, marking it so it can be dropped in this
+   * panel or another.
+   */
   onDragStart(event: DragEvent, id: string) {
     this._draggedId = id;
     this.dataElementDrag.start(event, id);
     event.stopPropagation();
   }
 
+  /** Ends a card drag, whether it was dropped or abandoned, and clears the drop highlight. */
   onDragEnd() {
     this._draggedId = null;
     this.dataElementDrag.end();
     this.dragOverId.set(null);
   }
 
+  /**
+   * Lets the dragged card be dropped before this one and highlights it, when the move is allowed;
+   * otherwise the drag passes on.
+   */
   onDragOver(event: DragEvent, id: string) {
     const draggedId = this.dataElementDrag.getDraggedId(event) ?? this._draggedId;
     if (!draggedId || draggedId === id || !canReorderDetailElement(this.character, this.objectStore, draggedId, id))
@@ -148,6 +165,7 @@ export class GameCharacterSheetComponent {
     this.dragOverId.set(id);
   }
 
+  /** Clears the drop highlight when the drag leaves the card it was on. */
   onDragLeave(id: string) {
     if (this.dragOverId() === id) this.dragOverId.set(null);
   }
@@ -212,21 +230,31 @@ export class GameCharacterSheetComponent {
 
   private static readonly COLSPAN_CYCLE = ['1', '2', 'full'] as const;
 
+  /**
+   * How wide a card of the sheet is laid out: `1` or `2` columns, or `full` for the whole row; `1`
+   * when unset.
+   */
   getCardColspan(el: DataElement): string {
     this.objectChange.versionOf(el.identifier)();
     return (el.getAttribute('cs-colspan') as string) || '1';
   }
 
+  /** The title shown in a card's header. */
   getCardName(el: DataElement): string {
     this.objectChange.versionOf(el.identifier)();
     return el.name || '';
   }
 
+  /** The name of the icon shown before a card's title, or an empty string for none. */
   getCardIcon(el: DataElement): string {
     this.objectChange.versionOf(el.identifier)();
     return (el.getAttribute('cs-icon') as string) || '';
   }
 
+  /**
+   * Steps a card's width from one column to two to the full row and back, from its width button;
+   * the width is saved on the card.
+   */
   cycleCardColspan(el: DataElement) {
     const cur = this.getCardColspan(el);
     const idx = GameCharacterSheetComponent.COLSPAN_CYCLE.indexOf(
@@ -237,33 +265,45 @@ export class GameCharacterSheetComponent {
     el.setAttribute('cs-colspan', next);
   }
 
+  /** The piece as a dice symbol, or null when it is something else. */
   get diceSymbol(): DiceSymbol | null {
     return this.tabletopObject instanceof DiceSymbol ? this.tabletopObject : null;
   }
+  /** The piece as a card, or null when it is something else. */
   get card(): Card | null {
     return this.tabletopObject instanceof Card ? this.tabletopObject : null;
   }
+  /** The piece as a card stack, or null when it is something else. */
   get cardStack(): CardStack | null {
     return this.tabletopObject instanceof CardStack ? this.tabletopObject : null;
   }
+  /** The stack's name for its name field, re-read when the stack changes. */
   cardStackName(stack: CardStack): string {
     this.objectChange.versionOf(stack.identifier)();
     return stack.name;
   }
+  /** Renames the stack from its name field. */
   setCardStackName(stack: CardStack, event: Event): void {
     stack.name = (event.target as HTMLInputElement).value;
   }
+  /** The card's name for its name field, re-read when the card changes. */
   cardOwnName(c: Card): string {
     this.objectChange.versionOf(c.identifier)();
     return c.name;
   }
+  /** Renames the card from its name field. */
   setCardOwnName(c: Card, event: Event): void {
     c.name = (event.target as HTMLInputElement).value;
   }
+  /** The card's width in grid squares, for its size field. */
   cardOwnSize(c: Card): number {
     this.objectChange.versionOf(c.identifier)();
     return c.size;
   }
+  /**
+   * Sets the card's width from its size field, rounded and held between 1 and 20 grid squares;
+   * anything not a number is ignored.
+   */
   setCardOwnSize(c: Card, event: Event): void {
     const value = (event.target as HTMLInputElement).valueAsNumber;
     if (!Number.isFinite(value)) return;
@@ -272,6 +312,12 @@ export class GameCharacterSheetComponent {
   private cardFaceTextUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingCardFaceText: { card: Card; value: string } | null = null;
 
+  /**
+   * Whether this user may read and edit the text on the card's face.
+   *
+   * Anyone allowed to see hidden things always may. Everyone else may only when the card shows its
+   * face to them and nobody else is peeking at it.
+   */
   canReadCardFace(c: Card): boolean {
     this.objectChange.versionOf(c.identifier)();
     if (PeerCursor.myCursor) this.objectChange.versionOf(PeerCursor.myCursor.identifier)();
@@ -279,16 +325,27 @@ export class GameCharacterSheetComponent {
     return this.rolePermission.canSeeHidden || (!isOwnedByAnotherUser && c.isVisible);
   }
 
+  /** The text on the card's face, or an empty string for a user who may not read it. */
   cardOwnFaceText(c: Card): string {
     this.objectChange.versionOf(c.identifier)();
     return this.canReadCardFace(c) ? c.faceText : '';
   }
+  /**
+   * Takes the text typed into the card's face field, writing it to the card after a short pause.
+   *
+   * Each keystroke restarts the pause, so the room receives the text once typing settles. Ignored
+   * for a user who may not read the face.
+   */
   setCardOwnFaceText(c: Card, event: Event): void {
     if (!this.canReadCardFace(c)) return;
     if (this.cardFaceTextUpdateTimer) clearTimeout(this.cardFaceTextUpdateTimer);
     this.pendingCardFaceText = { card: c, value: (event.target as HTMLTextAreaElement).value };
     this.cardFaceTextUpdateTimer = setTimeout(() => this.flushCardOwnFaceText(), 66);
   }
+  /**
+   * Writes face text still waiting on its pause to the card at once, when the field loses focus,
+   * the piece changes or the panel closes.
+   */
   flushCardOwnFaceText(): void {
     if (this.cardFaceTextUpdateTimer) clearTimeout(this.cardFaceTextUpdateTimer);
     this.cardFaceTextUpdateTimer = null;
@@ -296,64 +353,98 @@ export class GameCharacterSheetComponent {
     this.pendingCardFaceText = null;
     if (pending && this.canReadCardFace(pending.card)) pending.card.faceText = pending.value;
   }
+  /** The font size of the card's face text, or the default for a user who may not read it. */
   cardOwnFaceFontSize(c: Card): number {
     this.objectChange.versionOf(c.identifier)();
     return this.canReadCardFace(c) ? c.faceFontSize : Card.DEFAULT_FACE_FONT_SIZE;
   }
+  /**
+   * Sets the font size of the card's face text from its field; ignored for a user who may not read
+   * the face or for anything not a number.
+   */
   setCardOwnFaceFontSize(c: Card, event: Event): void {
     if (!this.canReadCardFace(c)) return;
     const value = (event.target as HTMLInputElement).valueAsNumber;
     if (Number.isFinite(value)) c.faceFontSize = value;
   }
 
+  /** The colour of the card's face text, or the default for a user who may not read it. */
   cardOwnFaceFontColor(c: Card): string {
     this.objectChange.versionOf(c.identifier)();
     return this.canReadCardFace(c) ? c.faceFontColor : Card.DEFAULT_FACE_FONT_COLOR;
   }
+  /**
+   * Sets the colour of the card's face text from its colour field; ignored for a user who may not
+   * read the face.
+   */
   setCardOwnFaceFontColor(c: Card, event: Event): void {
     if (!this.canReadCardFace(c)) return;
     c.faceFontColor = (event.target as HTMLInputElement).value;
   }
 
+  /** The note's title for its title field, re-read when the note changes. */
   textNoteTitle(note: TextNote): string {
     this.objectChange.versionOf(note.identifier)();
     return note.title;
   }
+  /** Sets the note's title from its title field. */
   setTextNoteTitle(note: TextNote, event: Event): void {
     this.setNoteCommonValue(note, 'title', (event.target as HTMLInputElement).value);
   }
+  /** The note's body text for its text area, re-read when the note changes. */
   textNoteText(note: TextNote): string {
     this.objectChange.versionOf(note.identifier)();
     return note.text;
   }
+  /** Sets the note's body text from its text area. */
   setTextNoteText(note: TextNote, event: Event): void {
     note.text = (event.target as HTMLTextAreaElement).value;
   }
+  /** The note's width, for its width field. */
   textNoteWidth(note: TextNote): number {
     this.objectChange.versionOf(note.identifier)();
     return note.width;
   }
+  /**
+   * Sets the note's width in grid cells from its field, rounded and held between 1 and 24; anything
+   * not a number is ignored.
+   */
   setTextNoteWidth(note: TextNote, event: Event): void {
     this.setNoteCommonNumber(note, 'width', event, 1, 24);
   }
+  /** The note's height, for its height field. */
   textNoteHeight(note: TextNote): number {
     this.objectChange.versionOf(note.identifier)();
     return note.height;
   }
+  /**
+   * Sets the note's height in grid cells from its field, rounded and held between 1 and 24; anything
+   * not a number is ignored.
+   */
   setTextNoteHeight(note: TextNote, event: Event): void {
     this.setNoteCommonNumber(note, 'height', event, 1, 24);
   }
+  /** The note's font size, for its font size field. */
   textNoteFontSize(note: TextNote): number {
     this.objectChange.versionOf(note.identifier)();
     return note.fontSize;
   }
+  /**
+   * Sets the note's font size from its field, rounded and held between 6 and 64; anything not a
+   * number is ignored.
+   */
   setTextNoteFontSize(note: TextNote, event: Event): void {
     this.setNoteCommonNumber(note, 'fontsize', event, 6, 64);
   }
+  /** The note's altitude above the table, for its altitude field. */
   textNoteAltitude(note: TextNote): number {
     this.objectChange.versionOf(note.identifier)();
     return note.altitude;
   }
+  /**
+   * Sets the note's altitude from its field, held between -20 and 20; anything not a number is
+   * ignored.
+   */
   setTextNoteAltitude(note: TextNote, event: Event): void {
     const value = (event.target as HTMLInputElement).valueAsNumber;
     if (!Number.isFinite(value)) return;
@@ -368,15 +459,22 @@ export class GameCharacterSheetComponent {
     if (!Number.isFinite(value)) return;
     this.setNoteCommonValue(note, name, Math.max(min, Math.min(max, Math.round(value))));
   }
+  /** The piece as terrain, or null when it is something else. */
   get terrain(): Terrain | null {
     return this.tabletopObject instanceof Terrain ? this.tabletopObject : null;
   }
+  /** The piece as a character, or null when it is something else. */
   get character(): GameCharacter | null {
     return this.tabletopObject instanceof GameCharacter ? this.tabletopObject : null;
   }
+  /** The piece as a text note, or null when it is something else. */
   get textNote(): TextNote | null {
     return this.tabletopObject instanceof TextNote ? this.tabletopObject : null;
   }
+  /**
+   * The piece when it can be disclosed to chosen players (a character, note, card or dice symbol),
+   * which shows the disclosure controls; null otherwise.
+   */
   get disclosableObject(): GameCharacter | TextNote | Card | DiceSymbol | null {
     const object = this.tabletopObject;
     if (
@@ -389,9 +487,11 @@ export class GameCharacterSheetComponent {
     }
     return null;
   }
+  /** The piece as a scratch mask, or null when it is something else. */
   get scratchMask(): GameTableScratchMask | null {
     return this.tabletopObject instanceof GameTableScratchMask ? this.tabletopObject : null;
   }
+  /** The piece as a range area, or null when it is something else. */
   get rangeArea(): RangeArea | null {
     return this.tabletopObject instanceof RangeArea ? this.tabletopObject : null;
   }
@@ -442,6 +542,10 @@ export class GameCharacterSheetComponent {
     }));
   });
 
+  /**
+   * Opens the image picker for one face of the terrain and sets the chosen picture on it; an empty
+   * choice clears the face, and closing the picker changes nothing.
+   */
   openTerrainFaceModal(face: TerrainFace) {
     const terrain = this.terrain;
     if (!terrain) return;
@@ -525,10 +629,15 @@ export class GameCharacterSheetComponent {
     this.destroyRef.onDestroy(() => this.flushCardOwnFaceText());
   }
 
+  /** Switches the sheet between reading and editing, from its edit button. */
   toggleEditMode() {
     this.isEdit.update((v) => !v);
   }
 
+  /**
+   * Adds a new section to the piece's sheet holding one group with one text field, each given a
+   * default name not already used beside it.
+   */
   addDataElement() {
     const obj = this.tabletopObject;
     if (obj?.detailDataElement) {
@@ -561,6 +670,10 @@ export class GameCharacterSheetComponent {
     }
   }
 
+  /**
+   * Deletes a card from the character's sheet, from the card's delete button, and forgets that it
+   * was open for editing.
+   */
   deleteTopLevelElement(id: string) {
     const char = this.character;
     if (!char?.detailDataElement) return;
@@ -575,17 +688,28 @@ export class GameCharacterSheetComponent {
     char.update();
   }
 
+  /**
+   * Places a copy of the piece beside it, from the sheet's copy button; does nothing for a user who
+   * may not edit the table.
+   */
   clone() {
     if (!this.rolePermission.canEditTabletop) return;
     if (this.tabletopObject) cloneTabletopObject(this.tabletopObject);
   }
 
+  /** Does nothing; the hide checkbox changes the character through its own binding. */
   clickHide() {}
 
+  /** Does nothing; the no-talk checkbox changes the character through its own binding. */
   clickNoTalk() {}
 
+  /** Does nothing; the terrain grid checkbox changes the terrain through its own binding. */
   clickGrid() {}
 
+  /**
+   * Chooses which of the character's portraits is its image on the table, from the portrait
+   * thumbnails; the index is held within the portraits it has.
+   */
   setKomaIndex(index: number) {
     const char = this.character;
     if (!char?.imageDataElement) return;
@@ -598,6 +722,10 @@ export class GameCharacterSheetComponent {
     char.update();
   }
 
+  /**
+   * Opens the image picker and replaces the picture of the portrait the piece currently shows, or
+   * of the first portrait when that index is out of range.
+   */
   openKomaImageModal() {
     const char = this.character;
     if (!char?.imageDataElement) return;
@@ -616,6 +744,7 @@ export class GameCharacterSheetComponent {
     });
   }
 
+  /** Names the portrait the piece currently shows, from the name field under the thumbnails. */
   setPortraitName(event: Event) {
     const char = this.character;
     if (!char) return;
@@ -625,12 +754,17 @@ export class GameCharacterSheetComponent {
     char.update();
   }
 
+  /** Moves where the character's portrait stands in chat, from the arrows beside the position. */
   setPortraitPos(pos: number) {
     const char = this.character;
     if (!char) return;
     char.portraitPosition = pos;
   }
 
+  /**
+   * Opens the image picker and adds the chosen picture as another portrait of the character, from
+   * the add button after the thumbnails.
+   */
   addPortrait() {
     const char = this.character;
     if (!char?.imageDataElement) return;
@@ -643,6 +777,10 @@ export class GameCharacterSheetComponent {
     });
   }
 
+  /**
+   * Opens the image picker and replaces the picture of a portrait, from a click on the large
+   * portrait.
+   */
   changePortrait(index: number) {
     const char = this.character;
     if (!char?.imageDataElement) return;
@@ -656,6 +794,12 @@ export class GameCharacterSheetComponent {
     });
   }
 
+  /**
+   * Removes a portrait from the character, from the delete button under the thumbnails.
+   *
+   * The last portrait cannot be removed. When the one shown on the table is removed the first
+   * portrait takes its place; otherwise the piece keeps showing the same picture.
+   */
   removePortrait(index: number) {
     const char = this.character;
     if (!char?.imageDataElement) return;
@@ -677,6 +821,10 @@ export class GameCharacterSheetComponent {
     char.update();
   }
 
+  /**
+   * Opens a small panel by the pointer for copying another character's pictures onto this one, from
+   * the import button under the portraits.
+   */
   showImportImages() {
     const obj = this.tabletopObject;
     if (!obj) return;
@@ -694,14 +842,22 @@ export class GameCharacterSheetComponent {
     component.tabletopObject = obj as GameCharacter;
   }
 
+  /** Does nothing; the checkbox it is bound to changes the range area through its own binding. */
   clickRangeOffSetX() {}
 
+  /** Does nothing; the checkbox it is bound to changes the range area through its own binding. */
   clickRangeOffSetY() {}
 
+  /** Does nothing; the fill outline checkbox changes the range area through its own binding. */
   fillOutLine() {}
 
+  /** Does nothing; the rotation snap checkbox changes the range area through its own binding. */
   subDivisionSnapPolygonal() {}
 
+  /**
+   * Asks the note to fit its height to its content again shortly after the limit height checkbox is
+   * clicked, once the change has landed.
+   */
   clickLimitHeight() {
     const obj = this.tabletopObject;
     if (!obj) return;
@@ -710,21 +866,39 @@ export class GameCharacterSheetComponent {
     }, 100);
   }
 
+  /**
+   * Sets the height the dice symbol's image is drawn at, held between 50 and 750 pixels, and clears
+   * the pointer's dragging flag; anything not a number keeps the current height.
+   */
   chkDiceKomaSize(height: number) {
     const character = this.tabletopObject as DiceSymbol;
     character.komaImageHeight = clampInRange(Number(height), 50, 750, character.komaImageHeight);
     this.pointerDeviceService.isDragging = false;
   }
 
+  /**
+   * Sets the width of the piece's hover popup, held between 270 and 800 pixels; anything not a
+   * number keeps the current width.
+   */
   chkPopWidth(width: number) {
     const character = this.tabletopObject as GameCharacter;
     character.overViewWidth = clampInRange(width, 270, 800, character.overViewWidth);
   }
 
+  /**
+   * Sets the maximum height of the piece's hover popup, held between 250 and 1000 pixels; anything
+   * not a number keeps the current height.
+   */
   chkPopMaxHeight(maxHeight: number) {
     const character = this.tabletopObject as GameCharacter;
     character.overViewMaxHeight = clampInRange(maxHeight, 250, 1000, character.overViewMaxHeight);
   }
+  /**
+   * Saves the piece with its pictures as a zip file named after it, from the sheet's save button.
+   *
+   * Progress is shown while it saves and cleared half a second after. A click while a save is still
+   * running is ignored.
+   */
   async saveToXML() {
     const obj = this.tabletopObject;
     if (!obj || this.isSaving()) return;
@@ -743,10 +917,20 @@ export class GameCharacterSheetComponent {
     }, 500);
   }
 
+  /**
+   * Moves the piece to the named inventory: the table, the shared inventory, a user's personal
+   * inventory or the graveyard.
+   */
   setLocation(locationName: string) {
     this.tabletopObject?.setLocation(locationName);
   }
 
+  /**
+   * Opens the image picker for one of the piece's named image slots, such as a card's front or a
+   * terrain's floor, and sets the chosen picture.
+   *
+   * Closing the picker, an empty choice, or a piece without that slot changes nothing.
+   */
   openModal(name: string = '', isAllowedEmpty: boolean = false) {
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: isAllowedEmpty }).then((value) => {
       const obj = this.tabletopObject;
@@ -757,6 +941,7 @@ export class GameCharacterSheetComponent {
     });
   }
 
+  /** Sets the scratch mask's colour. */
   changeMaskFillColor(event: string) {
     if (this.tabletopObject) {
       const mask: GameTableScratchMask = this.tabletopObject as GameTableScratchMask;
@@ -764,6 +949,11 @@ export class GameCharacterSheetComponent {
     }
   }
 
+  /**
+   * Sets the scratch mask's `changeColor`, a synced colour kept beside its fill colour.
+   *
+   * Nothing on the table is drawn in it: the scratch mask is filled with `color` alone.
+   */
   changeMaskChangeColor(event: string) {
     if (this.tabletopObject) {
       const mask: GameTableScratchMask = this.tabletopObject as GameTableScratchMask;
@@ -771,6 +961,7 @@ export class GameCharacterSheetComponent {
     }
   }
 
+  /** Sets the range area's fill colour. */
   changeGridColor(event: string) {
     if (this.tabletopObject) {
       const range: RangeArea = this.tabletopObject as RangeArea;
@@ -778,6 +969,7 @@ export class GameCharacterSheetComponent {
     }
   }
 
+  /** Sets the range area's border colour. */
   changeRangeColor(event: string) {
     if (this.tabletopObject) {
       const range: RangeArea = this.tabletopObject as RangeArea;
@@ -785,41 +977,61 @@ export class GameCharacterSheetComponent {
     }
   }
 
+  /** Applies the dice symbol's image height from its field. */
   onChkDiceKomaSize(event: Event): void {
     this.chkDiceKomaSize((event.target as HTMLInputElement).valueAsNumber);
   }
+  /**
+   * Sets the piece's x position on the table from a number field, rounded; an empty field reads as
+   * zero.
+   */
   onChkLocationX(event: Event): void {
     const character = this.tabletopObject as GameCharacter;
     const x = roundOr((event.target as HTMLInputElement).valueAsNumber, 0);
     character.location = { ...character.location, x };
   }
+  /**
+   * Sets the piece's y position on the table from a number field, rounded; an empty field reads as
+   * zero.
+   */
   onChkLocationY(event: Event): void {
     const character = this.tabletopObject as GameCharacter;
     const y = roundOr((event.target as HTMLInputElement).valueAsNumber, 0);
     character.location = { ...character.location, y };
   }
+  /** Applies the hover popup width from its number field. */
   onChkPopWidth(event: Event): void {
     this.chkPopWidth((event.target as HTMLInputElement).valueAsNumber);
   }
+  /** Applies the hover popup's maximum height from its number field. */
   onChkPopMaxHeight(event: Event): void {
     this.chkPopMaxHeight((event.target as HTMLInputElement).valueAsNumber);
   }
+  /** Moves the piece to the inventory named by a form field's value. */
   onSetLocation(event: Event): void {
     this.setLocation((event.target as HTMLInputElement).value);
   }
+  /** Sets the scratch mask's colour from its colour field. */
   onChangeMaskFillColor(event: Event): void {
     this.changeMaskFillColor((event.target as HTMLInputElement).value);
   }
+  /** Sets the scratch mask's `changeColor` from its colour field; nothing is drawn in that colour. */
   onChangeMaskChangeColor(event: Event): void {
     this.changeMaskChangeColor((event.target as HTMLInputElement).value);
   }
+  /** Sets the range area's border colour from its colour field. */
   onChangeRangeColor(event: Event): void {
     this.changeRangeColor((event.target as HTMLInputElement).value);
   }
+  /** Sets the range area's fill colour from its colour field. */
   onChangeGridColor(event: Event): void {
     this.changeGridColor((event.target as HTMLInputElement).value);
   }
 
+  /**
+   * Whether a card of the sheet is shown in the character's hover popup, either marked on the card
+   * itself or listed the older way on the character.
+   */
   isPopupDataElement(element: DataElement): boolean {
     this.objectChange.versionOf(element.identifier)();
     return (
@@ -828,6 +1040,13 @@ export class GameCharacterSheetComponent {
     );
   }
 
+  /**
+   * Shows a card in the character's hover popup or takes it out, from the popup button in the
+   * card's header.
+   *
+   * The card is marked on itself and dropped from the character's older list, so a card toggled
+   * here is kept one way only. The click does not reach the card.
+   */
   togglePopupDataElement(element: DataElement, event?: MouseEvent): void {
     event?.stopPropagation();
     const char = this.character;

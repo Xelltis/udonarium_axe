@@ -97,18 +97,23 @@ export class DiceSymbolComponent {
 
   readonly diceSymbol = input.required<DiceSymbol>();
 
+  /** The face the die shows. Setting it changes the die itself. */
   get face(): string {
     return this.diceSymbol().face;
   }
   set face(face: string) {
     this.diceSymbol().face = face;
   }
+  /**
+   * The user ID of whoever has kept the die's face to themselves; empty while anyone may see it.
+   */
   get owner(): string {
     return this.diceSymbol().owner;
   }
   set owner(owner: string) {
     this.diceSymbol().owner = owner;
   }
+  /** How far the die is turned on the table, in degrees, read and written on the die. */
   get rotate(): number {
     return this.diceSymbol().rotate;
   }
@@ -146,6 +151,7 @@ export class DiceSymbolComponent {
     return this.diceSymbol().specifyKomaImageFlag;
   });
 
+  /** Every face the die can show. */
   get faces(): string[] {
     return this.diceSymbol().faces;
   }
@@ -215,6 +221,7 @@ export class DiceSymbolComponent {
     return diceSymbol.isUsed;
   });
 
+  /** Whether the die is locked in place, which stops it being dragged or turned. */
   get isLock(): boolean {
     return this.diceSymbol().isLock;
   }
@@ -233,6 +240,7 @@ export class DiceSymbolComponent {
   private readonly iconHiding = hideIconWhileTouched(this.destroyRef);
   readonly isIconHidden = this.iconHiding.isHidden;
 
+  /** The width of one square of the table in pixels, which the die's size is counted in. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -329,11 +337,18 @@ export class DiceSymbolComponent {
     });
   }
 
+  /**
+   * Stops the browser dragging the die's picture off on its own, which would fight the table's
+   * dragging.
+   */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /**
+   * Puts the tumble animation back to rest once it has played, so the next roll can play it again.
+   */
   onDiceRollEnd() {
     this.animeState.set('inactive');
   }
@@ -385,15 +400,24 @@ export class DiceSymbolComponent {
     for (const timer of this.rollTimers.splice(0)) clearTimeout(timer);
   }
 
+  /**
+   * Counts a press toward a double tap, and pulls the handle icons out of the way while the die is
+   * touched.
+   */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
     this.iconHiding.touch();
   }
 
+  /** Counts a press toward a double tap, which rolls the die. */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
     this.doubleTap.handle(e, () => this.onDoubleClick());
   }
 
+  /**
+   * Rolls the die on a double tap, for a role that may edit the table and a reader who can see its
+   * face. A second tap that has strayed from the first does nothing.
+   */
   onDoubleClick() {
     this.doubleTap.cancel();
     if (!this.rolePermission.canEditTabletop) return;
@@ -401,6 +425,13 @@ export class DiceSymbolComponent {
     if (this.readsFace()) this.diceRoll();
   }
 
+  /**
+   * Opens the die's right-click menu, or the menu for the whole selection when the die is part of
+   * one.
+   *
+   * Entries for moving the die to another surface of the table are added where there are any. The
+   * browser's own menu is suppressed either way.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -436,10 +467,12 @@ export class DiceSymbolComponent {
     );
   }
 
+  /** Plays the pick-up sound as the die starts being dragged or turned. */
   onMove() {
     SoundEffect.play(PresetSound.dicePick);
   }
 
+  /** Plays the put-down sound as the die is let go after being dragged or turned. */
   onMoved() {
     SoundEffect.play(PresetSound.dicePut);
   }
@@ -449,11 +482,19 @@ export class DiceSymbolComponent {
     if (owner instanceof GameCharacter) this.characterDice.store(owner, this.diceSymbol());
   }
 
+  /**
+   * Rolls the die for the room, and returns the face it came to rest on, or the face it already
+   * shows when the roll gave no result.
+   */
   diceRoll(): string {
     const [rolled] = this.diceRollService.roll([this.diceSymbol()]);
     return rolled?.face ?? this.diceSymbol().face;
   }
 
+  /**
+   * Selects the die and opens its detail sheet in a panel at the pointer. Does nothing where the
+   * reader may not view the die.
+   */
   showDetail(gameObject: DiceSymbol) {
     if (!this.disclosureService.canView(gameObject)) return;
     this.selectionSignalService.selectObject(gameObject.identifier, gameObject.aliasName);

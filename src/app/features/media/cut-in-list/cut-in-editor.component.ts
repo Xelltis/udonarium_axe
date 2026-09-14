@@ -64,6 +64,10 @@ export class CutInEditorComponent {
     return !c.videoId ? this.cutInImage().url : `https://img.youtube.com/vi/${c.videoId}/hqdefault.jpg`;
   });
 
+  /**
+   * The cut-in's name as edited in the form; reads empty and ignores writes while the form is not
+   * editable.
+   */
   get cutInName(): string {
     if (!this.c) return '';
     return this.editable ? this.c.name : '';
@@ -72,6 +76,13 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.name = cutInName;
   }
 
+  /**
+   * The cut-in's width in pixels, from the width field.
+   *
+   * Writing it also sets the height when the aspect is kept, from the video's default proportions
+   * or the picture's. While original size is on, reading it first resets the width to the picture's
+   * or video's own. Reads 0 while not editable.
+   */
   set cutInWidth(cutInWidth: number) {
     if (!this.c) return;
     if (this.editable) this.c.width = cutInWidth;
@@ -98,6 +109,13 @@ export class CutInEditorComponent {
     return this.c.width;
   }
 
+  /**
+   * The cut-in's height in pixels, from the height field.
+   *
+   * Writing it also sets the width when the aspect is kept, from the video's default proportions or
+   * the picture's. While original size is on, reading it first resets the height to the picture's
+   * or video's own. Reads 0 while not editable.
+   */
   set cutInHeight(cutInHeight: number) {
     if (!this.c) return;
     if (this.editable) this.c.height = cutInHeight;
@@ -124,6 +142,10 @@ export class CutInEditorComponent {
     return this.c.height;
   }
 
+  /**
+   * Whether changing the width or height keeps the picture's proportions; false and unwritable
+   * while not editable.
+   */
   get keepImageAspect(): boolean {
     if (!this.editable || !this.c) return false;
     return this.c.keepImageAspect;
@@ -133,6 +155,7 @@ export class CutInEditorComponent {
     this.c.keepImageAspect = aspect;
   }
 
+  /** Whether the cut-in is shown without its window frame. */
   get cutInFrameless(): boolean {
     if (!this.c) return false;
     return this.editable ? this.c.frameless : false;
@@ -141,6 +164,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.frameless = frameless;
   }
 
+  /** Whether the cut-in is shown at its picture's or video's own size, which locks the size fields. */
   get cutInOriginalSize(): boolean {
     if (!this.c) return false;
     return this.editable ? this.c.originalSize : false;
@@ -149,6 +173,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.originalSize = cutInOriginalSize;
   }
 
+  /** Where the cut-in is placed across the screen, as a percentage from 0 to 100. */
   get cutInX_Pos(): number {
     if (!this.c) return 0;
     return this.editable ? this.c.x_pos : 0;
@@ -157,6 +182,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.x_pos = cutInX_Pos;
   }
 
+  /** Where the cut-in is placed down the screen, as a percentage from 0 to 100. */
   get cutInY_Pos(): number {
     if (!this.c) return 0;
     return this.editable ? this.c.y_pos : 0;
@@ -165,6 +191,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.y_pos = cutInY_Pos;
   }
 
+  /** Whether the cut-in stays up until stopped; turning it on clears the time it closes after. */
   get cutInIsLoop(): boolean {
     if (!this.c) return false;
     return this.editable ? this.c.isLoop : false;
@@ -176,6 +203,7 @@ export class CutInEditorComponent {
     }
   }
 
+  /** How many seconds the cut-in stays up before closing on its own; 0 keeps it up. */
   get cutInOutTime(): number {
     if (!this.c) return 0;
     return this.editable ? this.c.outTime : 0;
@@ -184,6 +212,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.outTime = cutInOutTime;
   }
 
+  /** Whether the cut-in can be played by naming it in a chat message. */
   get chatActivate(): boolean {
     if (!this.c) return false;
     return this.editable ? this.c.chatActivate : false;
@@ -192,6 +221,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.chatActivate = chatActivate;
   }
 
+  /** Whether the cut-in plays a YouTube video instead of showing a picture. */
   get cutInIsVideo(): boolean {
     if (!this.c) return false;
     return this.editable ? this.c.isVideoCutIn : false;
@@ -200,6 +230,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.isVideoCutIn = isVideo;
   }
 
+  /** The YouTube URL of a video cut-in. */
   get cutInVideoURL(): string {
     if (!this.c) return '';
     return this.editable ? this.c.videoUrl : '';
@@ -208,6 +239,10 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.videoUrl = videoUrl;
   }
 
+  /**
+   * The volume of a video cut-in from 0 to 100; writes are rounded and held in range, and an
+   * unreadable value becomes 50.
+   */
   get cutInVideoVolume(): number {
     if (!this.c) return 100;
     return this.editable ? this.c.videoVolume : 100;
@@ -216,6 +251,10 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.videoVolume = this.normalizeVideoVolume(videoVolume);
   }
 
+  /**
+   * The cut-in's tag; starting it stops any other cut-in with the same tag, and one with no tag and
+   * its own sound stops the jukebox.
+   */
   get cutInTagName(): string {
     if (!this.c) return '';
     return this.editable ? this.c.tagName : '';
@@ -224,6 +263,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.tagName = cutInTagName;
   }
 
+  /** The name of the sound played with the cut-in, shown in the form. */
   get cutInAudioName(): string {
     if (!this.c) return '';
     return this.editable ? this.c.audioName : '';
@@ -232,6 +272,7 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.audioName = cutInAudioName;
   }
 
+  /** The identifier of the sound played with the cut-in; empty when it has none. */
   get cutInAudioIdentifier(): string {
     if (!this.c) return '';
     return this.editable ? this.c.audioIdentifier : '';
@@ -245,31 +286,40 @@ export class CutInEditorComponent {
     return this.audioStorage.audios.filter((audio) => !audio.isHidden);
   });
 
+  /** The smallest width the width field allows, which differs for a video cut-in. */
   get minSizeWidth(): number {
     if (this.c) this._minSizeWidth = this.c.minSizeWidth(this.isYouTubeCutIn());
     return this._minSizeWidth;
   }
 
+  /** The largest width the width field allows, which differs for a video cut-in. */
   get maxSizeWidth(): number {
     if (this.c) this._maxSizeWidth = this.c.maxSizeWidth(this.isYouTubeCutIn());
     return this._maxSizeWidth;
   }
 
+  /** The smallest height the height field allows, which differs for a video cut-in. */
   get minSizeHeight(): number {
     if (this.c) this._minSizeHeight = this.c.minSizeHeight(this.isYouTubeCutIn());
     return this._minSizeHeight;
   }
 
+  /** The largest height the height field allows, which differs for a video cut-in. */
   get maxSizeHeight(): number {
     if (this.c) this._maxSizeHeight = this.c.maxSizeHeight(this.isYouTubeCutIn());
     return this._maxSizeHeight;
   }
 
+  /** Whether the cut-in's sound is present in this room's audio storage. */
   isCutInBgmUploaded(): boolean {
     if (!this.c) return false;
     return this.audioStorage.get(this.cutInAudioIdentifier) !== null;
   }
 
+  /**
+   * Snaps the height to the video's or picture's proportions after the keep-aspect box is clicked,
+   * once the new value has been applied.
+   */
   chkImageAspect() {
     if (!this.editable || !this.c) return;
     const cutIn = this.c;
@@ -289,6 +339,10 @@ export class CutInEditorComponent {
     });
   }
 
+  /**
+   * Notes whether the cut-in is a video after its video fields change, resetting its size to the
+   * new kind's defaults when it switches.
+   */
   changeYouTubeInfo() {
     if (!this.c) return;
     const isVideo = !!this.c.videoId;
@@ -298,6 +352,10 @@ export class CutInEditorComponent {
     this.isYouTubeCutIn.set(isVideo);
   }
 
+  /**
+   * Resets the cut-in's size to a video's default size or to its picture's own size; does nothing
+   * while not editable.
+   */
   setDefaultControl(isVideo: boolean) {
     if (!this.editable || !this.c) return;
     if (isVideo) {
@@ -309,6 +367,7 @@ export class CutInEditorComponent {
     }
   }
 
+  /** The natural width of the cut-in's picture, or 0 when it has none or it has not loaded yet. */
   originalImgWidth(): number {
     const imageurl = this.cutInImage().url;
     if (imageurl.length > 0) {
@@ -319,6 +378,7 @@ export class CutInEditorComponent {
     return 0;
   }
 
+  /** The natural height of the cut-in's picture, or 0 when it has none or it has not loaded yet. */
   originalImgHeight(): number {
     const imageurl = this.cutInImage().url;
     if (imageurl.length > 0) {
@@ -329,6 +389,7 @@ export class CutInEditorComponent {
     return 0;
   }
 
+  /** Plays the cut-in on this screen only, sized to its picture first when original size is on. */
   previewCutIn() {
     if (!this.c) return;
     if (this.c.originalSize) {
@@ -341,6 +402,12 @@ export class CutInEditorComponent {
     this.cutInLauncher.startCutInMySelf(this.c);
   }
 
+  /**
+   * Plays the cut-in for everyone in the room.
+   *
+   * It is sized to its picture first when original size is on, and the jukebox is stopped when the
+   * cut-in brings its own sound and has no tag.
+   */
   playCutIn() {
     if (!this.c) return;
     if (this.c.originalSize) {
@@ -356,10 +423,15 @@ export class CutInEditorComponent {
     this.cutInLauncher.startCutIn(this.c);
   }
 
+  /** Stops the cut-in for everyone in the room. */
   stopCutIn() {
     if (this.c) this.cutInLauncher.stopCutIn(this.c);
   }
 
+  /**
+   * Opens the image picker and sets the chosen picture on the cut-in; cancelling leaves the picture
+   * as it was.
+   */
   openCutInImageModal() {
     if (!this.c) return;
     const cutIn = this.c;
@@ -369,6 +441,7 @@ export class CutInEditorComponent {
     });
   }
 
+  /** Opens the sound picker and attaches the chosen sound, with its name, to the cut-in. */
   openCutInBgmModal() {
     if (!this.c) return;
     this.modalService.open<string>(CutInBgmComponent).then((value) => {
@@ -379,6 +452,7 @@ export class CutInEditorComponent {
     });
   }
 
+  /** Opens YouTube's terms of service in a dialog, returning false so the link does not also navigate. */
   openYouTubeTerms() {
     this.modalService.open(OpenUrlComponent, {
       url: 'https://www.youtube.com/terms',

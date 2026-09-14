@@ -96,6 +96,10 @@ export class MobileShellComponent {
   });
   protected readonly viewModeIcon = computed(() => viewModeIcon(this.viewMode.mode(), this.tabletopService.mode2d()));
 
+  /**
+   * Switches the table to the next view mode, from the view mode button in the mobile menu; the
+   * choice is kept as this user's preference.
+   */
   cycleViewMode(): void {
     this.viewMode.choose(nextViewMode(this.viewMode.mode()));
   }

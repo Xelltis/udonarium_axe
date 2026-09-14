@@ -121,6 +121,10 @@ const VIEW_ICONS: Record<InventoryViewMode, string> = {
   providers: [InventoryFilterService, InventoryViewPreferenceService],
 })
 export class GameObjectInventoryComponent {
+  /**
+   * Whether a data element is a calculated field, whose shown value is worked out rather than
+   * typed.
+   */
   isCalcElement(element: DataElement): boolean {
     return element.fieldType === DataElementFieldType.CALC;
   }
@@ -128,6 +132,10 @@ export class GameObjectInventoryComponent {
   /** Every row asks while the list is being drawn, and they all read the same sheets. */
   private readonly calcPass = turnCache(createCalcPass);
 
+  /**
+   * The worked-out value of a calculated field, sharing one evaluation pass among the rows drawn in
+   * the same turn.
+   */
   calcText(element: DataElement): string {
     return evaluateCalcElement(element, this.calcPass());
   }
@@ -208,10 +216,12 @@ export class GameObjectInventoryComponent {
   readonly searchTerms = this.filter.searchTerms;
   readonly hasQuery = this.filter.hasQuery;
 
+  /** Empties the inventory search. */
   clearSearch(): void {
     this.filter.clearSearch();
   }
 
+  /** Gives the turn to a piece from the button on its row, without the press selecting the row. */
   setTurnOrder(event: Event, gameObject: GameObject): void {
     event.stopPropagation();
     this.turnOrderService.setCurrent(gameObject.identifier);
@@ -269,6 +279,10 @@ export class GameObjectInventoryComponent {
     return tags.map((tag) => (tag === this.newLineString ? null : DataElement.findElementByReference(root, tag)));
   }
 
+  /**
+   * The colour behind a status column's heading in the table view, transparent for any other
+   * column.
+   */
   ailmentSwatch(column: InventoryTableColumn): string {
     return column.ailment ? resolveBuffColor(column.ailment.color) || 'transparent' : 'transparent';
   }
@@ -288,17 +302,23 @@ export class GameObjectInventoryComponent {
     return { shown: badges.slice(0, ROW_BUFF_BADGE_LIMIT), more: Math.max(0, badges.length - ROW_BUFF_BADGE_LIMIT) };
   }
 
+  /** The icon of a status column's heading in the table view, empty for any other column. */
   ailmentIconUrl(column: InventoryTableColumn): string {
     this.objectChange.fileVersion();
     return column.ailment ? buffIconUrlOf(column.ailment.icon) : '';
   }
 
+  /**
+   * Whether a status is on a piece, as its box in the table view shows; always false for anything
+   * but a character.
+   */
   isAilmentOn(object: TabletopObject, ailment: StatusAilment): boolean {
     this.objectChange.collectionOf('data')();
     this.objectChange.versionOf(object.identifier)();
     return object instanceof GameCharacter && this.ailmentService.isOn(object, ailment.name);
   }
 
+  /** Puts a status on a character or takes it off, from its box in the table view. */
   toggleAilment(event: Event, object: TabletopObject, ailment: StatusAilment): void {
     event.stopPropagation();
     if (!(object instanceof GameCharacter)) return;
@@ -381,6 +401,12 @@ export class GameObjectInventoryComponent {
     });
   }
 
+  /**
+   * Switches the panel between the full list, the table and the turn order.
+   *
+   * The turn order is the panel shrunk down rather than a saved preference, and a phone skips it.
+   * Leaving the table view puts the panel's box back on.
+   */
   setViewMode(mode: InventoryViewMode): void {
     // Standing on a phone, a panel fills the screen and has nothing to shrink to, so the
     // turn order is passed over rather than left as a way out of the cycle.
@@ -459,6 +485,7 @@ export class GameObjectInventoryComponent {
     return this.turnOrderService.currentSide;
   });
 
+  /** Gives the turn to the piece pressed in the turn order. */
   selectTurn(character: GameCharacter): void {
     this.turnOrderService.setCurrent(character.identifier);
   }
@@ -473,22 +500,30 @@ export class GameObjectInventoryComponent {
     return this.turnOrderService.canUndo;
   });
 
+  /** Moves the turn on to the next piece, starting or finishing the round when it is time. */
   turnNext(): void {
     this.turnOrderService.next();
   }
 
+  /**
+   * Moves on to the next round; while pieces are still waiting they are named and a second press is
+   * needed.
+   */
   turnAdvanceRound(): void {
     void this.turnOrderService.advanceRound();
   }
 
+  /** Takes the round back to where the one before it left off, buffs and all. */
   turnRetreatRound(): void {
     this.turnOrderService.retreatRound();
   }
 
+  /** Takes the turn order back one step, buffs and all. */
   turnPrev(): void {
     this.turnOrderService.prev();
   }
 
+  /** Stops the turn order and announces the reset in chat. */
   turnReset(): void {
     this.turnOrderService.reset();
   }
@@ -498,16 +533,22 @@ export class GameObjectInventoryComponent {
     return this.turnOrderService.buffDecay;
   });
 
+  /** Switches whether buffs run down as turns and rounds pass. */
   toggleBuffDecay(): void {
     this.turnOrderService.setBuffDecay(!this.turnOrderService.buffDecay);
   }
 
+  /**
+   * The display item the inventory is sorted by, which is the room's setting and so shared with
+   * every peer.
+   */
   get sortTag(): string {
     return this.inventoryService.sortTag;
   }
   set sortTag(sortTag: string) {
     this.inventoryService.sortTag = sortTag;
   }
+  /** The direction of the room's main sort. */
   get sortOrder(): SortOrder {
     return this.inventoryService.sortOrder;
   }
@@ -515,12 +556,14 @@ export class GameObjectInventoryComponent {
     this.inventoryService.sortOrder = sortOrder;
   }
 
+  /** The display item that breaks ties in the room's main sort. */
   get sortTag2nd(): string {
     return this.inventoryService.sortTag2nd;
   }
   set sortTag2nd(sortTag: string) {
     this.inventoryService.sortTag2nd = sortTag;
   }
+  /** The direction of the tie-breaking sort. */
   get sortOrder2nd(): SortOrder {
     return this.inventoryService.sortOrder2nd;
   }
@@ -528,27 +571,34 @@ export class GameObjectInventoryComponent {
     this.inventoryService.sortOrder2nd = sortOrder;
   }
 
+  /** The display items shown on each row, as written in the room's settings. */
   get dataTag(): string {
     return this.inventoryService.dataTag;
   }
   set dataTag(dataTag: string) {
     this.inventoryService.dataTag = dataTag;
   }
+  /** The room's display items as a list. */
   get dataTags(): string[] {
     return this.inventoryService.dataTags;
   }
 
+  /** The translated name of the main sort's direction. */
   get sortOrderName(): string {
     return this.sortOrder === SortOrder.ASC
       ? this.t('feature.inventory.panel.asc')
       : this.t('feature.inventory.panel.desc');
   }
+  /** The translated name of the tie-breaking sort's direction. */
   get sortOrderName2nd(): string {
     return this.sortOrder2nd === SortOrder.ASC
       ? this.t('feature.inventory.panel.asc')
       : this.t('feature.inventory.panel.desc');
   }
 
+  /**
+   * The places picked pieces can be sent to from the multi-select bar, leaving out the tab on view.
+   */
   get multiMoveLocations(): { name: string; labelKey: string }[] {
     const all = [
       { name: 'table', labelKey: 'feature.inventory.tabs.table' },
@@ -559,10 +609,15 @@ export class GameObjectInventoryComponent {
     return all.filter((loc) => loc.name !== this.selectTab());
   }
 
+  /** The display item name that stands for a line break in a row. */
   get newLineString(): string {
     return this.inventoryService.newLineString;
   }
 
+  /**
+   * The translated title of an inventory tab; any name that is not the table, this peer or the
+   * graveyard is the common tab.
+   */
   getTabTitle(inventoryType: string) {
     switch (inventoryType) {
       case 'table':
@@ -576,6 +631,10 @@ export class GameObjectInventoryComponent {
     }
   }
 
+  /**
+   * The inventory behind a tab; any name that is not the table, this peer or the graveyard gives
+   * the common one.
+   */
   getInventory(inventoryType: string) {
     switch (inventoryType) {
       case 'table':
@@ -632,6 +691,7 @@ export class GameObjectInventoryComponent {
 
   readonly isHiddenFiltered = computed<boolean>(() => this.activeHiddenFilter() !== 'all');
 
+  /** Switches rows hidden from the inventory between dimmed and shown in full. */
   toggleHiddenDisplay(): void {
     this.filter.toggleHiddenDisplay();
   }
@@ -711,11 +771,13 @@ export class GameObjectInventoryComponent {
     return folderSegments(folderPath).length < MAX_FOLDER_DEPTH;
   }
 
+  /** Whether a folder is folded up; nothing is while a search is running. */
   isFolderCollapsed(path: string): boolean {
     if (this.hasQuery()) return false;
     return this.collapsedFolders().has(path);
   }
 
+  /** Folds or unfolds a folder in this panel; ignored while a search is running. */
   toggleFolder(path: string): void {
     if (this.hasQuery()) return;
     this.collapsedFolders.update((current) => {
@@ -725,6 +787,7 @@ export class GameObjectInventoryComponent {
     });
   }
 
+  /** Folds up every folder, and the unfiled group with them; ignored while a search is running. */
   collapseAllFolders(): void {
     // A search opens every folder, so folding them now would only settle on the few that
     // survived the filter and show itself once the search is cleared.
@@ -735,6 +798,7 @@ export class GameObjectInventoryComponent {
     this.collapsedFolders.set(new Set(paths));
   }
 
+  /** Unfolds every folder in this panel. */
   expandAllFolders(): void {
     this.collapsedFolders.set(new Set());
   }
@@ -750,25 +814,39 @@ export class GameObjectInventoryComponent {
     return [...paths].sort((left, right) => left.localeCompare(right, 'ja', { numeric: true }));
   });
 
+  /**
+   * Files a character into a folder, which is kept on the character for every peer; ignored for a
+   * seat that may not edit the table.
+   */
   setFolder(gameObject: TabletopObject, folderPath: string): void {
     this.setFolderOf([gameObject.identifier], folderPath);
   }
 
+  /** Makes a new numbered folder, files the piece into it and opens its name for editing. */
   createFolderFor(gameObject: TabletopObject): void {
     this.createFolderOf([gameObject.identifier]);
   }
 
+  /**
+   * Makes a new, empty numbered folder at the top or inside another, and opens its name for
+   * editing.
+   *
+   * Does nothing inside a folder at the depth limit. On the personal tab the folder is kept on this
+   * device; on the others it is kept with the room.
+   */
   createFolder(parentPath = ''): void {
     if (parentPath.length > 0 && !this.canNestInside(parentPath)) return;
     this.createFolderOf([], parentPath);
   }
 
+  /** Files every picked piece into a folder and leaves multi-select. */
   multiSetFolder(folderPath: string): void {
     this.setFolderOf(this.multiMoveTargets(), folderPath);
     this.toggleMultiMove();
     SoundEffect.play(PresetSound.piecePut);
   }
 
+  /** Opens the folder menu for the picked pieces, from the multi-select bar. */
   onMultiMoveFolderMenu(): void {
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
     const position = this.pointerDeviceService.pointers[0];
@@ -788,6 +866,7 @@ export class GameObjectInventoryComponent {
     this.contextMenuService.open(position, actions, this.t('feature.inventory.panel.folder'));
   }
 
+  /** Opens the context menu of a folder heading. */
   onFolderContextMenu(event: Event, folderPath: string): void {
     event.stopPropagation();
     event.preventDefault();
@@ -818,10 +897,15 @@ export class GameObjectInventoryComponent {
 
   readonly editingFolder = signal<string | null>(null);
 
+  /** Whether the folder's name is open for editing. */
   isEditingFolder(folderPath: string): boolean {
     return this.editingFolder() === folderPath;
   }
 
+  /**
+   * Unfolds a folder and opens its name for editing; ignored for the unfiled group and for a seat
+   * that may not edit the table.
+   */
   startFolderRename(folderPath: string): void {
     if (!this.rolePermission.canEditTabletop || folderPath.length < 1) return;
     this.collapsedFolders.update((current) => {
@@ -832,6 +916,7 @@ export class GameObjectInventoryComponent {
     this.editingFolder.set(folderPath);
   }
 
+  /** Closes the folder name editor without renaming anything. */
   cancelFolderRename(): void {
     this.editingFolder.set(null);
   }
@@ -914,6 +999,12 @@ export class GameObjectInventoryComponent {
     return deepest;
   }
 
+  /**
+   * Removes a folder and every folder inside it.
+   *
+   * The pieces filed there become unfiled rather than deleted, and the user is asked first when
+   * there are any. Does nothing for a seat that may not edit the table.
+   */
   async deleteFolder(folderPath: string): Promise<void> {
     if (!this.rolePermission.canEditTabletop) return;
     const characters = this.charactersUnder(folderPath);
@@ -936,6 +1027,10 @@ export class GameObjectInventoryComponent {
     this.inventoryService.notifyInventoryUpdate();
   }
 
+  /**
+   * Adds every listed piece in a folder and the folders inside it to the multi-select picks; an
+   * empty path takes the unfiled group.
+   */
   selectFolder(folderPath: string): void {
     const rows =
       folderPath.length < 1
@@ -986,24 +1081,40 @@ export class GameObjectInventoryComponent {
     return texts;
   }
 
+  /** Whether the piece is a character hidden from the inventory. */
   isInventoryHiddenObject(gameObject: TabletopObject): boolean {
     return gameObject instanceof GameCharacter && gameObject.hideInventory;
   }
 
+  /**
+   * Whether the piece's row is drawn dimmed, because it is hidden from the inventory and hidden
+   * rows are set to dim.
+   */
   isHiddenRowDimmed(gameObject: TabletopObject): boolean {
     return this.isInventoryHiddenObject(gameObject) && this.hiddenDisplay() === 'dim';
   }
 
+  /** Whether this seat may see a piece's details; only characters are ever withheld. */
   canView(gameObject: TabletopObject): boolean {
     this.objectChange.trackMyCursor();
     if (gameObject instanceof GameCharacter) return this.disclosureService.canView(gameObject);
     return true;
   }
 
+  /**
+   * The data elements shown on a character's row, in display item order, with null where the sheet
+   * has no such item.
+   */
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {
     return this.getInventory(gameObject.location.name).dataElementMap.get(gameObject.identifier) ?? [];
   }
 
+  /**
+   * Opens the context menu of a piece's row, selecting the piece.
+   *
+   * It stays out of the way while a field inside a row is being edited, and does nothing for a
+   * piece this seat may not see.
+   */
   onContextMenu(e: Event, gameObject: TabletopObject) {
     // Leaves an edit in progress on a row alone, without the search box blocking every menu.
     const editing = document.activeElement;
@@ -1083,6 +1194,7 @@ export class GameObjectInventoryComponent {
     return parts.length > 0 ? parts.join(' / ') : this.t('feature.inventory.panel.filterNone');
   });
 
+  /** Enters or leaves multi-select; leaving drops every pick. */
   toggleMultiMove() {
     if (this.isMultiMove()) {
       this.multiMoveTargets.set(new Set());
@@ -1090,6 +1202,10 @@ export class GameObjectInventoryComponent {
     this.isMultiMove.update((v) => !v);
   }
 
+  /**
+   * Deletes every piece listed on the tab, or only those the search matches, once the user
+   * confirms; does nothing for a seat that may not edit the table.
+   */
   async cleanInventory(): Promise<void> {
     if (!this.rolePermission.canEditTabletop) return;
     const rows = this.filteredRows();
@@ -1106,10 +1222,12 @@ export class GameObjectInventoryComponent {
     SoundEffect.play(PresetSound.sweep);
   }
 
+  /** Whether any row listed on the tab is picked. */
   existsMultiMoveSelectedInTab(): boolean {
     return this.filteredRows().some((row) => this.multiMoveTargets().has(row.identifier));
   }
 
+  /** Picks or unpicks a piece from its row's checkbox. */
   toggleMultiMoveTarget(e: Event, gameObject: GameCharacter) {
     if (!(e.target instanceof HTMLInputElement)) {
       return;
@@ -1125,6 +1243,7 @@ export class GameObjectInventoryComponent {
     }
   }
 
+  /** Unpicks every listed row when any of them is picked, and otherwise picks them all. */
   allTabBoxCheck() {
     const rows = this.filteredRows();
     if (this.existsMultiMoveSelectedInTab()) {
@@ -1142,6 +1261,7 @@ export class GameObjectInventoryComponent {
     }
   }
 
+  /** Opens the menu of moves for the picked pieces. */
   onMultiMoveContextMenu() {
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
@@ -1159,6 +1279,10 @@ export class GameObjectInventoryComponent {
     this.contextMenuService.open(position, actions, this.t('feature.inventory.contextMenu.multiMoveTitle'));
   }
 
+  /**
+   * Moves every picked character to a location for every peer; does nothing for a seat that may not
+   * edit the table.
+   */
   multiMove(location: string) {
     if (!this.rolePermission.canEditTabletop) return;
     for (const gameObjectIdentifier of this.multiMoveTargets()) {
@@ -1169,12 +1293,18 @@ export class GameObjectInventoryComponent {
     }
   }
 
+  /**
+   * Moves every picked character to a location, leaves multi-select and plays the piece-put sound.
+   */
   moveToAndClose(location: string) {
     this.multiMove(location);
     this.toggleMultiMove();
     SoundEffect.play(PresetSound.piecePut);
   }
 
+  /**
+   * Hides every picked character from the inventory or shows them again, then leaves multi-select.
+   */
   multiSetHideInventory(hide: boolean) {
     if (!this.rolePermission.canEditTabletop) return;
     for (const gameObjectIdentifier of this.multiMoveTargets()) {
@@ -1188,6 +1318,10 @@ export class GameObjectInventoryComponent {
     SoundEffect.play(PresetSound.sweep);
   }
 
+  /**
+   * Deletes the picked pieces in the graveyard, leaving multi-select only when something was
+   * deleted.
+   */
   async deleteAndClose(): Promise<void> {
     if (await this.multiDelete()) {
       this.toggleMultiMove();
@@ -1195,6 +1329,12 @@ export class GameObjectInventoryComponent {
     }
   }
 
+  /**
+   * Deletes the picked pieces that are in the graveyard, once the user confirms.
+   *
+   * Picks anywhere else are left alone. Resolves false when nothing was deleted: no picks in the
+   * graveyard, a refusal, or a seat that may not edit the table.
+   */
   async multiDelete(): Promise<boolean> {
     if (!this.rolePermission.canEditTabletop) return false;
     const inGraveyard: Set<GameCharacter> = new Set();
@@ -1249,10 +1389,23 @@ export class GameObjectInventoryComponent {
     this.selectionSignalService.focusToCoordinate(gameObject.location.x, gameObject.location.y);
   }
 
+  /**
+   * Stops a game master's mouse or touch press on a character row from reaching the panel's
+   * draggable directive, which would otherwise start moving the whole panel.
+   *
+   * The row's own pointer handlers still get the press, so the game master can drag the character
+   * out to the game master's bar or into a folder while the panel stays put.
+   */
   onObjectDragBlock(event: Event, gameObject: GameObject): void {
     if (gameObject instanceof GameCharacter && PeerCursor.isMyselfGameMaster) event.stopPropagation();
   }
 
+  /**
+   * Selects and highlights a piece when its row is clicked, and in multi-select picks or unpicks it
+   * too.
+   *
+   * The click that ends a drag is ignored, and so is one on a character this seat may not see.
+   */
   selectGameObject(gameObject: GameObject) {
     if (this.drag.takeSuppressedClick()) return;
     if (gameObject instanceof GameCharacter && !this.canView(gameObject)) return;

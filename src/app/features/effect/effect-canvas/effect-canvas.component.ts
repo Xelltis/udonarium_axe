@@ -50,6 +50,12 @@ function devicePixelRatioOf(): number {
   return typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
 }
 
+/**
+ * The scale of the canvas backing store for a particle layer.
+ *
+ * It follows the device pixel ratio up to 2, and drops lower when needed so a layer spanning a
+ * whole map stays within the pixel budget of one canvas.
+ */
 export function pixelRatioFor(layer: EffectParticleLayer): number {
   const ratio = Math.min(devicePixelRatioOf(), MAX_PIXEL_RATIO);
   const pixels = layer.width * layer.height;

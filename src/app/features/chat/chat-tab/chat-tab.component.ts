@@ -173,6 +173,10 @@ export class ChatTabComponent {
   private _minMessageHeight = 26;
   private _minMessageHeightNormal = 61;
 
+  /**
+   * The least height a message can take, in pixels, smaller in simple display mode; used to
+   * estimate the room taken by messages that are not rendered.
+   */
   get minMessageHeight() {
     if (this.chatTab) {
       if (this.chatTab.chatSimpleDispFlag) {
@@ -186,6 +190,12 @@ export class ChatTabComponent {
   private scrollSpeed = 0;
 
   private _chatMessages: ChatMessage[] = [];
+  /**
+   * The slice of the tab's messages currently rendered; empty when there is no tab.
+   *
+   * It is only cut again after the range or the messages have changed, and it remembers where the
+   * slice starts so that edits to older messages do not ask for a render.
+   */
   get chatMessages(): ChatMessage[] {
     this.renderVersion();
     if (!this.chatTab) return [];
@@ -199,14 +209,26 @@ export class ChatTabComponent {
     return this._chatMessages;
   }
 
+  /**
+   * The height the log reserves, in pixels, for every displayable message at the minimum height,
+   * capped at 10,000 messages.
+   *
+   * It keeps the scrollbar sized to the whole log rather than the rendered slice. With no tab, the
+   * sample messages are counted instead.
+   */
   get minScrollHeight(): number {
     const length = this.chatTab ? this.chatTab.displayableMessagesLength() : this.sampleMessages.length;
     return (length < 10000 ? length : 10000) * this.minMessageHeight;
   }
 
+  /** The estimated height of the messages above the rendered slice. */
   get topSpace(): number {
     return this.minScrollHeight - this.bottomSpace;
   }
+  /**
+   * The estimated height of the messages below the rendered slice, kept as a margin so the slice
+   * sits where it would in the full log; zero when nothing is rendered.
+   */
   get bottomSpace(): number {
     const tab = this.chatTab;
     return 0 < this.chatMessages.length
@@ -234,15 +256,21 @@ export class ChatTabComponent {
    * should look quiet.
    */
   readonly readOnly = input(false);
+  /** The chat tab shown, as bound through the `chatTab` input; null when none is bound. */
   get chatTab(): ChatTab | null {
     return this.chatTabInput();
   }
+  /** The room's chat tab list, whose display settings apply to every message shown. */
   get chatTabList(): ChatTabList | null {
     return this.objectStore.get<ChatTabList>('ChatTabList');
   }
 
   readonly addMessage = output<void>();
 
+  /**
+   * Emits `addMessage` once on the next task, however many messages arrive before then; the chat
+   * window follows new messages to the bottom on it.
+   */
   onMessageInit() {
     if (this.addMessageEventTimer != null) return;
     this.addMessageEventTimer = setTimeout(() => {
@@ -251,6 +279,13 @@ export class ChatTabComponent {
     }, 0);
   }
 
+  /**
+   * Moves the rendered range to the end of the log, rendering just enough messages to fill the
+   * panel.
+   *
+   * It runs when the tab changes and whenever the panel is asked to scroll to the bottom, and does
+   * nothing until there is both a tab and a scrollable panel.
+   */
   resetMessages() {
     if (!this.chatTab || !this.panelService?.scrollablePanel) return;
     const lastIndex = this.chatTab.chatMessages.length - 1;
@@ -288,6 +323,9 @@ export class ChatTabComponent {
     if (trim) this.resetMessages();
   }
 
+  /**
+   * Tracks rendered messages by identifier, so each keeps its element as the rendered range shifts.
+   */
   trackByChatMessage(index: number, message: ChatMessage) {
     return message.identifier;
   }
@@ -524,6 +562,7 @@ export class ChatTabComponent {
     });
   }
 
+  /** Renders the log again; a chat redraw request from the UI signal service leads here. */
   redraw() {
     this.renderVersion.update((v) => v + 1);
   }
