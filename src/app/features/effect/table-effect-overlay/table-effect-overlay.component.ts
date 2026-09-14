@@ -73,7 +73,16 @@ export class TableEffectOverlayComponent {
     return hidden;
   });
 
+  private readonly nothingToRender: (EffectFieldRenderable & { hidden: ReadonlySet<string> })[] = [];
+
+  /**
+   * Everything to draw this frame.
+   *
+   * With no cast playing and no field standing it reads no clock and hands back the same empty
+   * list, so the weather keeping the frame loop running does not rebuild the sprites every frame.
+   */
   private readonly renderables = computed<(EffectFieldRenderable & { hidden: ReadonlySet<string> })[]>(() => {
+    if (this.playback.activeCasts().length < 1 && this.fieldService.fields().length < 1) return this.nothingToRender;
     perfCounters.bump(PERF_EFFECT_RENDERABLES);
     const now = this.playback.now();
     const hiddenByKey = this.hiddenByKey();

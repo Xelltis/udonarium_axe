@@ -70,6 +70,18 @@ describe('TableEffectOverlayComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('div')).toHaveLength(0);
   });
 
+  it('builds nothing anew while nothing plays, however the clock moves on', () => {
+    playback.now.set(16);
+    const sprites = component.sprites();
+    const canvases = component.canvases();
+
+    playback.now.set(32);
+    playback.now.set(48);
+
+    expect(component.sprites()).toBe(sprites);
+    expect(component.canvases()).toBe(canvases);
+  });
+
   it('draws the sprites on a firing', () => {
     playback.play({
       presetIdentifier: preset.identifier,
