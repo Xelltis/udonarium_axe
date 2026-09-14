@@ -12,6 +12,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { keepFocusFromZoomingOnAppleTouch } from '@axe/core/util/apple-input-zoom';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { createDefaultStatusAilments } from '@axe/domain/character/builtin-status-ailments';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -65,6 +66,7 @@ export class AppInitializationService {
     this.appConfigService.initialize();
     this.pointerDeviceService.initialize();
     this.keyboardInset.initialize();
+    keepFocusFromZoomingOnAppleTouch(document, navigator);
     this.ngSelectConfig.appendTo = 'body';
 
     this.tableSelecter.initialize();
