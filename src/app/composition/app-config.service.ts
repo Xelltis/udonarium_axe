@@ -27,6 +27,13 @@ export class AppConfigService {
     localMode: false,
   };
 
+  /**
+   * Loads the app configuration and announces it with the load-config event.
+   *
+   * In local mode no network is used and the file is not read. Otherwise the backend address
+   * comes from `assets/config.json`; a missing or unreadable file is logged and the defaults
+   * are kept. The loading finishes after this returns.
+   */
   initialize() {
     this.initAppConfig();
   }

@@ -116,6 +116,10 @@ export class DisplayCalibrationComponent {
     event.preventDefault();
   }
 
+  /**
+   * Called as the corner handle is dragged: widens or narrows the frame by how far the pointer
+   * has travelled sideways since it was pressed. Moves without a held handle are ignored.
+   */
   onHandleMove(event: PointerEvent): void {
     const handle = event.target as Element;
     if (!handle.hasPointerCapture(event.pointerId)) return;
@@ -123,11 +127,18 @@ export class DisplayCalibrationComponent {
     event.preventDefault();
   }
 
+  /** Called when the corner handle is let go or the pointer is lost; ends the drag. */
   onHandleUp(event: PointerEvent): void {
     const handle = event.target as Element;
     if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
   }
 
+  /**
+   * Switches between matching one card and two side by side.
+   *
+   * The scale matched so far is kept, so the frame is resized to the new run rather than reset.
+   * Two cards are refused where their run would not fit on screen.
+   */
   setCards(cards: number): void {
     if (cards === 2 && !this.twoCardsFit()) return;
     const before = this.pxPerMm();
@@ -137,15 +148,21 @@ export class DisplayCalibrationComponent {
     this.framePx.set(clampFrame(before * cardRunWidthMm(cards)));
   }
 
+  /** Widens or narrows the frame by a few pixels from the step buttons, within its limits. */
   nudgeFrame(deltaPx: number): void {
     this.framePx.set(clampFrame(this.framePx() + deltaPx));
   }
 
+  /** Sets the frame width from the slider or the number field; anything that is not a number is ignored. */
   onFrameInput(value: string): void {
     const parsed = Number(value);
     if (Number.isFinite(parsed)) this.framePx.set(clampFrame(parsed));
   }
 
+  /**
+   * Sets how wide a table cell should be in millimetres; anything that is not a positive number
+   * is ignored. Nothing is saved until the calibration is confirmed.
+   */
   onCellMmInput(value: string): void {
     const parsed = Number(value);
     if (Number.isFinite(parsed) && parsed > 0) this.cellMm.set(parsed);
@@ -159,6 +176,7 @@ export class DisplayCalibrationComponent {
     this.modalService.resolve(true);
   }
 
+  /** Closes the calibration without saving anything. */
   cancel(): void {
     this.modalService.resolve(false);
   }

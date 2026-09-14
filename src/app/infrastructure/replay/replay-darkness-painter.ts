@@ -75,6 +75,13 @@ function canDraw(context: unknown): context is DarknessCanvas {
   return typeof candidate?.fillRect === 'function' && typeof candidate?.drawImage === 'function';
 }
 
+/**
+ * A blank surface of the given size to paint the shroud on.
+ *
+ * One offscreen surface is kept and cleared between calls, so what this returns is only good
+ * until the next call. Falls back to a page canvas, and gives null for a size under one pixel
+ * or where nothing can be drawn.
+ */
 export function defaultDarknessLayer(width: number, height: number): DarknessCanvas | null {
   if (width < 1 || height < 1) return null;
 
@@ -109,6 +116,13 @@ function domDarknessLayer(width: number, height: number): DarknessCanvas | null 
   return canDraw(created) ? created : null;
 }
 
+/**
+ * Paints a vision plan's darkness and light over the board in a video frame.
+ *
+ * The shroud is filled on its own surface, capped at `DARKNESS_LAYER_MAX` on its longest side,
+ * then carved away where the plan reveals, stretched over the board, and the lights' colour is
+ * added on top. Nothing is drawn when the board has no size or no surface can be made.
+ */
 export function paintReplayDarkness(
   ctx: DarknessCanvas,
   plan: OverlayPlan,

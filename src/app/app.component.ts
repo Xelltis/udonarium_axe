@@ -298,6 +298,11 @@ export class AppComponent {
     this.roomPanels.open(name);
   }
 
+  /**
+   * Saves the room to a file from the save button, named after the room, showing progress as it goes.
+   *
+   * A press while a save is already running is ignored.
+   */
   async save() {
     if (this.isSaving()) return;
     this.isSaving.set(true);
@@ -317,6 +322,12 @@ export class AppComponent {
     }, 500);
   }
 
+  /**
+   * Loads the files chosen in the file picker into the room.
+   *
+   * Refused for a role that may not edit the tabletop. The picker is cleared either way, so the
+   * same file can be chosen again.
+   */
   handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!this.rolePermission.canEditTabletop) {

@@ -70,6 +70,14 @@ export const DEFAULT_REPLAY_FRAME_STYLE: ReplayFrameStyle = {
   boxLuminance: [0.03, 0.04, 0.055],
 };
 
+/**
+ * Draws one frame of a session replay video.
+ *
+ * In order: the backdrop, the board with its trail, darkness and pieces when there is one, any
+ * cut-in, then either a chapter card or the dialogue box with its portrait, and the progress
+ * bar. `progress` runs through the whole video; `shotProgress` through the current shot, which
+ * times a piece's move and the cut-in.
+ */
 export function paintReplayFrame(
   ctx: ReplayFrameCanvas,
   layout: ReplayFrameLayout,

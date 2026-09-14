@@ -46,6 +46,7 @@ export class DoubleTap {
     return dx * dx + dy * dy < SLOP_PX * SLOP_PX;
   }
 
+  /** Forgets the first tap and drops any action waiting for a finger to lift. */
   cancel(): void {
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;

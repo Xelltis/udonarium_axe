@@ -5,6 +5,12 @@ export interface ContainedImageRect {
   readonly height: number;
 }
 
+/**
+ * Where a picture drawn to fit inside a frame lands, as `object-fit: contain` would place it:
+ * scaled to the frame less `padding` on every side, keeping its proportions, and centred.
+ *
+ * Null when the picture has no size yet or the padding leaves no room.
+ */
 export function containedImageRect(
   frameWidth: number,
   frameHeight: number,

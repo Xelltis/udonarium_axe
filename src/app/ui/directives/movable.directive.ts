@@ -111,6 +111,7 @@ export class MovableDirective implements MovableInteractionContext {
   readonly ondragend = output<PointerEvent>({ alias: 'movable.ondragend' });
   readonly onend = output<PointerEvent>({ alias: 'movable.onend' });
 
+  /** The element the piece is drawn in, which the directive moves by its transform. */
   get nativeElement(): HTMLElement {
     return this.elementRef.nativeElement;
   }
@@ -121,6 +122,13 @@ export class MovableDirective implements MovableInteractionContext {
 
   private mathFloor: boolean = true;
 
+  /**
+   * The piece's left edge on its surface, in pixels, as currently shown.
+   *
+   * Setting it rounds down, redraws the piece at once and writes the value back to the piece's
+   * synced location within a few frames. While the piece is held, the other selected pieces
+   * are moved by the same amount.
+   */
   get posX(): number {
     return this._posX;
   }
@@ -128,6 +136,7 @@ export class MovableDirective implements MovableInteractionContext {
     this._posX = this.mathFloor ? Math.floor(posX) : posX;
     this.setUpdateTimer();
   }
+  /** The piece's top edge on its surface, in pixels; set like `posX`. */
   get posY(): number {
     return this._posY;
   }
@@ -135,6 +144,7 @@ export class MovableDirective implements MovableInteractionContext {
     this._posY = this.mathFloor ? Math.floor(posY) : posY;
     this.setUpdateTimer();
   }
+  /** How high the piece stands off its surface, in pixels, kept to eighths; set like `posX`. */
   get posZ(): number {
     return this._posZ;
   }
@@ -156,6 +166,11 @@ export class MovableDirective implements MovableInteractionContext {
   private collidableElements: HTMLElement[] = [];
   input: InputHandler | null = null;
 
+  /**
+   * Whether a piece let go of snaps to the grid of the table being viewed.
+   *
+   * Follows the table's setting, on when there is no table; never for a piece stuck to a board.
+   */
   get isGridSnap(): boolean {
     // A board is not ruled into squares. What is stuck to one keeps the spot it was put on
     // it, the way a sticker does, rather than jumping to the nearest line of the table.
@@ -291,6 +306,12 @@ export class MovableDirective implements MovableInteractionContext {
     }
   }
 
+  /**
+   * The height a held piece rests at with its middle at the given point on its surface.
+   *
+   * What it can stand on is gathered from the pieces on the same surface once per drag. The
+   * level found is remembered, so turning the wheel steps up or down from there.
+   */
   contactSupportZ(centerX: number, centerY: number): number {
     if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
     const self = this.tabletopObject;
@@ -493,6 +514,12 @@ export class MovableDirective implements MovableInteractionContext {
     this.posZ = this.contactSupportZ(this.posX + middleX, this.posY + middleY);
   }
 
+  /**
+   * Starts listening for presses on the piece, joins its collision layer and draws it where
+   * its synced location says.
+   *
+   * The layer defaults to the piece's alias name when none was given.
+   */
   initialize() {
     this.input = new InputHandler(this.nativeElement);
     this.input.onStart = (e) => this.onInputStart(e);
@@ -505,6 +532,12 @@ export class MovableDirective implements MovableInteractionContext {
     this.setPosition(this.tabletopObject);
   }
 
+  /**
+   * Ends whatever drag is in progress and puts the piece back to its resting state.
+   *
+   * Pointer hits, the move animation and the other layers are restored, the held-piece readout
+   * is cleared, and what the piece could stand on is forgotten until the next drag.
+   */
   cancel() {
     window.removeEventListener('wheel', this.onWheelWhileGrabbed, { capture: true });
     this.heldPiece.letGo(this.tabletopObject?.identifier);
@@ -526,10 +559,16 @@ export class MovableDirective implements MovableInteractionContext {
     this.nativeElement.style.willChange = isMoving ? 'transform' : '';
   }
 
+  /** Stops the table's own press gesture, such as a selection box, from starting under the piece. */
   cancelTableGesture() {
     this.selectionSignalService.cancelTableGesture();
   }
 
+  /**
+   * Looks up the table point under the pointer for a scratch owner's drag.
+   *
+   * Nothing is kept or moved: the piece stays where it is.
+   */
   scratchObjectPosition(_start: boolean) {
     const pointerScratch2d = {
       x: this.input!.pointer.x,
@@ -548,10 +587,15 @@ export class MovableDirective implements MovableInteractionContext {
     pointerSchratch3d.y -= this.posY;
   }
 
+  /** Whether the local user's role may not edit the tabletop, which locks the piece in place. */
   isReadOnly(): boolean {
     return !this.rolePermission.canEditTabletop;
   }
 
+  /**
+   * Called when the piece is pressed: selects it, joins a drag of the whole selection, and
+   * starts listening to the wheel for raising or lowering it while it is held.
+   */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.callSelectedEvent();
     this.promoteWhileMoving(true);
@@ -563,6 +607,12 @@ export class MovableDirective implements MovableInteractionContext {
     handleInputStart(this, e);
   }
 
+  /**
+   * Called on each pointer move while the piece is pressed.
+   *
+   * Over another surface the piece shows a drop outline there, or rests on a beam; otherwise it
+   * follows the pointer, and a player's character is stopped at terrain it may not walk over.
+   */
   onInputMove(e: MouseEvent | TouchEvent) {
     perfCounters.bump('inputMove');
     perfTimed('inputMove', () => this.onInputMoveNow(e));
@@ -677,11 +727,21 @@ export class MovableDirective implements MovableInteractionContext {
     }
   }
 
+  /**
+   * The surface the piece's position is measured on: the wall or board it stands on, or the
+   * table itself.
+   */
   surfaceElement(): HTMLElement {
     const closest = this.nativeElement.closest<HTMLElement>('[data-surface]');
     return closest ?? this.coordinateService.tabletopOriginElement;
   }
 
+  /**
+   * Called when the piece is let go.
+   *
+   * A piece dropped on a beam or on another surface moves onto it; then the drag ends as usual,
+   * including the snap to the grid, and the selection's shared drag is finished.
+   */
   onInputEnd(e: MouseEvent | TouchEvent) {
     if (this.input?.isDragging && !this.isScratcOwner()) {
       this.maybeSwitchSurfaceOnDrop();
@@ -800,6 +860,7 @@ export class MovableDirective implements MovableInteractionContext {
     return best;
   }
 
+  /** Called when a context menu is opened while the piece is pressed; ends the drag first. */
   onContextMenu(e: MouseEvent | TouchEvent) {
     handleContextMenu(this, e);
   }
@@ -809,6 +870,12 @@ export class MovableDirective implements MovableInteractionContext {
       this.selectionSignalService.selectObject(this.tabletopObject.identifier, this.tabletopObject.aliasName);
   }
 
+  /**
+   * Moves the piece to the nearest spot the table's grid and snap style allow, square or hex.
+   *
+   * `gridSize` is used only when no table is being viewed. A player's character is still
+   * stopped at terrain it may not walk over on the way to that spot.
+   */
   snapToGrid(gridSize: number = 25) {
     const beforeX = this.posX;
     const beforeY = this.posY;
@@ -950,10 +1017,16 @@ export class MovableDirective implements MovableInteractionContext {
     this.collidableElements = collectCollidableElements(this.nativeElement);
   }
 
+  /**
+   * Lets the pointer hit the piece, or passes it through to what is underneath.
+   *
+   * The elements affected are found on the first press, so this does nothing before then.
+   */
   setPointerEvents(isEnable: boolean) {
     applyPointerEvents(this.collidableElements, isEnable);
   }
 
+  /** Turns on the short glide used when the piece is moved from elsewhere; off while it is dragged. */
   setAnimatedTransition(isEnable: boolean) {
     this.nativeElement.style.transition = isEnable ? 'transform 132ms linear' : '';
   }
@@ -973,6 +1046,7 @@ export class MovableDirective implements MovableInteractionContext {
     this.nativeElement.style.transform = toTransformCss(this.posX, this.posY, posZ, offset);
   }
 
+  /** Makes the other pieces hittable or not according to the layers this piece collides with. */
   setCollidableLayer(isCollidable: boolean) {
     setLayerCollidable(MovableDirective.layerHash, this.colideLayers, this, !!this.input?.isGrabbing, isCollidable);
   }

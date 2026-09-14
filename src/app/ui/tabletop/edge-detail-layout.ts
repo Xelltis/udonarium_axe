@@ -73,6 +73,7 @@ export function makeEdgeDetailSeats(viewportWidth: number, viewportHeight: numbe
   return seats;
 }
 
+/** Whether two seat lists place the details identically, so a layout that has not changed is kept. */
 export function sameEdgeDetailSeats(left: readonly EdgeDetailSeat[], right: readonly EdgeDetailSeat[]): boolean {
   return (
     left.length === right.length &&

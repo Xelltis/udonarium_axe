@@ -19,6 +19,12 @@ interface BoundingBox {
   maxY: number;
 }
 
+/**
+ * The outline, corner by corner, of a hexagonal patch of cells around one central hex.
+ *
+ * `size` 1 is a single cell, 2 adds the ring of six around it, and so on. Used to draw the
+ * pedestal under a piece on a hex grid.
+ */
 export function buildHexFlowerOutline(size: number, gridSize: number, isFlatTop: boolean): Point[] {
   const s = hexCircumradius(gridSize);
   const g = gridSize;
@@ -99,6 +105,10 @@ export function buildHexFlowerOutline(size: number, gridSize: number, isFlatTop:
   return path;
 }
 
+/**
+ * Moves every edge of a closed polygon `bw` pixels in along its normal, joining the new edges
+ * at mitred corners, which gives the inner edge of a ring drawn along the outline.
+ */
 export function insetPolygon(vertices: Point[], bw: number): Point[] {
   const n = vertices.length;
   const result: Point[] = [];
@@ -129,6 +139,10 @@ export function insetPolygon(vertices: Point[], bw: number): Point[] {
   return result;
 }
 
+/**
+ * A CSS `clip-path` that keeps only a band `borderWidth` wide just inside a hex outline, drawn
+ * relative to the outline's bounding box, for a pedestal's rim.
+ */
 export function buildHexRingClipPath(outline: Point[], bbox: BoundingBox, borderWidth: number): string {
   const outer = outline.map((v) => ({ x: v.x - bbox.minX, y: v.y - bbox.minY }));
   const inner = insetPolygon(outer, borderWidth);
@@ -149,6 +163,12 @@ export function buildHexRingClipPath(outline: Point[], bbox: BoundingBox, border
   return `path(evenodd, "${outerPath} ${innerPath}")`;
 }
 
+/**
+ * The pedestal outline and bounding box for a piece of `size` cells on a hex grid.
+ *
+ * A whole size from 1 to 6 surrounds a central cell; a fractional size is centred on a hex
+ * corner instead. `L` is the piece's width in pixels and `g` the grid size.
+ */
 export function calcHexFlowerParams(size: number, gridSize: number, isFlatTop: boolean): HexFlowerParams {
   const L = size * gridSize;
   const outline =
@@ -168,6 +188,14 @@ export function calcHexFlowerParams(size: number, gridSize: number, isFlatTop: b
   return { outline, bbox: { minX, minY, maxX, maxY }, L, g: gridSize };
 }
 
+/**
+ * The outline of the cells gathered round one hex corner rather than round a cell centre.
+ *
+ * Cells are taken in rings of increasing distance from that corner, the whole part of `size` rings
+ * in all and never fewer than one. `calcHexFlowerParams` picks it whenever the size has a fractional
+ * part, such as 1.5: a character piece's size, or the smaller of a terrain block's width and depth
+ * on a hex grid.
+ */
 export function buildVertexClusterOutline(size: number, gridSize: number, isFlatTop: boolean): Point[] {
   const s = hexCircumradius(gridSize);
   const g = gridSize;

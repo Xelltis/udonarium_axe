@@ -57,6 +57,13 @@ export class AppInitializationService {
   private readonly ngSelectConfig = inject(NgSelectConfig);
   private readonly keyboardInset = inject(KeyboardInsetService);
 
+  /**
+   * Starts the app once at launch, before any room is used.
+   *
+   * Sets up networking, file sharing and object sync, then creates the room-wide objects every
+   * room starts with (dice bot, jukebox, default chat tabs, preset sounds, effects, cut-ins and
+   * status ailments) and the local user's cursor, restoring a stored identity if there is one.
+   */
   initialize(): void {
     initializeNetworkMessaging();
     this.fileArchiver.initialize();

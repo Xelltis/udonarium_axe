@@ -42,6 +42,14 @@ export interface MovableInteractionContext {
   scratchObjectPosition(start: boolean): void;
 }
 
+/**
+ * Takes up a piece when it is pressed.
+ *
+ * A locked piece (disabled for anyone but its scratch owner, or on a read-only role) and a
+ * middle or right press cancel instead; a right press on an unlocked piece also stops the
+ * table's own gesture from starting under it. Otherwise it records the piece's size and how
+ * far its middle sits from the pointer, so the drag keeps that offset.
+ */
 export function handleInputStart(context: MovableInteractionContext, e: MouseEvent | TouchEvent): void {
   const input = context.input;
   if (!input) return;
@@ -87,6 +95,13 @@ export function handleInputStart(context: MovableInteractionContext, e: MouseEve
   context.ratio = 1.0;
 }
 
+/**
+ * Moves a held piece to follow the pointer, resting it on whatever is under its middle.
+ *
+ * The drag is cancelled once the pointer service no longer reports a drag, or the piece has
+ * become locked. `ondragstart` is emitted on the first move that changes the position and
+ * `ondrag` on each one. A scratch owner's piece is not moved.
+ */
 export function handleInputMove(context: MovableInteractionContext, e: MouseEvent | TouchEvent): void {
   const input = context.input;
   if (!input) return;
@@ -132,6 +147,10 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
   }
 }
 
+/**
+ * The screen point the middle of a held piece follows: the pointer plus the offset it was
+ * grabbed at, kept just inside the window.
+ */
 export function dragPointer2d(context: MovableInteractionContext): { x: number; y: number; z: number } {
   const pointer = context.input?.pointer ?? { x: 0, y: 0, z: 0 };
   return {
@@ -141,6 +160,13 @@ export function dragPointer2d(context: MovableInteractionContext): { x: number; 
   };
 }
 
+/**
+ * Puts a held piece down when the pointer is released.
+ *
+ * A piece that was actually dragged emits `ondragend` and snaps to the grid when the table
+ * asks for it; every release then cancels the drag and emits `onend`. A disabled or read-only
+ * piece is cancelled without either event.
+ */
 export function handleInputEnd(context: MovableInteractionContext, e: MouseEvent | TouchEvent): void {
   const input = context.input;
   if (!input) return;
@@ -151,6 +177,12 @@ export function handleInputEnd(context: MovableInteractionContext, e: MouseEvent
   context.onend.emit(e as PointerEvent);
 }
 
+/**
+ * Ends a drag when a context menu is asked for partway through it.
+ *
+ * A dragged piece snaps to the grid first. When the menu was opened by a real press while the
+ * piece was held, a copy of the event is dispatched on the piece so its own menu still opens.
+ */
 export function handleContextMenu(context: MovableInteractionContext, e: MouseEvent | TouchEvent): void {
   const input = context.input;
   if (!input) return;

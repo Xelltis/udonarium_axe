@@ -10,6 +10,10 @@ interface BoxSize {
   height: number;
 }
 
+/**
+ * Turns a pointer movement on screen into the same movement along the axes of an element that
+ * is turned by `rotationDegrees`, so dragging a turned panel's edge grows it the way it points.
+ */
 export function screenDeltaToElementDelta(x: number, y: number, rotationDegrees: number): PointerCoordinate {
   const radians = (-rotationDegrees * Math.PI) / 180;
   const cos = Math.cos(radians);
@@ -112,10 +116,12 @@ export class ResizableDirective {
     });
   }
 
+  /** Lets go of any resize in progress on every edge and corner. */
   cancel() {
     this.handleMap.forEach((handle) => handle.input!.cancel());
   }
 
+  /** Stops listening on every edge and corner handle. The handle elements stay in place. */
   destroy() {
     this.handleMap.forEach((handle) => handle.input!.destroy());
   }

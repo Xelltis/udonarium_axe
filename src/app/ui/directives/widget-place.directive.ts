@@ -38,6 +38,12 @@ export class WidgetPlaceDirective {
     this.draggable?.onsettle.subscribe(() => this.remember());
   }
 
+  /**
+   * Writes where the widget now sits into the saved layout, so it opens there next time.
+   *
+   * Called when a drag ends, when the window settles, and when the widget goes away; does
+   * nothing while placing is turned off.
+   */
   remember(): void {
     if (this.enabled()) rememberWidget(this.layout, this.name(), this.element);
   }

@@ -20,20 +20,28 @@ export class InputHandler {
 
   private lastPointers: PointerData[] = [];
   private primaryPointer: PointerData = { x: 0, y: 0, z: 0, identifier: MOUSE_IDENTIFIER };
+  /**
+   * Where the pointer that started the gesture is, in page coordinates.
+   *
+   * With several fingers down this follows the first one to touch, and ignores the rest.
+   */
   get pointer(): PointerCoordinate {
     return this.primaryPointer;
   }
 
   private _isDragging: boolean = false;
   private _isGrabbing: boolean = false;
+  /** Whether the pointer has moved since it was pressed, which tells a drag from a click. */
   get isDragging(): boolean {
     return this._isDragging;
   }
+  /** Whether a press on the target is being held, moved or not. */
   get isGrabbing(): boolean {
     return this._isGrabbing;
   }
 
   private _isDestroyed: boolean = false;
+  /** Whether `destroy()` has been called and the target is no longer listened to. */
   get isDestroyed(): boolean {
     return this._isDestroyed;
   }
@@ -57,6 +65,7 @@ export class InputHandler {
     if (this.option.always) this.addEventListeners();
   }
 
+  /** Ends any gesture in progress and removes every listener this handler put on the page. */
   destroy() {
     this.cancel();
     this._isDestroyed = true;
@@ -65,6 +74,12 @@ export class InputHandler {
     this.removeEventListeners();
   }
 
+  /**
+   * Drops the gesture in progress without calling `onEnd`.
+   *
+   * The document-wide move and release listeners come off again unless the handler was made
+   * with `always`, so later moves reach no callback until the next press.
+   */
   cancel() {
     this._isDragging = this._isGrabbing = false;
     if (!this.option.always) this.removeEventListeners();

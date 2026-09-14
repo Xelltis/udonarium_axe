@@ -50,6 +50,11 @@ export class ContextMenuComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
+  /**
+   * The translated title of the index menu.
+   *
+   * A menu carrying this title lists jump targets rather than actions and opens to the left.
+   */
   get indexTitle(): string {
     return this.t('ui.contextMenu.index');
   }
@@ -82,9 +87,11 @@ export class ContextMenuComponent {
   readonly titleBold = input(false);
   protected readonly actionsInput = input<ContextMenuAction[]>([], { alias: 'actions' });
 
+  /** The menu's heading: a submenu's own, or whatever the context menu service was opened with. */
   get title(): string {
     return this.isSubmenu() ? this.titleInput() : this.contextMenuService.title;
   }
+  /** The rows of the menu: a submenu's own, or whatever the context menu service was opened with. */
   get actions(): ContextMenuAction[] {
     return this.isSubmenu() ? this.actionsInput() : this.contextMenuService.actions;
   }
@@ -118,10 +125,15 @@ export class ContextMenuComponent {
     });
   }
 
+  /** Whether something is being dragged, during which the menu lets the pointer through. */
   get isPointerDragging(): boolean {
     return this.pointerDeviceService.isDragging;
   }
 
+  /**
+   * The piece whose altitude this menu offers a slider for, taken from the first action that
+   * carries one; null shows no slider.
+   */
   get altitudeHandle(): TabletopObject | null {
     for (const action of this.actions) {
       if (action && action.altitudeHandle) return action.altitudeHandle;
@@ -129,6 +141,7 @@ export class ContextMenuComponent {
     return null;
   }
 
+  /** Sets the piece's altitude from the slider and syncs it; nothing without a piece. */
   onAltitudeChange(value: number | string): void {
     const target = this.altitudeHandle;
     if (!target) return;
@@ -136,17 +149,20 @@ export class ContextMenuComponent {
     target.update();
   }
 
+  /** Closes the menu when a press lands anywhere outside it. */
   onOutsideClick(event: Event) {
     if (!this.rootElementRef().nativeElement.contains(event.target as Node)) {
       this.close();
     }
   }
 
+  /** Keeps a right-click on the menu from opening the browser's menu or another context menu. */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /** Moves the index menu one menu-width to the left of where it opened; other menus are left alone. */
   indexMenuPosion() {
     if (this.title != this.indexTitle) return;
 
@@ -228,14 +244,22 @@ export class ContextMenuComponent {
     return null;
   }
 
+  /** Closes an open submenu when the list scrolls, since it would no longer line up with its row. */
   onListScroll(): void {
     if (this.subMenu()) this.subMenu.set(undefined);
   }
 
+  /** Called when an index row is clicked: asks for a jump to that line of the item it belongs to. */
   indexAction(indexline: number, id: string) {
     this.uiSignalService.requestJumpIndex(id, indexline);
   }
 
+  /**
+   * Called when a row is clicked.
+   *
+   * Its submenu, if any, opens at once. A row with an action runs it, so that any panel or modal
+   * it opens is turned the way the menu is, and then closes the menu.
+   */
   doAction(action: ContextMenuAction, row?: HTMLElement) {
     this.showSubMenu(action, true, row);
     if (action.action != null) {
@@ -247,6 +271,11 @@ export class ContextMenuComponent {
     }
   }
 
+  /**
+   * Opens a row's submenu beside it, after a short hover delay unless `immediately` is set.
+   *
+   * Any submenu already open is scheduled to close, and a row without sub-actions opens nothing.
+   */
   showSubMenu(action: ContextMenuAction, immediately = false, row?: HTMLElement) {
     this.hideSubMenu();
     clearTimeout(this.showSubMenuTimer);
@@ -264,6 +293,7 @@ export class ContextMenuComponent {
     }
   }
 
+  /** Closes the open submenu after a grace period, so the pointer can cross over to it. */
   hideSubMenu() {
     clearTimeout(this.hideSubMenuTimer);
     this.hideSubMenuTimer = setTimeout(() => {
@@ -271,6 +301,7 @@ export class ContextMenuComponent {
     }, 1200);
   }
 
+  /** Closes the whole context menu, submenus and all. */
   close() {
     if (this.contextMenuService) this.contextMenuService.close();
   }

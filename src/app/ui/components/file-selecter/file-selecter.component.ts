@@ -41,6 +41,11 @@ export class FileSelecterComponent {
     return canBrowseImage(ImageTag.get(imageFile.context.identifier) ?? null, this.rolePermission.canSeeHidden);
   }
 
+  /**
+   * Every stored image the local user may pick, whatever its tag.
+   *
+   * Pictures the game master has kept back are left out for everyone else.
+   */
   getAllImage(): ImageFile[] {
     return this.fileStorageService.images.filter((imageFile) => this.mayShow(imageFile));
   }
@@ -69,15 +74,25 @@ export class FileSelecterComponent {
   });
 
   selectedFile: ImageFile | null = null;
+  /** Whether `selectedFile` holds an image; nothing in this picker sets it, so false unless a caller does. */
   get isSelected(): boolean {
     return this.selectedFile !== null;
   }
+  /**
+   * The tag record of the chosen image, or null with nothing chosen.
+   *
+   * An image without one is given a new tag record, which is shared with the room.
+   */
   get selectedImageTag(): ImageTag | null {
     if (!this.isSelected || this.selectedFile === null) return null;
     const imageTag = ImageTag.get(this.selectedFile.identifier);
     return imageTag ? imageTag : ImageTag.create(this.selectedFile.identifier);
   }
 
+  /**
+   * The tags offered as filters above the pictures: untagged first, then all, then each tag
+   * that has at least one picture the local user may pick.
+   */
   get tagList(): string[] {
     const tags: string[] = [];
     for (const imageFile of this.fileStorageService.images) {
@@ -100,8 +115,14 @@ export class FileSelecterComponent {
   identifierList: string[] = [];
   newTagName: string = '';
 
+  /** Called when a tag filter is chosen; does nothing. */
   resetBtn() {}
 
+  /**
+   * Adds an image to, or removes it from, the list of checked identifiers.
+   *
+   * An image without a tag record is given one first, which is shared with the room.
+   */
   onChange(fileName: string, checked: boolean) {
     const imageTag = ImageTag.get(fileName);
     if (!imageTag) ImageTag.create(fileName);
@@ -118,6 +139,7 @@ export class FileSelecterComponent {
     }
   }
 
+  /** The empty image, offered as the "no image" choice when the caller allows one. */
   get empty(): ImageFile {
     return ImageFile.Empty;
   }
@@ -128,6 +150,10 @@ export class FileSelecterComponent {
     queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('ui.fileSelecter.panelTitle')));
   }
 
+  /**
+   * Called when a picture, or the "no image" choice, is clicked: announces the choice and
+   * closes the modal with the image's identifier as its result.
+   */
   onSelectedFile(file: ImageFile) {
     emitSelectFile({ fileIdentifier: file.identifier });
     this.modalService.resolve(file.identifier);
