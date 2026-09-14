@@ -56,7 +56,6 @@ import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
-import { OverviewPanelComponent } from '@axe/features/inventory/overview-panel/overview-panel.component';
 import { LanguageSelectorComponent } from '@axe/features/language-selector/language-selector.component';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
@@ -341,4 +340,5 @@ ContextMenuService.loadFourWayRadialMenuComponent = () =>
 ModalService.ModalComponentClass = ModalComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
 TabletopActionService.diceCreateDialogComponentClass = DiceSymbolCreateDialogComponent;
-TooltipDirective.TooltipPanelComponentClass = OverviewPanelComponent;
+TooltipDirective.loadTooltipPanelComponent = () =>
+  import('@axe/features/inventory/overview-panel/overview-panel.component').then((m) => m.OverviewPanelComponent);

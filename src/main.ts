@@ -4,7 +4,6 @@ import { ɵChangeDetectionScheduler as ChangeDetectionScheduler } from '@angular
 import { APP_INITIALIZER, enableProdMode, importProvidersFrom, provideZonelessChangeDetection } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { YouTubePlayerModule } from '@angular/youtube-player';
 import { AppComponent } from '@axe/app.component';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
@@ -33,14 +32,7 @@ if (environment.production) {
 
 bootstrapApplication(AppComponent, {
   providers: [
-    importProvidersFrom(
-      BrowserModule,
-      BrowserAnimationsModule,
-      CommonModule,
-      FormsModule,
-      YouTubePlayerModule,
-      NgSelectModule
-    ),
+    importProvidersFrom(BrowserModule, CommonModule, FormsModule, YouTubePlayerModule, NgSelectModule),
     provideZonelessChangeDetection(),
     provideHttpClient(withXhr()),
     provideTransloco({ config: transLocoConfig, loader: TranslocoHttpLoader }),

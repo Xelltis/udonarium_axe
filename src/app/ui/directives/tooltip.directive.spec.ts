@@ -138,6 +138,7 @@ describe('TooltipDirective', () => {
     table.mode2d = false;
     table.hoverDetailPlacement = 'piece';
     table.multiAngleEnabled = false;
+    TooltipDirective.loadTooltipPanelComponent = null;
   });
 
   it('shows one detail per edge seat while the table asks for screen edges', async () => {
@@ -145,6 +146,35 @@ describe('TooltipDirective', () => {
 
     expect(panels()).toHaveLength(4);
     expect(fixture.nativeElement.querySelectorAll('[data-testid="stub-panel"]')).toHaveLength(4);
+  });
+
+  it('fetches the detail the first time a piece asks for it, and shows it once it arrives', async () => {
+    TooltipDirective.TooltipPanelComponentClass = null;
+    let deliver!: (panel: typeof StubTooltipPanelComponent) => void;
+    TooltipDirective.loadTooltipPanelComponent = () => new Promise((resolve) => (deliver = resolve));
+
+    await hover('first-piece');
+    expect(panels()).toHaveLength(0);
+
+    deliver(StubTooltipPanelComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(panels()).toHaveLength(4);
+  });
+
+  it('does not show a detail that arrives after the pointer has left the piece', async () => {
+    TooltipDirective.TooltipPanelComponentClass = null;
+    let deliver!: (panel: typeof StubTooltipPanelComponent) => void;
+    TooltipDirective.loadTooltipPanelComponent = () => new Promise((resolve) => (deliver = resolve));
+
+    await hover('first-piece');
+    await unhover('first-piece');
+    deliver(StubTooltipPanelComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(panels()).toHaveLength(0);
   });
 
   it('turns each detail toward the edge it belongs to', async () => {

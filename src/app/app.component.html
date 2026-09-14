@@ -1,5 +1,7 @@
 @if (overlayMode.active()) {
-  <streaming-overlay />
+  @defer (on immediate) {
+    <streaming-overlay />
+  }
 } @else {
   <div
     id="app-table-layer"
@@ -11,7 +13,9 @@
   </div>
   @if (mobile.isActive()) {
     @if (!visualNovel.active()) {
-      <app-mobile-shell />
+      @defer (on immediate) {
+        <app-mobile-shell />
+      }
       <app-hand-rail></app-hand-rail>
     }
   } @else {

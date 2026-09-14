@@ -62,6 +62,8 @@ export class TooltipDirective {
   private readonly destroyRef = inject(DestroyRef);
 
   static TooltipPanelComponentClass: Type<TooltipPanelInstance> | null = null;
+  /** The detail panel is fetched the first time a piece asks for it, and kept from then on. */
+  static loadTooltipPanelComponent: (() => Promise<Type<TooltipPanelInstance>>) | null = null;
 
   /** The one showing on screen, whichever piece raised it. */
   private static activeOwner: TooltipDirective | null = null;
@@ -75,6 +77,7 @@ export class TooltipDirective {
 
   private openTooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private closeTooltipTimer: ReturnType<typeof setTimeout> | null = null;
+  private waitingForPanel = false;
 
   private tooltipSession: TooltipSession | null = null;
   private tooltipRotationDegrees = 0;
@@ -194,13 +197,33 @@ export class TooltipDirective {
     if (this.closeTooltipTimer) clearTimeout(this.closeTooltipTimer);
     if (this.openTooltipTimer) clearTimeout(this.openTooltipTimer);
     this.closeTooltipTimer = this.openTooltipTimer = null;
+    this.waitingForPanel = false;
+  }
+
+  /** Fetches the detail panel, and shows it if this piece still wants it once it arrives. */
+  private fetchPanelThenOpen() {
+    const load = TooltipDirective.loadTooltipPanelComponent;
+    if (!load) return;
+    this.waitingForPanel = true;
+    void load()
+      .then((panelClass) => {
+        TooltipDirective.TooltipPanelComponentClass = panelClass;
+        if (this.waitingForPanel) this.open();
+      })
+      .catch(() => {
+        this.waitingForPanel = false;
+      });
   }
 
   private open() {
     this.closeAll();
     if (this.pointerDeviceService.isDragging) return;
     const panelClass = TooltipDirective.TooltipPanelComponentClass;
-    if (!panelClass) return;
+    if (!panelClass) {
+      this.fetchPanelThenOpen();
+      return;
+    }
+    this.waitingForPanel = false;
 
     const parentViewContainerRef = OverlayLayers.current() ?? ContextMenuService.defaultParentViewContainerRef;
     const injector = parentViewContainerRef.injector;
