@@ -31,6 +31,25 @@ export function networkSend(eventName: string, data: unknown, sendTo?: string): 
   Network.instance.send(context, sendTo);
 }
 
+/**
+ * Broadcasts like networkSend, but only the latest message under the key goes out.
+ *
+ * A message under the same key that is still waiting in the queue is replaced; one that has
+ * already been taken for sending is left alone, and this one follows it.
+ */
+export function networkSendLatest(eventName: string, data: unknown, key: string): void {
+  if (isNetworkIsolated()) {
+    localDispatch(eventName, data);
+    return;
+  }
+  const context: EventContext = {
+    eventName,
+    data,
+    sendFrom: Network.peerId,
+  };
+  Network.instance.send(context, undefined, key);
+}
+
 export function localDispatch(eventName: string, data: unknown, sendFrom?: string): void {
   const from = sendFrom ?? Network.peerId;
   networkMessage$.emit({

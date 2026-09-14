@@ -85,7 +85,7 @@ export class Network {
   private connectionClass!: ConnectionClass;
   private connection: Connection | null = null;
 
-  private queue: Set<QueueItem> = new Set();
+  private queue: Map<string | symbol, QueueItem> = new Map();
   private sendInterval: number | null = null;
   private sendCallback = () => {
     this.sendQueue();
@@ -159,8 +159,15 @@ export class Network {
     }
   }
 
-  send(data: unknown, sendTo?: string) {
-    this.queue.add({ data, sendTo });
+  /**
+   * Queues a message for the next send.
+   *
+   * A message given a replaceKey takes the place of one queued under the same key and
+   * destination that has not gone out yet, and keeps that one's turn in the queue.
+   */
+  send(data: unknown, sendTo?: string, replaceKey?: string) {
+    const queueKey = replaceKey == null ? Symbol() : `${sendTo ?? ''}\n${replaceKey}`;
+    this.queue.set(queueKey, { data, sendTo });
     if (this.sendInterval === null) {
       this.sendInterval = setZeroTimeout(this.sendCallback);
     }
@@ -172,10 +179,10 @@ export class Network {
     const echocast: unknown[] = [];
 
     let loopCount = this.queue.size < 128 ? this.queue.size : 128;
-    for (const item of this.queue) {
+    for (const [queueKey, item] of this.queue) {
       if (loopCount <= 0) break;
       loopCount--;
-      this.queue.delete(item);
+      this.queue.delete(queueKey);
       if (item.sendTo == null) {
         broadcast.push(item.data);
       } else if (item.sendTo === this.peerId) {

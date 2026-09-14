@@ -1,8 +1,7 @@
-import { networkSend } from '@axe/core/network/network-messaging';
+import { networkSend, networkSendLatest } from '@axe/core/network/network-messaging';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { objectAdded$, objectRemoved$ } from '@axe/core/sync/object-event-extension';
 import { Type } from '@axe/core/sync/object-factory';
-import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 
 type ObjectAliasName = string;
 type ObjectIdentifier = string;
@@ -27,9 +26,6 @@ export class ObjectStore {
   private garbageSweepCooldown: ReturnType<typeof setTimeout> | null = null;
 
   private readonly localChanges: Map<string, number> = new Map();
-  private queueMap: Map<ObjectIdentifier, ObjectContext> = new Map();
-  private updateQueueTimer: number | null = null;
-  private readonly updateCallback = () => this.updateQueue();
 
   private constructor() {}
 
@@ -128,26 +124,12 @@ export class ObjectStore {
     // a run of edits look like no edit at all.
     this.localChanges.set(context.identifier, (this.localChanges.get(context.identifier) ?? 0) + 1);
 
-    if (this.queueMap.has(context.identifier)) {
-      const queue = this.queueMap.get(context.identifier)!;
-      Object.assign(queue, context);
-      return;
-    }
-    networkSend('UPDATE_GAME_OBJECT', context);
-    this.queueMap.set(context.identifier, context);
-    if (this.updateQueueTimer === null) {
-      this.updateQueueTimer = setZeroTimeout(this.updateCallback);
-    }
+    networkSendLatest('UPDATE_GAME_OBJECT', context, context.identifier);
   }
 
   /** How many times you changed it. A load or a sync does not count. */
   localChangeCountOf(identifier: string): number {
     return this.localChanges.get(identifier) ?? 0;
-  }
-
-  private updateQueue() {
-    this.queueMap.clear();
-    this.updateQueueTimer = null;
   }
 
   isDeleted(identifier: string) {

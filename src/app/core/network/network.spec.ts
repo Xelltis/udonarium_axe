@@ -55,6 +55,55 @@ describe('Network', () => {
     });
   });
 
+  describe('the send queue', () => {
+    type Internals = { connection: unknown; sendQueue(): void };
+    const internals = () => Network.instance as unknown as Internals;
+    let connectionSend: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      connectionSend = vi.fn();
+      internals().connection = { send: connectionSend };
+    });
+
+    afterEach(() => {
+      internals().connection = null;
+    });
+
+    it('lets a later message under the same key take the place of one still waiting', () => {
+      Network.instance.send('first', undefined, 'piece');
+      Network.instance.send('second', undefined, 'piece');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([[['second']]]);
+    });
+
+    it('keeps the turn of the message it replaces', () => {
+      Network.instance.send('first of the piece', undefined, 'piece');
+      Network.instance.send('something else');
+      Network.instance.send('second of the piece', undefined, 'piece');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([[['second of the piece', 'something else']]]);
+    });
+
+    it('sends a keyed message again once the one before it has gone out', () => {
+      Network.instance.send('first', undefined, 'piece');
+      internals().sendQueue();
+      Network.instance.send('second', undefined, 'piece');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([[['first']], [['second']]]);
+    });
+
+    it('keeps messages without a key apart', () => {
+      Network.instance.send('same');
+      Network.instance.send('same');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([[['same', 'same']]]);
+    });
+  });
+
   describe('the unload handlers', () => {
     it('carries an unload handler', () => {
       const instance = Network.instance as unknown as Record<string, unknown>;
