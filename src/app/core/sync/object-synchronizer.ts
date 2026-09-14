@@ -194,20 +194,38 @@ export class ObjectSynchronizer {
 
   private removePeerMap(targetPeerId: PeerId) {
     this.peerMap.delete(targetPeerId);
+    this.dropOrphanedRequests();
   }
 
   private synchronize() {
-    while (0 < this.requestMap.size && this.tasks.length < 32) this.runSynchronizeTask();
+    const exhausted = new Set<PeerId>();
+    while (0 < this.requestMap.size && this.tasks.length < 32) {
+      const targetPeerId = this.getTargetPeerId(exhausted);
+      if (!targetPeerId) {
+        this.dropOrphanedRequests();
+        return;
+      }
+      if (!this.runSynchronizeTask(targetPeerId)) exhausted.add(targetPeerId);
+    }
   }
 
-  private runSynchronizeTask() {
-    const targetPeerId = this.getTargetPeerId();
-    if (!targetPeerId) return;
+  /** Forgets what is still wanted only from peers that can no longer be asked for it. */
+  private dropOrphanedRequests() {
+    const reachable = new Set(
+      Network.peerContexts.filter((peer) => peer.isOpen && this.peerMap.has(peer.peerId)).map((peer) => peer.peerId)
+    );
+    for (const [identifier, request] of this.requestMap) {
+      request.holderIds = request.holderIds.filter((holderId) => reachable.has(holderId));
+      if (request.holderIds.length < 1) this.requestMap.delete(identifier);
+    }
+  }
+
+  private runSynchronizeTask(targetPeerId: PeerId): boolean {
     const requests: SynchronizeRequest[] = this.makeRequestList(targetPeerId);
 
     if (requests.length < 1) {
-      this.removePeerMap(targetPeerId);
-      return;
+      if ((this.peerMap.get(targetPeerId)?.length ?? 0) < 1) this.peerMap.delete(targetPeerId);
+      return false;
     }
     const task = SynchronizeTask.create(targetPeerId, requests);
     this.tasks.push(task);
@@ -216,16 +234,20 @@ export class ObjectSynchronizer {
     if (targetPeerIdTasks) targetPeerIdTasks.push(task);
 
     task.onfinish = (task) => {
-      this.tasks.splice(this.tasks.indexOf(task), 1);
+      removeTask(this.tasks, task);
       const targetPeerIdTasks = this.peerMap.get(targetPeerId);
-      if (targetPeerIdTasks) targetPeerIdTasks.splice(targetPeerIdTasks.indexOf(task), 1);
+      if (targetPeerIdTasks) removeTask(targetPeerIdTasks, task);
       this.synchronize();
     };
 
     task.ontimeout = (_task, remainedRequests) => {
       Logger.warn('[ObjectSync] 同期タイムアウト');
-      for (const request of remainedRequests) this.requestMap.set(request.identifier, request);
+      for (const request of remainedRequests) {
+        const current = this.requestMap.get(request.identifier);
+        if (!current || current.version < request.version) this.requestMap.set(request.identifier, request);
+      }
     };
+    return true;
   }
 
   private makeRequestList(targetPeerId: PeerId, maxRequest: number = 32): SynchronizeRequest[] {
@@ -243,7 +265,7 @@ export class ObjectSynchronizer {
     return requests;
   }
 
-  private getTargetPeerId(): PeerId | null {
+  private getTargetPeerId(exclude: ReadonlySet<PeerId>): PeerId | null {
     let min = Infinity;
     let selectPeerId: PeerId | null = null;
     const peerContexts = Network.peerContexts;
@@ -254,6 +276,7 @@ export class ObjectSynchronizer {
     }
 
     for (const peerContext of peerContexts) {
+      if (exclude.has(peerContext.peerId)) continue;
       const tasks = this.peerMap.get(peerContext.peerId);
       if (peerContext.isOpen && tasks && tasks.length < min) {
         min = tasks.length;
@@ -262,4 +285,9 @@ export class ObjectSynchronizer {
     }
     return selectPeerId;
   }
+}
+
+function removeTask(tasks: SynchronizeTask[], task: SynchronizeTask): void {
+  const index = tasks.indexOf(task);
+  if (index >= 0) tasks.splice(index, 1);
 }

@@ -4,6 +4,7 @@ import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -152,6 +153,81 @@ describe('ObjectSynchronizer', () => {
 
       expect(resolved.length).toBeGreaterThan(0);
       expect(resolved[0]?.identifier).toBe('synced-chat-message');
+    });
+  });
+
+  describe('a sync left with nobody to ask', () => {
+    type Internals = {
+      requestMap: Map<string, SynchronizeRequest>;
+      peerMap: Map<string, SynchronizeTask[]>;
+      tasks: SynchronizeTask[];
+      getTargetPeerId: (exclude: ReadonlySet<string>) => string | null;
+    };
+    const internals = () => ObjectSynchronizer.instance as unknown as Internals;
+    let peers: { peerId: string; isOpen: boolean }[];
+
+    const requested = () =>
+      vi
+        .mocked(Network.instance.send)
+        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === 'REQUEST_GAME_OBJECT')
+        .map(([context, sendTo]) => [(context as { data: string }).data, sendTo]);
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      peers = [];
+      vi.spyOn(Network, 'peerContexts', 'get').mockImplementation(() => peers as never);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      internals().requestMap.clear();
+      internals().peerMap.clear();
+      internals().tasks = [];
+      ObjectSynchronizer.instance.initialize();
+
+      const pick = internals().getTargetPeerId.bind(internals());
+      let picks = 0;
+      vi.spyOn(internals(), 'getTargetPeerId').mockImplementation((exclude) => {
+        picks++;
+        if (picks > 1_000) throw new Error('the synchroniser kept looking for a peer to ask');
+        return pick(exclude);
+      });
+    });
+
+    afterEach(() => {
+      for (const peer of [...peers]) localDispatch('DISCONNECT_PEER', { peerId: peer.peerId }, peer.peerId);
+      ObjectSynchronizer.instance.destroy();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('lets go of what it waited for once the only peer holding it leaves', () => {
+      peers = [{ peerId: 'peer-a', isOpen: true }];
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'held-by-a', version: 1 }], 'peer-a');
+      expect(requested()).toEqual([['held-by-a', 'peer-a']]);
+
+      peers = [];
+      localDispatch('DISCONNECT_PEER', { peerId: 'peer-a' }, 'peer-a');
+
+      expect(internals().requestMap.size).toBe(0);
+      expect(internals().tasks).toHaveLength(0);
+    });
+
+    it('does not wait on a catalogue that arrives from a peer already gone', () => {
+      peers = [{ peerId: 'peer-gone', isOpen: false }];
+
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'held-by-the-gone', version: 1 }], 'peer-gone');
+
+      expect(internals().requestMap.size).toBe(0);
+      expect(requested()).toEqual([]);
+    });
+
+    it('keeps a newer version it heard of while an older request timed out', () => {
+      peers = [{ peerId: 'peer-a', isOpen: true }];
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'moving-on', version: 1 }], 'peer-a');
+      const [task] = internals().tasks;
+      internals().requestMap.set('moving-on', { identifier: 'moving-on', version: 2, holderIds: ['peer-a'], ttl: 2 });
+
+      task.ontimeout?.(task, [{ identifier: 'moving-on', version: 1, holderIds: ['peer-a'], ttl: 1 }]);
+
+      expect(internals().requestMap.get('moving-on')?.version).toBe(2);
     });
   });
 });
