@@ -250,7 +250,16 @@ async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
     AppConfigService,
     ChatMessageService,
     ContextMenuService,
-    LoggerService,
+    // The service turns logging up to what the build calls for as it is made, which outside
+    // production is everything. Made for a test, it leaves the level where the setup put it.
+    {
+      provide: LoggerService,
+      useFactory: () => {
+        const service = new LoggerService();
+        Logger.setLevel(LogLevel.NONE);
+        return service;
+      },
+    },
     ModalService,
     PanelService,
     TabletopService,
@@ -327,6 +336,8 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  // A test that turns logging up, as the logger specs do, must not leave the next one printing.
+  Logger.setLevel(LogLevel.NONE);
   emptyObjectStore();
   forgetMyCursor();
   forgetTabletopDisplaySettings();
