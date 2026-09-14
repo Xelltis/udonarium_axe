@@ -59,27 +59,33 @@ export class InventoryObjectDrag {
   }
 
   /**
+   * Whether pressing this piece's row can start a drag of it.
+   *
+   * Only a character is dragged, and only when it has somewhere to go: folders to file it into or
+   * the game master's bar to hand it over to. Arming a drag costs the click that follows it, so a
+   * row with nowhere to drop is never armed.
+   */
+  canDrag(gameObject: GameObject): gameObject is GameCharacter {
+    return gameObject instanceof GameCharacter && (this.host.canHandOver() || this.host.canFile());
+  }
+
+  /**
    * Arms a drag when a character's row is pressed with the primary button, capturing the pointer.
    *
    * Presses on the row's buttons and inputs are left alone, and so is any press with nowhere to
    * drop: no folders to file into and no game master's bar to hand over to.
    */
   down(event: PointerEvent, gameObject: GameObject): void {
-    if (event.button !== 0 || !(gameObject instanceof GameCharacter)) return;
+    if (event.button !== 0 || !this.canDrag(gameObject)) return;
     if ((event.target as HTMLElement).closest('button, input')) return;
-
-    const withNpcBar = this.host.canHandOver();
-    const withFolders = this.host.canFile();
-    // Arming a drag costs the click that follows it, so do not arm one with nowhere to drop.
-    if (!withNpcBar && !withFolders) return;
 
     this.pending = {
       character: gameObject,
       startX: event.clientX,
       startY: event.clientY,
       dragging: false,
-      withNpcBar,
-      withFolders,
+      withNpcBar: this.host.canHandOver(),
+      withFolders: this.host.canFile(),
     };
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   }

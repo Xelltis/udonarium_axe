@@ -1390,14 +1390,15 @@ export class GameObjectInventoryComponent {
   }
 
   /**
-   * Stops a game master's mouse or touch press on a character row from reaching the panel's
-   * draggable directive, which would otherwise start moving the whole panel.
+   * Stops a mouse or touch press on a row that can be dragged from reaching the panel's draggable
+   * directive, which would otherwise move the whole panel along with the row.
    *
-   * The row's own pointer handlers still get the press, so the game master can drag the character
-   * out to the game master's bar or into a folder while the panel stays put.
+   * The row's own pointer handlers still get the press, so the character can be dragged into a
+   * folder or out to the game master's bar while the panel stays put. A press on a row that cannot
+   * be dragged goes through, and moves the panel as a press anywhere else in it does.
    */
   onObjectDragBlock(event: Event, gameObject: GameObject): void {
-    if (gameObject instanceof GameCharacter && PeerCursor.isMyselfGameMaster) event.stopPropagation();
+    if (this.drag.canDrag(gameObject)) event.stopPropagation();
   }
 
   /**

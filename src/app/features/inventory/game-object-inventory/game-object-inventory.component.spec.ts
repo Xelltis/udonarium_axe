@@ -1301,6 +1301,69 @@ describe('GameObjectInventoryComponent', () => {
       });
     });
 
+    describe('pressing a row inside a movable panel', () => {
+      const originalCursor = PeerCursor.myCursor;
+      const presses = ['mousedown', 'touchstart'] as const;
+
+      function beSeat(role: PeerRole): void {
+        PeerCursor.myCursor = {
+          role,
+          identifier: 'seat-cursor',
+          isGameMaster: role === PeerRole.GameMaster,
+        } as PeerCursor;
+      }
+
+      async function pressReachesPanel(type: (typeof presses)[number]): Promise<boolean> {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-item"]');
+        expect(row).not.toBeNull();
+        const panel = fixture.nativeElement as HTMLElement;
+        let reached = false;
+        const listener = () => (reached = true);
+        panel.addEventListener(type, listener);
+        row!.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+        panel.removeEventListener(type, listener);
+        return reached;
+      }
+
+      afterEach(() => {
+        PeerCursor.myCursor = originalCursor;
+      });
+
+      it('keeps the panel still when a player presses a row they can file into a folder', async () => {
+        beSeat(PeerRole.Player);
+        putInShared('ゴブリン');
+        component.selectTab.set('common');
+
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+      });
+
+      it('keeps the panel still when the game master presses a row they can hand over', async () => {
+        beSeat(PeerRole.GameMaster);
+        putOnTable('ゴブリン');
+        component.selectTab.set('table');
+
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+      });
+
+      it('lets a player move the panel by a row on a tab without folders', async () => {
+        beSeat(PeerRole.Player);
+        putOnTable('ゴブリン');
+        component.selectTab.set('table');
+
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(true);
+      });
+
+      it('lets a guest move the panel by a row they may not file', async () => {
+        beSeat(PeerRole.Guest);
+        putInShared('ゴブリン');
+        component.selectTab.set('common');
+
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(true);
+      });
+    });
+
     it('ticks only the rows the search left when everything is selected', () => {
       putOnTable('ゴブリン');
       putOnTable('村長');
