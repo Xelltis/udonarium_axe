@@ -22,6 +22,15 @@ describe('CoordinateService', () => {
     expect(service).toBeTruthy();
   });
 
+  it('counts each time the view is written out', () => {
+    const before = service.tabletopTransformVersion();
+
+    service.invalidateTabletopTransform();
+    service.invalidateTabletopTransform();
+
+    expect(service.tabletopTransformVersion()).toBe(before + 2);
+  });
+
   describe('the transform pool', () => {
     it('reuses its transforms across repeated conversions', () => {
       const internal = service as unknown as { _transformA: Transform; _transformB: Transform };

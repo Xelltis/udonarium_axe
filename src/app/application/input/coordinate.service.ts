@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { Transform } from '@axe/core/transform/transform';
 
@@ -27,9 +27,20 @@ export class CoordinateService {
   private originElement: HTMLElement | null = null;
   private frameArmed = false;
 
+  private readonly transformVersion = signal(0);
+
+  /**
+   * Goes up each time the view is written out.
+   *
+   * What is projected from the table onto the screen only moves when this does, or when the
+   * page moves under a table that stands still.
+   */
+  readonly tabletopTransformVersion = this.transformVersion.asReadonly();
+
   /** Called when the view has been written out, since that is what the kept answer was about. */
   invalidateTabletopTransform(): void {
     this.originElement = null;
+    this.transformVersion.update((version) => version + 1);
   }
 
   private originTransform(element: HTMLElement): Transform | null {

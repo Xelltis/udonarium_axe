@@ -20,17 +20,23 @@ function isDrawable(points: readonly ScreenPoint[]): boolean {
  *
  * Cut out by a polygon it would show a straight edge in mid-air, like a glass case.
  * Weather has no outline, so an ellipse over the board and the sky above fades it out.
+ *
+ * A `step` above one lands the ellipse on that many pixels, so a camera that moves a little
+ * leaves the mask as it was and the whole screen is not masked again.
  */
-export function weatherMaskImage(corners: readonly ScreenPoint[]): string {
+export function weatherMaskImage(corners: readonly ScreenPoint[], step = 1): string {
   if (!isDrawable(corners)) return 'none';
 
   const xs = corners.map((corner) => corner.x);
   const ys = corners.map((corner) => corner.y);
-  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
-  const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
-  const radiusX = ((Math.max(...xs) - Math.min(...xs)) / 2) * BLEED;
-  const radiusY = ((Math.max(...ys) - Math.min(...ys)) / 2) * BLEED;
-  if (radiusX < 1 || radiusY < 1) return 'none';
+  const snap = (value: number) => (step > 1 ? Math.round(value / step) * step : value);
+  const centerX = snap((Math.min(...xs) + Math.max(...xs)) / 2);
+  const centerY = snap((Math.min(...ys) + Math.max(...ys)) / 2);
+  const spanX = ((Math.max(...xs) - Math.min(...xs)) / 2) * BLEED;
+  const spanY = ((Math.max(...ys) - Math.min(...ys)) / 2) * BLEED;
+  if (spanX < 1 || spanY < 1) return 'none';
+  const radiusX = Math.max(step, snap(spanX));
+  const radiusY = Math.max(step, snap(spanY));
 
   // Where the edge of the board falls. It holds to there and fades over what is left.
   const edge = 100 / BLEED;
