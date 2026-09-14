@@ -17,7 +17,6 @@ import {
   type ResourceEditOption,
 } from '@axe/domain/data/resource-edit-helpers';
 import type { DiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 interface DiceRollResult {
@@ -302,7 +301,7 @@ export class ResourceEditProcessor {
       originFrom: originalMessage.from,
       from: fromText,
       timestamp: originalMessage.timestamp + 2,
-      imageIdentifier: PeerCursor.myCursor.diceImageIdentifier,
+      imageIdentifier: '',
       tag: isSecret ? 'system secret' : 'system',
       name: nameText,
       text,

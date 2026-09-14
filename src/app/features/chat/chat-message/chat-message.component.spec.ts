@@ -245,6 +245,16 @@ describe('ChatMessageComponent', () => {
       expect(avatar?.getAttribute('src')).toBe(DEFAULT_SYSTEM_DICE_AVATAR_URL);
     });
 
+    it('stands in for a roll that names a picture this seat does not hold', () => {
+      const message = dicebotMessage();
+      message.imageIdentifier = '1d6_dice[00]';
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      const avatar = fixture.nativeElement.querySelector('img') as HTMLImageElement | null;
+      expect(avatar?.getAttribute('src')).toBe(DEFAULT_SYSTEM_DICE_AVATAR_URL);
+    });
+
     it('serves the picture the room has chosen instead', () => {
       const image = ImageStorage.instance.add('room-system-chan.png');
       try {

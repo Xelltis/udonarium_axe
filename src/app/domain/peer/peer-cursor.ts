@@ -197,42 +197,6 @@ export class PeerCursor extends GameObject {
   chatBubbleDark: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
   private cleanups: (() => void)[] = [];
 
-  private _diceImageType = '';
-  private _diceImageIndex = -1;
-
-  /**
-   * The dice set half of {@link diceImageIdentifier}. Held on this cursor alone and never synced;
-   * nothing in the app sets it, so it stays empty.
-   */
-  get diceImageType(): string {
-    return this._diceImageType;
-  }
-  /** The face number half of {@link diceImageIdentifier}, -1 until set; nothing in the app sets it. */
-  get diceImageIndex(): number {
-    return this._diceImageIndex;
-  }
-
-  set diceImageType(type: string) {
-    this._diceImageType = type;
-  }
-  set diceImageIndex(index: number) {
-    this._diceImageIndex = index;
-  }
-
-  /**
-   * The image identifier of a dice face, `<type>_dice[NN]`, used as the picture on result messages this user
-   * posts.
-   *
-   * Empty when no dice type is set.
-   */
-  get diceImageIdentifier(): string {
-    if (this.diceImageType != '') {
-      return `${this.diceImageType}_dice[${this.diceImageIndex.toString().padStart(2, '0')}]`;
-    } else {
-      return '';
-    }
-  }
-
   /** Whether this cursor stands for the local user. */
   get isMine(): boolean {
     return PeerCursor.myCursor && PeerCursor.myCursor === this;
@@ -377,13 +341,5 @@ export class PeerCursor extends GameObject {
     if (voteId != this.voteId) {
       this.vote.chkFinishVote();
     }
-  }
-
-  /**
-   * Whether this peer's id contains the letters u, d, o and n in that order, ignoring case. Nothing
-   * in the app calls it.
-   */
-  isPeerAUdon(): boolean {
-    return /u.*d.*o.*n/gi.exec(this.peerId) != null;
   }
 }

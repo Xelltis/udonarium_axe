@@ -21,7 +21,6 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { DiceTable } from '@axe/domain/dice/dice-table';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
 import GameSystemClass from 'bcdice/lib/game_system';
 import type Loader from 'bcdice/lib/loader/loader';
@@ -432,7 +431,7 @@ export class DiceBot extends GameObject {
       originFrom: originalMessage.from,
       from: 'System-BCDice',
       timestamp: originalMessage.timestamp + 1,
-      imageIdentifier: PeerCursor.myCursor.diceImageIdentifier,
+      imageIdentifier: '',
       tag: isSecret ? 'system secret' : 'system',
       dicebot: encodeDiceRollDetail(rollResult.detail ?? null),
       name: isSecret ? `<Secret-BCDice：${originalMessage.name}>` : `<BCDice：${originalMessage.name}>`,

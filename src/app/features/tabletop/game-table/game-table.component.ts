@@ -351,7 +351,6 @@ export class GameTableComponent {
     });
     this.tabletopActionService.makeDefaultTable();
     this.tabletopActionService.makeDefaultTabletopObjects();
-    this.tabletopActionService.initAprilDiceImage();
 
     afterNextRender(() => {
       this._initialized = true;

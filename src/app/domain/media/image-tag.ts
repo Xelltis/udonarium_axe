@@ -5,9 +5,9 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
 
 /**
- * The tag on a picture the tool brought with it rather than a person: dice faces, the
- * pictures the sample cut-ins are built from. Tagged this way it stays out of the media
- * library, where it would only be in the way of what a person put there.
+ * The tag on a picture the tool brought with it rather than a person, such as the pictures
+ * the sample cut-ins are built from. Tagged this way it stays out of the media library,
+ * where it would only be in the way of what a person put there.
  *
  * It is a stored value, shared between everyone in a room, so it is this word and not the
  * word for it in whatever language the screen happens to be in.

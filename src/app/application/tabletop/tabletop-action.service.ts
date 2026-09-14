@@ -17,7 +17,6 @@ import {
   TERRAIN_TEXTURE_PATH,
   TRUMP_BACK_IMAGE_PATH,
 } from '@axe/application/tabletop/tabletop-action-helpers';
-import { initAprilDiceImages } from '@axe/application/tabletop/tabletop-default-dice';
 import {
   makeDefaultTable as _makeDefaultTable,
   makeDefaultTabletopObjects as _makeDefaultTabletopObjects,
@@ -412,15 +411,6 @@ export class TabletopActionService {
   /** Makes the first table a new room opens on; see `makeDefaultTable` in the default setup. */
   makeDefaultTable() {
     _makeDefaultTable(this.imageStorage);
-  }
-
-  /**
-   * Registers the reserved dice-face and `april` pictures; see `initAprilDiceImages`.
-   *
-   * The game table calls it each time it is built.
-   */
-  initAprilDiceImage() {
-    initAprilDiceImages(this.imageStorage);
   }
 
   /** Sets out the sample pieces a new room opens with. */
