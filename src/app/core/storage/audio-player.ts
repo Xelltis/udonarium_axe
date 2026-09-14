@@ -1,3 +1,4 @@
+import { USER_GESTURE_EVENTS } from '@axe/core/input/user-interaction-unlock';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioFile, AudioState } from '@axe/core/storage/audio-file';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
@@ -472,13 +473,36 @@ export class AudioPlayer {
     return finalCache;
   }
 
+  /**
+   * Starts the audio context on a gesture the browser counts, and again whenever it stops.
+   *
+   * iOS lets a context start from a finger lifting, a press or a key, but not from a touch that
+   * has only begun. It stops the context again when the page is put away or a call comes in, so
+   * the listeners stay until the context is running and come back whenever it is not.
+   */
   static resumeAudioContext() {
-    const callback = () => {
-      AudioPlayer.audioContext.resume();
-      document.removeEventListener('touchstart', callback, true);
-      document.removeEventListener('mousedown', callback, true);
+    let watching = false;
+    const listen = () => {
+      for (const type of USER_GESTURE_EVENTS) document.addEventListener(type, resume, true);
     };
-    document.addEventListener('touchstart', callback, true);
-    document.addEventListener('mousedown', callback, true);
+    const stopListening = () => {
+      for (const type of USER_GESTURE_EVENTS) document.removeEventListener(type, resume, true);
+    };
+    const resume = () => {
+      const context = AudioPlayer.audioContext;
+      if (!watching) {
+        watching = true;
+        context.addEventListener?.('statechange', () => {
+          if (context.state !== 'running') listen();
+        });
+      }
+      void Promise.resolve(context.resume()).then(
+        () => {
+          if (context.state === 'running') stopListening();
+        },
+        () => undefined
+      );
+    };
+    listen();
   }
 }

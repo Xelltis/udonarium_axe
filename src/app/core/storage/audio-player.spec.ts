@@ -717,37 +717,85 @@ describe('AudioPlayer', () => {
   // ─── static resumeAudioContext ───────────────────────────────────────────
 
   describe('static resumeAudioContext()', () => {
-    it('resumes the context on the first touch and unhooks itself', () => {
-      const listeners: Record<string, EventListenerOrEventListenerObject> = {};
+    type ContextState = { state: string; addEventListener: ReturnType<typeof vi.fn> };
+
+    function listenersOnDocument() {
+      const listeners = new Map<string, EventListener>();
+      const removed = new Set<string>();
       vi.spyOn(document, 'addEventListener').mockImplementation((type, listener) => {
-        listeners[type] = listener as EventListenerOrEventListenerObject;
+        listeners.set(type, listener as EventListener);
+        removed.delete(type);
       });
-      const removeSpy = vi.spyOn(document, 'removeEventListener').mockImplementation(() => {});
+      vi.spyOn(document, 'removeEventListener').mockImplementation((type) => {
+        removed.add(type);
+      });
+      return { listeners, removed };
+    }
+
+    function contextIn(state: string): { context: ContextState; stopped: () => void } {
+      const handlers: (() => void)[] = [];
+      const context = Object.assign(audioCtxMock, {
+        state,
+        addEventListener: vi.fn((_type: string, handler: () => void) => handlers.push(handler)),
+      }) as unknown as ContextState;
+      return { context, stopped: () => handlers.forEach((handler) => handler()) };
+    }
+
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    it('resumes the context when a finger lifts, not when it lands', () => {
+      contextIn('suspended');
+      const { listeners } = listenersOnDocument();
 
       AudioPlayer.resumeAudioContext();
 
-      const callback = listeners['touchstart'] as EventListener;
-      callback(new Event('touchstart'));
-
-      expect(audioCtxMock.resume).toHaveBeenCalled();
-      expect(removeSpy).toHaveBeenCalledWith('touchstart', callback, true);
-      expect(removeSpy).toHaveBeenCalledWith('mousedown', callback, true);
+      expect(listeners.has('touchstart')).toBe(false);
+      listeners.get('touchend')!(new Event('touchend'));
+      expect(audioCtxMock.resume).toHaveBeenCalledTimes(1);
     });
 
-    it('does the same on a press', () => {
-      const listeners: Record<string, EventListenerOrEventListenerObject> = {};
-      vi.spyOn(document, 'addEventListener').mockImplementation((type, listener) => {
-        listeners[type] = listener as EventListenerOrEventListenerObject;
-      });
-      vi.spyOn(document, 'removeEventListener').mockImplementation(() => {});
-      vi.spyOn(console, 'log').mockImplementation(() => {});
+    it('resumes it on a press or a key as well', () => {
+      contextIn('suspended');
+      const { listeners } = listenersOnDocument();
 
       AudioPlayer.resumeAudioContext();
+      listeners.get('mousedown')!(new Event('mousedown'));
+      listeners.get('keydown')!(new Event('keydown'));
 
-      const callback = listeners['mousedown'] as EventListener;
-      callback(new Event('mousedown'));
+      expect(audioCtxMock.resume).toHaveBeenCalledTimes(2);
+    });
 
-      expect(audioCtxMock.resume).toHaveBeenCalled();
+    it('keeps listening until the context is running', async () => {
+      const { context } = contextIn('suspended');
+      const { listeners, removed } = listenersOnDocument();
+
+      AudioPlayer.resumeAudioContext();
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect(removed.size).toBe(0);
+
+      context.state = 'running';
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect([...removed].sort()).toEqual(['keydown', 'mousedown', 'touchend']);
+    });
+
+    it('listens again once the context is stopped, as iOS does for a call or a hidden page', async () => {
+      const { context, stopped } = contextIn('running');
+      const { listeners, removed } = listenersOnDocument();
+
+      AudioPlayer.resumeAudioContext();
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect(removed.size).toBe(3);
+
+      context.state = 'interrupted';
+      stopped();
+
+      expect(removed.size).toBe(0);
     });
   });
 
