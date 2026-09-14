@@ -1,6 +1,8 @@
+import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { SkyWayConnection } from '@axe/core/network/skyway/skyway-connection';
+import { PERF_INBOUND_DRAIN, perfCounters } from '@axe/core/util/perf-counters';
 
 function flushMicrotasks(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -58,6 +60,55 @@ describe('SkyWayConnection', () => {
 
       expect(sent).toHaveLength(1);
       expect(sent[0].isCompressed).toBeFalsy();
+    });
+  });
+
+  describe('receiving', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+    let connAny: Record<string, any>;
+    let received: unknown[][];
+    const stream = { peer: { peerId: 'peer-a' } };
+
+    /** A message holding one small number, as MessagePack writes it: a one-item array of it. */
+    const numberMessage = (n: number) => ({ data: new Uint8Array([0x91, n]), ttl: 0 });
+
+    beforeEach(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+      connAny = new SkyWayConnection() as any;
+      received = [];
+      connAny.callback.onData = (_peer: unknown, data: unknown[]) => received.push(data);
+    });
+
+    afterEach(() => {
+      perfCounters.enabled = false;
+      perfCounters.clear();
+      vi.restoreAllMocks();
+    });
+
+    it('hands over what arrives together in a task or two rather than a task each', async () => {
+      perfCounters.enabled = true;
+      perfCounters.clear();
+      for (let n = 0; n < 100; n++) connAny.onData(stream, numberMessage(n));
+
+      await vi.waitFor(() => expect(received).toHaveLength(100));
+
+      expect(perfCounters.drain().get(PERF_INBOUND_DRAIN) ?? 0).toBeLessThan(10);
+    });
+
+    it('hands the messages over in the order they arrived', async () => {
+      for (let n = 0; n < 20; n++) connAny.onData(stream, numberMessage(n));
+
+      await vi.waitFor(() => expect(received).toHaveLength(20));
+
+      expect(received.map(([n]) => n)).toEqual([...Array(20).keys()]);
+    });
+
+    it('drops a message it cannot read and carries on with the ones behind it', async () => {
+      vi.spyOn(Logger, 'error').mockImplementation(() => {});
+      connAny.onData(stream, { data: new Uint8Array([0xc1]), ttl: 0 });
+      connAny.onData(stream, numberMessage(7));
+
+      await vi.waitFor(() => expect(received).toEqual([[7]]));
     });
   });
 

@@ -50,7 +50,6 @@ export class SkyWayConnection implements Connection {
   private listAllPeersCache: PeerId[] = [];
   private httpRequestInterval: number = performance.now() + 500;
   private outboundQueue: Promise<void> = Promise.resolve();
-  private inboundQueue: Promise<void> = Promise.resolve();
 
   private readonly trustedPeerIds: Set<PeerId> = new Set();
   private readonly relayingPeerIds: Map<string, string[]> = new Map();
@@ -367,14 +366,42 @@ export class SkyWayConnection implements Connection {
     if (!this.callback.onData) return;
     const byteLength = container.data.byteLength;
     this.bandwidthUsage += byteLength;
-    this.inboundQueue = this.inboundQueue.then(async () => {
-      await waitZeroTimeout();
-      perfCounters.bump(PERF_INBOUND_DRAIN);
-      if (!this.callback.onData) return;
-      const data = container.isCompressed ? await decompressAsync(container.data) : container.data;
-      this.callback.onData(stream.peer, MessagePack.decode(data) as unknown[]);
-      this.bandwidthUsage -= byteLength;
-    });
+    this.inbound.push({ peer: stream.peer, container, byteLength });
+    if (!this.inboundDraining) void this.drainInbound();
+  }
+
+  /** How long one task may spend handing over what has arrived before it lets the page draw. */
+  private static readonly INBOUND_DRAIN_BUDGET_MS = 8;
+  private readonly inbound: { peer: PeerContext; container: DataContainer; byteLength: number }[] = [];
+  private inboundDraining = false;
+
+  /**
+   * Hands what has arrived to the callback, in the order it came, as much as fits in a task.
+   *
+   * A message that cannot be read is logged and dropped; the ones behind it still go through.
+   */
+  private async drainInbound(): Promise<void> {
+    this.inboundDraining = true;
+    try {
+      while (this.inbound.length > 0) {
+        await waitZeroTimeout();
+        perfCounters.bump(PERF_INBOUND_DRAIN);
+        const started = performance.now();
+        while (0 < this.inbound.length && performance.now() - started < SkyWayConnection.INBOUND_DRAIN_BUDGET_MS) {
+          const { peer, container, byteLength } = this.inbound.shift()!;
+          this.bandwidthUsage -= byteLength;
+          if (!this.callback.onData) continue;
+          try {
+            const data = container.isCompressed ? await decompressAsync(container.data) : container.data;
+            this.callback.onData(peer, MessagePack.decode(data) as unknown[]);
+          } catch (e) {
+            Logger.error('[SkyWay] 受信データを読めなかったため破棄しました', e);
+          }
+        }
+      }
+    } finally {
+      this.inboundDraining = false;
+    }
   }
 
   private onRelay(stream: SkyWayDataStream, container: DataContainer) {
