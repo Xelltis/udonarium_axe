@@ -236,6 +236,43 @@ describe('ChatTabComponent', () => {
       // and the bottom moves on because it was at the bottom
       expect(internalFull().bottomIndex).toBe(1);
     });
+
+    describe('on iOS, which never narrows the lines while it scrolls', () => {
+      type InternalIOS = {
+        isIOS: boolean;
+        topIndex: number;
+        bottomIndex: number;
+        trimRenderedRangeOnIOS: () => void;
+      };
+      const ios = () => component as unknown as InternalIOS;
+
+      function renderEveryLineOf(count: number): void {
+        for (let i = 0; i < count; i++) {
+          chatTab.addMessage({ from: 'reader', name: '読者', text: `${i}`, timestamp: 1000 + i });
+        }
+        ios().isIOS = true;
+        ios().topIndex = 0;
+        ios().bottomIndex = count - 1;
+      }
+
+      it('lets go of the lines far above once the reader rests at the bottom', () => {
+        renderEveryLineOf(300);
+
+        ios().trimRenderedRangeOnIOS();
+
+        expect(ios().bottomIndex).toBe(299);
+        expect(ios().bottomIndex - ios().topIndex + 1).toBeLessThanOrEqual(150);
+      });
+
+      it('keeps them for a reader scrolled away from the bottom', () => {
+        renderEveryLineOf(300);
+        Object.defineProperty(panelService.scrollablePanel!, 'scrollHeight', { value: 20000 });
+
+        ios().trimRenderedRangeOnIOS();
+
+        expect(ios().topIndex).toBe(0);
+      });
+    });
   });
 
   describe('the typing bubble', () => {

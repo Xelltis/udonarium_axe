@@ -5,9 +5,36 @@ import {
   findDisplayableTopIndex,
   getBoundedScrollPosition,
   ScrollPosition,
+  shouldTrimRenderedRange,
 } from '@axe/features/chat/chat-tab/chat-tab-scroll-helpers';
 
 describe('chat-tab-scroll-helpers', () => {
+  describe('shouldTrimRenderedRange', () => {
+    it('lets lines go for a reader at the very bottom with more rendered than it keeps', () => {
+      expect(
+        shouldTrimRenderedRange({ topIndex: 0, bottomIndex: 299, lastIndex: 299, distanceFromBottom: 0 }, 150)
+      ).toBe(true);
+    });
+
+    it('keeps them for a reader scrolled away from the bottom', () => {
+      expect(
+        shouldTrimRenderedRange({ topIndex: 0, bottomIndex: 299, lastIndex: 299, distanceFromBottom: 400 }, 150)
+      ).toBe(false);
+    });
+
+    it('keeps them while the last line is not yet among those rendered', () => {
+      expect(
+        shouldTrimRenderedRange({ topIndex: 0, bottomIndex: 250, lastIndex: 299, distanceFromBottom: 0 }, 150)
+      ).toBe(false);
+    });
+
+    it('keeps them while no more are rendered than it keeps', () => {
+      expect(
+        shouldTrimRenderedRange({ topIndex: 150, bottomIndex: 299, lastIndex: 299, distanceFromBottom: 0 }, 150)
+      ).toBe(false);
+    });
+  });
+
   describe('findDisplayableTopIndex', () => {
     it('returns nothing when there is not enough to show', () => {
       const messages = [{ isDisplayable: false }, { isDisplayable: true }] as ChatMessage[];

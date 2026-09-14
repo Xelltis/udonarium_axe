@@ -106,3 +106,21 @@ export function calcIndexRange(params: CalcIndexRangeParams): { topIndex: number
     bottomIndex: nextBottomIndex,
   };
 }
+
+/** How many lines stay rendered for a reader resting at the bottom before the rest are let go. */
+export const MAX_RESTING_RENDERED_ROWS = 150;
+
+/**
+ * Whether the rendered lines have grown past what a reader resting at the bottom needs.
+ *
+ * Only a reader at the very bottom qualifies: there the lines far above can be dropped without
+ * anything on the screen moving.
+ */
+export function shouldTrimRenderedRange(
+  range: { topIndex: number; bottomIndex: number; lastIndex: number; distanceFromBottom: number },
+  maxRows: number = MAX_RESTING_RENDERED_ROWS
+): boolean {
+  if (range.bottomIndex < range.lastIndex) return false;
+  if (range.distanceFromBottom > 2) return false;
+  return range.bottomIndex - range.topIndex + 1 > maxRows;
+}

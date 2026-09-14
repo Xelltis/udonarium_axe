@@ -33,10 +33,13 @@ import {
   findDisplayableTopIndex,
   getBoundedScrollPosition,
   ScrollPosition,
+  shouldTrimRenderedRange,
 } from '@axe/features/chat/chat-tab/chat-tab-scroll-helpers';
 
 const ua = window.navigator.userAgent.toLowerCase();
 const isiOS = ua.includes('iphone') || ua.includes('ipad') || (ua.includes('macintosh') && 'ontouchend' in document);
+/** How long a reader has to stay put at the bottom before the lines far above are let go. */
+const RENDERED_RANGE_TRIM_DELAY_MS = 800;
 
 interface WritingSpeaker {
   peerId: string;
@@ -60,6 +63,7 @@ export class ChatTabComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly t = inject(TRANSLATE_FN);
+  protected readonly isIOS = isiOS;
 
   constructor() {
     effect(() => {
@@ -106,6 +110,7 @@ export class ChatTabComponent {
       this.renderVersion.update((v) => v + 1);
       this.needUpdate = true;
       this.onMessageInit();
+      if (this.isIOS) this.renderedRangeTrimTimer?.reset();
     }, this.destroyRef);
     this.objectChange.writingMessage$.subscribe((event) => {
       if (event.isSendFromSelf || event.tabIdentifier !== this.chatTab?.identifier) return;
@@ -126,6 +131,10 @@ export class ChatTabComponent {
     afterNextRender(() => {
       this.scrollEventShortTimer = new ResettableTimeout(() => this.lazyScrollUpdate(), 33);
       this.scrollEventLongTimer = new ResettableTimeout(() => this.lazyScrollUpdate(false), 66);
+      this.renderedRangeTrimTimer = new ResettableTimeout(
+        () => this.trimRenderedRangeOnIOS(),
+        RENDERED_RANGE_TRIM_DELAY_MS
+      );
       this.onScroll();
       this.panelService.scrollablePanel!.addEventListener('scroll', this.callbackOnScroll, false);
     });
@@ -135,6 +144,7 @@ export class ChatTabComponent {
       }
       if (this.scrollEventShortTimer) this.scrollEventShortTimer.clear();
       if (this.scrollEventLongTimer) this.scrollEventLongTimer.clear();
+      this.renderedRangeTrimTimer?.clear();
       if (this.addMessageEventTimer) clearTimeout(this.addMessageEventTimer);
       this.addMessageEventTimer = null;
       for (const timeout of this.writingSpeakerTimeouts.values()) timeout.stop();
@@ -206,6 +216,7 @@ export class ChatTabComponent {
 
   private scrollEventShortTimer: ResettableTimeout | null = null;
   private scrollEventLongTimer: ResettableTimeout | null = null;
+  private renderedRangeTrimTimer: ResettableTimeout | null = null;
   private addMessageEventTimer: ReturnType<typeof setTimeout> | null = null;
   private callbackOnScroll: () => void = () => this.onScroll();
   private readonly writingSpeakerTimeouts = new Map<string, ResettableTimeout>();
@@ -254,6 +265,27 @@ export class ChatTabComponent {
     this.topElm = this.bottomElm = null;
     this.adjustIndex();
     this.renderVersion.update((v) => v + 1);
+  }
+
+  /**
+   * Lets go of the lines far above a reader who has come to rest at the bottom, on iOS.
+   *
+   * iOS never narrows the rendered lines while it scrolls, since moving the scroll position
+   * under a momentum scroll makes it jump, so a long session there kept every line that arrived
+   * in the document. Once the reader rests at the bottom the lines are cut back to what fills
+   * the panel, the way a jump to the bottom does.
+   */
+  private trimRenderedRangeOnIOS() {
+    const panel = this.panelService.scrollablePanel;
+    if (!this.isIOS || !this.chatTab || !panel) return;
+    const position = getBoundedScrollPosition(panel);
+    const trim = shouldTrimRenderedRange({
+      topIndex: this.topIndex,
+      bottomIndex: this.bottomIndex,
+      lastIndex: this.chatTab.chatMessages.length - 1,
+      distanceFromBottom: position.scrollHeight - position.bottom,
+    });
+    if (trim) this.resetMessages();
   }
 
   trackByChatMessage(index: number, message: ChatMessage) {
@@ -419,6 +451,7 @@ export class ChatTabComponent {
 
   private onScroll() {
     this.scrollEventShortTimer?.reset();
+    if (this.isIOS) this.renderedRangeTrimTimer?.reset();
     if (!this.scrollEventLongTimer?.isActive) {
       this.scrollEventLongTimer?.reset();
     }
