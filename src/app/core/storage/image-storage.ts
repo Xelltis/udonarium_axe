@@ -21,6 +21,8 @@ export class ImageStorage {
   }
 
   private lazyTimer: ResettableTimeout | null = null;
+  /** Who the waiting catalogue goes to: a peer, everyone (undefined), or nothing waiting (null). */
+  private lazyPeer: string | undefined | null = null;
 
   private constructor() {}
 
@@ -79,14 +81,36 @@ export class ImageStorage {
     return this.imageHash[identifier] ?? null;
   }
 
+  /**
+   * Sends the catalogue now, to one peer or to everyone.
+   *
+   * A catalogue sent to everyone stands in for one waiting to go out later; one sent to a single
+   * peer only stands in for a later one meant for that same peer.
+   */
   synchronize(peer?: string) {
-    if (this.lazyTimer) this.lazyTimer.stop();
+    if (this.lazyTimer && (peer === undefined || this.lazyPeer === peer)) {
+      this.lazyTimer.stop();
+      this.lazyPeer = null;
+    }
     const catalog = this.getCatalog();
     networkSend('SYNCHRONIZE_FILE_LIST', catalog, peer);
   }
 
+  /**
+   * Sends the catalogue once things have been quiet for a while, folding the calls made meanwhile.
+   *
+   * Calls for the same peer send to that peer; calls for different peers, or for everyone, send
+   * to everyone.
+   */
   lazySynchronize(ms: number, peer?: string) {
-    if (this.lazyTimer === null) this.lazyTimer = new ResettableTimeout(() => this.synchronize(peer), ms);
+    this.lazyPeer = this.lazyPeer === null || this.lazyPeer === peer ? peer : undefined;
+    if (this.lazyTimer === null) {
+      this.lazyTimer = new ResettableTimeout(() => {
+        const target = this.lazyPeer ?? undefined;
+        this.lazyPeer = null;
+        this.synchronize(target);
+      }, ms);
+    }
     this.lazyTimer.reset(ms);
   }
 

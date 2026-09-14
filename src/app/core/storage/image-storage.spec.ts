@@ -1,3 +1,4 @@
+import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 
@@ -69,6 +70,73 @@ describe('ImageStorage', () => {
       expect(catalog.length).toBeGreaterThanOrEqual(1);
       const item = catalog.find((c) => c.identifier === 'https://example.com/catalog.png');
       expect(item).toBeTruthy();
+    });
+  });
+
+  describe('sending the catalogue', () => {
+    type Internals = { lazyTimer: { clear(): void } | null; lazyPeer: string | undefined | null };
+    const internals = () => storage as unknown as Internals;
+
+    const catalogueTargets = () =>
+      vi
+        .mocked(Network.instance.send)
+        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === 'SYNCHRONIZE_FILE_LIST')
+        .map(([, sendTo]) => sendTo);
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      internals().lazyTimer?.clear();
+      internals().lazyTimer = null;
+      internals().lazyPeer = null;
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      internals().lazyTimer?.clear();
+      internals().lazyTimer = null;
+      internals().lazyPeer = null;
+      vi.useRealTimers();
+    });
+
+    it('folds the waiting calls for one peer into one catalogue for that peer', () => {
+      storage.lazySynchronize(1000, 'peer-a');
+      storage.lazySynchronize(1000, 'peer-a');
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual(['peer-a']);
+    });
+
+    it('tells everyone when the waiting calls name different peers', () => {
+      storage.lazySynchronize(1000, 'peer-a');
+      storage.lazySynchronize(1000, 'peer-b');
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual([undefined]);
+    });
+
+    it('sends a later waiting call to the peer that call names', () => {
+      storage.lazySynchronize(1000, 'peer-a');
+      vi.advanceTimersByTime(1000);
+      storage.lazySynchronize(1000, 'peer-b');
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual(['peer-a', 'peer-b']);
+    });
+
+    it('still tells everyone later after telling one peer now', () => {
+      storage.lazySynchronize(1000);
+      storage.synchronize('peer-a');
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual(['peer-a', undefined]);
+    });
+
+    it('lets a catalogue sent to everyone now stand in for the one waiting', () => {
+      storage.lazySynchronize(1000, 'peer-a');
+      storage.synchronize();
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual([undefined]);
     });
   });
 });
