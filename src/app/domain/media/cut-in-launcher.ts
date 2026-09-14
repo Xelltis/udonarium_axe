@@ -159,26 +159,21 @@ export class CutInLauncher extends GameObject {
       return;
     }
 
-    if (this.launchMySelf) {
-      return;
-    } // ソロ再生用の場合他の人は発火しない
-
     if (stopBlankTagCutInTimeStamp !== this.stopBlankTagCutInTimeStamp) {
       emitStopCutInByBgm();
     }
 
-    if (this.sendTo != '') {
-      // playing to one person
-      if (this.sendTo != getPeerContext().userId) {
-        return;
-      }
+    if (this.sendTo != '' && this.sendTo != getPeerContext().userId) {
+      return;
     }
 
-    if (
+    const launchChanged =
       launchCutInIdentifier !== this.launchCutInIdentifier ||
       launchIsStart !== this.launchIsStart ||
-      launchTimeStamp !== this.launchTimeStamp
-    ) {
+      launchTimeStamp !== this.launchTimeStamp;
+    // Only a launch marks itself as the sender's alone; the flag stays set until the next launch,
+    // so the music stops and sound-only cut-ins after it still reach everyone.
+    if (launchChanged && !this.launchMySelf) {
       if (this.launchIsStart) {
         this.startSelfCutIn();
       } else {
