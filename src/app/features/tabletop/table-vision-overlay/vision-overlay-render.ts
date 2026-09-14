@@ -292,44 +292,92 @@ export interface DirtyRect {
 }
 
 /**
- * The ground the lights that move cover, and nothing else.
+ * The ground the lights that move cover, and nothing else, a patch for each group of them.
  *
  * A board is mostly still. One candle guttering in a corner used to mean clearing the whole
  * board and laying the whole of it down again twenty times a second, which on a large table
  * is tens of millions of pixels a frame for the sake of a few hundred thousand. Kept to the
- * box the moving lights actually reach, the rest of the board is left where it is.
+ * boxes the moving lights actually reach, the rest of the board is left where it is, and two
+ * torches at opposite ends of a room redraw their own two corners rather than the room between.
+ * Lights whose boxes meet are redrawn in one patch.
  */
-export function animatedGlowBounds(
+export function animatedGlowPatches(
   plan: OverlayPlan,
   widthPx: number,
   heightPx: number,
   margin = 0,
   surface?: OverlaySurface
-): DirtyRect | null {
+): DirtyRect[] {
   const resolved = resolvedSurfaceOf(widthPx, heightPx, surface);
   const offsetX = margin - resolved.originX;
   const offsetY = margin - resolved.originY;
 
-  let left = Infinity;
-  let top = Infinity;
-  let right = -Infinity;
-  let bottom = -Infinity;
+  const boxes: Box[] = [];
   for (const shape of plan.glows) {
     if (!isAnimated(shape) || shape.dimPx <= 0) continue;
-    left = Math.min(left, shape.x - shape.dimPx + offsetX);
-    top = Math.min(top, shape.y - shape.dimPx + offsetY);
-    right = Math.max(right, shape.x + shape.dimPx + offsetX);
-    bottom = Math.max(bottom, shape.y + shape.dimPx + offsetY);
+    boxes.push({
+      left: shape.x - shape.dimPx + offsetX,
+      top: shape.y - shape.dimPx + offsetY,
+      right: shape.x + shape.dimPx + offsetX,
+      bottom: shape.y + shape.dimPx + offsetY,
+    });
   }
-  if (!(right > left) || !(bottom > top)) return null;
 
   const width = widthPx + 2 * margin;
   const height = heightPx + 2 * margin;
-  const x = Math.max(0, Math.floor(left));
-  const y = Math.max(0, Math.floor(top));
-  const w = Math.min(width, Math.ceil(right)) - x;
-  const h = Math.min(height, Math.ceil(bottom)) - y;
-  return w > 0 && h > 0 ? { x, y, width: w, height: h } : null;
+  const patches: DirtyRect[] = [];
+  for (const box of mergeMeeting(boxes)) {
+    const x = Math.max(0, Math.floor(box.left));
+    const y = Math.max(0, Math.floor(box.top));
+    const w = Math.min(width, Math.ceil(box.right)) - x;
+    const h = Math.min(height, Math.ceil(box.bottom)) - y;
+    if (w > 0 && h > 0) patches.push({ x, y, width: w, height: h });
+  }
+  return patches;
+}
+
+interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** The boxes with every two that meet taken together, until no two of what is left meet. */
+function mergeMeeting(boxes: readonly Box[]): Box[] {
+  const merged = boxes.map((box) => ({ ...box }));
+  let joined = true;
+  while (joined) {
+    joined = false;
+    for (let i = 0; i < merged.length && !joined; i++) {
+      for (let j = i + 1; j < merged.length; j++) {
+        const a = merged[i];
+        const b = merged[j];
+        if (a.left > b.right || b.left > a.right || a.top > b.bottom || b.top > a.bottom) continue;
+        merged[i] = {
+          left: Math.min(a.left, b.left),
+          top: Math.min(a.top, b.top),
+          right: Math.max(a.right, b.right),
+          bottom: Math.max(a.bottom, b.bottom),
+        };
+        merged.splice(j, 1);
+        joined = true;
+        break;
+      }
+    }
+  }
+  return merged;
+}
+
+/** Whether a light reaches into the patch a pass redraws, which every light does on a pass of the whole board. */
+function reachesPatch(shape: OverlayShape, patch: DirtyRect | null, offsetX: number, offsetY: number): boolean {
+  if (!patch) return true;
+  return (
+    shape.x + shape.dimPx + offsetX >= patch.x &&
+    shape.x - shape.dimPx + offsetX <= patch.x + patch.width &&
+    shape.y + shape.dimPx + offsetY >= patch.y &&
+    shape.y - shape.dimPx + offsetY <= patch.y + patch.height
+  );
 }
 
 /** The baked surfaces, holding what does not change over time. */
@@ -589,7 +637,7 @@ interface SoftMask {
   top: number;
 }
 
-const softSeenMasks = new WeakMap<OverlayVision, SoftMask>();
+const softSeenMasks = new WeakMap<OverlayVision, Map<string, SoftMask>>();
 
 function softSeenMaskOf(vision: OverlayVision, mask: CellMask, bounds: OverlayBounds, patch: DirtyRect): SoftMask {
   const scale = bounds.scale;
@@ -600,12 +648,17 @@ function softSeenMaskOf(vision: OverlayVision, mask: CellMask, bounds: OverlayBo
   const bottom = Math.min(Math.ceil(bounds.height * scale), Math.ceil((patch.y + patch.height + reach) * scale));
   const key = [left, top, right, bottom, scale, bounds.offsetX, bounds.offsetY, vision.blurPx].join(',');
 
-  const kept = softSeenMasks.get(vision);
-  if (kept?.key === key) return kept;
+  let byCorner = softSeenMasks.get(vision);
+  if (!byCorner) {
+    byCorner = new Map();
+    softSeenMasks.set(vision, byCorner);
+  }
+  const kept = byCorner.get(key);
+  if (kept) return kept;
 
   // Even a corner that would not bake is remembered, or every pass would make a canvas and throw it away.
   const soft: SoftMask = { key, image: null, left, top };
-  softSeenMasks.set(vision, soft);
+  byCorner.set(key, soft);
   if (!(right > left) || !(bottom > top) || typeof document === 'undefined') return soft;
 
   const canvas = document.createElement('canvas');
@@ -815,8 +868,16 @@ export function drawOverlayPlan(
   reset(ctx, scale);
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
-  if (patch) ctx.clearRect(patch.x, patch.y, patch.width, patch.height);
-  else ctx.clearRect(0, 0, width, height);
+  if (patch) {
+    ctx.clearRect(patch.x, patch.y, patch.width, patch.height);
+    // A light reaching into the patch from beside it is drawn whole, and nothing past the edge was cleared for it.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(patch.x, patch.y, patch.width, patch.height);
+    ctx.clip();
+  } else {
+    ctx.clearRect(0, 0, width, height);
+  }
 
   if (usable) blit(ctx, usable.base.image, patch, width, height, scale);
 
@@ -828,7 +889,10 @@ export function drawOverlayPlan(
   // only add it to itself.
   const glow = (target: CanvasRenderingContext2D): void => {
     target.globalCompositeOperation = 'lighter';
-    for (const shape of plan.glows) if (!usable || isAnimated(shape)) drawGlow(target, shape, timeMs);
+    for (const shape of plan.glows) {
+      if ((!usable || isAnimated(shape)) && reachesPatch(shape, patch, offsetX, offsetY))
+        drawGlow(target, shape, timeMs);
+    }
     target.globalCompositeOperation = 'source-over';
   };
   if (plan.vision?.clipReveals) {
@@ -847,7 +911,9 @@ export function drawOverlayPlan(
     paintShadows(ctx, plan, images);
   }
 
+  if (patch) ctx.restore();
   ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
   reset(ctx, scale);
 }
 

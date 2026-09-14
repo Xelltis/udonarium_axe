@@ -3,7 +3,7 @@ import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { OverlayPlan, OverlayShape, OverlayVision } from '@axe/domain/tabletop/vision-scene';
 import {
-  animatedGlowBounds,
+  animatedGlowPatches,
   animationIntensity,
   bakeOverlayPlan,
   drawOverlayPlan,
@@ -525,7 +525,7 @@ describe('the ground a pass has to cover', () => {
   }
 
   it('has none to cover where nothing moves', () => {
-    expect(animatedGlowBounds(planWith([shape()]), 800, 600)).toBeNull();
+    expect(animatedGlowPatches(planWith([shape()]), 800, 600)).toEqual([]);
   });
 
   it('takes in the light that moves and leaves out the one that does not', () => {
@@ -534,23 +534,36 @@ describe('the ground a pass has to cover', () => {
       shape({ x: 100, y: 100, dimPx: 30, animation: 'flicker' }),
     ]);
 
-    expect(animatedGlowBounds(plan, 800, 600)).toEqual({ x: 70, y: 70, width: 60, height: 60 });
+    expect(animatedGlowPatches(plan, 800, 600)).toEqual([{ x: 70, y: 70, width: 60, height: 60 }]);
   });
 
-  it('reaches round every light that moves', () => {
+  it('gives lights far apart a corner each rather than the ground between them', () => {
     const plan = planWith([
       shape({ x: 100, y: 100, dimPx: 30, animation: 'flicker' }),
       shape({ x: 300, y: 200, dimPx: 40, animation: 'pulse' }),
     ]);
 
-    expect(animatedGlowBounds(plan, 800, 600)).toEqual({ x: 70, y: 70, width: 270, height: 170 });
+    expect(animatedGlowPatches(plan, 800, 600)).toEqual([
+      { x: 70, y: 70, width: 60, height: 60 },
+      { x: 260, y: 160, width: 80, height: 80 },
+    ]);
+  });
+
+  it('redraws lights whose reach meets in one corner', () => {
+    const plan = planWith([
+      shape({ x: 100, y: 100, dimPx: 30, animation: 'flicker' }),
+      shape({ x: 140, y: 100, dimPx: 30, animation: 'pulse' }),
+      shape({ x: 190, y: 100, dimPx: 30, animation: 'flicker' }),
+    ]);
+
+    expect(animatedGlowPatches(plan, 800, 600)).toEqual([{ x: 70, y: 70, width: 150, height: 60 }]);
   });
 
   it('carries the margin, and stops at the edge of the surface', () => {
     const plan = planWith([shape({ x: 0, y: 0, dimPx: 200, animation: 'flicker' })]);
 
     // The light reaches 200px past a 10px margin, so it is cut off where the canvas ends.
-    expect(animatedGlowBounds(plan, 800, 600, 10)).toEqual({ x: 0, y: 0, width: 210, height: 210 });
+    expect(animatedGlowPatches(plan, 800, 600, 10)).toEqual([{ x: 0, y: 0, width: 210, height: 210 }]);
   });
 });
 
@@ -641,6 +654,28 @@ describe('the baked surfaces', () => {
     expect(ops.find((o) => o.name === 'clearRect')?.args).toEqual([20, 30, 120, 140]);
     // And the baked surface is taken from that corner and put back in the same place.
     expect(ops.find((o) => o.name === 'drawImage')?.args.slice(1)).toEqual([20, 30, 120, 140, 20, 30, 120, 140]);
+  });
+
+  it('keeps a pass inside its corner, and leaves out the lights that do not reach it', () => {
+    stubCanvas();
+    const plan: OverlayPlan = {
+      ...planWithDarkness(),
+      reveals: [],
+      glows: [
+        shape({ x: 100, y: 100, dimPx: 30, animation: 'flicker' }),
+        shape({ x: 700, y: 500, dimPx: 30, animation: 'flicker' }),
+      ],
+    };
+    const bake = bakeOverlayPlan(plan, 800, 600);
+    const [corner] = animatedGlowPatches(plan, 800, 600);
+
+    const { ctx, ops } = fakeContext();
+    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 0, undefined, bake, corner);
+
+    const clipAt = ops.findIndex((o) => o.name === 'clip');
+    expect(ops[clipAt - 1]).toMatchObject({ name: 'rect', args: [70, 70, 60, 60] });
+    expect(ops.filter((o) => o.name === 'fill' && o.composite === 'lighter')).toHaveLength(1);
+    expect(ops.map((o) => o.name).lastIndexOf('restore')).toBeGreaterThan(clipAt);
   });
 
   it('covers the whole board where there is nothing baked to keep', () => {
@@ -759,7 +794,7 @@ describe('the baked surfaces', () => {
       const plan: OverlayPlan = { ...planWithDarkness('flicker'), vision: seenVision() };
       const scratch = overlayScratch(820, 620, 1);
       const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10, undefined, null, 1, scratch);
-      const dirty = animatedGlowBounds(plan, 800, 600, 10)!;
+      const dirty = animatedGlowPatches(plan, 800, 600, 10)[0];
       const pass = (time: number, drawn = plan) =>
         drawOverlayPlan(fakeContext().ctx, drawn, 800, 600, time, undefined, 10, undefined, bake, dirty, 1, scratch);
       return { plan, dirty, pass };
@@ -788,6 +823,28 @@ describe('the baked surfaces', () => {
       const cuts = ops.filter((o) => o.composite === 'destination-in' && ['fill', 'drawImage'].includes(o.name));
       expect(cuts.map((o) => o.name)).toEqual(['drawImage']);
       expect(cuts[0].args.slice(5)).toEqual([dirty.x, dirty.y, dirty.width, dirty.height]);
+    });
+
+    it('keeps the softened edge of every corner it redraws, not only the last', () => {
+      const { blurs } = stubSurfaces();
+      const plan: OverlayPlan = {
+        ...planWithDarkness('flicker'),
+        glows: [shape({ animation: 'flicker' }), shape({ x: 600, y: 450, animation: 'flicker' })],
+        vision: seenVision(),
+      };
+      const scratch = overlayScratch(820, 620, 1);
+      const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10, undefined, null, 1, scratch);
+      const corners = animatedGlowPatches(plan, 800, 600, 10);
+      blurs.length = 0;
+
+      for (const time of [1000, 1050, 1100]) {
+        for (const corner of corners) {
+          drawOverlayPlan(fakeContext().ctx, plan, 800, 600, time, undefined, 10, undefined, bake, corner, 1, scratch);
+        }
+      }
+
+      expect(corners).toHaveLength(2);
+      expect(blurs).toHaveLength(2);
     });
 
     it('softens it again for the next scene', () => {

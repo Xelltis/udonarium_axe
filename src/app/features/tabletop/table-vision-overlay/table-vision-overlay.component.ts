@@ -7,7 +7,7 @@ import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { HEX_SURFACE_INFLATE_PX, hexSurfaceCells, SurfacePoint } from '@axe/domain/tabletop/surface-cells';
 import { computeOverlayPlan, OverlayPlan, sameOverlayPlan } from '@axe/domain/tabletop/vision-scene';
 import {
-  animatedGlowBounds,
+  animatedGlowPatches,
   type BakeCanvas,
   bakeOverlayPlan,
   type DirtyRect,
@@ -51,7 +51,7 @@ export class TableVisionOverlayComponent {
   private bake: OverlayBake | null = null;
   private scratch: BakeCanvas | null = null;
   private scratchSize = '';
-  private dirty: DirtyRect | null = null;
+  private dirty: DirtyRect[] = [];
   private rafId: number | null = null;
   private readonly images = new Map<string, HTMLImageElement>();
 
@@ -69,7 +69,7 @@ export class TableVisionOverlayComponent {
         this.bake = null;
         this.scratch = null;
         this.scratchSize = '';
-        this.dirty = null;
+        this.dirty = [];
         this.margin = 0;
         this.scale = 1;
         this.surfaceCells = undefined;
@@ -178,7 +178,7 @@ export class TableVisionOverlayComponent {
   private refreshBake(): void {
     if (!this.plan || !this.animated) {
       this.bake = null;
-      this.dirty = null;
+      this.dirty = [];
       return;
     }
     this.bake = bakeOverlayPlan(
@@ -192,7 +192,7 @@ export class TableVisionOverlayComponent {
       this.scale,
       this.scratch
     );
-    this.dirty = animatedGlowBounds(this.plan, this.surfaceWidth, this.surfaceHeight, this.margin, this.surfaceOf());
+    this.dirty = animatedGlowPatches(this.plan, this.surfaceWidth, this.surfaceHeight, this.margin, this.surfaceOf());
   }
 
   private surfaceOf() {
@@ -235,8 +235,10 @@ export class TableVisionOverlayComponent {
     const now = this.now();
     if (now - this.lastFrameAt >= VISION_ANIMATION_INTERVAL_MS) {
       this.lastFrameAt = now;
-      // Only the ground the flickering lights cover; the rest was laid down once.
-      this.draw(now, this.dirty);
+      // Only the ground the flickering lights cover; the rest was laid down once. With nothing
+      // laid down, the whole board is drawn.
+      if (!this.bake) this.draw(now, null);
+      else for (const patch of this.dirty) this.draw(now, patch);
     }
     this.rafId = requestAnimationFrame(this.loop);
   };
