@@ -144,8 +144,8 @@ E2E は載せていない。Playwright は CI だと 5 ブラウザぶん走る�
 - **`conventional-changelog-conventionalcommits` は 9 系に留める** — 10 系にすると
   `@semantic-release/release-notes-generator` が節を 1 つも出さず、リリースノートが見出しだけになる
   （壊れるのはリリース時だけなので、上げる前に commit-analyzer / release-notes-generator を直接叩いて確かめる）
-- **`bcdice` を上げたら `node scripts/generate-bcdice-i18n.mjs` を実行する** — 新しいシステムの翻訳が
-  抜けたままだと、全システムを静的読み込みした時点で `table.$[] is not a function` で落ちる
+- **`bcdice` を上げたら `node scripts/generate-bcdice-importers.mjs` を実行する** — ゲームシステムと翻訳は
+  この一覧から 1 つずつ読み込む。新しいシステムが一覧に無いと、そのシステムを選んでも DiceBot で振られる
 
 ## 依存の脆弱性（`npm audit`）
 

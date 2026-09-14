@@ -24,14 +24,14 @@ import { DiceTable } from '@axe/domain/dice/dice-table';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
 import GameSystemClass from 'bcdice/lib/game_system';
-import type StaticLoader from 'bcdice/lib/loader/static_loader';
+import type Loader from 'bcdice/lib/loader/loader';
 
 /** The dice bot everything starts with, which nobody has to have chosen. */
 export const PLAIN_DICE_BOT = 'DiceBot';
 
 @SyncObject('dice-bot')
 export class DiceBot extends GameObject {
-  private static loader: StaticLoader;
+  private static loader: Loader;
   private static queue: PromiseQueue | null = null;
   private resourceProcessor = new ResourceEditProcessor(
     DiceBot.diceRollAsync.bind(DiceBot),
@@ -102,12 +102,28 @@ export class DiceBot extends GameObject {
         return system;
       }
       const id = this.diceBotInfos.some((info) => info.id === gameType) ? gameType : PLAIN_DICE_BOT;
-      try {
-        return DiceBot.loader.getGameSystemClass(id);
-      } catch {
-        return DiceBot.loader.dynamicLoad(id);
-      }
+      return DiceBot.loadedOrFetched(id);
     });
+  }
+
+  /**
+   * The system under an id, fetching its chunk the first time it is asked for.
+   *
+   * A chunk that cannot be had - a tab left open across a release asks for one that is gone -
+   * rolls with the plain dice bot rather than losing the roll.
+   */
+  private static async loadedOrFetched(id: string): Promise<GameSystemClass> {
+    try {
+      return DiceBot.loader.getGameSystemClass(id);
+    } catch {
+      try {
+        return await DiceBot.loader.dynamicLoad(id);
+      } catch (e) {
+        if (id === PLAIN_DICE_BOT) throw e;
+        Logger.warn(`[DiceBot] ${id} を読み込めないため ${PLAIN_DICE_BOT} で振ります`, e);
+        return DiceBot.loadedOrFetched(PLAIN_DICE_BOT);
+      }
+    }
   }
 
   private static get loadingQueue(): PromiseQueue {
@@ -122,8 +138,7 @@ export class DiceBot extends GameObject {
   private static initializeDiceBotQueue(): PromiseQueue {
     const queue = new PromiseQueue('DiceBotQueue');
     queue.add(async () => {
-      const { default: BCDiceLoader, loadBCDiceGameSystems } = await import('./bcdice/bcdice-loader');
-      await loadBCDiceGameSystems();
+      const { default: BCDiceLoader } = await import('./bcdice/bcdice-loader');
       DiceBot.loader = new BCDiceLoader();
       DiceBot.diceBotInfos = DiceBot.listAvailableGameSystems().sort((a, b) => {
         if (a.sortKey < b.sortKey) return -1;

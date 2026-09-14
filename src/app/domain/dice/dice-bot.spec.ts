@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { Logger } from '@axe/core/logging/logger';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -72,6 +73,24 @@ describe('DiceBot', () => {
     it('lists the systems it knows', () => {
       expect(Array.isArray(DiceBot.diceBotInfos)).toBe(true);
     });
+
+    it('rolls with the plain dice bot when the chunk of a system cannot be fetched', async () => {
+      await DiceBot.ensureLoaded();
+      const loader = DiceBot['loader'];
+      const fetch = loader.dynamicLoad.bind(loader);
+      vi.spyOn(loader, 'getGameSystemClass').mockImplementation(() => {
+        throw new Error('not loaded yet');
+      });
+      vi.spyOn(loader, 'dynamicLoad').mockImplementation(async (id: string) => {
+        if (id === 'Amadeus') throw new Error('Failed to fetch dynamically imported module');
+        return fetch(id);
+      });
+      vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+      const system = await DiceBot.loadGameSystemAsync('Amadeus');
+
+      expect(system.ID).toBe('DiceBot');
+    });
   });
 
   describe('does not throw away what was rolled', () => {
@@ -80,9 +99,8 @@ describe('DiceBot', () => {
       return { ID: 'FakeSystem', eval: () => result } as unknown as Parameters<typeof DiceBot.diceRollAsync>[1];
     }
 
-    // Importing DiceBot queues a load of every BCDice system, and every roll goes
-    // through that same queue, so the first roll pays for the whole catalogue.
-    // Drain it here instead of charging it to whichever test rolls first.
+    // Every roll goes through the queue that first fetches the BCDice loader, so the first roll
+    // pays for that fetch. Drain it here instead of charging it to whichever test rolls first.
     beforeAll(async () => {
       await DiceBot.diceRollAsync('1D1', fakeSystem(null));
     });
