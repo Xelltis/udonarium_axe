@@ -9,6 +9,7 @@ import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
 import { diff } from '@axe/core/util/array-util';
 import { compressAsync, decompressAsync } from '@axe/core/util/compress';
 import * as MessagePack from '@axe/core/util/message-pack';
+import { PERF_INBOUND_DRAIN, perfCounters } from '@axe/core/util/perf-counters';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 
 type PeerId = string;
@@ -350,6 +351,7 @@ export class SkyWayConnection implements Connection {
     this.bandwidthUsage += byteLength;
     this.inboundQueue = this.inboundQueue.then(async () => {
       await waitZeroTimeout();
+      perfCounters.bump(PERF_INBOUND_DRAIN);
       if (!this.callback.onData) return;
       const data = container.isCompressed ? await decompressAsync(container.data) : container.data;
       this.callback.onData(stream.peer, MessagePack.decode(data) as unknown[]);

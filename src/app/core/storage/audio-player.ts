@@ -1,6 +1,7 @@
 import { Logger } from '@axe/core/logging/logger';
 import { AudioFile, AudioState } from '@axe/core/storage/audio-file';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
+import { PERF_SE_DECODE, perfCounters } from '@axe/core/util/perf-counters';
 
 export enum VolumeType {
   MASTER,
@@ -392,6 +393,7 @@ export class AudioPlayer {
   }
 
   private static async decodeAudioDataAsync(blob: Blob): Promise<AudioBuffer> {
+    perfCounters.bump(PERF_SE_DECODE);
     const arrayBuffer = await FileReaderUtil.readAsArrayBufferAsync(blob);
     return new Promise<AudioBuffer>((resolve, reject) => {
       AudioPlayer.audioContext.decodeAudioData(

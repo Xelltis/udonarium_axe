@@ -9,6 +9,9 @@ export const PERF_SVG_BUILD = 'svgBuild';
 export const PERF_TRANSFORM_INIT = 'transformInit';
 export const PERF_AMBIENCE_LAYER = 'ambienceLayer';
 export const PERF_DESERIALIZE_SCENE = 'deserializeScene';
+export const PERF_EFFECT_RENDERABLES = 'effectRenderables';
+export const PERF_INBOUND_DRAIN = 'inboundDrain';
+export const PERF_SE_DECODE = 'seDecode';
 
 class PerfCounters {
   enabled = false;

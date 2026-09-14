@@ -7,6 +7,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PERF_EFFECT_RENDERABLES, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectParticleLayer, effectParticles } from '@axe/domain/effect/effect-particles';
 import { stagedEffectParticles } from '@axe/domain/effect/effect-stage-timeline';
@@ -73,6 +74,7 @@ export class TableEffectOverlayComponent {
   });
 
   private readonly renderables = computed<(EffectFieldRenderable & { hidden: ReadonlySet<string> })[]>(() => {
+    perfCounters.bump(PERF_EFFECT_RENDERABLES);
     const now = this.playback.now();
     const hiddenByKey = this.hiddenByKey();
     const all: EffectFieldRenderable[] = [
