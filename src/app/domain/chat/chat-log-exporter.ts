@@ -91,6 +91,17 @@ export class ChatLogExporter {
   }
 
   /**
+   * Escapes the text of a message as `escapeHtml` does, one line at a time, and joins the lines
+   * with `<br>` so the breaks a person typed survive the escaping.
+   */
+  static escapeHtmlLines(value: string): string {
+    return value
+      .split(/\r?\n/)
+      .map((line) => ChatLogExporter.escapeHtml(line))
+      .join('<br>');
+  }
+
+  /**
    * One line in the standard log layout: the tab name and the time when asked for, the portrait,
    * any quoted or replied-to line, then the name and text in the speaker's colour.
    *
@@ -135,7 +146,7 @@ export class ChatLogExporter {
     str += '：';
     if (!message.isSecret || canSee) {
       const decodedText = vnBodyOf(message.vnEmote, ChatLogExporter.decode(message.text, textDecoder));
-      if (decodedText) str += ChatLogExporter.escapeHtml(decodedText).replace(/\n/g, '<br>');
+      if (decodedText) str += ChatLogExporter.escapeHtmlLines(decodedText);
       str += ChatLogExporter.formatAttachmentImages(message, imageSrcResolver);
     } else {
       str += '（シークレットダイス）';
@@ -175,7 +186,7 @@ export class ChatLogExporter {
     const canSee = ChatLogExporter.canSee(message, userId);
     if (!message.isSecret || canSee) {
       const decodedText = vnBodyOf(message.vnEmote, ChatLogExporter.decode(message.text, textDecoder));
-      if (decodedText) str += ChatLogExporter.escapeHtml(decodedText).replace(/\n/g, '<br>').replace(/→/g, '＞');
+      if (decodedText) str += ChatLogExporter.escapeHtmlLines(decodedText).replace(/→/g, '＞');
       str += ChatLogExporter.formatAttachmentImages(message, imageSrcResolver);
     } else {
       str += '（シークレットダイス）';
