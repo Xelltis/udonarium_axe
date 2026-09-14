@@ -1401,6 +1401,32 @@ input[type='range']::-moz-range-thumb {
   backdrop-filter: none !important;
 }
 
+/*
+ * Nor does every object on the table ask for a compositing layer of its own. The host element
+ * only moves when its stacking order does; the element inside that follows the pointer is
+ * promoted while it is dragged (MovableDirective), and that inline style still applies.
+ * Firefox gives up on will-change past an area budget, and small machines pay for every layer.
+ */
+:root.render-lite
+  :is(
+    text-note,
+    card-stack,
+    card,
+    game-character,
+    coin,
+    dice-symbol,
+    terrain,
+    game-table-mask,
+    game-table-scratch-mask,
+    table-ambience,
+    peer-cursor,
+    range,
+    white-board,
+    light-source
+  ).will-change-transform {
+  will-change: auto;
+}
+
 :root.motion-reduced
   :is(
     .animate-sheet-up,
