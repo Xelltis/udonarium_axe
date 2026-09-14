@@ -375,7 +375,7 @@ describe('VisualNovelOverlayComponent', () => {
       timestamp: nextTimestamp++,
     });
     createComponent();
-    expect(component.systemSpeaker()?.imageUrl).toBe('assets/images/system_chang_roll.png');
+    expect(component.systemSpeaker()?.imageUrl).toBe('assets/images/system_chang_roll.webp');
     expect(component.bubbleAnchor()).toBeNull();
   });
 

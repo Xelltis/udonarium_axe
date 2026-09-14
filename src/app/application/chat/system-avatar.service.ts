@@ -5,8 +5,8 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Config } from '@axe/domain/peer/config';
 
-export const DEFAULT_SYSTEM_AVATAR_URL = 'assets/images/system_chang.png';
-export const DEFAULT_SYSTEM_DICE_AVATAR_URL = 'assets/images/system_chang_roll.png';
+export const DEFAULT_SYSTEM_AVATAR_URL = 'assets/images/system_chang.webp';
+export const DEFAULT_SYSTEM_DICE_AVATAR_URL = 'assets/images/system_chang_roll.webp';
 
 export type SystemAvatarKind = 'system' | 'dice';
 
