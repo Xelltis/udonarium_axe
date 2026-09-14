@@ -2636,7 +2636,8 @@
         "jumpToOriginal": "원래 메시지로 이동",
         "shareAsMemo": "공유 메모로 보내기",
         "ticker": "티커",
-        "copyToTab": "다른 탭으로 복사"
+        "copyToTab": "다른 탭으로 복사",
+        "copyText": "본문 복사"
       },
       "stream": {
         "title": "발언의 흐름",

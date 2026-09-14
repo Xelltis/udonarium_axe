@@ -7,10 +7,13 @@ import {
   NO_SYSTEM_AVATAR,
   SystemAvatarService,
 } from '@axe/application/chat/system-avatar.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { emitFileLoaded } from '@axe/core/event/domain-events';
@@ -25,6 +28,7 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-message.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import type { MockInstance } from 'vitest';
 
 describe('ChatMessageComponent', () => {
   let component: ChatMessageComponent;
@@ -635,6 +639,95 @@ describe('ChatMessageComponent', () => {
           .find((n, idx) => idx >= before && n.text === '2D6 → 7');
         created?.destroy();
       }
+    });
+  });
+
+  describe('the menu of what can be done with a line', () => {
+    let open: MockInstance<ContextMenuService['open']>;
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+
+    beforeEach(() => {
+      open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+    });
+
+    function said(text: string): ChatMessage {
+      const message = new ChatMessage();
+      message.initialize();
+      message.from = 'someone-else';
+      message.to = '';
+      message.name = 'テスト';
+      message.tag = '';
+      message.imageIdentifier = '';
+      message.messColor = '#000000';
+      message.text = text;
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+      return message;
+    }
+
+    function pressOn(target: Element): MouseEvent {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    function offered(): ContextMenuAction[] {
+      return open.mock.calls[0][1];
+    }
+
+    it('opens on a right click or a press held on the line, with what its buttons offer', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      said('こんにちは');
+
+      const event = pressOn(fixture.nativeElement.querySelector('.msg-text'));
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(offered().map((action) => action.name)).toEqual(
+        expect.arrayContaining([
+          t('feature.chat.message.reply'),
+          t('feature.chat.message.quote'),
+          t('feature.chat.message.copyText'),
+        ])
+      );
+    });
+
+    it("leaves a link the browser's own menu", () => {
+      said('https://example.com');
+      const link = fixture.nativeElement.querySelector('.msg-text a') as Element | null;
+
+      expect(link).not.toBeNull();
+      pressOn(link!);
+
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('offers nothing in a window that only reads the log', () => {
+      fixture.componentRef.setInput('readOnly', true);
+      said('こんにちは');
+
+      pressOn(fixture.nativeElement.querySelector('.msg-text'));
+
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('copies the words of the line as the reader is shown them', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      said('こんにちは');
+
+      pressOn(fixture.nativeElement.querySelector('.msg-text'));
+      offered()
+        .find((action) => action.name === t('feature.chat.message.copyText'))
+        ?.action?.();
+
+      expect(writeText).toHaveBeenCalledWith('こんにちは');
     });
   });
 

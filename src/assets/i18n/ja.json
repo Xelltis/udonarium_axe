@@ -2636,7 +2636,8 @@
         "jumpToOriginal": "元のメッセージへ移動",
         "shareAsMemo": "共有メモにする",
         "ticker": "ティッカー",
-        "copyToTab": "別のタブにコピー"
+        "copyToTab": "別のタブにコピー",
+        "copyText": "本文をコピー"
       },
       "stream": {
         "title": "発言の流れ",

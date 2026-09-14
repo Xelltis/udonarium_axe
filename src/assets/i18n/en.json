@@ -2636,7 +2636,8 @@
         "jumpToOriginal": "Jump to original message",
         "shareAsMemo": "Send to shared memo",
         "ticker": "Ticker",
-        "copyToTab": "Copy to another tab"
+        "copyToTab": "Copy to another tab",
+        "copyText": "Copy text"
       },
       "stream": {
         "title": "Message stream",

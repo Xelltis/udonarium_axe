@@ -19,10 +19,12 @@ import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/sys
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -37,6 +39,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
+import { buildChatMessageContextMenu } from '@axe/features/chat/chat-message/chat-message-context-menu';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { vnEmoteLabels } from '@axe/features/visual-novel/visual-novel-emote-label';
@@ -76,6 +79,8 @@ export class ChatMessageComponent {
   private readonly systemAvatar = inject(SystemAvatarService);
   private readonly systemAvatarMenu = inject(SystemAvatarMenuService);
   private readonly chatPrefs = inject(ChatPreferencesService);
+  private readonly contextMenuService = inject(ContextMenuService);
+  private readonly pointerDeviceService = inject(PointerDeviceService);
 
   protected get canRevealSecret(): boolean {
     return this.rolePermission.canSeeHidden;
@@ -201,6 +206,61 @@ export class ChatMessageComponent {
 
   protected onSystemAvatarContextMenu(event: Event, kind: SystemAvatarKind): void {
     this.systemAvatarMenu.openContextMenu(event, kind);
+  }
+
+  /**
+   * What can be done with the line, opened by a right click or a press held on it.
+   *
+   * The buttons over a line only show under a mouse, so a touch screen reaches the same actions
+   * through this. A link keeps the browser's own menu, and so does a line being edited.
+   */
+  protected onMessageContextMenu(event: MouseEvent): void {
+    const message = this.chatMessage;
+    if (!message || this.readOnly() || this.isEditing()) return;
+    if (event.target instanceof Element && event.target.closest('a, textarea, input')) return;
+    if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+
+    const actions = buildChatMessageContextMenu(
+      {
+        canInteract: this.canInteract,
+        canShareAsMemo: this.canShareAsMemo,
+        canChange: this.canChange,
+        canShowInTicker: this.canShowInTicker(),
+        copyTargets: this.canCopyToTab ? this.copyTargets() : [],
+        hasOriginal: !!(message.replyTo || message.quoteOf),
+        text: this.readableText(message),
+      },
+      {
+        reply: () => this.clickReply(),
+        quote: () => this.clickQuote(),
+        copyToTab: (identifier) => {
+          const tab = this.copyTargets().find((candidate) => candidate.identifier === identifier);
+          if (tab) this.copyToTab(tab);
+        },
+        shareAsMemo: () => this.clickShareAsMemo(),
+        edit: () => this.startEdit(),
+        showInTicker: () => this.clickShowInTicker(),
+        jumpToOriginal: () => (message.replyTo ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
+        copyText: () => this.copyText(message),
+      },
+      this.t
+    );
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name));
+  }
+
+  /** The words of a line as this reader is shown them, or nothing where they are kept from the reader. */
+  private readableText(message: ChatMessage): string {
+    if (this.isSecret() && !message.isSendFromSelf && !this.canRevealSecret) return '';
+    return vnBodyOf(message.vnEmote, message.text ?? '').trim();
+  }
+
+  private copyText(message: ChatMessage): void {
+    const text = this.readableText(message);
+    if (text.length === 0) return;
+    void navigator.clipboard?.writeText(text).catch(() => undefined);
   }
 
   readonly imageFile = computed(() => {
