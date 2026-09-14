@@ -7,9 +7,11 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { DataElementDragService } from '@axe/application/ui/data-element-drag.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -118,6 +120,7 @@ export class GameDataElementComponent {
     return !this.rolePermission.canEditTabletop;
   });
   private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly contextMenuService = inject(ContextMenuService);
 
   readonly gameDataElement = input.required<DataElement>();
   readonly isEdit = input(false);
@@ -696,6 +699,42 @@ export class GameDataElementComponent {
     event.preventDefault();
     event.stopPropagation();
     this.applyStructureMove(draggedElement, targetElement, position);
+  }
+
+  /**
+   * Moves the element among the ones beside it from a menu, opened by a right click or a press
+   * held on the handle it is dragged by.
+   *
+   * The structure is otherwise put in order by dragging, which a touch screen may not start. A
+   * move the structure would not take by dragging is not made either.
+   */
+  onStructureHandleContextMenu(event: MouseEvent): void {
+    if (!this.isEdit() || this.isImage() || !this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+    const element = this.gameDataElement();
+    const parent = this.getDataElementParent(element);
+    if (!parent) return;
+    const siblings = parent.children.filter((child): child is DataElement => child instanceof DataElement);
+    const index = siblings.indexOf(element);
+    if (index < 0) return;
+    const move = (target: DataElement, position: 'before' | 'after') => {
+      if (canDropStructureElement(element, target, position, this.depth())) {
+        this.applyStructureMove(element, target, position);
+      }
+    };
+    const actions = buildReorderContextMenu(
+      { index, count: siblings.length },
+      {
+        moveToTop: () => move(siblings[0], 'before'),
+        moveUp: () => move(siblings[index - 1], 'before'),
+        moveDown: () => move(siblings[index + 1], 'after'),
+        moveToBottom: () => move(siblings[siblings.length - 1], 'after'),
+      },
+      this.t
+    );
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, element.name);
   }
 
   private getDraggedElement(event: DragEvent): DataElement | null {

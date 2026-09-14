@@ -110,6 +110,12 @@
       "stair_spiral": "螺旋階段",
       "poison_pool": "毒の沼",
       "cactus_skin": "サボテンの肌"
+    },
+    "reorder": {
+      "toTop": "いちばん上へ",
+      "up": "ひとつ上へ",
+      "down": "ひとつ下へ",
+      "toBottom": "いちばん下へ"
     }
   },
   "feature": {

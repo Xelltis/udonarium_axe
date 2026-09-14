@@ -110,6 +110,12 @@
       "stair_spiral": "나선 계단",
       "poison_pool": "독 늪",
       "cactus_skin": "선인장 껍질"
+    },
+    "reorder": {
+      "toTop": "맨 위로",
+      "up": "한 칸 위로",
+      "down": "한 칸 아래로",
+      "toBottom": "맨 아래로"
     }
   },
   "feature": {

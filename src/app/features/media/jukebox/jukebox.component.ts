@@ -4,8 +4,10 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
@@ -34,6 +36,7 @@ export class JukeboxComponent {
   private readonly panelService = inject(PanelService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly contextMenuService = inject(ContextMenuService);
   private readonly objectStore = inject(ObjectStore);
   private readonly audioStorage = inject(AudioStorage);
   private readonly fileArchiver = inject(FileArchiver);
@@ -161,6 +164,37 @@ export class JukeboxComponent {
 
   onPlaylistDragEnd(): void {
     this.dragFromIndex = null;
+  }
+
+  /**
+   * Moves a track of the playlist from its menu, opened by a right click or a press held on it.
+   *
+   * The playlist is otherwise put in order by dragging, which a touch screen may not start. A
+   * track is moved beside the one shown next to it, since tracks that are hidden or not here yet
+   * stand in the list without being shown.
+   */
+  onPlaylistContextMenu(event: MouseEvent, audio: AudioFile): void {
+    const playlist = this.playlist;
+    if (!playlist || !this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+    const shown = this.playlistAudios();
+    const index = shown.indexOf(audio);
+    if (index < 0) return;
+    const moveOnto = (neighbor: AudioFile) =>
+      playlist.moveEntry(playlist.entries.indexOf(audio.identifier), playlist.entries.indexOf(neighbor.identifier));
+    const actions = buildReorderContextMenu(
+      { index, count: shown.length },
+      {
+        moveToTop: () => moveOnto(shown[0]),
+        moveUp: () => moveOnto(shown[index - 1]),
+        moveDown: () => moveOnto(shown[index + 1]),
+        moveToBottom: () => moveOnto(shown[shown.length - 1]),
+      },
+      this.t
+    );
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, audio.name);
   }
   get jukebox(): Jukebox {
     return this.objectStore.get<Jukebox>('Jukebox')!;

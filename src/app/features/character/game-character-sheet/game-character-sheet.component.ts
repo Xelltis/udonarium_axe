@@ -14,9 +14,11 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { DataElementDragService } from '@axe/application/ui/data-element-drag.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -45,6 +47,7 @@ import { cloneTabletopObject } from '@axe/features/character/game-character-shee
 import {
   canReorderDetailElement,
   reorderDetailElement,
+  reorderDetailElementAfter,
 } from '@axe/features/character/game-character-sheet/detail-element-reorder-helpers';
 import { GameCharacterSettingsTabComponent } from '@axe/features/character/game-character-sheet/game-character-settings-tab.component';
 import { clampInRange, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
@@ -76,6 +79,7 @@ export class GameCharacterSheetComponent {
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly contextMenuService = inject(ContextMenuService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
@@ -167,6 +171,43 @@ export class GameCharacterSheetComponent {
     if (draggedId === targetId) return;
 
     reorderDetailElement(this.character, this.objectStore, this.objectChange, draggedId, targetId);
+  }
+
+  /**
+   * Moves a card from its menu, opened by a right click or a press held on the handle it is
+   * dragged by.
+   *
+   * Cards are otherwise put in order by dragging, which a touch screen may not start.
+   */
+  onDetailCardContextMenu(event: MouseEvent, card: DataElement): void {
+    if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+    const cards = this.detailElements();
+    const index = cards.indexOf(card);
+    if (index < 0) return;
+    const before = (target: DataElement) =>
+      reorderDetailElement(this.character, this.objectStore, this.objectChange, card.identifier, target.identifier);
+    const after = (target: DataElement) =>
+      reorderDetailElementAfter(
+        this.character,
+        this.objectStore,
+        this.objectChange,
+        card.identifier,
+        target.identifier
+      );
+    const actions = buildReorderContextMenu(
+      { index, count: cards.length },
+      {
+        moveToTop: () => before(cards[0]),
+        moveUp: () => before(cards[index - 1]),
+        moveDown: () => after(cards[index + 1]),
+        moveToBottom: () => after(cards[cards.length - 1]),
+      },
+      this.translateFn
+    );
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.getCardName(card));
   }
 
   private static readonly COLSPAN_CYCLE = ['1', '2', 'full'] as const;

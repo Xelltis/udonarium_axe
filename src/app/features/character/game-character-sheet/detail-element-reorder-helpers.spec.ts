@@ -6,6 +6,7 @@ import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/
 import {
   canReorderDetailElement,
   reorderDetailElement,
+  reorderDetailElementAfter,
 } from '@axe/features/character/game-character-sheet/detail-element-reorder-helpers';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -113,5 +114,57 @@ describe('reorderDetailElement', () => {
 
     expect(objectChange.versionOf(b.identifier)()).toBeGreaterThan(draggedBefore);
     expect(objectChange.versionOf(character.detailDataElement!.identifier)()).toBeGreaterThan(detailBefore);
+  });
+});
+
+describe('reorderDetailElementAfter', () => {
+  let objectStore: ObjectStore;
+  let objectChange: ObjectChangeService;
+  let character: GameCharacter;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    objectStore = TestBed.inject(ObjectStore);
+    objectChange = TestBed.inject(ObjectChangeService);
+    character = GameCharacter.create('reorder-after-test', 1, '');
+  });
+
+  afterEach(() => {
+    character.destroy();
+  });
+
+  function orderOf(ids: string[]): string[] {
+    const tracked = new Set(ids);
+    return character.detailDataElement!.children.map((e) => e.identifier).filter((id) => tracked.has(id));
+  }
+
+  it('moves a card to just after the one it is moved past', () => {
+    const a = appendSection(character, 'after-A');
+    const b = appendSection(character, 'after-B');
+    const c = appendSection(character, 'after-C');
+
+    reorderDetailElementAfter(character, objectStore, objectChange, a.identifier, b.identifier);
+
+    expect(orderOf([a.identifier, b.identifier, c.identifier])).toEqual([b.identifier, a.identifier, c.identifier]);
+  });
+
+  it('moves a card to the end past the last one, which a drop before a card cannot reach', () => {
+    const a = appendSection(character, 'after-A');
+    const b = appendSection(character, 'after-B');
+    const last = character.detailDataElement!.children.at(-1)!;
+
+    reorderDetailElementAfter(character, objectStore, objectChange, a.identifier, last.identifier);
+
+    expect(character.detailDataElement!.children.at(-1)).toBe(a);
+    expect(orderOf([a.identifier, b.identifier])).toEqual([b.identifier, a.identifier]);
+  });
+
+  it('does nothing for an identifier the store does not know', () => {
+    const a = appendSection(character, 'A');
+    const beforeOrder = character.detailDataElement!.children.map((e) => e.identifier);
+
+    reorderDetailElementAfter(character, objectStore, objectChange, 'unknown', a.identifier);
+
+    expect(character.detailDataElement!.children.map((e) => e.identifier)).toEqual(beforeOrder);
   });
 });

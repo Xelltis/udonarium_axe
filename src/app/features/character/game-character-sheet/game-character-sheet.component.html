@@ -282,6 +282,7 @@
                           class="material-icons text-ui-dim shrink-0 cursor-grab px-0.5 text-base! select-none active:cursor-grabbing"
                           draggable="true"
                           (dragstart)="onDragStart($event, childElement.identifier)"
+                          (contextmenu)="onDetailCardContextMenu($event, childElement)"
                           (dragend)="onDragEnd()"
                           [title]="'feature.inventory.sheet.dragSortTitle' | transloco"
                           >drag_indicator</span

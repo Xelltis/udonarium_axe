@@ -110,6 +110,12 @@
       "stair_spiral": "Spiral stairs",
       "poison_pool": "Poisoned pool",
       "cactus_skin": "Cactus skin"
+    },
+    "reorder": {
+      "toTop": "Move to the top",
+      "up": "Move up",
+      "down": "Move down",
+      "toBottom": "Move to the bottom"
     }
   },
   "feature": {

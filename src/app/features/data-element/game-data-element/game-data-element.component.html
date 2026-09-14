@@ -10,6 +10,7 @@
           type="button"
           draggable="true"
           (dragstart)="onStructureDragStart($event)"
+          (contextmenu)="onStructureHandleContextMenu($event)"
           (dragend)="onStructureDragEnd($event)"
           [title]="'feature.dataElement.action.drag' | transloco"
         >
@@ -613,6 +614,7 @@
                     type="button"
                     draggable="true"
                     (dragstart)="onStructureDragStart($event)"
+                    (contextmenu)="onStructureHandleContextMenu($event)"
                     (dragend)="onStructureDragEnd($event)"
                     [title]="'feature.dataElement.action.drag' | transloco"
                   >

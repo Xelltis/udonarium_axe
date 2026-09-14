@@ -1,5 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import {
@@ -171,6 +174,43 @@ describe('GameDataElementComponent', () => {
 
       expect(component.canSaveAsTemplate()).toBe(false);
       expect(component.elementTemplates()).toEqual([]);
+    });
+  });
+
+  describe('moving the structure from the menu held on its handle', () => {
+    function openMenuOn(element: DataElement, isEdit = true) {
+      vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      fixture.componentRef.setInput('isEdit', isEdit);
+      fixture.componentRef.setInput('gameDataElement', element);
+      fixture.detectChanges();
+      component.onStructureHandleContextMenu(new MouseEvent('contextmenu', { cancelable: true }));
+      return open;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('moves an item up past the one before it, for a screen that cannot drag it', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const parent = DataElement.create('parent', '');
+      for (const name of ['first', 'second', 'third']) parent.appendChild(DataElement.create(name, ''));
+
+      const open = openMenuOn(parent.children[2] as DataElement);
+      const actions = open.mock.calls[0][1] as ContextMenuAction[];
+      actions.find((action) => action.name === t('common.reorder.up'))?.action?.();
+
+      expect(parent.children.map((child) => child.name)).toEqual(['first', 'third', 'second']);
+    });
+
+    it('offers nothing while the sheet is not being edited', () => {
+      const parent = DataElement.create('parent', '');
+      for (const name of ['first', 'second']) parent.appendChild(DataElement.create(name, ''));
+
+      const open = openMenuOn(parent.children[1] as DataElement, false);
+
+      expect(open).not.toHaveBeenCalled();
     });
   });
 
