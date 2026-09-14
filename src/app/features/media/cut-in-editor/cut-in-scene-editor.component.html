@@ -51,6 +51,26 @@
     >
       <i class="material-icons">delete</i>
     </button>
+    <button
+      class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[14px]!"
+      type="button"
+      data-testid="cut-in-remove-keys"
+      [disabled]="!isEditable() || !hasKeyAtPlayhead()"
+      [title]="'feature.media.cutInEditor.removeKeysHere' | transloco"
+      (click)="removeKeysAtPlayhead()"
+    >
+      <i class="material-icons">remove_circle_outline</i>
+    </button>
+    <button
+      class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[14px]!"
+      type="button"
+      data-testid="cut-in-remove-sound"
+      [disabled]="!isEditable() || !hasSoundAtPlayhead()"
+      [title]="'feature.media.cutInEditor.removeSoundHere' | transloco"
+      (click)="removeSoundAtPlayhead()"
+    >
+      <i class="material-icons">volume_off</i>
+    </button>
 
     <span class="border-ui-border-panel mx-1 h-5 border-l border-solid"></span>
 

@@ -621,6 +621,8 @@
         "presetdropOut": "Drop away",
         "endMsHint": "End at 0 keeps the layer to the end of the scene.",
         "toggleKey": "Set or clear a key here",
+        "removeKeysHere": "Remove the keys at the playhead",
+        "removeSoundHere": "Remove the sound at the playhead",
         "easing": "Easing",
         "easingMixed": "(differs by key)",
         "easinglinear": "Even",

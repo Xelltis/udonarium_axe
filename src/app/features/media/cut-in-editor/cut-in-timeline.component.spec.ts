@@ -113,6 +113,45 @@ describe('CutInTimelineComponent', () => {
     expect(component.ticks()[0].ms).toBe(0);
   });
 
+  describe('a key or a sound pressed and let go where it stands', () => {
+    type PressApi = PointerApi & {
+      onSoundRowDown(event: PointerEvent): void;
+      onPointerUp(event: PointerEvent): void;
+    };
+
+    it('moves the playhead onto the key, where the buttons that take a key away act', () => {
+      const layer = makeLayer('立ち絵', { tracks: encodeCutInTracks({ x: [{ t: 800, v: 100 }] }) });
+      show([layer]);
+      const seeks: number[] = [];
+      const moved: unknown[] = [];
+      component.seek.subscribe((ms) => seeks.push(ms));
+      component.moveKey.subscribe((key) => moved.push(key));
+
+      const row = component.rows()[0];
+      const api = component as unknown as PressApi;
+      api.onRowDown(pointer(row.keys[0].x), row);
+      api.onPointerUp(pointer(row.keys[0].x));
+
+      expect(seeks).toEqual([800]);
+      expect(moved).toEqual([]);
+    });
+
+    it('moves the playhead onto the sound in the same way', () => {
+      show([makeLayer('背景')]);
+      fixture.componentRef.setInput('sounds', [{ t: 600, a: 'se', v: 1 }]);
+      fixture.detectChanges();
+      const seeks: number[] = [];
+      component.seek.subscribe((ms) => seeks.push(ms));
+
+      const x = component.soundMarks()[0].x;
+      const api = component as unknown as PressApi;
+      api.onSoundRowDown(pointer(x));
+      api.onPointerUp(pointer(x));
+
+      expect(seeks).toEqual([600]);
+    });
+  });
+
   describe('dragging a band by one of its ends', () => {
     it('follows the pointer rather than being held to where the end already is', () => {
       const layer = makeLayer('文字', { startMs: 500, endMs: 1500 });

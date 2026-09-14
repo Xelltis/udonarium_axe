@@ -621,6 +621,8 @@
         "presetdropOut": "落ちて消える",
         "endMsHint": "終了 0 でシーンの最後まで表示します。",
         "toggleKey": "この位置にキーを打つ / 外す",
+        "removeKeysHere": "再生ヘッドの位置のキーを外す",
+        "removeSoundHere": "再生ヘッドの位置の SE を外す",
         "easing": "補間",
         "easingMixed": "（キーごとに異なる）",
         "easinglinear": "等速",

@@ -19,6 +19,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { EditHistory } from '@axe/core/util/edit-history';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { KEY_TOLERANCE_MS } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer, type CutInLayerKind } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import {
@@ -33,6 +34,7 @@ import {
   encodeCutInSounds,
   moveSound,
   removeSoundAt,
+  soundIndexAt,
   upsertSound,
 } from '@axe/domain/media/cut-in-sound';
 import { CutInBgmComponent } from '@axe/features/media/cut-in-bgm/cut-in-bgm.component';
@@ -230,6 +232,19 @@ export class CutInSceneEditorComponent {
     const identifier = this.selectedIdentifier();
     return this.layers().find((layer) => layer.identifier === identifier) ?? null;
   });
+
+  /** Whether the layer in hand has a key at the playhead, for the button that takes it away. */
+  protected readonly hasKeyAtPlayhead = computed(() => {
+    const layer = this.selected();
+    if (!layer) return false;
+    this.objectChange.versionOf(layer.identifier)();
+    this.bumped();
+    const ms = this.playheadMs();
+    return layerKeyTimes(layer).some((time) => Math.abs(time - ms) <= KEY_TOLERANCE_MS);
+  });
+
+  /** Whether a sound stands at the playhead, for the button that takes it away. */
+  protected readonly hasSoundAtPlayhead = computed(() => soundIndexAt(this.sounds(), this.playheadMs()) >= 0);
 
   readonly sceneWidth = computed(() => this.watchCutIn()?.width ?? 0);
   readonly sceneHeight = computed(() => this.watchCutIn()?.height ?? 0);
@@ -520,6 +535,20 @@ export class CutInSceneEditorComponent {
   protected onRemoveKey(removed: { layer: CutInLayer; ms: number }): void {
     if (!this.isEditable()) return;
     if (removeLayerKeys(removed.layer, removed.ms)) this.changed();
+  }
+
+  /**
+   * Takes away every key the layer in hand has at the playhead, as a double click on the
+   * timeline does; a touch screen has no double click, so a tap on a key and this button stand in.
+   */
+  protected removeKeysAtPlayhead(): void {
+    const layer = this.selected();
+    if (layer) this.onRemoveKey({ layer, ms: this.playheadMs() });
+  }
+
+  /** Takes away the sound at the playhead, as a double click on its mark does. */
+  protected removeSoundAtPlayhead(): void {
+    this.onRemoveSound({ ms: this.playheadMs() });
   }
 
   protected onMoveSound(moved: { fromMs: number; toMs: number }): void {

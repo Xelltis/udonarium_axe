@@ -463,6 +463,60 @@ describe('CutInSceneEditorComponent', () => {
     });
   });
 
+  describe('taking away what stands at the playhead, for a screen that cannot double-click', () => {
+    type PlayheadApi = {
+      hasKeyAtPlayhead(): boolean;
+      hasSoundAtPlayhead(): boolean;
+      removeKeysAtPlayhead(): void;
+      removeSoundAtPlayhead(): void;
+    };
+
+    function playhead(): PlayheadApi {
+      return component as unknown as PlayheadApi;
+    }
+
+    it('takes away the keys of the layer in hand once the playhead stands on them', () => {
+      editor().addImageLayer();
+      const layer = component.layers()[0];
+      layer.tracks = encodeCutInTracks({
+        x: [
+          { t: 0, v: 0 },
+          { t: 1000, v: 10 },
+        ],
+        opacity: [{ t: 1000, v: 1 }],
+      });
+      editor().changed();
+
+      editor().onSeek(500);
+      expect(playhead().hasKeyAtPlayhead()).toBe(false);
+
+      editor().onSeek(1000);
+      expect(playhead().hasKeyAtPlayhead()).toBe(true);
+
+      playhead().removeKeysAtPlayhead();
+
+      expect(layer.trackSet.x?.map((key) => key.t)).toEqual([0]);
+      expect(layer.trackSet.opacity ?? []).toEqual([]);
+      expect(playhead().hasKeyAtPlayhead()).toBe(false);
+    });
+
+    it('takes away the sound the playhead stands on', () => {
+      editor().addImageLayer();
+      component.scene()!.sounds = '[{"t":200,"a":"se-1","v":100}]';
+      editor().changed();
+
+      editor().onSeek(100);
+      expect(playhead().hasSoundAtPlayhead()).toBe(false);
+
+      editor().onSeek(200);
+      expect(playhead().hasSoundAtPlayhead()).toBe(true);
+
+      playhead().removeSoundAtPlayhead();
+
+      expect(component.sounds()).toEqual([]);
+    });
+  });
+
   describe('the regions that handle their own pointer', () => {
     it('claims the stage and the whole timeline section from the panel', () => {
       const root = fixture.nativeElement as HTMLElement;

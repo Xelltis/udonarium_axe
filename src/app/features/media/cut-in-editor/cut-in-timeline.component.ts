@@ -223,6 +223,13 @@ export class CutInTimelineComponent {
     if (this.scrubbing) this.seek.emit(this.momentAt(event));
   }
 
+  /**
+   * The end of a press on the timeline.
+   *
+   * A key or a sound let go where it was taken moves the playhead onto it, which is where the
+   * buttons that take one away act; a double click, the other way to take one away, is not there
+   * to be had on a touch screen.
+   */
   protected onPointerUp(event: PointerEvent): void {
     (event.target as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
     this.scrubbing = false;
@@ -235,14 +242,19 @@ export class CutInTimelineComponent {
 
     const draggedSound = this.soundDrag;
     this.soundDrag = null;
-    if (draggedSound && draggedSound.toMs !== draggedSound.fromMs) {
-      this.moveSound.emit(draggedSound);
+    if (draggedSound) {
+      if (draggedSound.toMs !== draggedSound.fromMs) this.moveSound.emit(draggedSound);
+      else this.seek.emit(draggedSound.fromMs);
       return;
     }
 
     const dragged = this.keyDrag;
     this.keyDrag = null;
-    if (!dragged || dragged.toMs === dragged.fromMs) return;
+    if (!dragged) return;
+    if (dragged.toMs === dragged.fromMs) {
+      this.seek.emit(dragged.fromMs);
+      return;
+    }
 
     this.moveKey.emit({ layer: dragged.layer, fromMs: dragged.fromMs, toMs: dragged.toMs });
   }

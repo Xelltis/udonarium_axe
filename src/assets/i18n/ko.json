@@ -621,6 +621,8 @@
         "presetdropOut": "떨어지며 사라지기",
         "endMsHint": "종료가 0이면 장면 끝까지 표시합니다.",
         "toggleKey": "이 위치에 키 찍기 / 지우기",
+        "removeKeysHere": "재생 헤드 위치의 키 제거",
+        "removeSoundHere": "재생 헤드 위치의 SE 제거",
         "easing": "보간",
         "easingMixed": "(키마다 다름)",
         "easinglinear": "등속",
