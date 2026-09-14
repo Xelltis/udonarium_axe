@@ -575,6 +575,53 @@ interface OverlayBounds {
 }
 
 /**
+ * The seen cells with their edge softened, laid down once for the corner a moving light redraws.
+ *
+ * Softening the mask with a filter on every pass rasterises the blur twenty times a second, and
+ * Firefox does that by hand. The corner is widened by the reach of the blur, so its edge comes
+ * out as soft as it would from the whole mask. Only the corner is kept, not the board.
+ */
+interface SoftMask {
+  key: string;
+  image: CanvasImageSource | null;
+  /** Where the kept corner starts, in canvas pixels. */
+  left: number;
+  top: number;
+}
+
+const softSeenMasks = new WeakMap<OverlayVision, SoftMask>();
+
+function softSeenMaskOf(vision: OverlayVision, mask: CellMask, bounds: OverlayBounds, patch: DirtyRect): SoftMask {
+  const scale = bounds.scale;
+  const reach = Math.ceil((vision.blurPx * 3) / Math.min(1, scale));
+  const left = Math.max(0, Math.floor((patch.x - reach) * scale));
+  const top = Math.max(0, Math.floor((patch.y - reach) * scale));
+  const right = Math.min(Math.ceil(bounds.width * scale), Math.ceil((patch.x + patch.width + reach) * scale));
+  const bottom = Math.min(Math.ceil(bounds.height * scale), Math.ceil((patch.y + patch.height + reach) * scale));
+  const key = [left, top, right, bottom, scale, bounds.offsetX, bounds.offsetY, vision.blurPx].join(',');
+
+  const kept = softSeenMasks.get(vision);
+  if (kept?.key === key) return kept;
+
+  // Even a corner that would not bake is remembered, or every pass would make a canvas and throw it away.
+  const soft: SoftMask = { key, image: null, left, top };
+  softSeenMasks.set(vision, soft);
+  if (!(right > left) || !(bottom > top) || typeof document === 'undefined') return soft;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = right - left;
+  canvas.height = bottom - top;
+  const context = canvas.getContext('2d');
+  if (!context || typeof context.drawImage !== 'function') return soft;
+  context.setTransform(scale, 0, 0, scale, -left, -top);
+  context.translate(bounds.offsetX, bounds.offsetY);
+  context.fillStyle = 'rgba(0, 0, 0, 1)';
+  fillMask(context, vision.grid, mask, vision.blurPx);
+  soft.image = canvas;
+  return soft;
+}
+
+/**
  * Draws through what the reader can see.
  *
  * With a surface to hand the pass is gathered on it and cut back to the seen cells in one go,
@@ -612,8 +659,18 @@ function throughVision(
   target.translate(bounds.offsetX, bounds.offsetY);
   draw(target);
   target.globalCompositeOperation = 'destination-in';
-  target.fillStyle = 'rgba(0, 0, 0, 1)';
-  fillMask(target, vision.grid, mask, vision.blurPx);
+  const soft = patch && vision.blurPx > 0 ? softSeenMaskOf(vision, mask, bounds, patch) : null;
+  if (patch && soft?.image) {
+    const x = patch.x * bounds.scale;
+    const y = patch.y * bounds.scale;
+    const width = patch.width * bounds.scale;
+    const height = patch.height * bounds.scale;
+    target.setTransform(1, 0, 0, 1, 0, 0);
+    target.drawImage(soft.image, x - soft.left, y - soft.top, width, height, x, y, width, height);
+  } else {
+    target.fillStyle = 'rgba(0, 0, 0, 1)';
+    fillMask(target, vision.grid, mask, vision.blurPx);
+  }
   target.globalCompositeOperation = 'source-over';
   reset(target, bounds.scale);
 

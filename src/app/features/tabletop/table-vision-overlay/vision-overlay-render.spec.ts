@@ -14,6 +14,7 @@ import {
   MIN_OVERLAY_SCALE,
   OVERLAY_PIXEL_BUDGET,
   overlayScale,
+  overlayScratch,
 } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 
 interface Op {
@@ -707,5 +708,97 @@ describe('the baked surfaces', () => {
 
     expect(ops.some((o) => o.name === 'drawImage')).toBe(false);
     expect(ops.some((o) => o.name === 'fillRect')).toBe(true);
+  });
+
+  describe.each([
+    ['square', GridType.SQUARE],
+    ['hex', GridType.HEX_VERTICAL],
+  ])('the soft edge of what can be seen on a %s board', (_, type) => {
+    function seenVision(): OverlayVision {
+      const grid = cellGridOf(16, 12, 50, type);
+      const visible = new CellBits(16 * 12);
+      const explored = new CellBits(16 * 12);
+      for (const cell of [0, 1, 16, 17]) {
+        visible.set(cell);
+        explored.set(cell);
+      }
+      return {
+        grid,
+        visible,
+        explored,
+        clipReveals: true,
+        fogEnabled: false,
+        fogColor: '#aeb9c4',
+        veilColor: '#000000',
+        veilAlpha: 0,
+        unexploredAlpha: 0,
+        blurPx: 6,
+        rememberSeen: true,
+        clearedStaysLit: false,
+      };
+    }
+
+    /** Every surface the renderer makes, recording what it draws and each blur it is given. */
+    function stubSurfaces(): { ops: Op[]; blurs: string[] } {
+      const { ctx, ops } = fakeContext();
+      const blurs: string[] = [];
+      const surface = new Proxy(ctx, {
+        set(target, key, value) {
+          if (key === 'filter' && String(value).startsWith('blur')) blurs.push(String(value));
+          return Reflect.set(target, key, value);
+        },
+      });
+      vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+        if (tag !== 'canvas') return document.createElementNS('http://www.w3.org/1999/xhtml', tag);
+        return { width: 0, height: 0, getContext: () => surface } as unknown as HTMLElement;
+      }) as typeof document.createElement);
+      return { ops, blurs };
+    }
+
+    function flickering() {
+      const plan: OverlayPlan = { ...planWithDarkness('flicker'), vision: seenVision() };
+      const scratch = overlayScratch(820, 620, 1);
+      const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10, undefined, null, 1, scratch);
+      const dirty = animatedGlowBounds(plan, 800, 600, 10)!;
+      const pass = (time: number, drawn = plan) =>
+        drawOverlayPlan(fakeContext().ctx, drawn, 800, 600, time, undefined, 10, undefined, bake, dirty, 1, scratch);
+      return { plan, dirty, pass };
+    }
+
+    it('softens it once for a light that flickers, not on every pass', () => {
+      const { blurs } = stubSurfaces();
+      const { dirty, pass } = flickering();
+      blurs.length = 0;
+
+      for (const time of [1000, 1050, 1100]) pass(time);
+
+      expect(dirty).not.toBeNull();
+      expect(blurs).toHaveLength(1);
+    });
+
+    it('cuts a pass back to the corner it redraws', () => {
+      // The stub hands every surface one shared state, so the corner is baked on a pass of its own first.
+      const { ops } = stubSurfaces();
+      const { dirty, pass } = flickering();
+      pass(1000);
+      ops.length = 0;
+
+      pass(1050);
+
+      const cuts = ops.filter((o) => o.composite === 'destination-in' && ['fill', 'drawImage'].includes(o.name));
+      expect(cuts.map((o) => o.name)).toEqual(['drawImage']);
+      expect(cuts[0].args.slice(5)).toEqual([dirty.x, dirty.y, dirty.width, dirty.height]);
+    });
+
+    it('softens it again for the next scene', () => {
+      const { blurs } = stubSurfaces();
+      const { plan, pass } = flickering();
+      pass(1000);
+      blurs.length = 0;
+
+      pass(1050, { ...plan, vision: seenVision() });
+
+      expect(blurs).toHaveLength(1);
+    });
   });
 });
