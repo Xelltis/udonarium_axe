@@ -14,6 +14,12 @@ function raySegmentDistance(ox: number, oy: number, dx: number, dy: number, seg:
   return null;
 }
 
+/**
+ * The outline of what can be seen from a point, cut short by the segments and by a greatest radius.
+ *
+ * Rays are cast at and just either side of every segment end, plus `sampleCount` evenly spread rays
+ * so that open ground comes out round. The points come back ordered by angle.
+ */
 export function computeVisibilityPolygon(
   ox: number,
   oy: number,

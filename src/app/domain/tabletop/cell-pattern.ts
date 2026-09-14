@@ -15,6 +15,11 @@ export interface CellPatternBoundingBox {
 const CELL_SEPARATOR = ';';
 const COORD_SEPARATOR = ',';
 
+/**
+ * Reads the cell pattern of a custom range, written as `x,y` pairs separated by semicolons.
+ *
+ * Malformed pairs and repeats are skipped, and an empty string reads as no cells.
+ */
 export function parseCellPattern(serialized: string): CellCoord[] {
   if (!serialized) return [];
   const seen = new Set<string>();
@@ -38,6 +43,10 @@ export function parseCellPattern(serialized: string): CellCoord[] {
   return cells;
 }
 
+/**
+ * Writes cells in the form parseCellPattern reads, truncating coordinates to whole cells and
+ * dropping repeats.
+ */
 export function serializeCellPattern(cells: readonly CellCoord[]): string {
   const seen = new Set<string>();
   const parts: string[] = [];
@@ -52,6 +61,10 @@ export function serializeCellPattern(cells: readonly CellCoord[]): string {
   return parts.join(CELL_SEPARATOR);
 }
 
+/**
+ * The smallest box holding every cell, with its width and height counted in cells. An empty pattern
+ * gives an all-zero box.
+ */
 export function cellPatternBoundingBox(cells: readonly CellCoord[]): CellPatternBoundingBox {
   if (cells.length === 0) {
     return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
@@ -101,10 +114,12 @@ export function normalizeCellPattern(cells: readonly CellCoord[]): CellCoord[] {
   return cells.map((c) => ({ gx: c.gx - bb.minX, gy: c.gy - bb.minY }));
 }
 
+/** The `x,y` key a cell is known by in sets and maps, truncated to whole cells. */
 export function cellKey(gx: number, gy: number): string {
   return `${Math.trunc(gx)},${Math.trunc(gy)}`;
 }
 
+/** The cells as a set of cellKey strings, for quick membership tests. */
 export function cellPatternToSet(cells: readonly CellCoord[]): Set<string> {
   const set = new Set<string>();
   for (const c of cells) set.add(cellKey(c.gx, c.gy));

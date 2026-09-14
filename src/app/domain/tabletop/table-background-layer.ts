@@ -12,6 +12,7 @@ export type TableLayerPlacement = (typeof TABLE_LAYER_PLACEMENTS)[number];
 /** Beneath, which is what a background is. */
 export const DEFAULT_TABLE_LAYER_PLACEMENT: TableLayerPlacement = 'under';
 
+/** Reads a stored layer placement, falling back to under the board for anything unknown. */
 export function asTableLayerPlacement(value: unknown): TableLayerPlacement {
   return typeof value === 'string' && (TABLE_LAYER_PLACEMENTS as readonly string[]).includes(value)
     ? (value as TableLayerPlacement)

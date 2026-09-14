@@ -46,6 +46,13 @@ export class ResourceEditProcessor {
     private loadGameSystemAsync: (gameType: string) => Promise<GameSystemClass>
   ) {}
 
+  /**
+   * Picks the `:` resource and `&` buff commands out of a sent chat message and carries them out.
+   *
+   * A `t` prefix aims a command at the message's target character instead of the speaker, and an `s` prefix
+   * makes the report a secret. The work continues asynchronously and ends in a system message on the same
+   * chat tab.
+   */
   checkResourceEditCommand(originalMessage: ChatMessage, messageTargetContext: ChatMessageTargetContext[]) {
     const resourceByCharacter: ResourceByCharacter[] = [];
     const buffByCharacter: BuffByCharacter[] = [];
@@ -100,18 +107,29 @@ export class ResourceEditProcessor {
     this.resourceEditProcess(sendFromObject, resourceByCharacter, buffByCharacter, originalMessage, isSecret);
   }
 
+  /** Reads the `L` and `Z` option letters at the end of a command's amount; see {@link parseResourceEditOption}. */
   parseOption(text: string): ResourceEditOption {
     return parseResourceEditOption(text);
   }
 
+  /** Fills in an edit from one resource command, or returns false; see {@link convertCommandToResourceEdit}. */
   commandToEdit(oneResourceEdit: ResourceEdit, text: string, object: GameCharacter, targeted: boolean): boolean {
     return convertCommandToResourceEdit(oneResourceEdit, text, object, targeted);
   }
 
+  /** A blank edit aimed at a resource's current value, ready for {@link commandToEdit}. */
   defaultResourceEdit(): ResourceEdit {
     return createDefaultResourceEdit();
   }
 
+  /**
+   * Works out and applies the collected resource and buff commands, then posts one report to the chat tab.
+   *
+   * Untargeted commands act on the speaker's character and are skipped when the speaker is not a character.
+   * Amounts are rolled with the message's game system. A command whose amount cannot be worked out is named
+   * in the report instead of applied. The report comes from BCDice when any dice were rolled, and nothing is
+   * posted when there is nothing to report.
+   */
   async resourceEditProcess(
     sendFromObject: GameCharacter | null,
     resourceByCharacter: ResourceByCharacter[],
@@ -217,14 +235,17 @@ export class ResourceEditProcessor {
     }
   }
 
+  /** Writes a `>` command's text into the character's status; see {@link applyTextEdit}. */
   textEdit(edit: ResourceEdit, character: GameCharacter): string {
     return applyTextEdit(edit, character);
   }
 
+  /** Applies a worked-out resource change and returns its report; see {@link applyResourceEdit}. */
   resourceEdit(edit: ResourceEdit, character: GameCharacter): string {
     return applyResourceEdit(edit, character);
   }
 
+  /** Runs one buff command on the character and returns its report; see {@link applyBuffEdit}. */
   buffEdit(buff: BuffEdit, character: GameCharacter): string {
     return applyBuffEdit(buff, character);
   }

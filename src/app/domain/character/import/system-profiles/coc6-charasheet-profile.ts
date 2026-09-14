@@ -148,6 +148,7 @@ function isStructuredKey(key: string): boolean {
   );
 }
 
+/** Whether the pasted json is an archive sheet under the `coc` system token. */
 export function isCoc6CharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'coc');
 }
@@ -246,6 +247,13 @@ function buildPalette(
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a `coc` archive sheet, or null for any other sheet.
+ *
+ * Sanity, HP and MP become resources; abilities and derived values parameters; skills grouped by
+ * category, weapons, belongings and the remaining keys sections; and the palette offers percentile
+ * rolls for the abilities, sanity, each skill and the damage bonus.
+ */
 export function buildCoc6CharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isCoc6CharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

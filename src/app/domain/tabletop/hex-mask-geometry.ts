@@ -8,6 +8,12 @@ export interface HexMaskGeometry {
   offsetY: number;
 }
 
+/**
+ * How large a mask covering a hex board is in pixels, and where the first cell's centre sits inside
+ * it.
+ *
+ * Null on a square grid or a board with no cells.
+ */
 export function computeHexMaskGeometry(
   cols: number,
   rows: number,

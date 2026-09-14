@@ -9,6 +9,13 @@ export interface ReplayAssetIds {
   readonly audios: ReadonlySet<string>;
 }
 
+/**
+ * The pictures and sounds a recording refers to, so they can be packed alongside it.
+ *
+ * Any non-empty string under a key named `imageIdentifier` or `audioIdentifier`, or ending in
+ * either, counts, wherever it sits in the snapshots or the events. A sound effect event adds
+ * the sound it played.
+ */
 export function collectReplayAssetIds(
   snapshots: readonly ReplayObjectSnapshot[],
   events: readonly ReplayEvent[]

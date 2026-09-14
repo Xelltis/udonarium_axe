@@ -37,6 +37,14 @@ const DEFAULT_MAX_CELLS = 60_000;
 /** How far towards an open neighbour a wall's face is read, as a share of the way to it. */
 const FACE_STEP = 0.6;
 
+/**
+ * The cells of the fog grid one piece can see right now.
+ *
+ * A cell counts when its centre falls in the piece's lobes and range, no wall stands between, and
+ * it is lit or the piece sees in the dark. A wall cell is asked about at its open faces instead, or
+ * on its roof when the eye is level with or above it. A blind piece sees nothing, and `maxCells`
+ * caps how many cells one call looks at.
+ */
 export function computeVisibleCellsFor(source: SceneVisionSource, options: VisibleCellsOptions): CellBits {
   const { scene, grid } = options;
   const bits = new CellBits(cellCount(grid));

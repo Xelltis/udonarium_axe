@@ -127,6 +127,7 @@ export function reachableCells(
   return reached;
 }
 
+/** How many cells are marked in a set of cells. */
 export function countCells(bits: CellBits): number {
   let found = 0;
   for (let index = 0; index < bits.count; index++) {

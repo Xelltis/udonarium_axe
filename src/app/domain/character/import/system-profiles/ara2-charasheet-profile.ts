@@ -43,6 +43,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `ara2` system token. */
 export function isAra2CharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'ara2');
 }
@@ -112,6 +113,13 @@ function buildPalette(params: ImportedParam[]): string {
   return ['2d6 【判定】', ...abilityLines].join('\n');
 }
 
+/**
+ * Builds the imported model from an `ara2` archive sheet, or null for any other sheet.
+ *
+ * Abilities with their bonuses, level and fate become parameters; skills, general skills,
+ * belongings and the profile become sections; and the palette offers a 2d6 roll for each ability
+ * bonus.
+ */
 export function buildAra2CharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isAra2CharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

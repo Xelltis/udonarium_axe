@@ -58,6 +58,10 @@ export function cellCentre(cell: MapPoint, grid: MapGrid): MapPoint {
  */
 export const HEX_BOARD_FACTOR = 0.75;
 
+/**
+ * The board size to generate on this grid: as asked for on squares, and three quarters of each side
+ * on hexes, never under four cells.
+ */
 export function boardSizeOn(size: MapSize, grid: MapGrid): MapSize {
   if (!isHexGrid(grid.type)) return size;
   return {

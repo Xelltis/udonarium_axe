@@ -58,6 +58,10 @@ function resolveRoot(record: Record<string, unknown>, abilityKey: string): Recor
   return asRecord(record['data']) ?? record;
 }
 
+/**
+ * Whether the pasted json looks like a warehouse character of that family of systems: a named
+ * `base`, or an array of abilities under `abilityKey`, bare or wrapped in `data`.
+ */
 export function isPsychoFictionAppspotCharacter(parsed: unknown, abilityKey: string): boolean {
   const record = asRecord(parsed);
   if (!record) return false;
@@ -104,6 +108,14 @@ function buildPalette(abilities: unknown, targetSkillKey: string): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a warehouse character of that family of systems, as `config`
+ * describes it, or null for data of another shape.
+ *
+ * Abilities, background, any extra sections, the profile and the outline become sections; the
+ * learned skills and gaps a skill table; and the palette offers a 2D6 roll of 5 or more for each
+ * ability.
+ */
 export function buildPsychoFictionCharacter(parsed: unknown, config: PsychoFictionConfig): ImportedCharacter | null {
   if (!isPsychoFictionAppspotCharacter(parsed, config.abilityKey)) return null;
   const root = resolveRoot(asRecord(parsed)!, config.abilityKey);

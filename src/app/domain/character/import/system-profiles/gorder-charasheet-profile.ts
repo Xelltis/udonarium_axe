@@ -58,6 +58,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `gorder` system token. */
 export function isGorderCharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'gorder');
 }
@@ -97,6 +98,13 @@ function buildPalette(record: Record<string, unknown>): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a `gorder` archive sheet, or null for any other sheet.
+ *
+ * Ability values become parameters; the fixed skills with their success rates and critical values,
+ * special abilities, implants and the profile become sections; and the palette offers a roll for
+ * each ability rate and each skill.
+ */
 export function buildGorderCharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isGorderCharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

@@ -30,15 +30,23 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 @SyncObject('room')
 export class Room extends GameObject implements InnerXml {
   // GameObject Lifecycle
+  /** A room only wraps a save file, so it takes itself back out of the object store and is never synced. */
   override onStoreAdded() {
     super.onStoreAdded();
     ObjectStore.instance.remove(this); // ObjectStoreには登録しない
   }
 
+  /** The shared check that asks before a loaded room overwrites the one in play. */
   get reloadCheck(): ReloadCheck {
     return ObjectStore.instance.get<ReloadCheck>('ReloadCheck')!;
   }
 
+  /**
+   * Writes everything on the table into the save file: tables, parties, characters, ranges, lights, notes,
+   * card stacks, loose cards, dice, coins, cut-ins, dice tables, effect presets and effect fields.
+   *
+   * Cards inside a stack are written with their stack.
+   */
   innerXml(): string {
     let xml = '';
     const objects: GameObject[] = [
@@ -66,6 +74,13 @@ export class Room extends GameObject implements InnerXml {
     return xml;
   }
 
+  /**
+   * Replaces the room in play with a loaded one, once the user agrees to overwrite it.
+   *
+   * Destroys the current tables and everything on them, then reads in the saved objects. Effect presets and
+   * cut-ins are kept when the save carries none, the default sets are made when neither side has any, and every
+   * peek or hold on an object is cleared. Declining leaves the room untouched.
+   */
   parseInnerXml(element: Element) {
     // Deleted and put back under the same identifiers, the others refuse them as the return of
     // what was deleted, and only whoever loaded the room still has them. So what is made under

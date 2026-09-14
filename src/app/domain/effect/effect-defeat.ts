@@ -14,6 +14,7 @@ const REACTION_BY_KIND: Partial<Record<EffectKind, DefeatReaction>> = {
   gore: 'flinch',
 };
 
+/** How a piece knocked down by this kind of effect reacts. Empty for a kind the piece does not react to. */
 export function defeatReactionOf(kind: EffectKind): DefeatReaction {
   return REACTION_BY_KIND[kind] ?? '';
 }

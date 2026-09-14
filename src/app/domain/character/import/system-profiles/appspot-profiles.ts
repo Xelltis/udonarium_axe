@@ -8,6 +8,13 @@ import { buildPsychoFictionCharacter } from '@axe/domain/character/import/system
 import { PF_APPSPOT_SYSTEMS } from '@axe/domain/character/import/system-profiles/psychofiction-systems';
 import { buildStellarAppspotCharacter } from '@axe/domain/character/import/system-profiles/stellar-appspot-profile';
 
+/**
+ * Reads a warehouse character with the profile for its system, falling back to the general parser.
+ *
+ * `systemHint` is the system slug the sheet was fetched under. A system with a dedicated profile is
+ * tried with it first; any other, or data that profile does not recognise, is read generally with
+ * that system's headings and given the system's dice bot where the data names none.
+ */
 export function parseAppspotCharacterForSystem(parsed: unknown, systemHint?: string): ImportedCharacter | null {
   const slug = (systemHint ?? '').trim().toLowerCase();
 

@@ -83,6 +83,7 @@ const RAIN_SOUND_MIN_GAP_MS = 110;
 /** The shortest interval between shots, close enough that the rhythm of a burst can still be heard. */
 const LAUNCH_SOUND_MIN_GAP_MS = 55;
 
+/** Whether the playback has ended for every target of the cast, counting each target's stagger. */
 export function isEffectFinished(preset: EffectPreset, cast: EffectCast, elapsedMs: number): boolean {
   return elapsedMs >= preset.totalDuration(cast.targets.length);
 }
@@ -305,6 +306,13 @@ export function paintEffectKind(kind: EffectKind, context: EffectPaintContext): 
 
 export type EffectPaintContext = AimedContext;
 
+/**
+ * The outlined sprites of a cast at a moment in its playback, for every target.
+ *
+ * A staged effect is handed on to its stages. Otherwise each target whose own playback is
+ * under way gets the one look, aimed from the caster or drawn about the target; hidden
+ * targets are skipped.
+ */
 export function effectSprites(
   preset: EffectPreset,
   cast: EffectCast,

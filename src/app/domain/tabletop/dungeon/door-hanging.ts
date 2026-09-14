@@ -38,6 +38,7 @@ export interface DoorHanging {
   doublePercent?: number;
 }
 
+/** A door width rounded to whole cells and kept between one and four; missing or not a number gives one. */
 export function clampDoorWidth(width: number | undefined): number {
   if (width === undefined || !Number.isFinite(width)) return MIN_DOOR_WIDTH;
   return Math.min(MAX_DOOR_WIDTH, Math.max(MIN_DOOR_WIDTH, Math.round(width)));
@@ -50,6 +51,7 @@ export function doorWidthsFor(asked?: DoorWidths): DoorWidths {
   return { least, most };
 }
 
+/** The share of double doors rounded and kept between 0 and 100; missing or not a number gives the default. */
 export function clampDoubleDoorPercent(percent: number | undefined): number {
   if (percent === undefined || !Number.isFinite(percent)) return DEFAULT_DOUBLE_DOOR_PERCENT;
   return Math.min(MAX_DOUBLE_DOOR_PERCENT, Math.max(MIN_DOUBLE_DOOR_PERCENT, Math.round(percent)));

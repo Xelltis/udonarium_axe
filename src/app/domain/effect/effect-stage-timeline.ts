@@ -46,6 +46,12 @@ export interface StagedParticlePlacement {
 /** How far a thrown branch flies from where it was thrown, against the size of a piece. */
 const BRANCH_REACH = 1.6;
 
+/**
+ * The outlined sprites of a staged effect at a moment in its playback, for every target.
+ *
+ * Only the stages running at that moment are painted, each through the painter handed in.
+ * Targets that are hidden, or whose staggered start has not come yet, are skipped.
+ */
 export function stagedEffectSprites(
   preset: EffectPreset,
   stages: readonly EffectStage[],

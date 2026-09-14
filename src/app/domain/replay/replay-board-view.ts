@@ -52,6 +52,13 @@ export interface ReplayBoardSceneOptions {
   withOverlay?: boolean;
 }
 
+/**
+ * The board as it stood at one moment of a recording, seen from above.
+ *
+ * The table is the one being viewed at the time, or the first there is. Only pieces placed on
+ * the table are drawn, lowest first. Null when the recording holds no table. The darkness is
+ * worked out only when a viewer is given and it has not been turned off.
+ */
 export function buildReplayBoardScene(
   snapshots: readonly ReplayObjectSnapshot[],
   viewer?: ReplayViewer,
@@ -103,6 +110,13 @@ export interface ReplayBoardFraming {
 
 export const REPLAY_BOARD_PADDING_CELLS = 2;
 
+/**
+ * The part of the table to frame, in pixels: the pieces with a margin of cells round them, kept
+ * within the table.
+ *
+ * The whole table is framed when there are no pieces or the pieces would give a frame less
+ * than a cell across.
+ */
 export function framingOf(scene: ReplayBoardScene, paddingCells = REPLAY_BOARD_PADDING_CELLS): ReplayBoardFraming {
   const whole = { x: 0, y: 0, width: scene.width * scene.gridSize, height: scene.height * scene.gridSize };
   if (scene.pieces.length < 1) return whole;
@@ -129,6 +143,7 @@ export function framingOf(scene: ReplayBoardScene, paddingCells = REPLAY_BOARD_P
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
+/** The pictures a board scene draws: the table, its background and every piece. Entries can be empty strings. */
 export function collectBoardAssetIds(scene: ReplayBoardScene | null): string[] {
   if (!scene) return [];
   return [

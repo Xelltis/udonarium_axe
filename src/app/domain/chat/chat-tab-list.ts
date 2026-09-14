@@ -10,6 +10,9 @@ import { ReloadCheck } from '@axe/domain/peer/reload-check';
 @SyncObject('chat-tab-list')
 export class ChatTabList extends ObjectNode implements InnerXml {
   @SyncVar('_systemMessageTabIndex') private _systemMessageTabIndex: number = 0;
+  /**
+   * The position of the tab that takes system messages when the room has no system tab of its own.
+   */
   set systemMessageTabIndex(index: number) {
     this._systemMessageTabIndex = index;
   }
@@ -48,11 +51,16 @@ export class ChatTabList extends ObjectNode implements InnerXml {
     return this.chatTabs.filter((tab) => !tab.isSystemTab);
   }
 
+  /** The room's reload guard, which asks before room data loaded mid-session replaces the tabs. */
   get reloadCheck(): ReloadCheck {
     return ObjectStore.instance.get<ReloadCheck>('ReloadCheck')!;
   }
 
   private _portraitHeight = 200;
+  /**
+   * How tall chat portraits are drawn, in pixels. Kept in this browser; setting it announces a
+   * change to the list, and callers hold it between `minPortraitSize` and `maxPortraitSize`.
+   */
   get portraitHeight(): number {
     return this._portraitHeight;
   }
@@ -64,6 +72,10 @@ export class ChatTabList extends ObjectNode implements InnerXml {
   public maxPortraitSize = 500;
 
   private _isPortraitInWindow = false;
+  /**
+   * Whether portraits are drawn inside the chat window. Kept in this browser; setting it announces
+   * a change to the list.
+   */
   get isPortraitInWindow(): boolean {
     return this._isPortraitInWindow;
   }
@@ -73,6 +85,10 @@ export class ChatTabList extends ObjectNode implements InnerXml {
   }
 
   private _isKeepPortraitOutWindow = false;
+  /**
+   * Whether portraits are kept outside the chat window, a choice that only applies while
+   * `isPortraitInWindow` is off. Kept in this browser; setting it announces a change to the list.
+   */
   get isKeepPortraitOutWindow(): boolean {
     return this._isKeepPortraitOutWindow;
   }
@@ -82,6 +98,10 @@ export class ChatTabList extends ObjectNode implements InnerXml {
   }
 
   private static _instance: ChatTabList;
+  /**
+   * The room's single tab list: the one in the object store, or one made and initialized under the
+   * fixed identifier when there is none yet.
+   */
   static get instance(): ChatTabList {
     const stored = ObjectStore.instance.get<ChatTabList>('ChatTabList');
     if (stored) return (ChatTabList._instance = stored);
@@ -90,12 +110,17 @@ export class ChatTabList extends ObjectNode implements InnerXml {
     return ChatTabList._instance;
   }
 
+  /** The tabs in their order, the system tab included. */
   get chatTabs(): readonly ChatTab[] {
     return this.children as readonly ChatTab[];
   }
 
   //The simple display flags, held as numbers to leave room to grow.
   private simpleDispFlagTime_: number = 0;
+  /**
+   * Whether chat lines show the time they were said; 0 is off. Kept in this browser; setting it
+   * announces a change to the list.
+   */
   set simpleDispFlagTime(flag: number) {
     this.simpleDispFlagTime_ = flag;
     this.update();
@@ -106,6 +131,10 @@ export class ChatTabList extends ObjectNode implements InnerXml {
   }
 
   private simpleDispFlagUserId_: number = 0;
+  /**
+   * Whether chat lines show the sender's user id; 0 is off. Kept in this browser; setting it
+   * announces a change to the list.
+   */
   set simpleDispFlagUserId(flag: number) {
     this.simpleDispFlagUserId_ = flag;
     this.update();
@@ -114,6 +143,10 @@ export class ChatTabList extends ObjectNode implements InnerXml {
     return this.simpleDispFlagUserId_;
   }
 
+  /**
+   * Adds a tab to the end of the list, either the one given or a new tab of that name under
+   * `identifier`, and returns it.
+   */
   addChatTab(arg: ChatTab | string, identifier?: string): ChatTab {
     let chatTab: ChatTab;
     if (arg instanceof ChatTab) {
@@ -136,6 +169,13 @@ export class ChatTabList extends ObjectNode implements InnerXml {
     return xml;
   }
 
+  /**
+   * Reads tabs from room data into the room's existing list once the reload guard allows it, then
+   * destroys the loaded copy.
+   *
+   * Every tab but the system tab is replaced, and notices from room data written while the system
+   * tab still travelled are gathered back into it. When the guard refuses, nothing is replaced.
+   */
   override parseInnerXml(element: Element) {
     const reLoadOk = this.reloadCheck.answerCheck();
 
@@ -168,10 +208,14 @@ export class ChatTabList extends ObjectNode implements InnerXml {
     this.appendChild(system);
   }
 
+  /**
+   * The standard-layout log page of every spoken tab, with times when `simpleDispFlagTime` is on.
+   */
   logHtml(): string {
     return ChatLogExporter.exportAllTabsHtml(this.spokenChatTabs, this.simpleDispFlagTime);
   }
 
+  /** The classic-layout log page of every spoken tab. */
   logHtmlCoc(): string {
     return ChatLogExporter.exportAllTabsHtmlCoc(this.spokenChatTabs);
   }

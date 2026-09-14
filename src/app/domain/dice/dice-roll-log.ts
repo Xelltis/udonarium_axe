@@ -25,6 +25,10 @@ export interface DiceRollLog {
   total: number | null;
 }
 
+/**
+ * Gathers the parts of the chat line for a throw of dice on the table: how many, their names, their
+ * faces and the total. Null when nothing was thrown.
+ */
 export function diceRollLog(rolled: readonly RolledDie[]): DiceRollLog | null {
   if (rolled.length < 1) return null;
 

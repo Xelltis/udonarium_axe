@@ -42,6 +42,7 @@ export type SlashStyle = 'single' | 'combo' | 'iai' | 'wide' | 'heavy';
 const SLASH_STYLES: readonly SlashStyle[] = ['single', 'combo', 'iai', 'wide', 'heavy'];
 const SLASH_STYLE_SET = new Set<string>(SLASH_STYLES);
 
+/** Whether a stored value names a known form of cut. */
 export function isSlashStyle(value: unknown): value is SlashStyle {
   return typeof value === 'string' && SLASH_STYLE_SET.has(value);
 }
@@ -65,6 +66,7 @@ export const PROJECTILE_STYLES: readonly ProjectileStyle[] = [
 
 const PROJECTILE_STYLE_SET = new Set<string>(PROJECTILE_STYLES);
 
+/** Whether a stored value names a known look of projectile. */
 export function isProjectileStyle(value: unknown): value is ProjectileStyle {
   return typeof value === 'string' && PROJECTILE_STYLE_SET.has(value);
 }
@@ -108,10 +110,12 @@ export const EFFECT_TARGETINGS: readonly EffectTargeting[] = ['self', 'single', 
 const EFFECT_KIND_SET = new Set<string>(EFFECT_KINDS);
 const EFFECT_TARGETING_SET = new Set<string>(EFFECT_TARGETINGS);
 
+/** Whether a stored value names a look the tool knows how to draw. */
 export function isEffectKind(value: unknown): value is EffectKind {
   return typeof value === 'string' && EFFECT_KIND_SET.has(value);
 }
 
+/** Whether a stored value names a known way of choosing targets: the caster, one piece or several. */
 export function isEffectTargeting(value: unknown): value is EffectTargeting {
   return typeof value === 'string' && EFFECT_TARGETING_SET.has(value);
 }

@@ -73,6 +73,7 @@ export const KEEP_SIZE = 0;
 export const EFFECT_MODES: readonly EffectCastMode[] = ['cast', 'field', 'preview'];
 export const TURN_ACTIONS: readonly TurnAction[] = ['next', 'prev', 'reset'];
 
+/** The options a new slot of this kind starts with. Kinds that take no options get a plain payload. */
 export function defaultHotbarPayload(kind: HotbarSlotKind): HotbarPayload {
   switch (kind) {
     case 'chat':
@@ -111,6 +112,13 @@ export function defaultHotbarPayload(kind: HotbarSlotKind): HotbarPayload {
   }
 }
 
+/**
+ * Reads a slot's stored options for its kind, from a JSON string or an object already parsed.
+ *
+ * Anything missing or of the wrong type falls back to the kind's default, so a slot written by
+ * an older version, or by hand, still reads. The kind given decides the shape, not anything in
+ * the stored options.
+ */
 export function parseHotbarPayload(kind: HotbarSlotKind, raw: unknown): HotbarPayload {
   const fallback = defaultHotbarPayload(kind);
   const held = readObject(raw);
@@ -169,6 +177,7 @@ export function parseHotbarPayload(kind: HotbarSlotKind, raw: unknown): HotbarPa
   }
 }
 
+/** Writes a slot's options as the JSON string a slot stores, leaving out the kind. A plain payload writes as empty. */
 export function encodeHotbarPayload(payload: HotbarPayload): string {
   if (payload.kind === 'plain') return '';
   const { kind: _kind, ...rest } = payload;

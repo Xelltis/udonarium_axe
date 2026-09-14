@@ -13,6 +13,13 @@ export interface ChatLogImages {
 
 const EMPTY_TAB: ChatLogTab = { name: '', chatMessages: [] };
 
+/**
+ * Renders a saved chat log as a standalone html page in the chosen style.
+ *
+ * `scope` is the first of `tabs` alone, or every spoken tab merged in the order lines were placed.
+ * The standard and the classic `coc` layouts come from `ChatLogExporter`, and every other style
+ * from `renderRichChatLog`.
+ */
 export function exportChatLog(
   style: ChatLogStyle,
   scope: ChatLogScope,

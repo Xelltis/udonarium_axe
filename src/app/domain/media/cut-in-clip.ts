@@ -23,6 +23,7 @@ export type CutInClip = (typeof CUT_IN_CLIPS)[number];
 
 export type ClipPoint = readonly [number, number];
 
+/** Whether a stored value names one of the outlines a layer can be cut down to. */
 export function isCutInClip(value: unknown): value is CutInClip {
   return typeof value === 'string' && (CUT_IN_CLIPS as readonly string[]).includes(value);
 }

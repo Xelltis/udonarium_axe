@@ -20,10 +20,12 @@ export type CutInLayerKind = (typeof CUT_IN_LAYER_KINDS)[number];
 export const CUT_IN_TEXT_ALIGNS = ['left', 'center', 'right'] as const;
 export type CutInTextAlign = (typeof CUT_IN_TEXT_ALIGNS)[number];
 
+/** Whether a value names one of the kinds of layer: a picture, some words or a band of colour. */
 export function isCutInLayerKind(value: unknown): value is CutInLayerKind {
   return typeof value === 'string' && (CUT_IN_LAYER_KINDS as readonly string[]).includes(value);
 }
 
+/** Whether a value names one of the ways a text layer can align its words. */
 export function isCutInTextAlign(value: unknown): value is CutInTextAlign {
   return typeof value === 'string' && (CUT_IN_TEXT_ALIGNS as readonly string[]).includes(value);
 }
@@ -103,6 +105,7 @@ export class CutInLayer extends ObjectNode {
   /** How far apart a repeating fill repeats, in the cut-in's own coordinates. */
   @SyncVar() fillScalePx: number = DEFAULT_FILL_SCALE_PX;
 
+  /** The fill fields gathered into the one shape the painting code takes, built afresh on each read. */
   get fill(): CutInFill {
     return {
       shape: this.fillShape,

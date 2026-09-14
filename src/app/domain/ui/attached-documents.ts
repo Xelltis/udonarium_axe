@@ -18,17 +18,20 @@ export class AttachedDocuments {
     AttachedDocuments.tell();
   }
 
+  /** Adds the document of a window a panel was taken out into, and tells every listener. Does nothing if already in. */
   static attach(document: Document): void {
     if (AttachedDocuments.attached.has(document)) return;
     AttachedDocuments.attached.add(document);
     AttachedDocuments.tell();
   }
 
+  /** Takes out the document of a window that closed, and tells every listener. Does nothing if it was not in. */
   static detach(document: Document): void {
     if (!AttachedDocuments.attached.delete(document)) return;
     AttachedDocuments.tell();
   }
 
+  /** A copy of every document the app is drawing into, in the order they were added. */
   static all(): readonly Document[] {
     return [...AttachedDocuments.attached];
   }

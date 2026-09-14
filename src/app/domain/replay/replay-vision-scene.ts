@@ -45,6 +45,11 @@ const LIGHT_ALIAS = 'light-source';
 const TABLE_PLACE = 'table';
 const FLOOR: string = 'floor';
 
+/**
+ * The table being viewed in the snapshot, as the table selector names it, or the first table there is.
+ *
+ * Null when the snapshot holds no table.
+ */
 export function replayViewTableOf(snapshots: readonly ReplayObjectSnapshot[]): ReplayObjectSnapshot | null {
   const tables = snapshots.filter((snapshot) => snapshot.aliasName === TABLE_ALIAS);
   if (tables.length < 1) return null;
@@ -75,6 +80,13 @@ export function replaySceneViewer(snapshots: readonly ReplayObjectSnapshot[], vi
   return { userId, isGameMaster: false, partyIds: partyIdsOwnedBy(members, userId) };
 }
 
+/**
+ * The darkness, fog, lights, sight, walls and shadow casters of a recorded board, in the shape
+ * the live vision code judges.
+ *
+ * It is built whether or not the table uses darkness. Null when there is no table or its grid
+ * has no size.
+ */
 export function buildReplayVisionScene(snapshots: readonly ReplayObjectSnapshot[]): VisionScene | null {
   const table = replayViewTableOf(snapshots);
   if (!table) return null;

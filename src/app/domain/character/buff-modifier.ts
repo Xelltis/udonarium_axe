@@ -70,6 +70,10 @@ export function describeBuffModifier(request: ParsedBuffModifierRequest): string
   return `${slot}${request.target}${sign}${request.amount}`;
 }
 
+/**
+ * What a buff has moved on the sheet, as `writeBuffModifier` recorded it. Null for a plain buff
+ * that moves nothing, or one whose record cannot be read.
+ */
 export function readBuffModifier(element: DataElement): BuffModifier | null {
   const target = (element.getAttribute(DataElementAttribute.BUFF_MOD_TARGET) ?? '').trim();
   if (target.length < 1) return null;
@@ -87,6 +91,10 @@ export function readBuffModifier(element: DataElement): BuffModifier | null {
   };
 }
 
+/**
+ * Records on the buff what it moved on the sheet, so taking it away can move the status back by the
+ * same amount.
+ */
 export function writeBuffModifier(element: DataElement, modifier: BuffModifier): void {
   element.setAttribute(DataElementAttribute.BUFF_MOD_TARGET, modifier.target);
   element.setAttribute(DataElementAttribute.BUFF_MOD_SLOT, modifier.slot);
@@ -94,6 +102,9 @@ export function writeBuffModifier(element: DataElement, modifier: BuffModifier):
   element.setAttribute(DataElementAttribute.BUFF_MOD_APPLIED, String(modifier.applied));
 }
 
+/**
+ * Wipes the record of what a buff moved, leaving it a plain note. The sheet itself is not touched.
+ */
 export function clearBuffModifier(element: DataElement): void {
   element.removeAttribute(DataElementAttribute.BUFF_MOD_TARGET);
   element.removeAttribute(DataElementAttribute.BUFF_MOD_SLOT);

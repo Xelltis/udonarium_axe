@@ -17,6 +17,12 @@ export interface DiceLink<T extends LinkableDie> {
   face: string;
 }
 
+/**
+ * Pairs each die with the first unused roll it can show, and the face to turn it to.
+ *
+ * The dice are taken in order and each roll goes to one die at most; a die that no roll fits is
+ * left out.
+ */
 export function linkRollsToDice<T extends LinkableDie>(
   dice: readonly T[],
   rolls: readonly DiceRollFace[]

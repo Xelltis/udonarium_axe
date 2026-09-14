@@ -33,6 +33,13 @@ export interface BuffEdit {
   targeted: boolean;
 }
 
+/**
+ * Reads the option letters at the end of a resource command's amount.
+ *
+ * `L` keeps the result between 0 and the maximum, and `Z` stops a change from going the wrong way, so adding
+ * a negative or taking away a positive leaves the value alone. Any other trailing letter apart from `D`,
+ * which belongs to a dice roll, marks the options as unreadable.
+ */
 export function parseResourceEditOption(text: string): ResourceEditOption {
   const ans: ResourceEditOption = {
     limitMinMax: false,
@@ -60,6 +67,7 @@ export function parseResourceEditOption(text: string): ResourceEditOption {
   return ans;
 }
 
+/** A blank edit aimed at a resource's current value, to be filled in by {@link convertCommandToResourceEdit}. */
 export function createDefaultResourceEdit(): ResourceEdit {
   return {
     target: '',
@@ -77,6 +85,14 @@ export function createDefaultResourceEdit(): ResourceEdit {
   };
 }
 
+/**
+ * Fills in an edit from one chat resource command such as `:HP-2d6`, `:MP=10` or `:メモ>text`.
+ *
+ * Records the character, the status and slot named, and the operator. For arithmetic it also builds the dice
+ * command that works out the amount and reads the option letters; `>` only records the replacement text.
+ * Returns false, leaving the edit partly filled, when the text is not a command, the character has no
+ * status by that name, or the options cannot be read.
+ */
 export function convertCommandToResourceEdit(
   oneResourceEdit: ResourceEdit,
   text: string,
@@ -127,11 +143,20 @@ export function convertCommandToResourceEdit(
   return true;
 }
 
+/** Writes a `>` command's text into the character's status and returns the chat text reporting it. */
 export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): string {
   character.status.setText(edit.target, edit.replace);
   return `${edit.target}＞${edit.replace}    `;
 }
 
+/**
+ * Applies a worked-out resource change to the character and returns the chat text reporting old and new
+ * values.
+ *
+ * The text notes when an option or the stored bounds held the value back, and when changing a base or
+ * correction moved the effective bounds or the current maximum. An edit of the maximum on a status without
+ * one changes the current value instead. Returns an empty string when the status has no value to change.
+ */
 export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter): string {
   let optionText = '';
   let nowOrMax = edit.nowOrMax;
@@ -240,6 +265,13 @@ function applyCalculatedBuff(command: string, character: GameCharacter): string 
   return `${name}を付与 ${effect}/${round}R    `;
 }
 
+/**
+ * Runs one `&` buff command on the character and returns the chat text reporting it.
+ *
+ * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
+ * removes one buff, `&!` adds a buff that changes a status, and anything else adds a plain
+ * `name/effect/rounds/appearance` buff. A targeted command's text starts with the character's name.
+ */
 export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string {
   const command = buff.command;
   let text = '';

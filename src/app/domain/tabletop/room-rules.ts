@@ -135,6 +135,7 @@ export function readRuleFlag(held: unknown): boolean | null {
   return null;
 }
 
+/** Writes a yes or no the way readRuleFlag reads it: `1`, `0`, or empty for no answer. */
 export function writeRuleFlag(answer: boolean | null): string {
   if (answer === null) return ROOM_RULE_UNANSWERED;
   return answer ? '1' : '0';
@@ -149,6 +150,10 @@ export function readRuleNumber(held: unknown): number | null {
   return amount;
 }
 
+/**
+ * Writes a number the way readRuleNumber reads it, with -1 for no answer or for anything that is
+ * not a finite number of zero or more.
+ */
 export function writeRuleNumber(answer: number | null): number {
   if (answer === null || !Number.isFinite(answer) || answer < 0) return -1;
   return answer;
@@ -160,6 +165,7 @@ export function readRuleText(held: unknown): string | null {
   return text.length > 0 ? text : null;
 }
 
+/** Writes a word the way readRuleText reads it, with empty for no answer. */
 export function writeRuleText(answer: string | null): string {
   return answer === null ? ROOM_RULE_UNANSWERED : answer;
 }

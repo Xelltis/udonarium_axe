@@ -38,6 +38,7 @@ export type BreakOutMode = (typeof BREAK_OUT_MODES)[number];
 export const DEFAULT_BREAK_OUT_MODE: BreakOutMode = 'weighed';
 export const DEFAULT_BREAK_OUT_COST = 1;
 
+/** The value as a break-out mode, reading anything unknown, such as an empty setting, as the default. */
 export function asBreakOutMode(value: unknown): BreakOutMode {
   return typeof value === 'string' && (BREAK_OUT_MODES as readonly string[]).includes(value)
     ? (value as BreakOutMode)

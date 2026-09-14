@@ -19,10 +19,19 @@ export class Alarm extends GameObject {
   @SyncVar() isSound = false;
   @SyncVar() isPopUp = false;
 
+  /** The cursor of the peer running this tab, which is who the alarm is checked against. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
 
+  /**
+   * Sets the alarm up for a new countdown, writing every field that the room shares.
+   *
+   * The time stamp is taken afresh, and that change is what makes every other peer start its
+   * own countdown when the update arrives. The peer that sets it has to call `startAlarm()`
+   * itself: its own update comes back to it, but the synchronizer does not apply a peer's own
+   * update, so `apply()` never runs there.
+   */
   makeAlarm(
     alarmTime: number,
     alarmTitle: string,
@@ -43,6 +52,7 @@ export class Alarm extends GameObject {
     this.isPopUp = isPopUp;
   }
 
+  /** Whether this peer is among the alarm's targets. False before this peer has a cursor. */
   chkToMe(): boolean {
     if (!PeerCursor.myCursor) return false;
     for (const target of this.targetPeerId) {
@@ -51,6 +61,12 @@ export class Alarm extends GameObject {
     return false;
   }
 
+  /**
+   * Starts the countdown on this peer, doing nothing when this peer is not a target.
+   *
+   * When the time is up it posts the time-up message and plays the alarm sound if sound was
+   * asked for, and raises the pop-up if that was asked for. The timer cannot be cancelled.
+   */
   startAlarm() {
     if (this.chkToMe()) {
       setTimeout(() => {
@@ -67,6 +83,7 @@ export class Alarm extends GameObject {
     }
   }
 
+  /** Takes in an update from another peer, and starts the countdown when it carries a new time stamp. */
   override apply(context: ObjectContext) {
     const initTimeStamp = this.initTimeStamp;
     super.apply(context);

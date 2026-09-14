@@ -51,6 +51,13 @@ const MAX_MEMBERS = 24;
 const REFERENCE_WIDTH = 1920;
 const REFERENCE_HEIGHT = 1080;
 
+/**
+ * Lays out the keepsake photo: equal frames for up to 24 portraits on a grid kept near square,
+ * with the last row centred, under a title and subtitle.
+ *
+ * Measurements are worked out for 1920 by 1080 and scaled to the size given. Anyone past the
+ * limit is left out and counted in `omitted`.
+ */
 export function buildTablePhotoLayout(
   members: readonly TablePhotoMember[],
   size: TablePhotoSize = TABLE_PHOTO_WIDE

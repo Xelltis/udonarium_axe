@@ -28,6 +28,10 @@ export interface LitCellBounds {
   heightPx: number;
 }
 
+/**
+ * Whether a point lies within a light's reach, inside its cone, and inside its clip polygon when it
+ * has one.
+ */
 export function isPointInLitShape(shape: LitCellShape, x: number, y: number): boolean {
   const dx = x - shape.x;
   const dy = y - shape.y;
@@ -47,6 +51,7 @@ export function isPointInLitShape(shape: LitCellShape, x: number, y: number): bo
   return true;
 }
 
+/** Whether a point lies inside a polygon, by the even-odd rule. */
 export function isPointInPolygon(polygon: readonly LitCellPoint[], x: number, y: number): boolean {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -60,6 +65,12 @@ export function isPointInPolygon(polygon: readonly LitCellPoint[], x: number, y:
   return inside;
 }
 
+/**
+ * The outlines of the grid cells whose centres a set of lights reaches, for drawing light snapped
+ * to the grid.
+ *
+ * Each cell comes back once however many lights reach it, and cells off the table are left out.
+ */
 export function computeLitCells(
   shapes: readonly LitCellShape[],
   gridSize: number,

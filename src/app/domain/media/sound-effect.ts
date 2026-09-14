@@ -120,6 +120,10 @@ export class SoundEffect extends GameObject {
   private cleanups: (() => void)[] = [];
 
   // GameObject Lifecycle
+  /**
+   * Starts listening: a sound sent over the network is played at half volume, and a dice roll
+   * this peer sends through the dice bot plays one of the two rolling sounds.
+   */
   override onStoreAdded() {
     super.onStoreAdded();
     this.cleanups.push(
@@ -142,21 +146,30 @@ export class SoundEffect extends GameObject {
   }
 
   // GameObject Lifecycle
+  /** Stops listening for sounds and dice rolls. */
   override onStoreRemoved() {
     super.onStoreRemoved();
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
   }
 
+  /** Plays a sound for the whole room, the same as the static `play`. */
   play(arg: string | AudioFile): void {
     SoundEffect.play(arg);
   }
 
+  /**
+   * Sends a sound to the whole room, and every peer plays it at half volume.
+   *
+   * This peer plays it too, because the network hands each broadcast back to the peer that sent it.
+   * A peer that does not hold the audio file plays nothing.
+   */
   static play(arg: string | AudioFile): void {
     const identifier = typeof arg === 'string' ? arg : arg.identifier;
     SoundEffect._play(identifier);
   }
 
+  /** Plays a sound on this peer alone, at half volume. Nothing happens for an empty identifier or a missing file. */
   static playLocal(arg: string | AudioFile): void {
     const identifier = typeof arg === 'string' ? arg : arg.identifier;
     if (identifier.length < 1) return;

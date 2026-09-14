@@ -24,6 +24,9 @@ export interface TurnStep {
   buffs: CharacterBuffSnapshot[];
 }
 
+/**
+ * Reads the round's step history from its stored JSON. Anything unreadable gives an empty history.
+ */
 export function parseTurnHistory(json: string): TurnStep[] {
   try {
     const parsed: unknown = JSON.parse(json || '[]');
@@ -35,6 +38,7 @@ export function parseTurnHistory(json: string): TurnStep[] {
   }
 }
 
+/** Writes the step history as JSON, keeping only the latest TURN_HISTORY_LIMIT steps. */
 export function stringifyTurnHistory(steps: readonly TurnStep[]): string {
   return JSON.stringify(steps.slice(-TURN_HISTORY_LIMIT));
 }

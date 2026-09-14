@@ -1655,6 +1655,12 @@ export function applyEffectPresetSeed(preset: EffectPreset, seed: EffectPresetSe
   preset.stages = encodeEffectStages(seed.stages ?? []);
 }
 
+/**
+ * Makes an effect from a seed and adds it to the room, under the given identifier or a fresh one.
+ *
+ * The fields are written inside one batch, so the new effect is announced once rather than
+ * once per field.
+ */
 export function createEffectPreset(seed: EffectPresetSeed, identifier?: string): EffectPreset {
   return GameObject.batch(() => {
     const preset = new EffectPreset(identifier);
@@ -1664,6 +1670,13 @@ export function createEffectPreset(seed: EffectPresetSeed, identifier?: string):
   });
 }
 
+/**
+ * Puts every built-in effect on the shelf, as a room starts with them.
+ *
+ * Each is made under the seed's fixed identifier, so the defaults are the same effects at
+ * every table. Where that identifier has been deleted in this room and cannot be taken again,
+ * the effect is made under a fresh one instead.
+ */
 export function createDefaultEffectPresets(): EffectPreset[] {
   return DEFAULT_EFFECT_PRESET_SEEDS.map((seed) => {
     const preset = createEffectPreset(seed, seed.identifier);

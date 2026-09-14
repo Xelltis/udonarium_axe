@@ -96,6 +96,7 @@ export function forEachMoveNeighbour(
   }
 }
 
+/** The cells a piece can step to from one cell in a single step, as a list; see {@link forEachMoveNeighbour}. */
 export function moveNeighboursOf(grid: CellGrid, index: number, cutsCorners = true): number[] {
   const found: number[] = [];
   forEachMoveNeighbour(grid, index, (neighbour) => found.push(neighbour), cutsCorners);

@@ -21,6 +21,13 @@ export interface ScreenDirection {
 
 export const DEFAULT_VIEW_ROTATION: ViewRotation = { x: 50, y: 0, z: 10 };
 
+/**
+ * The angle in degrees and apparent length on screen of a direction on the board, as seen
+ * through the board's rotation.
+ *
+ * Without a rotation the default view is used. A direction pointing straight into the screen
+ * has an angle of 0.
+ */
 export function projectDirection(
   dx: number,
   dy: number,

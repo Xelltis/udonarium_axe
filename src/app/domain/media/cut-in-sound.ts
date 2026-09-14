@@ -19,6 +19,12 @@ export const MAX_SOUNDS = 32;
 export const SOUND_TOLERANCE_MS = 8;
 export const DEFAULT_SOUND_VOLUME = 100;
 
+/**
+ * Reads a scene's sounds back from the JSON string it stores.
+ *
+ * Entries without a time or a sound are dropped, a missing volume reads as full, and the rest
+ * come back sorted by time and capped at 32. Anything unreadable comes back as no sounds.
+ */
 export function parseCutInSounds(raw: string | null | undefined): CutInSound[] {
   if (!raw || raw.trim().length < 1) return [];
 
@@ -35,6 +41,7 @@ export function parseCutInSounds(raw: string | null | undefined): CutInSound[] {
   }
 }
 
+/** Writes a scene's sounds into the JSON string it stores, sorted and capped at 32. No sounds writes as empty. */
 export function encodeCutInSounds(sounds: readonly CutInSound[]): string {
   const written = sortSounds(sounds).slice(0, MAX_SOUNDS);
   if (written.length < 1) return '';
@@ -66,6 +73,7 @@ export function upsertSound(
   return sortSounds([...rest, written]).slice(0, MAX_SOUNDS);
 }
 
+/** Takes away any sound at that moment, leaving the list as it was if none stood there. */
 export function removeSoundAt(
   sounds: readonly CutInSound[],
   ms: number,

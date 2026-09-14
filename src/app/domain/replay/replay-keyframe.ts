@@ -13,11 +13,18 @@ interface KeyframeEnvelope {
   objects: unknown[];
 }
 
+/** Packs a snapshot of every object in the room into MessagePack, stamped with the current format version. */
 export function encodeReplayKeyframe(objects: readonly ReplayObjectSnapshot[]): Uint8Array {
   const envelope: KeyframeEnvelope = { v: REPLAY_FORMAT_VERSION, objects: objects as unknown[] };
   return encode(envelope);
 }
 
+/**
+ * Unpacks a snapshot written by `encodeReplayKeyframe`.
+ *
+ * Empty when it is unreadable or of an unsupported version. Entries without an identifier and
+ * alias are dropped.
+ */
 export function decodeReplayKeyframe(bytes: Uint8Array): ReplayObjectSnapshot[] {
   const envelope = decode(bytes) as KeyframeEnvelope | null;
   if (!envelope || !isSupportedReplayFormat(envelope.v) || !Array.isArray(envelope.objects)) return [];

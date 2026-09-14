@@ -12,6 +12,12 @@ export enum SortOrder {
 @SyncObject('summary-setting')
 export class DataSummarySetting extends GameObject implements InnerXml {
   private static _instance: DataSummarySetting;
+  /**
+   * The room's one summary setting, shared by every peer under a fixed identifier.
+   *
+   * Prefers the copy already in the object store, such as one received from another peer, and creates and
+   * registers it when there is none yet.
+   */
   static get instance(): DataSummarySetting {
     const stored = ObjectStore.instance.get<DataSummarySetting>('DataSummarySetting');
     if (stored) return (DataSummarySetting._instance = stored);
@@ -42,6 +48,7 @@ export class DataSummarySetting extends GameObject implements InnerXml {
 
   private _dataTag!: string;
   private _dataTags!: string[];
+  /** The display items the room lists for each piece in the inventory, split from `dataTag` and cached. */
   get dataTags(): string[] {
     if (this._dataTag !== this.dataTag) {
       this._dataTag = this.dataTag;
@@ -52,6 +59,7 @@ export class DataSummarySetting extends GameObject implements InnerXml {
 
   private _tableDataTag!: string;
   private _tableDataTags!: string[];
+  /** The display items shown as columns when the inventory is laid out as a table, split from `tableDataTag`. */
   get tableDataTags(): string[] {
     if (this._tableDataTag !== this.tableDataTag) {
       this._tableDataTag = this.tableDataTag;
@@ -60,9 +68,15 @@ export class DataSummarySetting extends GameObject implements InnerXml {
     return this._tableDataTags;
   }
 
+  /** The setting saves only its attributes, so it writes no inner XML. */
   innerXml(): string {
     return '';
   }
+  /**
+   * Loading a saved room copies the saved settings onto the room's existing instance and discards this copy.
+   *
+   * This keeps a single summary setting in the room rather than adding a second one from the save file.
+   */
   parseInnerXml(_element: Element) {
     // updates the existing object rather than making one from the saved data
     const context = DataSummarySetting.instance.toContext();

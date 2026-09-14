@@ -26,6 +26,12 @@ export function roomCellToTablePosition(cellX: number, cellY: number, geometry: 
   };
 }
 
+/**
+ * Where a piece from the other tool's room lands on this table.
+ *
+ * Pieces are measured in their own units, 25 to a cell, from the centre of the board, so they are
+ * moved half a board and scaled to the grid size.
+ */
 export function pieceUnitToTablePosition(unitX: number, unitY: number, geometry: RoomGridGeometry): TablePosition {
   const scale = geometry.gridSize / PIECE_UNITS_PER_CELL;
   return {
@@ -34,6 +40,10 @@ export function pieceUnitToTablePosition(unitX: number, unitY: number, geometry:
   };
 }
 
+/**
+ * The board size in cells, taking the default 20 for a width or height the room left unset or below
+ * 1.
+ */
 export function resolveFieldSize(fieldWidth: number, fieldHeight: number): { width: number; height: number } {
   return {
     width: fieldWidth >= 1 ? fieldWidth : DEFAULT_ROOM_FIELD_WIDTH,

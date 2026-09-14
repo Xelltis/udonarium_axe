@@ -43,6 +43,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `dx3` system token. */
 export function isDx3CharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'dx3');
 }
@@ -106,6 +107,13 @@ function buildPalette(record: Record<string, unknown>): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a `dx3` archive sheet, or null for any other sheet.
+ *
+ * Abilities become parameters; the fixed skills with their totals converted to the dice bot's
+ * notation, effects, combos and the profile become sections; and the palette offers a roll for each
+ * skill that has a total.
+ */
 export function buildDx3CharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isDx3CharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

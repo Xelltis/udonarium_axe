@@ -21,6 +21,7 @@ export class ImageTag extends ObjectNode {
   /** Kept from everyone but the game master, who chose to keep it. */
   @SyncVar() isSecret: boolean = false;
 
+  /** Whether every one of the words appears somewhere in the tag. No words at all matches every tag. */
   containsWords(words: string[]): boolean {
     return words.every((word) => this.tag.includes(word));
   }
@@ -34,14 +35,17 @@ export class ImageTag extends ObjectNode {
       .filter((image): image is ImageFile => image !== null);
   }
 
+  /** The tag of a picture. Despite the type, it is null when the picture has never been tagged. */
   static get(imageIdentifier: string): ImageTag {
     return ObjectStore.instance.get<ImageTag>(`imagetag_${imageIdentifier}`)!;
   }
 
+  /** Whether the game master is keeping the picture back. An untagged picture is not. */
   static isSecret(imageIdentifier: string): boolean {
     return ImageTag.get(imageIdentifier)?.isSecret === true;
   }
 
+  /** Makes an empty tag for a picture and adds it to the room, under the identifier `get` looks for. */
   static create(imageIdentifier: string) {
     const object: ImageTag = new ImageTag(`imagetag_${imageIdentifier}`);
 
@@ -51,6 +55,11 @@ export class ImageTag extends ObjectNode {
     return object;
   }
 
+  /**
+   * Copies a tag read from a file onto the picture's own tag, then destroys the copy that was read.
+   *
+   * The tag is made first when the picture has none, and the change is shared with the room.
+   */
   override parseInnerXml(_element: Element) {
     let imageTag = ImageTag.get(this.imageIdentifier);
     if (!imageTag) imageTag = ImageTag.create(this.imageIdentifier);

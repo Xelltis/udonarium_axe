@@ -16,6 +16,12 @@ export interface SurfacePoint {
 
 export const HEX_SURFACE_INFLATE_PX = 1;
 
+/**
+ * The corner outlines of every hex on a board, each grown by `inflatePx` so that neighbouring cells
+ * overlap.
+ *
+ * Empty on a square grid or a board with no cells.
+ */
 export function hexSurfaceCells(
   cols: number,
   rows: number,

@@ -4,6 +4,12 @@ import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 
+/**
+ * Whether a terrain piece stands in the way of a piece walking: a block on the floor with walls or a face too
+ * sheer to climb.
+ *
+ * An open door lets pieces through, and terrain that is not on the floor never blocks.
+ */
 export function terrainBlocksMovement(terrain: Terrain): boolean {
   if (surfaceOf(terrain) !== 'floor') return false;
   if (!terrain.hasWall && !terrain.blocksClimb) return false;
@@ -23,6 +29,12 @@ export function terrainBlocksJump(terrain: Terrain): boolean {
   return !(terrain.isDoor && terrain.isDoorOpen);
 }
 
+/**
+ * The cells covered by terrain that stops a piece, judged by `stops`: walking by default, or
+ * {@link terrainBlocksJump} for a piece that jumps.
+ *
+ * Empty for a grid with no cell size.
+ */
 export function blockedByTerrain(
   grid: CellGrid,
   terrains: readonly Terrain[],

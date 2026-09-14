@@ -37,6 +37,10 @@ export class StatusAccessor {
     private readonly characterName: () => string
   ) {}
 
+  /**
+   * Whether the sheet item a chat command names exists and is of a kind it can write to: a
+   * resource, a line of text or a note.
+   */
   canChangeName(name: string): boolean {
     const data = this.findData(name);
     if (!data) return false;
@@ -52,6 +56,12 @@ export class StatusAccessor {
     return false;
   }
 
+  /**
+   * Where on the item a slot of its value is kept, or null when the item has no such slot.
+   *
+   * A resource answers every slot, a text item only `now`, which is its value, and a note or
+   * anything else none.
+   */
   getType(name: string, nowOrMax: ResourceSlot): string | null {
     const data = this.findData(name);
     if (!data) return null;
@@ -60,12 +70,20 @@ export class StatusAccessor {
     return null;
   }
 
+  /**
+   * Where text written to the item goes: a resource keeps it in its current value, anything else in
+   * its value. Null when there is no such item.
+   */
   getTextType(name: string): string | null {
     const data = this.findData(name);
     if (!data) return null;
     return data.type === DataElementType.NUMBER_RESOURCE ? 'currentValue' : 'value';
   }
 
+  /**
+   * The number held in a slot of the item, or null when there is no such item or slot. The value
+   * and current value are read as integers, and an unset base reads as 0.
+   */
   getValue(name: string, nowOrMax: ResourceSlot): number | null {
     const data = this.findData(name);
     if (!data) return null;
@@ -80,6 +98,14 @@ export class StatusAccessor {
     return null;
   }
 
+  /**
+   * Writes a number into a slot of the item, held within the item's bounds. False when there is no
+   * such item or slot.
+   *
+   * Writing a base or a correction moves the effective limits, so a maximum-side change carries the
+   * maximum to the new effective maximum, and both the maximum and the current value are pulled
+   * back inside the new bounds. A correction of 0 is removed rather than stored.
+   */
   setValue(name: string, nowOrMax: ResourceSlot, setValue: number): boolean {
     const data = this.findData(name);
     if (!data) return false;
@@ -145,6 +171,10 @@ export class StatusAccessor {
     return result;
   }
 
+  /**
+   * Writes text into the item: a resource's current value, or anything else's value. False when
+   * there is no such item.
+   */
   setText(name: string, text: string): boolean {
     const data = this.findData(name);
     if (!data) return false;
@@ -158,6 +188,14 @@ export class StatusAccessor {
     return true;
   }
 
+  /**
+   * Moves a slot of the item by an amount and returns the chat line describing it, such as `[Name
+   * 10>7] `.
+   *
+   * The result is held within the item's bounds, and `(最小)` or `(最大)` is added where it was held
+   * back. `limitMin` floors the value at 0 when no minimum is set, and `limitMax` caps the current
+   * value at the maximum. Empty when there is no such item or slot.
+   */
   changeValue(name: string, nowOrMax: ResourceSlot, addValue: number, limitMin?: boolean, limitMax?: boolean): string {
     const data = this.findData(name);
     if (!data) return '';

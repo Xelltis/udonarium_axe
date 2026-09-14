@@ -22,6 +22,9 @@ export type MapFunctionRole = (typeof MAP_FUNCTION_ROLES)[number];
 
 export const DEFAULT_FUNCTION_ROLE: MapFunctionRole = 'moveBlock';
 
+/**
+ * Reads a stored map editor function role, falling back to blocking movement for anything unknown.
+ */
 export function asFunctionRole(value: unknown): MapFunctionRole {
   return typeof value === 'string' && (MAP_FUNCTION_ROLES as readonly string[]).includes(value)
     ? (value as MapFunctionRole)
@@ -262,6 +265,10 @@ function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
+/**
+ * Reads the face pictures of a painted wall from loose saved data. A face that is missing or not
+ * text comes back empty.
+ */
 export function sanitizeFaceImages(value: unknown): TerrainFaceImages {
   const held = asRecord(value);
   const images = { ...NO_FACE_IMAGES };
@@ -289,6 +296,12 @@ function sanitizeLight(value: unknown): TerrainLightSpec {
   };
 }
 
+/**
+ * Reads a function spec from loose saved data, such as a stored map editor scene.
+ *
+ * Every field that is missing or of the wrong type takes its default, and numbers are held to their
+ * allowed ranges, so the result is always complete.
+ */
 export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
   const held = asRecord(value);
   const terrain = asRecord(held['terrain']);
@@ -361,6 +374,9 @@ export interface MaskBlock extends CellRect {
 export interface TriggerBlock extends CellRect {
   spec: TriggerPaintSpec;
 }
+
+/** A block as far as stacking cares: the cells it covers, the altitude it is laid by and its height in cells. */
+type StandingBlock = CellRect & { spec: { altitude: number; height: number } };
 
 /**
  * How high each block stands, counted in the cells of the blocks beneath it.

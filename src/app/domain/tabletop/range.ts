@@ -35,6 +35,11 @@ export class RangeArea extends TabletopObject {
   /** The hotbar slot that laid this out, so the same slot can take it down again later. */
   @SyncVar() laidByHotbarSlot: string = '';
 
+  /**
+   * The range's shape, such as `CORN`, `SQUARE` or `CUSTOM`.
+   *
+   * Setting the retired `DIAMOND` shape stores a square turned 45 degrees instead.
+   */
   get type(): string {
     return this._type;
   }
@@ -47,12 +52,14 @@ export class RangeArea extends TabletopObject {
     this._type = type;
   }
 
+  /** How far the range reaches, in grid cells, kept in its common data. */
   get length(): number {
     return this.getCommonValue('length', 1);
   }
   set length(length: number) {
     this.setCommonValue('length', length);
   }
+  /** How wide the range is, in grid cells, kept in its common data. */
   get width(): number {
     return this.getCommonValue('width', 1);
   }
@@ -77,21 +84,38 @@ export class RangeArea extends TabletopObject {
     element.currentValue = Math.round(Math.max(0, Math.min(full, percent)));
   }
 
+  /**
+   * Bumps the follow counter, wrapping at 50, so that peers see a change and redraw the range while
+   * it follows a character.
+   */
   followingCounterDummyCount() {
     this.followingCounterDummy++;
     if (this.followingCounterDummy >= 50) this.followingCounterDummy = 0;
   }
 
+  /**
+   * Rewrites a range saved with the retired diamond shape as a turned square when it arrives in the
+   * store.
+   */
   override onStoreAdded() {
     super.onStoreAdded();
     this.normalizeLegacyDiamondType();
   }
 
+  /**
+   * Applies a synced update, then rewrites the retired diamond shape as a turned square if the
+   * update carried one.
+   */
   override apply(context: ObjectContext) {
     super.apply(context);
     this.normalizeLegacyDiamondType();
   }
 
+  /**
+   * Moves the range onto the centre of the character it follows and bumps the follow counter.
+   *
+   * When that character is gone, the range stops following instead.
+   */
   following() {
     const object = ObjectStore.instance.get<GameCharacter>(this.followingCharacterIdentifier);
     if (!object) {
@@ -104,6 +128,7 @@ export class RangeArea extends TabletopObject {
     this.followingCounterDummyCount();
   }
 
+  /** Makes a range with its name, length, width and opacity data, and registers it for sync. */
   static create(name: string, width: number, length: number, opacity: number, identifier?: string): RangeArea {
     let object: RangeArea;
 
@@ -120,6 +145,10 @@ export class RangeArea extends TabletopObject {
     return object;
   }
 
+  /**
+   * Makes a range shaped by a cell pattern, sized to the pattern's bounding box and at least one
+   * cell each way.
+   */
   static createCustom(
     name: string,
     cellPattern: string,

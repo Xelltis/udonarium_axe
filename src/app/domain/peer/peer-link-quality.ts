@@ -21,10 +21,17 @@ const SEVERITY: Record<PeerLinkQuality, number> = {
   [PeerLinkQuality.Lost]: 4,
 };
 
+/** Whether any statistics have come in for a peer connection yet: a grade, a ping or a health reading. */
 export function isMeasured(session: PeerSessionState): boolean {
   return session.grade !== PeerSessionGrade.UNSPECIFIED || session.ping > 0 || session.health > 0;
 }
 
+/**
+ * Grades the connection to one peer for display.
+ *
+ * Lost when the connection is closed, unknown until it has been measured, poor at low health or a ping of
+ * 500 ms or more, fair at less than full health or a ping of 200 ms or more, and good otherwise.
+ */
 export function linkQualityOf(session: PeerSessionState, isOpen: boolean): PeerLinkQuality {
   if (!isOpen) return PeerLinkQuality.Lost;
   if (!isMeasured(session)) return PeerLinkQuality.Unknown;
@@ -33,6 +40,7 @@ export function linkQualityOf(session: PeerSessionState, isOpen: boolean): PeerL
   return PeerLinkQuality.Good;
 }
 
+/** The worst of several connection grades, for a summary of every peer; unknown when given none. */
 export function worstLinkQuality(qualities: Iterable<PeerLinkQuality>): PeerLinkQuality {
   let worst = PeerLinkQuality.Unknown;
   for (const quality of qualities) {
@@ -41,14 +49,17 @@ export function worstLinkQuality(qualities: Iterable<PeerLinkQuality>): PeerLink
   return worst;
 }
 
+/** Whether the connection is graded low, which is how a link going through a relay server is reported. */
 export function isRelayedLink(session: PeerSessionState): boolean {
   return session.grade === PeerSessionGrade.LOW;
 }
 
+/** The translation key for a connection grade's label in the lobby. */
 export function linkQualityLabelKey(quality: PeerLinkQuality): string {
   return `feature.lobby.linkQuality.${quality}`;
 }
 
+/** The icon font name shown for a connection grade. */
 export function linkQualityIcon(quality: PeerLinkQuality): string {
   switch (quality) {
     case PeerLinkQuality.Good:
@@ -64,6 +75,7 @@ export function linkQualityIcon(quality: PeerLinkQuality): string {
   }
 }
 
+/** The Tailwind text colour class for a connection grade, from green for good to red for lost. */
 export function linkQualityColorClass(quality: PeerLinkQuality): string {
   switch (quality) {
     case PeerLinkQuality.Good:

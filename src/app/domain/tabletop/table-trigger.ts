@@ -54,6 +54,7 @@ export class TableTrigger extends ObjectNode {
    */
   @SyncVar() found: boolean = false;
 
+  /** The ground it covers in cells, rounded to whole cells and at least one cell each way. */
   get rect(): CellRect {
     return {
       col: Math.round(this.col),
@@ -63,10 +64,12 @@ export class TableTrigger extends ObjectNode {
     };
   }
 
+  /** When it goes off, with an unknown stored moment read as the default. */
   get firesOn(): TriggerMoment {
     return asTriggerMoment(this.moment);
   }
 
+  /** Whose pieces it acts on, with an unknown stored target read as everyone's. */
   get catches(): TriggerTarget {
     return asTriggerTarget(this.targets);
   }
@@ -81,12 +84,14 @@ export class TableTrigger extends ObjectNode {
     return this.open || this.found;
   }
 
+  /** Whether a cell lies within the ground it covers. */
   covers(col: number, row: number): boolean {
     const rect = this.rect;
     return col >= rect.col && col < rect.col + rect.width && row >= rect.row && row < rect.row + rect.height;
   }
 }
 
+/** The trigger areas laid on a table, or none when there is no table. */
 export function triggersOn(table: GameTable | null | undefined): TableTrigger[] {
   if (!table) return [];
   return table.children.filter((child): child is TableTrigger => child instanceof TableTrigger);

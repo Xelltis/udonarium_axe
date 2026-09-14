@@ -59,6 +59,10 @@ function resolveRoot(record: Record<string, unknown>): Record<string, unknown> {
   return asRecord(record['data']) ?? record;
 }
 
+/**
+ * Whether the pasted json is a warehouse character with a named `base` and a `status` object, bare
+ * or wrapped in `data`.
+ */
 export function isStellarAppspotCharacter(parsed: unknown): boolean {
   const record = asRecord(parsed);
   if (!record) return false;
@@ -67,6 +71,12 @@ export function isStellarAppspotCharacter(parsed: unknown): boolean {
   return base != null && typeof base['name'] === 'string' && asRecord(root['status']) != null;
 }
 
+/**
+ * Builds the imported model from a `stellar` warehouse character, or null for any other data.
+ *
+ * HP becomes a resource and the other status values parameters; skills, the sheath, the profile and
+ * the story become sections; and the palette offers the attack roll for two to five dice.
+ */
 export function buildStellarAppspotCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isStellarAppspotCharacter(parsed)) return null;
   const root = resolveRoot(asRecord(parsed)!);

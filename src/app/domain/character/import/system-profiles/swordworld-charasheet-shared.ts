@@ -89,6 +89,14 @@ function buildPalette(record: Record<string, unknown>, params: ImportedParam[]):
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from an archive sheet of that family of systems, with the token, dice
+ * bot and skill columns `config` names. Null for a sheet under any other token.
+ *
+ * Ability bonuses become parameters and HP and MP resources; skills, weapons and the profile become
+ * sections; and the palette offers a 2d6 roll for each ability bonus and a damage roll for each
+ * weapon with a numeric power.
+ */
 export function buildSwordWorldCharasheet(
   parsed: unknown,
   config: SwordWorldCharasheetConfig

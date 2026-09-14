@@ -49,15 +49,24 @@ export class ChatTab extends ObjectNode implements InnerXml {
   @SyncVar() count = 0;
   @SyncVar() imageIdentifierDummy = 'test';
 
+  /** The room's cut-in launcher, looked up in the object store, or null when there is none. */
   get cutInLauncher(): CutInLauncher | null {
     return ObjectStore.instance.get<CutInLauncher>('CutInLauncher');
   }
 
   private _displayableMessageNum = 0;
+  /**
+   * How many lines the local user may see have arrived in this tab, counted in this browser as they
+   * are added.
+   */
   displayableMessagesLength(): number {
     return this._displayableMessageNum;
   }
 
+  /**
+   * Clears every portrait standing on the tab, returning each slot to its placeholder and the
+   * stacking to its default order.
+   */
   portraitReset() {
     this.imageIdentifier = [...DEFAULT_IMAGE_IDENTIFIERS];
     this.imageCharacterName = Array.from({ length: PORTRAIT_SLOT_COUNT }, (_, i) => `#${i}`);
@@ -67,6 +76,7 @@ export class ChatTab extends ObjectNode implements InnerXml {
 
   imageDispFlag: boolean[] = Array(PORTRAIT_SLOT_COUNT).fill(true) as boolean[];
 
+  /** The lines in this tab, in the order they were placed. */
   get chatMessages(): readonly ChatMessage[] {
     return this.children as readonly ChatMessage[];
   }
@@ -95,11 +105,13 @@ export class ChatTab extends ObjectNode implements InnerXml {
     return null;
   }
 
+  /** A copy of the stacking order of the portrait slots, bottom first. */
   get imageZposList(): number[] {
     const ret: number[] = this.imageIdentifierZpos.slice();
     return ret;
   }
 
+  /** The portrait slot a speaker of that name stands in, or -1 when they stand in none. */
   portraitSlotOf(name: string) {
     for (let i = 0; i < this.imageCharacterName.length; i++) {
       if (name == this.imageCharacterName[i]) {
@@ -109,21 +121,33 @@ export class ChatTab extends ObjectNode implements InnerXml {
     return -1;
   }
 
+  /**
+   * Hides the portrait in that slot in this browser, until a line said to everyone stands someone
+   * there again.
+   */
   hidePortraitPos(pos: number) {
     this.imageDispFlag[pos] = false;
     this.update();
   }
 
+  /** Whether the portrait in that slot is showing in this browser. */
   isPortraitPosVisible(pos: number): boolean {
     return this.imageDispFlag[pos];
   }
 
+  /**
+   * The stacking level of a portrait slot, higher drawn on top, or -1 for a slot not in the order.
+   */
   portraitZIndex(toppos: number): number {
     const index = this.imageIdentifierZpos.indexOf(Number(toppos));
     return index;
   }
 
   private _chatSimpleDispFlag = 0;
+  /**
+   * Whether the tab shows its lines in the compact layout; 0 is off. Kept in this browser; setting
+   * it announces a change to the tab.
+   */
   get chatSimpleDispFlag(): number {
     return this._chatSimpleDispFlag;
   }
@@ -133,6 +157,10 @@ export class ChatTab extends ObjectNode implements InnerXml {
   }
 
   private _portraitDisplayFlag = 1;
+  /**
+   * Whether the tab shows speakers' portraits; 0 hides them. Kept in this browser; setting it
+   * announces a change to the tab.
+   */
   get portraitDisplayFlag(): number {
     return this._portraitDisplayFlag;
   }
@@ -141,6 +169,10 @@ export class ChatTab extends ObjectNode implements InnerXml {
     this.update();
   }
 
+  /**
+   * Brings a portrait slot to the top of the stacking order. Nothing changes for a slot not in the
+   * order.
+   */
   replacePortraitZIndex(toppos: number) {
     const index = this.imageIdentifierZpos.indexOf(Number(toppos));
     if (index >= 0) {
@@ -150,6 +182,7 @@ export class ChatTab extends ObjectNode implements InnerXml {
   }
 
   private _dispCharctorIcon = true;
+  /** Whether the tab shows the speaker's icon beside each line. Kept in this browser alone. */
   get dispCharctorIcon(): boolean {
     return this._dispCharctorIcon;
   }
@@ -158,18 +191,25 @@ export class ChatTab extends ObjectNode implements InnerXml {
   }
 
   private _unreadLength = 0;
+  /** How many lines the local user may see have arrived since the tab was last marked read. */
   get unreadLength(): number {
     return this._unreadLength;
   }
+  /** Whether any line the local user may see has arrived since the tab was last marked read. */
   get hasUnread(): boolean {
     return this.unreadLength > 0;
   }
 
+  /** When the last line in the tab was placed, or 0 for an empty tab. */
   get latestTimeStamp(): number {
     const lastIndex = this.chatMessages.length - 1;
     return lastIndex < 0 ? 0 : this.chatMessages[lastIndex].placedAt;
   }
 
+  /**
+   * Counts a new line the local user may see as unread, shows the portrait slot it speaks from
+   * again when it is said to everyone, and announces the message as added.
+   */
   override onChildAdded(child: ObjectNode) {
     super.onChildAdded(child);
     if (child.parent === this && child instanceof ChatMessage && child.isDisplayable) {
@@ -189,6 +229,13 @@ export class ChatTab extends ObjectNode implements InnerXml {
     }
   }
 
+  /**
+   * Adds a line to the tab from a message context and returns it.
+   *
+   * A line said to everyone that names a portrait slot stands its speaker's portrait there, moving
+   * it out of any slot they held before and raising it to the top. Fields left empty are not copied
+   * onto the line.
+   */
   addMessage(message: ChatMessageContext): ChatMessage {
     message.tabIdentifier = this.identifier;
 
@@ -246,6 +293,10 @@ export class ChatTab extends ObjectNode implements InnerXml {
     return attributes;
   }
 
+  /**
+   * Reads the tab back, taking a saved identifier as its own so a reserved tab such as the system
+   * tab keeps its identity.
+   */
   override parseAttributes(attributes: NamedNodeMap): void {
     ObjectSerializer.parseAttributes(this.attributes, attributes);
     const persistedIdentifier = this.attributes['identifier'];
@@ -255,10 +306,14 @@ export class ChatTab extends ObjectNode implements InnerXml {
     }
   }
 
+  /** Marks every line in the tab as read in this browser. */
   markForRead() {
     this._unreadLength = 0;
   }
 
+  /**
+   * What goes into room data: the tab's lines, leaving out direct lines the local user may not see.
+   */
   override innerXml(): string {
     let xml = '';
     for (const child of this.children) {
@@ -268,22 +323,27 @@ export class ChatTab extends ObjectNode implements InnerXml {
     return xml;
   }
 
+  /** One line in the standard log layout, as the local user sees it. */
   messageHtml(isTime: boolean, tabName: string, message: ChatMessage): string {
     return ChatLogExporter.formatMessageStandard(isTime, tabName, message);
   }
 
+  /** One line in the classic log layout, as the local user sees it. */
   messageHtmlCoc(tabName: string, message: ChatMessage): string {
     return ChatLogExporter.formatMessageCoc(tabName, message);
   }
 
+  /** Escapes text for log html; see `ChatLogExporter.escapeHtml`. */
   escapeHtml(value: unknown): string {
     return ChatLogExporter.escapeHtml(value);
   }
 
+  /** The standard-layout log page of this tab, as the local user sees it. */
   logHtml(): string {
     return ChatLogExporter.exportTabHtml(this);
   }
 
+  /** The classic-layout log page of this tab, as the local user sees it. */
   logHtmlCoc(): string {
     return ChatLogExporter.exportTabHtmlCoc(this);
   }

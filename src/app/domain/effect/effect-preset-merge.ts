@@ -13,6 +13,15 @@ import { duplicatedEffectName } from '@axe/domain/effect/effect-preset-form';
  */
 export type MergeOutcome = 'added' | 'updated';
 
+/**
+ * Settles an effect read in from a file against the shelf, and says whether it was added or
+ * went onto one already there.
+ *
+ * An effect whose identifier is already on the shelf is overwritten with what came in, and
+ * takes a numbered name if its name now belongs to another. Failing that, one of the same
+ * name is overwritten and the incoming copy destroyed. Otherwise the incoming effect stays
+ * as a new one.
+ */
 export function takeIntoLibrary(incoming: EffectPreset): MergeOutcome {
   const sameEffect = ObjectStore.instance.get<EffectPreset>(incoming.identifier);
   if (sameEffect instanceof EffectPreset && sameEffect !== incoming) {

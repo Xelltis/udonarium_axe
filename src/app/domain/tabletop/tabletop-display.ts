@@ -126,6 +126,7 @@ export const MAX_MULTI_ANGLE_PAUSE_SECONDS = 30;
 export const MIN_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS = 5;
 export const MAX_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS = 300;
 
+/** Reads a stored multi-angle motion mode, falling back to continuous for anything unknown. */
 export function asMultiAngleMotionMode(value: unknown): MultiAngleMotionMode {
   return value === 'quarter-turn' || value === 'piece-quarter-turn' ? value : 'continuous';
 }

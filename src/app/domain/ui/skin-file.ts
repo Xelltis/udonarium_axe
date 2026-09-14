@@ -35,6 +35,12 @@ export function skinFileName(name: string): string {
   return `${cleaned.length > 0 ? cleaned : 'skin'}.axe-skin.zip`;
 }
 
+/**
+ * The text of the `skin.json` entry in a skin zip.
+ *
+ * It holds the marker, version, name, mode and recipe, and each layer's arrangement with the name
+ * of the zip entry its picture is packed under. The layer ids stay behind in this browser.
+ */
 export function writeSkinFile(
   recipe: SkinRecipe,
   mode: SkinMode,

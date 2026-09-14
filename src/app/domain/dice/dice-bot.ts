@@ -41,6 +41,10 @@ export class DiceBot extends GameObject {
 
   static diceBotInfos: GameSystemInfo[] = [];
 
+  /**
+   * The catalog entry for a game system made here rather than shipped with the dice library, listed
+   * under the given locale.
+   */
   static getCustomGameSystemInfo(ststem: GameSystemClass, locale: string): GameSystemInfo {
     const gameSystemInfo: GameSystemInfo = {
       id: ststem.ID,
@@ -58,6 +62,13 @@ export class DiceBot extends GameObject {
     return diceBotInfos;
   }
 
+  /**
+   * Rolls a command under a game system and returns the formatted result, whether it is secret, and
+   * what the dice showed.
+   *
+   * Rolls wait in the loading queue, so none runs before the library is ready. A command the system
+   * does not recognise, or one that throws, gives an empty result.
+   */
   static async diceRollAsync(message: string, gameSystem: GameSystemClass): Promise<DiceRollResult> {
     return DiceBot.loadingQueue.add(() => {
       try {
@@ -81,6 +92,12 @@ export class DiceBot extends GameObject {
     });
   }
 
+  /**
+   * The help text of a game system, loading the system if it has not been. Empty when it cannot be
+   * loaded.
+   *
+   * Calling it and ignoring the answer is how a system is loaded ahead of its first roll.
+   */
   static async getHelpMessage(gameType: string): Promise<string> {
     try {
       const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
@@ -91,10 +108,19 @@ export class DiceBot extends GameObject {
     return '';
   }
 
+  /**
+   * A hook for game systems made here rather than in the dice library. There are none, so it always
+   * answers null.
+   */
   static loadCustomGameSystem(_gameType: string): GameSystemClass | null {
     return null;
   }
 
+  /**
+   * The game system for an id, fetching its code the first time.
+   *
+   * An id not in the catalog, or one whose code cannot be fetched, gives the plain dice bot.
+   */
   static async loadGameSystemAsync(gameType: string): Promise<GameSystemClass> {
     return await DiceBot.loadingQueue.add(() => {
       const system = this.loadCustomGameSystem(gameType);
@@ -131,6 +157,10 @@ export class DiceBot extends GameObject {
     return DiceBot.queue;
   }
 
+  /**
+   * Resolves once the dice library and its catalog of game systems have loaded, starting the load
+   * when nothing has asked for it yet.
+   */
   static ensureLoaded(): Promise<void> {
     return DiceBot.loadingQueue.add(() => undefined);
   }
@@ -150,10 +180,19 @@ export class DiceBot extends GameObject {
     return queue;
   }
 
+  /** Every dice table in the room. */
   getDiceTables(): DiceTable[] {
     return ObjectStore.instance.getObjects(DiceTable);
   }
 
+  /**
+   * Strips the resource and buff commands aimed at the speaker out of a chat line, keeping the ones
+   * aimed at a target.
+   *
+   * A line sent to several targets is repeated for each, and only the first copy should change the
+   * speaker's own sheet. A `:` or `&` command runs to the next space and is removed unless it
+   * follows a `t`.
+   */
   static deleteMyselfResourceBuff(str: string): string {
     let beforeIsSpace = true;
     let beforeIsT = false;
@@ -209,6 +248,10 @@ export class DiceBot extends GameObject {
     return chars.join('');
   }
 
+  /**
+   * Whether the line holds a secret resource command, an `s:` or `st:` at the start or after a
+   * space.
+   */
   checkSecretEditCommand(chatText: string): boolean {
     const text: string = ` ${toHalfWidth(chatText).toLowerCase()}`;
     const replaceText = text.replace('：', ':');
@@ -217,6 +260,10 @@ export class DiceBot extends GameObject {
     return false;
   }
 
+  /**
+   * Whether the line is a secret roll under the game system: an `s` in front of a command the
+   * system recognises, after any repeat count. False for a system with no command pattern.
+   */
   checkSecretDiceCommand(gameSystem: GameSystemClass, chatText: string): boolean {
     const text: string = toHalfWidth(chatText).toLowerCase();
     const nonRepeatText = text
@@ -230,6 +277,10 @@ export class DiceBot extends GameObject {
     return false;
   }
 
+  /**
+   * Starts answering the local user's own chat lines once the dice bot is in the store: rolls, dice
+   * table commands and resource commands.
+   */
   override onStoreAdded() {
     super.onStoreAdded();
     this.cleanups.push(sendMessage$.subscribe((data) => this.handleSendMessage(data)));
@@ -405,6 +456,7 @@ export class DiceBot extends GameObject {
     }
   }
 
+  /** Stops answering chat lines once the dice bot leaves the store. */
   override onStoreRemoved() {
     super.onStoreRemoved();
     this.cleanups.forEach((c) => c());

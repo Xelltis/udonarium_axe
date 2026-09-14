@@ -52,6 +52,10 @@ export function resolveBuffColor(token: string): string {
   return BUFF_COLORS.find((color) => color.id === id)?.hex ?? '';
 }
 
+/**
+ * Whether a chat token names a buff colour: a hex, a known colour name or alias, or a word asking
+ * for the default one. Blank text never does.
+ */
 export function isBuffColorToken(token: string): boolean {
   const normalized = (token ?? '').trim().toLowerCase();
   if (normalized.length < 1) return false;

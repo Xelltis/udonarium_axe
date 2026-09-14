@@ -47,6 +47,7 @@ export function flameColor(local: number, ramp: ColorRamp): string {
   return ramp.cool;
 }
 
+/** Eases a 0 to 1 progress so it starts fast and slows to a stop; input outside that range is clamped. */
 export function easeOutQuad(value: number): number {
   const clamped = clamp01(value);
   return 1 - (1 - clamped) * (1 - clamped);

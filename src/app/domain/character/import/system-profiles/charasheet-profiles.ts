@@ -40,6 +40,12 @@ const BUILDERS: Record<string, (parsed: unknown) => ImportedCharacter | null> = 
   utakaze: buildUtakazeCharasheetCharacter,
 };
 
+/**
+ * Reads an archive sheet with the profile for its system token, falling back to the general parser.
+ *
+ * A system with no dedicated profile is read with `labelMap`, or with the headings generated for
+ * that system when none is given, and is given the system's dice bot where one is known.
+ */
 export function parseCharasheetCharacterForSystem(
   parsed: unknown,
   labelMap?: Record<string, string>

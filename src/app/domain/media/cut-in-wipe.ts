@@ -39,6 +39,7 @@ const CRUMBLE_FINGERS = 17;
  */
 const CRUMBLE_TEETH = [0.15, 0.9, 0.35, 1, 0.05, 0.6, 0.85, 0.2, 0.7, 0.45, 1, 0.1, 0.55, 0.95, 0.3, 0.75, 0.4];
 
+/** Whether a value names one of the ways a layer can be let in a part at a time. */
 export function isCutInWipe(value: unknown): value is CutInWipe {
   return typeof value === 'string' && (CUT_IN_WIPES as readonly string[]).includes(value);
 }

@@ -48,6 +48,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `nw3` system token. */
 export function isNw3CharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'nw3');
 }
@@ -59,6 +60,12 @@ function buildPalette(record: Record<string, unknown>): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from an `nw3` archive sheet, or null for any other sheet.
+ *
+ * Abilities become parameters; feats, weapons and the profile become sections; and the palette
+ * offers a roll for each ability.
+ */
 export function buildNw3CharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isNw3CharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

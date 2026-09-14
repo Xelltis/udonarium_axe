@@ -81,6 +81,7 @@ export class Terrain extends TabletopObject {
    */
   @SyncVar() doorMirrored: boolean = false;
 
+  /** Whether this terrain is a door of any style. */
   get isDoor(): boolean {
     return this.doorStyle !== DoorStyle.NONE;
   }
@@ -94,6 +95,7 @@ export class Terrain extends TabletopObject {
   get blocksSightNow(): boolean {
     return this.blocksSight && !(this.isDoor && this.isDoorOpen);
   }
+  /** The light counterpart of blocksSightNow: blocks light only while it is not an open door. */
   get blocksLightNow(): boolean {
     return this.blocksLight && !(this.isDoor && this.isDoorOpen);
   }
@@ -108,6 +110,10 @@ export class Terrain extends TabletopObject {
   @SyncVar() lightPitch: number = 0;
   @SyncVar() lightAnimation: string = LightAnimation.NONE;
 
+  /**
+   * The terrain's light settings gathered into the shape the vision scene reads, with the direction
+   * turned along with the terrain.
+   */
   get lightSpec(): LightSpec {
     return {
       enabled: this.lightEnabled,
@@ -126,50 +132,68 @@ export class Terrain extends TabletopObject {
     };
   }
 
+  /** How many grid cells wide the terrain is, kept in its common data. */
   get width(): number {
     return this.getCommonValue('width', 1);
   }
   set width(width: number) {
     this.setCommonValue('width', width);
   }
+  /** How many grid cells tall the terrain stands, kept in its common data. */
   get height(): number {
     return this.getCommonValue('height', 1);
   }
   set height(height: number) {
     this.setCommonValue('height', height);
   }
+  /** How many grid cells deep the terrain is, kept in its common data. */
   get depth(): number {
     return this.getCommonValue('depth', 1);
   }
   set depth(depth: number) {
     this.setCommonValue('depth', depth);
   }
+  /**
+   * The picture shared by every upright face without one of its own, or null when unset or not in
+   * storage.
+   */
   get wallImage(): ImageFile | null {
     return this.getImageFile('wall');
   }
+  /**
+   * The picture shared by the top and the underside when they have none of their own, or null when
+   * unset or not in storage.
+   */
   get floorImage(): ImageFile | null {
     return this.getImageFile('floor');
   }
 
+  /** The top face's picture, falling back to the floor picture. */
   get topImage(): ImageFile | null {
     return this.getImageFile('top') ?? this.floorImage;
   }
+  /** The underside's picture, falling back to the floor picture. */
   get bottomImage(): ImageFile | null {
     return this.getImageFile('bottom') ?? this.floorImage;
   }
+  /** The north face's picture, falling back to the wall picture. */
   get northImage(): ImageFile | null {
     return this.getImageFile('north') ?? this.wallImage;
   }
+  /** The south face's picture, falling back to the wall picture. */
   get southImage(): ImageFile | null {
     return this.getImageFile('south') ?? this.wallImage;
   }
+  /** The east face's picture, falling back to the wall picture. */
   get eastImage(): ImageFile | null {
     return this.getImageFile('east') ?? this.wallImage;
   }
+  /** The west face's picture, falling back to the wall picture. */
   get westImage(): ImageFile | null {
     return this.getImageFile('west') ?? this.wallImage;
   }
 
+  /** The picture one face is drawn with, after falling back to the shared wall or floor picture. */
   faceImage(face: TerrainFace): ImageFile | null {
     switch (face) {
       case 'top':
@@ -211,6 +235,10 @@ export class Terrain extends TabletopObject {
     return false;
   }
 
+  /**
+   * Sets the picture for one face or shared slot, making its image element when missing. Does
+   * nothing when the terrain has no image section.
+   */
   setFaceImage(face: TerrainImageSlot, imageIdentifier: string): void {
     const imageEl = this.imageDataElement;
     if (!imageEl) return;
@@ -222,13 +250,18 @@ export class Terrain extends TabletopObject {
     imageEl.appendChild(DataElement.create(face, imageIdentifier, { type: 'image' }, `${face}_${this.identifier}`));
   }
 
+  /** Whether the terrain's view mode draws its walls. */
   get hasWall(): boolean {
     return (this.mode & TerrainViewState.WALL) !== 0;
   }
+  /** Whether the terrain's view mode draws its floor. */
   get hasFloor(): boolean {
     return (this.mode & TerrainViewState.FLOOR) !== 0;
   }
 
+  /**
+   * Makes a terrain with its name, size, and wall and floor pictures, and registers it for sync.
+   */
   static create(
     name: string,
     width: number,

@@ -56,6 +56,7 @@ export interface DungeonBoardSize {
   height: number;
 }
 
+/** A requested room count rounded and kept within what the generator supports; not a number gives the fewest. */
 export function clampRoomCount(roomCount: number): number {
   if (!Number.isFinite(roomCount)) return MIN_ROOM_COUNT;
   return Math.min(MAX_ROOM_COUNT, Math.max(MIN_ROOM_COUNT, Math.round(roomCount)));
@@ -79,6 +80,12 @@ export function corridorWidthsFor(atmosphere: DungeonAtmosphere, asked?: Corrido
   return { least, most };
 }
 
+/**
+ * How many cells wide and high the board for a dungeon of this many rooms is.
+ *
+ * A cave gets a smaller board than rooms and mazes, wider passages get a larger one, and neither side goes
+ * past the most one scratch mask can cover.
+ */
 export function boardSizeFor(
   atmosphere: DungeonAtmosphere,
   roomCount: number,
@@ -101,6 +108,12 @@ export function boardSizeFor(
   };
 }
 
+/**
+ * Lays out a whole dungeon floor for a request: rooms and mazes or a cave as the atmosphere says, then the
+ * tunnel mouth when asked for, the room roles, and the doors.
+ *
+ * Everything comes from the request's seed, so the same request gives the same dungeon on every peer.
+ */
 export function generateDungeon(request: DungeonRequest): DungeonLayout {
   const atmosphere = atmosphereById(request.atmosphere);
   const rooms = clampRoomCount(request.roomCount);

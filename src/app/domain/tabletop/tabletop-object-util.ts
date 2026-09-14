@@ -13,6 +13,12 @@ function stackOf(object: Stackable, otherRelatives: AliasName[]): Stackable[] {
   return objects.filter((obj) => obj.isVisibleOnTable);
 }
 
+/**
+ * Brings an object in front of the others of its kind on the table, and of any related kinds named.
+ *
+ * Nothing changes when it is already alone on top. Once the z-indexes climb too high, the whole
+ * stack is renumbered from 0 in its current order.
+ */
 export function moveToTopmost(topmost: Stackable, otherRelatives: AliasName[] = []) {
   const objects = stackOf(topmost, otherRelatives);
 
@@ -38,6 +44,12 @@ export function moveToTopmost(topmost: Stackable, otherRelatives: AliasName[] = 
   }
 }
 
+/**
+ * Sends an object behind the others of its kind on the table, and of any related kinds named.
+ *
+ * Nothing changes when it is already alone at the bottom. Once the z-indexes fall too low, the
+ * whole stack is renumbered from 0 in its current order.
+ */
 export function moveToBottommost(bottommost: Stackable, otherRelatives: AliasName[] = []) {
   const objects = stackOf(bottommost, otherRelatives);
 

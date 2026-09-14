@@ -20,32 +20,49 @@ export interface CellPoint {
   y: number;
 }
 
+/**
+ * A cell grid for a table of this many columns and rows, with the counts floored and held at zero
+ * or more.
+ */
 export function cellGridOf(cols: number, rows: number, gridSize: number, gridType: GridType): CellGrid {
   return { cols: Math.max(0, Math.floor(cols)), rows: Math.max(0, Math.floor(rows)), sizePx: gridSize, type: gridType };
 }
 
+/** How many cells the grid has, which is the size a CellBits for it needs. */
 export function cellCount(grid: CellGrid): number {
   return grid.cols * grid.rows;
 }
 
+/**
+ * Whether two grids number their cells the same way: the same columns, rows and cell shape.
+ *
+ * The cell size is not compared, since a cell's index does not depend on it.
+ */
 export function sameCellGrid(a: CellGrid, b: CellGrid): boolean {
   return a.cols === b.cols && a.rows === b.rows && a.type === b.type;
 }
 
+/** The index of a cell by column and row, or -1 when the cell lies off the grid. */
 export function cellIndexOf(grid: CellGrid, col: number, row: number): number {
   if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return -1;
   return row * grid.cols + col;
 }
 
+/** The column and row of a cell index. The index is not checked against the grid. */
 export function cellColRow(grid: CellGrid, index: number): { col: number; row: number } {
   return { col: index % grid.cols, row: Math.floor(index / grid.cols) };
 }
 
+/** The centre of a cell in table pixels, on square and hex grids alike. */
 export function cellCenterOf(grid: CellGrid, index: number): CellPoint {
   const { col, row } = cellColRow(grid, index);
   return cellCentre({ x: col, y: row }, grid);
 }
 
+/**
+ * The index of the cell under a point in table pixels, or -1 when the point is off the grid or the
+ * grid has no size.
+ */
 export function cellIndexAt(grid: CellGrid, x: number, y: number): number {
   if (grid.sizePx <= 0) return -1;
   if (!isHexGrid(grid.type)) {
@@ -55,6 +72,7 @@ export function cellIndexAt(grid: CellGrid, x: number, y: number): number {
   return cellIndexOf(grid, col, row);
 }
 
+/** The outline of a cell in table pixels: four corners on squares, six on hexes. */
 export function cellPolygonOf(grid: CellGrid, index: number): CellPoint[] {
   const centre = cellCenterOf(grid, index);
   if (!isHexGrid(grid.type)) {
@@ -70,6 +88,12 @@ export function cellPolygonOf(grid: CellGrid, index: number): CellPoint[] {
   return hexVertices(centre.x, centre.y, hexCircumradius(grid.sizePx), hexStartAngle(flatTop));
 }
 
+/**
+ * The box in table pixels that the grid's cells cover.
+ *
+ * On squares that is the table itself. On hexes it is padded by a circumradius on every side, since
+ * the cells along the edge overhang it.
+ */
 export function gridExtentPx(grid: CellGrid): { minX: number; minY: number; maxX: number; maxY: number } {
   if (!isHexGrid(grid.type)) {
     return { minX: 0, minY: 0, maxX: grid.cols * grid.sizePx, maxY: grid.rows * grid.sizePx };
@@ -85,6 +109,7 @@ export function gridExtentPx(grid: CellGrid): { minX: number; minY: number; maxX
   };
 }
 
+/** Visits every cell with its index and centre, row by row. Does nothing on a grid with no size. */
 export function forEachCell(grid: CellGrid, visit: (index: number, cx: number, cy: number) => void): void {
   if (grid.sizePx <= 0) return;
   for (let row = 0; row < grid.rows; row++) {
@@ -95,6 +120,12 @@ export function forEachCell(grid: CellGrid, visit: (index: number, cx: number, c
   }
 }
 
+/**
+ * Visits the cells whose centres lie inside a box in table pixels, with their index and centre.
+ *
+ * The box is clipped to the grid first, so a box reaching far past the table costs no more than the
+ * table does.
+ */
 export function forEachCellInBox(
   grid: CellGrid,
   minX: number,

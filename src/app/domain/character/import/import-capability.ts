@@ -207,6 +207,10 @@ export const SUPPORT_LEVEL_SYMBOLS: Record<ImportSupportLevel, string> = {
   none: '✖',
 };
 
+/**
+ * How far a source supports a kind of data, as the import panel's table shows it. `none` for a
+ * source or kind it does not list.
+ */
 export function capabilityOf(source: ImportSourceId, dataType: ImportDataTypeId): ImportSupportLevel {
   return IMPORT_SOURCES.find((entry) => entry.id === source)?.levels[dataType] ?? 'none';
 }

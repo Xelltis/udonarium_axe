@@ -76,6 +76,12 @@ export class ChatLogExporter {
     '.ai{max-width:180px;max-height:120px;width:auto;height:auto;object-fit:contain;border:1px solid #ccc;border-radius:4px;background:#fff;vertical-align:top;margin:2px 4px 2px 0}' +
     '.aw{display:block;margin-top:6px;white-space:normal}' +
     '</style>\n';
+  /**
+   * Escapes a value for html and turns ruby markup, `|base《reading》`, into `<ruby>` tags.
+   *
+   * Every whitespace character, line breaks included, becomes a plain space. A value that is not a
+   * string is turned into text as it is, without escaping.
+   */
   static escapeHtml(value: unknown): string {
     if (typeof value !== 'string') {
       return String(value);
@@ -84,6 +90,13 @@ export class ChatLogExporter {
     return escaped.replace(/[|｜]([^|｜\s]+?)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>').replace(/\s/g, ' ');
   }
 
+  /**
+   * One line in the standard log layout: the tab name and the time when asked for, the portrait,
+   * any quoted or replied-to line, then the name and text in the speaker's colour.
+   *
+   * A secret roll the reader did not make shows as `（シークレットダイス）`, and an edited line is marked
+   * `(編集済)`. `userId` is the reader; without it, the local user.
+   */
   static formatMessageStandard(
     isTime: boolean,
     tabName: string,
@@ -133,6 +146,13 @@ export class ChatLogExporter {
     return str;
   }
 
+  /**
+   * One line in the classic layout other log tools can read: the tab name, the portrait, any quoted
+   * or replied-to line, then the name and text in the speaker's colour.
+   *
+   * Secret rolls and edits are marked as in the standard layout, and arrows in the text are written
+   * as `＞`.
+   */
   static formatMessageCoc(
     tabName: string,
     message: ChatLogLine,
@@ -169,15 +189,27 @@ export class ChatLogExporter {
     return str;
   }
 
+  /**
+   * Passes text through the decoder, such as the one expanding translation placeholders, or leaves
+   * it as it is without one. Null and undefined become empty.
+   */
   static decode(text: string | null | undefined, textDecoder?: ChatLogTextDecoder): string {
     if (text == null) return '';
     return textDecoder ? textDecoder(text) : text;
   }
 
+  /**
+   * Whether the reader may see what a secret line holds, which is so when they sent it. Without
+   * `userId` the reader is the local user.
+   */
   static canSee(message: ChatLogLine, userId?: string): boolean {
     return userId != null ? message.isSentBy(userId) : message.isSendFromSelf;
   }
 
+  /**
+   * A whole page in the standard layout for one tab, with times, holding only the lines the reader
+   * may see.
+   */
   static exportTabHtml(
     tab: ChatLogTab,
     userId?: string,
@@ -201,6 +233,7 @@ export class ChatLogExporter {
     return head + parts.join('') + '\n  </body>\n</html>';
   }
 
+  /** A whole page in the classic layout for one tab, holding only the lines the reader may see. */
   static exportTabHtmlCoc(
     tab: ChatLogTab,
     userId?: string,
@@ -234,6 +267,11 @@ export class ChatLogExporter {
     return head + parts.join('') + '  </body>\n</html>';
   }
 
+  /**
+   * A whole page in the standard layout merging every spoken tab in the order lines were placed,
+   * each line marked with its tab. The system tab is left out, and `showTime` adds the time to each
+   * line.
+   */
   static exportAllTabsHtml(
     tabs: readonly ChatLogTab[],
     showTime: number | boolean,
@@ -259,6 +297,10 @@ export class ChatLogExporter {
     return head + main + '\n  </body>\n</html>';
   }
 
+  /**
+   * A whole page in the classic layout merging every spoken tab in the order lines were placed,
+   * each line marked with its tab. The system tab is left out.
+   */
   static exportAllTabsHtmlCoc(
     tabs: readonly ChatLogTab[],
     userId?: string,
@@ -294,6 +336,10 @@ export class ChatLogExporter {
     return tabs.filter((tab) => !tab.isSystemTab);
   }
 
+  /**
+   * Whether a line belongs in the reader's log: anything said to everyone, or a direct line the
+   * reader sent or was sent. Without `userId` the reader is the local user.
+   */
   static isVisibleMessage(message: ChatLogLine, userId?: string): boolean {
     const to = message.to;
     if (!to) return true;
@@ -303,6 +349,12 @@ export class ChatLogExporter {
     return message.isDisplayable;
   }
 
+  /**
+   * Interleaves the lines of several tabs into one list in the order they were placed, each keeping
+   * its tab.
+   *
+   * Each tab is taken to be in placed order already, and lines the reader may not see are dropped.
+   */
   static mergeEntries(tabs: readonly ChatLogTab[], userId?: string): ChatLogEntry[] {
     if (!tabs || tabs.length === 0) return [];
     const tabNum = tabs.length;
@@ -381,6 +433,10 @@ export class ChatLogExporter {
     return blocks.join('');
   }
 
+  /**
+   * The text of a quoted or replied-to line folded onto one line and cut to `maxTextLength`
+   * characters with an ellipsis, without the staging an older novel-mode line carries.
+   */
   static referenceExcerpt(target: ChatLogLine, maxTextLength: number, textDecoder?: ChatLogTextDecoder): string {
     const rawText = vnBodyOf(target.vnEmote, ChatLogExporter.decode(target.text, textDecoder))
       .replace(/\s+/g, ' ')
@@ -428,6 +484,10 @@ export class ChatLogExporter {
     return `<span class="aw">${imageTags}</span>`;
   }
 
+  /**
+   * Escapes text for use inside an html attribute. Unlike `escapeHtml`, it leaves whitespace and
+   * ruby markup as they are.
+   */
   static escapeAttribute(value: string): string {
     return value.replace(/[&'`"<>]/g, (match) => HTML_ESCAPE_MAP[match] ?? match);
   }

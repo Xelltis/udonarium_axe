@@ -5,6 +5,10 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 export const MIN_BOARD_PITCH = 0;
 export const MAX_BOARD_PITCH = 90;
 
+/**
+ * Holds a board's tilt to whole degrees between flat and upright, reading anything that is not
+ * finite as flat.
+ */
 export function clampBoardPitch(pitch: number): number {
   if (!Number.isFinite(pitch)) return MIN_BOARD_PITCH;
   return Math.min(MAX_BOARD_PITCH, Math.max(MIN_BOARD_PITCH, Math.round(pitch)));
@@ -46,12 +50,16 @@ export class WhiteBoard extends TabletopObject {
     return imagesNamedIn(this.scene);
   }
 
+  /** How many grid cells wide the board is, kept in its common data; 4 when unset. */
   get width(): number {
     return this.getCommonValue('width', 4);
   }
   set width(width: number) {
     this.setCommonValue('width', width);
   }
+  /**
+   * How many grid cells deep the board is, which is how tall it stands when upright; 3 when unset.
+   */
   get height(): number {
     return this.getCommonValue('height', 3);
   }
@@ -59,6 +67,11 @@ export class WhiteBoard extends TabletopObject {
     this.setCommonValue('height', height);
   }
 
+  /**
+   * How opaque the board is, as every tabletop object reads it.
+   *
+   * Setting it writes the given value straight into the opacity resource's current value.
+   */
   override get opacity(): number {
     return super.opacity;
   }
@@ -72,6 +85,7 @@ export class WhiteBoard extends TabletopObject {
     return this.pitch > 0;
   }
 
+  /** Makes a board with its name, size and opacity data, and registers it for sync. */
   static create(name: string, width: number, height: number, opacity: number, identifier?: string): WhiteBoard {
     const object = identifier ? new WhiteBoard(identifier) : new WhiteBoard();
     object.createDataElements();

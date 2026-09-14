@@ -42,6 +42,14 @@ const aboveByList = new WeakMap<readonly TallSegment[], Map<number, readonly Tal
 /** Well above the handful of eye heights one scene holds, and a guard against an unbounded map. */
 const ABOVE_MEMO_LIMIT = 64;
 
+/**
+ * The segments that still stand in the way of an eye at this height: those at least as tall as the
+ * eye, those of unknown height, and those hanging clear of the floor.
+ *
+ * Anything shorter than the eye is looked over, and a character who has climbed a tower is above
+ * most of what stood in the way on the ground. An eye at or below the floor gets the list back
+ * unchanged. The same list and height hand back the same array, so it must not be changed.
+ */
 export function segmentsAbove(segments: readonly TallSegment[], eyeZ: number): readonly TallSegment[] {
   if (!(eyeZ > 0)) return segments;
 
@@ -61,6 +69,7 @@ export function segmentsAbove(segments: readonly TallSegment[], eyeZ: number): r
   return above;
 }
 
+/** The four edges of a rectangle turned about its centre by the given degrees. */
 export function rectangleSegments(x: number, y: number, width: number, height: number, rotateDeg: number): Segment[] {
   const cx = x + width / 2;
   const cy = y + height / 2;
@@ -85,6 +94,7 @@ export function rectangleSegments(x: number, y: number, width: number, height: n
   return segments;
 }
 
+/** The four edges of the table, so that no look or light leaves it. */
 export function perimeterSegments(widthPx: number, heightPx: number): Segment[] {
   return rectangleSegments(0, 0, widthPx, heightPx, 0);
 }
@@ -93,6 +103,10 @@ function cross(ax: number, ay: number, bx: number, by: number, cx: number, cy: n
   return (by - ay) * (cx - bx) - (bx - ax) * (cy - by);
 }
 
+/**
+ * Whether segment AB and segment CD properly cross. Touching at an end, or lying along one another,
+ * does not count.
+ */
 export function segmentsCross(
   ax: number,
   ay: number,
@@ -159,6 +173,10 @@ export function segmentBlocks(
   return seg.heightPx >= z;
 }
 
+/**
+ * Whether a line of sight from one point and height to another passes every segment, with the
+ * heights taken into account.
+ */
 export function segmentClearBetween(
   ax: number,
   ay: number,
@@ -174,6 +192,7 @@ export function segmentClearBetween(
   return true;
 }
 
+/** Whether a flat line from A to B crosses none of the segments, with heights ignored. */
 export function segmentClear(ax: number, ay: number, bx: number, by: number, segments: readonly Segment[]): boolean {
   for (const seg of segments) {
     if (segmentsCross(ax, ay, bx, by, seg.x1, seg.y1, seg.x2, seg.y2)) return false;

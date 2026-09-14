@@ -12,12 +12,14 @@ const MULTI_ANGLE_FONT_SCALE_FACTORS: Record<MultiAngleFontScale, number> = {
   large: 1.3,
 };
 
+/** Reads a stored font scale, falling back to small for anything unknown. */
 export function asMultiAngleFontScale(value: unknown): MultiAngleFontScale {
   return typeof value === 'string' && (MULTI_ANGLE_FONT_SCALES as readonly string[]).includes(value)
     ? (value as MultiAngleFontScale)
     : DEFAULT_MULTI_ANGLE_FONT_SCALE;
 }
 
+/** The multiplier a font scale applies to text sizes, with an unknown value read as small. */
 export function multiAngleFontScaleFactor(value: unknown): number {
   return MULTI_ANGLE_FONT_SCALE_FACTORS[asMultiAngleFontScale(value)];
 }
