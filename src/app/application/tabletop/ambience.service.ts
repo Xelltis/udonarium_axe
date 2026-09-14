@@ -3,6 +3,7 @@ import { EffectPlaybackService } from '@axe/application/effect/effect-playback.s
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import {
   ambienceColorOf,
   ambienceDensityOf,
@@ -20,6 +21,11 @@ export interface WeatherAmbience {
 
 const PERSISTENT_SOURCE = 'ambience';
 const FRAME_STEP_STORAGE_KEY = 'ui-ambience-frame-step';
+/**
+ * The step the ambience moves by while the table is drawn the lighter way: about every other
+ * frame of a 60Hz screen, which halves the drawing of weather and ground effects.
+ */
+const LIGHT_RENDERING_FRAME_STEP_MS = 32;
 
 export function storedAmbienceFrameStepMs(): number {
   try {
@@ -41,6 +47,7 @@ export class AmbienceService {
   private readonly tabletopService = inject(TabletopService);
   private readonly playbackService = inject(EffectPlaybackService);
   private readonly motion = inject(MotionService);
+  private readonly renderLite = inject(RenderLiteService);
 
   readonly areas = computed<TableAmbience[]>(() => {
     this.objectChange.collectionOf(TableAmbience.aliasName)();
@@ -68,7 +75,7 @@ export class AmbienceService {
   readonly frameStepMs = signal(storedAmbienceFrameStepMs());
 
   readonly now = computed<number>(() => {
-    const step = this.frameStepMs();
+    const step = this.frameStepMs() || (this.renderLite.active() ? LIGHT_RENDERING_FRAME_STEP_MS : 0);
     const now = this.playbackService.now();
     return step > 0 ? Math.floor(now / step) * step : now;
   });
