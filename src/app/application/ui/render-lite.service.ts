@@ -55,6 +55,7 @@ export class RenderLiteService {
     effect(() => this.markDocument());
   }
 
+  /** Moves the setting on to the next of auto, on and off, which is what the one button for it does. */
   cycle(): void {
     const index = SETTING_ORDER.indexOf(this.setting());
     this.set(SETTING_ORDER[(index + 1) % SETTING_ORDER.length]);

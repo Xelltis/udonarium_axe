@@ -273,6 +273,12 @@ export const MIN_OVERLAY_SCALE = 0.5;
 export const LIGHT_OVERLAY_PIXEL_BUDGET = 4_000_000;
 export const LIGHT_MIN_OVERLAY_SCALE = 0.35;
 
+/**
+ * How many canvas pixels an overlay of this size is drawn with, to one pixel of the board.
+ *
+ * One while it fits inside the budget, and otherwise as much less as keeps it inside, but never
+ * less than the floor.
+ */
 export function overlayScale(
   width: number,
   height: number,
