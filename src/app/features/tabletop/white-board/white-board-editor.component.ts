@@ -18,6 +18,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { downloadBlob } from '@axe/core/util/download-blob';
 import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
   clampBoardPitch,
@@ -1331,11 +1332,7 @@ export class WhiteBoardEditorComponent {
     await this.paintMarks(ctx, false);
     const blob = await new Promise<Blob | null>((keep) => sheet.toBlob(keep, 'image/png'));
     if (!blob) return;
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${this.board?.name || 'whiteboard'}.png`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    downloadBlob(blob, `${this.board?.name || 'whiteboard'}.png`);
   }
 
   private pickSticker(): void {
