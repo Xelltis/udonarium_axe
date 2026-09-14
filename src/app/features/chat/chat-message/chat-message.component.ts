@@ -171,17 +171,31 @@ export class ChatMessageComponent {
     return PeerCursor.findByUserId(userId)?.image?.url ?? '';
   });
 
+  /** The line a dice result answers, once it has been found in the tab. */
+  private rollSource: { dice: string; source: string } | null = null;
+
+  /**
+   * The picture of the line a dice result answers.
+   *
+   * Until that line is found the whole tab is followed, since it may yet arrive. Once found only
+   * that line is, so a tab that keeps growing does not send every dice row looking again.
+   */
   private rollSourceImageUrl(): string {
     const chatMessage = this.chatMessageInput();
     if (!chatMessage?.isDicebot) return '';
     this.objectChange.fileVersion();
     const chatTab = this.objectStore.get<ChatTab>(chatMessage.tabIdentifier);
     if (!chatTab) return '';
+    const found = this.rollSource;
+    if (found?.dice === chatMessage.identifier) {
+      this.objectChange.versionOf(found.source)();
+      const source = this.objectStore.get<ChatMessage>(found.source);
+      if (source?.parent === chatTab) return source.image?.url ?? '';
+      this.rollSource = null;
+    }
     this.objectChange.versionOf(chatTab.identifier)();
-    const originFrom = chatMessage.originFrom ?? '';
-    const source = chatTab.chatMessages.find(
-      (candidate) => candidate.timestamp === chatMessage.timestamp - 1 && candidate.from === originFrom
-    );
+    const source = chatTab.findRollSource(chatMessage);
+    if (source) this.rollSource = { dice: chatMessage.identifier, source: source.identifier };
     return source?.image?.url ?? '';
   }
 

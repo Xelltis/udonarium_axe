@@ -46,6 +46,54 @@ describe('ChatTab', () => {
     });
   });
 
+  describe('findRollSource()', () => {
+    function tabWithChatter(count: number): ChatTab {
+      const tab = new ChatTab();
+      tab.initialize();
+      for (let i = 0; i < count; i++) {
+        tab.addMessage({ from: `user-${i % 3}`, name: `話者${i % 3}`, text: `発言${i}`, timestamp: 1000 + i * 10 });
+      }
+      return tab;
+    }
+
+    it('finds the line a roll answers among a long log', () => {
+      const tab = tabWithChatter(500);
+      try {
+        const said = tab.addMessage({ from: 'roller', name: 'アリス', text: '2d6', timestamp: 3005 });
+        tab.addMessage({ from: 'user-1', name: '話者1', text: '割り込み', timestamp: 3005 });
+        const rolled = tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<BCDice：アリス>',
+          text: '(2D6) → 7',
+          timestamp: 3006,
+        });
+
+        expect(tab.findRollSource(rolled)).toBe(said);
+      } finally {
+        tab.destroy();
+      }
+    });
+
+    it('finds nothing said at that moment by somebody else', () => {
+      const tab = tabWithChatter(20);
+      try {
+        tab.addMessage({ from: 'bystander', name: 'ボブ', text: '2d6', timestamp: 3005 });
+        const rolled = tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<BCDice：アリス>',
+          text: '(2D6) → 7',
+          timestamp: 3006,
+        });
+
+        expect(tab.findRollSource(rolled)).toBeNull();
+      } finally {
+        tab.destroy();
+      }
+    });
+  });
+
   describe('portraitReset()', () => {
     it('clears the portraits', () => {
       const tab = new ChatTab();

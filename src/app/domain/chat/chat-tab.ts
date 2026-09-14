@@ -71,6 +71,30 @@ export class ChatTab extends ObjectNode implements InnerXml {
     return this.children as readonly ChatMessage[];
   }
 
+  /**
+   * The line a dice result answers: said by whoever rolled, the moment before the result.
+   *
+   * The messages are kept in the order they were placed in, so the search starts where that
+   * moment falls and stops at the result itself rather than reading through the whole log.
+   */
+  findRollSource(dice: ChatMessage): ChatMessage | null {
+    const originFrom = dice.originFrom ?? '';
+    const said = dice.timestamp - 1;
+    const messages = this.chatMessages;
+    let low = 0;
+    let high = messages.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (messages[middle].index < said) low = middle + 1;
+      else high = middle;
+    }
+    for (let i = low; i < messages.length && messages[i].index < dice.index; i++) {
+      const candidate = messages[i];
+      if (candidate.timestamp === said && candidate.from === originFrom) return candidate;
+    }
+    return null;
+  }
+
   get imageZposList(): number[] {
     const ret: number[] = this.imageIdentifierZpos.slice();
     return ret;

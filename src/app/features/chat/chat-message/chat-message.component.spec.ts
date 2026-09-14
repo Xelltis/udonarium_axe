@@ -317,6 +317,45 @@ describe('ChatMessageComponent', () => {
       }
     });
 
+    it('stops reading through the tab once it has found the line a roll answers', async () => {
+      const service = TestBed.inject(SystemAvatarService);
+      const characterImage = ImageStorage.instance.add('character-face-2.png');
+      const chatTab = new ChatTab();
+      chatTab.initialize();
+      try {
+        service.setSpeakerVisible(true);
+        const spoken = chatTab.addMessage({
+          from: 'roller-user',
+          name: 'アリス',
+          text: '2d6',
+          imageIdentifier: characterImage.identifier,
+          timestamp: 1000,
+        });
+        const rolled = chatTab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller-user',
+          name: '<BCDice：アリス>',
+          tag: 'system',
+          text: '(2D6) → 7',
+          timestamp: spoken.timestamp + 1,
+        });
+        fixture.componentRef.setInput('chatMessage', rolled);
+        fixture.detectChanges();
+        expect(component.systemAvatarImage()?.url).toBe('character-face-2.png');
+
+        chatTab.addMessage({ from: 'another-user', name: 'ボブ', text: 'こんにちは', timestamp: 2000 });
+        await Promise.resolve();
+        const read = vi.spyOn(chatTab, 'chatMessages', 'get');
+
+        expect(component.systemAvatarImage()?.url).toBe('character-face-2.png');
+        expect(read).not.toHaveBeenCalled();
+      } finally {
+        service.setSpeakerVisible(false);
+        chatTab.destroy();
+        ImageStorage.instance.delete(characterImage.identifier);
+      }
+    });
+
     it('puts whoever asked for a system notice in the slot', () => {
       const service = TestBed.inject(SystemAvatarService);
       const image = ImageStorage.instance.add('gm-avatar.png');
