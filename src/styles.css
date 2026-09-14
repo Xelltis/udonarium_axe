@@ -3069,6 +3069,20 @@ body.touch-input chat-message .msg-text textarea {
 }
 
 /*
+ * A small button that stays on a phone is given a larger place to be pressed than it is drawn.
+ * The button keeps its drawn size, so a row of them keeps its room.
+ */
+body.touch-input .touch-target {
+  position: relative;
+}
+
+body.touch-input .touch-target::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+/*
  * The table takes long presses and drags on whatever lies under the finger. iOS answers a long
  * press on a picture with the menu that saves it, and iPadOS lifts the picture out to be dropped
  * somewhere else, both in place of moving the piece. Neither happens with a mouse, so this holds

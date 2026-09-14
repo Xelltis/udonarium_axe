@@ -1,7 +1,7 @@
 @if (canScrollLeft()) {
   <button
     type="button"
-    class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 mr-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
+    class="touch-target rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 mr-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
     (click)="scrollTabsLeft()"
     tabindex="-1"
     [title]="'feature.chat.window.tabScrollLeft' | transloco"
@@ -44,7 +44,7 @@
 @if (canScrollRight()) {
   <button
     type="button"
-    class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 ml-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
+    class="touch-target rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 ml-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
     (click)="scrollTabsRight()"
     tabindex="-1"
     [title]="'feature.chat.window.tabScrollRight' | transloco"
