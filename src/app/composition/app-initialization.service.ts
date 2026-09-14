@@ -103,6 +103,8 @@ export class AppInitializationService {
 
     const jukebox = new Jukebox('Jukebox');
     jukebox.initialize();
+    AudioSharingSystem.instance.preferredIdentifiers = () =>
+      jukebox.audioIdentifier.length > 0 ? [jukebox.audioIdentifier] : [];
 
     const playlist = new Playlist('Playlist');
     playlist.initialize();
