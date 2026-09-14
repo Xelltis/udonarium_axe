@@ -14,6 +14,11 @@ describe('long presses on the table', () => {
     expect(declarationsOf(css, 'game-table')).toMatch(/-webkit-touch-callout:\s*none/);
   });
 
+  it('open no menu to save the picture of a speaker in the novel mode, whose own menu is a long press', () => {
+    const hosts = /body\.touch-input\s*:is\(([^)]*)\)\s*\{\s*-webkit-touch-callout:\s*none/.exec(css)?.[1] ?? '';
+    expect(hosts.split(',').map((host) => host.trim())).toContain('visual-novel-overlay');
+  });
+
   it('lift no picture off the table to be dropped somewhere else', () => {
     expect(declarationsOf(css, 'game-table img')).toMatch(/-webkit-user-drag:\s*none/);
   });

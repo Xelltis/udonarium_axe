@@ -3049,7 +3049,7 @@ body.mobile-layout visual-novel-overlay button:not(.material-icons) {
   min-height: 40px;
 }
 
-body.touch-input :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) {
+body.touch-input :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar, visual-novel-overlay) {
   -webkit-touch-callout: none;
 }
 
