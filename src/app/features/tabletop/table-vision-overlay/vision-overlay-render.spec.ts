@@ -9,6 +9,8 @@ import {
   drawOverlayPlan,
   fillUnwalkedCells,
   hexToRgba,
+  LIGHT_MIN_OVERLAY_SCALE,
+  LIGHT_OVERLAY_PIXEL_BUDGET,
   MIN_OVERLAY_SCALE,
   OVERLAY_PIXEL_BUDGET,
   overlayScale,
@@ -495,6 +497,17 @@ describe('how big a surface the overlay is allowed', () => {
 
   it('never draws one at less than half, however big it gets', () => {
     expect(overlayScale(40000, 40000)).toBe(MIN_OVERLAY_SCALE);
+  });
+
+  it('draws a board smaller again while the table is drawn the lighter way', () => {
+    const lighter = overlayScale(7600, 7600, LIGHT_OVERLAY_PIXEL_BUDGET, LIGHT_MIN_OVERLAY_SCALE);
+
+    expect(lighter).toBeLessThan(overlayScale(7600, 7600));
+    expect(lighter).toBe(LIGHT_MIN_OVERLAY_SCALE);
+    expect(overlayScale(2400, 2400, LIGHT_OVERLAY_PIXEL_BUDGET, LIGHT_MIN_OVERLAY_SCALE)).toBeCloseTo(
+      Math.sqrt(LIGHT_OVERLAY_PIXEL_BUDGET / (2400 * 2400)),
+      6
+    );
   });
 });
 

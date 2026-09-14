@@ -264,10 +264,24 @@ function isAnimated(shape: OverlayShape): boolean {
 export const OVERLAY_PIXEL_BUDGET = 12_000_000;
 export const MIN_OVERLAY_SCALE = 0.5;
 
-export function overlayScale(width: number, height: number, budget = OVERLAY_PIXEL_BUDGET): number {
+/**
+ * The budget and the floor while the table is drawn the lighter way.
+ *
+ * The browsers that are drawn that way are the ones that give up on a large canvas first, so
+ * the darkness is let down further for them, and the edges of a hex are let soften to pay for it.
+ */
+export const LIGHT_OVERLAY_PIXEL_BUDGET = 4_000_000;
+export const LIGHT_MIN_OVERLAY_SCALE = 0.35;
+
+export function overlayScale(
+  width: number,
+  height: number,
+  budget = OVERLAY_PIXEL_BUDGET,
+  minScale = MIN_OVERLAY_SCALE
+): number {
   const pixels = width * height;
   if (!(pixels > budget)) return 1;
-  return Math.max(MIN_OVERLAY_SCALE, Math.sqrt(budget / pixels));
+  return Math.max(minScale, Math.sqrt(budget / pixels));
 }
 
 export interface DirtyRect {

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
@@ -11,6 +12,8 @@ import {
   bakeOverlayPlan,
   type DirtyRect,
   drawOverlayPlan,
+  LIGHT_MIN_OVERLAY_SCALE,
+  LIGHT_OVERLAY_PIXEL_BUDGET,
   type OverlayBake,
   overlayScale,
   overlayScratch,
@@ -29,6 +32,7 @@ export const VISION_ANIMATION_INTERVAL_MS = 50;
 })
 export class TableVisionOverlayComponent {
   protected readonly visionService = inject(VisionService);
+  private readonly renderLite = inject(RenderLiteService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly zTransform = translateZCss(Z_OFFSET_DARKNESS_PX);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('overlayCanvas');
@@ -94,7 +98,9 @@ export class TableVisionOverlayComponent {
       const ch = this.surfaceHeight + 2 * this.margin;
       // A board too big to hold a canvas of its own size is drawn smaller and let up to
       // size by the browser, which soft gradients take without complaint.
-      this.scale = overlayScale(cw, ch);
+      this.scale = this.renderLite.active()
+        ? overlayScale(cw, ch, LIGHT_OVERLAY_PIXEL_BUDGET, LIGHT_MIN_OVERLAY_SCALE)
+        : overlayScale(cw, ch);
       const pw = Math.ceil(cw * this.scale);
       const ph = Math.ceil(ch * this.scale);
       if (canvas.width !== pw) canvas.width = pw;
