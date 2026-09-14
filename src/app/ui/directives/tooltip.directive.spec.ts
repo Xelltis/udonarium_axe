@@ -81,7 +81,7 @@ describe('TooltipDirective', () => {
   let table: GameTable;
   const characters: GameCharacter[] = [];
 
-  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const wait = (ms: number) => vi.advanceTimersByTimeAsync(ms);
   const panels = () => StubTooltipPanelComponent.instances;
 
   function setViewport(width: number, height: number): void {
@@ -130,9 +130,13 @@ describe('TooltipDirective', () => {
     table.mode2d = true;
     table.hoverDetailPlacement = 'screen-edges';
     table.multiAngleEnabled = false;
+    // The open, close and follow delays are stepped over rather than sat through. The clock still
+    // runs with real time, so waiting for Angular to settle is not left stranded.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     fixture.destroy();
     for (const character of characters.splice(0)) character.destroy();
     table.mode2d = false;
