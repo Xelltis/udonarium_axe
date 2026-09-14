@@ -202,6 +202,36 @@ export function collectVisionSources(characters: readonly GameCharacter[], gridS
   return sources;
 }
 
+/**
+ * Everything about a piece that the scene is made from, as one string.
+ *
+ * Where it stands and how high, whether it shines, casts a shadow or looks, whose it is and
+ * which party it is in. A change to a piece that leaves this as it was, such as its name or a
+ * note on it, leaves the lights, the shadows and the sight on the table as they were.
+ */
+export function characterSceneKey(character: GameCharacter): string {
+  return JSON.stringify([
+    character.isVisibleOnTable,
+    surfaceOf(character),
+    character.location.x,
+    character.location.y,
+    character.posZ,
+    character.altitude,
+    character.size,
+    character.lightEnabled,
+    character.lightSpec,
+    character.castsShadow,
+    character.imageFile?.url ?? '',
+    character.visionType,
+    character.visionRange,
+    character.visionSpec,
+    character.owner,
+    character.isNpc,
+    character.partyIdentifier,
+    character.showVisionRange,
+  ]);
+}
+
 export function assembleScene(
   table: GameTable,
   characters: readonly GameCharacter[],

@@ -545,6 +545,67 @@ describe('VisionService', () => {
     expect(viewer.visionOwnerIds).toContain('player-3');
   });
 
+  describe.each([
+    ['square', GridType.SQUARE],
+    ['hex', GridType.HEX_VERTICAL],
+  ])('a piece changed on a %s table', (_, gridType) => {
+    let character: GameCharacter;
+
+    async function announce(identifier: string): Promise<void> {
+      objectChanged$.emit({ aliasName: 'character', identifier, isSendFromSelf: true });
+      await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+    }
+
+    beforeEach(async () => {
+      vi.useFakeTimers();
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      table.gridType = gridType;
+      character = GameCharacter.create('c', 1, '');
+      character.location.x = 100;
+      character.location.y = 100;
+      character.owner = 'p1';
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('keeps the scene when nothing the scene is made of has changed', async () => {
+      const before = service.scene();
+      perfCounters.enabled = true;
+      perfCounters.clear();
+
+      character.name = 'renamed';
+      await announce(character.identifier);
+
+      expect(service.scene()).toBe(before);
+      expect(perfCounters.drain().get(PERF_VISION_SCENE)).toBeUndefined();
+    });
+
+    it('builds the scene again when the piece moves', async () => {
+      const before = service.scene();
+
+      character.location.x = 300;
+      await announce(character.identifier);
+
+      const after = service.scene();
+      expect(after).not.toBe(before);
+      expect(after!.visionSources.find((source) => source.sourceId === character.identifier)?.x).toBe(325);
+    });
+
+    it('builds it again when the piece is lit', async () => {
+      character.lightEnabled = true;
+      await announce(character.identifier);
+
+      expect(service.scene()!.lights.map((light) => light.sourceId)).toContain(character.identifier);
+    });
+  });
+
   describe('what is remembered while the scene holds still', () => {
     it('hands back the same array when asked about a face again', () => {
       // One repaint asks eight times per terrain, and rebuilding the array, identical or not,

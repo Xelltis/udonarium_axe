@@ -1,6 +1,11 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { assembleScene, collectLights, collectSegments } from '@axe/application/tabletop/vision-scene-assembly';
+import {
+  assembleScene,
+  characterSceneKey,
+  collectLights,
+  collectSegments,
+} from '@axe/application/tabletop/vision-scene-assembly';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_VISION_MEMO_MISS, PERF_VISION_SCENE, perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -122,6 +127,9 @@ export class VisionService {
   private memoViewer: SceneViewer | null = null;
   private readonly memo = new Map<string, unknown>();
 
+  /** What each piece gave the scene when it was last built, so a change that gives the same is let pass. */
+  private readonly sceneKeys = new Map<string, string>();
+
   private recall<T>(key: string, compute: () => T): T {
     const scene = this.scene();
     const viewer = this.viewer();
@@ -165,7 +173,10 @@ export class VisionService {
     };
     this.objectChange.onObjectChangedForAlias(
       [...RELEVANT_ALIASES],
-      (event) => changed(event.aliasName),
+      (event) => {
+        if (event.aliasName === 'character' && this.leavesSceneAsBuilt(event.identifier)) return;
+        changed(event.aliasName);
+      },
       this.destroyRef
     );
     this.objectChange.objectAdded$.subscribe((event) => changed(event.aliasName), this.destroyRef);
@@ -268,9 +279,24 @@ export class VisionService {
     if (!table) return null;
     const standing = this.standingSegments();
     if (!standing) return null;
-    return assembleScene(table, this.objectStore.getObjects(GameCharacter), standing, (identifier) =>
-      this.objectStore.get<GameCharacter>(identifier)
-    );
+    const characters = this.objectStore.getObjects<GameCharacter>(GameCharacter);
+    this.sceneKeys.clear();
+    for (const character of characters) this.sceneKeys.set(character.identifier, characterSceneKey(character));
+    return assembleScene(table, characters, standing, (identifier) => this.objectStore.get<GameCharacter>(identifier));
+  }
+
+  /**
+   * Whether a piece still gives the scene what it gave when the scene was last built.
+   *
+   * A piece is changed for many things the lights and the sight never read, its name or a note
+   * on it among them, and building the scene again for those set every eye on the table to work
+   * out its cells again.
+   */
+  private leavesSceneAsBuilt(identifier: string): boolean {
+    const built = this.sceneKeys.get(identifier);
+    if (built === undefined) return false;
+    const character = this.objectStore.get<GameCharacter>(identifier);
+    return character instanceof GameCharacter && characterSceneKey(character) === built;
   }
 
   private readonly cellGrid = computed<CellGrid | null>(() => {
