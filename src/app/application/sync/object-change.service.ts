@@ -323,9 +323,12 @@ export class ObjectChangeService {
       this._collections.get(e.aliasName)?.update((v) => v + 1);
     }, this.destroyRef);
 
-    // A removal bumps the collection and drops the version entry itself.
+    // A removal bumps the collection and the object's own version, then drops the version entry.
+    // The parent hears of it only on the next microtask, so this is what reaches a computation
+    // that followed the object itself at once.
     objectRemoved$.subscribe((e) => {
       this._collections.get(e.aliasName)?.update((v) => v + 1);
+      this._versions.get(e.identifier)?.update((v) => v + 1);
       this._versions.delete(e.identifier);
     }, this.destroyRef);
 
