@@ -69,6 +69,16 @@
           />
         } @else {
           <span class="min-w-0 flex-1 truncate" (dblclick)="startRename(layer)">{{ layer.name }}</span>
+          @if (state.activeLayerId() === layer.id) {
+            <button
+              class="hover:bg-ui-hover rounded-ui-sm inline-flex size-5 items-center justify-center"
+              data-testid="map-layer-rename"
+              [title]="'feature.mapEditor.layers.rename' | transloco"
+              (click)="$event.stopPropagation(); startRename(layer)"
+            >
+              <i class="material-icons text-[14px]!">edit</i>
+            </button>
+          }
         }
         <button
           class="hover:bg-ui-hover rounded-ui-sm inline-flex size-5 items-center justify-center"
