@@ -802,6 +802,38 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('leaves its bars alone when data is added to another piece', () => {
+      const character = GameCharacter.create('こちら', 1, '');
+      const other = GameCharacter.create('あちら', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        const gauges = component.pieceGauges();
+
+        other.detailDataElement!.appendChild(DataElement.create('メモ', 'なし', {}));
+
+        expect(component.pieceGauges()).toBe(gauges);
+      } finally {
+        character.destroy();
+        other.destroy();
+      }
+    });
+
+    it('takes its bars down once its detail is taken away', () => {
+      const character = GameCharacter.create('ゲージ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        expect(component.pieceGauges()).toHaveLength(2);
+
+        character.detailDataElement!.destroy();
+
+        expect(component.pieceGauges()).toEqual([]);
+      } finally {
+        character.destroy();
+      }
+    });
+
     describe('the buffs as the switch for how they show', () => {
       beforeEach(() => TestBed.inject(BuffViewPreferenceService).set('icon'));
 

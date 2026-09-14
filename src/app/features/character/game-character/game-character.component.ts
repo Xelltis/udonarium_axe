@@ -586,14 +586,31 @@ export class GameCharacterComponent {
   }
 
   readonly pieceGauges = computed<PieceGauge[]>(() => {
-    const char = this.gameCharacter();
-    const detail = char?.detailDataElement;
-    if (!detail) return [];
-    this.objectChange.versionOf(detail.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(detail)) this.objectChange.versionOf(element.identifier)();
+    const detail = this.gameCharacter()?.detailDataElement ?? null;
+    if (this.followedTree(detail) === null || !detail) return [];
     return selectPieceGauges(detail);
   });
+
+  /**
+   * Follows one part of the piece's data so that a computation hears it change, and hands back
+   * everything under it.
+   *
+   * A part the piece does not have yet is followed through every data element, since it may be
+   * added anywhere under the piece. A part it has is followed through itself, what is under it
+   * and the nodes it hangs from, which are what change when it is taken away, rather than
+   * through every data element of every piece on the table.
+   */
+  private followedTree(element: DataElement | null): DataElement[] | null {
+    if (!element) {
+      this.objectChange.collectionOf('data')();
+      return null;
+    }
+    for (let node = element.parent; node; node = node.parent) this.objectChange.versionOf(node.identifier)();
+    this.objectChange.versionOf(element.identifier)();
+    const descendants = collectDataElements(element);
+    for (const descendant of descendants) this.objectChange.versionOf(descendant.identifier)();
+    return descendants;
+  }
 
   /**
    * Whether the reader may read the numbers on this piece's bars.
@@ -615,12 +632,8 @@ export class GameCharacterComponent {
   });
 
   readonly buffBadges = computed<BuffBadge[]>(() => {
-    const char = this.gameCharacter();
-    const buffEl = char?.buffDataElement;
-    if (!buffEl) return [];
-    this.objectChange.versionOf(buffEl.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(buffEl)) this.objectChange.versionOf(element.identifier)();
+    const buffEl = this.gameCharacter()?.buffDataElement ?? null;
+    if (this.followedTree(buffEl) === null || !buffEl) return [];
     return toBuffBadges(buffEl);
   });
 
@@ -631,15 +644,11 @@ export class GameCharacterComponent {
   private readonly decorScale = `scale(${(1 / DECOR_SUPERSAMPLE).toFixed(6)})`;
 
   private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
-    const char = this.gameCharacter();
-    const detail = char?.detailDataElement;
     const snapshot = new Map<string, ResourceSnapshot>();
-    if (!detail) return snapshot;
+    const elements = this.followedTree(this.gameCharacter()?.detailDataElement ?? null);
+    if (elements === null) return snapshot;
 
-    this.objectChange.versionOf(detail.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(detail)) {
-      this.objectChange.versionOf(element.identifier)();
+    for (const element of elements) {
       if (!isResourceElement(element)) continue;
       snapshot.set(element.identifier, {
         current: Number(element.currentValue),
