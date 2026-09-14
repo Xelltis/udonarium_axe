@@ -28,6 +28,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -144,6 +145,7 @@ const FAB_MARGIN_PX = 12;
 export class AppComponent {
   readonly theme = inject(ThemeService);
   readonly motion = inject(MotionService);
+  readonly renderLite = inject(RenderLiteService);
   readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);
   readonly widgets = inject(WidgetVisibilityService);

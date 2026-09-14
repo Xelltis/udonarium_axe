@@ -10,6 +10,7 @@ import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -59,6 +60,7 @@ export class MobileShellComponent {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly theme = inject(ThemeService);
   protected readonly motion = inject(MotionService);
+  protected readonly renderLite = inject(RenderLiteService);
   protected readonly viewMode = inject(ViewModePreferenceService);
   protected readonly language = inject(LanguageService);
   protected readonly layout = inject(MobileLayoutService);

@@ -1389,6 +1389,18 @@ input[type='range']::-moz-range-thumb {
   }
 }
 
+/*
+ * The lighter way of drawing (RenderLiteService): nothing blurs what lies behind it. A frosted
+ * panel over a table that moves is blurred afresh every frame, which Firefox and small machines
+ * cannot keep up with.
+ */
+:root.render-lite *,
+:root.render-lite *::before,
+:root.render-lite *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 :root.motion-reduced
   :is(
     .animate-sheet-up,

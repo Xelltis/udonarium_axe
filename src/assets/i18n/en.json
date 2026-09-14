@@ -34,6 +34,11 @@
       "on": "Effects: Always play",
       "off": "Effects: Off"
     },
+    "renderLite": {
+      "auto": "Rendering: Auto",
+      "on": "Rendering: Lighter",
+      "off": "Rendering: Full"
+    },
     "panel": {
       "peerMenu": "Connection",
       "chatWindow": "Chat",

@@ -180,6 +180,25 @@
         </i>
       </button>
       <button
+        class="border-ui-border-panel text-ui-muted active:bg-ui-hover active:text-ui-accent rounded-ui flex w-12 shrink-0 items-center justify-center border border-solid bg-transparent shadow-none"
+        [attr.aria-label]="'common.renderLite.' + renderLite.setting() | transloco"
+        (click)="renderLite.cycle()"
+      >
+        <i class="material-icons text-[18px]!">
+          @switch (renderLite.setting()) {
+            @case ('auto') {
+              blur_circular
+            }
+            @case ('on') {
+              blur_off
+            }
+            @default {
+              blur_on
+            }
+          }
+        </i>
+      </button>
+      <button
         class="border-ui-border-panel text-ui-muted active:bg-ui-hover active:text-ui-accent rounded-ui flex w-12 shrink-0 items-center justify-center border border-solid bg-transparent text-[0.75rem] font-bold uppercase shadow-none"
         [attr.aria-label]="'common.language.switchTooltip' | transloco"
         (click)="toggleLanguage()"
