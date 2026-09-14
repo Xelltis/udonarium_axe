@@ -37,7 +37,6 @@ import {
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CharacterSheetTarget } from '@axe/domain/tabletop/character-sheet-target';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain, TERRAIN_FACES, TerrainFace } from '@axe/domain/tabletop/terrain';
@@ -486,10 +485,6 @@ export class GameCharacterSheetComponent {
       return object;
     }
     return null;
-  }
-  /** The piece as a scratch mask, or null when it is something else. */
-  get scratchMask(): GameTableScratchMask | null {
-    return this.tabletopObject instanceof GameTableScratchMask ? this.tabletopObject : null;
   }
   /** The piece as a range area, or null when it is something else. */
   get rangeArea(): RangeArea | null {
@@ -941,26 +936,6 @@ export class GameCharacterSheetComponent {
     });
   }
 
-  /** Sets the scratch mask's colour. */
-  changeMaskFillColor(event: string) {
-    if (this.tabletopObject) {
-      const mask: GameTableScratchMask = this.tabletopObject as GameTableScratchMask;
-      mask.color = event;
-    }
-  }
-
-  /**
-   * Sets the scratch mask's `changeColor`, a synced colour kept beside its fill colour.
-   *
-   * Nothing on the table is drawn in it: the scratch mask is filled with `color` alone.
-   */
-  changeMaskChangeColor(event: string) {
-    if (this.tabletopObject) {
-      const mask: GameTableScratchMask = this.tabletopObject as GameTableScratchMask;
-      mask.changeColor = event;
-    }
-  }
-
   /** Sets the range area's fill colour. */
   changeGridColor(event: string) {
     if (this.tabletopObject) {
@@ -1010,14 +985,6 @@ export class GameCharacterSheetComponent {
   /** Moves the piece to the inventory named by a form field's value. */
   onSetLocation(event: Event): void {
     this.setLocation((event.target as HTMLInputElement).value);
-  }
-  /** Sets the scratch mask's colour from its colour field. */
-  onChangeMaskFillColor(event: Event): void {
-    this.changeMaskFillColor((event.target as HTMLInputElement).value);
-  }
-  /** Sets the scratch mask's `changeColor` from its colour field; nothing is drawn in that colour. */
-  onChangeMaskChangeColor(event: Event): void {
-    this.changeMaskChangeColor((event.target as HTMLInputElement).value);
   }
   /** Sets the range area's border colour from its colour field. */
   onChangeRangeColor(event: Event): void {

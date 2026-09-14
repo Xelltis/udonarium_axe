@@ -43,7 +43,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
@@ -143,25 +142,6 @@ export class TabletopActionService {
 
     viewTable.appendChild(ambience);
     return ambience;
-  }
-
-  /** Puts a ten-by-ten scratch-off mask on the table in view. Nothing is made when no table is in view. */
-  createGameTableScratchMask(position: PointerCoordinate): GameTableScratchMask | undefined {
-    const viewTable = this.getViewTable();
-    if (!viewTable) return undefined;
-
-    const tableMask = GameTableScratchMask.create(
-      this.t('feature.tabletop.action.defaultScratchMaskName'),
-      10,
-      10,
-      100
-    );
-    tableMask.location.x = position.x - 25;
-    tableMask.location.y = position.y - 25;
-    tableMask.posZ = position.z;
-
-    viewTable.appendChild(tableMask);
-    return tableMask;
   }
 
   /**

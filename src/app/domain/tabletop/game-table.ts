@@ -5,7 +5,6 @@ import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-k
 import { CutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { DEFAULT_FOG_COLOR, DEFAULT_FOG_MODE, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { HoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import {
@@ -179,13 +178,6 @@ export class GameTable extends ObjectNode {
   /** The masks covering parts of this table. */
   get masks(): GameTableMask[] {
     return this.children.filter((o): o is GameTableMask => o instanceof GameTableMask);
-  }
-
-  /**
-   * The scratch masks on this table, which are revealed cell by cell as they are scratched away.
-   */
-  get scratchMasks(): GameTableScratchMask[] {
-    return this.children.filter((o): o is GameTableScratchMask => o instanceof GameTableScratchMask);
   }
 
   // GameObject Lifecycle

@@ -218,7 +218,7 @@ describe('GameTable', () => {
     });
   });
 
-  describe('terrains / masks / scratchMasks', () => {
+  describe('terrains / masks', () => {
     it('starts with no terrain', () => {
       const table = new GameTable();
       table.initialize();
@@ -229,12 +229,6 @@ describe('GameTable', () => {
       const table = new GameTable();
       table.initialize();
       expect(table.masks).toEqual([]);
-    });
-
-    it('starts with no scratch masks', () => {
-      const table = new GameTable();
-      table.initialize();
-      expect(table.scratchMasks).toEqual([]);
     });
   });
 });

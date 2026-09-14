@@ -212,13 +212,6 @@
         <game-table-mask class="absolute will-change-transform backface-visible transform-3d" [gameTableMask]="mask">
         </game-table-mask>
       }
-      @for (scratchMask of tableScratchMasks(); track scratchMask.identifier) {
-        <game-table-scratch-mask
-          class="absolute will-change-transform backface-visible transform-3d"
-          [gameTableScratchMask]="scratchMask"
-        >
-        </game-table-scratch-mask>
-      }
       @for (ambience of ambiences(); track ambience.identifier) {
         <table-ambience
           class="absolute will-change-transform backface-visible transform-3d"

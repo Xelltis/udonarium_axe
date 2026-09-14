@@ -18,6 +18,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -271,6 +272,7 @@ export class AppComponent {
     inject(FogMemoryWriterService);
     inject(CutInService);
     inject(GravityService);
+    inject(LegacyScratchMaskMigrationService);
     inject(TurnOrderService);
     inject(SkinService);
 

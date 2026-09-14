@@ -1252,8 +1252,6 @@
         "popupMaxHeight": "Popup max height",
         "limitHeight": "Limit height to value",
         "color": "Color",
-        "changeColor": "Reveal color",
-        "scratchMaskNote": "* width/height values are capped at 50",
         "tabSheet": "Sheet",
         "tabSettings": "Settings",
         "portrait": "Portrait",
@@ -1740,7 +1738,6 @@
         "createLight": "Create light source",
         "defaultCharacterName": "New character",
         "defaultMaskName": "Map mask",
-        "defaultScratchMaskName": "Scratch mask",
         "defaultTerrainName": "Terrain",
         "defaultNoteName": "Shared note",
         "defaultNoteText": "Enter text...",
@@ -1766,7 +1763,6 @@
         "range": "Range settings",
         "rangeFollow": "Follow character",
         "mask": "Map mask settings",
-        "scratchMask": "Scratch mask settings",
         "textNote": "Shared note settings"
       },
       "rangeDocking": {
@@ -1849,7 +1845,6 @@
         "aliasTerrain": "Terrain",
         "aliasCharacter": "Character",
         "aliasMask": "Mask",
-        "aliasScratchMask": "Scratch mask",
         "aliasTextNote": "Note",
         "aliasRange": "Range",
         "aliasDiceSymbol": "Dice",

@@ -14,7 +14,7 @@ const DEBOUNCE_MS = 80;
 const MAX_PASSES = 8;
 const BUCKET_PX = 200;
 
-const GRAVITY_ALIASES = ['terrain', 'character', 'table-mask', 'table-scratch-mask', 'text-note'] as const;
+const GRAVITY_ALIASES = ['terrain', 'character', 'table-mask', 'text-note'] as const;
 
 interface CachedEntry {
   entry: TabletopOverlapRegistryEntry;

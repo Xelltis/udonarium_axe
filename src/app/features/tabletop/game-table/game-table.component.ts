@@ -95,7 +95,6 @@ import {
   buildHexOuterBorderSvg,
   buildHexOutlineMask,
 } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
-import { GameTableScratchMaskComponent } from '@axe/features/tabletop/game-table-scratch-mask/game-table-scratch-mask.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
@@ -182,7 +181,6 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TerrainComponent,
     WhiteBoardComponent,
     GameTableMaskComponent,
-    GameTableScratchMaskComponent,
     TextNoteComponent,
     TooltipDirective,
     NgStyle,
@@ -728,10 +726,6 @@ export class GameTableComponent {
   readonly tableMasks = computed(() => {
     this.objectChangeService.collectionOf('table-mask')();
     return this.tabletopService.tableMasks;
-  });
-  readonly tableScratchMasks = computed(() => {
-    this.objectChangeService.collectionOf('table-scratch-mask')();
-    return this.tabletopService.tableScratchMasks;
   });
   readonly cards = computed(() => {
     this.objectChangeService.collectionOf('card')();

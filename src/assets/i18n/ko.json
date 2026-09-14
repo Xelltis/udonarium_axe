@@ -1252,8 +1252,6 @@
         "popupMaxHeight": "팝업 세로 최대",
         "limitHeight": "height 설정값으로 높이 제한",
         "color": "색상",
-        "changeColor": "드러난 부분 색상",
-        "scratchMaskNote": "※ width, height 항목은 최대 50",
         "tabSheet": "시트",
         "tabSettings": "설정",
         "portrait": "포트레이트",
@@ -1740,7 +1738,6 @@
         "createLight": "광원 만들기",
         "defaultCharacterName": "새 캐릭터",
         "defaultMaskName": "맵 마스크",
-        "defaultScratchMaskName": "스크래치 마스크",
         "defaultTerrainName": "지형",
         "defaultNoteName": "공유 메모",
         "defaultNoteText": "텍스트를 입력해 주세요",
@@ -1766,7 +1763,6 @@
         "range": "사거리 범위 설정",
         "rangeFollow": "캐릭터를 따라가기",
         "mask": "맵 마스크 설정",
-        "scratchMask": "스크래치 마스크 설정",
         "textNote": "공유 메모 설정"
       },
       "rangeDocking": {
@@ -1849,7 +1845,6 @@
         "aliasTerrain": "지형",
         "aliasCharacter": "캐릭터",
         "aliasMask": "마스크",
-        "aliasScratchMask": "스크래치 마스크",
         "aliasTextNote": "메모",
         "aliasRange": "사거리",
         "aliasDiceSymbol": "주사위",

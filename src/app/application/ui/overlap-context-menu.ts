@@ -8,7 +8,6 @@ const ALIAS_LABEL_KEY: Record<string, string> = {
   terrain: 'feature.tabletop.contextMenu.aliasTerrain',
   character: 'feature.tabletop.contextMenu.aliasCharacter',
   'table-mask': 'feature.tabletop.contextMenu.aliasMask',
-  'table-scratch-mask': 'feature.tabletop.contextMenu.aliasScratchMask',
   'text-note': 'feature.tabletop.contextMenu.aliasTextNote',
   range: 'feature.tabletop.contextMenu.aliasRange',
   'dice-symbol': 'feature.tabletop.contextMenu.aliasDiceSymbol',

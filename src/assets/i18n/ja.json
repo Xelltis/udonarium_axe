@@ -1252,8 +1252,6 @@
         "popupMaxHeight": "ポップアップ縦幅最大",
         "limitHeight": "height設定値に高さを制限",
         "color": "カラー",
-        "changeColor": "更新部カラー",
-        "scratchMaskNote": "※width、height項目は最大50",
         "tabSheet": "シート",
         "tabSettings": "設定",
         "portrait": "ポートレート",
@@ -1740,7 +1738,6 @@
         "createLight": "光源を作成",
         "defaultCharacterName": "新しいキャラクター",
         "defaultMaskName": "マップマスク",
-        "defaultScratchMaskName": "スクラッチマスク",
         "defaultTerrainName": "地形",
         "defaultNoteName": "共有メモ",
         "defaultNoteText": "テキストを入力してください",
@@ -1766,7 +1763,6 @@
         "range": "射程範囲設定",
         "rangeFollow": "キャラクターに追従",
         "mask": "マップマスク設定",
-        "scratchMask": "スクラッチマスク設定",
         "textNote": "共有メモ設定"
       },
       "rangeDocking": {
@@ -1849,7 +1845,6 @@
         "aliasTerrain": "地形",
         "aliasCharacter": "キャラクター",
         "aliasMask": "マスク",
-        "aliasScratchMask": "スクラッチマスク",
         "aliasTextNote": "メモ",
         "aliasRange": "射程",
         "aliasDiceSymbol": "ダイス",
