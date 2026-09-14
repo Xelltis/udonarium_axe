@@ -7,7 +7,13 @@ import {
   collectSegments,
 } from '@axe/application/tabletop/vision-scene-assembly';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { PERF_VISION_MEMO_MISS, PERF_VISION_SCENE, perfCounters, perfTimed } from '@axe/core/util/perf-counters';
+import {
+  PERF_VISION_CELLS_MISS,
+  PERF_VISION_MEMO_MISS,
+  PERF_VISION_SCENE,
+  perfCounters,
+  perfTimed,
+} from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -32,6 +38,7 @@ import {
   fogRules,
 } from '@axe/domain/tabletop/fog/fog-mode';
 import { computeVisibleCellsFor, VisibleCellsOptions } from '@axe/domain/tabletop/fog/visible-cells';
+import { visibleCellsLightKey, VisibleCellsMemo, visionSourceKey } from '@axe/domain/tabletop/fog/visible-cells-memo';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -105,6 +112,20 @@ function sameViewer(a: SceneViewer, b: SceneViewer): boolean {
   );
 }
 
+type VisionCells = { grid: CellGrid; perSource: Map<string, CellBits>; shared: CellBits } | null;
+
+/** Whether two answers hold the very cells of the same eyes, which is what eyes that stood still are handed back. */
+function sameVisionCells(a: VisionCells, b: VisionCells): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.grid !== b.grid || a.perSource.size !== b.perSource.size) return false;
+  for (const [id, cells] of a.perSource) if (b.perSource.get(id) !== cells) return false;
+  return a.shared.equals(b.shared);
+}
+
+function sameCells(a: CellBits | null, b: CellBits | null): boolean {
+  return a === b || (!!a && !!b && a.equals(b));
+}
+
 @Injectable({ providedIn: 'root' })
 export class VisionService {
   private readonly objectChange = inject(ObjectChangeService);
@@ -129,6 +150,7 @@ export class VisionService {
 
   /** What each piece gave the scene when it was last built, so a change that gives the same is let pass. */
   private readonly sceneKeys = new Map<string, string>();
+  private readonly cellsMemo = new VisibleCellsMemo();
 
   private recall<T>(key: string, compute: () => T): T {
     const scene = this.scene();
@@ -354,87 +376,109 @@ export class VisionService {
    * reader sees, what the party between them has been shown, and what one piece alone reaches
    * when its own sight is drawn out.
    */
-  private readonly visionCells = computed(() => {
-    const scene = this.scene();
-    const grid = this.cellGrid();
-    const indexes = this.sightIndexes();
-    const table = this.currentTable();
-    if (!scene || !grid || !indexes || !table || !this.active()) return null;
-    return perfTimed('cells', () => {
-      const standing = this.blockingCells();
-      const options: VisibleCellsOptions = {
-        scene,
-        grid,
-        indexes,
-        blocking: standing?.cells,
-        blockingTops: standing?.tops,
-        blockingBases: standing?.bases,
-      };
-      const perSource = new Map<string, CellBits>();
-      const shared = new CellBits(cellCount(grid));
-      const players = this.partyOwnerIds(scene.visionSources);
-      const viewer = this.viewer();
-      const shown = this.shownVisionIds();
-      // Sight belongs to the piece standing on the table. A piece nobody has claimed is the
-      // party's eyes all the same — user ids change between connections, and nothing on the
-      // piece says whose it is. A piece marked as the game master's is theirs to keep aside,
-      // claimed or not: a monster set out on the board is not one of the party's eyes.
-      for (const source of scene.visionSources) {
-        const communal = source.owner === '' && !source.isNpc;
-        const wanted =
-          communal ||
-          players.has(source.owner) ||
-          shown.has(source.sourceId) ||
-          viewerShares(viewer, source.owner, source.partyId);
-        if (!wanted) continue;
-        const cells = computeVisibleCellsFor(source, options);
-        perSource.set(source.sourceId, cells);
-        if (communal || players.has(source.owner)) shared.or(cells);
-      }
-      return { grid, perSource, shared };
-    });
-  });
+  private readonly visionCells = computed<VisionCells>(
+    () => {
+      const scene = this.scene();
+      const grid = this.cellGrid();
+      const indexes = this.sightIndexes();
+      const table = this.currentTable();
+      if (!scene || !grid || !indexes || !table || !this.active()) return null;
+      return perfTimed('cells', () => {
+        const standing = this.blockingCells();
+        const options: VisibleCellsOptions = {
+          scene,
+          grid,
+          indexes,
+          blocking: standing?.cells,
+          blockingTops: standing?.tops,
+          blockingBases: standing?.bases,
+        };
+        const surroundings = [
+          grid,
+          indexes,
+          scene.lightSegments,
+          standing?.cells,
+          standing?.tops,
+          standing?.bases,
+          visibleCellsLightKey(scene),
+        ];
+        const perSource = new Map<string, CellBits>();
+        const shared = new CellBits(cellCount(grid));
+        const players = this.partyOwnerIds(scene.visionSources);
+        const viewer = this.viewer();
+        const shown = this.shownVisionIds();
+        // Sight belongs to the piece standing on the table. A piece nobody has claimed is the
+        // party's eyes all the same — user ids change between connections, and nothing on the
+        // piece says whose it is. A piece marked as the game master's is theirs to keep aside,
+        // claimed or not: a monster set out on the board is not one of the party's eyes.
+        for (const source of scene.visionSources) {
+          const communal = source.owner === '' && !source.isNpc;
+          const wanted =
+            communal ||
+            players.has(source.owner) ||
+            shown.has(source.sourceId) ||
+            viewerShares(viewer, source.owner, source.partyId);
+          if (!wanted) continue;
+          const cells = this.cellsMemo.recall(source.sourceId, visionSourceKey(source), surroundings, () => {
+            perfCounters.bump(PERF_VISION_CELLS_MISS);
+            return computeVisibleCellsFor(source, options);
+          });
+          perSource.set(source.sourceId, cells);
+          if (communal || players.has(source.owner)) shared.or(cells);
+        }
+        this.cellsMemo.keepOnly(new Set(scene.visionSources.map((source) => source.sourceId)));
+        return { grid, perSource, shared };
+      });
+    },
+    { equal: sameVisionCells }
+  );
 
   /** Null when the reader has no eyes of their own, which is when nothing is cut back to them. */
-  private readonly viewerCells = computed<CellBits | null>(() => {
-    const cells = this.visionCells();
-    const scene = this.scene();
-    if (!cells || !scene) return null;
-    const viewer = this.viewer();
-    if (viewer.isGameMaster) return null;
-    const mine = new CellBits(cellCount(cells.grid));
-    let any = false;
-    for (const source of scene.visionSources) {
-      if (source.type === VisionType.BLIND) continue;
-      if (source.owner !== '' && !viewerShares(viewer, source.owner, source.partyId)) continue;
-      const own = cells.perSource.get(source.sourceId);
-      if (!own) continue;
-      mine.or(own);
-      any = true;
-    }
-    return any ? mine : null;
-  });
+  private readonly viewerCells = computed<CellBits | null>(
+    () => {
+      const cells = this.visionCells();
+      const scene = this.scene();
+      if (!cells || !scene) return null;
+      const viewer = this.viewer();
+      if (viewer.isGameMaster) return null;
+      const mine = new CellBits(cellCount(cells.grid));
+      let any = false;
+      for (const source of scene.visionSources) {
+        if (source.type === VisionType.BLIND) continue;
+        if (source.owner !== '' && !viewerShares(viewer, source.owner, source.partyId)) continue;
+        const own = cells.perSource.get(source.sourceId);
+        if (!own) continue;
+        mine.or(own);
+        any = true;
+      }
+      return any ? mine : null;
+    },
+    { equal: sameCells }
+  );
 
   readonly sharedVisibleCells = computed<{ grid: CellGrid; cells: CellBits } | null>(() => {
     const cells = this.visionCells();
     return cells ? { grid: cells.grid, cells: cells.shared } : null;
   });
 
-  readonly exploredCells = computed<CellBits | null>(() => {
-    const cells = this.visionCells();
-    const table = this.currentTable();
-    if (!cells || !table || !table.fogEnabled) return null;
-    const explored = cells.shared.copy();
-    if (fogRules(table.fogMode).remembersGround) {
-      this.objectChange.collectionOf('fog-memory')();
-      const memory = fogMemoryOn(table);
-      if (memory) {
-        this.objectChange.versionOf(memory.identifier)();
-        explored.or(memory.read(cells.grid));
+  readonly exploredCells = computed<CellBits | null>(
+    () => {
+      const cells = this.visionCells();
+      const table = this.currentTable();
+      if (!cells || !table || !table.fogEnabled) return null;
+      const explored = cells.shared.copy();
+      if (fogRules(table.fogMode).remembersGround) {
+        this.objectChange.collectionOf('fog-memory')();
+        const memory = fogMemoryOn(table);
+        if (memory) {
+          this.objectChange.versionOf(memory.identifier)();
+          explored.or(memory.read(cells.grid));
+        }
       }
-    }
-    return explored;
-  });
+      return explored;
+    },
+    { equal: sameCells }
+  );
 
   readonly overlayVision = computed<OverlayVision | undefined>(() => {
     const cells = this.visionCells();

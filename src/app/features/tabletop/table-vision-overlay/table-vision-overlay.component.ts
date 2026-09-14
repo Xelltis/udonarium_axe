@@ -5,7 +5,7 @@ import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { HEX_SURFACE_INFLATE_PX, hexSurfaceCells, SurfacePoint } from '@axe/domain/tabletop/surface-cells';
-import { computeOverlayPlan, OverlayPlan } from '@axe/domain/tabletop/vision-scene';
+import { computeOverlayPlan, OverlayPlan, sameOverlayPlan } from '@axe/domain/tabletop/vision-scene';
 import {
   animatedGlowBounds,
   type BakeCanvas,
@@ -38,6 +38,8 @@ export class TableVisionOverlayComponent {
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('overlayCanvas');
 
   private plan: OverlayPlan | null = null;
+  /** The size and placement the plan was last drawn at, so a scene that draws the same picture is let pass. */
+  private drawnLayout = '';
   private surfaceWidth = 0;
   private surfaceHeight = 0;
   private surfaceOriginX = 0;
@@ -62,6 +64,7 @@ export class TableVisionOverlayComponent {
       if (!ctx) return;
       if (!scene) {
         this.plan = null;
+        this.drawnLayout = '';
         this.animated = false;
         this.bake = null;
         this.scratch = null;
@@ -109,7 +112,11 @@ export class TableVisionOverlayComponent {
       canvas.style.top = this.surfaceOriginY - this.margin + 'px';
       canvas.style.width = cw + 'px';
       canvas.style.height = ch + 'px';
-      this.plan = computeOverlayPlan(scene, viewer, this.visionService.overlayVision());
+      const plan = computeOverlayPlan(scene, viewer, this.visionService.overlayVision());
+      const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}`;
+      if (this.plan && layout === this.drawnLayout && sameOverlayPlan(this.plan, plan)) return;
+      this.plan = plan;
+      this.drawnLayout = layout;
       this.refreshScratch(cw, ch);
       this.animated = scene.lights.some((light) => light.animation && light.animation !== 'none');
       this.ensureImages();

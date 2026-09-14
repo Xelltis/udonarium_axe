@@ -1,6 +1,7 @@
 export const PERF_TERRAIN_GRID_RASTER = 'terrainGridRaster';
 export const PERF_VISION_SCENE = 'visionScene';
 export const PERF_VISION_MEMO_MISS = 'visionMemoMiss';
+export const PERF_VISION_CELLS_MISS = 'visionCellsMiss';
 export const PERF_EFFECT_FRAME = 'effectFrame';
 export const PERF_PARTICLES = 'particles';
 export const PERF_TO_DATA_URL = 'toDataUrl';

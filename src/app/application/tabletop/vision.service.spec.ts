@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { PERF_VISION_SCENE, perfCounters } from '@axe/core/util/perf-counters';
+import { PERF_VISION_CELLS_MISS, PERF_VISION_SCENE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -603,6 +603,45 @@ describe('VisionService', () => {
       await announce(character.identifier);
 
       expect(service.scene()!.lights.map((light) => light.sourceId)).toContain(character.identifier);
+    });
+
+    describe('with more than one pair of eyes on it', () => {
+      let other: GameCharacter;
+
+      beforeEach(async () => {
+        character.visionRange = 4;
+        other = GameCharacter.create('d', 1, '');
+        other.location.x = 600;
+        other.location.y = 600;
+        other.owner = 'p1';
+        other.visionRange = 4;
+        await announce(character.identifier);
+        service.sharedVisibleCells();
+      });
+
+      it('works the cells out again only for the eyes that moved', async () => {
+        perfCounters.enabled = true;
+        perfCounters.clear();
+
+        character.location.x = 150;
+        await announce(character.identifier);
+        service.sharedVisibleCells();
+
+        expect(perfCounters.drain().get(PERF_VISION_CELLS_MISS)).toBe(1);
+      });
+
+      it("keeps the reader's view as it was when a monster nobody looks through moves", async () => {
+        const monster = GameCharacter.create('m', 1, '');
+        monster.isNpc = true;
+        monster.visionRange = 4;
+        await announce(monster.identifier);
+        const before = service.overlayVision();
+
+        monster.location.x = 350;
+        await announce(monster.identifier);
+
+        expect(service.overlayVision()).toBe(before);
+      });
     });
   });
 
