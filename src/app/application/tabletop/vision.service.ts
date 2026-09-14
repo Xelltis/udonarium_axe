@@ -590,11 +590,7 @@ export class VisionService {
     const grid = cells.grid;
     const cols = Math.max(1, Math.round(terrain.width));
     const rows = Math.max(1, Math.round(terrain.depth));
-    // Held against the explored set itself rather than in the scene-lifetime memo: the fog's
-    // record changes without the scene changing, and a cover read through the memo then kept
-    // answering for the record as it stood one step ago. With no record in play, the cells of
-    // the scene stand in as the key.
-    const memoKey: object = explored ?? cells;
+    const memoKey = this.coverScope();
     let byTerrain = this.coverMemo.get(memoKey);
     if (!byTerrain) {
       byTerrain = new Map();
@@ -609,6 +605,20 @@ export class VisionService {
   }
 
   private readonly coverMemo = new WeakMap<object, Map<string, TerrainFogCover>>();
+
+  /**
+   * What a terrain's cover is worked out against, as one object that is new whenever any of it is.
+   *
+   * Not the scene-lifetime memo, since the fog's record changes without the scene changing. Nor
+   * the cells alone, which stay the same object while nobody's sight has changed: the light on a
+   * terrain also turns on whose eyes it is read for, and on the lights of the scene.
+   */
+  private readonly coverScope = computed(() => ({
+    scene: this.scene(),
+    viewer: this.viewer(),
+    cells: this.visionCells(),
+    explored: this.exploredCells(),
+  }));
 
   private coverOf(
     terrain: Terrain,

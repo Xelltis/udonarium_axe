@@ -506,6 +506,34 @@ describe('VisionService', () => {
     expect(scene!.sightSegments.length).toBeGreaterThan(4);
   });
 
+  describe.each([
+    ['square', GridType.SQUARE],
+    ['hex', GridType.HEX_VERTICAL],
+  ])('a terrain on a %s table looked at by somebody else', (_, gridType) => {
+    it('is read again for a player the game master looks through', () => {
+      addPeer('p1', PeerRole.Player);
+      makeMyCursor('gm', PeerRole.GameMaster);
+      const table = makeDarkTable();
+      table.gridType = gridType;
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 500;
+      pc.location.y = 500;
+      pc.visionRange = 4;
+      table.appendChild(pc);
+      const wall = Terrain.create('wall', 2, 1, 1, 'wall.png', 'floor.png');
+      wall.location.x = 800;
+      wall.location.y = 800;
+      table.appendChild(wall);
+
+      const asMaster = service.terrainFogCover(wall)!.brightness[0];
+      service.previewAsUserId.set('p1');
+      const asPlayer = service.terrainFogCover(wall)!.brightness[0];
+
+      expect(asPlayer).toBeLessThan(asMaster);
+    });
+  });
+
   it('lets the game master look through the eyes of a player', () => {
     makeMyCursor('gm', PeerRole.GameMaster);
     makeDarkTable();
