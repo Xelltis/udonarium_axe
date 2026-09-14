@@ -17,7 +17,7 @@ export class BufferSharingTask<T> {
   private data: T | null = null;
   private uint8Array: Uint8Array | null = null;
   private chunks: Uint8Array[] = [];
-  private chunkSize: number = 32 * 1024;
+  private chunkSize: number = 64 * 1024;
   private chunkReceiveCount: number = 0;
   private sendChunkTimer: number | null = null;
 

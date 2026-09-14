@@ -147,7 +147,12 @@ export class SkyWayConnection implements Connection {
     this.bandwidthUsage += byteLength;
     this.outboundQueue = this.outboundQueue.then(async () => {
       await waitZeroTimeout();
-      if (container.data.byteLength > 1024 && Array.isArray(data) && data.length > 1) {
+      if (
+        container.data.byteLength > 1024 &&
+        Array.isArray(data) &&
+        data.length > 1 &&
+        !SkyWayConnection.carriesFileChunk(data)
+      ) {
         try {
           const compressed = await compressAsync(container.data);
           if (compressed.byteLength < container.data.byteLength) {
@@ -164,6 +169,19 @@ export class SkyWayConnection implements Connection {
         this.sendBroadcast(container);
       }
       this.bandwidthUsage -= byteLength;
+    });
+  }
+
+  /**
+   * Whether a batch carries a piece of an image or audio file.
+   *
+   * Those bytes are already compressed, so gzipping the batch around them costs time and
+   * saves nothing.
+   */
+  private static carriesFileChunk(batch: readonly unknown[]): boolean {
+    return batch.some((message) => {
+      const eventName = (message as { eventName?: unknown } | null)?.eventName;
+      return typeof eventName === 'string' && eventName.startsWith('FILE_SEND_CHUNK_');
     });
   }
 

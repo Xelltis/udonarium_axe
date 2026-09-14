@@ -17,6 +17,50 @@ describe('SkyWayConnection', () => {
     expect(conn.bandwidthUsage).toBe(0);
   });
 
+  describe('sending', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+    let connAny: Record<string, any>;
+    let sent: { isCompressed?: boolean }[];
+
+    const compressible = () => new Uint8Array(8 * 1024);
+
+    beforeEach(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+      connAny = new SkyWayConnection() as any;
+      Object.defineProperty(connAny, 'peers', { get: () => [PeerContext.parse('peer-a')], configurable: true });
+      sent = [];
+      vi.spyOn(connAny, 'sendBroadcast').mockImplementation((container: unknown) => {
+        sent.push(container as { isCompressed?: boolean });
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('still gzips a batch of ordinary messages', async () => {
+      connAny.send([
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+      ]);
+      await connAny.outboundQueue;
+
+      expect(sent).toHaveLength(1);
+      expect(sent[0].isCompressed).toBe(true);
+    });
+
+    it('leaves a batch carrying a piece of a file as it is, since those bytes are compressed already', async () => {
+      connAny.send([
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 2, chunk: compressible() } },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+      ]);
+      await connAny.outboundQueue;
+
+      expect(sent).toHaveLength(1);
+      expect(sent[0].isCompressed).toBeFalsy();
+    });
+  });
+
   describe('leaveImmediately', () => {
     it('carries its methods', () => {
       const conn = new SkyWayConnection();
