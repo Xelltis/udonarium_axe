@@ -28,6 +28,7 @@ const DICE_OFFSET_PX = 60;
 export class CharacterDiceService {
   private readonly objectStore = inject(ObjectStore);
 
+  /** The dice a character keeps on its sheet, which are the ones not out on the table. */
   held(character: GameCharacter): HeldDie[] {
     return heldDiceOf(character);
   }

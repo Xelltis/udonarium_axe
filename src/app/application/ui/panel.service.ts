@@ -162,6 +162,7 @@ export class PanelService {
    */
   private static readonly singlesVersion = signal(0);
   private readonly _title = signal('');
+  /** The title shown in the panel's title bar. */
   get title(): string {
     return this._title();
   }
@@ -170,6 +171,7 @@ export class PanelService {
   }
 
   private readonly _titleTooltip = signal('');
+  /** Tooltip text shown over the panel's title. Empty for none. */
   get titleTooltip(): string {
     return this._titleTooltip();
   }
@@ -219,6 +221,7 @@ export class PanelService {
    */
   readonly activated$ = new EventChannel<void>();
   private readonly _chatTab = signal<ChatTab | null>(null);
+  /** The chat tab a chat window panel is showing, or null for a panel that shows none. */
   get chatTab(): ChatTab | null {
     return this._chatTab();
   }
@@ -244,15 +247,24 @@ export class PanelService {
    * full size with nothing drawn in it.
    */
   readonly minimizeRequest$ = new EventChannel<boolean>();
+  /** Whether this panel still stands in a frame, which stops being true once it is closed. */
   get isShow(): boolean {
     return this.frame !== null;
   }
 
+  /**
+   * Offers the element that scrolls for this panel, unless the content has already claimed one of
+   * its own.
+   */
   setDefaultScrollablePanel(panel: HTMLDivElement): void {
     if (this.isScrollablePanelClaimed) return;
     this.scrollablePanel = panel;
   }
 
+  /**
+   * Makes an element the panel's scrolling area for good, so the frame's default can no longer
+   * replace it.
+   */
   claimScrollablePanel(panel: HTMLDivElement): void {
     this.isScrollablePanelClaimed = true;
     this.scrollablePanel = panel;
@@ -304,6 +316,14 @@ export class PanelService {
     return OverlayLayers.layerFor(this.frame?.frameDocument());
   }
 
+  /**
+   * Opens a component in a new panel frame and returns the component instance.
+   *
+   * Without a parent container, a panel opened from a panel in a detached window opens in that
+   * window, and anywhere else on the table. A `single` name closes the panel already holding it
+   * first. A rotation set by `runWithInitialRotation` applies when the option names none, and the
+   * position is kept inside the viewport.
+   */
   open<T>(childComponent: Type<T>, option?: PanelOption, parentViewContainerRef?: ViewContainerRef): T {
     const windowLayer = parentViewContainerRef ? null : this.windowLayer();
     if (windowLayer) option = { ...option, windowed: true };
@@ -366,6 +386,12 @@ export class PanelService {
     return panelComponentRef.instance;
   }
 
+  /**
+   * Fetches a panel component and opens it once it arrives, running `setup` on the instance.
+   *
+   * A `single` name counts as open while the code is on its way, so `closeSingle` in the meantime
+   * stops it opening at all. A failed fetch is logged and opens nothing.
+   */
   openLazy<T>(
     factory: () => Promise<Type<T>>,
     option?: PanelOption,
@@ -399,6 +425,13 @@ export class PanelService {
       });
   }
 
+  /**
+   * Runs an action so that panels it opens face the given side of the table, unless their option
+   * names a rotation.
+   *
+   * Menus on a table seen from above wrap their actions in this. The previous rotation is put back
+   * afterwards.
+   */
   runWithInitialRotation<T>(rotationDegrees: PanelRotationDegrees, action: () => T): T {
     const previous = this.actionRotationDegrees;
     this.actionRotationDegrees = rotationDegrees;
@@ -442,6 +475,13 @@ export class PanelService {
     return { ...option, rotationDegrees };
   }
 
+  /**
+   * Moves a panel's requested position so the panel stays on screen.
+   *
+   * The size falls back to the given panel's where the option leaves it out. A panel turned
+   * sideways is kept on screen by its turned footprint, and centred where that does not fit.
+   * Outside a browser the option comes back as it is.
+   */
   static clampPanelOptionToViewport(option: PanelOption, fallback: PanelService): PanelOption {
     if (typeof window === 'undefined') return option;
     const width = option.width ?? fallback.width;
@@ -509,6 +549,7 @@ export class PanelService {
     this.frame = frame;
   }
 
+  /** Puts this panel away through its frame. Does nothing once it is already closed. */
   close() {
     const frame = this.frame;
     if (!frame) return;

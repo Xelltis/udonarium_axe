@@ -42,6 +42,7 @@ export class ReplayEditorService {
   private readonly originalSeqs = computed(() => new Set(this._original().map((event) => event.seq)));
   readonly canUndo = computed(() => this._history().length > 0);
 
+  /** Starts editing a recording's events, with an empty undo history. */
   begin(events: readonly ReplayEvent[]): void {
     this._original.set([...events]);
     this._edited.set([...events]);
@@ -49,6 +50,7 @@ export class ReplayEditorService {
     this._isEditing.set(true);
   }
 
+  /** Puts the events back as they were before the last change. Only the last 100 changes can be undone. */
   undo(): void {
     const history = this._history();
     const previous = history[history.length - 1];
@@ -64,16 +66,23 @@ export class ReplayEditorService {
     this._edited.set(next);
   }
 
+  /** Throws every edit away and stops editing. */
   cancel(): void {
     this._edited.set([...this._original()]);
     this._history.set([]);
     this._isEditing.set(false);
   }
 
+  /** Puts the events back as recorded while staying in the editor, as a change that can itself be undone. */
   revert(): void {
     this.change(() => [...this._original()]);
   }
 
+  /**
+   * Adds a new entry at a row, given a fresh sequence number and a time between its neighbours.
+   *
+   * A row past either end is taken as that end.
+   */
   insert(atIndex: number, draft: ReplayEntryDraft): void {
     this.change((events) => {
       const index = Math.max(0, Math.min(events.length, atIndex));
@@ -82,27 +91,39 @@ export class ReplayEditorService {
     });
   }
 
+  /** Adds events that were already made, such as a staged scene, at a row. Nothing given changes nothing. */
   insertMany(atIndex: number, entries: readonly ReplayEvent[]): void {
     if (entries.length < 1) return;
     this.change((events) => insertReplayEvents(events, atIndex, entries));
   }
 
+  /** Whether the event with this sequence number was added in the editor rather than recorded. */
   isInserted(seq: number): boolean {
     return !this.originalSeqs().has(seq);
   }
 
+  /** Removes the event with this sequence number. */
   remove(seq: number): void {
     this.change((events) => removeReplayEvent(events, seq));
   }
 
+  /** Moves the event with this sequence number up or down by `offset` rows. */
   move(seq: number, offset: number): void {
     this.change((events) => moveReplayEvent(events, seq, offset));
   }
 
+  /** Rewrites the text of the event with this sequence number. */
   retext(seq: number, text: string): void {
     this.change((events) => retextReplayEvent(events, seq, text));
   }
 
+  /**
+   * Saves the edited events as a new recording in this browser, leaving the original as it was.
+   *
+   * The events are renumbered, and boards are rebuilt from `base` along the way so the new
+   * recording can be played from any point. Answers the new recording's id and ends editing, or
+   * null when a save is already running, nothing is left to save, or the storage refuses.
+   */
   async saveAsDerived(source: ReplayManifest, base: readonly ReplayObjectSnapshot[]): Promise<number | null> {
     if (this._isSaving()) return null;
     this._isSaving.set(true);

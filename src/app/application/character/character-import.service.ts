@@ -35,6 +35,14 @@ let jsonpCounter = 0;
 export class CharacterImportService {
   private readonly imageStorage = inject(ImageStorage);
 
+  /**
+   * Builds a character from pasted sheet JSON or a character sheet URL, fetching the sheet and its
+   * portrait as needed.
+   *
+   * The piece is owned by you, and starts disclosed to game masters only when you are one. A
+   * failure comes back as an error kind rather than a thrown error. A portrait that cannot be
+   * fetched still leaves the character built, with `imageResolved` false.
+   */
   async importFromText(text: string): Promise<CharacterImportResult> {
     const plan = detectImportFetchPlan(text);
     if (plan.kind === 'unsupported') {

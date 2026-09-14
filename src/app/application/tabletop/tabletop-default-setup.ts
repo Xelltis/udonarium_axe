@@ -80,6 +80,7 @@ function applySampleStats(character: GameCharacter, profile: keyof typeof SAMPLE
   }
 }
 
+/** Makes the table selector and the first table a new room opens on, and puts it in view. */
 export function makeDefaultTable(imageStorage: ImageStorage): void {
   const tableSelecter = new TableSelecter('tableSelecter');
   tableSelecter.initialize();
@@ -142,6 +143,12 @@ function makeSampleSummaryItems(): void {
   setting.sortOrder = SortOrder.DESC;
 }
 
+/**
+ * Sets out the sample pieces a new room opens with: three monsters and a party of three characters.
+ *
+ * The room's display items are set to the samples' stats, and the characters are given a little
+ * sight and joined to one party so the fog and the dark can be tried at once.
+ */
 export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   let testCharacter: GameCharacter;
   let testFile: ImageFile;

@@ -26,15 +26,25 @@ export class InventoryViewPreferenceService {
   /** The strips above the list this reader has put away. Everything is shown by default. */
   private readonly hidden = signal<readonly InventoryChromePart[]>(storedHiddenParts());
 
+  /**
+   * Chooses how an inventory is drawn and writes it down as where the next inventory window starts.
+   */
   set(mode: InventoryViewMode): void {
     this.mode.set(mode);
     write(STORAGE_KEY, mode);
   }
 
+  /**
+   * Whether a strip above the inventory list is shown. Every strip is, until the reader puts it
+   * away.
+   */
   shows(part: InventoryChromePart): boolean {
     return !this.hidden().includes(part);
   }
 
+  /**
+   * Shows or puts away one strip above the inventory list, remembering the choice in this browser.
+   */
   setShown(part: InventoryChromePart, shown: boolean): void {
     const hidden = this.hidden().filter((held) => held !== part);
     const next = shown ? hidden : [...hidden, part];

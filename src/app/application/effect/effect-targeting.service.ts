@@ -167,6 +167,12 @@ export class EffectTargetingService {
     return this.confirm();
   }
 
+  /**
+   * Casts the effect being aimed at the pieces picked so far, in pick order, and ends the picking.
+   *
+   * Null, with the picking left as it was, when nothing is being aimed or none of the picked pieces
+   * is still on the table.
+   */
   confirm(): EffectCast | null {
     const preset = this._preset();
     if (!preset) return null;

@@ -21,6 +21,10 @@ interface SizedObject {
 const DEFAULT_GRID_SIZE = 50;
 const DEFAULT_EXCLUDES = ['range'];
 
+/**
+ * The same rectangle with its corners ordered, so x1/y1 is the top-left whichever way it was
+ * dragged.
+ */
 export function normalizeRect(rect: TableRect): TableRect {
   const x1 = Math.min(rect.x1, rect.x2);
   const x2 = Math.max(rect.x1, rect.x2);
@@ -46,6 +50,13 @@ function getObjectExtent(obj: TabletopObject, gridSize: number): { width: number
   return { width, height };
 }
 
+/**
+ * The identifiers of pieces on the table whose centres fall inside a marquee rectangle.
+ *
+ * A piece's extent comes from its `width` and `height`, or its `size`, in grid cells, and is one
+ * cell otherwise. Pieces off the table and the excluded aliases, ranges by default, are never
+ * caught.
+ */
 export function selectByRect(
   objects: readonly TabletopObject[],
   rect: TableRect,

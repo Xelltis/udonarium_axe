@@ -133,6 +133,13 @@ export class GravityService {
     return !boardSurfaceOf(obj);
   }
 
+  /**
+   * How high the tallest thing under an object's middle reaches, without reaching above the
+   * object's own base.
+   *
+   * Something overhead does not lift the object into it. With nothing underneath the answer is the
+   * floor, 0.
+   */
   static findSupportZ(
     target: TabletopOverlapRegistryEntry,
     entries: TabletopOverlapRegistryEntry[],
@@ -151,18 +158,27 @@ export class GravityService {
     return maxZ;
   }
 
+  /** How high an object's top stands above the floor, in pixels, counting a terrain's own height. */
   static topZ(obj: TabletopObject, gridSize: number): number {
     const baseZ = obj.altitude * gridSize + obj.posZ;
     if (obj instanceof Terrain) return baseZ + obj.height * gridSize;
     return baseZ;
   }
 
+  /**
+   * How high an object's top stands on the surface it is on, which is what another object rests
+   * against.
+   *
+   * Altitude only counts on the floor; on a wall or a board the object's height is measured from
+   * that surface.
+   */
   static contactTopZ(obj: TabletopObject, surface: TableSurface, gridSize: number): number {
     if (surface === 'floor') return GravityService.topZ(obj, gridSize);
     const heightPx = obj instanceof Terrain ? obj.height * gridSize : 0;
     return obj.posZ + heightPx;
   }
 
+  /** How high an object's base stands on the surface it is on. Altitude only counts on the floor. */
   static contactBottomZ(obj: TabletopObject, surface: TableSurface, gridSize: number): number {
     if (surface === 'floor') return obj.altitude * gridSize + obj.posZ;
     return obj.posZ;

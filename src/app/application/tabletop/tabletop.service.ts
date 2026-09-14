@@ -55,6 +55,7 @@ export class TabletopService {
   private readonly destroyRef = inject(DestroyRef);
 
   private _emptyTable: GameTable = new GameTable('');
+  /** The table in view, or an empty placeholder table when there is none, so callers never have to check. */
   get currentTable(): GameTable {
     const table = this.tableSelecter.viewTable;
     return table ? table : this._emptyTable;
@@ -141,45 +142,59 @@ export class TabletopService {
   );
   private diceSymbolCache = new TabletopCache<DiceSymbol>(() => this.objectStore.getObjects(DiceSymbol));
 
+  /** The characters out on the table rather than put away. */
   get characters(): GameCharacter[] {
     return this.characterCache.objects;
   }
+  /** The cards out on the table. */
   get cards(): Card[] {
     return this.cardCache.objects;
   }
+  /** The card stacks out on the table. */
   get cardStacks(): CardStack[] {
     return this.cardStackCache.objects;
   }
+  /** The masks on the table in view. */
   get tableMasks(): GameTableMask[] {
     return this.tableMaskCache.objects;
   }
+  /** The scratch-off masks on the table in view. */
   get tableScratchMasks(): GameTableScratchMask[] {
     return this.tableScratchMaskCache.objects;
   }
+  /** The ranges out on the table. */
   get ranges(): RangeArea[] {
     return this.rangeCache.objects;
   }
+  /** The light sources on the table in view. */
   get lightSources(): LightSource[] {
     return this.lightSourceCache.objects;
   }
+  /** The boards on the table in view. */
   get whiteBoards(): WhiteBoard[] {
     return this.whiteBoardCache.objects;
   }
+  /** The terrain on the table in view. */
   get terrains(): Terrain[] {
     return this.terrainCache.objects;
   }
+  /** The ground effects on the table in view. */
   get ambiences(): TableAmbience[] {
     return this.ambienceCache.objects;
   }
+  /** Every note in the room, wherever it is. */
   get textNotes(): TextNote[] {
     return this.textNoteCache.objects;
   }
+  /** Every die in the room, wherever it is. */
   get diceSymbols(): DiceSymbol[] {
     return this.diceSymbolCache.objects;
   }
+  /** The coins out on the table. */
   get coins(): Coin[] {
     return this.coinCache.objects;
   }
+  /** The cursor of every peer in the room, this reader's included. Not cached, unlike the rest. */
   get peerCursors(): PeerCursor[] {
     return this.objectStore.getObjects<PeerCursor>(PeerCursor);
   }

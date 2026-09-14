@@ -28,10 +28,21 @@ export class PointerDeviceService {
   };
 
   private _isAllowedToOpenContextMenu: boolean = false;
+  /**
+   * Whether a context menu may open, which it may not once the pointer has moved since it was
+   * pressed.
+   *
+   * A drag that ends with a right click or a long press would otherwise open a menu where it was
+   * dropped.
+   */
   get isAllowedToOpenContextMenu(): boolean {
     return this._isAllowedToOpenContextMenu;
   }
 
+  /**
+   * Treats the pointer as pressed and still at this point, so a menu opened from code is allowed
+   * and anchored there.
+   */
   primeForContextMenu(pageX: number, pageY: number) {
     this._isAllowedToOpenContextMenu = true;
     const primed: PointerData = { x: pageX, y: pageY, z: 0, identifier: MOUSE_IDENTIFIER };
@@ -45,17 +56,26 @@ export class PointerDeviceService {
   pointers: PointerData[] = [{ x: 0, y: 0, z: 0, identifier: -1 }];
   private startPosition: PointerData = this.pointers[0];
   private primaryPointer: PointerData = this.pointers[0];
+  /** The primary pointer on the page: the mouse, or the first finger on the screen. */
   get pointer(): PointerCoordinate {
     return this.primaryPointer;
   }
+  /** The primary pointer's page x. */
   get pointerX(): number {
     return this.primaryPointer.x;
   }
+  /** The primary pointer's page y. */
   get pointerY(): number {
     return this.primaryPointer.y;
   }
 
   private _isDragging = signal(false);
+  /**
+   * Whether something on the page is being dragged, readable as a signal.
+   *
+   * It is cleared on its own when the pointer is released, the window loses focus, the tab is
+   * hidden, or the mouse moves with no button held.
+   */
   get isDragging(): boolean {
     return this._isDragging();
   }
@@ -65,10 +85,12 @@ export class PointerDeviceService {
     this._isDragging.set(isDragging);
   }
 
+  /** Starts following the mouse and touches on the page. Call once when the app starts. */
   initialize() {
     this.addEventListeners();
   }
 
+  /** Stops following the mouse and touches. */
   destroy() {
     this.removeEventListeners();
   }
@@ -100,6 +122,7 @@ export class PointerDeviceService {
     }, LONG_PRESS_DELAY_MS);
   }
 
+  /** Drops a long press that has not opened its menu yet, for a gesture that has already opened one of its own. */
   cancelPendingContextMenu(): void {
     this.cancelLongPress();
   }

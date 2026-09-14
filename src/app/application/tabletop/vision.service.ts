@@ -541,6 +541,13 @@ export class VisionService {
     return memory.readFound();
   });
 
+  /**
+   * The cells one piece's own eyes reach on the table in view, for drawing that piece's sight on
+   * its own.
+   *
+   * Null when darkness and fog are both off, or when the piece is not one whose sight this reader
+   * is given.
+   */
   visibleCellsOf(identifier: string): { grid: CellGrid; cells: CellBits } | null {
     const cells = this.visionCells();
     const own = cells?.perSource.get(identifier);
@@ -741,6 +748,12 @@ export class VisionService {
     return !!fog?.clearedStaysLit && fog.explored.get(cell);
   }
 
+  /**
+   * Whether a point on the table is under ground the party has not explored yet.
+   *
+   * Never for the game master, and never where there is no fog to read or the point is off the
+   * grid.
+   */
   isHiddenByFog(x: number, y: number): boolean {
     if (this.viewer().isGameMaster) return false;
     const explored = this.exploredCells();
@@ -792,6 +805,16 @@ export class VisionService {
     return top > 0 ? this.terrainFogCover(terrain, top) : this.terrainFogCover(terrain);
   }
 
+  /**
+   * How bright a terrain is drawn: the brightest of the cells the party has reached it at, rather
+   * than the light at its middle.
+   *
+   * A wall gathered from a dozen cells is drawn only where the party has reached it, and its middle
+   * is usually neither reached nor lit, so reading it there would leave the one cell beside a torch
+   * as black as the ten behind it. A terrain with no cells to read is lit as a thing standing at
+   * its top, since the top of a wall is a surface of its own and a lamp level with it lights along
+   * it. Full brightness while darkness and fog are both off.
+   */
   terrainBrightness(terrain: Terrain, centreX: number, centreY: number, radiusPx: number): number {
     if (!this.active()) return 1;
     const scene = this.scene();
@@ -837,11 +860,17 @@ export class VisionService {
     );
   }
 
+  /** The CSS filter that darkens something standing at a point to how lit it is, or null when it is fully lit. */
   objectFilter(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false, standingZ = 0): string | null {
     const brightness = this.objectBrightness(x, y, radiusPx, ignoreShadowCasters, standingZ);
     return brightness < 1 ? `brightness(${brightness.toFixed(3)})` : null;
   }
 
+  /**
+   * The shadows pieces throw onto a wall face, from the lights this reader can see.
+   *
+   * None while darkness and fog are both off.
+   */
   wallSilhouettes(face: WallFace): WallSilhouette[] {
     if (!this.active()) return EMPTY_SILHOUETTES;
     const scene = this.seenScene();
@@ -849,6 +878,11 @@ export class VisionService {
     return this.recall(`sil:${faceKey(face)}`, () => computeWallSilhouettes(scene, face, scene.gridSize * 1.5));
   }
 
+  /**
+   * The pools of light falling on a wall face, from the lights this reader can see.
+   *
+   * None while darkness and fog are both off.
+   */
   wallLights(face: WallFace): WallLight[] {
     if (!this.active()) return EMPTY_WALL_LIGHTS;
     const scene = this.seenScene();
@@ -883,6 +917,7 @@ export class VisionService {
     return this.recall(`lseen:${light.sourceId}`, () => isPointVisible(scene, light.x, light.y, viewer, light.z));
   }
 
+  /** How bright unlit ground reads for this reader, from 0 in full dark to 1 with no darkness at all. */
   ambientBrightness(): number {
     if (!this.active()) return 1;
     const scene = this.scene();
@@ -916,6 +951,11 @@ export class VisionService {
     return { lights: seen, gridSize: table.gridSize };
   }
 
+  /**
+   * The beams the lights on the table in view throw, for the overlay that draws them.
+   *
+   * While darkness or fog is on, lights this reader cannot see are left out.
+   */
   lightBeams(): LightBeam[] {
     return this.recall('beams', () => {
       const beams: LightBeam[] = [];
@@ -927,6 +967,11 @@ export class VisionService {
     });
   }
 
+  /**
+   * The glow around each light on the table in view, for the overlay that draws them.
+   *
+   * While darkness or fog is on, lights this reader cannot see are left out.
+   */
   lightGlows(): LightGlow[] {
     return this.recall('glows', () => {
       const { lights, gridSize } = this.emissiveLights();
@@ -939,6 +984,13 @@ export class VisionService {
     });
   }
 
+  /**
+   * Whether this reader can see a piece through the dark and the fog.
+   *
+   * Always for the game master, for a piece of the reader's own or their party's, for a piece off
+   * the floor, and for a piece the party has already found. Under fog a piece answers to the cells
+   * the fog is drawn from; otherwise to a line of sight to its eyes.
+   */
   isTokenVisible(character: GameCharacter): boolean {
     const scene = this.scene();
     if (!scene || !(scene.darknessEnabled || scene.fogEnabled)) return true;

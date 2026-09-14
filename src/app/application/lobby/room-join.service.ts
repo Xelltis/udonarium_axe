@@ -21,6 +21,7 @@ export class RoomJoinService {
   private readonly objectStore = inject(ObjectStore);
   private readonly destroyRef = inject(DestroyRef);
 
+  /** Looks a room up by its id in the lobby listing, or null when no open room has that id. */
   async findRoom(roomId: string): Promise<IRoomInfo | null> {
     const rooms = await Network.listAllRooms();
     return rooms.find((room) => room.id === roomId) ?? null;

@@ -8,21 +8,31 @@ export const REPLAY_AUDIO_CHANNELS = 2;
 
 export type ReplayAudioSource = (audioIdentifier: string) => Promise<ArrayBuffer | null>;
 
+/** Whether this browser can mix sound offline, which a video needs to carry any. */
 export function isSoundMixingSupported(): boolean {
   return typeof OfflineAudioContext !== 'undefined';
 }
 
 @Injectable({ providedIn: 'root' })
 export class ReplaySoundMixer {
+  /** Whether this browser can mix a replay's sound. */
   get isSupported(): boolean {
     return isSoundMixingSupported();
   }
 
+  /** Mixes a replay's soundtrack; see `mixReplaySoundtrack`. */
   mix(soundtrack: ReplaySoundtrack, read: ReplayAudioSource): Promise<EncodedAudio | null> {
     return mixReplaySoundtrack(soundtrack, read);
   }
 }
 
+/**
+ * Renders a replay's sound effects and music into one stereo track for a video.
+ *
+ * Music loops for as long as its cue lasts and fades in and out. A sound that cannot be read or
+ * decoded is left out. Answers null when the browser cannot mix, the soundtrack is empty, or none
+ * of its sounds could be read.
+ */
 export async function mixReplaySoundtrack(
   soundtrack: ReplaySoundtrack,
   read: ReplayAudioSource

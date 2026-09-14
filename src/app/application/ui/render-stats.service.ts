@@ -75,6 +75,14 @@ export class RenderStatsService {
   private updates: Record<WatchedComponent, number> = { TerrainComponent: 0, GameTableComponent: 0 };
   private readonly accumulated = new Map<string, number>();
 
+  /**
+   * Starts sampling render statistics for the render stats widget, and switches the shared perf
+   * counters on.
+   *
+   * Frame times and long tasks are gathered continuously and published to `stats` and `totals` once
+   * a second. Template updates are only counted where Angular's debug profiler hook is present.
+   * Does nothing while already watching.
+   */
   start(): void {
     if (this.watching()) return;
     this.watching.set(true);
@@ -88,6 +96,10 @@ export class RenderStatsService {
     this.sampleHandle = setInterval(() => this.sample(), SAMPLE_INTERVAL_MS);
   }
 
+  /**
+   * Stops sampling, switches the perf counters off and empties the published stats. Does nothing
+   * when not watching.
+   */
   stop(): void {
     if (!this.watching()) return;
     this.watching.set(false);
@@ -106,6 +118,7 @@ export class RenderStatsService {
     this.totals.set(new Map());
   }
 
+  /** Clears the frame history, counters and running totals without stopping the sampling. */
   reset(): void {
     this.frames = [];
     this.updates = { TerrainComponent: 0, GameTableComponent: 0 };

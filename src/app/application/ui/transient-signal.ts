@@ -5,6 +5,12 @@ export interface TransientSignal<T> extends Signal<T> {
   clear(): void;
 }
 
+/**
+ * A read-only signal that `show` sets for a while before it drops back to its resting value.
+ *
+ * Showing again restarts the hold, and `clear` goes back to rest at once. The timer is cancelled
+ * when the injection context it was made in is destroyed, so it has to be called inside one.
+ */
 export function transientSignal<T>(resting: T, holdMs: number): TransientSignal<T> {
   const inner = signal<T>(resting);
   let timer: ReturnType<typeof setTimeout> | null = null;

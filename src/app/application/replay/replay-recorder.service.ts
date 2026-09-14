@@ -130,10 +130,12 @@ export class ReplayRecorderService {
     void this.persistManifest(id, true);
   }
 
+  /** Whether this browser has the storage recordings are kept in. */
   get isSupported(): boolean {
     return this.store.isAvailable();
   }
 
+  /** Reads the list of stored recordings again and publishes it on `recordings`. */
   async refresh(): Promise<readonly ReplayRecordingMeta[]> {
     if (!this.isSupported) return [];
     const metas = await this.store.listRecordings();
@@ -141,24 +143,36 @@ export class ReplayRecorderService {
     return metas;
   }
 
+  /** Sets how much of what happens is kept, from the next event on, and remembers it in this browser. */
   setDetailLevel(level: ReplayDetailLevel): void {
     this.preference.setDetailLevel(level);
   }
 
+  /** The name a peer went by most recently in this recording, or their user id when none was recorded. */
   actorNameOf(userId: string): string {
     const history = this.actors.get(userId);
     return history?.[history.length - 1]?.name || userId;
   }
 
+  /** The name an object had most recently in this recording, or empty when it was never named. */
   targetNameOf(identifier: string): string {
     const history = this.targets.get(identifier);
     return history?.[history.length - 1]?.name || '';
   }
 
+  /**
+   * Starts recording the room, taking a first board and clearing out recordings past the keep
+   * count.
+   *
+   * Waits for any start or stop still running. Answers false when storage is unavailable, a
+   * recording is already running, the board is being replayed, or the recording could not be
+   * created.
+   */
   async start(): Promise<boolean> {
     return this.queue(() => this.startNow());
   }
 
+  /** Stops recording, saving a last board and everything still buffered. Does nothing when not recording. */
   async stop(): Promise<void> {
     await this.queue(() => this.stopNow());
   }
@@ -233,12 +247,14 @@ export class ReplayRecorderService {
     await this.refresh();
   }
 
+  /** Drops a labelled marker into the recording and saves the board there, so playback can start from it. */
   async mark(label: string): Promise<void> {
     if (!this._isRecording()) return;
     this.push({ kind: ReplayEventKind.Marker, detail: { label } }, this.selfPeerId(), Date.now());
     await this.captureKeyframe(true);
   }
 
+  /** Deletes a stored recording. The one being recorded is never deleted. */
   async remove(id: number): Promise<void> {
     if (!this.isSupported || id === this.recordingId) return;
     await this.store.removeRecording(id);

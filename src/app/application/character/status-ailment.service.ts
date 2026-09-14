@@ -21,6 +21,7 @@ export class StatusAilmentService {
     return this.catalog.ailments;
   });
 
+  /** Replaces the room's list of states with this one. */
   save(list: readonly StatusAilment[]): void {
     this.catalog.ailments = list;
     this.objectChange.notifyChanged(this.catalog.identifier);
@@ -39,6 +40,7 @@ export class StatusAilmentService {
     return added;
   }
 
+  /** Takes a state out of the room's list. A piece already wearing it keeps the buff. */
   remove(name: string): void {
     this.save(this.ailments().filter((entry) => entry.name !== name));
   }
@@ -55,6 +57,7 @@ export class StatusAilmentService {
     this.save(list);
   }
 
+  /** Whether a character is wearing a buff by this name. */
   isOn(character: GameCharacter, name: string): boolean {
     return character.buffs.find(name) != null;
   }
@@ -70,11 +73,13 @@ export class StatusAilmentService {
     this.objectChange.notifyChanged(character.identifier);
   }
 
+  /** Takes a state's buff off a character. Nothing happens when it is not wearing one. */
   pull(character: GameCharacter, name: string): void {
     if (!character.buffs.delete(name)) return;
     this.objectChange.notifyChanged(character.identifier);
   }
 
+  /** Puts a state on a character or takes it off, as `on` says. */
   toggle(character: GameCharacter, ailment: StatusAilment, on: boolean): void {
     if (on) this.plant(character, ailment);
     else this.pull(character, ailment.name);

@@ -27,6 +27,13 @@ const FRAME_STEP_STORAGE_KEY = 'ui-ambience-frame-step';
  */
 const LIGHT_RENDERING_FRAME_STEP_MS = 32;
 
+/**
+ * The step ambient effects are held to, read from `ui-ambience-frame-step` in local storage, or 0
+ * when that is missing or not a positive number.
+ *
+ * Nothing in the app writes the key, so a step only takes effect when it is put there by hand. With
+ * 0 the effects move every frame unless the table is being drawn the lighter way.
+ */
 export function storedAmbienceFrameStepMs(): number {
   try {
     const stored = Number(localStorage.getItem(FRAME_STEP_STORAGE_KEY));

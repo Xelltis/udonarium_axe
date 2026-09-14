@@ -23,6 +23,13 @@ export interface StandingSegments {
   light: LightSegment[];
 }
 
+/**
+ * The edges that stop sight and light on a table: its perimeter, its shown outer walls, and the
+ * sides of its walls.
+ *
+ * The perimeter stops sight but only walls that are shown stop light. A terrain that gives off
+ * light of its own does not block light.
+ */
 export function collectSegments(
   table: GameTable,
   gridSize: number,
@@ -60,6 +67,11 @@ export function collectSegments(
   return { sight, light };
 }
 
+/**
+ * A light as the scene uses it, placed at a point with its radii turned from cells into pixels.
+ *
+ * `dirOverride` points a light hung on a wall away from the wall instead of the way it was set.
+ */
 export function toSceneLight(
   spec: LightSpec,
   x: number,
@@ -113,6 +125,12 @@ function placeLight(obj: TabletopObject, centerX: number, centerY: number, gridS
   };
 }
 
+/**
+ * Every light shining on a table: its light sources, lit pieces on it, and terrain that gives off
+ * light.
+ *
+ * A light source that follows a piece shines from that piece while the piece is on the table.
+ */
 export function collectLights(
   table: GameTable,
   characters: readonly GameCharacter[],
@@ -159,6 +177,7 @@ export function collectLights(
   return lights;
 }
 
+/** The pieces standing on the floor that throw a shadow, each as a square the size of the piece. */
 export function collectShadowCasters(characters: readonly GameCharacter[], gridSize: number): ShadowCaster[] {
   const casters: ShadowCaster[] = [];
   for (const character of characters) {
@@ -178,6 +197,7 @@ export function collectShadowCasters(characters: readonly GameCharacter[], gridS
   return casters;
 }
 
+/** The pieces standing on the floor that look, each with where its eyes are, how far it sees and whose it is. */
 export function collectVisionSources(characters: readonly GameCharacter[], gridSize: number): SceneVisionSource[] {
   const sources: SceneVisionSource[] = [];
   for (const character of characters) {
@@ -232,6 +252,10 @@ export function characterSceneKey(character: GameCharacter): string {
   ]);
 }
 
+/**
+ * Puts together everything the vision solver needs for a table: its darkness and fog, the lights,
+ * the eyes, and the edges that stop them.
+ */
 export function assembleScene(
   table: GameTable,
   characters: readonly GameCharacter[],

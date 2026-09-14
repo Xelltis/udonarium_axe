@@ -158,12 +158,25 @@ export class DungeonBuildService {
     return image.identifier;
   }
 
+  /**
+   * The image identifier a wall material stands for.
+   *
+   * A picture from the image library is used as it is; a bundled texture is registered on first
+   * use. An id `urls` does not know answers empty.
+   */
   resolveMaterial(material: DungeonMaterial, urls: Record<string, string>): string {
     if (material.kind === 'library') return material.identifier;
     const url = urls[material.id];
     return url ? this.registerAsset(url) : '';
   }
 
+  /**
+   * Builds a new table from generated blocks: the terrain, the ground effects, the lights, and the
+   * party stood on the cells it was given.
+   *
+   * Terrain goes in a few dozen blocks at a time, handing the thread back between batches so
+   * `onProgress` can move a bar. The table is made but not switched to.
+   */
   async build(
     size: MapSize,
     mood: MapMood,

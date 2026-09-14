@@ -41,6 +41,7 @@ export class MotionService {
     effect(() => this.markDocument());
   }
 
+  /** Moves the motion setting on through auto, on and off, writing the choice down. */
   cycle(): void {
     const index = MOTION_ORDER.indexOf(this.setting());
     this.set(MOTION_ORDER[(index + 1) % MOTION_ORDER.length]);

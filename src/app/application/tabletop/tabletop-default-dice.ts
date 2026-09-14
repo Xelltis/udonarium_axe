@@ -46,6 +46,16 @@ function addSystemImage(imageStorage: ImageStorage, id: string, url: string): vo
   ImageTag.create(file.identifier).tag = SYSTEM_RESERVED_TAG;
 }
 
+/**
+ * Registers bundled pictures under fixed identifiers, tagged as reserved for the system so the image
+ * browsers leave them out: the dice faces from `april_dice` (`1d6_dice[00]` and the like) and
+ * `april[00]` and `april[01]`.
+ *
+ * The fixed identifiers let a chat message name one of these pictures in any room. The dice faces
+ * are what `PeerCursor.diceImageIdentifier` names, but nothing in the app sets a dice type, so no
+ * message picks one. The `april` folder is no longer shipped, so the two `april[NN]` entries point
+ * at files that do not exist.
+ */
 export function initAprilDiceImages(imageStorage: ImageStorage): void {
   for (const name of AVRIL_DICE_IMAGES) {
     addSystemImage(imageStorage, name, `./assets/images/april_dice/${name}.png`);

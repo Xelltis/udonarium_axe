@@ -40,6 +40,14 @@ export class CutInService {
     }, this.destroyRef);
   }
 
+  /**
+   * Starts the cut-in named by the last word of a chat line.
+   *
+   * Only cut-ins set to start from chat answer, and a last word written with `@` plays the cut-in's
+   * sound alone. `sendTo` is the user id a direct line was sent to, or empty for a line to everyone.
+   * It goes onto the launcher, so the other peers leave the cut-in to that one user, while this peer
+   * plays it as well.
+   */
   activateFromChatText(text: string, sendTo: string): void {
     const matches = ` ${text}`.match(CHAT_TAIL_PATTERN);
     if (!matches) return;

@@ -16,6 +16,12 @@ export class MoveBlockService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectChange = inject(ObjectChangeService);
 
+  /**
+   * The cells movement is closed on for the table being viewed, or null when nothing is closed
+   * there.
+   *
+   * Read inside a computed, it follows the table and the map painted on it.
+   */
   blockedOn(grid: CellGrid): CellBits | null {
     this.objectChange.collectionOf(MoveBlockMap.aliasName)();
     const map = this.map();

@@ -72,6 +72,7 @@ export class CoordinateService {
     if (borrowed.pooled) borrowed.transform.clear();
   }
 
+  /** Converts a point on the page into the element's own space, through every transform above it. */
   convertToLocal(pointer: PointerCoordinate, element: HTMLElement = document.body): PointerCoordinate {
     const borrowed = this.borrow(element, this._transformA);
     const ray = borrowed.transform.globalToLocal(pointer.x, pointer.y, pointer.z ?? 0);
@@ -79,6 +80,7 @@ export class CoordinateService {
     return { x: ray.x, y: ray.y, z: ray.z };
   }
 
+  /** Converts a point in the element's own space back onto the page. */
   convertToGlobal(pointer: PointerCoordinate, element: HTMLElement = document.body): PointerCoordinate {
     const borrowed = this.borrow(element, this._transformA);
     const ray = borrowed.transform.localToGlobal(pointer.x, pointer.y, pointer.z ?? 0);
@@ -100,6 +102,12 @@ export class CoordinateService {
     return result;
   }
 
+  /**
+   * Converts a page point as it lands on `from` into `to`'s space.
+   *
+   * The point is taken to lie on `from`'s own plane, which is how a drop onto a raised or tilted
+   * object finds where it falls on the table.
+   */
   convertLocalToLocal(pointer: PointerCoordinate, from: HTMLElement, to: HTMLElement): PointerCoordinate {
     const fromBorrowed = this.borrow(from, this._transformA);
     const local = fromBorrowed.transform.globalToLocal(pointer.x, pointer.y, pointer.z ?? 0);
@@ -110,6 +118,13 @@ export class CoordinateService {
     return { x: ray.x, y: ray.y, z: ray.z };
   }
 
+  /**
+   * Where a pointer lands on the table, by default the current pointer over the element under it.
+   *
+   * A target that contains the table is read straight through to the table's floor. Any other
+   * target is read on its own plane, so dropping onto a piece lands at its height. The height never
+   * comes back below zero.
+   */
   calcTabletopLocalCoordinate(
     coordinate: PointerCoordinate = {
       x: this.pointerDeviceService.pointers[0].x,

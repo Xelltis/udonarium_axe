@@ -7,6 +7,12 @@ export class DataElementDragService {
   private readonly _draggedId = signal<string | null>(null);
   readonly draggedId = this._draggedId.asReadonly();
 
+  /**
+   * Marks a data element as being dragged and writes its identifier into the drag data.
+   *
+   * The identifier goes under a type of our own as well as plain text, which is what lets
+   * `getDraggedId` tell a drag from this page from one brought in from outside.
+   */
   start(event: DragEvent, identifier: string): void {
     this._draggedId.set(identifier);
     event.dataTransfer?.setData(DATA_ELEMENT_DRAG_MIME, identifier);
@@ -14,6 +20,7 @@ export class DataElementDragService {
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
   }
 
+  /** Forgets the dragged element once the drag has been dropped or abandoned. */
   end(): void {
     this._draggedId.set(null);
   }

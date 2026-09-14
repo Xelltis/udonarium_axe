@@ -86,6 +86,7 @@ export class ReplayVideoService {
     return total > 0 ? this._done() / total : 0;
   });
 
+  /** Whether this browser can encode a replay into a video. */
   get isSupported(): boolean {
     return this.encoder.isSupported;
   }
@@ -95,10 +96,19 @@ export class ReplayVideoService {
     return this.encoder.isRealtimeOnly;
   }
 
+  /** Asks a video being made to stop at its next frame; nothing is saved. */
   cancel(): void {
     this.cancelled = true;
   }
 
+  /**
+   * Turns a recording's events into a video and saves it, publishing progress as it goes.
+   *
+   * Shots are chosen from the events, the board is drawn behind them, and the sound is mixed in
+   * where the browser can. The file goes to the handle given, or is handed to the browser to
+   * download. Answers false when a video is already being made, the browser cannot encode, there is
+   * nothing to show, it was cancelled, or it failed.
+   */
   async render(
     meta: ReplayRecordingMeta,
     events: readonly ReplayEvent[],

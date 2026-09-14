@@ -205,6 +205,7 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
   };
 }
 
+/** What a mask is painted as, so the map editor can tell one mask from another and lay it down again as it was. */
 export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null): MaskPaintSpec {
   return {
     name: mask.name,

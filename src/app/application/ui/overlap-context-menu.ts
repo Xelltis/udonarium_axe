@@ -27,6 +27,13 @@ function asStackable(obj: TabletopObject): Stackable | null {
   return typeof (obj as TabletopObject & { zindex?: unknown }).zindex === 'number' ? (obj as Stackable) : null;
 }
 
+/**
+ * Menu entries for the other pieces lying under the pointer besides the one right-clicked.
+ *
+ * Each overlapping piece reopens its own context menu at the same point, and a piece with a
+ * stacking order also gets entries to bring it to the top or send it to the bottom. Empty when
+ * nothing else is under the pointer.
+ */
 export function buildOverlapContextMenu(
   service: TabletopOverlapService,
   current: TabletopObject,

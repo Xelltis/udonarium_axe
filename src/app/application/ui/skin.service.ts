@@ -309,6 +309,10 @@ export class SkinService {
     );
   }
 
+  /**
+   * Moves a picture up or down a ladder's stack by some places, staying inside it, and writes the
+   * stack down.
+   */
   moveLayer(id: string, by: number, mode: SkinMode = this.editing()): void {
     this.keepStack(mode, reorderLayers(this.stacks[mode](), id, by));
   }
@@ -320,14 +324,19 @@ export class SkinService {
       this.stacks[mode]().map((layer) => (layer.id === id ? { ...layer, ...patch, id: layer.id } : layer))
     );
   }
+  /** The skin chosen for one ladder, whether or not that ladder is on screen. */
   skinOf(mode: SkinMode): string {
     return this.chosen[mode]();
   }
 
+  /** The slider values held for one ladder's custom skin. */
   recipeOf(mode: SkinMode): SkinRecipe {
     return this.recipes[mode]();
   }
 
+  /**
+   * Switches the picker to dressing the light or the dark ladder, dropping any skin being tried on.
+   */
   editLadder(mode: SkinMode): void {
     this.editing.set(mode);
     this.hovered.set(null);
@@ -346,6 +355,13 @@ export class SkinService {
     };
   }
 
+  /**
+   * Puts both ladders back as a snapshot found them: skin, recipe and picture stack, all written
+   * down again.
+   *
+   * This is the way back out of the skin panel. Pictures a restored stack refers to are fetched
+   * from the store again, since their bytes are kept until the next start.
+   */
   restore(worn: SkinSnapshot): void {
     for (const mode of ['light', 'dark'] as const) {
       this.recipes[mode].set(worn[mode].recipe);
@@ -362,6 +378,10 @@ export class SkinService {
     void this.loadPictures();
   }
 
+  /**
+   * Puts a skin on one ladder and writes the choice down. An id no skin answers to settles on the
+   * standard skin.
+   */
   choose(id: string, mode: SkinMode = this.editing()): void {
     this.hovered.set(null);
     const settled = asSkinId(id, mode);

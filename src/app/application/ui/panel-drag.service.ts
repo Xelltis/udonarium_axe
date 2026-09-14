@@ -49,6 +49,10 @@ export class PanelDragService {
     }
   }
 
+  /**
+   * Updates which frame the dragged panel would land in for a pointer position. Ignored while
+   * nothing is being dragged.
+   */
   move(x: number, y: number): void {
     if (!this.held()) return;
     this.target.set(findDropZone({ x, y }, this.offered)?.frame ?? null);
@@ -63,6 +67,7 @@ export class PanelDragService {
     return target;
   }
 
+  /** Abandons the drag without dropping the panel anywhere. */
   cancel(): void {
     this.held.set(null);
     this.target.set(null);

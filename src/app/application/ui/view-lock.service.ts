@@ -13,10 +13,12 @@ import { Injectable, signal } from '@angular/core';
 export class ViewLockService {
   readonly locked = signal<boolean>(false);
 
+  /** Locks the table view if it is free, or frees it. Held for this client only. */
   toggle(): void {
     this.set(!this.locked());
   }
 
+  /** Locks or frees the table view on this client. Neither shared nor written down. */
   set(locked: boolean): void {
     this.locked.set(locked);
   }

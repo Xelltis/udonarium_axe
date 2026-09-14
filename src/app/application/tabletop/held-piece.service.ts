@@ -26,10 +26,17 @@ export class HeldPieceService {
   private readonly inHand = signal<HeldPiece | null>(null);
   readonly held = this.inHand.asReadonly();
 
+  /** Records the piece this reader has just picked up. */
   take(piece: HeldPiece): void {
     this.inHand.set(piece);
   }
 
+  /**
+   * Records that the piece was put down.
+   *
+   * Named, it only lets go when that piece is still the one in hand, so a late release of another
+   * cannot drop it.
+   */
   letGo(identifier?: string): void {
     if (identifier && this.inHand()?.identifier !== identifier) return;
     this.inHand.set(null);

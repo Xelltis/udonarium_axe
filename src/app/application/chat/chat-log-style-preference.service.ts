@@ -7,6 +7,7 @@ export const CHAT_LOG_STYLE_STORAGE_KEY = 'chat-log-style';
 export class ChatLogStylePreferenceService {
   readonly style = signal<ChatLogStyle>(stored());
 
+  /** Switches how this reader's chat log is laid out and remembers it in this browser. Nothing is sent to the room. */
   choose(style: ChatLogStyle): void {
     this.style.set(style);
     try {

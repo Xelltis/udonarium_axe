@@ -48,6 +48,12 @@ export class ReplayStagingService {
     }, this.destroyRef);
   }
 
+  /**
+   * Starts capturing what this reader does on the replayed board, as events to insert at a row.
+   *
+   * Only this reader's own changes are captured, and only while cut off from the room, so a scene
+   * can be acted out on the board and added to a recording as though `actorId` had done it.
+   */
   begin(insertIndex: number, actorId: string): void {
     this.shadows.clear();
     for (const object of this.objectStore.getObjects()) {
@@ -62,12 +68,14 @@ export class ReplayStagingService {
     this._isStaging.set(true);
   }
 
+  /** Credits everything captured so far, and everything after, to another peer. */
   setActorId(actorId: string): void {
     this._actorId.set(actorId);
     this._captured.update((events) => events.map((event) => ({ ...event, actorId })));
     if (this.pending) this.pending = { ...this.pending, actorId };
   }
 
+  /** Hands over what was captured and stops capturing. */
   take(): ReplayEvent[] {
     this.commitPending();
     const captured = [...this._captured()];
@@ -75,6 +83,7 @@ export class ReplayStagingService {
     return captured;
   }
 
+  /** Stops capturing and throws away what was captured. */
   discard(): void {
     this.end();
   }
