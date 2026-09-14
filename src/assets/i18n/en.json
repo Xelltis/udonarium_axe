@@ -1178,6 +1178,7 @@
         "collapseAll": "Collapse all",
         "expandAll": "Expand all",
         "selectFolder": "Select all in this folder",
+        "showOnTable": "Show on the table",
         "moveTable": "Move to table",
         "moveCommon": "Move to shared inventory",
         "movePersonal": "Move to personal inventory",

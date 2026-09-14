@@ -10,6 +10,7 @@ interface InventoryContextMenuCallbacks {
   showDetail: (character: GameCharacter) => void;
   showChatPalette: (character: GameCharacter) => void;
   showRemoteController: (character: GameCharacter) => void;
+  focusOnTable: (gameObject: TabletopObject) => void;
   cloneGameObject: (gameObject: TabletopObject) => void;
   deleteGameObject: (gameObject: TabletopObject) => void;
   setFolder: (gameObject: TabletopObject, folderPath: string) => void;
@@ -114,6 +115,13 @@ export function buildInventoryObjectContextMenu(
     name: t('feature.character.contextMenu.showDetail'),
     action: () => callbacks.showDetail(gameObject as GameCharacter),
   });
+
+  if (gameObject.location.name === 'table') {
+    actions.push({
+      name: t('feature.inventory.contextMenu.showOnTable'),
+      action: () => callbacks.focusOnTable(gameObject),
+    });
+  }
 
   if (gameObject.location.name !== 'graveyard') {
     actions.push({

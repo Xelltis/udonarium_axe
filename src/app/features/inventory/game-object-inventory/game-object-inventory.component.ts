@@ -1029,6 +1029,7 @@ export class GameObjectInventoryComponent {
         showDetail: (c) => this.showDetail(c),
         showChatPalette: (c) => this.showChatPalette(c),
         showRemoteController: (c) => this.showRemoteController(c),
+        focusOnTable: (o) => this.selectionSignalService.focusToCoordinate(o.location.x, o.location.y),
         cloneGameObject: (o) => this.cloneGameObject(o),
         deleteGameObject: (o) => this.deleteGameObject(o),
         setFolder: (o, folderPath) => this.setFolder(o, folderPath),

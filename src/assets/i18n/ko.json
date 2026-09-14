@@ -1178,6 +1178,7 @@
         "collapseAll": "모두 접기",
         "expandAll": "모두 펼치기",
         "selectFolder": "이 폴더 전체 선택",
+        "showOnTable": "테이블에서 보기",
         "moveTable": "테이블로 이동",
         "moveCommon": "공유 인벤토리로 이동",
         "movePersonal": "개인 인벤토리로 이동",

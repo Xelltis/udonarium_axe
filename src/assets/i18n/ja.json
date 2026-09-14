@@ -1178,6 +1178,7 @@
         "collapseAll": "すべて折りたたむ",
         "expandAll": "すべて展開",
         "selectFolder": "このフォルダを全選択",
+        "showOnTable": "卓で表示",
         "moveTable": "テーブルに移動",
         "moveCommon": "共有イベントリに移動",
         "movePersonal": "個人イベントリに移動",
