@@ -114,4 +114,29 @@ describe('ChatTickerComponent', () => {
     await settle();
     expect(internal.fontSizePx()).toBeGreaterThan(small);
   });
+
+  it('measures the letters of a line once rather than on every frame', async () => {
+    const { makeChatTickerPath } = await import('@axe/features/chat/chat-ticker/chat-ticker-layout');
+    select('measured-once', '案内役', 'ABC');
+    const measureText = vi.fn(() => ({ width: 10 }) as TextMetrics);
+    const context = {
+      font: '',
+      measureText,
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
+      strokeText: vi.fn(),
+      fillText: vi.fn(),
+    };
+    const path = makeChatTickerPath(1280, 800, 18)!;
+    const internal = component as unknown as {
+      drawText: (context: unknown, path: unknown, text: string, travelled: number, fontSize: number) => void;
+    };
+
+    internal.drawText(context, path, currentText(), 0, 18);
+    internal.drawText(context, path, currentText(), 16, 18);
+
+    expect(measureText).toHaveBeenCalledTimes(Array.from(currentText()).length + 1);
+  });
 });

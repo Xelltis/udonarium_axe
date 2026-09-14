@@ -173,10 +173,8 @@ export class ChatTickerComponent {
     context.strokeStyle = 'rgba(0, 0, 0, 0.92)';
     context.fillStyle = '#fff';
 
-    const glyphs = fitGlyphsToPerimeter(context, text, path.perimeter * 0.9);
+    const { glyphs, repeatOffsets } = this.layoutFor(context, text, path.perimeter);
     if (glyphs.length < 1) return;
-    const textWidth = glyphs.reduce((sum, glyph) => sum + glyph.advance, 0);
-    const repeatOffsets = makeChatTickerRepeatOffsets(path.perimeter, textWidth, TICKER_COPY_MINIMUM_GAP_PX);
     const bottomLength = path.segments[0].length;
     const startDistance = bottomLength - glyphs[0].advance;
     for (const repeatOffset of repeatOffsets) {
@@ -196,6 +194,43 @@ export class ChatTickerComponent {
       }
     }
   }
+
+  private measured: MeasuredLine | null = null;
+  private layout: TickerLayout | null = null;
+
+  /**
+   * The letters to draw and where their copies start, worked out once for a line, a font and
+   * a perimeter.
+   *
+   * Every frame used to measure every letter of a line that had not changed, a canvas call a
+   * letter sixty times a second.
+   */
+  private layoutFor(context: CanvasRenderingContext2D, text: string, perimeter: number): TickerLayout {
+    const font = context.font;
+    let measured = this.measured;
+    if (!measured || measured.text !== text || measured.font !== font) {
+      measured = {
+        text,
+        font,
+        glyphs: Array.from(text, (character) => measureGlyph(context, character)),
+        ellipsis: measureGlyph(context, '…'),
+      };
+      this.measured = measured;
+    }
+    const layout = this.layout;
+    if (layout && layout.measured === measured && layout.perimeter === perimeter) return layout;
+
+    const glyphs = fitGlyphs(measured.glyphs, measured.ellipsis, perimeter * 0.9);
+    const textWidth = glyphs.reduce((sum, glyph) => sum + glyph.advance, 0);
+    const next: TickerLayout = {
+      measured,
+      perimeter,
+      glyphs,
+      repeatOffsets: makeChatTickerRepeatOffsets(perimeter, textWidth, TICKER_COPY_MINIMUM_GAP_PX),
+    };
+    this.layout = next;
+    return next;
+  }
 }
 
 interface TickerGlyph {
@@ -203,18 +238,28 @@ interface TickerGlyph {
   readonly advance: number;
 }
 
-function fitGlyphsToPerimeter(context: CanvasRenderingContext2D, text: string, maximumWidth: number): TickerGlyph[] {
-  const all = Array.from(text).map((character) => ({
-    text: character,
-    advance: Math.max(1, context.measureText(character).width + TICKER_LETTER_GAP_PX),
-  }));
+interface MeasuredLine {
+  readonly text: string;
+  readonly font: string;
+  readonly glyphs: readonly TickerGlyph[];
+  readonly ellipsis: TickerGlyph;
+}
+
+interface TickerLayout {
+  readonly measured: MeasuredLine;
+  readonly perimeter: number;
+  readonly glyphs: readonly TickerGlyph[];
+  readonly repeatOffsets: readonly number[];
+}
+
+function measureGlyph(context: CanvasRenderingContext2D, character: string): TickerGlyph {
+  return { text: character, advance: Math.max(1, context.measureText(character).width + TICKER_LETTER_GAP_PX) };
+}
+
+function fitGlyphs(all: readonly TickerGlyph[], ellipsis: TickerGlyph, maximumWidth: number): readonly TickerGlyph[] {
   const total = all.reduce((sum, glyph) => sum + glyph.advance, 0);
   if (total <= maximumWidth) return all;
 
-  const ellipsis: TickerGlyph = {
-    text: '…',
-    advance: Math.max(1, context.measureText('…').width + TICKER_LETTER_GAP_PX),
-  };
   const fitted: TickerGlyph[] = [];
   let used = ellipsis.advance;
   for (const glyph of all) {
