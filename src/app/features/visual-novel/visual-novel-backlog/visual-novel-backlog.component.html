@@ -59,6 +59,7 @@
         [class.cursor-pointer]="editingIdentifier() !== entry.message.identifier"
         [attr.data-vn-log-id]="entry.message.identifier"
         (click)="editingIdentifier() === entry.message.identifier ? null : jumpTo(entry.message.identifier)"
+        (contextmenu)="onEntryContextMenu($event, entry)"
       >
         <span class="rounded-ui-sm bg-ui-elevated size-9 shrink-0 overflow-hidden">
           @if (entry.imageUrl.length > 0) {

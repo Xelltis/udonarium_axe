@@ -12,8 +12,10 @@ import {
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import {
   encodeVnEmote,
@@ -31,6 +33,7 @@ import {
   VnPortraitEmote,
 } from '@axe/domain/visual-novel/vn-emote';
 import { isVnPortraitPosSet, VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
+import { buildBacklogEntryContextMenu } from '@axe/features/visual-novel/visual-novel-backlog/visual-novel-backlog-context-menu';
 import { VisualNovelDirectorService } from '@axe/features/visual-novel/visual-novel-director.service';
 import { vnEmoteLabel } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/visual-novel-emote-selection.service';
@@ -71,6 +74,8 @@ export class VisualNovelBacklogComponent {
   private readonly playback = inject(VisualNovelPlaybackService);
   private readonly director = inject(VisualNovelDirectorService);
   private readonly emoteSelection = inject(VisualNovelEmoteSelectionService);
+  private readonly contextMenuService = inject(ContextMenuService);
+  private readonly pointerDeviceService = inject(PointerDeviceService);
 
   /**
    * Which line the reader is looking at, and where they can go from here.
@@ -202,6 +207,25 @@ export class VisualNovelBacklogComponent {
 
   emotionMarkLabel(mark: VnEmotionMark): string {
     return mark === 'none' ? '' : VN_EMOTION_MARK_CHARS[mark];
+  }
+
+  /**
+   * What can be done with a line of the log, opened by a right click or a press held on it.
+   *
+   * The pencil on a line only shows under a mouse, so a touch screen reaches it through this.
+   */
+  protected onEntryContextMenu(event: MouseEvent, entry: VnBacklogEntry): void {
+    if (this.editingIdentifier() === entry.message.identifier) return;
+    if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+    const actions = buildBacklogEntryContextMenu(
+      entry.message.changeable,
+      { edit: () => this.startEditEntry(entry) },
+      this.translate
+    );
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, entry.name);
   }
 
   startEditEntry(entry: { message: ChatMessage; index: number }): void {
