@@ -3053,6 +3053,20 @@ body.touch-input :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-r
   -webkit-touch-callout: none;
 }
 
+/*
+ * The table takes long presses and drags on whatever lies under the finger. iOS answers a long
+ * press on a picture with the menu that saves it, and iPadOS lifts the picture out to be dropped
+ * somewhere else, both in place of moving the piece. Neither happens with a mouse, so this holds
+ * whether or not the screen has been told apart as a touch screen yet.
+ */
+game-table {
+  -webkit-touch-callout: none;
+}
+
+game-table img {
+  -webkit-user-drag: none;
+}
+
 body.mobile-layout app-mobile-chat-pane .chat-input,
 body.mobile-layout ui-panel input,
 body.mobile-layout ui-panel textarea {
