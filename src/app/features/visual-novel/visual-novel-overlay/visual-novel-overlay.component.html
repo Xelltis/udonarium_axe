@@ -324,7 +324,7 @@
   >
     @for (message of currentMessageList(); track message.identifier) {
       <div
-        class="rounded-ui-lg h-full overflow-y-auto border border-solid border-white/15 bg-black/65 px-8 py-6 wrap-break-word text-white/95 backdrop-blur-sm"
+        class="rounded-ui-lg h-full overflow-y-auto border border-solid border-white/15 bg-black/65 px-8 py-6 wrap-break-word text-white/95 backdrop-blur-sm contain-paint"
         [class]="narrationTextSizeClass()"
       >
         @if (speakerName().length > 0) {
@@ -697,7 +697,7 @@
           </button>
           @if (isPopover('palette')) {
             <div
-              class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md absolute bottom-[calc(100%+8px)] left-0 z-20 max-h-80 w-80 overflow-y-auto border border-solid p-1.5 [backdrop-filter:blur(24px)_saturate(1.5)]"
+              class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md absolute bottom-[calc(100%+8px)] left-0 z-20 max-h-80 w-80 overflow-y-auto border border-solid p-1.5 [backdrop-filter:blur(24px)_saturate(1.5)] contain-paint"
             >
               <div class="text-ui-muted px-1 pb-1 text-[11px] font-semibold">
                 {{ 'feature.visualNovel.palette' | transloco }}
