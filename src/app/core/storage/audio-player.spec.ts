@@ -126,6 +126,7 @@ function resetStaticState() {
   audioPlayerPrivate._auditionVolume = DEFAULT_VOLUME;
   audioPlayerPrivate._seVolume = DEFAULT_VOLUME;
   audioPlayerPrivate.cacheMap.clear();
+  (AudioPlayer as unknown as { decodedBuffers: Map<string, unknown> }).decodedBuffers.clear();
 }
 
 function makeAudioFile(opts: { blob?: Blob | null; url?: string; identifier?: string } = {}): AudioFile {
@@ -175,6 +176,32 @@ describe('AudioPlayer', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  describe('decoding a sound effect', () => {
+    it('decodes it once however often it plays, overlapping plays included', async () => {
+      const audio = makeAudioFile({ identifier: 'se-once', blob: new Blob(['x']) });
+
+      AudioPlayer.playSE(audio);
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(3));
+
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(1);
+    });
+
+    it('decodes it again once the cache is cleared', async () => {
+      const audio = makeAudioFile({ identifier: 'se-cleared', blob: new Blob(['x']) });
+
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(1));
+      AudioPlayer.clearAllCache();
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
+
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(2);
+    });
   });
 
   // ─── VolumeType enum ─────────────────────────────────────────────────────

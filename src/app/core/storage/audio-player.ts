@@ -170,6 +170,7 @@ export class AudioPlayer {
       URL.revokeObjectURL(cache.url);
       AudioPlayer.cacheMap.delete(identifier);
     }
+    AudioPlayer.decodedBuffers.delete(identifier);
   }
 
   static clearAllCache() {
@@ -177,6 +178,7 @@ export class AudioPlayer {
       URL.revokeObjectURL(cache.url);
     }
     AudioPlayer.cacheMap.clear();
+    AudioPlayer.decodedBuffers.clear();
   }
 
   private static evictCacheIfNeeded() {
@@ -369,26 +371,62 @@ export class AudioPlayer {
     source.start();
   }
 
+  /**
+   * Decoded sound effects, by the audio they came from, oldest first.
+   *
+   * A sound effect used to be read and decoded afresh on every play, so each die rolled and
+   * each message chimed paid for the decoding again. A decoded buffer can feed any number of
+   * sources at once, and a promise kept here lets plays that overlap share one decoding.
+   */
+  private static readonly decodedBuffers = new Map<string, Promise<AudioBuffer | null>>();
+  private static readonly MAX_DECODED_BUFFERS = 64;
+
   private static async createBufferSourceAsync(audio: AudioFile): Promise<AudioBufferSourceNode | null> {
     try {
-      let blob: Blob | undefined = audio.blob ?? undefined;
-      if (audio.state === AudioState.URL) {
-        const cache = AudioPlayer.cacheMap.get(audio.identifier);
-        if (cache) {
-          blob = cache.blob;
-        } else {
-          const createdCache = await AudioPlayer.createCacheAsync(audio);
-          blob = createdCache?.blob ?? undefined;
+      let decoding = AudioPlayer.decodedBuffers.get(audio.identifier);
+      if (!decoding) {
+        decoding = AudioPlayer.decodeAsync(audio);
+        AudioPlayer.decodedBuffers.set(audio.identifier, decoding);
+        while (AudioPlayer.decodedBuffers.size > AudioPlayer.MAX_DECODED_BUFFERS) {
+          const oldest = AudioPlayer.decodedBuffers.keys().next().value;
+          if (typeof oldest !== 'string') break;
+          AudioPlayer.decodedBuffers.delete(oldest);
         }
       }
-      if (!blob) return null;
-      const decodedData = await this.decodeAudioDataAsync(blob);
+      const decodedData = await decoding;
+      if (!decodedData) {
+        AudioPlayer.forgetDecoded(audio.identifier, decoding);
+        return null;
+      }
       const source = AudioPlayer.audioContext.createBufferSource();
       source.buffer = decodedData;
       return source;
     } catch (reason) {
+      AudioPlayer.forgetDecoded(audio.identifier);
       Logger.warn('[AudioPlayer] バッファソース作成失敗', reason);
       return null;
+    }
+  }
+
+  private static async decodeAsync(audio: AudioFile): Promise<AudioBuffer | null> {
+    let blob: Blob | undefined = audio.blob ?? undefined;
+    if (audio.state === AudioState.URL) {
+      const cache = AudioPlayer.cacheMap.get(audio.identifier);
+      if (cache) {
+        blob = cache.blob;
+      } else {
+        const createdCache = await AudioPlayer.createCacheAsync(audio);
+        blob = createdCache?.blob ?? undefined;
+      }
+    }
+    if (!blob) return null;
+    return AudioPlayer.decodeAudioDataAsync(blob);
+  }
+
+  /** Drops a decoding that came to nothing, unless a later one has taken its place. */
+  private static forgetDecoded(identifier: string, decoding?: Promise<AudioBuffer | null>): void {
+    if (decoding === undefined || AudioPlayer.decodedBuffers.get(identifier) === decoding) {
+      AudioPlayer.decodedBuffers.delete(identifier);
     }
   }
 
