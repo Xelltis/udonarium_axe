@@ -337,7 +337,7 @@ describe('VisualNovelOverlayComponent', () => {
   });
 
   it('shows a line in the window at the foot of the screen when its speaker is not on stage', () => {
-    // A balloon with nobody to come from used to float in the middle with its tail on nothing.
+    // A balloon with nobody to come from would float in the middle with its tail on nothing.
     addMessage('こんにちは');
     createComponent();
     expect(component.bubbleAnchor()).toBeNull();
@@ -865,7 +865,7 @@ describe('VisualNovelOverlayComponent', () => {
 
   it('reads the place out of a message saved before places were numbers', () => {
     addMessage('こんにちは', 'アリス', addImage());
-    // Attributes come back from XML as strings, which the stage used to throw away.
+    // Attributes come back from XML as strings, and a place written as one still has to count.
     (tab.chatMessages[tab.chatMessages.length - 1] as unknown as Record<string, unknown>)['imagePos'] = '7';
     createComponent();
 

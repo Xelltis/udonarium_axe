@@ -290,8 +290,8 @@ export class GameObjectInventoryComponent {
   /**
    * What is on a piece right now, as the badges that stand over it on the table.
    *
-   * The full view had no sign of them: a row said what a piece could do and nothing about what
-   * had been done to it, so a poisoned goblin read the same as a clean one.
+   * Without them a row says what a piece can do and nothing about what has been done to it, so a
+   * poisoned goblin would read the same as a clean one.
    */
   buffBadgesOf(gameObject: TabletopObject): { shown: BuffBadge[]; more: number } {
     if (!(gameObject instanceof GameCharacter)) return NO_BUFF_BADGES;
@@ -441,8 +441,8 @@ export class GameObjectInventoryComponent {
     this.objectChange.collectionOf('party')();
     this.objectChange.trackMyCursor();
     // The same grouping the round itself walks. Banding a game master's strip by what only they
-    // can see offered a side the round cannot reach: handing it the turn wrote a side nothing
-    // could resolve afterwards, and the next press gave the turn away to somebody else's piece.
+    // can see would offer a side the round cannot reach: handing it the turn would write a side
+    // nothing can resolve afterwards, and the next press would give the turn to somebody else's piece.
     return this.turnOrderService.orderedSides().map((group) => ({
       side: group.side,
       name: this.turnOrderService.sideName(group.side),
@@ -1045,8 +1045,8 @@ export class GameObjectInventoryComponent {
 
   /**
    * A character carries one folder name wherever it stands, so a rename has to reach it even
-   * while it is on the table. Scoping this to the tab on view left those behind, and the folder
-   * came back the moment the character did.
+   * while it is on the table. Scoping this to the tab on view would leave those behind, and the
+   * folder would come back the moment the character does.
    *
    * It stops at the edge of the scope on view, though. A folder kept for this device and one kept
    * for the room are separate folders that only share a name, so a rename of one must not empty

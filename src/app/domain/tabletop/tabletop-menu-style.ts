@@ -2,8 +2,8 @@
  * Which menu a right-click opens on a table that is being looked straight down on.
  *
  * A table drawn flat is not the same thing as a screen laid on a table. Reading them as one
- * gave everyone looking at a 2D table the menu built for four readers sitting around it, so
- * the menu is asked for by name instead: the ordinary list unless this screen says otherwise.
+ * would give everyone looking at a 2D table the menu built for four readers sitting around it,
+ * so the menu is asked for by name instead: the ordinary list unless this screen says otherwise.
  */
 export const TABLETOP_MENU_STYLES = ['standard', 'four-way', 'radial'] as const;
 

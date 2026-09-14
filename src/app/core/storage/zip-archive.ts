@@ -98,10 +98,10 @@ function settleAll(response: ZipWorkerResponse | null): void {
  * this module to the next. A test that wants to watch a worker being fed hands its own in
  * here, which forgets the trouble as well.
  *
- * A test used to put its class on the global `Worker` instead. Which global that is depends
- * on where the module happened to be loaded from, so the class sometimes landed somewhere
- * the module could not see it - rarely, and only under load, which is the worst way for a
- * test to fail. Handing the factory in leaves nothing for the loading order to decide.
+ * Putting a class on the global `Worker` is no substitute. Which global that is depends on
+ * where the module happens to be loaded from, so the class can land somewhere the module
+ * cannot see it - rarely, and only under load, which is the worst way for a test to fail.
+ * Handing the factory in leaves nothing for the loading order to decide.
  */
 export function useZipWorkerFactory(factory: (() => Worker) | null): void {
   makeWorker = factory;

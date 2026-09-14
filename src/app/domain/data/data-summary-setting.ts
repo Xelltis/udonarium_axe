@@ -29,11 +29,11 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   /**
    * What the room chose to be read by, and nothing until it chooses.
    *
-   * These used to start on the names the sample sheet happens to use, which left a room built
-   * out of imported sheets sorting by a status nothing carried and showing columns that
-   * resolved to nothing at all. A room says what matters to it; where it has said nothing, the
-   * views work it out from the pieces on the table (`application/inventory/summary-items`), and
-   * the room that is set out with the samples is handed the samples' own vocabulary.
+   * Starting these on the names the sample sheet happens to use would leave a room built out of
+   * imported sheets sorting by a status nothing carries and showing columns that resolve to
+   * nothing at all. A room says what matters to it; where it has said nothing, the views work
+   * it out from the pieces on the table (`application/inventory/summary-items`), and the room
+   * that is set out with the samples is handed the samples' own vocabulary.
    */
   @SyncVar() sortTag: string = '';
   @SyncVar() sortOrder: SortOrder = SortOrder.DESC;

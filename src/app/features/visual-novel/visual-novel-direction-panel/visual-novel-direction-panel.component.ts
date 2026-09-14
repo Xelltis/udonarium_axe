@@ -9,8 +9,8 @@ import { TranslocoModule } from '@jsverse/transloco';
  * What the game master does to the scene everybody is looking at.
  *
  * Apart from the display settings, which are each reader's own: these reach the whole table.
- * They used to sit in the same strip as the controls for reading and for speaking, where they
- * were three unlabelled icons among twenty.
+ * In the same strip as the controls for reading and for speaking they would be three unlabelled
+ * icons among twenty.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,

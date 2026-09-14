@@ -105,10 +105,10 @@ export class ObjectSynchronizer {
           }
           // A room being loaded takes objects away and puts some of them back under the names
           // they were saved under. To a seat that only watched, each of those is a deletion
-          // being undone, and it answers by having the loader delete it again - so the effect
-          // library and the sample cut-ins went missing from a room that had just been loaded,
-          // but only ever while somebody else was connected. The loader says which names are
-          // coming back, and they leave the graveyard before they arrive.
+          // being undone, and left to itself it has the loader delete it again, which takes the
+          // effect library and the sample cut-ins out of a room just loaded whenever somebody
+          // else is connected. The loader says which names are coming back, and they leave the
+          // graveyard before they arrive.
           case 'FORGET_DELETED_OBJECTS': {
             if (msg.isSendFromSelf) break;
             const { identifiers } = msg.data as { identifiers?: ObjectIdentifier[] };

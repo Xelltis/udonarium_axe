@@ -99,7 +99,6 @@ export class ObjectChangeService {
     return sig.asReadonly();
   }
 
-  /** Bumps the version by hand for a property no sync var covers. */
   /** A coin you flipped starts spinning here, without waiting for the round trip. */
   notifyCoinFlipped(identifier: string, face: string): void {
     this._flipCoin$.emit({ identifier, face });

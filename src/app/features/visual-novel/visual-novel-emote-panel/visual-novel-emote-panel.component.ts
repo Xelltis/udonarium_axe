@@ -13,9 +13,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 /**
  * What the next line will be staged as.
  *
- * Kept apart from the display settings it used to share a balloon with: this is touched line
- * by line while a scene is played, those are settled once and left alone. Together they made
- * one tall column to scroll past every time an expression was wanted.
+ * Kept apart from the display settings: this is touched line by line while a scene is played,
+ * those are settled once and left alone. Together they would make one tall column to scroll past
+ * every time an expression is wanted.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,

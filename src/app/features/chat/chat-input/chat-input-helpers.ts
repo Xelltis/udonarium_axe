@@ -31,7 +31,7 @@ export function allowsChat(gameCharacter: GameCharacter, myPeerId: string, ignor
 /**
  * Whether the keys belong to the field the caret sits in rather than to the window around it.
  *
- * The tab shortcut used to live on the chat input alone. Bound to the window it also reaches the
+ * The tab shortcut is bound to the window rather than to the chat input, so it also reaches the
  * fields beside it — a tab name, a sheet value — where Ctrl+arrow is how you step over a word.
  * The chat input itself is the one place the shortcut is meant to work from.
  */

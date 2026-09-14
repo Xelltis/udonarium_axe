@@ -17,8 +17,8 @@ export function clampBoardPitch(pitch: number): number {
 /**
  * A board that other things are laid out on, and that carries them when it moves.
  *
- * The table has five faces to put things on and no more, so a plan of the second floor or
- * a row of portraits had nowhere of its own to live. A board is a face like those: what is
+ * The table has five faces to put things on and no more, and a plan of the second floor or
+ * a row of portraits belongs on none of them. A board is a face like those: what is
  * put on it holds its place while the board is turned, tilted or stood upright, and
  * nothing is trimmed at the edge, so a piece may hang over the side.
  */

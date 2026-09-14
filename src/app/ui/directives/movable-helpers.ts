@@ -464,7 +464,7 @@ export function setLayerCollidable(
       // Self-colliding layers (e.g. terrain colides with 'terrain') would otherwise leave
       // peers interactive — and when the cursor crosses one of them mid-drag the browser
       // can fire synthetic pointer-events-toggle mousemoves with `buttons === 0`, which
-      // PointerDeviceService treats as drag-end and cancels the drag (the original bug).
+      // PointerDeviceService treats as drag-end, cancelling the drag.
       isEnable = false;
     } else if (-1 < colideLayers.indexOf(layerName)) {
       isEnable = selfIsGrabbing ? isCollidable : true;
@@ -506,7 +506,7 @@ export function unregisterLayer(
  *
  * A board carries a face of its own, and while it is being dragged that face travels under
  * the pointer with it. Taken at its word the board is laid on itself, and it lands wherever
- * its own corner happens to be, which is how a board came to leap about the table.
+ * its own corner happens to be, so the board would leap about the table.
  */
 export function dropTargetSurface(dragged: Element, under: Element | null): HTMLElement | null {
   const surface = under?.closest<HTMLElement>('[data-surface]') ?? null;

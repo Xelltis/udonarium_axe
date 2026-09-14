@@ -301,7 +301,7 @@ describe('GameCharacterComponent', () => {
 
     it('stands up again where the face it was on says nothing in words', () => {
       // A face cleared by one seat reaches another as nothing and can come back written out
-      // as the word for it. Read as a face, the piece went on lying down on the floor.
+      // as the word for it. Read as a face, the piece would go on lying down on the floor.
       for (const word of ['null', 'undefined', '']) {
         const character = pieceOn(word);
         try {

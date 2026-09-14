@@ -20,9 +20,9 @@ export type ChatTheme = 'light' | 'dark';
 /**
  * The colours offered without having to open a picker.
  *
- * Picking a legible colour out of a wheel is a chore nobody wants before speaking, and these
- * are the ones the tool has always offered: a dark and a light of each hue, spread round it.
- * Yellow was the one hue missing, and sixteen fills the two rows they are laid out in.
+ * Picking a legible colour out of a wheel is a chore nobody wants before speaking, so these
+ * offer a dark and a light of each hue, spread round it with yellow among them, and sixteen
+ * fills the two rows they are laid out in.
  */
 /** How many swatches a row of the palette holds, which the count of them has to divide into. */
 export const PRESET_COLUMNS = 8;

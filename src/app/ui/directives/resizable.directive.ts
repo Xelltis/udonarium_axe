@@ -42,9 +42,9 @@ export function anchorOf(handle: HandleType): { x: number; y: number } {
  *
  * A panel is turned about its own middle, and `left`, `top`, `width` and `height` are all read
  * before that turn is applied: widening it moves the middle sideways, and the picture is drawn
- * about the middle's new place. Turned a quarter round, dragging one edge out grew the panel
- * from the middle and slid the whole of it sideways; turned half round it grew away from the
- * pointer altogether.
+ * about the middle's new place. Turned a quarter round, dragging one edge out would grow the
+ * panel from the middle and slide the whole of it sideways; turned half round it would grow
+ * away from the pointer altogether.
  *
  * The middle moves by half of what was added, along the element's own axes. Where the element
  * is turned, that half has to be laid down turned as well, and the difference between the two

@@ -169,7 +169,7 @@ export function layoutToBlocks(
   }
 
   // A door stands on the floor rather than instead of it: its slab is a quarter of a cell
-  // thick, so leaving its cell unpainted showed bare table beside it and a hole once it opened.
+  // thick, so leaving its cell unpainted would show bare table beside it and a hole once it opens.
   const floorMask = maskOfKind(layout, [DungeonCell.Room, DungeonCell.Corridor, DungeonCell.Door]);
   for (const rect of mergeMaskToRects(floorMask, layout.width, layout.height, span)) {
     paint.push({ kind: 'floor', rect });

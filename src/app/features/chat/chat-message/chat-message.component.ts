@@ -424,8 +424,12 @@ export class ChatMessageComponent {
     };
   });
 
-  /** Whether a message can be replied to, quoted or made into a note. System messages and those addressed to a player are not.
-      ダイスボット (`isDicebot`) は対話可能なメッセージとして扱う (System tag は持つが PC に向けた応答なので)。 */
+  /**
+   * Whether a message can be replied to, quoted or made into a note.
+   *
+   * Nothing in a read-only view can, nor can system messages or notices addressed to a player. A
+   * dice bot's answer (`isDicebot`) can: it carries the system tag, but it answers a player's roll.
+   */
   get canInteract(): boolean {
     if (this.readOnly()) return false;
     const msg = this.chatMessage;
@@ -482,7 +486,7 @@ export class ChatMessageComponent {
 
   /**
    * A memo is a note laid on the table, so it is only for those who may put things there.
-   * A guest is at the table to watch, and had a button that put a note on it.
+   * A guest is at the table to watch, not to put notes on it.
    */
   get canShareAsMemo(): boolean {
     return this.canInteract && this.rolePermission.canEditTabletop;

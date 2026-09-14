@@ -98,8 +98,8 @@ export class WhiteBoardComponent {
       const board = this.whiteBoard();
       this.objectChange.versionOf(board.identifier)();
       // The picture a board wears arrives after the name of it does, so the bytes landing has
-      // to move the view as well; without it a board stayed blank for everybody else until it
-      // was dragged.
+      // to move the view as well; without it a board would stay blank for everybody else until
+      // it is dragged.
       this.objectChange.fileVersion();
       return board;
     },
@@ -153,8 +153,8 @@ export class WhiteBoardComponent {
    * Reads the collections, then hands back the table.
    *
    * It is the same table every time, so under the default equality a piece put on the board
-   * never reached anything that reads this: the collection said it had changed and the answer
-   * said it had not.
+   * would never reach anything that reads this: the collection would say it has changed and the
+   * answer that it has not.
    */
   private readonly surfaceVersion = computed(
     () => {

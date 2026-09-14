@@ -50,11 +50,11 @@ import { TranslocoModule } from '@jsverse/transloco';
 /**
  * Everything about looking at the table in one place.
  *
- * The settings gathered here were reached through three menus that each said something about
- * two dimensions: the view this seat is taking, the view the table recommends, and how a table
- * seen from above is drawn. Which of them a reader wanted was never obvious from any one of
- * them, so they are put side by side in the order they take effect, and each is still where it
- * was for anyone who knows the way there.
+ * The settings gathered here also live in three menus that each say something about two
+ * dimensions: the view this seat is taking, the view the table recommends, and how a table seen
+ * from above is drawn. Which of them a reader wants is not obvious from any one of them, so they
+ * are put side by side in the order they take effect, and each stays in its own menu for anyone
+ * who knows the way there.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,

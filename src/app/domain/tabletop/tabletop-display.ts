@@ -219,7 +219,7 @@ export function normalizeTabletopDisplayOwn(value: unknown): TabletopDisplayOwn 
 }
 
 /**
- * What is in force on this screen: what it has been told, over what the table used to carry.
+ * What is in force on this screen: what it has been told, over what the table still carries.
  *
  * The table is read first so that a room saved while these were still the table's own keeps
  * looking the way it did until this screen says otherwise.

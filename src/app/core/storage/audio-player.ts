@@ -468,9 +468,9 @@ export class AudioPlayer {
   /**
    * Decoded sound effects, by the audio they came from, oldest first.
    *
-   * A sound effect used to be read and decoded afresh on every play, so each die rolled and
-   * each message chimed paid for the decoding again. A decoded buffer can feed any number of
-   * sources at once, and a promise kept here lets plays that overlap share one decoding.
+   * Reading and decoding afresh on every play would charge each die rolled and each message
+   * chimed for the decoding again. A decoded buffer can feed any number of sources at once, and
+   * a promise kept here lets plays that overlap share one decoding.
    */
   private static readonly decodedBuffers = new Map<string, Promise<AudioBuffer | null>>();
   private static readonly MAX_DECODED_BUFFERS = 64;

@@ -88,8 +88,8 @@ export class ChatInputComponent {
    * Whether this seat has a ticker to send a line to.
    *
    * The band only runs along the edge of a table being looked straight down on, so a seat in
-   * perspective has none. Offered there all the same, the switch sent a line to everybody
-   * else's band and left the sender's own screen with nothing to show for it.
+   * perspective has none. Offered there all the same, the switch would send a line to everybody
+   * else's band and leave the sender's own screen with nothing to show for it.
    */
   readonly showsTickerSwitch = computed(
     () => this.tabletopService.mode2d() && this.tabletopDisplay.settings().multiAngleTickerEnabled

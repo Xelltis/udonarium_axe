@@ -3,7 +3,7 @@ import { type EffectKind, isEffectKind } from '@axe/domain/effect/effect-kind';
 /**
  * An effect built out of stages.
  *
- * One effect used to be one look with one landing. A stage list makes it a run: it leaves
+ * Without stages an effect is one look with one landing. A stage list makes it a run: it leaves
  * somewhere, travels, lands, throws off what it lands into, and leaves something behind.
  * Each stage names one of the looks the tool already draws, so the parts are the effects
  * that exist rather than a new vocabulary to learn.

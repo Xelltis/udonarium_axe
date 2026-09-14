@@ -82,8 +82,8 @@ export function wallLightInset(facing: number, cells: number): { x: number; y: n
  * How far down a lamp on a wall is turned, so that its light lands in front of it.
  *
  * A sconce comes out of the preset turned a little upward, which is how a torch stands in a
- * bracket but not where it throws anything: hung high on a wall, it lit the stone above itself
- * and left the floor to the dark. Aiming it is a right-angled triangle — the drop is how high
+ * bracket but not where it throws anything: hung high on a wall, it would light the stone above
+ * itself and leave the floor to the dark. Aiming it is a right-angled triangle — the drop is how high
  * it hangs, the run is how far out the pool should sit — so the angle follows from the two
  * rather than being guessed at.
  */

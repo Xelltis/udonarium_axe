@@ -379,14 +379,14 @@ export interface TriggerBlock extends CellRect {
 type StandingBlock = CellRect & { spec: { altitude: number; height: number } };
 
 /**
- * How high each block stands, counted in the cells of the blocks beneath it.
+ * How many cells up each block starts, given the blocks stacked beneath it, in the same order as
+ * the blocks were given.
  *
- * Blocks are walked from the ground up, so a wall laid over a wall is told that it starts
- * where the one below leaves off. A block spanning cells of unequal standing takes the
- * highest of them, since a wall cannot begin at two heights at once.
+ * Blocks are laid from the ground up, lowest altitude first and in the order given where two are
+ * level, so a wall laid over a wall starts where the one below leaves off. A block spanning cells
+ * of unequal standing starts on the tallest stack under any of them, since a wall cannot begin at
+ * two heights at once.
  */
-type StandingBlock = CellRect & { spec: { altitude: number; height: number } };
-
 export function terrainStackLevels(blocks: readonly StandingBlock[]): number[] {
   const order = blocks
     .map((_, index) => index)

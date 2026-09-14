@@ -15,8 +15,8 @@ const CHAT_TAIL_PATTERN = /\s(@?)(\S+)$/i;
  * How lately a line has to have been said for its cut-in to still be meant.
  *
  * Joining a room and loading one from a file both hand every line that was ever said to the
- * same event a new line arrives on. Without this, walking in set off every cut-in the evening
- * had ever named - and since starting one is spoken to the whole room, everybody saw them.
+ * same event a new line arrives on. Without this, walking in would set off every cut-in the
+ * evening has named, and since starting one is spoken to the whole room, everybody would see them.
  */
 const JUST_SAID_MS = 30_000;
 

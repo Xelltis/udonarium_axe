@@ -25,7 +25,7 @@ function fillFor(material: DungeonMaterial): FillStyle {
  * The ground of a dungeon as a map the editor could have painted.
  *
  * Everything a floor does, the picture on the table does for nothing: it is walked over,
- * seen past and lit through. Built out of terrain instead it was a third of the pieces on
+ * seen past and lit through. Built out of terrain instead it would be a third of the pieces on
  * the table and every one of them synced.
  */
 export function buildGroundScene(

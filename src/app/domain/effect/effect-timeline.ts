@@ -282,9 +282,9 @@ export const CENTERED_EFFECT_KINDS: readonly EffectKind[] = Object.keys(CENTERED
 /**
  * Paints one look, wherever it is asked for.
  *
- * The dispatch used to be reachable only by playing a whole effect from its start. A run
- * built of stages paints one look at a time, each with its own clock and its own place, so
- * the tables are reached through here as well.
+ * Playing a whole effect from its start is not the only way into the dispatch. A run built of
+ * stages paints one look at a time, each with its own clock and its own place, so the tables
+ * are reached through here as well.
  */
 export function paintEffectKind(kind: EffectKind, context: EffectPaintContext): void {
   const aimed = AIMED[kind];

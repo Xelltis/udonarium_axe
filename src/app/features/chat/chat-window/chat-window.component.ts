@@ -139,8 +139,8 @@ export class ChatWindowComponent {
 
   /**
    * Bound to the window rather than to the input: a tab nobody may speak in renders no textarea,
-   * and the shortcut used to live on that textarea, so arriving at such a tab left no way back
-   * out by keyboard. Focus follows to the window when the input goes away.
+   * so a shortcut living on that textarea would leave no way back out of such a tab by keyboard.
+   * Focus follows to the window when the input goes away.
    */
   switchTabByKey(event: Event, direction: number): void {
     if (editsTextInPlace(event.target)) return;

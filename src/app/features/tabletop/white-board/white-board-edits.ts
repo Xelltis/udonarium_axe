@@ -248,8 +248,9 @@ export interface MarkStyleChange {
 /**
  * Restyles what is held.
  *
- * A line drawn in the wrong colour was a line to be rubbed out and drawn again, which is not
- * how anything else works: the ink settings reach what is already down, not only what is next.
+ * A line drawn in the wrong colour would otherwise be a line to be rubbed out and drawn again,
+ * which is not how anything else works: the ink settings reach what is already down, not only
+ * what is next.
  */
 export function restyleMark(scene: MapScene, ref: MarkRef, change: MarkStyleChange): void {
   for (const layer of scene.layers) {

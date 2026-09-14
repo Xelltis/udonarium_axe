@@ -27,8 +27,8 @@ function standingDocumentOf(element: Element): Document {
  *
  * ng-select puts its list on the document it was given when it was made, listens there for a
  * click outside it, and measures there where the list fits. A select inside a panel taken out
- * into a window of its own was given the main window's, so the list opened back where the
- * panel had been. Given the document it is standing in instead, every one of those follows
+ * into a window of its own would be given the main window's, and the list would open back where
+ * the panel had been. Given the document it is standing in instead, every one of those follows
  * the select over, into whichever window it was opened in and whichever it was carried to.
  */
 @Directive({

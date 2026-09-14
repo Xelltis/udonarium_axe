@@ -662,7 +662,7 @@ export class VisionService {
         const cell = cellIndexAt(grid, x, y);
         // The fog is the table's record of its own ground and has nothing to say about what
         // lies over the edge of it. Held as unwalked, the part of a block that overhangs the
-        // table wore the fog's colour across itself and took its texture with it.
+        // table would wear the fog's colour across itself and take its texture with it.
         const offTable = cell < 0;
         const shown = offTable || (explored?.get(cell) ?? true);
         cleared.push(shown);
@@ -700,23 +700,23 @@ export class VisionService {
     // Bright exactly where the fog counts the cell as in sight right now. The fog's own
     // answer already holds the whole rule - lamplit and in a line of sight, read at a wall's
     // open sides - and it falls back to the party's shared sight for a reader with no piece
-    // of their own. Asking the sight lines again here answered that reader with 'anything a
-    // lamp touches', which lit the walls of rooms nobody could see into.
+    // of their own. Asking the sight lines again here would answer that reader with 'anything
+    // a lamp touches', lighting the walls of rooms nobody can see into.
     // The fog is worked out along the floor and has nothing to say about a roof above it: the
     // building itself stops the look, so its own roof is never among the cells in sight. A lamp
     // standing up there lights the roof it stands on, and reading that roof against cells lying
-    // in the building's own shadow left it dark under the lamp's feet. Ground nobody has reached
-    // is still held back, by the cleared list this fills in beside the brightness.
+    // in the building's own shadow would leave it dark under the lamp's feet. Ground nobody has
+    // reached is still held back, by the cleared list this fills in beside the brightness.
     if (planeZ <= 0 && visible && !visible.get(cell)) return dark;
     // A roof is ground, walked on at the height it stands at, so it is read where it lies. The
     // detour below is for a wall met from the floor, whose middle is inside the wall itself;
-    // taken on a roof it read the middle of a wide one from the open ground beyond its edges,
-    // and the middle of a crate a torch was standing on came out as dark as the yard outside.
+    // taken on a roof it would read the middle of a wide one from the open ground beyond its
+    // edges, leaving the middle of a crate a torch stands on as dark as the yard outside.
     //
     // Only by the lamps this reader can see. The fog cannot answer for a roof — the building
     // itself stops the look, so its own top is never among the cells in sight — and dropping
-    // the question altogether lit the roof of every lamplit room on the map for somebody
-    // standing outside all of them.
+    // the question altogether would light the roof of every lamplit room on the map for
+    // somebody standing outside all of them.
     if (planeZ > 0) {
       return objectBrightnessFor(this.seenScene() ?? scene, viewer, x, y, grid.sizePx / 2, true, planeZ);
     }
@@ -765,20 +765,11 @@ export class VisionService {
   }
 
   /**
-   * How bright a terrain is drawn, read where the fog has cleared rather than at its middle.
-   *
-   * A wall gathered from a dozen cells is drawn only where the party has reached it, and the
-   * middle of such a wall is usually neither reached nor lit: read there, the one cell of it
-   * standing beside a torch came out as black as the ten behind it.
-   */
-  /**
    * How brightly the top of a block comes out.
    *
-   * A roof is a surface of its own, level with whatever is standing on it. The fog and the
-   * light are both worked out along the floor, so a lamp carried onto a building lit nothing up
-   * there: its pool on the ground had shrunk away by the time it climbed, and the roof was read
-   * against cells lying in the building's own shadow. Asked at the roof's own height, a lamp on
-   * a roof lights it exactly as it would light the ground.
+   * A roof is a surface of its own, level with whatever is standing on it, so its fog and light
+   * are read at the roof's own height rather than along the floor, where the block's shadow lies.
+   * A lamp on a roof lights it exactly as it would light the ground.
    *
    * A block flat on the floor is read the way every other surface is.
    */
@@ -820,9 +811,6 @@ export class VisionService {
     const scene = this.scene();
     if (!scene) return 1;
     const cover = this.terrainFogCover(terrain);
-    // The top of a wall is a surface of its own, and a lamp level with it lights along it. Read
-    // at the ground the wall stands on, a walkway beside a torch came out as dark as the floor
-    // ten feet below, and so did whatever had climbed onto it.
     const top = terrainTopPx(terrain, scene.gridSize);
     if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true, top);
 
@@ -833,8 +821,8 @@ export class VisionService {
    * The brightest of the cells a terrain has been reached at.
    *
    * A wall's cell is read at its open sides, never at its middle: the middle of a wall is
-   * inside the wall, where its own edge stops the look and the light alike, so the one cell
-   * of it standing beside a torch came out as black as the ten behind it.
+   * inside the wall, where its own edge stops the look and the light alike, and reading it
+   * there would leave the one cell beside a torch as black as the ten behind it.
    */
   private brightestCleared(cover: TerrainFogCover): number {
     let best = 0;
@@ -849,7 +837,7 @@ export class VisionService {
    *
    * `standingZ` is the surface it is standing on, not its own top: the ground for most of a
    * table, and the top of a wall for whatever has climbed onto one. Read against the ground
-   * far below, a piece on a walkway level with a lamp came out dark beside it.
+   * far below, a piece on a walkway level with a lamp would come out dark beside it.
    */
   objectBrightness(x: number, y: number, radiusPx = 0, ignoreShadowCasters = false, standingZ = 0): number {
     if (!this.active()) return 1;
@@ -898,9 +886,9 @@ export class VisionService {
    *
    * A wall is painted at the darkness of the table and lit only where a pool falls on it, so
    * this is what keeps a lamp shut in a room from throwing its pool onto the walls of that
-   * room for somebody standing outside. Asking instead whether the face as a whole could be
-   * seen took the pools off a long wall whose middle happened to be dark, which is most of a
-   * long wall.
+   * room for somebody standing outside. Asking instead whether the face as a whole can be
+   * seen would take the pools off a long wall whose middle happens to be dark, which is most
+   * of a long wall.
    */
   private seenScene(): VisionScene | null {
     const scene = this.scene();
@@ -1004,7 +992,7 @@ export class VisionService {
     // Under fog the piece answers to the same cells the fog is drawn from. Asking the sight
     // lines again would answer for eyes the reader may not have: somebody with no piece of
     // their own has none, and a table with the dark switched off has nothing to stop a look,
-    // so every piece on the board came out standing in plain view under the fog covering it.
+    // so every piece on the board would stand in plain view under the fog covering it.
     // A piece the party has met is followed wherever it goes, on a table that says so: what
     // is being read is the map the party keeps, and a monster they have seen is on it.
     if (this.foundPieces().has(character.identifier)) return true;

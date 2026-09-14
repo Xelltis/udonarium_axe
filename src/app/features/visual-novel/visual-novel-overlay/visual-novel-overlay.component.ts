@@ -544,9 +544,9 @@ export class VisualNovelOverlayComponent {
    * Which of the three ways of showing a line this one is shown in.
    *
    * A balloon needs somebody to come from. A line whose speaker has no portrait on the stage -
-   * said by a player as themselves, or left standing after the stage was cleared - was drawn
-   * as a balloon anyway, floating in the middle of the screen with its tail pointing at
-   * nothing. Such a line falls back to the window at the foot of the screen.
+   * said by a player as themselves, or left standing after the stage was cleared - would float
+   * in the middle of the screen as a balloon with its tail pointing at nothing, so such a line
+   * falls back to the window at the foot of the screen.
    */
   readonly speechLayout = computed<VnLayout | null>(() => {
     if (!this.speechVisible()) return null;
@@ -628,7 +628,7 @@ export class VisualNovelOverlayComponent {
    *
    * Characters only, for anybody at the table: novel mode plays a scene, and somebody's own
    * name has no part in one. The game master is the exception, since running the table means
-   * saying things as themselves, and until now that meant leaving novel mode for the chat
+   * saying things as themselves, and anything else would mean leaving novel mode for the chat
    * window and coming back.
    */
   readonly speakerOptions = computed<{ identifier: string; name: string }[]>(() => {
@@ -788,7 +788,7 @@ export class VisualNovelOverlayComponent {
     this.destroyRef.onDestroy(() => this.playback.detach());
     // The windows are put up outside this screen, so leaving novel mode does not take them.
     this.destroyRef.onDestroy(() => closeVisualNovelPanels(this.panelService));
-    // The selection outlives this screen now, and an expression chosen before novel mode was
+    // The selection outlives this screen, and an expression chosen before novel mode was
     // last closed should not be waiting to be sent when it is opened again.
     this.destroyRef.onDestroy(() => this.emoteSelection.reset());
 
@@ -1015,9 +1015,9 @@ export class VisualNovelOverlayComponent {
   }
 
   /**
-   * Where a window opened from a button in the bar belongs: just above the button, which is
-   * where the balloon it replaces used to appear. Anywhere fixed would sooner or later be
-   * under the menu button or over the portraits.
+   * Where a window opened from a button in the bar belongs: just above the button, where the eye
+   * already is. Anywhere fixed would sooner or later be under the menu button or over the
+   * portraits.
    */
   private spotFor(event: Event | undefined, size: { width: number; height: number }) {
     const button = event?.currentTarget;

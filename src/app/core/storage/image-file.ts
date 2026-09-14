@@ -275,8 +275,14 @@ export class ImageFile {
   static Empty: ImageFile = ImageFile.createEmpty('null');
 }
 
-// ImageFile is mutable; the url string changes on thumbnail → full transition while
-// the instance stays the same. Snapshot the url to detect that change.
+/**
+ * An `equal` function for a computed that yields an image, counting the image
+ * as changed whenever its URL has.
+ *
+ * An image is mutable: the same instance swaps its thumbnail URL for the full image's. So this
+ * compares the URL with the one it saw last rather than the two images, which catches that swap.
+ * Each call makes a comparer with its own memory, so give every computed its own.
+ */
 export function imageFileEqual(): (a: ImageFile, b: ImageFile) => boolean {
   let lastUrl: string | null = null;
   return (_a, b) => {

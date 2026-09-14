@@ -774,8 +774,8 @@ function paintChapterLabel(
 /**
  * Remembers the wrapped lines.
  *
- * Dialogue and chapter titles hold still for a whole shot, yet the video was re-wrapping the
- * same text thirty times a second, measuring every candidate substring and reshaping the font each time.
+ * Dialogue and chapter titles hold still for a whole shot, and wrapping the same text afresh
+ * thirty times a second would measure every candidate substring and reshape the font each time.
  */
 const wrapped = new Map<string, string[]>();
 const WRAP_CACHE_MAX = 64;

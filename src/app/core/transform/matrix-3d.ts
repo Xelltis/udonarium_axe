@@ -162,7 +162,16 @@ export class Matrix3D {
     return this;
   }
 
-  //based on http://code.metager.de/source/xref/mozilla/B2G/gecko/gfx/thebes/gfx3DMatrix.cpp#651
+  /**
+   * Maps a 2D point through the matrix to where the line through it, straight into the screen,
+   * crosses z = 0 on the other side, following the point projection in Mozilla Gecko's
+   * `gfx3DMatrix.cpp`.
+   *
+   * `Transform.globalToLocal` calls it with the inverted scene transform, which puts a pointer on
+   * the page onto the plane of a tilted element such as the table; `CoordinateService` reads
+   * pointers that way. Only x and y give the crossing: z and w both hold the depth of the point
+   * before it is moved along the line, and any z on the input is ignored. Fills and returns `ret`.
+   */
   unproject(point: IPoint2D, ret: IPoint3D = { x: 0, y: 0, z: 0, w: 1 }): IPoint3D {
     let x = point.x * this.m11 + point.y * this.m21 + this.m41;
     let y = point.x * this.m12 + point.y * this.m22 + this.m42;

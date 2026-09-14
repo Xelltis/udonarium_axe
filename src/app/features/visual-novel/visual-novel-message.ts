@@ -7,7 +7,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
  *
  * What the room says of itself - a log cleared, somebody arriving - is kept as a key and its
  * parts rather than as words, so that everyone reads it in their own language. Anything
- * showing such a line has to look the words up; novel mode showed the key.
+ * showing such a line has to look the words up, or it shows the key.
  */
 export function readableMessageText(message: ChatMessage | null | undefined, translate: TranslateFn): string {
   const text = message?.text ?? '';

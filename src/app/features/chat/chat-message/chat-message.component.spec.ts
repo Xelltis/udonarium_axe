@@ -76,7 +76,8 @@ describe('ChatMessageComponent', () => {
 
   it('drops the cover on a secret roll as soon as the tag loses it', () => {
     // The reveal changes only the tag. Nothing else drawn while the line is hidden depends on
-    // that message, so without a version to watch the cover stayed on until something else drew.
+    // that message, so without a version to watch the cover would stay on until something
+    // else draws.
     vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
 
     const message = new ChatMessage();

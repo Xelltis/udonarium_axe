@@ -43,7 +43,7 @@ describe('CardComponent', () => {
     it('shows a picture that arrived after the card did, without the card being moved', () => {
       // A picture comes in two steps: the name of it with the card, the bytes when the room
       // has passed them along. Read off the card rather than through the signals, neither step
-      // moved the view and the card stayed blank for everybody else until it was dragged.
+      // would move the view, and the card would stay blank for everybody else until it was dragged.
       // The name of the picture is already on the card, as it is for everybody the moment the
       // card reaches them. Only the bytes are still on their way, so nothing about the card
       // itself changes when they land - and that alone has to move the view.

@@ -42,8 +42,8 @@ describe('SkinPanelComponent', () => {
 
   it('sets the names the utility classes read, not only the theme tokens', () => {
     // `--color-ui-bg: var(--ui-bg)` resolves on the root, and what descendants inherit is
-    // the value it resolved to there. Setting only `--ui-bg` on the stage left every
-    // bg-ui-* inside it showing whatever the app itself was wearing.
+    // the value it resolved to there. Setting only `--ui-bg` on the stage would leave every
+    // bg-ui-* inside it showing whatever the app itself is wearing.
     skins.editLadder('dark');
     fixture.detectChanges();
 

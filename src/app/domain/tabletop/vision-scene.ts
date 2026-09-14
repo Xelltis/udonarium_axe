@@ -286,10 +286,10 @@ export function floorRadii(light: SceneLight, planeZ = 0): { brightFloor: number
 /**
  * Where a light lands on the floor, and how far it carries once it is there.
  *
- * The floor and the things standing on it used to be told apart by different geometry: the
- * floor by this projection, a block by the plain distance through the air. A lamp hung on a
- * wall is nearer to the block beside it than to the floor below, so the block came out lit
- * over a floor that was left dark. Both now read the pool from here.
+ * The floor and the things standing on it both read the pool from here. Measuring a block by
+ * the plain distance through the air instead would light it apart from the floor: a lamp hung
+ * on a wall is nearer to the block beside it than to the floor below, so the block would be
+ * lit over a floor left dark.
  */
 export function lightFloorPool(
   light: SceneLight,
@@ -419,10 +419,10 @@ export function seesInDark(type: VisionType): boolean {
 /**
  * What stands in a light's way, worked out once for that light.
  *
- * It used to be gathered afresh on every question asked about the light, building a new
- * array out of every wall on the table each time. A cone light asks a thousand times over
- * while it feels for the edge of its own pool, and every piece on the board asks once per
- * light per repaint, so the gathering cost more than the answering did.
+ * Gathering it afresh on every question asked about the light would build a new array out of
+ * every wall on the table each time. A cone light asks a thousand times over while it feels
+ * for the edge of its own pool, and every piece on the board asks once per light per repaint,
+ * so the gathering would cost more than the answering does.
  *
  * It is remembered against the scene and the light together, so it needs no clearing: a
  * new scene brings a new answer, and when the old scene goes what was remembered of it
@@ -867,7 +867,7 @@ const SEEN_BRIGHTNESS = 0.4;
  * How much of a light is left at a distance from it.
  *
  * Full out to the bright radius, then away to nothing at the edge of the dim one. The middle
- * of that fall is a half, which is what the whole ring used to be worth.
+ * of that fall is a half.
  */
 function lightFalloff(reach: number, brightPx: number, dimPx: number): number {
   if (reach <= brightPx) return 1;

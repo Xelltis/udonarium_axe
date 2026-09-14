@@ -83,7 +83,7 @@ export class ChatTickerComponent {
     if (!text) return;
 
     // A full perimeter takes one to two minutes at the default speed on a desktop screen.
-    // Waiting for that lap made replacements look lost, so a selected or newly posted
+    // Waiting for that lap would make replacements look lost, so a selected or newly posted
     // public message becomes the ticker text on the next animation frame.
     this.currentText.set(text);
     this.cycleStartedAt = null;
@@ -202,8 +202,8 @@ export class ChatTickerComponent {
    * The letters to draw and where their copies start, worked out once for a line, a font and
    * a perimeter.
    *
-   * Every frame used to measure every letter of a line that had not changed, a canvas call a
-   * letter sixty times a second.
+   * Measuring every letter of an unchanged line on every frame would be a canvas call a letter
+   * sixty times a second.
    */
   private layoutFor(context: CanvasRenderingContext2D, text: string, perimeter: number): TickerLayout {
     const font = context.font;

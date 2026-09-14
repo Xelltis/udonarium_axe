@@ -39,7 +39,7 @@ export class CutInListComponent {
    * How many ways a cut-in faces on a table seen from above.
    *
    * It belongs to the screen this reader is watching, so a cut-in reaches the people sitting
-   * around a flat screen from four sides, and everyone else the way it always did.
+   * around a flat screen from four sides, and everyone else the usual way.
    */
   private readonly display = inject(TabletopDisplayService);
   protected readonly multiDirectionModes = CUT_IN_MULTI_DIRECTION_MODES;
@@ -55,7 +55,7 @@ export class CutInListComponent {
     this.display.set({ cutInMultiDirectionMode: asCutInMultiDirectionMode(value) });
   }
 
-  /** The settings a cut-in has always had, and the layers it may now be built from. */
+  /** The settings every cut-in has, and the layers it may be built from. */
   readonly tabs = ['Basic', 'Scene'] as const;
   readonly activeTab = signal<(typeof this.tabs)[number]>('Basic');
 

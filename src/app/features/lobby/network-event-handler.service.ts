@@ -60,9 +60,9 @@ export class NetworkEventHandlerService {
 
       // Any error can repeat without end - a token the cloud will not accept fails again the
       // moment it is retried - so a limit of the same size bounds these too. Counted apart from
-      // the server's: sharing the one count made a server error take its wait from wherever the
-      // other errors had left off, and three tries of three, eight and fifteen seconds came out
-      // as a single wait of fifteen.
+      // the server's: sharing the one count would make a server error take its wait from wherever
+      // the other errors left off, turning three tries of three, eight and fifteen seconds into a
+      // single wait of fifteen.
       if (this.otherErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) return;
       this.otherErrorReconnectAttempts++;
 

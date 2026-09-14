@@ -1121,8 +1121,8 @@ describe('VisionService', () => {
       addPeer('p2', PeerRole.Player);
       // The torch-bearing piece belongs to the other player; the reader has none. Their
       // brightness must follow the party's sight, as the fog itself does - asked any other
-      // way, a reader with no eyes was answered with 'whatever a lamp touches', and every
-      // brazier on the map lit its own walls for them.
+      // way, a reader with no eyes would be answered with 'whatever a lamp touches', and every
+      // brazier on the map would light its own walls for them.
       const grid = cellGridOf(20, 20, 50, GridType.SQUARE);
       const all = new CellBits(cellCount(grid));
       for (let i = 0; i < cellCount(grid); i++) all.set(i);

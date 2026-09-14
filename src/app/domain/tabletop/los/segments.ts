@@ -27,15 +27,9 @@ export function segmentFloats(seg: TallSegment): boolean {
 }
 
 /**
- * The segments that still stand in the way of an eye at this height.
- *
- * Anything an eye is above is behind it once it is looked over, and a character who has
- * climbed a tower is above most of what stood in the way on the ground.
- */
-/**
- * The answers are held against the list they were drawn from, so a scene that is asked the same
- * question by every piece on it pays for it once. A list is built whole and never added to
- * afterwards, and the answers go when it does.
+ * The answers `segmentsAbove` has given, held against the list they were drawn from, so a scene
+ * that is asked the same question by every piece on it pays for it once. A list is built whole and
+ * never added to afterwards, and the answers go when it does.
  */
 const aboveByList = new WeakMap<readonly TallSegment[], Map<number, readonly TallSegment[]>>();
 

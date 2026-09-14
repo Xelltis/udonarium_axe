@@ -55,8 +55,8 @@ export type HotbarPayload =
  *
  * The identifier is asked for first, and the cell answers where it cannot: a bar read in from
  * a file makes its slots afresh under new identifiers, and a group written before that would
- * otherwise point at nothing - which is how a run kept working while the editor showed every
- * step of it as gone.
+ * otherwise point at nothing, so the editor would show every step of a run as gone while the
+ * run itself keeps working.
  */
 export function sameHotbarStep(
   step: HotbarCell & { slotIdentifier: string },

@@ -164,7 +164,7 @@ describe('CutInTimelineComponent', () => {
       api.onRowDown(pointer(row.left), row);
       api.onPointerMove(pointer(row.left + 4));
 
-      // Four pixels is inside the magnet's reach, so the band's own end used to pull it back.
+      // Four pixels is inside the magnet's reach, so the band's own end must not pull it back.
       expect(trimmed).toHaveLength(1);
       expect(trimmed[0].startMs).toBeGreaterThan(500);
     });

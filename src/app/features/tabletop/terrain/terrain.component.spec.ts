@@ -73,13 +73,13 @@ describe('TerrainComponent', () => {
       const drawn = fixture.nativeElement.querySelectorAll('*').length;
 
       // The ledger a voxel table is weighed against: a plain wall, standing still.
-      // Thirteen since a block was given an underside, which one off the ground is seen into without.
+      // Thirteen, counting the underside a block off the ground would be seen into without.
       expect(drawn).toBe(13);
     });
   });
 
   describe('a block that reaches past the edge of the table', () => {
-    /** Darkness on, fog off, read by a player: what the reader in the report was looking at. */
+    /** Darkness on, fog off, read by a player. */
     function darkTable(): GameTable {
       const table = new GameTable();
       table.width = 20;

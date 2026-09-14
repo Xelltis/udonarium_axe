@@ -31,7 +31,7 @@ export interface ChatMessageMenuCallbacks {
  *
  * The same actions sit on the line as buttons that only show under a mouse, so a touch screen
  * reaches them through this instead. Only what those buttons would offer is offered, and copying
- * the words is added, since a press held on the line no longer picks them out.
+ * the words is added, since a press held on the line does not pick them out.
  */
 export function buildChatMessageContextMenu(
   state: ChatMessageMenuState,

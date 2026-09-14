@@ -60,8 +60,8 @@ export function startingCut(diagonals: DiagonalMove, cornersCut: number | undefi
  *
  * What a corner costs may depend on how many have been cut already, so a cell is not settled
  * once but once per count of corners behind it. A way that spends a dearer corner early can
- * still be the cheapest way onward, and dropping it as "already seen" answered a piece with a
- * reach it did not have.
+ * still be the cheapest way onward, and dropping it as "already seen" would answer a piece with
+ * a reach it does not have.
  */
 export function reachableCells(
   grid: CellGrid,

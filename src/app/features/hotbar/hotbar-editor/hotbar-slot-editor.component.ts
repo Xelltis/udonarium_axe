@@ -462,7 +462,8 @@ export class HotbarSlotEditorComponent {
 
     const rehearsal = new HotbarSlot();
     // The trial is never on a bar and never anybody else's business, so it is not put in the
-    // store: doing so sent it to every peer and left a tombstone there when it was thrown away.
+    // store: doing so would send it to every peer and leave a tombstone there when it is thrown
+    // away.
     rehearsal.kind = draft.kind;
     rehearsal.value = draft.value;
     rehearsal.label = draft.label;

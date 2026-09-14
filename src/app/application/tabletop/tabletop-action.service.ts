@@ -257,7 +257,7 @@ export class TabletopActionService {
    * Makes several dice of one kind at once, laid out beside the point they were asked for.
    *
    * A handful of the same die is what a roll usually needs, and making them one press at a time
-   * left them in a pile on one spot to be pulled apart by hand.
+   * would leave them in a pile on one spot to be pulled apart by hand.
    */
   createDiceSymbols(
     position: PointerCoordinate,
@@ -433,8 +433,12 @@ export class TabletopActionService {
     return this.makeDefaultContextMenuActionGroups(position).flat();
   }
 
-  // The create items come in two halves so a rotating menu can spread them over two spokes
-  // instead of piling every one of them onto a single group.
+  /**
+   * The table's create menu at a point, in two halves.
+   *
+   * The halves let the table's rotating menu spread the create items over two spokes instead of
+   * piling them all onto one group. `makeDefaultContextMenuActions` joins them into one list.
+   */
   makeDefaultContextMenuActionGroups(position: PointerCoordinate): ContextMenuAction[][] {
     return [
       [

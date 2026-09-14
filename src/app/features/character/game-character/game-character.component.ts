@@ -564,8 +564,8 @@ export class GameCharacterComponent {
   /**
    * Whether the piece may be turned at all.
    *
-   * Seen from above there was nothing turning it would show, so it was held still. A table
-   * that shows facing has something to show, and hands the handles back.
+   * Seen from above, turning a piece shows nothing, so it is held still. A table that shows
+   * facing has something to show, and hands the handles back.
    */
   readonly canTurn = computed(() => {
     if (this.isPoster()) return false;
@@ -955,9 +955,9 @@ export class GameCharacterComponent {
   protected readonly pedestalStyleHidden = computed(() => this.pedestalStyleOf('#A0E0FF'));
   protected readonly pedestalStyleTargeted = computed(() => this.pedestalStyleOf('#ff3b30'));
 
-  // The pedestal styles ran as getters on every change-detection pass and built a fresh
-  // record each time. Computed, they hand back the same object until something changes,
-  // which saves a thousand allocations and as many clip paths a pass with three hundred characters on the table.
+  // Computed rather than read as getters, the pedestal styles hand back the same object until
+  // something changes, instead of a fresh record on every change-detection pass: a thousand
+  // allocations and as many clip paths a pass with three hundred characters on the table.
   protected readonly pedestalOuterStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
     if (!params) return {} as Record<string, string>;
@@ -1280,7 +1280,7 @@ export class GameCharacterComponent {
     const heard = entries.filter((entry) => entry.playsSound);
     const loudest = loudestChange(heard);
     // One line is heard, so all three of what is heard come from it. Taken apart, a point of
-    // damage alongside a large heal was played as a large hurt, in the heal's own voice.
+    // damage alongside a large heal would play as a large hurt, in the heal's own voice.
     if (loudest) SoundEffect.playLocal(resourceChangeSound(loudest.kind, loudest.ratio, loudest.soundSet));
 
     const shown = entries.filter((entry) => entry.playsEffect);

@@ -91,9 +91,9 @@ function layTerrainBlock(
  * The exact placement a block is to wear, where this is the very cell it was read from.
  *
  * A placement belongs to one block standing on one cell, but it is carried on the spec, and a
- * spec is what tells one painted layer from another. Painting more cells into the layer an
- * imported wall made handed every one of them that wall's own position, so the new cells came
- * out stacked on top of it and nothing at all stood where the brush had been.
+ * spec is what tells one painted layer from another. Handed on as it stands, every cell painted
+ * into the layer an imported wall made would take that wall's own position, stacking the new
+ * cells on top of it and leaving nothing at all where the brush went.
  */
 function placementFor(
   spec: { placement: BlockPlacement | null },

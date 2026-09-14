@@ -308,9 +308,9 @@ export interface DirtyRect {
 /**
  * The ground the lights that move cover, and nothing else, a patch for each group of them.
  *
- * A board is mostly still. One candle guttering in a corner used to mean clearing the whole
- * board and laying the whole of it down again twenty times a second, which on a large table
- * is tens of millions of pixels a frame for the sake of a few hundred thousand. Kept to the
+ * A board is mostly still. Redrawn whole, one candle guttering in a corner would mean clearing
+ * the whole board and laying the whole of it down again twenty times a second, which on a large
+ * table is tens of millions of pixels a frame for the sake of a few hundred thousand. Kept to the
  * boxes the moving lights actually reach, the rest of the board is left where it is, and two
  * torches at opposite ends of a room redraw their own two corners rather than the room between.
  * Lights whose boxes meet are redrawn in one patch.

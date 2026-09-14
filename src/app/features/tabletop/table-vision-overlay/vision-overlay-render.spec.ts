@@ -352,8 +352,8 @@ describe('vision-overlay-render', () => {
     });
 
     it('lays the silhouette onto the scale the surface is drawn at, not in place of it', () => {
-      // Set in place of it, a shadow on a board drawn smaller than itself landed at the
-      // size and the offset it would have had on a full-sized one.
+      // Set in place of it, a shadow on a board drawn smaller than itself would land at the
+      // size and the offset it would have on a full-sized one.
       const plan: OverlayPlan = {
         darknessAlpha: 0.9,
         darknessColor: '#05060a',

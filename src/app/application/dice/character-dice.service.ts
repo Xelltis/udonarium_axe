@@ -44,7 +44,7 @@ export class CharacterDiceService {
    * Takes every die of this character off the table, and says how many came back.
    *
    * A handful swept up is one sweep: the sound belongs to the gesture rather than to each
-   * die, and six of them at once was six of the same noise over one another.
+   * die, and six of them at once would be six of the same noise over one another.
    */
   putAway(character: GameCharacter): number {
     let taken = 0;

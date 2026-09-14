@@ -119,7 +119,8 @@ export class ModalService {
         // shut, and the layer it stood in goes with it. Whoever is waiting is owed the answer
         // a dismissal gives — nothing chosen — or they wait for one that can never come.
         // Nothing rejects one of these in practice, and the callers read the value rather
-        // than catching, so rejecting here would break in a way that hanging never did.
+        // than catching, so rejecting here would break them where going unanswered only
+        // leaves them waiting.
         if (!answered) {
           answered = true;
           resolve(null as T);

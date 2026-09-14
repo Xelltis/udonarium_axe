@@ -131,7 +131,7 @@ export function fieldToBlocks(
     // Layer on layer, each narrower than the one under it and each sitting a little off it.
     // They share the one turn: a layer turned past the one below makes a screw, not a rock.
     // Only what hangs is lifted. A rock or a hill starts on the earth: carrying its own
-    // variation upward left it floating a fraction of a cell above the ground it sits on.
+    // variation upward would leave it floating a fraction of a cell above the ground it sits on.
     let standing = shape.altitude != null ? shape.altitude + object.lift : 0;
     const layers = shape.layers ?? [{ spread: object.span, height: shape.height }];
     layers.forEach((layer, index) => {

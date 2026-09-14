@@ -383,10 +383,10 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
   /**
    * Sends what is queued, as much of it as the channel will take.
    *
-   * A message larger than a chunk is queued in pieces, and one piece used to go per turn of
-   * the event loop, so a picture went at the speed the browser got round to it rather than
-   * the speed the line could carry. The channel is asked how much it is already holding and
-   * fed until that reaches the limit, which is what keeps a slow line from being buried.
+   * A message larger than a chunk is queued in pieces. Sending one piece per turn of the event
+   * loop would send a picture at the speed the browser gets round to it rather than the speed
+   * the line can carry, so the channel is asked how much it is already holding and fed until
+   * that reaches the limit, which is what keeps a slow line from being buried.
    *
    * A pass that got nothing away waits on the clock before trying again. Coming straight
    * back would turn a full channel into a loop that holds the main thread doing nothing

@@ -139,7 +139,7 @@ describe('CutInLauncher', () => {
     });
   });
 
-  // The tests for the uploaded music and the chat trigger now live with the cut-in service.
+  // The uploaded music and the chat trigger are tested with the cut-in service.
 
   describe('stopBlankTagCutIn()', () => {
     it('counts the stamp up and says the music stopped the cut-ins', () => {

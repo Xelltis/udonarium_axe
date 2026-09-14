@@ -850,8 +850,8 @@ describe('GameObjectInventoryComponent', () => {
       });
 
       it('gives the heading and every row the same columns', () => {
-        // The heading and the rows have to agree on where a column starts. They did not while
-        // each row was a grid of its own, sizing its columns to whatever it happened to hold.
+        // The heading and the rows have to agree on where a column starts, which they cannot do
+        // while each row is a grid of its own, sizing its columns to whatever it happens to hold.
         putOnTable('ゴブリン');
         putOnTable('オーク');
         TestBed.inject(GameObjectInventoryService).tableDataTag = 'HP MP 敏捷度';
@@ -974,7 +974,7 @@ describe('GameObjectInventoryComponent', () => {
     });
 
     it('keeps a button for making a folder beside the list it makes one in', () => {
-      // It stood in the search row, and went with it when the search moved to a panel of its own.
+      // The search has a panel of its own, so this button stands beside the list instead.
       putInShared('ゴブリン');
       component.selectTab.set('common');
       fixture.detectChanges();
@@ -1285,7 +1285,7 @@ describe('GameObjectInventoryComponent', () => {
         component.isMultiMove.set(true);
         fixture.detectChanges();
 
-        // Moving nowhere used to close the bar and play a sound, which reads as a move that
+        // Moving nowhere would close the bar and play a sound, which reads as a move that
         // happened.
         expect(actions().length).toBeGreaterThan(0);
         for (const action of actions()) expect(action.disabled).toBe(true);

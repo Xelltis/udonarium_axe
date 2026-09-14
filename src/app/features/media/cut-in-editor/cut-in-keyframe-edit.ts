@@ -178,7 +178,7 @@ export function setEasingAtMoment(layer: CutInLayer, ms: number, easing: CutInEa
  *
  * A pose worked out once — where a layer sits, how far round, how faint — is often wanted
  * again later in the scene, or on a layer beside it. Copying the moment rather than each
- * of nine fields is what every editor offers, and there was no way to do it here at all.
+ * of nine fields is what every editor offers.
  */
 export interface CutInPose {
   readonly values: Readonly<Record<CutInTrackName, number>>;

@@ -203,7 +203,7 @@ export class CardComponent {
    *
    * A picture arrives in two steps: the name of it comes with the card, and the bytes follow
    * when the room has passed them along. Read straight off the card, neither step moves the
-   * view, so the card stayed blank for everybody else until it was dragged and the change
+   * view, so the card would stay blank for everybody else until it was dragged and the change
    * detection happened to run.
    */
   readonly displayedImageUrl = computed(() => {

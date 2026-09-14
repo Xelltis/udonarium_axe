@@ -118,8 +118,8 @@ export const EDGE_GRAB_PX = 5;
 /**
  * The end of a band the pointer is on, where it is on one.
  *
- * A band is how long a layer is on screen for. Dragging its ends is how that is set in
- * every editor; typing the two numbers into a form is how it was set here.
+ * A band is how long a layer is on screen for. Dragging its ends is how every editor sets that,
+ * rather than typing the two numbers into a form.
  */
 export function bandEdgeAt(bar: { left: number; width: number }, x: number, grabPx = EDGE_GRAB_PX): BandEdge | null {
   if (Math.abs(x - bar.left) <= grabPx) return 'start';

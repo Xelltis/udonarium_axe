@@ -25,9 +25,9 @@ export const INVENTORY_FILTER_PANEL = 'inventory-filter';
 /**
  * What the inventory is narrowed to and what it shows of each piece.
  *
- * The list was carrying all of this above itself, which cost four rows of a panel that is read
- * for its rows. It stands beside the list instead, and the list keeps a line saying what is in
- * force here.
+ * Carried above the list, all of this would cost four rows of a panel that is read for its
+ * rows. It stands beside the list instead, and the list keeps a line saying what is in force
+ * here.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,7 +48,7 @@ export class InventoryFilterPanelComponent {
    *
    * Each inventory keeps its own narrowing and its own way of being read, so this window is
    * told whose it is rather than reaching for one of its own. Asked for through the injector,
-   * a root pair was built on every opening and thrown away unread on the next line.
+   * a root pair would be built on every opening and thrown away unread on the next line.
    */
   filter!: InventoryFilterService;
   viewPreference!: InventoryViewPreferenceService;

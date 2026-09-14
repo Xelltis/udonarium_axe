@@ -194,7 +194,7 @@ const LEGACY_PORTRAIT_EMOTE_BY_TOKEN = invert(LEGACY_PORTRAIT_EMOTE_TOKENS);
 const LEGACY_EMOTION_MARK_BY_TOKEN = invert(VN_EMOTION_MARK_CHARS);
 
 /**
- * Reads the staging that used to be written into the end of the line itself.
+ * Reads the staging written into the end of the line itself, where an older line carries it.
  *
  * Anything unaccounted for gives the whole bracket up as ordinary text: written this way there
  * is no telling a staging note from something a player typed, so a bracket is only read as one
@@ -265,7 +265,7 @@ export function parseLegacyVnEmoteSuffix(text: string): VnEmote & { text: string
 }
 
 /**
- * Writes the staging into the end of the line, the way it used to be kept.
+ * Writes the staging into the end of the line, the way an older line carries it.
  *
  * Nothing new is written this way; it stands only so that lines written before the staging was
  * kept apart can still be read back and checked.

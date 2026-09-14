@@ -216,7 +216,12 @@ export class ChatMessageService {
     return chatTab.addMessage(chatMessage);
   }
 
-  // speaks as whoever spoke last
+  /**
+   * Speaks a notice as whoever this reader last spoke as, with that speaker's portrait where it
+   * still matches.
+   *
+   * It goes to the named tab, or the system tab when none is named or the name is not a tab.
+   */
   sendSystemMessageAsLastSpeaker(text: string, chatTabIdentifier?: string) {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     const sysTab = this.resolveChatTab(chatTabIdentifier) ?? chatTabList!.systemMessageTab!;

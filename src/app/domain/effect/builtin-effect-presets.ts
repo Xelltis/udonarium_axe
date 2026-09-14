@@ -53,7 +53,7 @@ const MAX_EFFECT_MS = 6000;
 
 /**
  * A few runs built out of stages, so what the editor can do is on the shelf rather than
- * only in the manual. Every part of them is a look that was already there.
+ * only in the manual. Every part of them is a look the tool already draws.
  */
 const STAGED_SEEDS: readonly EffectPresetSeed[] = [
   {

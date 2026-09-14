@@ -36,9 +36,9 @@ type UpdateCallback = (percent: number) => void;
  *
  * A save carries the pictures the room points at and finds them by walking its own XML, so a
  * picture named by an attribute nobody looks for is left behind: the room comes back with the
- * thing it was hanging on gone. A list has to be added to whenever a picture is, and the four
- * walls were never added - the room came back with blank walls and every piece standing on one
- * with nowhere to be drawn. The name is the rule instead, as it already is for a replay.
+ * thing it was hanging on gone. A list has to be added to whenever a picture is, and a list
+ * that misses the four walls brings the room back with blank walls and every piece standing on
+ * one with nowhere to be drawn. The name is the rule instead, as it already is for a replay.
  */
 const IMAGE_ATTRIBUTE = /ImageIdentifier$|^imageIdentifier$/;
 

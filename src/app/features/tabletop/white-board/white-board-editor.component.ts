@@ -236,8 +236,8 @@ export class WhiteBoardEditorComponent {
   /**
    * Ink settings reach what is already down as well as what is next.
    *
-   * A line drawn in the wrong colour was a line to be rubbed out and drawn again, which is
-   * not how anything else works.
+   * A line drawn in the wrong colour would otherwise be a line to be rubbed out and drawn again,
+   * which is not how anything else works.
    */
   protected setInk(change: MarkStyleChange): void {
     if (change.color !== undefined) this.color.set(change.color);
@@ -805,7 +805,7 @@ export class WhiteBoardEditorComponent {
     this.scene =
       (board.scene ? deserializeScene(board.scene) : null) ?? createBoardScene(board.width, board.height, grid);
     // The board as it stands is the bottom of the undo stack. Left unset, the first thing
-    // undone went back to the blank sheet the editor was built with, four squares by three.
+    // undone would go back to the blank sheet the editor was built with, four squares by three.
     this.history.reset(this.scene);
     this.refreshHistory();
     queueMicrotask(() => {
