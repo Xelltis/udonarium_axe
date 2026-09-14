@@ -730,8 +730,8 @@ export class MovableDirective implements MovableInteractionContext {
     this._posZ = 0;
     this.tabletopObject.location.x = newX;
     this.tabletopObject.location.y = newY;
-    this.tabletopObject.posZ = 0;
     this.tabletopObject.location.surface = targetSurface === 'floor' ? undefined : targetSurface;
+    this.tabletopObject.posZ = 0;
     this.updateTransformCss();
   }
 
@@ -747,8 +747,8 @@ export class MovableDirective implements MovableInteractionContext {
     this._posZ = rest.z;
     this.tabletopObject.location.x = rest.x;
     this.tabletopObject.location.y = rest.y;
-    this.tabletopObject.posZ = rest.z;
     this.tabletopObject.location.surface = undefined;
+    this.tabletopObject.posZ = rest.z;
     this.updateTransformCss();
     return true;
   }
