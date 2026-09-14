@@ -18,6 +18,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { isAppleTouchDevice } from '@axe/core/util/apple-touch';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -36,8 +37,7 @@ import {
   shouldTrimRenderedRange,
 } from '@axe/features/chat/chat-tab/chat-tab-scroll-helpers';
 
-const ua = window.navigator.userAgent.toLowerCase();
-const isiOS = ua.includes('iphone') || ua.includes('ipad') || (ua.includes('macintosh') && 'ontouchend' in document);
+const isiOS = isAppleTouchDevice(window.navigator.userAgent, window.navigator.maxTouchPoints);
 /** How long a reader has to stay put at the bottom before the lines far above are let go. */
 const RENDERED_RANGE_TRIM_DELAY_MS = 800;
 

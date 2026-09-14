@@ -4,6 +4,10 @@ import { prefersLightRendering, RenderLiteService } from '@axe/application/ui/re
 const CHROME =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const FIREFOX = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0';
+const IPHONE =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const MAC_SAFARI =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
 
 describe('prefersLightRendering', () => {
   it('draws Firefox the lighter way', () => {
@@ -17,6 +21,15 @@ describe('prefersLightRendering', () => {
   it('draws a machine with two cores or two gigabytes the lighter way', () => {
     expect(prefersLightRendering({ userAgent: CHROME, hardwareConcurrency: 2 })).toBe(true);
     expect(prefersLightRendering({ userAgent: CHROME, deviceMemory: 2 })).toBe(true);
+  });
+
+  it('reads nothing into the two cores WebKit reports on an iPhone or an iPad', () => {
+    expect(prefersLightRendering({ userAgent: IPHONE, hardwareConcurrency: 2 })).toBe(false);
+    expect(prefersLightRendering({ userAgent: MAC_SAFARI, hardwareConcurrency: 2, maxTouchPoints: 5 })).toBe(false);
+  });
+
+  it('still draws a Mac without a touch screen the lighter way on two cores', () => {
+    expect(prefersLightRendering({ userAgent: MAC_SAFARI, hardwareConcurrency: 2, maxTouchPoints: 0 })).toBe(true);
   });
 
   it('draws the full way when the browser says nothing about the machine', () => {

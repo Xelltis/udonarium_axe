@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { isAppleTouchDevice } from '@axe/core/util/apple-touch';
 
 export type RenderLiteSetting = 'auto' | 'on' | 'off';
 
@@ -11,6 +12,7 @@ export interface RenderCapability {
   userAgent: string;
   hardwareConcurrency?: number;
   deviceMemory?: number;
+  maxTouchPoints?: number;
 }
 
 /**
@@ -18,9 +20,12 @@ export interface RenderCapability {
  *
  * Firefox pays far more than Chromium for blurring what lies behind a panel when a moving 3D
  * table lies there, and a machine with two cores or two gigabytes pays for it in any browser.
+ * An iPhone or an iPad is not judged by its cores: WebKit reports two there whatever the chip,
+ * and says nothing about memory, so the newest of them would be counted among the slowest.
  */
 export function prefersLightRendering(capability: RenderCapability): boolean {
   if (/Firefox\//.test(capability.userAgent)) return true;
+  if (isAppleTouchDevice(capability.userAgent, capability.maxTouchPoints)) return false;
   if ((capability.hardwareConcurrency ?? Infinity) <= 2) return true;
   return (capability.deviceMemory ?? Infinity) <= 2;
 }
@@ -73,7 +78,12 @@ export class RenderLiteService {
 function currentCapability(): RenderCapability {
   if (typeof navigator === 'undefined') return { userAgent: '' };
   const nav = navigator as Navigator & { deviceMemory?: number };
-  return { userAgent: nav.userAgent, hardwareConcurrency: nav.hardwareConcurrency, deviceMemory: nav.deviceMemory };
+  return {
+    userAgent: nav.userAgent,
+    hardwareConcurrency: nav.hardwareConcurrency,
+    deviceMemory: nav.deviceMemory,
+    maxTouchPoints: nav.maxTouchPoints,
+  };
 }
 
 function storedSetting(): RenderLiteSetting {
