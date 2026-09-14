@@ -55,6 +55,25 @@ async function box(locator: Locator) {
   return rect!;
 }
 
+/**
+ * バフのアイコンと、その中の要素を同じ瞬間に測る。
+ * アイコンは少し縮んだ位置から現れるので、アニメーションが終わるのを待ってから測る。
+ * 2 回に分けて測ると、その間に描き直されたときに別々の瞬間の位置を比べてしまう。
+ */
+async function settledBoxes(badge: Locator, inner: string) {
+  return badge.evaluate(async (element, selector) => {
+    const swap = element.closest('.animate-buff-swap') ?? element;
+    await Promise.all(
+      swap.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => undefined))
+    );
+    const rectOf = (target: Element) => {
+      const rect = target.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    };
+    return { icon: rectOf(element), rounds: rectOf(element.querySelector(selector)!) };
+  }, inner);
+}
+
 test.describe('コマの頭上表示', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -250,10 +269,9 @@ test.describe('コマの頭上表示', () => {
     await addBuff(page, 2);
     const piece = newCharacterPiece(page);
     const badge = piece.locator('[data-testid="buff-badge"]').first();
-    await expect(badge).toBeVisible({ timeout: 10000 });
+    await expect(badge.locator('[data-testid="buff-rounds"]')).toBeVisible({ timeout: 10000 });
 
-    const icon = await box(badge);
-    const rounds = await box(badge.locator('[data-testid="buff-rounds"]'));
+    const { icon, rounds } = await settledBoxes(badge, '[data-testid="buff-rounds"]');
 
     expect(overlaps(icon, rounds), '残ラウンドがアイコンに重なっていない').toBe(true);
     expect(rounds.x + rounds.width / 2).toBeGreaterThan(icon.x + icon.width / 2);
