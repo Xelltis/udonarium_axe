@@ -1,6 +1,6 @@
 import { networkSend } from '@axe/core/network/network-messaging';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
-import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
+import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 
 export type CatalogItem = {
   readonly identifier: string;
@@ -15,7 +15,9 @@ export class AudioStorage {
     return AudioStorage._instance;
   }
 
-  private lazyTimer: ResettableTimeout | null = null;
+  private readonly catalogSchedule = new CatalogSendSchedule((peer) =>
+    networkSend('SYNCHRONIZE_AUDIO_LIST', this.getCatalog(), peer)
+  );
   private hash: { [identifier: string]: AudioFile } = {};
 
   get audios(): AudioFile[] {
@@ -79,14 +81,14 @@ export class AudioStorage {
     return this.hash[identifier] ?? null;
   }
 
+  /** Sends the catalogue now, to one peer or to everyone. */
   synchronize(peer?: string) {
-    if (this.lazyTimer) this.lazyTimer.stop();
-    networkSend('SYNCHRONIZE_AUDIO_LIST', this.getCatalog(), peer);
+    this.catalogSchedule.now(peer);
   }
 
+  /** Sends the catalogue a little later, folded together with the calls made meanwhile. */
   lazySynchronize(ms: number, peer?: string) {
-    if (this.lazyTimer === null) this.lazyTimer = new ResettableTimeout(() => this.synchronize(peer), ms);
-    this.lazyTimer.reset(ms);
+    this.catalogSchedule.later(ms, peer);
   }
 
   getCatalog(): CatalogItem[] {

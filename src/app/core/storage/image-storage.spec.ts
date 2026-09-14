@@ -74,8 +74,8 @@ describe('ImageStorage', () => {
   });
 
   describe('sending the catalogue', () => {
-    type Internals = { lazyTimer: { clear(): void } | null; lazyPeer: string | undefined | null };
-    const internals = () => storage as unknown as Internals;
+    const cancelWaiting = () =>
+      (storage as unknown as { catalogSchedule: { cancel(): void } }).catalogSchedule.cancel();
 
     const catalogueTargets = () =>
       vi
@@ -85,33 +85,13 @@ describe('ImageStorage', () => {
 
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
-      internals().lazyTimer?.clear();
-      internals().lazyTimer = null;
-      internals().lazyPeer = null;
+      cancelWaiting();
       vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
     });
 
     afterEach(() => {
-      internals().lazyTimer?.clear();
-      internals().lazyTimer = null;
-      internals().lazyPeer = null;
+      cancelWaiting();
       vi.useRealTimers();
-    });
-
-    it('folds the waiting calls for one peer into one catalogue for that peer', () => {
-      storage.lazySynchronize(1000, 'peer-a');
-      storage.lazySynchronize(1000, 'peer-a');
-      vi.advanceTimersByTime(1000);
-
-      expect(catalogueTargets()).toEqual(['peer-a']);
-    });
-
-    it('tells everyone when the waiting calls name different peers', () => {
-      storage.lazySynchronize(1000, 'peer-a');
-      storage.lazySynchronize(1000, 'peer-b');
-      vi.advanceTimersByTime(1000);
-
-      expect(catalogueTargets()).toEqual([undefined]);
     });
 
     it('sends a later waiting call to the peer that call names', () => {
@@ -129,14 +109,6 @@ describe('ImageStorage', () => {
       vi.advanceTimersByTime(1000);
 
       expect(catalogueTargets()).toEqual(['peer-a', undefined]);
-    });
-
-    it('lets a catalogue sent to everyone now stand in for the one waiting', () => {
-      storage.lazySynchronize(1000, 'peer-a');
-      storage.synchronize();
-      vi.advanceTimersByTime(1000);
-
-      expect(catalogueTargets()).toEqual([undefined]);
     });
   });
 });
