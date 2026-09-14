@@ -5,6 +5,13 @@ import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
 
+// Under happy-dom a picture never loads, so shrinking one waits out its whole load timeout and then
+// hands the bytes back as they came. Handed back at once, the skins meet the same bytes.
+vi.mock('@axe/core/storage/image-downscale', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@axe/core/storage/image-downscale')>()),
+  downscaleImageBlob: async (blob: Blob | null | undefined) => blob ?? null,
+}));
+
 const PNG_HEAD = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function picture(): Blob {
