@@ -18,6 +18,7 @@ declare global {
 }
 
 type AudioCache = { url: string; blob: Blob };
+type DecodedEntry = { decoding: Promise<AudioBuffer | null>; bytes?: number };
 
 export class AudioPlayer {
   private static _audioContext: AudioContext;
@@ -466,32 +467,30 @@ export class AudioPlayer {
   }
 
   /**
-   * Decoded sound effects, by the audio they came from, oldest first.
+   * Decoded sound effects, by the audio they came from, least recently played first.
    *
-   * Reading and decoding afresh on every play would charge each die rolled and each message
-   * chimed for the decoding again. A decoded buffer can feed any number of sources at once, and
-   * a promise kept here lets plays that overlap share one decoding.
+   * Each play of an effect takes its buffer from here, and a buffer can feed any number of sources
+   * at once. An entry is kept while its decoding is under way, so plays that overlap share one
+   * decoding.
+   *
+   * Decoded audio is many times larger than its file, so the finished buffers kept here add up to
+   * no more than `MAX_DECODED_BYTES`, the least recently played going first, and a buffer larger
+   * than that on its own is played without being kept.
    */
-  private static readonly decodedBuffers = new Map<string, Promise<AudioBuffer | null>>();
-  private static readonly MAX_DECODED_BUFFERS = 64;
+  private static readonly decodedBuffers = new Map<string, DecodedEntry>();
+  private static readonly MAX_DECODED_BYTES = 64 * 1024 * 1024;
 
   private static async createBufferSourceAsync(audio: AudioFile): Promise<AudioBufferSourceNode | null> {
     try {
-      let decoding = AudioPlayer.decodedBuffers.get(audio.identifier);
-      if (!decoding) {
-        decoding = AudioPlayer.decodeAsync(audio);
-        AudioPlayer.decodedBuffers.set(audio.identifier, decoding);
-        while (AudioPlayer.decodedBuffers.size > AudioPlayer.MAX_DECODED_BUFFERS) {
-          const oldest = AudioPlayer.decodedBuffers.keys().next().value;
-          if (typeof oldest !== 'string') break;
-          AudioPlayer.decodedBuffers.delete(oldest);
-        }
-      }
-      const decodedData = await decoding;
+      const entry = AudioPlayer.decodedBuffers.get(audio.identifier) ?? { decoding: AudioPlayer.decodeAsync(audio) };
+      AudioPlayer.decodedBuffers.delete(audio.identifier);
+      AudioPlayer.decodedBuffers.set(audio.identifier, entry);
+      const decodedData = await entry.decoding;
       if (!decodedData) {
-        AudioPlayer.forgetDecoded(audio.identifier, decoding);
+        AudioPlayer.forgetDecoded(audio.identifier, entry);
         return null;
       }
+      AudioPlayer.keepDecodedWithinBudget(audio.identifier, entry, decodedData);
       const source = AudioPlayer.audioContext.createBufferSource();
       source.buffer = decodedData;
       return source;
@@ -518,9 +517,31 @@ export class AudioPlayer {
   }
 
   /** Drops a decoding that came to nothing, unless a later one has taken its place. */
-  private static forgetDecoded(identifier: string, decoding?: Promise<AudioBuffer | null>): void {
-    if (decoding === undefined || AudioPlayer.decodedBuffers.get(identifier) === decoding) {
+  private static forgetDecoded(identifier: string, entry?: DecodedEntry): void {
+    if (entry === undefined || AudioPlayer.decodedBuffers.get(identifier) === entry) {
       AudioPlayer.decodedBuffers.delete(identifier);
+    }
+  }
+
+  /**
+   * Records how much memory a finished decoding holds, then lets the least recently played buffers
+   * go until what is kept fits the budget. A buffer over the budget on its own is dropped instead,
+   * and decodings still under way are left, having no size yet.
+   */
+  private static keepDecodedWithinBudget(identifier: string, entry: DecodedEntry, buffer: AudioBuffer): void {
+    if (entry.bytes !== undefined || AudioPlayer.decodedBuffers.get(identifier) !== entry) return;
+    entry.bytes = buffer.length * buffer.numberOfChannels * 4;
+    if (entry.bytes > AudioPlayer.MAX_DECODED_BYTES) {
+      AudioPlayer.decodedBuffers.delete(identifier);
+      return;
+    }
+    let kept = 0;
+    for (const { bytes } of AudioPlayer.decodedBuffers.values()) kept += bytes ?? 0;
+    for (const [key, { bytes }] of AudioPlayer.decodedBuffers) {
+      if (kept <= AudioPlayer.MAX_DECODED_BYTES) break;
+      if (bytes === undefined) continue;
+      AudioPlayer.decodedBuffers.delete(key);
+      kept -= bytes;
     }
   }
 

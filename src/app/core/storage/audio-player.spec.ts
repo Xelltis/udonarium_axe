@@ -52,7 +52,7 @@ function makeAudioContextMock() {
     createBufferSource: vi.fn(() => makeBufferSource()),
     decodeAudioData: vi.fn(
       (_buf: ArrayBuffer, resolve: (b: AudioBuffer) => void, _reject: (e: DOMException) => void) => {
-        resolve({ duration: 1 } as AudioBuffer);
+        resolve({ duration: 1, length: 48000, numberOfChannels: 2 } as AudioBuffer);
       }
     ),
   };
@@ -100,6 +100,7 @@ type AudioPlayerPrivateStatic = {
   _seVolume: number;
   cacheMap: Map<string, { url: string; blob: Blob }>;
   MAX_CACHE_SIZE: number;
+  MAX_DECODED_BYTES: number;
   evictCacheIfNeeded: () => void;
   createCacheAsync: (audio: AudioFile) => Promise<{ url: string; blob: Blob } | null>;
 };
@@ -201,6 +202,58 @@ describe('AudioPlayer', () => {
       await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
 
       expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(2);
+    });
+
+    const STEREO = 2;
+    const BYTES_PER_STEREO_FRAME = STEREO * 4;
+
+    function decodesInTurn(...frameCounts: number[]) {
+      const queue = [...frameCounts];
+      audioCtxMock.decodeAudioData.mockImplementation(
+        (_buf: ArrayBuffer, resolve: (b: AudioBuffer) => void, _reject: (e: DOMException) => void) => {
+          const length = queue.length > 1 ? queue.shift()! : queue[0];
+          resolve({ duration: length / 48000, length, numberOfChannels: STEREO } as AudioBuffer);
+        }
+      );
+    }
+
+    async function playThrough(audio: AudioFile): Promise<void> {
+      const started = audioCtxMock.createBufferSource.mock.calls.length;
+      AudioPlayer.play(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(started + 1));
+    }
+
+    it('keeps decoded effects within a byte budget, letting the least recently played go first', async () => {
+      decodesInTurn(Math.floor((audioPlayerPrivate.MAX_DECODED_BYTES * 0.4) / BYTES_PER_STEREO_FRAME));
+      const a = makeAudioFile({ identifier: 'se-budget-a', blob: new Blob(['a']) });
+      const b = makeAudioFile({ identifier: 'se-budget-b', blob: new Blob(['b']) });
+      const c = makeAudioFile({ identifier: 'se-budget-c', blob: new Blob(['c']) });
+
+      await playThrough(a);
+      await playThrough(b);
+      await playThrough(a);
+      await playThrough(c);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+
+      await playThrough(a);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+      await playThrough(b);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(4);
+    });
+
+    it('plays a clip larger than the whole budget without keeping it or pushing out the rest', async () => {
+      const tooLarge = Math.floor(audioPlayerPrivate.MAX_DECODED_BYTES / BYTES_PER_STEREO_FRAME) + 1;
+      decodesInTurn(48000, tooLarge);
+      const short = makeAudioFile({ identifier: 'se-short', blob: new Blob(['s']) });
+      const long = makeAudioFile({ identifier: 'se-long', blob: new Blob(['l']) });
+
+      await playThrough(short);
+      await playThrough(long);
+      await playThrough(long);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+
+      await playThrough(short);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
     });
   });
 
