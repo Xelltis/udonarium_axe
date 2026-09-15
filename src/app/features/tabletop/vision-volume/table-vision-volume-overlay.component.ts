@@ -56,10 +56,22 @@ export class TableVisionVolumeOverlayComponent {
 
   protected readonly zTransform = translateZCss(Z_OFFSET_VISION_VOLUME_PX);
 
+  /** Whether the table is dark, which is what tells a piece's own light from what it can see by. */
+  private readonly darknessEnabled = computed(() => this.tabletopService.currentTableVersion().darknessEnabled);
+
+  /** How much floor there is to tint, compared by its measurements rather than by the table it came from. */
+  private readonly floorSize = computed(
+    () => {
+      const table = this.tabletopService.currentTableVersion();
+      return { width: table.width, height: table.height };
+    },
+    { equal: (a, b) => a.width === b.width && a.height === b.height }
+  );
+
   readonly volumes = computed<VisionVolume[]>(() => {
     this.objectChange.collectionOf('character')();
-    const table = this.tabletopService.currentTableVersion();
-    const gridSize = table.gridSize;
+    const gridSize = this.tabletopService.gridSize();
+    const darknessEnabled = this.darknessEnabled();
     const volumes: VisionVolume[] = [];
     for (const character of this.tabletopService.characters) {
       this.objectChange.versionOf(character.identifier)();
@@ -68,7 +80,7 @@ export class TableVisionVolumeOverlayComponent {
       if (!this.visionService.isTokenVisible(character)) continue;
       const spec = character.visionSpec;
       const radiusPx = effectiveSightRadiusPx({
-        darknessEnabled: table.darknessEnabled,
+        darknessEnabled,
         visionType: character.visionType as VisionType,
         visionRangePx: character.visionRange * gridSize,
         ownLightDimPx: character.lightEnabled
@@ -107,11 +119,27 @@ export class TableVisionVolumeOverlayComponent {
       if (!grid || volumes.every((volume) => !volume.cells)) {
         if (canvas.width !== 0) canvas.width = 0;
         if (canvas.height !== 0) canvas.height = 0;
+        this.painted = null;
         return;
       }
+      const floor = this.floorSize();
+      const key = [
+        grid.cols,
+        grid.rows,
+        grid.type,
+        grid.sizePx,
+        floor.width,
+        floor.height,
+        ...volumes.map((volume) => `${volume.identifier}:${volume.color}`),
+      ].join('|');
+      if (this.painted?.key === key && sameCells(this.painted.cells, volumes)) return;
+      this.painted = { key, cells: volumes.map((volume) => volume.cells) };
       this.paintFloor(canvas, context, grid, volumes);
     });
   }
+
+  /** What the floor was last tinted from, so a scene that tints it the same way is let pass. */
+  private painted: { key: string; cells: (CellBits | null)[] } | null = null;
 
   private paintFloor(
     canvas: HTMLCanvasElement,
@@ -120,9 +148,9 @@ export class TableVisionVolumeOverlayComponent {
     volumes: readonly VisionVolume[]
   ): void {
     perfCounters.bump(PERF_VISION_VOLUME_PAINT);
-    const table = this.tabletopService.currentTableVersion();
-    const width = table.width * grid.sizePx;
-    const height = table.height * grid.sizePx;
+    const floor = this.floorSize();
+    const width = floor.width * grid.sizePx;
+    const height = floor.height * grid.sizePx;
     const scale = overlayScale(width, height);
     const pixelWidth = Math.ceil(width * scale);
     const pixelHeight = Math.ceil(height * scale);
@@ -183,6 +211,10 @@ export class TableVisionVolumeOverlayComponent {
       'pointer-events': 'none',
     };
   }
+}
+
+function sameCells(kept: readonly (CellBits | null)[], volumes: readonly VisionVolume[]): boolean {
+  return kept.length === volumes.length && kept.every((cells, index) => cells === volumes[index].cells);
 }
 
 function luminanceOf(color: string): number {

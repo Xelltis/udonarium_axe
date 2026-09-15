@@ -6,23 +6,8 @@ import { GridType } from '@axe/domain/tabletop/game-table';
 import type { OverlayVision, SceneViewer, VisionScene } from '@axe/domain/tabletop/vision-scene';
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
+import { contextThatTakesAnything } from '@axe/testing/fake-canvas-context';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-/** A 2D context that takes every call and property, so a whole overlay can be drawn into nothing. */
-function contextThatTakesAnything(): CanvasRenderingContext2D {
-  const values = new Map<PropertyKey, unknown>();
-  const gradient = { addColorStop: () => undefined };
-  return new Proxy(
-    {},
-    {
-      get: (_target, name) => (values.has(name) ? values.get(name) : () => gradient),
-      set: (_target, name, value) => {
-        values.set(name, value);
-        return true;
-      },
-    }
-  ) as unknown as CanvasRenderingContext2D;
-}
 
 function hexScene(partial: Partial<VisionScene> = {}): VisionScene {
   return {
