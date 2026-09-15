@@ -182,11 +182,16 @@ export function isHexGrid(gridType: GridType): boolean {
   return isHexGridType(gridType);
 }
 
-/** @param hitTest the point relative to the origin of the range, in pixels. */
-function fillHexGridCells(
+/**
+ * Fills the hexes of a range's canvas that the caller keeps, cell by cell across the table's grid.
+ *
+ * `keep` is given the cell's column and row, and where its centre lies relative to the origin of the
+ * range in pixels, so a caller that knows its cells by number never has to look them up by point.
+ */
+export function fillHexCellsWhere(
   context: CanvasRenderingContext2D,
   setting: RangeRenderSetting,
-  hitTest: (gcx: number, gcy: number) => boolean
+  keep: (col: number, row: number, gcx: number, gcy: number) => boolean
 ): void {
   const gridSize = setting.gridSize;
   const s = hexCircumradius(gridSize);
@@ -217,11 +222,20 @@ function fillHexGridCells(
       const gcx = hx - cx0;
       const gcy = hy - cy0;
 
-      if (hitTest(gcx, gcy)) {
+      if (keep(col, row, gcx, gcy)) {
         fillHexPath(context, gcx + offsetX, gcy + offsetY, s, startAngle);
       }
     }
   }
+}
+
+/** @param hitTest the point relative to the origin of the range, in pixels. */
+function fillHexGridCells(
+  context: CanvasRenderingContext2D,
+  setting: RangeRenderSetting,
+  hitTest: (gcx: number, gcy: number) => boolean
+): void {
+  fillHexCellsWhere(context, setting, (_col, _row, gcx, gcy) => hitTest(gcx, gcy));
 }
 
 /** @param hitTest the point relative to the origin of the range, in pixels. */

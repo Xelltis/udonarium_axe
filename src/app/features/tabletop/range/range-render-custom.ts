@@ -8,7 +8,13 @@ import {
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { hexCellCenter, hexCircumradius, hexSpacing, pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
 import { RangeRenderSetting } from '@axe/features/tabletop/range/range-render-types';
-import { calcGridOffsets, fillGridCells, isHexGrid, makeBrush } from '@axe/features/tabletop/range/range-render-util';
+import {
+  calcGridOffsets,
+  fillGridCells,
+  fillHexCellsWhere,
+  isHexGrid,
+  makeBrush,
+} from '@axe/features/tabletop/range/range-render-util';
 
 export interface CustomRenderInput {
   cellPattern: string;
@@ -132,6 +138,27 @@ export function makeCustomHitTest(
 }
 
 /**
+ * Fills the hexes a pattern covers, worked out from the cells themselves.
+ *
+ * Which cells those are is known by number from the pattern and the cell the range stands in, so
+ * nothing is found again by measuring where a hex centre falls.
+ */
+function fillHexPatternCells(
+  context: CanvasRenderingContext2D,
+  setting: RangeRenderSetting,
+  cells: readonly CellCoord[]
+): void {
+  const isFlatTop = setting.gridType === GridType.HEX_VERTICAL;
+  const { col: baseCol, row: baseRow } = pixelToHexCell(setting.centerX, setting.centerY, setting.gridSize, isFlatTop);
+  const covered = new Set<string>();
+  for (const cell of cells) {
+    const { col, row } = patternCellToWorld(baseCol, baseRow, cell.gx, cell.gy, isFlatTop);
+    covered.add(cellKey(col, row));
+  }
+  fillHexCellsWhere(context, setting, (col, row) => covered.has(cellKey(col, row)));
+}
+
+/**
  * Draws a custom-shaped range onto its two canvases and measures how far it reaches.
  *
  * The painted cells, turned by quarter turns, are filled on the grid canvas lined up with the table's
@@ -153,7 +180,11 @@ export function renderCustom(
   const context = canvasElement.getContext('2d')!;
 
   if (cells.length > 0) {
-    fillGridCells(context, setting, offsets, makeCustomHitTest(setting, cells));
+    if (isHexGrid(setting.gridType)) {
+      fillHexPatternCells(context, setting, cells);
+    } else {
+      fillGridCells(context, setting, offsets, makeCustomHitTest(setting, cells));
+    }
   }
 
   canvasElementRange.width = setting.areaWidth * gridSize;
