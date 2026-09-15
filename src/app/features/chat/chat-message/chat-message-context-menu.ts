@@ -13,6 +13,8 @@ export interface ChatMessageMenuState {
   hasOriginal: boolean;
   /** The words of the line as the reader is shown them; empty where they are kept from the reader. */
   text: string;
+  /** The words picked out inside the line when the menu opened, copied in place of the whole line; empty where none were. */
+  selectedText: string;
 }
 
 export interface ChatMessageMenuCallbacks {
@@ -23,7 +25,7 @@ export interface ChatMessageMenuCallbacks {
   edit: () => void;
   showInTicker: () => void;
   jumpToOriginal: () => void;
-  copyText: () => void;
+  copyText: (text: string) => void;
 }
 
 /**
@@ -31,7 +33,8 @@ export interface ChatMessageMenuCallbacks {
  *
  * The same actions sit on the line as buttons that only show under a mouse, so a touch screen
  * reaches them through this instead. Only what those buttons would offer is offered, and copying
- * the words is added, since a press held on the line does not pick them out.
+ * the words is added, since a press held on the line does not pick them out. Where some of the
+ * words were already picked out, copying takes just those.
  */
 export function buildChatMessageContextMenu(
   state: ChatMessageMenuState,
@@ -66,7 +69,8 @@ export function buildChatMessageContextMenu(
   }
   if (state.text.length > 0) {
     if (actions.length > 0) actions.push(ContextMenuSeparator);
-    actions.push({ name: t('feature.chat.message.copyText'), action: () => callbacks.copyText() });
+    const copied = state.selectedText.trim().length > 0 ? state.selectedText : state.text;
+    actions.push({ name: t('feature.chat.message.copyText'), action: () => callbacks.copyText(copied) });
   }
   return actions;
 }

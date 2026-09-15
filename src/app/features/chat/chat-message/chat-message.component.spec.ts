@@ -16,6 +16,7 @@ import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-displ
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { emitFileLoaded } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -656,16 +657,45 @@ describe('ChatMessageComponent', () => {
   describe('the menu of what can be done with a line', () => {
     let open: MockInstance<ContextMenuService['open']>;
     const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const strays: Element[] = [];
 
     beforeEach(() => {
       open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
       vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(false);
     });
 
     afterEach(() => {
       if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
       else Reflect.deleteProperty(navigator, 'clipboard');
+      window.getSelection()?.removeAllRanges();
+      strays.splice(0).forEach((stray) => stray.remove());
     });
+
+    function wordsIn(element: Element, words: string): Text {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if ((node as Text).data.includes(words)) return node as Text;
+      }
+      throw new Error(`"${words}" is not drawn`);
+    }
+
+    function outsideTheLine(words: string): Text {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = words;
+      (fixture.nativeElement as Element).before(paragraph);
+      strays.push(paragraph);
+      return paragraph.firstChild as Text;
+    }
+
+    function pickOut(start: Text, startOffset: number, end: Text, endOffset: number): void {
+      const range = document.createRange();
+      range.setStart(start, startOffset);
+      range.setEnd(end, endOffset);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
 
     function said(text: string): ChatMessage {
       const message = new ChatMessage();
@@ -739,6 +769,60 @@ describe('ChatMessageComponent', () => {
         ?.action?.();
 
       expect(writeText).toHaveBeenCalledWith('こんにちは');
+    });
+
+    it("leaves the browser's own menu to a right click with words in the line picked out", () => {
+      said('こんにちは、みなさん');
+      const body = fixture.nativeElement.querySelector('.msg-text') as Element;
+      const words = wordsIn(body, 'みなさん');
+      pickOut(words, words.data.indexOf('みなさん'), words, words.data.length);
+
+      const event = pressOn(body);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it("leaves the browser's own menu when the words picked out run on into the line", () => {
+      said('こんにちは、みなさん');
+      const body = fixture.nativeElement.querySelector('.msg-text') as Element;
+      const before = outsideTheLine('前の話');
+      const words = wordsIn(body, 'こんにちは');
+      pickOut(before, 1, words, words.data.indexOf('、'));
+
+      const event = pressOn(body);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('still opens over a line when the words picked out lie elsewhere on the page', () => {
+      said('こんにちは');
+      const elsewhere = outsideTheLine('前の話');
+      pickOut(elsewhere, 0, elsewhere, 2);
+
+      const event = pressOn(fixture.nativeElement.querySelector('.msg-text'));
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(open).toHaveBeenCalledTimes(1);
+    });
+
+    it('copies only the words picked out in the line when a press held on a touch screen opens the menu', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      said('こんにちは、みなさん');
+      const body = fixture.nativeElement.querySelector('.msg-text') as Element;
+      const words = wordsIn(body, 'みなさん');
+      pickOut(words, words.data.indexOf('みなさん'), words, words.data.length);
+
+      pressOn(body);
+      offered()
+        .find((action) => action.name === t('feature.chat.message.copyText'))
+        ?.action?.();
+
+      expect(writeText).toHaveBeenCalledWith('みなさん');
     });
   });
 

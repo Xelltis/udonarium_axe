@@ -15,6 +15,7 @@ function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuStat
     copyTargets: [{ identifier: 'tab-2', name: 'サブタブ' }],
     hasOriginal: true,
     text: 'こんにちは',
+    selectedText: '',
     ...partial,
   };
 }
@@ -83,6 +84,28 @@ describe('buildChatMessageContextMenu()', () => {
 
     expect(names).not.toContain('feature.chat.message.copyText');
     expect(names.at(-1)).not.toBe('');
+  });
+
+  it('copies the whole line where nothing in it is picked out', () => {
+    const calls = callbacks();
+    const menu = buildChatMessageContextMenu(state({ selectedText: ' \n' }), calls, translate);
+
+    menu.find((action) => action.name === 'feature.chat.message.copyText')?.action?.();
+
+    expect(calls.copyText).toHaveBeenCalledWith('こんにちは');
+  });
+
+  it('copies only the words picked out inside the line when there are some', () => {
+    const calls = callbacks();
+    const menu = buildChatMessageContextMenu(
+      state({ text: 'こんにちは、みなさん', selectedText: 'みなさん' }),
+      calls,
+      translate
+    );
+
+    menu.find((action) => action.name === 'feature.chat.message.copyText')?.action?.();
+
+    expect(calls.copyText).toHaveBeenCalledWith('みなさん');
   });
 
   it('calls back rather than acting on the line itself', () => {

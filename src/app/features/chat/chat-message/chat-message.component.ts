@@ -28,6 +28,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -81,6 +82,7 @@ export class ChatMessageComponent {
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly viewport = inject(ViewportService);
 
   protected get canRevealSecret(): boolean {
     return this.rolePermission.canSeeHidden;
@@ -214,12 +216,16 @@ export class ChatMessageComponent {
    * What can be done with the line, opened by a right click or a press held on it.
    *
    * The buttons over a line only show under a mouse, so a touch screen reaches the same actions
-   * through this. A link keeps the browser's own menu, and so does a line being edited.
+   * through this. A link keeps the browser's own menu, and so does a line being edited. So does a
+   * right click while words reaching into the line are picked out, which is how they are copied
+   * with a mouse; a press held on a touch screen still opens this, and copies just those words.
    */
   protected onMessageContextMenu(event: MouseEvent): void {
     const message = this.chatMessage;
     if (!message || this.readOnly() || this.isEditing()) return;
     if (event.target instanceof Element && event.target.closest('a, textarea, input')) return;
+    const picked = this.wordsPickedOutIn(this.hostElement.nativeElement);
+    if (picked.reachesLine && !this.viewport.isTouch()) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
     const actions = buildChatMessageContextMenu(
@@ -231,6 +237,7 @@ export class ChatMessageComponent {
         copyTargets: this.canCopyToTab ? this.copyTargets() : [],
         hasOriginal: !!(message.replyTo || message.quoteOf),
         text: this.readableText(message),
+        selectedText: picked.inside,
       },
       {
         reply: () => this.clickReply(),
@@ -243,7 +250,7 @@ export class ChatMessageComponent {
         edit: () => this.startEdit(),
         showInTicker: () => this.clickShowInTicker(),
         jumpToOriginal: () => (message.replyTo ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
-        copyText: () => this.copyText(message),
+        copyText: (text) => this.copyText(text),
       },
       this.t
     );
@@ -253,14 +260,28 @@ export class ChatMessageComponent {
     this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name));
   }
 
+  /**
+   * The words picked out on the page as they bear on a line: whether any of them reach into it,
+   * and their text where all of them lie inside it.
+   */
+  private wordsPickedOutIn(line: Element): { reachesLine: boolean; inside: string } {
+    const selection = line.ownerDocument.getSelection();
+    if (!selection || selection.isCollapsed || selection.toString().trim().length === 0) {
+      return { reachesLine: false, inside: '' };
+    }
+    const ranges = Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index));
+    if (!ranges.some((range) => range.intersectsNode(line))) return { reachesLine: false, inside: '' };
+    const allInside = ranges.every((range) => line.contains(range.commonAncestorContainer));
+    return { reachesLine: true, inside: allInside ? selection.toString() : '' };
+  }
+
   /** The words of a line as this reader is shown them, or nothing where they are kept from the reader. */
   private readableText(message: ChatMessage): string {
     if (this.isSecret() && !message.isSendFromSelf && !this.canRevealSecret) return '';
     return vnBodyOf(message.vnEmote, message.text ?? '').trim();
   }
 
-  private copyText(message: ChatMessage): void {
-    const text = this.readableText(message);
+  private copyText(text: string): void {
     if (text.length === 0) return;
     void navigator.clipboard?.writeText(text).catch(() => undefined);
   }
