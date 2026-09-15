@@ -76,6 +76,8 @@ chore(release): bump version to 1.2.2
 
 `pre-commit` の `vitest related` は staged ファイルから import を逆にたどって当たる spec だけを回す
 （[scripts/vitest-related.mjs](../scripts/vitest-related.mjs)。テンプレートは隣の `.ts` に読み替える）。
+ただし、テストのセットアップが読み込むファイル（間接的に読むものも含む）や、ランナーの設定
+（`vitest.config.ts` など）を staged にしたときは、どの spec にも効くので全量を回す。
 全量は `pre-push` と CI が見る。
 
 設定: [../lefthook.yml](../lefthook.yml)
