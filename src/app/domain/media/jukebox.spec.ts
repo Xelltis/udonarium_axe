@@ -275,6 +275,65 @@ describe('Jukebox', () => {
     });
   });
 
+  describe('starting the track on a gesture', () => {
+    const TRACK = 'bgm-gesture';
+
+    function playerThatTheBrowserMayRefuse() {
+      const browser = { allowsPlayback: false };
+      const sounding = new WeakSet<AudioPlayer>();
+      stubAudioPlayerStop();
+      vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(function (this: AudioPlayer) {
+        if (browser.allowsPlayback) sounding.add(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'paused', 'get').mockImplementation(function (this: AudioPlayer) {
+        return !sounding.has(this);
+      });
+      return browser;
+    }
+
+    function joinRoomPlaying(): { jukebox: Jukebox; playSpy: ReturnType<typeof vi.fn> } {
+      const jukebox = new Jukebox();
+      jukebox.initialize();
+      AudioStorage.instance.add(makeReadyAudio(TRACK));
+      const context = jukebox.toContext();
+      context.syncData = { ...context.syncData, audioIdentifier: TRACK, isPlaying: true };
+      jukebox.apply(context);
+      const playSpy = vi.spyOn(jukebox as unknown as { _play: () => void }, '_play');
+      return { jukebox, playSpy: playSpy as unknown as ReturnType<typeof vi.fn> };
+    }
+
+    function lift() {
+      document.body.dispatchEvent(new Event('touchend', { bubbles: true }));
+    }
+
+    it('tries again on a later tap when the gesture that ended a pan could not start the track', () => {
+      const browser = playerThatTheBrowserMayRefuse();
+      const { jukebox, playSpy } = joinRoomPlaying();
+
+      lift();
+      expect(playSpy).toHaveBeenCalledTimes(1);
+
+      browser.allowsPlayback = true;
+      lift();
+      expect(playSpy).toHaveBeenCalledTimes(2);
+
+      lift();
+      expect(playSpy).toHaveBeenCalledTimes(2);
+      jukebox.destroy();
+    });
+
+    it('leaves a track that is already sounding where it is', () => {
+      const browser = playerThatTheBrowserMayRefuse();
+      browser.allowsPlayback = true;
+      const { jukebox, playSpy } = joinRoomPlaying();
+
+      lift();
+
+      expect(playSpy).not.toHaveBeenCalled();
+      jukebox.destroy();
+    });
+  });
+
   describe('setNewVolume()', () => {
     it('multiplies the room volume into the player volume', () => {
       // The volume setter reaches for an audio context, so it is stubbed.

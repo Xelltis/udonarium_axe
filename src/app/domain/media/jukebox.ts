@@ -90,7 +90,10 @@ export class Jukebox extends GameObject {
     this.audioPlayer.loop = this.repeatMode === 'one';
   }
 
-  /** Arranges for the track to start again once the user first interacts, since browsers block playback until then. */
+  /**
+   * Arranges for the track to start again on the user's gestures, since browsers block playback until
+   * then, and to stop trying once one of them has let it sound or the room is not playing.
+   */
   override onStoreAdded() {
     super.onStoreAdded();
     this.unlockAfterUserInteraction();
@@ -259,8 +262,11 @@ export class Jukebox extends GameObject {
 
   private unlockAfterUserInteraction() {
     onFirstUserInteraction(() => {
+      if (this.isPlaying && !this.audioPlayer.paused) return true;
       this.audioPlayer.stop();
-      if (this.isPlaying) this._play();
+      if (!this.isPlaying) return true;
+      this._play();
+      return !this.audioPlayer.paused;
     });
   }
 
