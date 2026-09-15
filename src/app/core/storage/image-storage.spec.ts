@@ -110,5 +110,16 @@ describe('ImageStorage', () => {
 
       expect(catalogueTargets()).toEqual(['peer-a', undefined]);
     });
+
+    it('sends one catalogue once a quick run of added images stops', () => {
+      for (let n = 0; n < 10; n++) {
+        storage.add(`https://example.com/run-${n}.png`);
+        vi.advanceTimersByTime(50);
+      }
+
+      expect(catalogueTargets()).toEqual([]);
+      vi.advanceTimersByTime(50);
+      expect(catalogueTargets()).toEqual([undefined]);
+    });
   });
 });

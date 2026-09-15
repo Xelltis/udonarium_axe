@@ -68,7 +68,7 @@ export class AudioStorage {
   }
 
   private _add(audio: AudioFile): AudioFile {
-    if (AudioState.COMPLETE <= audio.state) this.lazySynchronize(100);
+    if (AudioState.COMPLETE <= audio.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(audio)) return this.hash[audio.identifier];
     this.hash[audio.identifier] = audio;
     return audio;
