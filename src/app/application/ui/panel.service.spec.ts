@@ -424,6 +424,38 @@ describe('PanelService', () => {
     });
   });
 
+  describe('a panel whose code cannot be fetched', () => {
+    afterEach(() => {
+      PanelService.loadFailureNotice = null;
+    });
+
+    it('tells the reader a reload is needed', async () => {
+      const service = new PanelService();
+      vi.spyOn(service, 'open').mockReturnValue({} as never);
+      vi.spyOn(Logger, 'error').mockImplementation(() => undefined);
+      const notice = vi.fn();
+      PanelService.loadFailureNotice = notice;
+
+      service.openLazy(() => Promise.reject(new TypeError('Failed to fetch dynamically imported module')));
+      await vi.waitFor(() => expect(notice).toHaveBeenCalledTimes(1));
+    });
+
+    it('says nothing of a reload for a panel that arrived but could not open', async () => {
+      const service = new PanelService();
+      vi.spyOn(service, 'open').mockImplementation(() => {
+        throw new Error('broken panel');
+      });
+      const logged = vi.spyOn(Logger, 'error').mockImplementation(() => undefined);
+      const notice = vi.fn();
+      PanelService.loadFailureNotice = notice;
+
+      service.openLazy(() => Promise.resolve(DummyPanelBodyComponent));
+      await vi.waitFor(() => expect(logged).toHaveBeenCalled());
+
+      expect(notice).not.toHaveBeenCalled();
+    });
+  });
+
   describe('following a panel that is standing', () => {
     it('lets a button hear the name being spoken for and let go of', async () => {
       const service = new PanelService();

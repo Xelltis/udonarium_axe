@@ -15,6 +15,8 @@
     @if (!visualNovel.active()) {
       @defer (on immediate) {
         <app-mobile-shell />
+      } @error {
+        <ng-container appReloadNotice />
       }
       <app-hand-rail></app-hand-rail>
     }

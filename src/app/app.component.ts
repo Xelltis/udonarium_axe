@@ -29,6 +29,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
@@ -91,6 +92,7 @@ import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-me
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
+import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import {
@@ -137,6 +139,7 @@ const FAB_MARGIN_PX = 12;
     NgClass,
     DraggableDirective,
     WidgetPlaceDirective,
+    ReloadNoticeDirective,
     TranslocoModule,
   ],
   // The drawer opens toward whichever side of the screen has room for it, and a window that
@@ -276,6 +279,12 @@ export class AppComponent {
     inject(TurnOrderService);
     inject(SkinService);
 
+    const reloadNotice = inject(ReloadNoticeService);
+    PanelService.loadFailureNotice = () => reloadNotice.tellReloadNeeded();
+    TooltipDirective.loadTooltipPanelComponent = reloadNotice.noticingFailure(() =>
+      import('@axe/features/inventory/overview-panel/overview-panel.component').then((m) => m.OverviewPanelComponent)
+    );
+
     afterNextRender(() => {
       this.measureFabSides();
       PanelService.defaultParentViewContainerRef =
@@ -355,5 +364,3 @@ ContextMenuService.loadFourWayRadialMenuComponent = () =>
 ModalService.ModalComponentClass = ModalComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
 TabletopActionService.diceCreateDialogComponentClass = DiceSymbolCreateDialogComponent;
-TooltipDirective.loadTooltipPanelComponent = () =>
-  import('@axe/features/inventory/overview-panel/overview-panel.component').then((m) => m.OverviewPanelComponent);

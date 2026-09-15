@@ -147,6 +147,11 @@ export class PanelService {
   static UIPanelComponentClass: { new (...args: unknown[]): PanelFrame } = null!;
   static chatPortraitComponentClass: Type<unknown> | null = null;
   static cardStackListComponentClass: Type<unknown> | null = null;
+  /**
+   * Told when the code of a panel opened by `openLazy` cannot be fetched, which after a release
+   * means the page wants reloading. The app sets it; nothing is told while it is unset.
+   */
+  static loadFailureNotice: (() => void) | null = null;
   private frame: PanelFrame | null = null;
   private actionRotationDegrees: PanelRotationDegrees = 0;
   private static readonly singles = new Map<string, PanelService>();
@@ -390,7 +395,8 @@ export class PanelService {
    * Fetches a panel component and opens it once it arrives, running `setup` on the instance.
    *
    * A `single` name counts as open while the code is on its way, so `closeSingle` in the meantime
-   * stops it opening at all. A failed fetch is logged and opens nothing.
+   * stops it opening at all. A failed fetch is logged, opens nothing and goes to
+   * `loadFailureNotice`; a panel that arrives but fails to open is only logged.
    */
   openLazy<T>(
     factory: () => Promise<Type<T>>,
@@ -408,16 +414,22 @@ export class PanelService {
     }
 
     factory()
-      .then((childComponent) => {
-        // Asked to close while it was being fetched, it never opens at all.
-        if (single && !PanelService.opening.delete(single)) return;
+      .then(
+        (childComponent) => {
+          // Asked to close while it was being fetched, it never opens at all.
+          if (single && !PanelService.opening.delete(single)) return;
 
-        const instance = this.open(childComponent, inheritedOption, parentViewContainerRef);
-        setup?.(instance);
-      })
+          const instance = this.open(childComponent, inheritedOption, parentViewContainerRef);
+          setup?.(instance);
+        },
+        (reason) => {
+          // The name is let go of as well, or nothing under it could ever be opened again.
+          if (single) PanelService.opening.delete(single);
+          Logger.error('[PanelService] パネルを読み込めませんでした', reason);
+          PanelService.loadFailureNotice?.();
+        }
+      )
       .catch((reason) => {
-        // The name is let go of as well, or nothing under it could ever be opened again.
-        if (single) PanelService.opening.delete(single);
         Logger.error('[PanelService] パネルを開けませんでした', reason);
       })
       .finally(() => {

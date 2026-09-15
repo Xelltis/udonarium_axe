@@ -12,7 +12,11 @@
       "no": "No"
     },
     "dialog": {
-      "confirmTitle": "Confirm"
+      "confirmTitle": "Confirm",
+      "updatedTitle": "Udonarium Axe has been updated",
+      "updatedMessage": "Reload the page to switch to the new version. Until you do, some parts of the app will not open.",
+      "reload": "Reload",
+      "later": "Later"
     },
     "language": {
       "ja": "日本語",

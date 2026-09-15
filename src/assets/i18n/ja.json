@@ -12,7 +12,11 @@
       "no": "いいえ"
     },
     "dialog": {
-      "confirmTitle": "確認"
+      "confirmTitle": "確認",
+      "updatedTitle": "Udonarium Axe が更新されました",
+      "updatedMessage": "新しい版に切り替えるため、ページを再読み込みしてください。再読み込みするまで、開けない画面があります。",
+      "reload": "再読み込み",
+      "later": "あとで"
     },
     "language": {
       "ja": "日本語",
