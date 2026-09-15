@@ -99,6 +99,13 @@ export interface DiceRolledEvent {
   resultMessageIdentifier: string;
 }
 
+export interface DiceBotUnreachableEvent {
+  /** The line that went unrolled. */
+  messageIdentifier: string;
+  /** The id of the game system whose code could not be fetched. */
+  gameType: string;
+}
+
 export interface EffectCastEvent {
   cast: unknown;
 }
@@ -112,6 +119,7 @@ export const soundEffect$ = new EventChannel<string>();
 export const effectCast$ = new EventChannel<EffectCastEvent>();
 export const diceRolled$ = new EventChannel<DiceRolledEvent>();
 export const diceBotCatalog$ = new EventChannel<void>();
+export const diceBotUnreachable$ = new EventChannel<DiceBotUnreachableEvent>();
 export const resourceChange$ = new EventChannel<ResourceChangeEvent>();
 
 export const selectGameTable$ = new EventChannel<SelectGameTableEvent>();
@@ -341,4 +349,9 @@ networkMessage$.subscribe((msg) => {
 /** Announces that the list of dice bots has loaded, so pickers can show it. */
 export function emitDiceBotCatalogLoaded(): void {
   diceBotCatalog$.emit();
+}
+
+/** Announces on this device that a line went unrolled because its game system's code could not be fetched. */
+export function emitDiceBotUnreachable(event: DiceBotUnreachableEvent): void {
+  diceBotUnreachable$.emit(event);
 }

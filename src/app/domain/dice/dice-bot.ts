@@ -2,6 +2,7 @@ import {
   diceTableMessage$,
   DiceTableMessageEvent,
   emitDiceBotCatalogLoaded,
+  emitDiceBotUnreachable,
   emitDiceRolled,
   emitSendMessage,
   resourceEditMessage$,
@@ -32,6 +33,7 @@ export const PLAIN_DICE_BOT = 'DiceBot';
 export class DiceBot extends GameObject {
   private static loader: Loader;
   private static queue: PromiseQueue | null = null;
+  private static readonly unreachableSystems = new WeakSet<GameSystemClass>();
   private resourceProcessor = new ResourceEditProcessor(
     DiceBot.diceRollAsync.bind(DiceBot),
     DiceBot.loadGameSystemAsync.bind(DiceBot)
@@ -118,7 +120,9 @@ export class DiceBot extends GameObject {
   /**
    * The game system for an id, fetching its code the first time.
    *
-   * An id not in the catalog, or one whose code cannot be fetched, gives the plain dice bot.
+   * An id not in the catalog gives the plain dice bot. One whose code cannot be fetched gives a
+   * stand-in under the same id that recognises no command and rolls nothing; the next call tries
+   * the fetch again.
    */
   static async loadGameSystemAsync(gameType: string): Promise<GameSystemClass> {
     return await DiceBot.loadingQueue.add(() => {
@@ -132,10 +136,13 @@ export class DiceBot extends GameObject {
   }
 
   /**
-   * The system under an id, fetching its chunk the first time it is asked for.
+   * The system under an id, fetching its chunk when it has not been loaded.
    *
-   * A chunk that cannot be had - a tab left open across a release asks for one that is gone -
-   * rolls with the plain dice bot rather than losing the roll.
+   * A chunk that cannot be fetched - the line dropped, or a tab left open across a release asks
+   * for one that is gone - gives the stand-in rather than another system, so a line sent under it
+   * keeps the id the room chose and is never rolled by rules it was not meant for. Nothing about
+   * the failure is kept here. Whether the next fetch can succeed is up to the browser, some of
+   * which hold on to a failed module until the page is reloaded.
    */
   private static async loadedOrFetched(id: string): Promise<GameSystemClass> {
     try {
@@ -144,11 +151,32 @@ export class DiceBot extends GameObject {
       try {
         return await DiceBot.loader.dynamicLoad(id);
       } catch (e) {
-        if (id === PLAIN_DICE_BOT) throw e;
-        Logger.warn(`[DiceBot] ${id} を読み込めないため ${PLAIN_DICE_BOT} で振ります`, e);
-        return DiceBot.loadedOrFetched(PLAIN_DICE_BOT);
+        Logger.warn(`[DiceBot] ${id} を読み込めません`, e);
+        return DiceBot.unreachableSystem(id);
       }
     }
+  }
+
+  /**
+   * A stand-in for a system whose code could not be fetched: its id and name, no help, no command
+   * pattern, and an eval that recognises nothing. It is never constructed, so it has no constructor.
+   */
+  private static unreachableSystem(id: string): GameSystemClass {
+    const info = DiceBot.diceBotInfos.find((each) => each.id === id);
+    const system = {
+      ID: id,
+      NAME: info?.name ?? id,
+      SORT_KEY: info?.sortKey ?? '',
+      HELP_MESSAGE: '',
+      COMMAND_PATTERN: null,
+      eval: () => null,
+    } as unknown as GameSystemClass;
+    DiceBot.unreachableSystems.add(system);
+    return system;
+  }
+
+  private static isUnreachable(gameSystem: GameSystemClass): boolean {
+    return DiceBot.unreachableSystems.has(gameSystem);
   }
 
   private static get loadingQueue(): PromiseQueue {
@@ -261,7 +289,12 @@ export class DiceBot extends GameObject {
 
   /**
    * Whether the line is a secret roll under the game system: an `s` in front of a command the
-   * system recognises, after any repeat count. False for a system with no command pattern.
+   * system recognises, after any repeat count.
+   *
+   * The stand-in for a system whose code could not be fetched has no pattern to recognise a
+   * command by, so there an `s` counts when the first word after it holds a digit or one of
+   * `<>=[(`, which keeps a secret roll's command out of the open line. Any other system with no
+   * command pattern has no secret lines.
    */
   checkSecretDiceCommand(gameSystem: GameSystemClass, chatText: string): boolean {
     const text: string = toHalfWidth(chatText).toLowerCase();
@@ -272,6 +305,9 @@ export class DiceBot extends GameObject {
     const regArray = /^s(.*)?/gi.exec(nonRepeatText);
     if (gameSystem.COMMAND_PATTERN) {
       return !!(regArray && gameSystem.COMMAND_PATTERN.test(regArray[1]));
+    }
+    if (DiceBot.isUnreachable(gameSystem)) {
+      return !!regArray && /^\S*[\d<>=[(]/.test(regArray[1] ?? '');
     }
     return false;
   }
@@ -307,6 +343,10 @@ export class DiceBot extends GameObject {
       const repeat: number = regArray![2] != null ? Number(regArray![2]) : 1;
       let rollText: string = regArray![3] != null ? regArray![3] : text;
       const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
+      if (DiceBot.isUnreachable(gameSystem)) {
+        emitDiceBotUnreachable({ messageIdentifier: chatMessage.identifier, gameType: gameSystem.ID });
+        return;
+      }
       if (gameSystem.COMMAND_PATTERN) {
         if (!gameSystem.COMMAND_PATTERN.test(rollText)) {
           return;
@@ -370,6 +410,10 @@ export class DiceBot extends GameObject {
       const finalResult: DiceRollResult = { id: null, result: '', isSecret: false };
       for (let i = 0; i < repeat && i < 32; i++) {
         const gameSystem = await DiceBot.loadGameSystemAsync(rollTable.diceTablePalette!.dicebot);
+        if (DiceBot.isUnreachable(gameSystem)) {
+          emitDiceBotUnreachable({ messageIdentifier: chatMessage.identifier, gameType: gameSystem.ID });
+          return;
+        }
         const rollResult = await DiceBot.diceRollAsync(rollText, gameSystem);
         if (rollResult.result.length < 1) {
           break;

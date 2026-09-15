@@ -2895,6 +2895,7 @@
         "title": "Dice bot",
         "titleWith": "Dice bot <{{name}}>",
         "descSuffix": " — help",
+        "unreachable": "The dice bot \"{{name}}\" could not be loaded, so no dice were rolled for this line. If sending it again still does not roll, reload the page.",
         "intro": "[Dice bot] Type dice expressions in chat to roll dice.\nInput example) 2d6+1 attack!\nOutput example) 2d6+1 attack!\n              diceBot: (2d6) → 7\nYou can also include a dice expression followed by a space and additional text.\n\nUsage examples\n  3D6+1>=9 : Roll 3d6+1 and check whether the total is 9 or more.\n  1D100<=50 : D100 downward roll with target value 50.\n  3U6[5] : Roll 3d6 with reroll on 5+ (open-ended above).\n  3B6 : Roll 3d6 and output values separately (no sum).\n  10B6>=4 : Roll 10d6 and count dice with value 4+.\n  2R6[>3]>=5 : Reroll dice >3 then count dice with value 5+.\n  (8/2)D(4+6)<=(5*3) : Arithmetic is allowed in count/sides/target.\n  c(10-4*3/2+2) : c(expression) evaluates math only.\n  choice[a,b,c] : Pick one element at random.\n  S3d6 : Prefix S for a secret roll (others cannot see).\n  3d6/2 : Divide the result (rounding depends on system). Use /2C (ceil), /2R (round), /2F (floor).\n  D66 : D66 die. Order depends on the system: D66N (raw), D66A (ascending), D66D (descending).\n\nFor full details see the bcdice command guide:\nhttps://docs.bcdice.org/\n===================================\n"
       }
     },
