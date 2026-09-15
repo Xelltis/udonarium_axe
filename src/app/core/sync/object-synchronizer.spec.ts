@@ -247,6 +247,48 @@ describe('ObjectSynchronizer', () => {
       expect(internals().tasks.map((task) => task.peerId)).toEqual([idle]);
     });
 
+    it('puts back only holders still connected when a request times out', () => {
+      peers = [{ peerId: 'peer-a', isOpen: true }];
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'asking-a', version: 1 }], 'peer-a');
+      const [task] = internals().tasks;
+
+      task.ontimeout?.(task, [
+        { identifier: 'held-by-a-and-gone', version: 1, holderIds: ['peer-a', 'peer-gone'], ttl: 1 },
+        { identifier: 'held-by-the-gone', version: 1, holderIds: ['peer-gone'], ttl: 1 },
+      ]);
+
+      expect(internals().requestMap.get('held-by-a-and-gone')?.holderIds).toEqual(['peer-a']);
+      expect(internals().requestMap.has('held-by-the-gone')).toBe(false);
+      expect(internals().peerMap.has('peer-gone')).toBe(false);
+    });
+
+    it('asks the connected holder again, and forgets the departed one, once a request times out', () => {
+      peers = [
+        { peerId: 'peer-a', isOpen: true },
+        { peerId: 'peer-b', isOpen: true },
+      ];
+      internals().peerMap.set('peer-a', []);
+      internals().peerMap.set('peer-b', []);
+      internals().requestMap.set('held-by-both', {
+        identifier: 'held-by-both',
+        version: 1,
+        holderIds: ['peer-a', 'peer-b'],
+        ttl: 2,
+      });
+      internals().synchronize();
+      const asked = internals().tasks[0].peerId;
+      const departed = asked === 'peer-a' ? 'peer-b' : 'peer-a';
+      peers = peers.filter((peer) => peer.peerId !== departed);
+      localDispatch('DISCONNECT_PEER', { peerId: departed }, departed);
+      const requestedBefore = requested().length;
+
+      vi.advanceTimersByTime(30_000);
+
+      expect(requested().slice(requestedBefore)).toEqual([['held-by-both', asked]]);
+      expect(internals().tasks.map((task) => task.peerId)).toEqual([asked]);
+      expect([...internals().peerMap.keys()]).toEqual([asked]);
+    });
+
     it('keeps a newer version it heard of while an older request timed out', () => {
       peers = [{ peerId: 'peer-a', isOpen: true }];
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'moving-on', version: 1 }], 'peer-a');

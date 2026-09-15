@@ -220,7 +220,7 @@ export class ObjectSynchronizer {
 
   /** Forgets what is still wanted only from peers that are no longer connected. */
   private dropOrphanedRequests() {
-    const reachable = new Set(Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId));
+    const reachable = connectedPeerIds();
     for (const [identifier, request] of this.requestMap) {
       request.holderIds = request.holderIds.filter((holderId) => reachable.has(holderId));
       if (request.holderIds.length < 1) this.requestMap.delete(identifier);
@@ -249,7 +249,10 @@ export class ObjectSynchronizer {
 
     task.ontimeout = (_task, remainedRequests) => {
       Logger.warn('[ObjectSync] 同期タイムアウト');
+      const reachable = connectedPeerIds();
       for (const request of remainedRequests) {
+        request.holderIds = request.holderIds.filter((holderId) => reachable.has(holderId));
+        if (request.holderIds.length < 1) continue;
         const current = this.requestMap.get(request.identifier);
         if (!current || current.version < request.version) {
           this.requestMap.set(request.identifier, request);
@@ -295,6 +298,11 @@ export class ObjectSynchronizer {
     }
     return selectPeerId;
   }
+}
+
+/** The peers that can still be asked for an object: the ones connected right now. */
+function connectedPeerIds(): Set<PeerId> {
+  return new Set(Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId));
 }
 
 function removeTask(tasks: SynchronizeTask[], task: SynchronizeTask): void {
