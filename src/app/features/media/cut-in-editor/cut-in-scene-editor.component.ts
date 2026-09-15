@@ -526,6 +526,14 @@ export class CutInSceneEditorComponent {
     this.playheadMs.set(0);
   }
 
+  /**
+   * A key or a sound tapped on the timeline. The playhead goes onto it while the preview is
+   * stopped, where the buttons that take one away act; a playing preview is left to play on.
+   */
+  protected onCue(ms: number): void {
+    if (!this.playing()) this.playheadMs.set(ms);
+  }
+
   protected onSeek(ms: number): void {
     this.pause();
     this.playheadMs.set(ms);

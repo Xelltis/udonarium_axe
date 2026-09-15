@@ -119,11 +119,13 @@ describe('CutInTimelineComponent', () => {
       onPointerUp(event: PointerEvent): void;
     };
 
-    it('moves the playhead onto the key, where the buttons that take a key away act', () => {
+    it('cues the playhead onto the key, where the buttons that take a key away act', () => {
       const layer = makeLayer('立ち絵', { tracks: encodeCutInTracks({ x: [{ t: 800, v: 100 }] }) });
       show([layer]);
+      const cues: number[] = [];
       const seeks: number[] = [];
       const moved: unknown[] = [];
+      component.cue.subscribe((ms) => cues.push(ms));
       component.seek.subscribe((ms) => seeks.push(ms));
       component.moveKey.subscribe((key) => moved.push(key));
 
@@ -132,15 +134,18 @@ describe('CutInTimelineComponent', () => {
       api.onRowDown(pointer(row.keys[0].x), row);
       api.onPointerUp(pointer(row.keys[0].x));
 
-      expect(seeks).toEqual([800]);
+      expect(cues).toEqual([800]);
+      expect(seeks).toEqual([]);
       expect(moved).toEqual([]);
     });
 
-    it('moves the playhead onto the sound in the same way', () => {
+    it('cues the playhead onto the sound in the same way', () => {
       show([makeLayer('背景')]);
       fixture.componentRef.setInput('sounds', [{ t: 600, a: 'se', v: 1 }]);
       fixture.detectChanges();
+      const cues: number[] = [];
       const seeks: number[] = [];
+      component.cue.subscribe((ms) => cues.push(ms));
       component.seek.subscribe((ms) => seeks.push(ms));
 
       const x = component.soundMarks()[0].x;
@@ -148,7 +153,26 @@ describe('CutInTimelineComponent', () => {
       api.onSoundRowDown(pointer(x));
       api.onPointerUp(pointer(x));
 
-      expect(seeks).toEqual([600]);
+      expect(cues).toEqual([600]);
+      expect(seeks).toEqual([]);
+    });
+
+    it('seeks rather than cues where the press lands on no key, as scrubbing does', () => {
+      const layer = makeLayer('立ち絵', { tracks: encodeCutInTracks({ x: [{ t: 800, v: 100 }] }) });
+      show([layer]);
+      const cues: number[] = [];
+      const seeks: number[] = [];
+      component.cue.subscribe((ms) => cues.push(ms));
+      component.seek.subscribe((ms) => seeks.push(ms));
+
+      const row = component.rows()[0];
+      const x = row.keys[0].x + 60;
+      const api = component as unknown as PressApi;
+      api.onRowDown(pointer(x), row);
+      api.onPointerUp(pointer(x));
+
+      expect(seeks).toHaveLength(1);
+      expect(cues).toEqual([]);
     });
   });
 

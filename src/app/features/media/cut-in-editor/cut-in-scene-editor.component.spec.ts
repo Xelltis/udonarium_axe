@@ -5,6 +5,8 @@ import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { keysOf, valueAt } from '@axe/features/media/cut-in-editor/cut-in-keyframe-edit';
 import { CutInSceneEditorComponent } from '@axe/features/media/cut-in-editor/cut-in-scene-editor.component';
+import { CutInTimelineComponent, type TimelineRow } from '@axe/features/media/cut-in-editor/cut-in-timeline.component';
+import { TIMELINE_HEAD_W_PX } from '@axe/features/media/cut-in-editor/cut-in-timeline-geometry';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -643,6 +645,76 @@ describe('CutInSceneEditorComponent', () => {
 
       editor().jumpToKey(true);
       expect(editor().playheadMs()).toBe(component.durationMs());
+    });
+  });
+
+  describe('a key or a sound tapped on the timeline', () => {
+    type PlaybackApi = {
+      togglePlaying(): void;
+      playing(): boolean;
+      timelineRoomPx: { set(px: number): void };
+    };
+    type TimelinePressApi = {
+      onRowDown(event: PointerEvent, row: TimelineRow): void;
+      onSoundRowDown(event: PointerEvent): void;
+      onPointerUp(event: PointerEvent): void;
+    };
+
+    function playback(): PlaybackApi {
+      return component as unknown as PlaybackApi;
+    }
+
+    function timeline(): CutInTimelineComponent {
+      return fixture.debugElement.query(By.directive(CutInTimelineComponent)).componentInstance;
+    }
+
+    function press(x: number): PointerEvent {
+      return { clientX: x, shiftKey: false, pointerId: 1, target: null } as unknown as PointerEvent;
+    }
+
+    function withKeyAndSound(): void {
+      editor().addImageLayer();
+      component.layers()[0].tracks = encodeCutInTracks({ x: [{ t: 1000, v: 10 }] });
+      component.scene()!.sounds = '[{"t":2000,"a":"se-1","v":100}]';
+      playback().timelineRoomPx.set(TIMELINE_HEAD_W_PX + 900);
+      editor().changed();
+      fixture.detectChanges();
+    }
+
+    function tapKey(): void {
+      const row = timeline().rows()[0];
+      const api = timeline() as unknown as TimelinePressApi;
+      api.onRowDown(press(row.keys[0].x), row);
+      api.onPointerUp(press(row.keys[0].x));
+    }
+
+    function tapSound(): void {
+      const x = timeline().soundMarks()[0].x;
+      const api = timeline() as unknown as TimelinePressApi;
+      api.onSoundRowDown(press(x));
+      api.onPointerUp(press(x));
+    }
+
+    it('moves the playhead onto it while the preview is stopped', () => {
+      withKeyAndSound();
+
+      tapKey();
+      expect(editor().playheadMs()).toBe(1000);
+
+      tapSound();
+      expect(editor().playheadMs()).toBe(2000);
+    });
+
+    it('leaves a playing preview playing on', () => {
+      withKeyAndSound();
+      playback().togglePlaying();
+      expect(playback().playing()).toBe(true);
+
+      tapKey();
+      tapSound();
+
+      expect(playback().playing()).toBe(true);
+      expect(editor().playheadMs()).toBe(0);
     });
   });
 

@@ -75,6 +75,11 @@ export class CutInTimelineComponent {
   readonly zoom = input(1);
 
   readonly seek = output<number>();
+  /**
+   * A key or a sound pressed and let go without moving: where the playhead is wanted, which,
+   * unlike scrubbing, is no reason to stop a playing preview.
+   */
+  readonly cue = output<number>();
   readonly selectLayer = output<CutInLayer>();
   readonly moveKey = output<{ layer: CutInLayer; fromMs: number; toMs: number }>();
   readonly trimLayer = output<{ layer: CutInLayer; startMs: number; endMs: number }>();
@@ -226,7 +231,7 @@ export class CutInTimelineComponent {
   /**
    * The end of a press on the timeline.
    *
-   * A key or a sound let go where it was taken moves the playhead onto it, which is where the
+   * A key or a sound let go where it was taken cues the playhead onto it, which is where the
    * buttons that take one away act; a double click, the other way to take one away, is not there
    * to be had on a touch screen.
    */
@@ -244,7 +249,7 @@ export class CutInTimelineComponent {
     this.soundDrag = null;
     if (draggedSound) {
       if (draggedSound.toMs !== draggedSound.fromMs) this.moveSound.emit(draggedSound);
-      else this.seek.emit(draggedSound.fromMs);
+      else this.cue.emit(draggedSound.fromMs);
       return;
     }
 
@@ -252,7 +257,7 @@ export class CutInTimelineComponent {
     this.keyDrag = null;
     if (!dragged) return;
     if (dragged.toMs === dragged.fromMs) {
-      this.seek.emit(dragged.fromMs);
+      this.cue.emit(dragged.fromMs);
       return;
     }
 
