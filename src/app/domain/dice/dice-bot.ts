@@ -195,6 +195,14 @@ export class DiceBot extends GameObject {
     return DiceBot.unreachableSystems.has(gameSystem);
   }
 
+  /**
+   * Whether text under the stand-in may be a dice command: its first word holds a digit or one of
+   * `<>=[(`. With no command pattern to go by, this keeps ordinary chat from being taken for a roll.
+   */
+  private static looksLikeCommand(text: string): boolean {
+    return /^\S*[\d<>=[(]/.test(text);
+  }
+
   private static get loadingQueue(): PromiseQueue {
     if (!DiceBot.queue) DiceBot.queue = DiceBot.initializeDiceBotQueue();
     return DiceBot.queue;
@@ -323,7 +331,7 @@ export class DiceBot extends GameObject {
       return !!(regArray && gameSystem.COMMAND_PATTERN.test(regArray[1]));
     }
     if (DiceBot.isUnreachable(gameSystem)) {
-      return !!regArray && /^\S*[\d<>=[(]/.test(regArray[1] ?? '');
+      return !!regArray && DiceBot.looksLikeCommand(regArray[1] ?? '');
     }
     return false;
   }
@@ -360,7 +368,9 @@ export class DiceBot extends GameObject {
       let rollText: string = regArray![3] != null ? regArray![3] : text;
       const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
       if (DiceBot.isUnreachable(gameSystem)) {
-        emitDiceBotUnreachable({ messageIdentifier: chatMessage.identifier, gameType: gameSystem.ID });
+        if (DiceBot.looksLikeCommand(rollText)) {
+          emitDiceBotUnreachable({ messageIdentifier: chatMessage.identifier, gameType: gameSystem.ID });
+        }
         return;
       }
       if (gameSystem.COMMAND_PATTERN) {
