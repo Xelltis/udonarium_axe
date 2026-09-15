@@ -929,14 +929,11 @@ export class GameCharacterComponent {
   readonly rotableOption = signal<RotableOption>({});
 
   readonly pedestalHexParams = computed<HexFlowerParams | null>(() => {
-    this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    this.objectChange.versionOf(this.tabletopService.currentTable.identifier)();
-    const char = this.gameCharacter();
-    if (!char) return null;
-    this.objectChange.versionOf(char.identifier)();
-    const gridType = this.tabletopService.currentTable.gridType;
+    const gridType = this.tabletopService.gridType();
+    const size = this.size();
+    if (!this.gameCharacter()) return null;
     if (!isHexGrid(gridType)) return null;
-    return calcHexFlowerParams(this.size(), this.gridSize, isFlatTopGrid(gridType));
+    return calcHexFlowerParams(size, this.gridSize, isFlatTopGrid(gridType));
   });
 
   private readonly pedestalRing = computed<Record<string, string> | null>(() => {

@@ -14,6 +14,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
@@ -351,6 +352,58 @@ describe('GameCharacterComponent', () => {
         '#ff3b30',
       ]);
       table.gridType = GridType.SQUARE;
+    });
+
+    it('keeps the ring it cut while the piece walks about', async () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      const character = GameCharacter.create('コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const pedestals = component as unknown as Pedestals;
+      const before = pedestals.pedestalStyleShown();
+
+      perfCounters.enabled = true;
+      perfCounters.clear();
+      character.location.x = 300;
+      character.update();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        expect(pedestals.pedestalStyleShown()).toBe(before);
+        expect(perfCounters.drain().get(PERF_HEX_PEDESTAL_OUTLINE) ?? 0).toBe(0);
+      } finally {
+        perfCounters.enabled = false;
+        perfCounters.clear();
+        character.destroy();
+        table.gridType = GridType.SQUARE;
+      }
+    });
+
+    it('cuts another ring for a piece of another size', async () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      const character = GameCharacter.create('コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const pedestals = component as unknown as Pedestals;
+      const atOne = pedestals.pedestalStyleShown();
+
+      character.size = 3;
+      character.update();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        expect(pedestals.pedestalStyleShown()).not.toBe(atOne);
+        expect(pedestals.pedestalStyleShown()['clipPath']).not.toBe(atOne['clipPath']);
+      } finally {
+        character.destroy();
+        table.gridType = GridType.SQUARE;
+      }
     });
   });
 

@@ -1,3 +1,4 @@
+import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import {
   buildHexFlowerOutline,
   buildHexRingClipPath,
@@ -252,6 +253,40 @@ describe('hex-pedestal-geometry', () => {
       const v35 = buildVertexClusterOutline(3.5, 50, true).length;
       expect(v25).toBeGreaterThan(v15);
       expect(v35).toBeGreaterThan(v25);
+    });
+  });
+
+  describe('the outlines already cut', () => {
+    afterEach(() => {
+      perfCounters.enabled = false;
+      perfCounters.clear();
+    });
+
+    it('hands the same outline back for a piece of the same size on the same grid', () => {
+      perfCounters.enabled = true;
+      perfCounters.clear();
+
+      const first = calcHexFlowerParams(5, 61, true);
+      const second = calcHexFlowerParams(5, 61, true);
+
+      expect(second).toBe(first);
+      expect(perfCounters.drain().get(PERF_HEX_PEDESTAL_OUTLINE)).toBe(1);
+    });
+
+    it('cuts one for each size, cell size and way up', () => {
+      calcHexFlowerParams(4, 61, true);
+      calcHexFlowerParams(4, 61, false);
+      calcHexFlowerParams(4, 59, true);
+      perfCounters.enabled = true;
+      perfCounters.clear();
+
+      const flat = calcHexFlowerParams(4, 61, true);
+      const pointy = calcHexFlowerParams(4, 61, false);
+      const smaller = calcHexFlowerParams(4, 59, true);
+
+      expect(flat).not.toBe(pointy);
+      expect(flat).not.toBe(smaller);
+      expect(perfCounters.drain().get(PERF_HEX_PEDESTAL_OUTLINE) ?? 0).toBe(0);
     });
   });
 });
