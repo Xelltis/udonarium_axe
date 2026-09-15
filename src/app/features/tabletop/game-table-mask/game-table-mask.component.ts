@@ -18,23 +18,26 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
-import { imageFileEqual } from '@axe/core/storage/image-file';
+import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { hexCircumradius, isFlatTopGrid, isHexGrid, pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildGameTableMaskContextMenu } from '@axe/features/tabletop/game-table-mask/game-table-mask-context-menu';
 import {
   buildHexOuterBorderSvg,
   buildHexOutlineMask,
   buildMaskCss,
+  type BuildMaskCssParams,
+  buildScratchedMaskCss,
   buildScratchingGridInfos,
   type ScratchGridInfo,
 } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
@@ -66,7 +69,8 @@ export class GameTableMaskComponent {
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly objectPanels = inject(ObjectPanelService);
+  private readonly panelService = inject(PanelService);
+  private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly modalService = inject(ModalService);
   private readonly coordinateService = inject(CoordinateService);
@@ -268,7 +272,38 @@ export class GameTableMaskComponent {
    * mode.
    */
   get masksCss(): string {
-    return buildMaskCss({
+    return buildMaskCss(this.maskCssParams());
+  }
+
+  readonly scratchedColor = computed(() => {
+    const mask = this.gameTableMask();
+    if (!mask) return '';
+    this.objectChange.versionOf(mask.identifier)();
+    return mask.scratchedColor;
+  });
+
+  readonly scratchedImageFile = computed(
+    () => {
+      this.objectChange.fileVersion();
+      const mask = this.gameTableMask();
+      if (!mask) return ImageFile.Empty;
+      this.objectChange.versionOf(mask.identifier)();
+      return mask.scratchedImageFile;
+    },
+    { equal: imageFileEqual() }
+  );
+
+  /**
+   * The CSS mask cutting the after-scratch layer to the open cells, or empty when that layer is not
+   * drawn at all: the mask has neither an after-scratch colour nor picture, or no cell is open.
+   */
+  get scratchedLayerMask(): string {
+    if (this.scratchedColor().length < 1 && this.scratchedImageFile().url.length < 1) return '';
+    return buildScratchedMaskCss(this.maskCssParams());
+  }
+
+  private maskCssParams(): BuildMaskCssParams {
+    return {
       currentScratchingSet: this._currentScratchingSet,
       gridSize: this.gridSize,
       gridType: this.gridType(),
@@ -278,7 +313,7 @@ export class GameTableMaskComponent {
       scratchedGrids: this.scratchedGrids,
       scratchingGrids: this.scratchingGrids,
       width: this.width,
-    });
+    };
   }
 
   /** The markers drawn over open and picked cells while the mask is being scratched. */
@@ -707,8 +742,19 @@ export class GameTableMaskComponent {
   }
 
   private showDetail(gameObject: GameTableMask) {
-    const title = sheetPanelTitle(this.translateFn('feature.tabletop.panel.mask'), gameObject.name);
-    this.objectPanels.openSheet(gameObject, title, { width: 400, height: 300 });
+    this.selectionSignalService.selectObject(gameObject.identifier, gameObject.aliasName);
+    const option: PanelOption = {
+      title: sheetPanelTitle(this.translateFn('feature.tabletop.panel.mask'), gameObject.name),
+      ...sheetPanelBox(this.pointerDeviceService.pointers[0], 500, 600),
+    };
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/tabletop/game-table-mask-sheet/game-table-mask-sheet.component').then(
+          (m) => m.GameTableMaskSheetComponent
+        ),
+      option,
+      (component) => (component.gameTableMask = gameObject)
+    );
   }
 
   /** Tracks list items by identifier, falling back to their index when they have none. */

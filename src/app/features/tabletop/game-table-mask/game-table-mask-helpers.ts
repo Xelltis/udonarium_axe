@@ -80,24 +80,29 @@ function buildHexSvgMask(polygons: string[], pixelW: number, pixelH: number): st
 
 const EMPTY_MASK = 'radial-gradient(#000, #000) 0px 0px / 0px 0px no-repeat';
 
-function buildHexMaskSvg(params: BuildMaskCssParams): string {
+function visibilityOf(params: BuildMaskCssParams): (gridStr: string) => boolean {
+  const scratchedSet = splitGridSet(params.scratchedGrids);
+  const scratchingSet = params.currentScratchingSet ?? splitGridSet(params.scratchingGrids);
+  return (gridStr) => isCellVisible(gridStr, scratchedSet, scratchingSet, params.isPreviewMode);
+}
+
+function hexCellPolygons(
+  params: BuildMaskCssParams,
+  include: (gridStr: string) => boolean
+): { polygons: string[]; geo: HexMaskGeometry } | null {
   const geo = computeHexMaskGeometry(params.width, params.height, params.gridSize, params.gridType);
-  if (!geo) return EMPTY_MASK;
+  if (!geo) return null;
   const isFlatTop = isFlatTopGrid(params.gridType);
   const s = hexCircumradius(params.gridSize);
   const maskS = s + 1;
   const { colSpacing, rowSpacing } = hexSpacing(params.gridSize, isFlatTop);
-
-  const scratchedSet = splitGridSet(params.scratchedGrids);
-  const scratchingSet = params.currentScratchingSet ?? splitGridSet(params.scratchingGrids);
 
   const verts = hexVertOffsets(maskS, isFlatTop);
 
   const polygons: string[] = [];
   for (let col = 0; col < params.width; col++) {
     for (let row = 0; row < params.height; row++) {
-      const gridStr = `${col}:${row}`;
-      if (!isCellVisible(gridStr, scratchedSet, scratchingSet, params.isPreviewMode)) continue;
+      if (!include(`${col}:${row}`)) continue;
 
       const { x, y } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
       const cx = x + geo.offsetX;
@@ -106,8 +111,27 @@ function buildHexMaskSvg(params: BuildMaskCssParams): string {
       polygons.push(`<polygon points="${points}"/>`);
     }
   }
+  return { polygons, geo };
+}
 
-  return buildHexSvgMask(polygons, geo.pixelW, geo.pixelH);
+function squareCellMasks(params: BuildMaskCssParams, include: (gridStr: string) => boolean): string[] {
+  const masks: string[] = [];
+  for (let x = 0; x < params.width; x++) {
+    for (let y = 0; y < params.height; y++) {
+      if (!include(`${x}:${y}`)) continue;
+
+      masks.push(
+        `radial-gradient(#000, #000) ${x * params.gridSize - 1}px ${y * params.gridSize - 1}px / ${params.gridSize + 2}px ${params.gridSize + 2}px no-repeat`
+      );
+    }
+  }
+  return masks;
+}
+
+function buildHexMaskSvg(params: BuildMaskCssParams): string {
+  const cells = hexCellPolygons(params, visibilityOf(params));
+  if (!cells) return EMPTY_MASK;
+  return buildHexSvgMask(cells.polygons, cells.geo.pixelW, cells.geo.pixelH);
 }
 
 /**
@@ -242,22 +266,29 @@ export function buildMaskCss(params: BuildMaskCssParams): string {
 
   if (!params.isPreviewMode && params.isNonScratched) return '';
 
-  const masks: string[] = [];
-  const scratchedSet = splitGridSet(params.scratchedGrids);
-  const scratchingSet = params.currentScratchingSet ?? splitGridSet(params.scratchingGrids);
+  const masks = squareCellMasks(params, visibilityOf(params));
+  return masks.length ? masks.join(',') : EMPTY_MASK;
+}
 
-  for (let x = 0; x < params.width; x++) {
-    for (let y = 0; y < params.height; y++) {
-      const gridStr = `${x}:${y}`;
-      if (!isCellVisible(gridStr, scratchedSet, scratchingSet, params.isPreviewMode)) continue;
+/**
+ * The CSS mask that keeps only the cells {@link buildMaskCss} cuts out of a mask: those scratched
+ * open, or in preview mode those the pending scratch would leave open.
+ *
+ * Each cell grows by the same pixel as in the mask itself, so the two meet without a seam, and a
+ * hex grid is drawn as SVG. Empty when no cell is open, on either kind of grid.
+ */
+export function buildScratchedMaskCss(params: BuildMaskCssParams): string {
+  if (!params.isPreviewMode && params.isNonScratched) return '';
+  const isVisible = visibilityOf(params);
+  const isOpen = (gridStr: string) => !isVisible(gridStr);
 
-      masks.push(
-        `radial-gradient(#000, #000) ${x * params.gridSize - 1}px ${y * params.gridSize - 1}px / ${params.gridSize + 2}px ${params.gridSize + 2}px no-repeat`
-      );
-    }
+  if (isHexGrid(params.gridType)) {
+    const cells = hexCellPolygons(params, isOpen);
+    if (!cells || !cells.polygons.length) return '';
+    return buildHexSvgMask(cells.polygons, cells.geo.pixelW, cells.geo.pixelH);
   }
 
-  return masks.length ? masks.join(',') : EMPTY_MASK;
+  return squareCellMasks(params, isOpen).join(',');
 }
 
 /**

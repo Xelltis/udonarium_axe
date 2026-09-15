@@ -2,9 +2,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { Network } from '@axe/core/index';
 import { IPeerContext } from '@axe/core/network/peer-context';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
+import { buildScratchedMaskCss } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GameTableMaskComponent', () => {
@@ -237,6 +241,104 @@ describe('GameTableMaskComponent', () => {
       component.scratched();
 
       expect(mask.scratchedGrids).toBe('0:0');
+    });
+  });
+
+  describe('the layer drawn in the cells scratched open', () => {
+    let mask: GameTableMask;
+
+    function layer(): HTMLElement | null {
+      return fixture.nativeElement.querySelector('[data-scratched-layer]');
+    }
+
+    function openCellsCss(): string {
+      return buildScratchedMaskCss({
+        currentScratchingSet: null,
+        gridSize: component.gridSize,
+        gridType: component.gridType(),
+        height: mask.height,
+        isNonScratched: !mask.scratchedGrids,
+        isPreviewMode: false,
+        scratchedGrids: mask.scratchedGrids,
+        scratchingGrids: mask.scratchingGrids,
+        width: mask.width,
+      });
+    }
+
+    beforeEach(() => {
+      mask = GameTableMask.create('testMask', 2, 1, 100);
+      mask.scratchedGrids = '1:0';
+      fixture.componentRef.setInput('gameTableMask', mask);
+    });
+
+    afterEach(() => {
+      mask.destroy();
+      ImageStorage.instance.images.forEach((image) => ImageStorage.instance.delete(image.identifier));
+    });
+
+    it('is not drawn on a mask with neither a colour nor a picture for it', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.scratchedLayerMask).toBe('');
+      expect(layer()).toBeNull();
+    });
+
+    it('is not drawn while no cell is open, whatever it is given', async () => {
+      mask.scratchedGrids = '';
+      mask.scratchedColor = '#ff0000';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(layer()).toBeNull();
+    });
+
+    it('fills with its colour, cut to the open squares and letting presses through', async () => {
+      mask.scratchedColor = '#ff0000';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const drawn = layer();
+      expect(drawn).not.toBeNull();
+      expect(component.scratchedLayerMask).toBe(openCellsCss());
+      expect(component.scratchedLayerMask).toContain('radial-gradient');
+      expect(component.scratchedLayerMask).not.toBe(component.masksCss);
+      expect(drawn!.getAttribute('style')).toMatch(/background-color: (#ff0000|rgb\(255, 0, 0\))/);
+      expect(drawn!.classList).toContain('pointer-events-none');
+      expect(drawn!.querySelector('img')).toBeNull();
+    });
+
+    it('shows its picture, drawn as the mask draws its own', async () => {
+      const image = ImageStorage.instance.add('./assets/images/after-scratch.png');
+      mask.scratchedImageIdentifier = image.identifier;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const picture = layer()?.querySelector('img');
+      expect(picture).toBeTruthy();
+      expect(picture!.getAttribute('src')).toContain('after-scratch.png');
+      expect(picture!.style.mixBlendMode).toBe('hard-light');
+      expect(component.scratchedLayerMask).toBe(openCellsCss());
+    });
+
+    it('is cut to the open hexes on a hex table', async () => {
+      const selecter = TestBed.inject(TableSelecter);
+      const table = new GameTable('mask-layer-hex-table');
+      table.gridType = GridType.HEX_VERTICAL;
+      table.initialize();
+      selecter.viewTableIdentifier = table.identifier;
+      mask.scratchedColor = '#ff0000';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const css = component.scratchedLayerMask;
+      expect(component.gridType()).toBe(GridType.HEX_VERTICAL);
+      expect(css).toBe(openCellsCss());
+      expect(decodeURIComponent(css).match(/<polygon /g)).toHaveLength(1);
+      expect(layer()).not.toBeNull();
+
+      selecter.viewTableIdentifier = '';
+      table.destroy();
     });
   });
 });

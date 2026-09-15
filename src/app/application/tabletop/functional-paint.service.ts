@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
-import { DataElement } from '@axe/domain/data/data-element';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { cellKeyOf, CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -121,24 +120,6 @@ function blockOrigin(placed: BlockPlacement | null, rect: CellRect, grid: CellGr
 
 /** A mask counts its opacity out of this, so the fraction it shows is the current value over it. */
 const MASK_OPACITY_FULL = 100;
-
-/**
- * A mask carries no colour until one is written down for it, and the setter will not write
- * what is not already there, so the element has to be laid alongside it.
- */
-function paintMaskColor(mask: GameTableMask, color: string): void {
-  const common = mask.commonDataElement;
-  if (!common) return;
-  const held = common.getFirstElementByName('color');
-  if (held) {
-    held.value = color;
-    held.currentValue = color;
-    return;
-  }
-  common.appendChild(
-    DataElement.create('color', color, { type: 'colors', currentValue: color }, `color_${mask.identifier}`)
-  );
-}
 
 function setMaskOpacity(mask: GameTableMask, fraction: number): void {
   const element = mask.commonDataElement?.getFirstElementByName('opacity');
@@ -383,7 +364,7 @@ export class FunctionalPaintService {
         placed ? placed.depth : block.height,
         MASK_OPACITY_FULL
       );
-      paintMaskColor(mask, block.spec.color);
+      mask.paintColor(block.spec.color);
       setMaskOpacity(mask, block.spec.opacity);
       mask.isLock = block.spec.locked;
       mask.dispLockMark = block.spec.showsLockMark;
