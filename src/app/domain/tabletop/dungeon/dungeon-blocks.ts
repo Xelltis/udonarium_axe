@@ -136,6 +136,15 @@ function doorPropFor(atmosphere: DungeonAtmosphere): DungeonPropId {
   return atmosphere.id === 'crypt' ? 'door_iron_grate' : 'door_wood';
 }
 
+/**
+ * Turns a dungeon layout into what gets built on the table: wall blocks, floor and hazard paint, doors,
+ * stairs and room lights.
+ *
+ * Rock is merged into rectangles up to the merge span, and only walls that border open ground block sight.
+ * Doors and stairs are left out when the options say so. No up stair is placed when the party enters by a
+ * tunnel mouth, and no down stair when the exit is the entrance. Lights go in rooms up to the atmosphere's
+ * torch count.
+ */
 export function layoutToBlocks(
   layout: DungeonLayout,
   atmosphere: DungeonAtmosphere,
@@ -160,7 +169,7 @@ export function layoutToBlocks(
   }
 
   // A door stands on the floor rather than instead of it: its slab is a quarter of a cell
-  // thick, so leaving its cell unpainted showed bare table beside it and a hole once it opened.
+  // thick, so leaving its cell unpainted would show bare table beside it and a hole once it opens.
   const floorMask = maskOfKind(layout, [DungeonCell.Room, DungeonCell.Corridor, DungeonCell.Door]);
   for (const rect of mergeMaskToRects(floorMask, layout.width, layout.height, span)) {
     paint.push({ kind: 'floor', rect });

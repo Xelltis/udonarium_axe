@@ -3,6 +3,7 @@ import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 
 export const REPLAY_DATA_ALIAS = 'data';
 
+/** The recorded data elements grouped under the identifier of their parent, for walking a piece's data tree. */
 export function groupReplayChildren(snapshots: readonly ReplayObjectSnapshot[]): Map<string, ReplayObjectSnapshot[]> {
   const childrenOf = new Map<string, ReplayObjectSnapshot[]>();
   for (const snapshot of snapshots) {
@@ -16,6 +17,13 @@ export function groupReplayChildren(snapshots: readonly ReplayObjectSnapshot[]):
   return childrenOf;
 }
 
+/**
+ * The value of the data element reached by following names down from an object, such as
+ * `common` then `name`.
+ *
+ * Each name is looked for at any depth below the element before it, nearest first. Empty when
+ * any step of the path is missing.
+ */
 export function replayValueOfNamed(
   childrenOf: Map<string, ReplayObjectSnapshot[]>,
   rootIdentifier: string,

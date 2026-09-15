@@ -81,7 +81,7 @@ interface OpenWindow {
  * same component, told about the same room, without a copy of the application behind it.
  *
  * The component itself stays in this application. Only its nodes are over there, so what it
- * is showing goes on arriving the same way it always did. How a panel is opened is not known
+ * is showing arrives the same way as in the main window. How a panel is opened is not known
  * here — the caller brings that, which is how a panel belonging to one piece on the table can
  * be taken out as readily as one belonging to the room.
  *
@@ -113,6 +113,7 @@ export class PanelWindowService {
     return typeof this.document.defaultView?.open === 'function';
   }
 
+  /** Whether the panel with this key is out in a window of its own right now. */
   isDetached(key: string): boolean {
     return this.windows.has(key);
   }
@@ -244,6 +245,11 @@ export class PanelWindowService {
     if (comingHome && !held.request.leaving) held.request.restore();
   }
 
+  /**
+   * Shuts every panel window without putting the panels back on the table.
+   *
+   * Called as the app's page goes away, when there is no table left to put them on.
+   */
   closeAll(): void {
     for (const key of [...this.windows.keys()]) this.bringBack(key, false);
   }

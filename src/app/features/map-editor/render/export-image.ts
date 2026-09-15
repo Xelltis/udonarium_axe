@@ -133,6 +133,13 @@ function createTarget(width: number, height: number): OffscreenTarget | null {
   return null;
 }
 
+/**
+ * Draws the whole map into an image file for exporting.
+ *
+ * Every stamp, picture and texture is loaded first, so nothing is left out of the image. The image
+ * is scaled down where its longest side would pass 8192px. WebP is asked for unless told otherwise,
+ * and PNG is made where the browser cannot make the type asked for.
+ */
 export async function exportSceneToBlob(scene: MapScene, defs: StampDef[], opts: ExportOptions = {}): Promise<Blob> {
   const scale = clampScale(scene, opts.scale ?? 1);
   const outW = Math.max(1, Math.round(sceneWidthPx(scene) * scale));

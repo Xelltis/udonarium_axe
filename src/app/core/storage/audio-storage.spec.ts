@@ -1,3 +1,4 @@
+import { Network } from '@axe/core/network/network';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 
@@ -64,6 +65,56 @@ describe('AudioStorage', () => {
       storage.add('https://example.com/catalog.mp3');
       const catalog = storage.getCatalog();
       expect(Array.isArray(catalog)).toBe(true);
+    });
+  });
+
+  describe('sending the catalogue', () => {
+    const cancelWaiting = () =>
+      (storage as unknown as { catalogSchedule: { cancel(): void } }).catalogSchedule.cancel();
+
+    const catalogueTargets = () =>
+      vi
+        .mocked(Network.instance.send)
+        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === 'SYNCHRONIZE_AUDIO_LIST')
+        .map(([, sendTo]) => sendTo);
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      cancelWaiting();
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      cancelWaiting();
+      vi.useRealTimers();
+    });
+
+    it('sends a later waiting call to the peer that call names', () => {
+      storage.lazySynchronize(1000, 'peer-a');
+      vi.advanceTimersByTime(1000);
+      storage.lazySynchronize(1000, 'peer-b');
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual(['peer-a', 'peer-b']);
+    });
+
+    it('still tells everyone later after telling one peer now', () => {
+      storage.lazySynchronize(1000);
+      storage.synchronize('peer-a');
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual(['peer-a', undefined]);
+    });
+
+    it('sends one catalogue once a quick run of added audio stops', () => {
+      for (let n = 0; n < 10; n++) {
+        storage.add(`https://example.com/run-${n}.mp3`);
+        vi.advanceTimersByTime(50);
+      }
+
+      expect(catalogueTargets()).toEqual([]);
+      vi.advanceTimersByTime(50);
+      expect(catalogueTargets()).toEqual([undefined]);
     });
   });
 });

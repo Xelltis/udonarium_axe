@@ -16,7 +16,6 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { clearOwnershipTree } from '@axe/domain/tabletop/ownership';
 import { RangeArea } from '@axe/domain/tabletop/range';
@@ -32,7 +31,6 @@ import { laysFlat } from '@axe/domain/ui/view-mode';
 /** What a table carries with it, so that looking at another table brings its own along. */
 const TABLE_CHILD_ALIASES = [
   GameTableMask.aliasName,
-  GameTableScratchMask.aliasName,
   Terrain.aliasName,
   TableAmbience.aliasName,
   LightSource.aliasName,
@@ -55,6 +53,7 @@ export class TabletopService {
   private readonly destroyRef = inject(DestroyRef);
 
   private _emptyTable: GameTable = new GameTable('');
+  /** The table in view, or an empty placeholder table when there is none, so callers never have to check. */
   get currentTable(): GameTable {
     const table = this.tableSelecter.viewTable;
     return table ? table : this._emptyTable;
@@ -115,10 +114,6 @@ export class TabletopService {
     const viewTable = this.tableSelecter.viewTable;
     return viewTable ? viewTable.masks : [];
   });
-  private tableScratchMaskCache = new TabletopCache<GameTableScratchMask>(() => {
-    const viewTable = this.tableSelecter.viewTable;
-    return viewTable ? viewTable.scratchMasks : [];
-  });
   private rangeCache = new TabletopCache<RangeArea>(() =>
     this.objectStore.getObjects(RangeArea).filter((obj) => obj.isVisibleOnTable)
   );
@@ -141,45 +136,55 @@ export class TabletopService {
   );
   private diceSymbolCache = new TabletopCache<DiceSymbol>(() => this.objectStore.getObjects(DiceSymbol));
 
+  /** The characters out on the table rather than put away. */
   get characters(): GameCharacter[] {
     return this.characterCache.objects;
   }
+  /** The cards out on the table. */
   get cards(): Card[] {
     return this.cardCache.objects;
   }
+  /** The card stacks out on the table. */
   get cardStacks(): CardStack[] {
     return this.cardStackCache.objects;
   }
+  /** The masks on the table in view. */
   get tableMasks(): GameTableMask[] {
     return this.tableMaskCache.objects;
   }
-  get tableScratchMasks(): GameTableScratchMask[] {
-    return this.tableScratchMaskCache.objects;
-  }
+  /** The ranges out on the table. */
   get ranges(): RangeArea[] {
     return this.rangeCache.objects;
   }
+  /** The light sources on the table in view. */
   get lightSources(): LightSource[] {
     return this.lightSourceCache.objects;
   }
+  /** The boards on the table in view. */
   get whiteBoards(): WhiteBoard[] {
     return this.whiteBoardCache.objects;
   }
+  /** The terrain on the table in view. */
   get terrains(): Terrain[] {
     return this.terrainCache.objects;
   }
+  /** The ground effects on the table in view. */
   get ambiences(): TableAmbience[] {
     return this.ambienceCache.objects;
   }
+  /** Every note in the room, wherever it is. */
   get textNotes(): TextNote[] {
     return this.textNoteCache.objects;
   }
+  /** Every die in the room, wherever it is. */
   get diceSymbols(): DiceSymbol[] {
     return this.diceSymbolCache.objects;
   }
+  /** The coins out on the table. */
   get coins(): Coin[] {
     return this.coinCache.objects;
   }
+  /** The cursor of every peer in the room, this reader's included. Not cached, unlike the rest. */
   get peerCursors(): PeerCursor[] {
     return this.objectStore.getObjects<PeerCursor>(PeerCursor);
   }
@@ -274,8 +279,6 @@ export class TabletopService {
         return this.cardStackCache;
       case GameTableMask.aliasName:
         return this.tableMaskCache;
-      case GameTableScratchMask.aliasName:
-        return this.tableScratchMaskCache;
       case RangeArea.aliasName:
         return this.rangeCache;
       case LightSource.aliasName:
@@ -307,7 +310,6 @@ export class TabletopService {
     this.cardCache.refresh();
     this.cardStackCache.refresh();
     this.tableMaskCache.refresh();
-    this.tableScratchMaskCache.refresh();
     this.rangeCache.refresh();
     this.lightSourceCache.refresh();
     this.whiteBoardCache.refresh();

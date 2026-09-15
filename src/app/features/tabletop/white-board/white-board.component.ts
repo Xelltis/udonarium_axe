@@ -82,6 +82,7 @@ export class WhiteBoardComponent {
     setupMovableRotableForPiece(this, { target: this.whiteBoard });
   }
 
+  /** The table's grid cell size in pixels, which the board's width and height are counted in. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -97,8 +98,8 @@ export class WhiteBoardComponent {
       const board = this.whiteBoard();
       this.objectChange.versionOf(board.identifier)();
       // The picture a board wears arrives after the name of it does, so the bytes landing has
-      // to move the view as well; without it a board stayed blank for everybody else until it
-      // was dragged.
+      // to move the view as well; without it a board would stay blank for everybody else until
+      // it is dragged.
       this.objectChange.fileVersion();
       return board;
     },
@@ -152,8 +153,8 @@ export class WhiteBoardComponent {
    * Reads the collections, then hands back the table.
    *
    * It is the same table every time, so under the default equality a piece put on the board
-   * never reached anything that reads this: the collection said it had changed and the answer
-   * said it had not.
+   * would never reach anything that reads this: the collection would say it has changed and the
+   * answer that it has not.
    */
   private readonly surfaceVersion = computed(
     () => {
@@ -200,18 +201,26 @@ export class WhiteBoardComponent {
       this.diceSymbols().length
   );
 
+  /** Plays the pick-up sound when a drag or a turn of the board begins. */
   onMove(): void {
     SoundEffect.play(PresetSound.cardPick);
   }
 
+  /** Plays the put-down sound when a drag or a turn of the board ends. */
   onMoved(): void {
     SoundEffect.play(PresetSound.cardPut);
   }
 
+  /** Writes the angle the board has been turned to onto the synced board. */
   onRotated(degree: number): void {
     this.whiteBoard().rotate = degree;
   }
 
+  /**
+   * Opens the board's right-click menu at the pointer.
+   *
+   * When several pieces are selected, the menu for the selection opens instead.
+   */
   onContextMenu(e: Event): void {
     e.stopPropagation();
     e.preventDefault();

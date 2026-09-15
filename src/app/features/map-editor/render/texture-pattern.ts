@@ -1,5 +1,11 @@
 const MIN_TILE = 128;
 
+/**
+ * Makes a repeating fill from a texture picture.
+ *
+ * One tile of the picture spans two cells before the fill's own scale, and the rotation is in
+ * degrees. Null where the canvas cannot make a pattern from the picture.
+ */
 export function createImageTexturePattern(
   ctx: CanvasRenderingContext2D,
   image: CanvasImageSource,

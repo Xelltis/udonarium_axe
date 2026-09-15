@@ -20,6 +20,10 @@ const DEFAULT_VISIBILITY: WidgetVisibility = {
   hotbar: false,
 };
 
+/**
+ * Reads which widgets are shown from storage text, taking the default for any field missing or
+ * mistyped and for text that cannot be read.
+ */
 export function parseWidgetVisibility(raw: string | null): WidgetVisibility {
   if (!raw) return DEFAULT_VISIBILITY;
   try {
@@ -63,26 +67,32 @@ export class WidgetVisibilityService {
     });
   }
 
+  /** Shows or hides the clock widget. Remembered in this browser. */
   toggleClock(): void {
     this.clock.update((visible) => !visible);
   }
 
+  /** Shows or hides the mini music player. Remembered in this browser. */
   toggleMiniPlayer(): void {
     this.miniPlayer.update((visible) => !visible);
   }
 
+  /** Shows or hides the connection quality widget. Remembered in this browser. */
   toggleConnectionQuality(): void {
     this.connectionQuality.update((visible) => !visible);
   }
 
+  /** Shows or hides the session recording indicator. Remembered in this browser. */
   toggleRecording(): void {
     this.recording.update((visible) => !visible);
   }
 
+  /** Shows or hides the render stats widget. Remembered in this browser. */
   toggleRenderStats(): void {
     this.renderStats.update((visible) => !visible);
   }
 
+  /** Shows or hides the hotbar. Remembered in this browser. */
   toggleHotbar(): void {
     this.hotbar.update((visible) => !visible);
   }

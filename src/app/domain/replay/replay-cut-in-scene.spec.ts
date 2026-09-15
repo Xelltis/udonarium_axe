@@ -100,7 +100,7 @@ describe('replaySceneDurationOf()', () => {
 
   it('runs long enough to reach a layer that comes in after the end', () => {
     // The window the cut-in is played in runs to the last moment any layer holds, and the
-    // moment one comes in is one of them. Exported shorter, the layer never appeared at all.
+    // moment one comes in is one of them. Exported shorter, the layer would never appear at all.
     expect(replaySceneDurationOf(found({ startMs: 4000 }))).toBe(4000);
   });
 

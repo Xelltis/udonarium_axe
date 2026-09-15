@@ -117,6 +117,11 @@ export class GameCharacter extends OwnedTabletopObject {
     this.update();
   }
 
+  /**
+   * The shape of this piece's field of view, gathered from its vision settings. Its direction is
+   * worked out from the piece's rotation and the facing set for its vision, so turning the piece
+   * turns what it sees.
+   */
   get visionSpec(): VisionSpec {
     return {
       shape: asVisionShape(this.visionShape),
@@ -130,6 +135,12 @@ export class GameCharacter extends OwnedTabletopObject {
     };
   }
 
+  /**
+   * The light this piece carries, as the vision renderer reads it.
+   *
+   * Its direction turns with the piece, and it is always a physical light that walls block and that
+   * casts shadows.
+   */
   get lightSpec(): LightSpec {
     return {
       enabled: this.lightEnabled,
@@ -151,6 +162,10 @@ export class GameCharacter extends OwnedTabletopObject {
   chatBubbleAltitude: number = 0;
 
   private _targeted: boolean = false;
+  /**
+   * Whether this piece is ticked as a target in the remote controller. Kept in this browser alone
+   * and never synced.
+   */
   get targeted(): boolean {
     return this._targeted;
   }
@@ -159,6 +174,12 @@ export class GameCharacter extends OwnedTabletopObject {
   }
 
   private _selectedPortraitIndex: number = 0;
+  /**
+   * Which of the piece's pictures is chosen to speak with in chat, kept in this browser alone.
+   *
+   * An index past either end of the picture list is pulled back to the nearest picture, both when
+   * it is set and when it is read.
+   */
   get selectedPortraitIndex(): number {
     const childCount = this.imageDataElement?.children.length ?? 0;
     if (this._selectedPortraitIndex > childCount - 1) {
@@ -185,6 +206,13 @@ export class GameCharacter extends OwnedTabletopObject {
     return iconNum;
   }
 
+  /**
+   * The picture the piece shows on the table.
+   *
+   * Where the sheet has an `ICON` resource, its current value picks one of the pictures, held to
+   * the last one; otherwise the picture named by `imageIdentifier` is used. The empty image when
+   * nothing is found.
+   */
   override get imageFile(): ImageFile {
     if (!this.imageDataElement) return ImageFile.Empty;
 
@@ -204,12 +232,14 @@ export class GameCharacter extends OwnedTabletopObject {
     }
   }
 
+  /** How many cells the piece spans, kept in its common data. 1 when unset. */
   get size(): number {
     return this.getCommonValue('size', 1);
   }
   set size(value: number) {
     this.setCommonValue('size', value);
   }
+  /** The piece's chat palette: the first palette among its children, or null when it has none. */
   get chatPalette(): ChatPalette | null {
     for (const child of this.children) {
       if (child instanceof ChatPalette) return child;
@@ -217,6 +247,10 @@ export class GameCharacter extends OwnedTabletopObject {
     return null;
   }
 
+  /**
+   * The palette of buff commands the remote controller offers for this piece, or null until
+   * `addExtendData` has given it one.
+   */
   get remoteController(): BuffPalette | null {
     for (const child of this.children) {
       if (child instanceof BuffPalette) {
@@ -226,18 +260,25 @@ export class GameCharacter extends OwnedTabletopObject {
     return null;
   }
 
+  /** The `buff` element in the piece's data that holds its buffs, or null when it has none yet. */
   get buffDataElement(): DataElement | null {
     return this.getElement('buff');
   }
 
+  /** Raises the piece above the other pieces it overlaps on the table. */
   toTopmost() {
     moveToTopmost(this);
   }
 
+  /** Lowers the piece beneath the other pieces it overlaps on the table. */
   toBottommost() {
     moveToBottommost(this);
   }
 
+  /**
+   * Gives the piece a `buff` element to hold its buffs, and drops the cached buff manager so it
+   * picks the element up. Does nothing when the piece already has one.
+   */
   addBuffDataElement() {
     if (!this.buffDataElement) {
       this.rootDataElement?.appendChild(DataElement.create('buff', '', {}, `buff_${this.identifier}`));
@@ -248,6 +289,13 @@ export class GameCharacter extends OwnedTabletopObject {
   private _buffs: BuffManager | null = null;
   private _status: StatusAccessor | null = null;
 
+  /**
+   * The buff manager for this piece, bound to its buff element, its name and identifier, and its
+   * statuses.
+   *
+   * It is made on first use and cached, so it only sees a buff element added later because
+   * `addBuffDataElement` drops the cached one.
+   */
   get buffs(): BuffManager {
     return (this._buffs ??= new BuffManager(
       this.buffDataElement ?? null,
@@ -256,10 +304,18 @@ export class GameCharacter extends OwnedTabletopObject {
     ));
   }
 
+  /**
+   * Reads and writes the piece's statuses by name, for chat commands and buffs. Made on first use
+   * and cached.
+   */
   get status(): StatusAccessor {
     return (this._status ??= new StatusAccessor(this.detailDataElement ?? null, () => this.name));
   }
 
+  /**
+   * Makes and initializes a new character filled with the default sample sheet. It is not placed on
+   * any table.
+   */
   static create(name: string, size: number, imageIdentifier: string): GameCharacter {
     const gameCharacter: GameCharacter = new GameCharacter();
     gameCharacter.createDataElements();
@@ -270,6 +326,11 @@ export class GameCharacter extends OwnedTabletopObject {
     return gameCharacter;
   }
 
+  /**
+   * Reads the piece from room data, then brings an older sheet up to the current shape: sections
+   * and groups get their roles, legacy check tables are converted, and the old overview tags become
+   * popup attributes.
+   */
   override parseInnerXml(element: Element): void {
     super.parseInnerXml(element);
     this.normalizeDetailDataElementHierarchy();
@@ -277,6 +338,13 @@ export class GameCharacter extends OwnedTabletopObject {
     this.migrateOverviewDataTagsToElementAttributes();
   }
 
+  /**
+   * Adds what this tool expects every character to carry and an older or imported one may lack.
+   *
+   * That is the buff element and its container, the portrait position and piece picture fields, and
+   * the buff command palette, followed by the same tidying a load does. Anything already there is
+   * left as it is.
+   */
   addExtendData() {
     this.addBuffDataElement();
 
@@ -376,6 +444,12 @@ export class GameCharacter extends OwnedTabletopObject {
     this.overViewDataTags = [];
   }
 
+  /**
+   * Makes the sheet follow the section, group and field shape the character sheet expects.
+   *
+   * Loose fields sitting directly in a section are wrapped in generated `基本` groups, and a group
+   * nested more than two levels deep is lifted out into its section.
+   */
   normalizeDetailDataElementHierarchy(): void {
     const detail = this.detailDataElement;
     if (!detail) return;
@@ -468,6 +542,12 @@ export class GameCharacter extends OwnedTabletopObject {
     else parentElement.appendChild(element);
   }
 
+  /**
+   * Copies the piece and names the copy with the next free number, so copying `Goblin` when
+   * `Goblin_2` exists makes `Goblin_3`.
+   *
+   * The numbers already taken are counted across every character outside the graveyard.
+   */
   override clone(): this {
     const cloneObject = super.clone();
 

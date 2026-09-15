@@ -9,6 +9,7 @@ import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
 import { diff } from '@axe/core/util/array-util';
 import { compressAsync, decompressAsync } from '@axe/core/util/compress';
 import * as MessagePack from '@axe/core/util/message-pack';
+import { PERF_INBOUND_DRAIN, perfCounters } from '@axe/core/util/perf-counters';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 
 type PeerId = string;
@@ -25,16 +26,20 @@ export class SkyWayConnection implements Connection {
     return [...this.peers.filter((p) => p.userId.length > 0).map((p) => p.userId), this.peer.userId];
   }
 
+  /** This device's peer id, or the placeholder '???' until a SkyWay session opens. */
   get peerId(): string {
     return this.peer.peerId;
   }
+  /** Ids of the peers whose data channel is open, sorted. */
   get peerIds(): string[] {
     return this.streams.peerIds;
   }
 
+  /** This device's peer context in the SkyWay session. */
   get peer(): PeerContext {
     return this.skyWay.peer;
   }
+  /** Contexts of every peer with a stream, including ones still connecting, sorted by peer id. */
   get peers(): PeerContext[] {
     return this.streams.peers;
   }
@@ -49,35 +54,44 @@ export class SkyWayConnection implements Connection {
   private listAllPeersCache: PeerId[] = [];
   private httpRequestInterval: number = performance.now() + 500;
   private outboundQueue: Promise<void> = Promise.resolve();
-  private inboundQueue: Promise<void> = Promise.resolve();
 
   private readonly trustedPeerIds: Set<PeerId> = new Set();
   private readonly relayingPeerIds: Map<string, string[]> = new Map();
   private readonly pendingRelayMapUpdates: Map<string, Promise<void>> = new Map();
   private readonly maybeUnavailablePeerIds: Set<string> = new Set();
 
+  /** Takes the backend URL from the app config; token requests on the next open go there. */
   configure(config: Record<string, unknown>) {
     this.skyWay.url = ((config.backend as Record<string, unknown>)?.url as string) ?? '';
   }
 
+  /** Opens a session in no room, as the given user or a new one; callback reports the result. */
   openStandby(userId?: string): void {
     PeerContext.create(userId ?? PeerContext.generateUserId()).then((peer) => this.openSkyWay(peer));
   }
 
+  /**
+   * Opens a SkyWay session in a room, with a peer id derived from the user, room and password.
+   *
+   * Opening is asynchronous and reported through callback.onOpen or onError. No peer is connected yet.
+   */
   open(userId: string, roomId: string, roomName: string, password: string): void {
     PeerContext.createRoom(userId, roomId, roomName, password).then((peer) => this.openSkyWay(peer));
   }
 
+  /** Disconnects every peer, cancels pending reconnects and leaves the SkyWay session. */
   close() {
     this.reconnectScheduler.cancelAll();
     this.disconnectAll();
     this.skyWay.close();
   }
 
+  /** Starts leaving the room and lobby without waiting, for a page being hidden or unloaded. */
   leaveImmediately() {
     this.skyWay.leaveImmediately();
   }
 
+  /** Joins again after leaveImmediately if the page stayed after all, reconnecting its peers. */
   async rejoinAfterLeave() {
     await this.skyWay.rejoinAfterLeave();
     for (const peerId of [...this.trustedPeerIds]) {
@@ -87,6 +101,13 @@ export class SkyWayConnection implements Connection {
     }
   }
 
+  /**
+   * Starts a data connection to a member of the room.
+   *
+   * False, with nothing started, when the session is not open, the peer is this device or already
+   * has a stream, fails the room and password check, or is not in the room. True means the attempt
+   * started; callback.onConnect reports when the channel opens.
+   */
   async connect(peer: IPeerContext): Promise<boolean> {
     if (!(await this.shouldConnect(peer.peerId))) {
       return false;
@@ -121,6 +142,7 @@ export class SkyWayConnection implements Connection {
     return true;
   }
 
+  /** Closes the connection to a peer and cancels its pending reconnect; false when there was none. */
   disconnect(peer: IPeerContext): boolean {
     this.reconnectScheduler.reset(peer.peerId);
     const stream = this.streams.find(peer.peerId);
@@ -129,14 +151,33 @@ export class SkyWayConnection implements Connection {
     return true;
   }
 
+  /** Closes the connection to every peer, without reconnecting. */
   disconnectAll() {
     for (const peer of [...this.peers]) {
       this.disconnect(peer);
     }
   }
 
+  /**
+   * Sends data to one peer, or to every connected peer when sendTo is omitted.
+   *
+   * A batch goes out in runs that keep its order: pieces of a file are sent on their own and as
+   * they are, and a large run of the other messages is compressed. Sends go out in call order
+   * after the current task. Nothing is sent while no peer is connected, and a message for a peer
+   * whose channel is not open is dropped.
+   */
   send(data: unknown, sendTo?: string) {
     if (this.peers.length < 1) return;
+    if (!Array.isArray(data) || data.length < 2) {
+      this.sendContainer(data, sendTo, false);
+      return;
+    }
+    for (const run of SkyWayConnection.splitAtFileChunks(data)) {
+      this.sendContainer(run.messages, sendTo, !run.carriesFileChunks);
+    }
+  }
+
+  private sendContainer(data: unknown, sendTo: string | undefined, compressible: boolean) {
     const container: DataContainer = {
       data: MessagePack.encode(data),
       ttl: 1,
@@ -146,7 +187,7 @@ export class SkyWayConnection implements Connection {
     this.bandwidthUsage += byteLength;
     this.outboundQueue = this.outboundQueue.then(async () => {
       await waitZeroTimeout();
-      if (container.data.byteLength > 1024 && Array.isArray(data) && data.length > 1) {
+      if (compressible && container.data.byteLength > 1024) {
         try {
           const compressed = await compressAsync(container.data);
           if (compressed.byteLength < container.data.byteLength) {
@@ -166,6 +207,27 @@ export class SkyWayConnection implements Connection {
     });
   }
 
+  /**
+   * Splits a batch, in order, into runs that are all pieces of an image or audio file or none.
+   *
+   * Those bytes are already compressed, so gzipping them costs time and saves nothing, while the
+   * messages around them still compress well.
+   */
+  private static splitAtFileChunks(batch: readonly unknown[]): { messages: unknown[]; carriesFileChunks: boolean }[] {
+    const runs: { messages: unknown[]; carriesFileChunks: boolean }[] = [];
+    for (const message of batch) {
+      const eventName = (message as { eventName?: unknown } | null)?.eventName;
+      const isFileChunk = typeof eventName === 'string' && eventName.startsWith('FILE_SEND_CHUNK_');
+      const last = runs.at(-1);
+      if (last && last.carriesFileChunks === isFileChunk) {
+        last.messages.push(message);
+      } else {
+        runs.push({ messages: [message], carriesFileChunks: isFileChunk });
+      }
+    }
+    return runs;
+  }
+
   private sendUnicast(container: DataContainer, sendTo: string) {
     container.ttl = 0;
     const stream = this.streams.find(sendTo);
@@ -180,6 +242,7 @@ export class SkyWayConnection implements Connection {
     }
   }
 
+  /** Peer ids of every lobby member, fetched at most every ten seconds and cached in between. */
   async listAllPeers(): Promise<string[]> {
     const now = performance.now();
     if (now >= this.httpRequestInterval) {
@@ -190,6 +253,7 @@ export class SkyWayConnection implements Connection {
     return this.listAllPeersCache;
   }
 
+  /** The rooms visible in the lobby, built from its members and the room names they carry. */
   async listAllRooms(): Promise<IRoomInfo[]> {
     const members = await this.skyWay.listAllLobbyMembers();
     return RoomInfo.listFromMembers(members);
@@ -348,13 +412,42 @@ export class SkyWayConnection implements Connection {
     if (!this.callback.onData) return;
     const byteLength = container.data.byteLength;
     this.bandwidthUsage += byteLength;
-    this.inboundQueue = this.inboundQueue.then(async () => {
-      await waitZeroTimeout();
-      if (!this.callback.onData) return;
-      const data = container.isCompressed ? await decompressAsync(container.data) : container.data;
-      this.callback.onData(stream.peer, MessagePack.decode(data) as unknown[]);
-      this.bandwidthUsage -= byteLength;
-    });
+    this.inbound.push({ peer: stream.peer, container, byteLength });
+    if (!this.inboundDraining) void this.drainInbound();
+  }
+
+  /** How long one task may spend handing over what has arrived before it lets the page draw. */
+  private static readonly INBOUND_DRAIN_BUDGET_MS = 8;
+  private readonly inbound: { peer: PeerContext; container: DataContainer; byteLength: number }[] = [];
+  private inboundDraining = false;
+
+  /**
+   * Hands what has arrived to the callback, in the order it came, as much as fits in a task.
+   *
+   * A message that cannot be read is logged and dropped; the ones behind it still go through.
+   */
+  private async drainInbound(): Promise<void> {
+    this.inboundDraining = true;
+    try {
+      while (this.inbound.length > 0) {
+        await waitZeroTimeout();
+        perfCounters.bump(PERF_INBOUND_DRAIN);
+        const started = performance.now();
+        while (0 < this.inbound.length && performance.now() - started < SkyWayConnection.INBOUND_DRAIN_BUDGET_MS) {
+          const { peer, container, byteLength } = this.inbound.shift()!;
+          this.bandwidthUsage -= byteLength;
+          if (!this.callback.onData) continue;
+          try {
+            const data = container.isCompressed ? await decompressAsync(container.data) : container.data;
+            this.callback.onData(peer, MessagePack.decode(data) as unknown[]);
+          } catch (e) {
+            Logger.error('[SkyWay] 受信データを読めなかったため破棄しました', e);
+          }
+        }
+      }
+    } finally {
+      this.inboundDraining = false;
+    }
   }
 
   private onRelay(stream: SkyWayDataStream, container: DataContainer) {

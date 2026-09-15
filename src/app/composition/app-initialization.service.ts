@@ -12,6 +12,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { keepFocusFromZoomingOnAppleTouch } from '@axe/core/util/apple-input-zoom';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { createDefaultStatusAilments } from '@axe/domain/character/builtin-status-ailments';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -56,6 +57,13 @@ export class AppInitializationService {
   private readonly ngSelectConfig = inject(NgSelectConfig);
   private readonly keyboardInset = inject(KeyboardInsetService);
 
+  /**
+   * Starts the app once at launch, before any room is used.
+   *
+   * Sets up networking, file sharing and object sync, then creates the room-wide objects every
+   * room starts with (dice bot, jukebox, default chat tabs, preset sounds, effects, cut-ins and
+   * status ailments) and the local user's cursor, restoring a stored identity if there is one.
+   */
   initialize(): void {
     initializeNetworkMessaging();
     this.fileArchiver.initialize();
@@ -65,6 +73,7 @@ export class AppInitializationService {
     this.appConfigService.initialize();
     this.pointerDeviceService.initialize();
     this.keyboardInset.initialize();
+    keepFocusFromZoomingOnAppleTouch(document, navigator);
     this.ngSelectConfig.appendTo = 'body';
 
     this.tableSelecter.initialize();
@@ -103,6 +112,8 @@ export class AppInitializationService {
 
     const jukebox = new Jukebox('Jukebox');
     jukebox.initialize();
+    AudioSharingSystem.instance.preferredIdentifiers = () =>
+      jukebox.audioIdentifier.length > 0 ? [jukebox.audioIdentifier] : [];
 
     const playlist = new Playlist('Playlist');
     playlist.initialize();

@@ -38,6 +38,7 @@ export const CUT_IN_LAYER_PRESETS: readonly CutInLayerPreset[] = [
   { id: 'whisper', entrance: 'slideInBottom', exit: 'slideOutBottom', effect: 'none', strength: 1, ms: 380 },
 ] as const;
 
+/** The whole look with the given id, or null when there is none by that id. */
 export function cutInLayerPreset(id: string): CutInLayerPreset | null {
   return CUT_IN_LAYER_PRESETS.find((preset) => preset.id === id) ?? null;
 }

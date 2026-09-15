@@ -52,6 +52,11 @@ export class RangeShapeEditorComponent {
     return { count: cells.length, width: bb.width, height: bb.height };
   });
 
+  /**
+   * Fills the editor with a range's current shape and colours, once it has been opened.
+   *
+   * Only the fields given are applied; the rest keep the editor's defaults.
+   */
   initialize(initial: Partial<RangeShapeEditorResult> = {}): void {
     if (initial.name !== undefined) this.name.set(initial.name);
     if (initial.gridType) this.gridType.set(initial.gridType);

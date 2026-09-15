@@ -104,6 +104,7 @@ export class CutInLayerPropertiesComponent {
     this.commit.emit();
   }
 
+  /** The layer's name as listed in the editor. */
   get name(): string {
     return this.layer()?.name ?? '';
   }
@@ -111,6 +112,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.name = name));
   }
 
+  /** The layer's left edge at the scrubber, in the cut-in's pixels; a write lands on a key there if one stands. */
   get x(): number {
     return Math.round(this.tracked('x'));
   }
@@ -118,6 +120,7 @@ export class CutInLayerPropertiesComponent {
     this.writeTracked('x', Number(x) || 0);
   }
 
+  /** The layer's top edge at the scrubber, in the cut-in's pixels; a write lands on a key there if one stands. */
   get y(): number {
     return Math.round(this.tracked('y'));
   }
@@ -125,6 +128,7 @@ export class CutInLayerPropertiesComponent {
     this.writeTracked('y', Number(y) || 0);
   }
 
+  /** The layer's box width in the cut-in's pixels, never set below 1. */
   get width(): number {
     return Math.round(this.layer()?.width ?? 0);
   }
@@ -132,6 +136,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.width = Math.max(1, Number(width) || 1)));
   }
 
+  /** The layer's box height in the cut-in's pixels, never set below 1. */
   get height(): number {
     return Math.round(this.layer()?.height ?? 0);
   }
@@ -151,6 +156,7 @@ export class CutInLayerPropertiesComponent {
     });
   }
 
+  /** How far the layer is turned at the scrubber, in degrees; a write lands on a key there if one stands. */
   get rotation(): number {
     return Math.round(this.tracked('rotation'));
   }
@@ -158,6 +164,7 @@ export class CutInLayerPropertiesComponent {
     this.writeTracked('rotation', Number(rotation) || 0);
   }
 
+  /** The layer's opacity at the scrubber as 0 to 100; a write lands on a key there if one stands. */
   get opacityPercent(): number {
     return Math.round(this.tracked('opacity', 1) * 100);
   }
@@ -165,6 +172,7 @@ export class CutInLayerPropertiesComponent {
     this.writeTracked('opacity', Math.min(1, Math.max(0, (Number(percent) || 0) / 100)));
   }
 
+  /** The layer's blur at the scrubber, in pixels, never negative; a write lands on a key there if one stands. */
   get blur(): number {
     return Math.round(this.tracked('blur'));
   }
@@ -180,6 +188,11 @@ export class CutInLayerPropertiesComponent {
     return hasKeyAt(layer, track, this.playheadMs());
   }
 
+  /**
+   * Puts a key down on a track at the scrubber, or takes up the one there, from the field's diamond.
+   *
+   * Scale is one field for both directions, so toggling `scaleX` toggles `scaleY` with it.
+   */
   toggleKey(track: CutInTrackName): void {
     this.write((layer) => {
       toggleKeyAt(layer, track, this.playheadMs());
@@ -218,6 +231,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => setValueAt(layer, track, this.playheadMs(), value));
   }
 
+  /** When the layer comes on screen, in ms from the start of the scene. */
   get startMs(): number {
     return Math.round(this.layer()?.startMs ?? 0);
   }
@@ -225,6 +239,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.startMs = Math.max(0, Number(startMs) || 0)));
   }
 
+  /** When the layer leaves the screen, in ms; 0 keeps it on until the scene ends. */
   get endMs(): number {
     return Math.round(this.layer()?.endMs ?? 0);
   }
@@ -240,6 +255,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.objectFit = crops ? 'cover' : 'contain'));
   }
 
+  /** Which part of a cropped picture stays in view across, from 0 (left) to 100 (right). */
   get objectPosX(): number {
     return Math.round(this.layer()?.objectPosX ?? 50);
   }
@@ -247,6 +263,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.objectPosX = Math.min(100, Math.max(0, Number(objectPosX) || 0))));
   }
 
+  /** Which part of a cropped picture stays in view down, from 0 (top) to 100 (bottom). */
   get objectPosY(): number {
     return Math.round(this.layer()?.objectPosY ?? 50);
   }
@@ -254,6 +271,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.objectPosY = Math.min(100, Math.max(0, Number(objectPosY) || 0))));
   }
 
+  /** The words a text layer shows. */
   get text(): string {
     return this.layer()?.text ?? '';
   }
@@ -261,6 +279,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.text = text));
   }
 
+  /** A text layer's font size in pixels, never set below 1. */
   get fontSizePx(): number {
     return Math.round(this.layer()?.fontSizePx ?? 32);
   }
@@ -268,6 +287,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.fontSizePx = Math.max(1, Number(fontSizePx) || 1)));
   }
 
+  /** A text layer's font weight, held between 100 and 900. */
   get fontWeight(): number {
     return Math.round(this.layer()?.fontWeight ?? 700);
   }
@@ -275,6 +295,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.fontWeight = Math.min(900, Math.max(100, Number(fontWeight) || 400))));
   }
 
+  /** A text layer's font family; empty uses the default. */
   get fontFamily(): string {
     return this.layer()?.fontFamily ?? '';
   }
@@ -282,6 +303,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.fontFamily = fontFamily));
   }
 
+  /** A text layer's letter colour. */
   get color(): string {
     return this.layer()?.color ?? '#ffffff';
   }
@@ -289,6 +311,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.color = color));
   }
 
+  /** How a text layer's lines are aligned; an unknown value is written as centre. */
   get textAlign(): CutInTextAlign {
     return this.layer()?.textAlign ?? 'center';
   }
@@ -296,6 +319,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.textAlign = isCutInTextAlign(textAlign) ? textAlign : 'center'));
   }
 
+  /** The colour of the outline round a text layer's letters, shown as black when unset. */
   get strokeColor(): string {
     return this.layer()?.strokeColor || '#000000';
   }
@@ -303,6 +327,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.strokeColor = strokeColor));
   }
 
+  /** How thick the outline round a text layer's letters is, in pixels; 0 draws none. */
   get strokeWidthPx(): number {
     return Math.round(this.layer()?.strokeWidthPx ?? 0);
   }
@@ -310,6 +335,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.strokeWidthPx = Math.max(0, Number(strokeWidthPx) || 0)));
   }
 
+  /** How far the layer leans sideways, in degrees held between -80 and 80. */
   get skewXDeg(): number {
     return Math.round(this.layer()?.skewXDeg ?? 0);
   }
@@ -317,6 +343,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.skewXDeg = Math.min(80, Math.max(-80, Number(skewXDeg) || 0))));
   }
 
+  /** How far the layer leans up or down, in degrees held between -80 and 80. */
   get skewYDeg(): number {
     return Math.round(this.layer()?.skewYDeg ?? 0);
   }
@@ -324,6 +351,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.skewYDeg = Math.min(80, Math.max(-80, Number(skewYDeg) || 0))));
   }
 
+  /** The shape the layer is cut to; an unknown value is written as none. */
   get clip(): CutInClip {
     return this.layer()?.clip ?? 'none';
   }
@@ -331,6 +359,11 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.clip = isCutInClip(clip) ? clip : 'none'));
   }
 
+  /**
+   * The shape the layer is wiped in through; an unknown value is written as none.
+   *
+   * Choosing a wipe on a layer with no wipe keys opens it fully, so it does not sit hidden.
+   */
   get wipeShape(): CutInWipe {
     return this.layer()?.wipeShape ?? 'none';
   }
@@ -350,6 +383,11 @@ export class CutInLayerPropertiesComponent {
     this.writeTracked('wipe', Math.min(1, Math.max(0, (Number(percent) || 0) / 100)));
   }
 
+  /**
+   * The shape the layer crumbles away in; an unknown value is written as none.
+   *
+   * Choosing one on a layer with no crumble keys leaves it whole, so it does not sit hidden.
+   */
   get crumbleShape(): CutInWipe {
     return this.layer()?.crumbleShape ?? 'none';
   }
@@ -360,6 +398,7 @@ export class CutInLayerPropertiesComponent {
     });
   }
 
+  /** How much of the layer is still whole at the scrubber, as 0 to 100; a write lands on a key there if one stands. */
   get crumblePercent(): number {
     return Math.round(this.tracked('crumble', 1) * 100);
   }
@@ -367,6 +406,7 @@ export class CutInLayerPropertiesComponent {
     this.writeTracked('crumble', Math.min(1, Math.max(0, (Number(percent) || 0) / 100)));
   }
 
+  /** Extra space between a text layer's letters, in pixels; negative draws them closer. */
   get letterSpacingPx(): number {
     return Math.round(this.layer()?.letterSpacingPx ?? 0);
   }
@@ -374,6 +414,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.letterSpacingPx = Number(letterSpacingPx) || 0));
   }
 
+  /** A text layer's line height as a percentage of the font size, held between 40 and 400. */
   get lineHeight(): number {
     return Math.round((this.layer()?.lineHeight ?? 1.15) * 100);
   }
@@ -382,6 +423,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.lineHeight = lineHeight));
   }
 
+  /** Whether a text layer is written top to bottom. */
   get vertical(): boolean {
     return this.layer()?.vertical ?? false;
   }
@@ -395,6 +437,7 @@ export class CutInLayerPropertiesComponent {
     return shape === 'stripes' || shape === 'speedlines' || shape === 'halftone';
   }
 
+  /** The size of one repeat of a patterned fill, in pixels, held within the fill's allowed range. */
   get fillScalePx(): number {
     return Math.round(this.layer()?.fillScalePx ?? DEFAULT_FILL_SCALE_PX);
   }
@@ -406,6 +449,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.fillScalePx = scale));
   }
 
+  /** The pattern a fill layer is painted with; an unknown value is written as linear. */
   get fillShape(): CutInFillShape {
     return this.layer()?.fillShape ?? 'linear';
   }
@@ -413,6 +457,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.fillShape = isCutInFillShape(fillShape) ? fillShape : 'linear'));
   }
 
+  /** The fill's middle colour, shown as grey while the fill has none. */
   get fillMid(): string {
     return this.layer()?.fillMid || '#808080';
   }
@@ -428,6 +473,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.fillMid = hasMid ? layer.fillMid || '#808080' : ''));
   }
 
+  /** The colour a fill starts from, which is the whole colour of a flat fill. */
   get fillFrom(): string {
     return this.layer()?.fillFrom ?? '#000000';
   }
@@ -435,6 +481,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.fillFrom = fillFrom));
   }
 
+  /** The colour a gradient fill ends in, shown as black while the fill is flat. */
   get fillTo(): string {
     return this.layer()?.fillTo || '#000000';
   }
@@ -450,6 +497,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.fillTo = gradient ? layer.fillTo || layer.fillFrom : ''));
   }
 
+  /** Which way a fill runs, in degrees. */
   get fillAngleDeg(): number {
     return Math.round(this.layer()?.fillAngleDeg ?? 90);
   }
@@ -472,6 +520,12 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => applyEntrance(layer, name as CutInEntrance, this.stage, this.presetMs));
   }
 
+  /**
+   * The departure preset list, which always reads as nothing chosen.
+   *
+   * Choosing one lays its keys down so the layer leaves by the end of the scene, over the preset
+   * duration. A name that is not a departure does nothing.
+   */
   get exit(): string {
     return '';
   }
@@ -480,6 +534,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => applyExit(layer, name as CutInExit, this.stage, this.sceneDurationMs(), this.presetMs));
   }
 
+  /** The touch drawn over the layer, such as a glow; an unknown value is written as none. */
   get effect(): CutInEffect {
     return this.layer()?.effect ?? 'none';
   }
@@ -487,6 +542,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.effect = isCutInEffect(effect) ? effect : 'none'));
   }
 
+  /** How strong the touch is, as a percentage held between 0 and 300. */
   get effectStrength(): number {
     return Math.round((this.layer()?.effectStrength ?? 1) * 100);
   }
@@ -495,6 +551,7 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.effectStrength = strength));
   }
 
+  /** The colour of a touch that has one, shown as white when unset. */
   get effectColor(): string {
     return this.layer()?.effectColor || '#ffffff';
   }
@@ -519,6 +576,12 @@ export class CutInLayerPropertiesComponent {
     return { width: this.sceneWidth(), height: this.sceneHeight() };
   }
 
+  /**
+   * Opens the image picker and puts the chosen picture on the layer, from the image button.
+   *
+   * Picking the empty choice clears the picture; closing the picker changes nothing. Does nothing
+   * while the layer is not editable.
+   */
   chooseImage(): void {
     const layer = this.target;
     if (!layer) return;

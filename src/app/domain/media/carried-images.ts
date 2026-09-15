@@ -10,6 +10,11 @@ export interface CarriesImages {
   readonly carriedImageIdentifiers: readonly string[];
 }
 
+/**
+ * The image identifiers an object says it carries, for saving alongside the XML.
+ *
+ * Empty for anything that does not carry images; entries that are not non-empty strings are dropped.
+ */
 export function carriedImagesOf(value: unknown): readonly string[] {
   const carried = (value as CarriesImages | null)?.carriedImageIdentifiers;
   return Array.isArray(carried)

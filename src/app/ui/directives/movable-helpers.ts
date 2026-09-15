@@ -31,6 +31,12 @@ const CONTACT_MIN_THICKNESS_PX = 1;
 
 const FLAT_ON_THE_FLOOR: ContactRider = { altitudePx: 0, thicknessPx: 0, ridesUp: true, restingZ: 0 };
 
+/**
+ * Every height a piece centred at the given point could come to rest at, lowest first.
+ *
+ * The floor counts, as does the top of each climbable footprint under the centre. A level is
+ * left out when the piece, at its own thickness, would push into something hanging above it.
+ */
 export function contactRestLevels(
   footprints: readonly ContactFootprint[],
   centerX: number,
@@ -45,6 +51,12 @@ export function contactRestLevels(
   return [...levels].sort((a, b) => a - b);
 }
 
+/**
+ * The rest level just above or just below `from`, for stepping a held piece up or down.
+ *
+ * Levels within half a pixel of `from` do not count as a step. Null when there is nothing
+ * further in that direction.
+ */
 export function nextContactLevel(levels: readonly number[], from: number, isUp: boolean): number | null {
   if (isUp) {
     for (const level of levels) {
@@ -58,6 +70,14 @@ export function nextContactLevel(levels: readonly number[], from: number, isUp: 
   return null;
 }
 
+/**
+ * The height a piece dragged to the given point stands on.
+ *
+ * The piece takes the highest level no higher than where it stands now, so one dragged over
+ * a block stays on the ground beside it rather than climbing it, and one dragged off a block
+ * drops. With nothing at or below it, it takes the lowest level that fits, and failing that
+ * the highest climbable top under its centre.
+ */
 export function findContactSupportZ(
   footprints: readonly ContactFootprint[],
   centerX: number,
@@ -103,6 +123,12 @@ function contactLevels(under: readonly ContactFootprint[]): number[] {
   return levels;
 }
 
+/**
+ * Where the underside of a piece sits when it rests on `level`.
+ *
+ * A piece that rides up carries its altitude on top of what it stands on; one that does not,
+ * such as terrain, keeps its own altitude unless the level is already higher.
+ */
 export function contactBottomAt(rider: Pick<ContactRider, 'altitudePx' | 'ridesUp'>, level: number): number {
   return rider.ridesUp ? level + rider.altitudePx : Math.max(rider.altitudePx, level);
 }
@@ -117,6 +143,11 @@ function riderFits(under: readonly ContactFootprint[], rider: ContactRider, leve
   return true;
 }
 
+/**
+ * The top-left corner and height at which a piece of the given size sits on top of a beam.
+ *
+ * The piece's centre is pulled inside the beam's footprint and it is laid on the beam's top.
+ */
 export function beamRestPosition(
   box: WorldBox,
   worldX: number,
@@ -135,12 +166,23 @@ export type MovableLayerItem = {
   setPointerEvents(isEnable: boolean): void;
 };
 
+/**
+ * Rounds a coordinate to the nearest multiple of `interval`, halves going away from zero.
+ *
+ * A zero or negative interval leaves the number as it is.
+ */
 export function calcSnapNum(num: number, interval: number): number {
   if (interval <= 0) return num;
   const adjusted = num < 0 ? num - interval / 2 : num + interval / 2;
   return adjusted - (adjusted % interval);
 }
 
+/**
+ * The top-left corner that puts a piece's anchor on the centre of the nearest hex cell.
+ *
+ * The anchor lies `halfWidth` / `halfHeight` in from the corner, the piece's middle by default.
+ * `HEX_VERTICAL` lays the hexes flat-topped.
+ */
 export function calcHexSnapPosition(
   posX: number,
   posY: number,
@@ -177,6 +219,7 @@ export function calcHexSnapPosition(
   return { x: bestX - halfWidth, y: bestY - halfHeight };
 }
 
+/** The top-left corner that puts a piece's anchor on the nearest corner of a hex cell. */
 export function calcHexVertexSnapPosition(
   posX: number,
   posY: number,
@@ -219,6 +262,11 @@ export function calcHexVertexSnapPosition(
   return { x: bestX - halfWidth, y: bestY - halfHeight };
 }
 
+/**
+ * The top-left corner that puts a piece's anchor on the nearer of a hex cell's centre and corner.
+ *
+ * When both are equally near, the centre wins.
+ */
 export function calcHexBothSnapPosition(
   posX: number,
   posY: number,
@@ -238,6 +286,7 @@ export function calcHexBothSnapPosition(
   return dcx * dcx + dcy * dcy <= dvx * dvx + dvy * dvy ? center : vertex;
 }
 
+/** The top-left corner that puts a piece's anchor on the middle of the nearest hex edge. */
 export function calcHexEdgeMidpointSnapPosition(
   posX: number,
   posY: number,
@@ -281,6 +330,11 @@ export function calcHexEdgeMidpointSnapPosition(
   return { x: bestX - halfWidth, y: bestY - halfHeight };
 }
 
+/**
+ * The top-left corner that puts a piece's anchor on the nearest hex centre, corner or edge middle.
+ *
+ * Ties go to the centre first, then the corner.
+ */
 export function calcHexAllSnapPosition(
   posX: number,
   posY: number,
@@ -309,10 +363,16 @@ export function calcHexAllSnapPosition(
   return edge;
 }
 
+/** The CSS transform that places a piece at a position on its surface, followed by its own offset. */
 export function toTransformCss(posX: number, posY: number, posZ: number, transformCssOffset: string): string {
   return 'translate3d(' + posX + 'px,' + posY + 'px,' + posZ + 'px) ' + transformCssOffset;
 }
 
+/**
+ * Whether a piece's synced position differs from the one it is shown at.
+ *
+ * False for a missing object or one without a location, so there is nothing to animate.
+ */
 export function shouldTransitionTo(
   object: TabletopObject | null | undefined,
   posX: number,
@@ -323,6 +383,11 @@ export function shouldTransitionTo(
   return object.location.x !== posX || object.location.y !== posY || object.posZ !== posZ;
 }
 
+/**
+ * Turns a screen point into a point on the piece's surface, at the height it would rest at there.
+ *
+ * The height is never below the surface itself.
+ */
 export function resolveMovableLocalCoordinate(
   coordinateService: MovableCoordinateResolver,
   surfaceElement: HTMLElement,
@@ -333,6 +398,12 @@ export function resolveMovableLocalCoordinate(
   return { x: local.x, y: local.y, z: Math.max(0, contactSupportZ(local.x, local.y)) };
 }
 
+/**
+ * The elements of a piece that the pointer can hit.
+ *
+ * The root itself when it takes pointer events; otherwise the shallowest descendants that do,
+ * so a piece drawn only in nested parts can still be switched on and off as a whole.
+ */
 export function collectCollidableElements(root: HTMLElement): HTMLElement[] {
   if (resolvePointerEvents(root) !== 'none') {
     return [root];
@@ -366,11 +437,19 @@ function resolvePointerEvents(element: HTMLElement): string {
   return element.style.pointerEvents || getComputedStyle(element).pointerEvents;
 }
 
+/** Lets the pointer hit the given elements, or passes it straight through them. */
 export function applyPointerEvents(elements: HTMLElement[], isEnable: boolean) {
   const css = isEnable ? 'auto' : 'none';
   elements.forEach((element) => (element.style.pointerEvents = css));
 }
 
+/**
+ * Decides which other pieces the pointer may land on while one piece is picked up or put down.
+ *
+ * While a piece is held, the layers it collides with stay hittable and every other layer is
+ * passed through, as is the rest of its own layer; once it is let go everything is hittable
+ * again. The piece itself and any piece still held by someone's pointer are left alone.
+ */
 export function setLayerCollidable(
   layerHash: { [layerName: string]: MovableLayerItem[] },
   colideLayers: string[],
@@ -385,7 +464,7 @@ export function setLayerCollidable(
       // Self-colliding layers (e.g. terrain colides with 'terrain') would otherwise leave
       // peers interactive — and when the cursor crosses one of them mid-drag the browser
       // can fire synthetic pointer-events-toggle mousemoves with `buttons === 0`, which
-      // PointerDeviceService treats as drag-end and cancels the drag (the original bug).
+      // PointerDeviceService treats as drag-end, cancelling the drag.
       isEnable = false;
     } else if (-1 < colideLayers.indexOf(layerName)) {
       isEnable = selfIsGrabbing ? isCollidable : true;
@@ -400,6 +479,7 @@ export function setLayerCollidable(
   }
 }
 
+/** Adds a piece to the named layer in the registry, once. */
 export function registerLayer(
   layerHash: { [layerName: string]: MovableLayerItem[] },
   layerName: string,
@@ -410,6 +490,7 @@ export function registerLayer(
   if (index < 0) layerHash[layerName].push(self);
 }
 
+/** Takes a piece out of the named layer in the registry; does nothing when it is not there. */
 export function unregisterLayer(
   layerHash: { [layerName: string]: MovableLayerItem[] },
   layerName: string,
@@ -425,7 +506,7 @@ export function unregisterLayer(
  *
  * A board carries a face of its own, and while it is being dragged that face travels under
  * the pointer with it. Taken at its word the board is laid on itself, and it lands wherever
- * its own corner happens to be, which is how a board came to leap about the table.
+ * its own corner happens to be, so the board would leap about the table.
  */
 export function dropTargetSurface(dragged: Element, under: Element | null): HTMLElement | null {
   const surface = under?.closest<HTMLElement>('[data-surface]') ?? null;

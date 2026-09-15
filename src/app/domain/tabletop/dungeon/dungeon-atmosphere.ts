@@ -47,6 +47,7 @@ export interface CaveShape {
 export const MIN_WALL_HEIGHT = 0.5;
 export const MAX_WALL_HEIGHT = 6;
 
+/** A dungeon wall height rounded to the nearest half and kept within range; not a number gives the lowest. */
 export function clampWallHeight(height: number): number {
   if (!Number.isFinite(height)) return MIN_WALL_HEIGHT;
   return Math.min(MAX_WALL_HEIGHT, Math.max(MIN_WALL_HEIGHT, Math.round(height * 2) / 2));
@@ -222,6 +223,7 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
   },
 };
 
+/** The dungeon atmosphere preset with this id, falling back to the stone dungeon for an unknown id. */
 export function atmosphereById(id: string): DungeonAtmosphere {
   return DUNGEON_ATMOSPHERES[id as DungeonAtmosphereId] ?? DUNGEON_ATMOSPHERES.stoneDungeon;
 }

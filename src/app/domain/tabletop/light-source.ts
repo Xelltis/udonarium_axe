@@ -41,6 +41,9 @@ export class LightSource extends OwnedTabletopObject {
 
   gridSize: number = 50;
 
+  /**
+   * The way the light faces, which is its light direction under the name every turnable piece uses.
+   */
   get rotate(): number {
     return this.lightDirection;
   }
@@ -48,6 +51,7 @@ export class LightSource extends OwnedTabletopObject {
     this.lightDirection = value;
   }
 
+  /** The light's settings gathered into the shape the vision scene reads. */
   get lightSpec(): LightSpec {
     return {
       enabled: this.lightEnabled,
@@ -66,6 +70,12 @@ export class LightSource extends OwnedTabletopObject {
     };
   }
 
+  /**
+   * Moves the light onto the centre of the character it follows and bumps the follow counter so
+   * that peers redraw it.
+   *
+   * When that character is gone, the light stops following instead.
+   */
   following(): void {
     const character = ObjectStore.instance.get<GameCharacter>(this.followingCharacterIdentifier);
     if (!character) {
@@ -76,6 +86,7 @@ export class LightSource extends OwnedTabletopObject {
     this.followingCounterDummy = (this.followingCounterDummy + 1) % 50;
   }
 
+  /** Makes a light source with its name data and registers it for sync. */
   static create(name: string, identifier?: string): LightSource {
     const object = identifier ? new LightSource(identifier) : new LightSource();
     object.createDataElements();

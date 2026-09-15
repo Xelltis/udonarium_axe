@@ -24,6 +24,7 @@ export const CUT_IN_EASING_NAMES = Object.keys(CUT_IN_EASINGS) as CutInEasingNam
 
 export const DEFAULT_CUT_IN_EASING: CutInEasingName = 'outCubic';
 
+/** Whether a stored value names one of the easing curves a keyframe can use. */
 export function isCutInEasing(value: unknown): value is CutInEasingName {
   return typeof value === 'string' && value in CUT_IN_EASINGS;
 }

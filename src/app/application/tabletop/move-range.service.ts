@@ -115,10 +115,12 @@ export class MoveRangeService {
     return { ...built.view, held: wantsHeld ? built.view.held : null, showsReach: wantsReach };
   });
 
+  /** Shows the reach of a piece that has just been picked up, for as long as it is carried. */
   show(character: GameCharacter): void {
     this.held.set(this.build(character)?.view ?? null);
   }
 
+  /** Stops showing a carried piece's reach, leaving whatever the picked piece shows. */
   hide(): void {
     if (this.held() !== null) this.held.set(null);
   }

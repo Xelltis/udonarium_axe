@@ -23,6 +23,13 @@ export class WebRTCStats {
 
   constructor(private peerConnection: RTCPeerConnection) {}
 
+  /**
+   * Reads the peer connection stats and records what kind of route the connection runs over, from a
+   * direct host link down to a TURN relay.
+   *
+   * Of the candidates in pairs that have succeeded, the most direct type wins. When the stats
+   * cannot be read, or no pair has succeeded yet, the type becomes UNKNOWN.
+   */
   async updateAsync() {
     const stats = await this.peerConnection.getStats().catch((error) => {
       Logger.warn('[WebRTC] 統計情報の取得に失敗', error);

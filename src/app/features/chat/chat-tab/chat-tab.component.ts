@@ -18,6 +18,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { isAppleTouchDevice } from '@axe/core/util/apple-touch';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -33,10 +34,12 @@ import {
   findDisplayableTopIndex,
   getBoundedScrollPosition,
   ScrollPosition,
+  shouldTrimRenderedRange,
 } from '@axe/features/chat/chat-tab/chat-tab-scroll-helpers';
 
-const ua = window.navigator.userAgent.toLowerCase();
-const isiOS = ua.includes('iphone') || ua.includes('ipad') || (ua.includes('macintosh') && 'ontouchend' in document);
+const isiOS = isAppleTouchDevice(window.navigator.userAgent, window.navigator.maxTouchPoints);
+/** How long a reader has to stay put at the bottom before the lines far above are let go. */
+const RENDERED_RANGE_TRIM_DELAY_MS = 800;
 
 interface WritingSpeaker {
   peerId: string;
@@ -60,6 +63,7 @@ export class ChatTabComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly t = inject(TRANSLATE_FN);
+  protected readonly isIOS = isiOS;
 
   constructor() {
     effect(() => {
@@ -106,6 +110,7 @@ export class ChatTabComponent {
       this.renderVersion.update((v) => v + 1);
       this.needUpdate = true;
       this.onMessageInit();
+      if (this.isIOS) this.renderedRangeTrimTimer?.reset();
     }, this.destroyRef);
     this.objectChange.writingMessage$.subscribe((event) => {
       if (event.isSendFromSelf || event.tabIdentifier !== this.chatTab?.identifier) return;
@@ -126,6 +131,10 @@ export class ChatTabComponent {
     afterNextRender(() => {
       this.scrollEventShortTimer = new ResettableTimeout(() => this.lazyScrollUpdate(), 33);
       this.scrollEventLongTimer = new ResettableTimeout(() => this.lazyScrollUpdate(false), 66);
+      this.renderedRangeTrimTimer = new ResettableTimeout(
+        () => this.trimRenderedRangeOnIOS(),
+        RENDERED_RANGE_TRIM_DELAY_MS
+      );
       this.onScroll();
       this.panelService.scrollablePanel!.addEventListener('scroll', this.callbackOnScroll, false);
     });
@@ -135,6 +144,7 @@ export class ChatTabComponent {
       }
       if (this.scrollEventShortTimer) this.scrollEventShortTimer.clear();
       if (this.scrollEventLongTimer) this.scrollEventLongTimer.clear();
+      this.renderedRangeTrimTimer?.clear();
       if (this.addMessageEventTimer) clearTimeout(this.addMessageEventTimer);
       this.addMessageEventTimer = null;
       for (const timeout of this.writingSpeakerTimeouts.values()) timeout.stop();
@@ -163,6 +173,10 @@ export class ChatTabComponent {
   private _minMessageHeight = 26;
   private _minMessageHeightNormal = 61;
 
+  /**
+   * The least height a message can take, in pixels, smaller in simple display mode; used to
+   * estimate the room taken by messages that are not rendered.
+   */
   get minMessageHeight() {
     if (this.chatTab) {
       if (this.chatTab.chatSimpleDispFlag) {
@@ -176,6 +190,12 @@ export class ChatTabComponent {
   private scrollSpeed = 0;
 
   private _chatMessages: ChatMessage[] = [];
+  /**
+   * The slice of the tab's messages currently rendered; empty when there is no tab.
+   *
+   * It is only cut again after the range or the messages have changed, and it remembers where the
+   * slice starts so that edits to older messages do not ask for a render.
+   */
   get chatMessages(): ChatMessage[] {
     this.renderVersion();
     if (!this.chatTab) return [];
@@ -189,14 +209,26 @@ export class ChatTabComponent {
     return this._chatMessages;
   }
 
+  /**
+   * The height the log reserves, in pixels, for every displayable message at the minimum height,
+   * capped at 10,000 messages.
+   *
+   * It keeps the scrollbar sized to the whole log rather than the rendered slice. With no tab, the
+   * sample messages are counted instead.
+   */
   get minScrollHeight(): number {
     const length = this.chatTab ? this.chatTab.displayableMessagesLength() : this.sampleMessages.length;
     return (length < 10000 ? length : 10000) * this.minMessageHeight;
   }
 
+  /** The estimated height of the messages above the rendered slice. */
   get topSpace(): number {
     return this.minScrollHeight - this.bottomSpace;
   }
+  /**
+   * The estimated height of the messages below the rendered slice, kept as a margin so the slice
+   * sits where it would in the full log; zero when nothing is rendered.
+   */
   get bottomSpace(): number {
     const tab = this.chatTab;
     return 0 < this.chatMessages.length
@@ -206,6 +238,7 @@ export class ChatTabComponent {
 
   private scrollEventShortTimer: ResettableTimeout | null = null;
   private scrollEventLongTimer: ResettableTimeout | null = null;
+  private renderedRangeTrimTimer: ResettableTimeout | null = null;
   private addMessageEventTimer: ReturnType<typeof setTimeout> | null = null;
   private callbackOnScroll: () => void = () => this.onScroll();
   private readonly writingSpeakerTimeouts = new Map<string, ResettableTimeout>();
@@ -223,15 +256,21 @@ export class ChatTabComponent {
    * should look quiet.
    */
   readonly readOnly = input(false);
+  /** The chat tab shown, as bound through the `chatTab` input; null when none is bound. */
   get chatTab(): ChatTab | null {
     return this.chatTabInput();
   }
+  /** The room's chat tab list, whose display settings apply to every message shown. */
   get chatTabList(): ChatTabList | null {
     return this.objectStore.get<ChatTabList>('ChatTabList');
   }
 
   readonly addMessage = output<void>();
 
+  /**
+   * Emits `addMessage` once on the next task, however many messages arrive before then; the chat
+   * window follows new messages to the bottom on it.
+   */
   onMessageInit() {
     if (this.addMessageEventTimer != null) return;
     this.addMessageEventTimer = setTimeout(() => {
@@ -240,6 +279,13 @@ export class ChatTabComponent {
     }, 0);
   }
 
+  /**
+   * Moves the rendered range to the end of the log, rendering just enough messages to fill the
+   * panel.
+   *
+   * It runs when the tab changes and whenever the panel is asked to scroll to the bottom, and does
+   * nothing until there is both a tab and a scrollable panel.
+   */
   resetMessages() {
     if (!this.chatTab || !this.panelService?.scrollablePanel) return;
     const lastIndex = this.chatTab.chatMessages.length - 1;
@@ -256,6 +302,30 @@ export class ChatTabComponent {
     this.renderVersion.update((v) => v + 1);
   }
 
+  /**
+   * Lets go of the lines far above a reader who has come to rest at the bottom, on iOS.
+   *
+   * iOS never narrows the rendered lines while it scrolls, since moving the scroll position
+   * under a momentum scroll makes it jump, so without this a long session there would keep every
+   * line that arrives in the document. Once the reader rests at the bottom the lines are cut back
+   * to what fills the panel, the way a jump to the bottom does.
+   */
+  private trimRenderedRangeOnIOS() {
+    const panel = this.panelService.scrollablePanel;
+    if (!this.isIOS || !this.chatTab || !panel) return;
+    const position = getBoundedScrollPosition(panel);
+    const trim = shouldTrimRenderedRange({
+      topIndex: this.topIndex,
+      bottomIndex: this.bottomIndex,
+      lastIndex: this.chatTab.chatMessages.length - 1,
+      distanceFromBottom: position.scrollHeight - position.bottom,
+    });
+    if (trim) this.resetMessages();
+  }
+
+  /**
+   * Tracks rendered messages by identifier, so each keeps its element as the rendered range shifts.
+   */
   trackByChatMessage(index: number, message: ChatMessage) {
     return message.identifier;
   }
@@ -419,6 +489,7 @@ export class ChatTabComponent {
 
   private onScroll() {
     this.scrollEventShortTimer?.reset();
+    if (this.isIOS) this.renderedRangeTrimTimer?.reset();
     if (!this.scrollEventLongTimer?.isActive) {
       this.scrollEventLongTimer?.reset();
     }
@@ -491,6 +562,7 @@ export class ChatTabComponent {
     });
   }
 
+  /** Renders the log again; a chat redraw request from the UI signal service leads here. */
   redraw() {
     this.renderVersion.update((v) => v + 1);
   }

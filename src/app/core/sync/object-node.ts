@@ -16,6 +16,12 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
   @SyncVar() private majorIndex: number = 0;
   @SyncVar() protected minorIndex: number = Math.random();
 
+  /**
+   * The sort position among siblings; children are ordered by it.
+   *
+   * Setting it stores the whole and fractional parts as separate synced fields and has the parent
+   * sort its children again on the next read.
+   */
   get index(): number {
     return this.majorIndex + this.minorIndex;
   }
@@ -25,24 +31,34 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     if (this.parent) this.parent.needsSort = true;
   }
 
+  /** The parent node from the store; null for a root node or while the parent is not in the store. */
   get parent(): ObjectNode | null {
     return ObjectStore.instance.get<ObjectNode>(this.parentIdentifier);
   }
+  /** The identifier of the parent as synced, whether or not that parent is in the store. */
   get parentId(): string {
     return this.parentIdentifier;
   }
+  /** Whether the node names a parent at all, whether or not that parent is in the store. */
   get parentIsAssigned(): boolean {
     // Replacing the sync data wholesale leaves anything missing undefined rather than back at its default.
     return (this.parentIdentifier?.length ?? 0) > 0;
   }
+  /** Whether the node names a parent that is not in the store, not yet arrived or already deleted. */
   get parentIsUnknown(): boolean {
     return this.parentIsAssigned && ObjectStore.instance.get(this.parentIdentifier) == null;
   }
+  /** Whether the parent the node names has been deleted, which leaves the node an orphan. */
   get parentIsDestroyed(): boolean {
     return this.parentIsAssigned && ObjectStore.instance.isDeleted(this.parentIdentifier);
   }
 
   private _children: ObjectNode[] = [];
+  /**
+   * The child nodes in index order, sorted lazily after an index changes.
+   *
+   * The array is the node's own; change it through appendChild, insertBefore and removeChild.
+   */
   get children(): readonly ObjectNode[] {
     if (this.needsSort) {
       this.needsSort = false;
@@ -54,6 +70,7 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
   private static pendingChildrenByParentId: Record<string, ObjectNode[]> = {};
   private needsSort: boolean = true;
 
+  /** Deletes the node and then every node beneath it, telling the room about each. */
   override destroy() {
     super.destroy();
     for (const child of [...this._children]) {
@@ -63,21 +80,25 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
   }
 
   // GameObject Lifecycle
+  /** Also adopts the children that reached the store before this node and were waiting for it. */
   override onStoreAdded() {
     super.onStoreAdded();
     this.initializeChildren();
   }
 
   // GameObject Lifecycle
+  /** Also takes the node out of its parent's children. */
   override onStoreRemoved() {
     super.onStoreRemoved();
     if (this.parent) this.parent.removeChild(this);
   }
 
   // ObjectNode Lifecycle
+  /** Hook run when a node joins this node or any node beneath it, whether moved here or by a peer. */
   onChildAdded(_child: ObjectNode) {}
 
   // ObjectNode Lifecycle
+  /** Hook run when a node leaves this node or any node beneath it, whether moved here or by a peer. */
   onChildRemoved(_child: ObjectNode) {}
 
   private _onChildAdded(child: ObjectNode) {
@@ -140,6 +161,12 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     }
   }
 
+  /**
+   * Moves a node to the end of this node's children, taking it from its old parent first.
+   *
+   * The move is synced like any change. When this node sits beneath the child, which would make a
+   * cycle, nothing changes and null comes back.
+   */
   appendChild<T extends ObjectNode>(child: T): T | null {
     if (child.contains(this)) return null;
 
@@ -156,6 +183,13 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     return child;
   }
 
+  /**
+   * Moves a node into this node's children just before the reference node.
+   *
+   * The new index falls between the reference and the sibling before it, and every child is
+   * renumbered once that gap gets too small. A reference that is not a child appends instead, and a
+   * move that would make a cycle changes nothing and gives null.
+   */
   insertBefore<T extends ObjectNode>(child: T, reference: ObjectNode): T | null {
     if (child.contains(this)) return null;
     if (child === reference && child.parent === this) return child;
@@ -181,6 +215,7 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     return child;
   }
 
+  /** Detaches a child, leaving it in the store without a parent; null when it is not a child. */
   removeChild<T extends ObjectNode>(child: T): T | null {
     const children = this.children;
     const index: number = children.indexOf(child);
@@ -194,6 +229,11 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     return child;
   }
 
+  /**
+   * Whether the given node sits anywhere beneath this node.
+   *
+   * A parent chain that loops back on itself is logged and counts as not contained.
+   */
   contains(child: ObjectNode): boolean {
     let parent = child.parent;
     while (parent) {
@@ -207,11 +247,17 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     return false;
   }
 
+  /** Sets an attribute, saved as an XML attribute of the node, and sends the change to the room. */
   setAttribute(name: string, value: number | string) {
     this.attributes[name] = value;
     this.update();
   }
 
+  /**
+   * Reads an attribute, or an empty string when it is not set.
+   *
+   * The value comes back as stored, so a number set earlier is still a number despite the type.
+   */
   getAttribute(name: string): string {
     if (this.attributes[name] == null) {
       return '';
@@ -219,19 +265,23 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     return this.attributes[name] as string;
   }
 
+  /** Removes an attribute from the node and sends the change to the room. */
   removeAttribute(name: string) {
     delete this.attributes[name];
     this.update();
   }
 
+  /** The attributes for saving as XML: nested values get dotted names, empty ones are left out. */
   toAttributes(): Attributes {
     return ObjectSerializer.toAttributes(this.attributes);
   }
 
+  /** Fills the attributes in from a saved element, in place and without sending anything. */
   parseAttributes(attributes: NamedNodeMap) {
     ObjectSerializer.parseAttributes(this.attributes, attributes);
   }
 
+  /** The node's saved content: its value as text, followed by the XML of each child in order. */
   innerXml(): string {
     let xml = '';
     xml += encodeEntityReference(`${this.value}`);
@@ -241,6 +291,11 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     return xml;
   }
 
+  /**
+   * Reads a saved element's content: child elements become children, otherwise the text is the value.
+   *
+   * Each child is created, added to the store and appended, all of which reaches the room.
+   */
   parseInnerXml(element: Element) {
     const children = element.children;
     const length = children.length;
@@ -254,6 +309,11 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     }
   }
 
+  /**
+   * Applies a received context, then moves the node from its old parent's children to the new one's.
+   *
+   * When the new parent is not in the store yet, the node waits and is adopted once it arrives.
+   */
   override apply(context: ObjectContext) {
     const oldParent = this.parent;
     super.apply(context);

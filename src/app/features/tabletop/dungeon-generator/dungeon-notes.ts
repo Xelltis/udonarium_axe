@@ -4,6 +4,10 @@ import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
 
 export type TranslateFn = (key: string) => string;
 
+/**
+ * The text summary handed over with a generated dungeon map, built from its layout with labels in
+ * the reader's language.
+ */
 export function describeDungeon(layout: DungeonLayout, blocks: MapBlocks, name: string, t: TranslateFn): string {
   return buildDungeonSummary({
     layout,

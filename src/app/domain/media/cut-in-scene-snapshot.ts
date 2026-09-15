@@ -76,6 +76,7 @@ export interface CutInSceneSnapshot {
   layers: CutInLayerSnapshot[];
 }
 
+/** Writes the scene and each of its layers down flat, in drawing order. No scene gives an empty snapshot. */
 export function snapshotScene(scene: CutInScene | null): CutInSceneSnapshot {
   if (!scene) return { durationMs: 0, sceneLoop: false, backgroundColor: '', sounds: '', layers: [] };
 
@@ -88,6 +89,7 @@ export function snapshotScene(scene: CutInScene | null): CutInSceneSnapshot {
   };
 }
 
+/** A copy of a snapshot whose layers can be changed without touching the original's. */
 export function cloneSceneSnapshot(snapshot: CutInSceneSnapshot): CutInSceneSnapshot {
   return { ...snapshot, layers: snapshot.layers.map((layer) => ({ ...layer })) };
 }

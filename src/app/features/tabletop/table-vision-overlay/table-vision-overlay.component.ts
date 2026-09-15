@@ -1,16 +1,19 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { HEX_SURFACE_INFLATE_PX, hexSurfaceCells, SurfacePoint } from '@axe/domain/tabletop/surface-cells';
-import { computeOverlayPlan, OverlayPlan } from '@axe/domain/tabletop/vision-scene';
+import { computeOverlayPlan, OverlayPlan, sameOverlayPlan } from '@axe/domain/tabletop/vision-scene';
 import {
-  animatedGlowBounds,
+  animatedGlowPatches,
   type BakeCanvas,
   bakeOverlayPlan,
   type DirtyRect,
   drawOverlayPlan,
+  LIGHT_MIN_OVERLAY_SCALE,
+  LIGHT_OVERLAY_PIXEL_BUDGET,
   type OverlayBake,
   overlayScale,
   overlayScratch,
@@ -29,11 +32,14 @@ export const VISION_ANIMATION_INTERVAL_MS = 50;
 })
 export class TableVisionOverlayComponent {
   protected readonly visionService = inject(VisionService);
+  private readonly renderLite = inject(RenderLiteService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly zTransform = translateZCss(Z_OFFSET_DARKNESS_PX);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('overlayCanvas');
 
   private plan: OverlayPlan | null = null;
+  /** The size and placement the plan was last drawn at, so a scene that draws the same picture is let pass. */
+  private drawnLayout = '';
   private surfaceWidth = 0;
   private surfaceHeight = 0;
   private surfaceOriginX = 0;
@@ -45,7 +51,7 @@ export class TableVisionOverlayComponent {
   private bake: OverlayBake | null = null;
   private scratch: BakeCanvas | null = null;
   private scratchSize = '';
-  private dirty: DirtyRect | null = null;
+  private dirty: DirtyRect[] = [];
   private rafId: number | null = null;
   private readonly images = new Map<string, HTMLImageElement>();
 
@@ -58,11 +64,12 @@ export class TableVisionOverlayComponent {
       if (!ctx) return;
       if (!scene) {
         this.plan = null;
+        this.drawnLayout = '';
         this.animated = false;
         this.bake = null;
         this.scratch = null;
         this.scratchSize = '';
-        this.dirty = null;
+        this.dirty = [];
         this.margin = 0;
         this.scale = 1;
         this.surfaceCells = undefined;
@@ -94,7 +101,9 @@ export class TableVisionOverlayComponent {
       const ch = this.surfaceHeight + 2 * this.margin;
       // A board too big to hold a canvas of its own size is drawn smaller and let up to
       // size by the browser, which soft gradients take without complaint.
-      this.scale = overlayScale(cw, ch);
+      this.scale = this.renderLite.active()
+        ? overlayScale(cw, ch, LIGHT_OVERLAY_PIXEL_BUDGET, LIGHT_MIN_OVERLAY_SCALE)
+        : overlayScale(cw, ch);
       const pw = Math.ceil(cw * this.scale);
       const ph = Math.ceil(ch * this.scale);
       if (canvas.width !== pw) canvas.width = pw;
@@ -103,7 +112,11 @@ export class TableVisionOverlayComponent {
       canvas.style.top = this.surfaceOriginY - this.margin + 'px';
       canvas.style.width = cw + 'px';
       canvas.style.height = ch + 'px';
-      this.plan = computeOverlayPlan(scene, viewer, this.visionService.overlayVision());
+      const plan = computeOverlayPlan(scene, viewer, this.visionService.overlayVision());
+      const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}`;
+      if (this.plan && layout === this.drawnLayout && sameOverlayPlan(this.plan, plan)) return;
+      this.plan = plan;
+      this.drawnLayout = layout;
       this.refreshScratch(cw, ch);
       this.animated = scene.lights.some((light) => light.animation && light.animation !== 'none');
       this.ensureImages();
@@ -165,7 +178,7 @@ export class TableVisionOverlayComponent {
   private refreshBake(): void {
     if (!this.plan || !this.animated) {
       this.bake = null;
-      this.dirty = null;
+      this.dirty = [];
       return;
     }
     this.bake = bakeOverlayPlan(
@@ -179,7 +192,7 @@ export class TableVisionOverlayComponent {
       this.scale,
       this.scratch
     );
-    this.dirty = animatedGlowBounds(this.plan, this.surfaceWidth, this.surfaceHeight, this.margin, this.surfaceOf());
+    this.dirty = animatedGlowPatches(this.plan, this.surfaceWidth, this.surfaceHeight, this.margin, this.surfaceOf());
   }
 
   private surfaceOf() {
@@ -222,8 +235,10 @@ export class TableVisionOverlayComponent {
     const now = this.now();
     if (now - this.lastFrameAt >= VISION_ANIMATION_INTERVAL_MS) {
       this.lastFrameAt = now;
-      // Only the ground the flickering lights cover; the rest was laid down once.
-      this.draw(now, this.dirty);
+      // Only the ground the flickering lights cover; the rest was laid down once. With nothing
+      // laid down, the whole board is drawn.
+      if (!this.bake) this.draw(now, null);
+      else for (const patch of this.dirty) this.draw(now, patch);
     }
     this.rafId = requestAnimationFrame(this.loop);
   };

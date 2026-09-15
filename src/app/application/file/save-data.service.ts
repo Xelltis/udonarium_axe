@@ -36,9 +36,9 @@ type UpdateCallback = (percent: number) => void;
  *
  * A save carries the pictures the room points at and finds them by walking its own XML, so a
  * picture named by an attribute nobody looks for is left behind: the room comes back with the
- * thing it was hanging on gone. A list has to be added to whenever a picture is, and the four
- * walls were never added - the room came back with blank walls and every piece standing on one
- * with nowhere to be drawn. The name is the rule instead, as it already is for a replay.
+ * thing it was hanging on gone. A list has to be added to whenever a picture is, and a list
+ * that misses the four walls brings the room back with blank walls and every piece standing on
+ * one with nowhere to be drawn. The name is the rule instead, as it already is for a replay.
  */
 const IMAGE_ATTRIBUTE = /ImageIdentifier$|^imageIdentifier$/;
 
@@ -66,14 +66,31 @@ export class SaveDataService {
 
   private static queue: PromiseQueue = new PromiseQueue('SaveDataServiceQueue');
 
+  /**
+   * Saves the whole room as a zip download, named with a timestamp and reporting progress as a
+   * percentage.
+   *
+   * The archive holds the room, chat, config, summary setting and status catalogue as XML, with the
+   * pictures they refer to and the audio list. Saves are queued, so one never overlaps another.
+   */
   saveRoomAsync(fileName: string = '', updateCallback?: UpdateCallback): Promise<void> {
     return SaveDataService.queue.add(() => this._saveRoomAsync(fileName, updateCallback));
   }
 
+  /**
+   * Builds the same archive as `saveRoomAsync` as a blob, without downloading it. Used for room
+   * snapshots; queued with the saves.
+   */
   createRoomArchiveAsync(): Promise<Blob> {
     return SaveDataService.queue.add(() => this.fileArchiver.createZipBlobAsync(this.buildRoomFiles(false)));
   }
 
+  /**
+   * Archive files for the wanted pictures and audio: each loaded picture as a file, with the
+   * picture and audio tag lists.
+   *
+   * Pictures still loading are left out, as is hidden audio.
+   */
   buildAssetFiles(wanted: { images: ReadonlySet<string>; audios: ReadonlySet<string> }): File[] {
     const files: File[] = [];
     const images = this.imageStorage.images.filter(
@@ -132,6 +149,13 @@ export class SaveDataService {
     return files;
   }
 
+  /**
+   * Saves one object, such as a character, table or chat tab, as a zip download with the pictures
+   * it refers to.
+   *
+   * The file is named with a timestamp and progress is reported as a percentage. Queued with the
+   * other saves.
+   */
   saveGameObjectAsync(
     gameObject: GameObject,
     fileName: string = 'xml_data',
@@ -247,6 +271,7 @@ export class SaveDataService {
     return rawValue.split(/\n+/);
   }
 
+  /** Downloads chat tabs as an HTML log named after the room, with portraits and attachments shrunk and embedded. */
   async saveChatLog(
     style: ChatLogStyle,
     scope: ChatLogScope,
@@ -259,6 +284,10 @@ export class SaveDataService {
     downloadBlob(blob, this.appendTimestamp(`${this.chatLogRoomName()}_log_${label}`) + '.html');
   }
 
+  /**
+   * Renders chat tabs as HTML log text, using images already prepared by `prepareChatLogImages`,
+   * without downloading anything.
+   */
   renderChatLog(style: ChatLogStyle, scope: ChatLogScope, tabs: readonly ChatLogTab[], images: ChatLogImages): string {
     const body = exportChatLog(style, scope, tabs, {
       imageSrcResolver: images.resolver,

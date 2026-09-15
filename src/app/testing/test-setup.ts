@@ -1,6 +1,6 @@
 import '@angular/compiler';
 
-import { NO_ERRORS_SCHEMA } from '@angular/core';
+import { EnvironmentProviders, NO_ERRORS_SCHEMA, Provider } from '@angular/core';
 import { ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { TestBed, TestModuleMetadata } from '@angular/core/testing';
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
@@ -13,17 +13,9 @@ import { basename, join, resolve } from 'path';
 
 Logger.setLevel(LogLevel.NONE);
 
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { LoggerService } from '@axe/application/logging/logger.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
 import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-display-preference.service';
 import { VIEW_MODE_STORAGE_KEY } from '@axe/application/ui/view-mode-preference.service';
-import { AppConfigService } from '@axe/composition/app-config.service';
-import { provideTranslocoTesting } from '@axe/testing/transloco-testing';
 
 const srcAppDir = resolve(process.cwd(), 'src/app');
 const fileMap = new Map<string, string>();
@@ -94,7 +86,7 @@ if (!navigator.mediaDevices) {
   });
 }
 
-// happy-dom has no WebAudio API. The document mousedown / touchstart listeners registered by
+// happy-dom has no WebAudio API. The document gesture listeners registered by
 // AudioPlayer.resumeAudioContext() can survive into another spec, so the moment something like
 // user-interaction-unlock.spec dispatches an event, the listener tries to construct an AudioContext
 // and dies with "is not a constructor". A minimal stub goes on globalThis and window.
@@ -218,16 +210,76 @@ if (typeof (globalThis as unknown as Record<string, unknown>)['YT'] === 'undefin
   };
 }
 
-const GLOBAL_TEST_PROVIDERS = [
-  AppConfigService,
-  ChatMessageService,
-  ContextMenuService,
-  LoggerService,
-  ModalService,
-  PanelService,
-  TabletopService,
-  ...provideTranslocoTesting(),
-];
+type GlobalTestProviders = (Provider | EnvironmentProviders)[];
+
+// The services every TestBed module is given reach most of the app, and loading them costs a file
+// close to half a second. More than half the specs never build a module, so the spec about to run
+// is read for the word first. A path that is not a spec source, as under the bundling `ng test`
+// runner, gets them regardless.
+function specUsesTestBed(): boolean {
+  const testPath = expect.getState().testPath;
+  if (!testPath?.endsWith('.spec.ts')) return true;
+  try {
+    return readFileSync(testPath, 'utf-8').includes('TestBed');
+  } catch {
+    return true;
+  }
+}
+
+async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
+  const [
+    { ChatMessageService },
+    { LoggerService },
+    { TabletopService },
+    { ContextMenuService },
+    { ModalService },
+    { PanelService },
+    { AppConfigService },
+    { provideTranslocoTesting },
+  ] = await Promise.all([
+    import('@axe/application/chat/chat-message.service'),
+    import('@axe/application/logging/logger.service'),
+    import('@axe/application/tabletop/tabletop.service'),
+    import('@axe/application/ui/context-menu.service'),
+    import('@axe/application/ui/modal.service'),
+    import('@axe/application/ui/panel.service'),
+    import('@axe/composition/app-config.service'),
+    import('@axe/testing/transloco-testing'),
+  ]);
+  return [
+    AppConfigService,
+    ChatMessageService,
+    ContextMenuService,
+    // The service turns logging up to what the build calls for as it is made, which outside
+    // production is everything. Made for a test, it leaves the level where the setup put it.
+    {
+      provide: LoggerService,
+      useFactory: () => {
+        const service = new LoggerService();
+        Logger.setLevel(LogLevel.NONE);
+        return service;
+      },
+    },
+    ModalService,
+    PanelService,
+    TabletopService,
+    ...provideTranslocoTesting(),
+  ];
+}
+
+// The wrapper can outlive the file that made it, so it looks the providers up on every call
+// rather than keeping the ones it was made with.
+const GLOBAL_TEST_PROVIDERS_KEY = '__axeGlobalTestProviders__';
+
+function globalTestProviders(): GlobalTestProviders {
+  const providers = (globalThis as unknown as Record<string, GlobalTestProviders | null>)[GLOBAL_TEST_PROVIDERS_KEY];
+  if (!providers) {
+    throw new Error(
+      `${expect.getState().testPath} builds a TestBed module without naming TestBed, so test-setup never loaded the providers every module is given.`
+    );
+  }
+  return providers;
+}
 
 // Re-apply per beforeEach; the Angular test runner may reset the wrapper. Sentinel guards re-wrap.
 const WRAPPER_SENTINEL = '__globalProviderWrapped__';
@@ -238,7 +290,7 @@ function applyConfigureTestingModuleWrapper(): void {
   const wrapped = (config: TestModuleMetadata) =>
     orig({
       ...config,
-      providers: [...(config.providers ?? []), ...GLOBAL_TEST_PROVIDERS],
+      providers: [...(config.providers ?? []), ...globalTestProviders()],
       schemas: [...(config.schemas ?? []), NO_ERRORS_SCHEMA],
     });
   (wrapped as unknown as Record<string, unknown>)[WRAPPER_SENTINEL] = true;
@@ -277,7 +329,15 @@ function forgetTabletopDisplaySettings(): void {
   localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
 }
 
+beforeAll(async () => {
+  (globalThis as unknown as Record<string, GlobalTestProviders | null>)[GLOBAL_TEST_PROVIDERS_KEY] = specUsesTestBed()
+    ? await loadGlobalTestProviders()
+    : null;
+});
+
 beforeEach(async () => {
+  // A test that turns logging up, as the logger specs do, must not leave the next one printing.
+  Logger.setLevel(LogLevel.NONE);
   emptyObjectStore();
   forgetMyCursor();
   forgetTabletopDisplaySettings();

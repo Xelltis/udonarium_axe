@@ -27,6 +27,10 @@ const TAG_ORDER: readonly string[] = [
   '範囲',
 ];
 
+/**
+ * Whether an effect preset's name or family contains the search text, ignoring case; an empty
+ * search matches everything.
+ */
 export function matchesQuery(preset: EffectPreset, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (needle.length < 1) return true;
@@ -36,10 +40,17 @@ export function matchesQuery(preset: EffectPreset, query: string): boolean {
 /** Whether it takes one target or several. */
 export type TargetingFilter = 'single' | 'multi';
 
+/** Whether an effect preset can be cast on more than one target. */
 export function isMultiTarget(preset: EffectPreset): boolean {
   return preset.targetLimit > 1;
 }
 
+/**
+ * The effect presets matching the library's search text, family, grade and targeting filters, where
+ * a null filter lets everything through.
+ *
+ * Presets marked for the game master only are left out unless the viewer is the game master.
+ */
 export function filterPresets(
   presets: readonly EffectPreset[],
   query: string,
@@ -77,6 +88,10 @@ export function groupPresets(presets: readonly EffectPreset[]): EffectLibraryGro
     .sort((left, right) => tagRank(left.tag) - tagRank(right.tag) || left.tag.localeCompare(right.tag));
 }
 
+/**
+ * The families used by the presets, without blanks or repeats, in the library's fixed family order
+ * with anything else sorted by name after.
+ */
 export function collectTags(presets: readonly EffectPreset[]): string[] {
   const tags = new Set<string>();
   for (const preset of presets) {

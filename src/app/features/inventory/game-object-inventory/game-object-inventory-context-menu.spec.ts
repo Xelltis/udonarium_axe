@@ -32,6 +32,7 @@ const defaultCallbacks = () => ({
   showDetail: vi.fn(),
   showChatPalette: vi.fn(),
   showRemoteController: vi.fn(),
+  focusOnTable: vi.fn(),
   cloneGameObject: vi.fn(),
   deleteGameObject: vi.fn(),
   setFolder: vi.fn(),
@@ -41,6 +42,24 @@ const defaultCallbacks = () => ({
 const folderCallbacks = () => ({ setFolder: vi.fn(), createFolder: vi.fn() });
 
 describe('buildInventoryObjectContextMenu()', () => {
+  it('offers to show a piece standing on the table where it stands, for a screen that cannot double-click', () => {
+    const character = makeCharacterAt('table');
+    const callbacks = defaultCallbacks();
+    const actions = buildInventoryObjectContextMenu(character, makeService(), callbacks, t);
+    const show = actions.find((action) => action.name === '卓で表示');
+
+    expect(show).toBeTruthy();
+    show?.action?.();
+    expect(callbacks.focusOnTable).toHaveBeenCalledWith(character);
+  });
+
+  it('leaves showing it on the table out for a piece that is not there', () => {
+    for (const where of ['common', 'graveyard']) {
+      const actions = buildInventoryObjectContextMenu(makeCharacterAt(where), makeService(), defaultCallbacks(), t);
+      expect(names(actions)).not.toContain('卓で表示');
+    }
+  });
+
   it('offers the folders as a submenu', () => {
     const character = makeCharacterAt('table');
     const actions = buildInventoryObjectContextMenu(character, makeService(), defaultCallbacks(), t, ['第1話']);

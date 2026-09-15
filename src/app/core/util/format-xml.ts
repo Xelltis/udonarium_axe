@@ -5,6 +5,13 @@ export interface FormatXmlOptions {
 
 const TOKEN = /<[^>]*>|[^<]+/g;
 
+/**
+ * Indents XML with one element per line, keeping an element whose only content is text on a
+ * single line, as when saving room data in readable form.
+ *
+ * Text is trimmed, whitespace between tags is dropped, and text that follows a child element
+ * inside mixed content is lost, so this suits data rather than documents.
+ */
 export function formatXml(xml: string, options: FormatXmlOptions = {}): string {
   const indentation = options.indentation ?? '  ';
   const lineSeparator = options.lineSeparator ?? '\n';

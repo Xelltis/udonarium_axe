@@ -23,6 +23,7 @@ export interface EffectSample {
 
 const STILL: EffectSample = { dx: 0, dy: 0, scaleMul: 1, opacityMul: 1, glowPx: 0, shadowPx: 0 };
 
+/** Whether a stored value names one of the running touches a layer can be given. */
 export function isCutInEffect(value: unknown): value is CutInEffect {
   return typeof value === 'string' && (CUT_IN_EFFECTS as readonly string[]).includes(value);
 }
@@ -32,6 +33,12 @@ export function effectMovesOverTime(effect: CutInEffect): boolean {
   return effect === 'blink' || effect === 'shake' || effect === 'pulse' || effect === 'float';
 }
 
+/**
+ * What an effect does to a layer at a moment on the cut-in's clock.
+ *
+ * The strength is held between 0 and 3, and one that is not a number reads as 1. At no
+ * strength, or for no effect, the layer is left as it is. Blinking ignores the strength.
+ */
 export function effectAt(effect: CutInEffect, ms: number, strength = 1): EffectSample {
   const force = Number.isFinite(strength) ? Math.min(3, Math.max(0, strength)) : 1;
   if (effect === 'none' || force <= 0) return STILL;

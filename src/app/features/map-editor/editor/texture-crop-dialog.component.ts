@@ -14,6 +14,10 @@ export const TEXTURE_CROP_FRAME = 288;
 export const TEXTURE_CROP_MIN_STAGE = 240;
 export const TEXTURE_CROP_MARGIN = 48;
 
+/**
+ * The side of the crop stage for a viewport width: the width less a margin, kept between the
+ * minimum and the usual size.
+ */
 export function fitCropStage(viewportWidth: number): number {
   return Math.max(TEXTURE_CROP_MIN_STAGE, Math.min(TEXTURE_CROP_STAGE, viewportWidth - TEXTURE_CROP_MARGIN));
 }

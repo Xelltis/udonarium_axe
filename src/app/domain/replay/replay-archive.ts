@@ -26,6 +26,12 @@ export interface ReplayArchiveContent {
   assets: File[];
 }
 
+/**
+ * The file name a recording is saved under, without the extension: the room name and the local
+ * date and minute it started.
+ *
+ * Characters a file name cannot hold become underscores, and a room with no name is called `replay`.
+ */
 export function replayArchiveName(manifest: Pick<ReplayManifest, 'roomName' | 'startedAt'>): string {
   const date = new Date(manifest.startedAt);
   const pad = (value: number): string => String(value).padStart(2, '0');
@@ -34,6 +40,12 @@ export function replayArchiveName(manifest: Pick<ReplayManifest, 'roomName' | 's
   return `${room.length > 0 ? room : 'replay'}_${stamp}`;
 }
 
+/**
+ * The files that go into a recording's zip, named by where they sit in it.
+ *
+ * The manifest is written as JSON, each chunk of events as MessagePack under `events/`, each
+ * keyframe under `keyframes/`, and the pictures and sounds under `assets/`.
+ */
 export function buildReplayArchiveFiles(source: ReplayArchiveSource): File[] {
   const files: File[] = [
     new File([JSON.stringify(source.manifest, null, 2)], REPLAY_MANIFEST_NAME, { type: 'application/json' }),
@@ -61,6 +73,13 @@ export function buildReplayArchiveFiles(source: ReplayArchiveSource): File[] {
   return files;
 }
 
+/**
+ * Reads a recording back from the entries of its unpacked zip.
+ *
+ * Null when there is no manifest or it is not a supported format. The events of every chunk
+ * come back as one list in sequence order, and the folders are found even when the zip wraps
+ * them in an outer folder.
+ */
 export async function parseReplayArchive(entries: readonly ReplayArchiveEntry[]): Promise<ReplayArchiveContent | null> {
   const manifestEntry = entries.find((entry) => baseName(entry.name) === REPLAY_MANIFEST_NAME);
   if (!manifestEntry) return null;

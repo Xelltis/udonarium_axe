@@ -117,30 +117,6 @@ describe('PeerCursor', () => {
     });
   });
 
-  describe('diceImageIdentifier', () => {
-    it('returns nothing without a kind of die', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      expect(cursor.diceImageIdentifier).toBe('');
-    });
-
-    it('builds the identifier from that kind and its index', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.diceImageType = 'normal';
-      cursor.diceImageIndex = 3;
-      expect(cursor.diceImageIdentifier).toBe('normal_dice[03]');
-    });
-
-    it('pads a single-digit index', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.diceImageType = 'star';
-      cursor.diceImageIndex = 0;
-      expect(cursor.diceImageIdentifier).toBe('star_dice[00]');
-    });
-  });
-
   describe('isMine', () => {
     it('is false before your own cursor is set', () => {
       const cursor = new PeerCursor();
@@ -229,22 +205,6 @@ describe('PeerCursor', () => {
       expect(cursor.userId).toBe('');
       expect(PeerCursor.findByUserId('')).toBeNull();
       expect(PeerCursor.findByPeerId('')).toBeNull();
-    });
-  });
-
-  describe('isPeerAUdon', () => {
-    it('is true for a peer of this tool', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.peerId = 'UDoNarium';
-      expect(cursor.isPeerAUdon()).toBe(true);
-    });
-
-    it('is false for any other', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.peerId = 'test-peer';
-      expect(cursor.isPeerAUdon()).toBe(false);
     });
   });
 

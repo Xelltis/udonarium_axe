@@ -17,7 +17,6 @@ import {
   TERRAIN_TEXTURE_PATH,
   TRUMP_BACK_IMAGE_PATH,
 } from '@axe/application/tabletop/tabletop-action-helpers';
-import { initAprilDiceImages } from '@axe/application/tabletop/tabletop-default-dice';
 import {
   makeDefaultTable as _makeDefaultTable,
   makeDefaultTabletopObjects as _makeDefaultTabletopObjects,
@@ -44,7 +43,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
@@ -83,10 +81,16 @@ export class TabletopActionService {
 
   constructor() {}
 
+  /** Makes a character with the default name and no picture, centred on a point; see `createGameCharacterWith`. */
   createGameCharacter(position: PointerCoordinate): GameCharacter {
     return this.createGameCharacterWith(position, this.t('feature.tabletop.action.defaultCharacterName'), '');
   }
 
+  /**
+   * Makes a character with this name and picture, centred on a point.
+   *
+   * It belongs to whoever made it, and one made by the game master starts hidden from the players.
+   */
   createGameCharacterWith(position: PointerCoordinate, name: string, imageIdentifier: string): GameCharacter {
     const character = GameCharacter.create(name, 1, imageIdentifier);
     character.location.x = position.x - 25;
@@ -105,6 +109,7 @@ export class TabletopActionService {
     object.update();
   }
 
+  /** Puts a five-by-five mask on the table in view. Nothing is made when no table is in view. */
   createGameTableMask(position: PointerCoordinate): GameTableMask | undefined {
     const viewTable = this.getViewTable();
     if (!viewTable) return undefined;
@@ -118,6 +123,12 @@ export class TabletopActionService {
     return tableMask;
   }
 
+  /**
+   * Puts a ground effect of this kind, a few cells across, on the table in view, centred on a
+   * point.
+   *
+   * Nothing is made when no table is in view.
+   */
   createTableAmbience(position: PointerCoordinate, kind: AmbienceKind): TableAmbience | undefined {
     const viewTable = this.getViewTable();
     if (!viewTable) return undefined;
@@ -133,24 +144,12 @@ export class TabletopActionService {
     return ambience;
   }
 
-  createGameTableScratchMask(position: PointerCoordinate): GameTableScratchMask | undefined {
-    const viewTable = this.getViewTable();
-    if (!viewTable) return undefined;
-
-    const tableMask = GameTableScratchMask.create(
-      this.t('feature.tabletop.action.defaultScratchMaskName'),
-      10,
-      10,
-      100
-    );
-    tableMask.location.x = position.x - 25;
-    tableMask.location.y = position.y - 25;
-    tableMask.posZ = position.z;
-
-    viewTable.appendChild(tableMask);
-    return tableMask;
-  }
-
+  /**
+   * Puts a two-cell crate block on the table in view, registering its bundled texture the first
+   * time.
+   *
+   * Nothing is made when no table is in view.
+   */
   createTerrain(position: PointerCoordinate): Terrain | undefined {
     const url = TERRAIN_TEXTURE_PATH;
     let image = this.imageStorage.get(url);
@@ -177,6 +176,12 @@ export class TabletopActionService {
     return terrain;
   }
 
+  /**
+   * Puts a note with the default text at a point, owned by whoever made it.
+   *
+   * It stands upright unless this reader is looking at the table laid flat, and one made by the
+   * game master starts hidden from the players.
+   */
   createTextNote(position: PointerCoordinate): TextNote {
     const textNote = TextNote.create(
       this.t('feature.tabletop.action.defaultNoteName'),
@@ -195,6 +200,13 @@ export class TabletopActionService {
     return textNote;
   }
 
+  /**
+   * Makes one die of a kind with its bundled face images, at the placement given or centred on the
+   * point.
+   *
+   * The face images are registered the first time they are used. No sound is played; the caller
+   * decides.
+   */
   createDiceSymbol(
     position: PointerCoordinate,
     name: string,
@@ -224,7 +236,7 @@ export class TabletopActionService {
    * Makes several dice of one kind at once, laid out beside the point they were asked for.
    *
    * A handful of the same die is what a roll usually needs, and making them one press at a time
-   * left them in a pile on one spot to be pulled apart by hand.
+   * would leave them in a pile on one spot to be pulled apart by hand.
    */
   createDiceSymbols(
     position: PointerCoordinate,
@@ -241,6 +253,12 @@ export class TabletopActionService {
     });
   }
 
+  /**
+   * Makes a range of a shape named in the create menu at a point, at its default size and a lighter
+   * opacity.
+   *
+   * A shape name it does not know is made as a cone.
+   */
   createRangeArea(position: PointerCoordinate, typeName: string): RangeArea {
     let range;
     switch (typeName) {
@@ -309,6 +327,7 @@ export class TabletopActionService {
     return board;
   }
 
+  /** Puts a light on the table in view, centred on a point and owned by whoever made it. */
   createLightSource(position: PointerCoordinate): LightSource {
     const light = LightSource.create(this.t('feature.tabletop.action.defaultLightName'));
     light.location.x = position.x - 25;
@@ -321,6 +340,7 @@ export class TabletopActionService {
     return light;
   }
 
+  /** Makes a stack of a full deck of playing cards and two jokers, registering the bundled card images on first use. */
   createTrump(position: PointerCoordinate): CardStack {
     const cardStack = CardStack.create(this.t('feature.tabletop.action.defaultTrumpStackName'));
     cardStack.location.x = position.x - 25;
@@ -368,24 +388,27 @@ export class TabletopActionService {
     return card;
   }
 
+  /** Makes the first table a new room opens on; see `makeDefaultTable` in the default setup. */
   makeDefaultTable() {
     _makeDefaultTable(this.imageStorage);
   }
 
-  initAprilDiceImage() {
-    initAprilDiceImages(this.imageStorage);
-  }
-
+  /** Sets out the sample pieces a new room opens with. */
   makeDefaultTabletopObjects() {
     _makeDefaultTabletopObjects(this.imageStorage);
   }
 
+  /** Everything the table's create menu offers at a point, as one list, for the menus of objects standing on it. */
   makeDefaultContextMenuActions(position: PointerCoordinate): ContextMenuAction[] {
     return this.makeDefaultContextMenuActionGroups(position).flat();
   }
 
-  // The create items come in two halves so a rotating menu can spread them over two spokes
-  // instead of piling every one of them onto a single group.
+  /**
+   * The table's create menu at a point, in two halves.
+   *
+   * The halves let the table's rotating menu spread the create items over two spokes instead of
+   * piling them all onto one group. `makeDefaultContextMenuActions` joins them into one list.
+   */
   makeDefaultContextMenuActionGroups(position: PointerCoordinate): ContextMenuAction[][] {
     return [
       [
@@ -580,6 +603,12 @@ export class TabletopActionService {
     };
   }
 
+  /**
+   * Makes a deck of cards from every image carrying a tag, backed with the playing card back.
+   *
+   * Images kept back from this reader are left out. Cards are named after their images or given the
+   * default name. Answers null when no image qualifies.
+   */
   createDeckFromTag(position: PointerCoordinate, tag: string, useImageName: boolean): CardStack | null {
     // A picture the master is keeping back is not dealt onto the table by anyone else.
     const images = this.imageStorage.images.filter(
@@ -659,6 +688,7 @@ export class TabletopActionService {
     if (made.length > 0) SoundEffect.play(PresetSound.dicePut);
   }
 
+  /** Makes a coin centred on a point, on top of everything else there. */
   createCoin(position: PointerCoordinate): Coin {
     const coin = Coin.create(this.t('feature.tabletop.action.defaultCoinName'));
     coin.location.x = position.x - 25;

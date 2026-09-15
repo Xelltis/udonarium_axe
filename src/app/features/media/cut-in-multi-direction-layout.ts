@@ -189,6 +189,14 @@ function fitPanel(
   };
 }
 
+/**
+ * Lays a cut-in out once for each direction a multi-direction mode serves, for a table seen from
+ * above.
+ *
+ * Each face gets a region of the viewport and may spill slightly over the edges it shares with a
+ * neighbour. It is scaled down, never up, to fit with its title bar, and turned to read from its
+ * seat. The south face is the primary one. A mode that is off lays out no faces.
+ */
 export function makeCutInMultiDirectionLayout(input: CutInMultiDirectionLayoutInput): CutInDirectionFace[] {
   const mode = asCutInMultiDirectionMode(input.mode);
   const viewportWidth = Math.max(0, input.viewportWidth);

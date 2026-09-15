@@ -72,6 +72,10 @@ function resolveRoot(parsed: Record<string, unknown>): Record<string, unknown> {
   return parsed;
 }
 
+/**
+ * Whether the pasted json is a character from the warehouse: one with a named `base` or a
+ * `baseAbility`, bare or wrapped in `data`.
+ */
 export function isAppspotCharacter(parsed: unknown): boolean {
   const record = asRecord(parsed);
   if (!record) return false;
@@ -209,6 +213,13 @@ function buildSections(root: Record<string, unknown>, labelMap: Record<string, s
   return sections;
 }
 
+/**
+ * Reads a warehouse character into the imported model without knowing its system.
+ *
+ * Sub-ability totals become resources, base-ability totals parameters, and everything else is kept
+ * as sections. `labelMap` gives headings taken from the warehouse's own pages, keyed by json path;
+ * a key it lacks keeps its own name. Null for anything that is not a warehouse character.
+ */
 export function parseAppspotCharacter(
   parsed: unknown,
   labelMap: Record<string, string> = {}

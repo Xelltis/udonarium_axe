@@ -21,10 +21,16 @@ export class CardDrawCountDialogComponent {
   readonly option = this.readOption();
   count = this.clampCount(this.option.defaultCount ?? Math.min(2, this.option.maxCount));
 
+  /** The most cards the stack can give, which caps the count input; zero when the stack is empty. */
   get maxCount(): number {
     return this.option.maxCount;
   }
 
+  /**
+   * Closes the dialog with the typed count, held between one and the maximum.
+   *
+   * With nothing to draw it closes with null, as cancelling does.
+   */
   confirm() {
     if (this.maxCount < 1) {
       this.modalService.resolve(null);
@@ -33,6 +39,7 @@ export class CardDrawCountDialogComponent {
     this.modalService.resolve(this.clampCount(this.count));
   }
 
+  /** Closes the dialog with null, so no cards are drawn. */
   cancel() {
     this.modalService.resolve(null);
   }

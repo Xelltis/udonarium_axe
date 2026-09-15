@@ -100,18 +100,21 @@ export class GameTableSettingComponent {
   minSize: number = 1;
   maxSize: number = 100;
 
+  /** The picked table's floor image, or the empty image when it has none. */
   get tableBackgroundImage(): ImageFile {
     this.objectChange.fileVersion();
     if (this.selectedTable) this.objectChange.versionOf(this.selectedTable.identifier)();
     return this.imageService.getEmptyOr(this.selectedTable ? this.selectedTable.imageIdentifier : '');
   }
 
+  /** The picked table's distant-view background image, or the empty image when it has none. */
   get tableDistanceviewImage(): ImageFile {
     this.objectChange.fileVersion();
     if (this.selectedTable) this.objectChange.versionOf(this.selectedTable.identifier)();
     return this.imageService.getEmptyOr(this.selectedTable ? this.selectedTable.backgroundImageIdentifier : '');
   }
 
+  /** The picked table's name; writes are ignored while the table cannot be edited. */
   get tableName(): string {
     return this.selectedTable?.name ?? '';
   }
@@ -119,6 +122,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.name = tableName;
   }
 
+  /** The picked table's width in grid cells; 10 when no table is picked. */
   get tableWidth(): number {
     return this.selectedTable?.width ?? 10;
   }
@@ -126,6 +130,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.width = tableWidth;
   }
 
+  /** The picked table's height in grid cells; 10 when no table is picked. */
   get tableHeight(): number {
     return this.selectedTable?.height ?? 10;
   }
@@ -133,6 +138,10 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.height = tableHeight;
   }
 
+  /**
+   * The picked table's grid line colour as #rrggbb, written back with a fixed, slightly transparent
+   * alpha.
+   */
   get tableGridColor(): string {
     return this.selectedTable?.gridColor.substring(0, 7) ?? '#000000';
   }
@@ -140,6 +149,10 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.gridColor = tableGridColor + 'e6';
   }
 
+  /**
+   * The colour of the picked table's grid label text as #rrggbb, written back with the grid's fixed
+   * alpha.
+   */
   get tableGridFontColor(): string {
     return this.selectedTable?.gridFontColor.substring(0, 7) ?? '#000000';
   }
@@ -147,6 +160,12 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.gridFontColor = tableGridFontColor + 'e6';
   }
 
+  /**
+   * Whether the picked table shows its grid.
+   *
+   * Turning it on drops any clip set on the grid, and every change raises a local update so the
+   * grid redraws at once.
+   */
   get tableGridShow(): boolean {
     return this.selectedTable?.gridShow ?? false;
   }
@@ -157,6 +176,7 @@ export class GameTableSettingComponent {
     triggerUpdateGameObject(this.selectedTable.toContext()); // 自分にだけイベントを発行してグリッド更新を誘発
   }
 
+  /** Whether pieces snap to the picked table's grid; true when no table is picked. */
   get tableGridSnap(): boolean {
     return this.selectedTable?.gridSnap ?? true;
   }
@@ -179,6 +199,7 @@ export class GameTableSettingComponent {
     triggerUpdateGameObject(this.selectedTable.toContext());
   }
 
+  /** Whether the picked table is dark, so only what is lit shows. */
   get tableDarknessEnabled(): boolean {
     return this.selectedTable?.darknessEnabled ?? false;
   }
@@ -186,6 +207,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.darknessEnabled = value;
   }
 
+  /** Whether lights on the picked table snap to its grid. */
   get tableLightSnapToGrid(): boolean {
     return this.selectedTable?.lightSnapToGrid ?? false;
   }
@@ -193,6 +215,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.lightSnapToGrid = value;
   }
 
+  /** How dark the picked table is, as a percentage. */
   get tableDarknessLevelPercent(): number {
     return Math.round((this.selectedTable?.darknessLevel ?? 0) * 100);
   }
@@ -200,6 +223,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.darknessLevel = Number(value) / 100;
   }
 
+  /** How much light reaches everywhere on the picked table regardless of lights, as a percentage. */
   get tableGlobalIlluminationPercent(): number {
     return Math.round((this.selectedTable?.globalIllumination ?? 0) * 100);
   }
@@ -207,6 +231,10 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.globalIllumination = Number(value) / 100;
   }
 
+  /**
+   * The colour the picked table's darkness is painted in. The shadows pieces cast in the light and
+   * the tops of buildings, which stand above the darkness sheet, are painted in it too.
+   */
   get tableAmbientColor(): string {
     return this.selectedTable?.ambientColor ?? '#05060a';
   }
@@ -214,6 +242,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.ambientColor = value;
   }
 
+  /** Whether fog of war covers the picked table. */
   get tableFogEnabled(): boolean {
     return this.selectedTable?.fogEnabled ?? false;
   }
@@ -221,6 +250,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.fogEnabled = value;
   }
 
+  /** How strict the picked table's fog of war is: easy, normal or hard. */
   get tableFogMode(): FogMode {
     return asFogMode(this.selectedTable?.fogMode);
   }
@@ -228,6 +258,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.fogMode = asFogMode(value);
   }
 
+  /** The colour of the picked table's fog of war. */
   get tableFogColor(): string {
     return this.selectedTable?.fogColor ?? DEFAULT_FOG_COLOR;
   }
@@ -243,10 +274,15 @@ export class GameTableSettingComponent {
     hard: 'feature.tabletop.tableSetting.fogModeHard',
   };
 
+  /** The translated name of a fog mode, for the mode dropdown. */
   fogModeLabel(mode: FogMode): string {
     return this.t(this.fogModeLabelKeys[mode]);
   }
 
+  /**
+   * Clears what the picked table's fog of war remembers as explored; does nothing while the table
+   * cannot be edited.
+   */
   resetFog(): void {
     const table = this.selectedTable;
     if (!this.isEditable || !table) return;
@@ -255,10 +291,12 @@ export class GameTableSettingComponent {
 
   protected readonly weatherKinds = SKY_AMBIENCE_KINDS;
 
+  /** The translated name of a weather kind, for the weather dropdown. */
   weatherKindLabel(kind: AmbienceKind): string {
     return this.t(`feature.ambience.kind.${kind}`);
   }
 
+  /** The weather shown over the picked table; empty for none. */
   get tableWeatherKind(): string {
     return this.selectedTable?.weatherKind ?? '';
   }
@@ -266,6 +304,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.weatherKind = value;
   }
 
+  /** How thick the picked table's weather is, as a percentage. */
   get tableWeatherDensityPercent(): number {
     return Math.round(ambienceDensityOf(this.selectedTable?.weatherDensity ?? DEFAULT_AMBIENCE_DENSITY) * 100);
   }
@@ -273,6 +312,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.weatherDensity = Number(value) / 100;
   }
 
+  /** The picked table's weather colour, falling back to the weather kind's own colour when none is set. */
   get tableWeatherColor(): string {
     const table = this.selectedTable;
     if (!table) return ambiencePalette('fog').primary;
@@ -282,19 +322,29 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.weatherColor = value;
   }
 
+  /** Whether the picked table's weather uses its kind's own colour, which disables the reset button. */
   get isWeatherDefaultColor(): boolean {
     return (this.selectedTable?.weatherColor ?? '').trim().length < 1;
   }
 
+  /** Hands the picked table's weather back to its kind's own colour. */
   resetWeatherColor(): void {
     if (this.isEditable && this.selectedTable) this.selectedTable.weatherColor = '';
   }
 
+  /**
+   * Whether the reader is the game master, who alone is offered a preview of the table through a
+   * player's eyes.
+   */
   get isGameMaster(): boolean {
     this.objectChange.trackMyCursor();
     return PeerCursor.isMyselfGameMaster;
   }
 
+  /**
+   * The player whose view of the table this screen previews; empty for the reader's own view. It is
+   * not shared with the room.
+   */
   get previewAsUserId(): string {
     return this.visionService.previewAsUserId() ?? '';
   }
@@ -302,6 +352,7 @@ export class GameTableSettingComponent {
     this.visionService.previewAsUserId.set(value ? value : null);
   }
 
+  /** The cursors of everyone in the room who is not a game master, offered as views to preview. */
   getNonGmCursors(): PeerCursor[] {
     this.objectChange.collectionOf('PeerCursor')();
     return this.objectStore.getObjects<PeerCursor>(PeerCursor).filter((cursor) => !cursor.isGameMaster);
@@ -353,6 +404,7 @@ export class GameTableSettingComponent {
     },
   ];
 
+  /** How tall the picked table's walls stand; 10 when no table is picked. */
   get tableWallHeight(): number {
     return this.selectedTable?.wallHeight ?? 10;
   }
@@ -366,37 +418,45 @@ export class GameTableSettingComponent {
     return this.imageService.getEmptyOr(identifier ?? '');
   }
 
+  /** The picture on the picked table's north wall, or the empty image. */
   get tableNorthWallImage(): ImageFile {
     return this.wallImage(this.selectedTable?.northWallImageIdentifier);
   }
+  /** The picture on the picked table's east wall, or the empty image. */
   get tableEastWallImage(): ImageFile {
     return this.wallImage(this.selectedTable?.eastWallImageIdentifier);
   }
+  /** The picture on the picked table's south wall, or the empty image. */
   get tableSouthWallImage(): ImageFile {
     return this.wallImage(this.selectedTable?.southWallImageIdentifier);
   }
+  /** The picture on the picked table's west wall, or the empty image. */
   get tableWestWallImage(): ImageFile {
     return this.wallImage(this.selectedTable?.westWallImageIdentifier);
   }
 
+  /** Whether the picked table's north wall is shown. */
   get tableShowNorthWall(): boolean {
     return this.selectedTable?.showNorthWall ?? false;
   }
   set tableShowNorthWall(value: boolean) {
     if (this.isEditable && this.selectedTable) this.selectedTable.showNorthWall = value;
   }
+  /** Whether the picked table's east wall is shown. */
   get tableShowEastWall(): boolean {
     return this.selectedTable?.showEastWall ?? false;
   }
   set tableShowEastWall(value: boolean) {
     if (this.isEditable && this.selectedTable) this.selectedTable.showEastWall = value;
   }
+  /** Whether the picked table's south wall is shown. */
   get tableShowSouthWall(): boolean {
     return this.selectedTable?.showSouthWall ?? false;
   }
   set tableShowSouthWall(value: boolean) {
     if (this.isEditable && this.selectedTable) this.selectedTable.showSouthWall = value;
   }
+  /** Whether the picked table's west wall is shown. */
   get tableShowWestWall(): boolean {
     return this.selectedTable?.showWestWall ?? false;
   }
@@ -404,6 +464,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.showWestWall = value;
   }
 
+  /** Which grid points pieces on the picked table snap to. */
   get tableGridSnapStyle(): GridSnapStyle {
     return this.selectedTable?.gridSnapStyle ?? GridSnapStyle.CENTER;
   }
@@ -411,6 +472,10 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.gridSnapStyle = Number(snapStyle);
   }
 
+  /**
+   * The snap dropdown's value, combining whether snapping is on with the points it snaps to: off,
+   * center, vertex, both or all.
+   */
   get tableSnapMode(): string {
     if (!this.tableGridSnap) return 'off';
     switch (this.tableGridSnapStyle) {
@@ -441,6 +506,7 @@ export class GameTableSettingComponent {
     }
   }
 
+  /** Whether the picked table's grid is square or one of the hex layouts. */
   get tableGridType(): GridType {
     return this.selectedTable?.gridType ?? 0;
   }
@@ -448,6 +514,7 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.gridType = Number(gridType);
   }
 
+  /** The filter drawn over the picked table's distant-view background. */
   get tableDistanceviewFilter(): FilterType {
     return this.selectedTable?.backgroundFilterType ?? FilterType.NONE;
   }
@@ -458,14 +525,20 @@ export class GameTableSettingComponent {
   selectedTable: GameTable | null = null;
   selectedTableXml: string = '';
 
+  /** Whether no table is being viewed. */
   get isEmpty(): boolean {
     return this.tableSelecter ? (this.tableSelecter.viewTable ? false : true) : true;
   }
+  /** Whether the picked table has been destroyed, or no table is picked. */
   get isDeleted(): boolean {
     this.objectChange.collectionOf('game-table')();
     if (!this.selectedTable) return true;
     return this.objectStore.get<GameTable>(this.selectedTable.identifier) == null;
   }
+  /**
+   * Whether the picked table can be changed from this panel: a table is viewed and the picked one
+   * still exists.
+   */
   get isEditable(): boolean {
     return !this.isEmpty && !this.isDeleted;
   }
@@ -500,12 +573,17 @@ export class GameTableSettingComponent {
     if (table) this.cutInService.launchForTable(table);
   }
 
+  /**
+   * Shows the given table and picks it in this panel, without playing its cut-ins, and forgets any
+   * kept deleted table.
+   */
   selectGameTable(identifier: string) {
     emitSelectGameTable({ identifier });
     this.selectedTable = this.objectStore.get<GameTable>(identifier);
     this.selectedTableXml = '';
   }
 
+  /** Every cut-in in the room, offered to play when a table is chosen. */
   getCutIns(): CutIn[] {
     this.objectChange.collectionOf(CutIn.aliasName)();
     return this.objectStore.getObjects(CutIn);
@@ -514,6 +592,10 @@ export class GameTableSettingComponent {
   private cutInIdentifiersRaw = '';
   private cutInIdentifiers: string[] = [];
 
+  /**
+   * The identifiers of the cut-ins that play when the picked table is chosen from the list; writes
+   * are ignored while it cannot be edited.
+   */
   get tableCutIns(): string[] {
     const raw = this.selectedTable?.cutInIdentifiers ?? '';
     if (raw !== this.cutInIdentifiersRaw) {
@@ -527,10 +609,15 @@ export class GameTableSettingComponent {
     this.selectedTable.cutInIdentifiers = encodeCutInIdentifiers(identifiers ?? []);
   }
 
+  /** Every table in the room, for the table list. */
   getGameTables(): GameTable[] {
     return this.objectStore.getObjects(GameTable);
   }
 
+  /**
+   * Makes a new table with the default name, no image and its grid shown, and picks it; does
+   * nothing for a reader who may not edit the table.
+   */
   createGameTable() {
     if (!this.rolePermission.canEditTabletop) return;
     const gameTable = new GameTable();
@@ -541,6 +628,10 @@ export class GameTableSettingComponent {
     this.selectGameTable(gameTable.identifier);
   }
 
+  /**
+   * Saves the picked table to a file named after it, showing progress while it is written; ignored
+   * while a save is running.
+   */
   async save() {
     if (!this.selectedTable || this.isSaving()) return;
     this.isSaving.set(true);
@@ -557,6 +648,10 @@ export class GameTableSettingComponent {
     }, 500);
   }
 
+  /**
+   * Destroys the picked table, keeping its XML so it can be restored from this panel; does nothing
+   * for a reader who may not edit the table.
+   */
   delete() {
     if (!this.rolePermission.canEditTabletop) return;
     if (!this.isEmpty && this.selectedTable) {
@@ -565,6 +660,10 @@ export class GameTableSettingComponent {
     }
   }
 
+  /**
+   * Rebuilds the deleted table from its kept XML and picks it; does nothing for a reader who may
+   * not edit the table or when nothing is kept.
+   */
   restore() {
     if (!this.rolePermission.canEditTabletop) return;
     if (this.selectedTable && this.selectedTableXml) {
@@ -598,6 +697,10 @@ export class GameTableSettingComponent {
     return this.backgroundLayerRun(layer).indexOf(layer) + 1;
   }
 
+  /**
+   * Whether a background layer can move the given number of steps without leaving its run; false
+   * while the table cannot be edited.
+   */
   canMoveBackgroundLayer(layer: TableBackgroundLayer, offset: number): boolean {
     if (!this.isEditable) return false;
     const run = this.backgroundLayerRun(layer);
@@ -622,6 +725,7 @@ export class GameTableSettingComponent {
     });
   }
 
+  /** Whether another background layer can be added, under the per-table limit. */
   get canAddBackgroundLayer(): boolean {
     return this.isEditable && this.backgroundLayers.length < MAX_TABLE_BACKGROUND_LAYERS;
   }
@@ -635,11 +739,13 @@ export class GameTableSettingComponent {
     this.selectedTable.appendChild(layer);
   }
 
+  /** Destroys a background layer; ignored while the table cannot be edited. */
   removeBackgroundLayer(layer: TableBackgroundLayer): void {
     if (!this.isEditable) return;
     layer.destroy();
   }
 
+  /** Opens the image picker and sets the chosen picture on a background layer. */
   openBackgroundLayerImage(layer: TableBackgroundLayer): void {
     if (!this.isEditable) return;
     void this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
@@ -649,50 +755,67 @@ export class GameTableSettingComponent {
     });
   }
 
+  /** A background layer's picture, or the empty image. */
   backgroundLayerImage(layer: TableBackgroundLayer): ImageFile {
     this.objectChange.fileVersion();
     this.objectChange.versionOf(layer.identifier)();
     return this.imageService.getEmptyOr(layer.imageIdentifier);
   }
 
+  /** Whether a background layer is drawn. */
   backgroundLayerEnabled(layer: TableBackgroundLayer): boolean {
     this.objectChange.versionOf(layer.identifier)();
     return layer.enabled;
   }
+  /** Turns a background layer on or off and syncs it. */
   setBackgroundLayerEnabled(layer: TableBackgroundLayer, value: boolean): void {
     this.writeBackgroundLayer(layer, () => (layer.enabled = value));
   }
 
+  /** How fast a background layer scrolls sideways. */
   backgroundLayerSpeedX(layer: TableBackgroundLayer): number {
     this.objectChange.versionOf(layer.identifier)();
     return layer.speedX;
   }
+  /** Sets how fast a background layer scrolls sideways, held to the speed limit either way, and syncs it. */
   setBackgroundLayerSpeedX(layer: TableBackgroundLayer, value: number): void {
     this.writeBackgroundLayer(layer, () => (layer.speedX = clampScrollSpeed(value)));
   }
 
+  /** How fast a background layer scrolls up and down. */
   backgroundLayerSpeedY(layer: TableBackgroundLayer): number {
     this.objectChange.versionOf(layer.identifier)();
     return layer.speedY;
   }
+  /**
+   * Sets how fast a background layer scrolls up and down, held to the speed limit either way, and
+   * syncs it.
+   */
   setBackgroundLayerSpeedY(layer: TableBackgroundLayer, value: number): void {
     this.writeBackgroundLayer(layer, () => (layer.speedY = clampScrollSpeed(value)));
   }
 
+  /** A background layer's opacity, as a percentage. */
   backgroundLayerOpacityPercent(layer: TableBackgroundLayer): number {
     this.objectChange.versionOf(layer.identifier)();
     return Math.round(layer.opacity * 100);
   }
+  /**
+   * Sets a background layer's opacity from a percentage held between 0 and 100, fully opaque when
+   * unreadable, and syncs it.
+   */
   setBackgroundLayerOpacityPercent(layer: TableBackgroundLayer, value: number): void {
     const percent = Number(value);
     const clamped = Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 100;
     this.writeBackgroundLayer(layer, () => (layer.opacity = clamped / 100));
   }
 
+  /** How much a background layer's picture is scaled. */
   backgroundLayerScale(layer: TableBackgroundLayer): number {
     this.objectChange.versionOf(layer.identifier)();
     return layer.scale;
   }
+  /** Sets a background layer's scale within the allowed range, 1 when unreadable, and syncs it. */
   setBackgroundLayerScale(layer: TableBackgroundLayer, value: number): void {
     const scale = Number(value);
     const clamped = Number.isFinite(scale)
@@ -721,6 +844,10 @@ export class GameTableSettingComponent {
     layer.update();
   }
 
+  /**
+   * Opens the image picker and sets the chosen picture as the picked table's floor image; does
+   * nothing once the table is deleted.
+   */
   openBgImageModal() {
     if (this.isDeleted) return;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
@@ -729,6 +856,12 @@ export class GameTableSettingComponent {
     });
   }
 
+  /**
+   * Picks a floor image and opens the grid adjuster on it.
+   *
+   * The cropped image, the size in cells and the grid type it hands back are written to the picked
+   * table. Cancelling either dialog leaves the table as it was.
+   */
   openBgImageGridAdjust() {
     if (this.isDeleted) return;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: false }).then((imageIdentifier) => {
@@ -754,6 +887,7 @@ export class GameTableSettingComponent {
     });
   }
 
+  /** Opens the image picker and sets the chosen picture as the picked table's distant-view background. */
   openDistanceViewImageModal() {
     if (this.isDeleted) return;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
@@ -769,19 +903,27 @@ export class GameTableSettingComponent {
       apply(this.selectedTable, value);
     });
   }
+  /** Opens the image picker and sets the chosen picture on the picked table's north wall. */
   openNorthWallImageModal() {
     this.openWallImageModal((t, v) => (t.northWallImageIdentifier = v));
   }
+  /** Opens the image picker and sets the chosen picture on the picked table's east wall. */
   openEastWallImageModal() {
     this.openWallImageModal((t, v) => (t.eastWallImageIdentifier = v));
   }
+  /** Opens the image picker and sets the chosen picture on the picked table's south wall. */
   openSouthWallImageModal() {
     this.openWallImageModal((t, v) => (t.southWallImageIdentifier = v));
   }
+  /** Opens the image picker and sets the chosen picture on the picked table's west wall. */
   openWestWallImageModal() {
     this.openWallImageModal((t, v) => (t.westWallImageIdentifier = v));
   }
 
+  /**
+   * Chooses the table named by a select element's value, from its change event, playing its cut-ins
+   * as picking from the list does.
+   */
   onSelectGameTable(event: Event): void {
     this.chooseGameTable((event.target as HTMLInputElement).value);
   }

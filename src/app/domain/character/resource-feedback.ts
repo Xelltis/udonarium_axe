@@ -10,6 +10,7 @@ export function playsEffectOnChange(element: DataElement): boolean {
   return element.getAttribute(DataElementAttribute.CHANGE_EFFECT) === 'true';
 }
 
+/** Whether the resource asks for a sound when it moves. */
 export function playsSoundOnChange(element: DataElement): boolean {
   return element.getAttribute(DataElementAttribute.CHANGE_SOUND) === 'true';
 }
@@ -27,6 +28,9 @@ export const RESOURCE_SOUND_SET_OPTIONS: readonly ResourceSoundSetOption[] = [
   { value: 'mech', labelKey: 'feature.dataElement.soundSet.mech' },
 ];
 
+/**
+ * Which set of sounds the resource plays when it moves: `mech` where asked for, otherwise `flesh`.
+ */
 export function soundSetOnChange(element: DataElement): ResourceSoundSet {
   return element.getAttribute(DataElementAttribute.CHANGE_SOUND_SET) === 'mech' ? 'mech' : 'flesh';
 }

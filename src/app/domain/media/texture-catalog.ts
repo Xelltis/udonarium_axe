@@ -105,6 +105,7 @@ export const TEXTURE_BASE_COLOR: Record<TextureId, string> = {
   poison_pool: '#107d0e',
 };
 
+/** Whether a stored value names one of the bundled floor textures. */
 export function isTextureId(value: string): value is TextureId {
   return (TEXTURE_IDS as readonly string[]).includes(value);
 }
@@ -176,6 +177,7 @@ export const WALL_TEXTURE_BASE_COLOR: Record<WallTextureId, string> = {
   cactus_skin: '#1d6411',
 };
 
+/** Whether a stored value names one of the bundled wall textures. */
 export function isWallTextureId(value: string): value is WallTextureId {
   return (WALL_TEXTURE_IDS as readonly string[]).includes(value);
 }
@@ -188,6 +190,7 @@ export function isWallTextureId(value: string): value is WallTextureId {
  */
 export const PROP_OWN_WALL_TEXTURE_IDS: readonly WallTextureId[] = ['cactus_skin'];
 
+/** Whether a wall texture belongs to one kind of prop, and so is never offered as the walls of a whole map. */
 export function isPropOwnWallTextureId(value: string): boolean {
   return (PROP_OWN_WALL_TEXTURE_IDS as readonly string[]).includes(value);
 }

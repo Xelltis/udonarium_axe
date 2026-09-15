@@ -31,27 +31,46 @@ export class HotbarPreferenceService {
   readonly showsLabel = () => this.held().showsLabel;
   readonly showsHint = () => this.held().showsHint;
 
+  /**
+   * Shows a page of the hotbar, clamped to the pages there are, and remembers it. A non-finite page
+   * is ignored.
+   */
   gotoPage(page: number): void {
     if (!Number.isFinite(page)) return;
     this.write({ page: Math.min(HOTBAR_PAGES - 1, Math.max(0, Math.floor(page))) });
   }
 
+  /** Turns the hotbar by a number of pages, wrapping round past either end. */
   turnPage(step: number): void {
     this.gotoPage((this.page() + step + HOTBAR_PAGES) % HOTBAR_PAGES);
   }
 
+  /** Holds the hotbar where it stands, or lets it be dragged again. Remembered in this browser. */
   setLocked(locked: boolean): void {
     this.write({ locked });
   }
 
+  /**
+   * Draws the hotbar above everything, modals included, or back among the rest. Remembered in this
+   * browser.
+   */
   setPinned(pinned: boolean): void {
     this.write({ pinned });
   }
 
+  /** Whether hotbar slots show their labels. Remembered in this browser. */
   setShowsLabel(showsLabel: boolean): void {
     this.write({ showsLabel });
   }
 
+  /**
+   * Whether the hotbar shows its keyboard shortcut hint: a line of small text beside the page
+   * buttons above the slots, saying that the number keys fire slots, Shift and a number picks a
+   * page, and `[` `]` turn the page.
+   *
+   * It is never drawn in the mobile layout, and a failure message takes its place while one is
+   * shown. Remembered in this browser.
+   */
   setShowsHint(showsHint: boolean): void {
     this.write({ showsHint });
   }

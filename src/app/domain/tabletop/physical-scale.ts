@@ -42,14 +42,26 @@ export function pxPerMmFromCardRun(framePx: number, cards: number): number {
   return clampPxPerMm(framePx / cardRunWidthMm(cards));
 }
 
+/**
+ * Whether a stored value is a usable screen measurement: a finite number of pixels per millimetre
+ * within the accepted range.
+ */
 export function isPxPerMm(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && MIN_PX_PER_MM <= value && value <= MAX_PX_PER_MM;
 }
 
+/**
+ * Holds a pixels-per-millimetre measurement within the accepted range, reading anything that is not
+ * finite as the lowest.
+ */
 export function clampPxPerMm(value: number): number {
   return Number.isFinite(value) ? clamp(value, MIN_PX_PER_MM, MAX_PX_PER_MM) : MIN_PX_PER_MM;
 }
 
+/**
+ * Holds the real width of a square between 5 and 200 mm, reading anything that is not finite as one
+ * inch.
+ */
 export function clampCellMm(value: number): number {
   return Number.isFinite(value) ? clamp(value, MIN_CELL_MM, MAX_CELL_MM) : DEFAULT_CELL_MM;
 }
@@ -84,6 +96,7 @@ export function realSizeZoom(cellMm: number, pxPerMm: number, gridSize: number):
   return clampZoom(cellWidthPx(cellMm, pxPerMm) / gridSize);
 }
 
+/** Holds a zoom between 0.05 and 20, reading anything that is not finite as 1. */
 export function clampZoom(value: number): number {
   return Number.isFinite(value) ? clamp(value, MIN_ZOOM, MAX_ZOOM) : 1;
 }
@@ -93,6 +106,11 @@ export function zoomToViewPositionZ(zoom: number): number {
   return TABLE_PERSPECTIVE_PX * (1 - 1 / clampZoom(zoom));
 }
 
+/**
+ * The zoom a camera depth comes to, the reverse of zoomToViewPositionZ.
+ *
+ * A depth that is not finite, or at or past the perspective distance, gives the largest zoom.
+ */
 export function viewPositionZToZoom(viewPositionZ: number): number {
   if (!Number.isFinite(viewPositionZ) || TABLE_PERSPECTIVE_PX <= viewPositionZ) return MAX_ZOOM;
   return clampZoom(TABLE_PERSPECTIVE_PX / (TABLE_PERSPECTIVE_PX - viewPositionZ));

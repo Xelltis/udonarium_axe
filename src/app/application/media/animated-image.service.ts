@@ -23,6 +23,12 @@ export class AnimatedImageService {
   private readonly answers = signal<ReadonlyMap<string, boolean>>(new Map());
   private readonly asking = new Map<string, Promise<boolean>>();
 
+  /**
+   * Whether a picture moves, answered at once from what is known.
+   *
+   * An unknown picture answers false and starts reading its bytes. The answer is kept in a signal,
+   * so a template or computed that asked hears again once the bytes are read.
+   */
   isAnimated(identifier: string): boolean {
     const known = this.answers().get(identifier);
     if (known !== undefined) return known;
@@ -30,6 +36,12 @@ export class AnimatedImageService {
     return false;
   }
 
+  /**
+   * Finds out whether a picture moves by reading the start of its bytes, once however many ask.
+   *
+   * A picture that cannot be read yet answers false without that being remembered, so it is read
+   * again next time.
+   */
   probe(identifier: string): Promise<boolean> {
     const known = this.answers().get(identifier);
     if (known !== undefined) return Promise.resolve(known);

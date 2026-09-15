@@ -38,6 +38,7 @@ export class ReplayLibraryService {
   private readonly _isBusy = signal(false);
   readonly isBusy = this._isBusy.asReadonly();
 
+  /** Every event of a stored recording in order, with its manifest, or a null manifest where none was written. */
   async load(id: number): Promise<{ manifest: ReplayManifest | null; events: ReplayEvent[] }> {
     const chunks = await this.store.listChunks(id);
     const events = chunks.flatMap((chunk) => decodeReplayEvents(chunk.bytes)).sort((a, b) => a.seq - b.seq);
@@ -45,6 +46,11 @@ export class ReplayLibraryService {
     return { manifest: manifestBytes ? decodeReplayManifest(manifestBytes) : null, events };
   }
 
+  /**
+   * The latest saved board at or before an event, or the earliest one when all come after it.
+   *
+   * Null when the recording has no saved boards at all.
+   */
   async keyframeBefore(id: number, seq: number): Promise<{ seq: number; blob: Blob } | null> {
     const keyframes = await this.store.listKeyframes(id);
     let best: { seq: number; blob: Blob } | null = null;
@@ -57,6 +63,7 @@ export class ReplayLibraryService {
     return first ? { seq: first.seq, blob: first.blob } : null;
   }
 
+  /** The board as it stood just before an event, built from the nearest saved board and the events after it. */
   async boardBefore(id: number, seq: number, events: readonly ReplayEvent[]): Promise<ReplayObjectSnapshot[]> {
     const keyframe = await this.keyframeBefore(id, seq);
     const base = keyframe ? decodeReplayKeyframe(await readKeyframeBytes(keyframe.blob)) : [];
@@ -65,6 +72,12 @@ export class ReplayLibraryService {
     return applyReplayEvents(base, events.slice(from + 1, upto + 1));
   }
 
+  /**
+   * Packs a recording into an archive and hands it to the browser to download.
+   *
+   * With assets, the images and sounds it uses go in as well. Answers false when another export or
+   * import is running, the recording has no manifest, or packing fails.
+   */
   async export(meta: ReplayRecordingMeta, withAssets: boolean): Promise<boolean> {
     if (this._isBusy()) return false;
     this._isBusy.set(true);
@@ -114,6 +127,13 @@ export class ReplayLibraryService {
     return this.saveDataService.buildAssetFiles(collectReplayAssetIds(snapshots, events));
   }
 
+  /**
+   * Reads a replay archive into this browser as a new recording, along with any images and sounds
+   * packed in it.
+   *
+   * Answers the new recording's id, or null when another export or import is running or the file is
+   * not a replay.
+   */
   async import(file: File): Promise<number | null> {
     if (this._isBusy()) return null;
     this._isBusy.set(true);

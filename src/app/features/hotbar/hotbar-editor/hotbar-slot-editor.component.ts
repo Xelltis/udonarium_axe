@@ -341,6 +341,13 @@ export class HotbarSlotEditorComponent {
     return options.kind === 'range' && options.shiftY;
   });
 
+  /**
+   * Loads the slot the hotbar opened this editor for: which page and slot it is, and the draft to
+   * start from.
+   *
+   * The draft is copied, payload included, so editing here never changes the object the hotbar
+   * passed in.
+   */
   setFrom(cell: HotbarCell, draft: HotbarSlotDraft): void {
     this.cell.set(cell);
     this.draft.set({ ...draft, payload: { ...draft.payload } });
@@ -455,7 +462,8 @@ export class HotbarSlotEditorComponent {
 
     const rehearsal = new HotbarSlot();
     // The trial is never on a bar and never anybody else's business, so it is not put in the
-    // store: doing so sent it to every peer and left a tombstone there when it was thrown away.
+    // store: doing so would send it to every peer and leave a tombstone there when it is thrown
+    // away.
     rehearsal.kind = draft.kind;
     rehearsal.value = draft.value;
     rehearsal.label = draft.label;

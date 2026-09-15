@@ -25,6 +25,13 @@ function spanOf(events: readonly ReplayEvent[]): number {
   return events.length < 2 ? 0 : Math.max(0, events[events.length - 1].t - events[0].t);
 }
 
+/**
+ * Where the event at `index` falls along the replay's timeline, from 0 at the first event to 1 at
+ * the last.
+ *
+ * Positions follow the events' timestamps; when every event carries the same time they are spread
+ * evenly instead.
+ */
 export function replayTimelinePosition(events: readonly ReplayEvent[], index: number): number {
   if (events.length < 2) return 0;
   const clamped = Math.max(0, Math.min(events.length - 1, index));
@@ -33,6 +40,10 @@ export function replayTimelinePosition(events: readonly ReplayEvent[], index: nu
   return Math.max(0, Math.min(1, (events[clamped].t - events[0].t) / span));
 }
 
+/**
+ * The event nearest to a point on the timeline, given as a ratio from 0 to 1, for seeking by
+ * clicking the timeline.
+ */
 export function replayTimelineIndexAt(events: readonly ReplayEvent[], ratio: number): number {
   if (events.length < 2) return 0;
   const clamped = Math.max(0, Math.min(1, ratio));
@@ -51,6 +62,13 @@ export function replayTimelineIndexAt(events: readonly ReplayEvent[], ratio: num
   return low;
 }
 
+/**
+ * Builds the replay timeline strip: how busy each stretch of the recording is, and where its
+ * chapter markers fall.
+ *
+ * Each bucket's height is relative to the busiest bucket, and clicking it seeks to its first event,
+ * or to the event nearest its middle when it is empty. An empty recording gives an empty timeline.
+ */
 export function buildReplayTimeline(
   events: readonly ReplayEvent[],
   bucketCount = REPLAY_TIMELINE_BUCKETS

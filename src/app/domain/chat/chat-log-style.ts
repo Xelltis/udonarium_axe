@@ -48,10 +48,15 @@ export const CHAT_LOG_STYLE_SWATCHES: Readonly<Record<ChatLogStyle, ChatLogStyle
   coc: { ground: '#ffffff', surface: '#f7f7f7', accent: '#555555' },
 };
 
+/** Whether a stored value names a known log style, for reading a saved preference back. */
 export function isChatLogStyle(value: unknown): value is ChatLogStyle {
   return typeof value === 'string' && (CHAT_LOG_STYLES as readonly string[]).includes(value);
 }
 
+/**
+ * Whether the style is one of the themed layouts `renderRichChatLog` draws, rather than the
+ * standard or the classic `coc` one.
+ */
 export function isRichChatLogStyle(style: ChatLogStyle): style is RichChatLogStyle {
   return style !== 'standard' && style !== 'coc';
 }

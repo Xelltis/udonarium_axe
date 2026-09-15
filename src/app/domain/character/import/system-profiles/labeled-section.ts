@@ -8,6 +8,14 @@ import {
   isNonEmptyScalar,
 } from '@axe/domain/character/import/imported-character';
 
+/**
+ * Turns an array of records into a section: a group per record named by its `name`, with a field
+ * for each listed key that holds something.
+ *
+ * `source` picks where within a record the fields are read from, such as a nested column; the name
+ * is still read from the record itself. An unnamed record is numbered after the section label, and
+ * one with neither a name nor a field is dropped. Null when no group is left.
+ */
 export function labeledSection(
   label: string,
   array: unknown,

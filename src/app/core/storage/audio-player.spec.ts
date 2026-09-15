@@ -52,7 +52,7 @@ function makeAudioContextMock() {
     createBufferSource: vi.fn(() => makeBufferSource()),
     decodeAudioData: vi.fn(
       (_buf: ArrayBuffer, resolve: (b: AudioBuffer) => void, _reject: (e: DOMException) => void) => {
-        resolve({ duration: 1 } as AudioBuffer);
+        resolve({ duration: 1, length: 48000, numberOfChannels: 2 } as AudioBuffer);
       }
     ),
   };
@@ -100,6 +100,7 @@ type AudioPlayerPrivateStatic = {
   _seVolume: number;
   cacheMap: Map<string, { url: string; blob: Blob }>;
   MAX_CACHE_SIZE: number;
+  MAX_DECODED_BYTES: number;
   evictCacheIfNeeded: () => void;
   createCacheAsync: (audio: AudioFile) => Promise<{ url: string; blob: Blob } | null>;
 };
@@ -126,6 +127,7 @@ function resetStaticState() {
   audioPlayerPrivate._auditionVolume = DEFAULT_VOLUME;
   audioPlayerPrivate._seVolume = DEFAULT_VOLUME;
   audioPlayerPrivate.cacheMap.clear();
+  (AudioPlayer as unknown as { decodedBuffers: Map<string, unknown> }).decodedBuffers.clear();
 }
 
 function makeAudioFile(opts: { blob?: Blob | null; url?: string; identifier?: string } = {}): AudioFile {
@@ -175,6 +177,84 @@ describe('AudioPlayer', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  describe('decoding a sound effect', () => {
+    it('decodes it once however often it plays, overlapping plays included', async () => {
+      const audio = makeAudioFile({ identifier: 'se-once', blob: new Blob(['x']) });
+
+      AudioPlayer.playSE(audio);
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(3));
+
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(1);
+    });
+
+    it('decodes it again once the cache is cleared', async () => {
+      const audio = makeAudioFile({ identifier: 'se-cleared', blob: new Blob(['x']) });
+
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(1));
+      AudioPlayer.clearAllCache();
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
+
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(2);
+    });
+
+    const STEREO = 2;
+    const BYTES_PER_STEREO_FRAME = STEREO * 4;
+
+    function decodesInTurn(...frameCounts: number[]) {
+      const queue = [...frameCounts];
+      audioCtxMock.decodeAudioData.mockImplementation(
+        (_buf: ArrayBuffer, resolve: (b: AudioBuffer) => void, _reject: (e: DOMException) => void) => {
+          const length = queue.length > 1 ? queue.shift()! : queue[0];
+          resolve({ duration: length / 48000, length, numberOfChannels: STEREO } as AudioBuffer);
+        }
+      );
+    }
+
+    async function playThrough(audio: AudioFile): Promise<void> {
+      const started = audioCtxMock.createBufferSource.mock.calls.length;
+      AudioPlayer.play(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(started + 1));
+    }
+
+    it('keeps decoded effects within a byte budget, letting the least recently played go first', async () => {
+      decodesInTurn(Math.floor((audioPlayerPrivate.MAX_DECODED_BYTES * 0.4) / BYTES_PER_STEREO_FRAME));
+      const a = makeAudioFile({ identifier: 'se-budget-a', blob: new Blob(['a']) });
+      const b = makeAudioFile({ identifier: 'se-budget-b', blob: new Blob(['b']) });
+      const c = makeAudioFile({ identifier: 'se-budget-c', blob: new Blob(['c']) });
+
+      await playThrough(a);
+      await playThrough(b);
+      await playThrough(a);
+      await playThrough(c);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+
+      await playThrough(a);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+      await playThrough(b);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(4);
+    });
+
+    it('plays a clip larger than the whole budget without keeping it or pushing out the rest', async () => {
+      const tooLarge = Math.floor(audioPlayerPrivate.MAX_DECODED_BYTES / BYTES_PER_STEREO_FRAME) + 1;
+      decodesInTurn(48000, tooLarge);
+      const short = makeAudioFile({ identifier: 'se-short', blob: new Blob(['s']) });
+      const long = makeAudioFile({ identifier: 'se-long', blob: new Blob(['l']) });
+
+      await playThrough(short);
+      await playThrough(long);
+      await playThrough(long);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+
+      await playThrough(short);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+    });
   });
 
   // ─── VolumeType enum ─────────────────────────────────────────────────────
@@ -368,6 +448,61 @@ describe('AudioPlayer', () => {
       audioElmMock.paused = false;
       player.play(af);
       expect(player.paused).toBe(false);
+    });
+  });
+
+  describe('instance isAwaitingGesture', () => {
+    const settle = () => new Promise((resolve) => setTimeout(resolve));
+
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    it('is false before anything has played', () => {
+      expect(new AudioPlayer().isAwaitingGesture).toBe(false);
+    });
+
+    it('is true once the browser refuses to play for want of a gesture, and clears as the next play starts', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-refused' }));
+      await settle();
+      expect(player.isAwaitingGesture).toBe(true);
+
+      player.play();
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
+    it('clears when the player is stopped', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-stopped' }));
+      await settle();
+
+      player.stop();
+
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
+    it('stays false when playing fails for a reason a gesture cannot help', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('gone', 'NotSupportedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-unsupported' }));
+      await settle();
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
+    it('ignores the refusal of a play that a later play has replaced', async () => {
+      const player = new AudioPlayer();
+      let refuseFirst: (reason: unknown) => void = () => {};
+      audioElmMock.play.mockReturnValueOnce(new Promise((_resolve, reject) => (refuseFirst = reject)));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-replaced' }));
+      player.play();
+
+      refuseFirst(new DOMException('blocked', 'NotAllowedError'));
+      await settle();
+
+      expect(player.isAwaitingGesture).toBe(false);
     });
   });
 
@@ -690,37 +825,85 @@ describe('AudioPlayer', () => {
   // ─── static resumeAudioContext ───────────────────────────────────────────
 
   describe('static resumeAudioContext()', () => {
-    it('resumes the context on the first touch and unhooks itself', () => {
-      const listeners: Record<string, EventListenerOrEventListenerObject> = {};
+    type ContextState = { state: string; addEventListener: ReturnType<typeof vi.fn> };
+
+    function listenersOnDocument() {
+      const listeners = new Map<string, EventListener>();
+      const removed = new Set<string>();
       vi.spyOn(document, 'addEventListener').mockImplementation((type, listener) => {
-        listeners[type] = listener as EventListenerOrEventListenerObject;
+        listeners.set(type, listener as EventListener);
+        removed.delete(type);
       });
-      const removeSpy = vi.spyOn(document, 'removeEventListener').mockImplementation(() => {});
+      vi.spyOn(document, 'removeEventListener').mockImplementation((type) => {
+        removed.add(type);
+      });
+      return { listeners, removed };
+    }
+
+    function contextIn(state: string): { context: ContextState; stopped: () => void } {
+      const handlers: (() => void)[] = [];
+      const context = Object.assign(audioCtxMock, {
+        state,
+        addEventListener: vi.fn((_type: string, handler: () => void) => handlers.push(handler)),
+      }) as unknown as ContextState;
+      return { context, stopped: () => handlers.forEach((handler) => handler()) };
+    }
+
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    it('resumes the context when a finger lifts, not when it lands', () => {
+      contextIn('suspended');
+      const { listeners } = listenersOnDocument();
 
       AudioPlayer.resumeAudioContext();
 
-      const callback = listeners['touchstart'] as EventListener;
-      callback(new Event('touchstart'));
-
-      expect(audioCtxMock.resume).toHaveBeenCalled();
-      expect(removeSpy).toHaveBeenCalledWith('touchstart', callback, true);
-      expect(removeSpy).toHaveBeenCalledWith('mousedown', callback, true);
+      expect(listeners.has('touchstart')).toBe(false);
+      listeners.get('touchend')!(new Event('touchend'));
+      expect(audioCtxMock.resume).toHaveBeenCalledTimes(1);
     });
 
-    it('does the same on a press', () => {
-      const listeners: Record<string, EventListenerOrEventListenerObject> = {};
-      vi.spyOn(document, 'addEventListener').mockImplementation((type, listener) => {
-        listeners[type] = listener as EventListenerOrEventListenerObject;
-      });
-      vi.spyOn(document, 'removeEventListener').mockImplementation(() => {});
-      vi.spyOn(console, 'log').mockImplementation(() => {});
+    it('resumes it on a press or a key as well', () => {
+      contextIn('suspended');
+      const { listeners } = listenersOnDocument();
 
       AudioPlayer.resumeAudioContext();
+      listeners.get('mousedown')!(new Event('mousedown'));
+      listeners.get('keydown')!(new Event('keydown'));
 
-      const callback = listeners['mousedown'] as EventListener;
-      callback(new Event('mousedown'));
+      expect(audioCtxMock.resume).toHaveBeenCalledTimes(2);
+    });
 
-      expect(audioCtxMock.resume).toHaveBeenCalled();
+    it('keeps listening until the context is running', async () => {
+      const { context } = contextIn('suspended');
+      const { listeners, removed } = listenersOnDocument();
+
+      AudioPlayer.resumeAudioContext();
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect(removed.size).toBe(0);
+
+      context.state = 'running';
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect([...removed].sort()).toEqual(['keydown', 'mousedown', 'touchend']);
+    });
+
+    it('listens again once the context is stopped, as iOS does for a call or a hidden page', async () => {
+      const { context, stopped } = contextIn('running');
+      const { listeners, removed } = listenersOnDocument();
+
+      AudioPlayer.resumeAudioContext();
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect(removed.size).toBe(3);
+
+      context.state = 'interrupted';
+      stopped();
+
+      expect(removed.size).toBe(0);
     });
   });
 

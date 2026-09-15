@@ -27,6 +27,7 @@ const CHARACTER_BOUND_KINDS: ReadonlySet<HotbarSlotKind> = new Set<HotbarSlotKin
   'appearance',
 ]);
 
+/** Whether a stored value names a kind of slot this version knows. */
 export function isHotbarSlotKind(value: unknown): value is HotbarSlotKind {
   return typeof value === 'string' && (HOTBAR_SLOT_KINDS as readonly string[]).includes(value);
 }
@@ -36,6 +37,7 @@ export function toHotbarSlotKind(value: unknown): HotbarSlotKind {
   return isHotbarSlotKind(value) ? value : DEFAULT_HOTBAR_SLOT_KIND;
 }
 
+/** Whether a slot of this kind acts as a character, and so cannot run while nobody is being controlled. */
 export function hotbarSlotNeedsCharacter(kind: HotbarSlotKind): boolean {
   return CHARACTER_BOUND_KINDS.has(kind);
 }

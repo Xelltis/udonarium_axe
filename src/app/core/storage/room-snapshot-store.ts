@@ -28,18 +28,31 @@ export const DEFAULT_ROOM_SNAPSHOT_RETENTION: RoomSnapshotRetention = {
 };
 
 export abstract class RoomSnapshotStore {
+  /** Whether this store can work in the current browser at all. */
   abstract isAvailable(): boolean;
+  /** Stores a snapshot of the room and returns its id, or null when it could not be stored. */
   abstract put(input: RoomSnapshotInput): Promise<number | null>;
+  /** Metadata for every stored snapshot, without the bytes, newest first. */
   abstract list(): Promise<RoomSnapshotMeta[]>;
+  /** One snapshot with its bytes, or null when no snapshot has that id. */
   abstract get(id: number): Promise<RoomSnapshotRecord | null>;
+  /** Deletes the snapshot with this id, if there is one. */
   abstract remove(id: number): Promise<void>;
+  /** Deletes every snapshot this store holds. */
   abstract clear(): Promise<void>;
 }
 
+/** A copy of the list ordered by save time, newest first, with the higher id first on a tie. */
 export function sortSnapshotsByNewest(metas: readonly RoomSnapshotMeta[]): RoomSnapshotMeta[] {
   return [...metas].sort((a, b) => b.savedAt - a.savedAt || b.id - a.id);
 }
 
+/**
+ * The ids of the snapshots to delete so that the rest fit the retention count and total size.
+ *
+ * The newest snapshot is always kept, even when it alone is over the size limit. Once one
+ * snapshot goes over a limit every older one goes too.
+ */
 export function selectExpiredSnapshots(
   metas: readonly RoomSnapshotMeta[],
   retention: RoomSnapshotRetention = DEFAULT_ROOM_SNAPSHOT_RETENTION

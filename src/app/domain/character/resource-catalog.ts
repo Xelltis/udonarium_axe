@@ -6,10 +6,10 @@ import { collectDataElements } from '@axe/domain/data/data-element-tree';
 /**
  * What the pieces of a table are carrying, asked once and answered in one place.
  *
- * Every screen that offers a status to work on used to decide for itself what counted as one,
- * and each drew the line somewhere else: the remote went by what could be written to, the
- * piece bars by what held a number, the lists by the names a room happened to list. A fix to
- * one of them reached none of the others.
+ * A screen that offers a status to work on and decides for itself what counts as one draws
+ * the line somewhere of its own: the remote by what can be written to, the piece bars by what
+ * holds a number, the lists by the names a room happens to list. A fix to one of them then
+ * reaches none of the others.
  */
 
 /** Something with a value and a maximum, and not one of the sheet's own workings. */

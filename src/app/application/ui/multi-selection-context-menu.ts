@@ -18,6 +18,12 @@ export interface MultiSelectionContextDeps {
   readonly storeDice?: (dice: DiceSymbol[], ownerIdentifier: string) => void;
 }
 
+/**
+ * Builds the context menu for several selected pieces at once.
+ *
+ * It offers copying the unlocked pieces, sending them to the graveyard and clearing the selection.
+ * Where the caller supplies the means, it also throws or stores the visible dice among them.
+ */
 export function buildMultiSelectionContextMenu(
   objects: readonly TabletopObject[],
   deps: MultiSelectionContextDeps
@@ -91,6 +97,13 @@ export interface TryBuildMultiSelectionContextMenuOptions {
   readonly storeDice?: (dice: DiceSymbol[], ownerIdentifier: string) => void;
 }
 
+/**
+ * The multi-selection menu for a right-click on a piece, or null where the piece should get its own
+ * menu.
+ *
+ * Null unless the clicked piece is part of a selection of more than one piece that can still be
+ * found in the object store.
+ */
 export function tryBuildMultiSelectionContextMenu(
   options: TryBuildMultiSelectionContextMenuOptions
 ): ContextMenuAction[] | null {

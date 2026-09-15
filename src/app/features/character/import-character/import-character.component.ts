@@ -36,10 +36,18 @@ export class ImportCharacterComponent {
   readonly sources = IMPORT_SOURCES;
   readonly dataTypes = IMPORT_DATA_TYPES;
 
+  /**
+   * The mark the support table shows for how fully one kind of data is taken in from a character
+   * sheet service.
+   */
   levelSymbol(source: ImportSourceId, dataType: ImportDataTypeId): string {
     return SUPPORT_LEVEL_SYMBOLS[capabilityOf(source, dataType)];
   }
 
+  /**
+   * The translation key of the tooltip that spells out the mark `levelSymbol` shows for the same
+   * cell.
+   */
   levelLabelKey(source: ImportSourceId, dataType: ImportDataTypeId): string {
     return SUPPORT_LEVEL_LABEL_KEYS[capabilityOf(source, dataType)];
   }
@@ -48,10 +56,22 @@ export class ImportCharacterComponent {
     queueMicrotask(() => (this.panelService.title = this.t('feature.character.import.panel')));
   }
 
+  /**
+   * Whether the reader's role may edit the table, which an import needs since it puts a new
+   * character piece there.
+   */
   get canEdit(): boolean {
     return this.rolePermission.canEditTabletop;
   }
 
+  /**
+   * Makes a character piece from what was pasted into the box, and reports how it went on the
+   * feedback line.
+   *
+   * The box is emptied once a piece is made; a piece whose picture could not be fetched is reported
+   * as a warning. Does nothing without edit rights or while an import is already running, and empty
+   * text only warns.
+   */
   async importCharacter(): Promise<void> {
     if (!this.canEdit || this.busy()) return;
     if (this.text.trim() === '') {
@@ -91,6 +111,7 @@ export class ImportCharacterComponent {
     }
   }
 
+  /** Closes the import panel. */
   close(): void {
     this.panelService.close();
   }

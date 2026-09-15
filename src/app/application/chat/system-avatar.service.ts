@@ -5,8 +5,8 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Config } from '@axe/domain/peer/config';
 
-export const DEFAULT_SYSTEM_AVATAR_URL = 'assets/images/system_chang.png';
-export const DEFAULT_SYSTEM_DICE_AVATAR_URL = 'assets/images/system_chang_roll.png';
+export const DEFAULT_SYSTEM_AVATAR_URL = 'assets/images/system_chang.webp';
+export const DEFAULT_SYSTEM_DICE_AVATAR_URL = 'assets/images/system_chang_roll.webp';
 
 export type SystemAvatarKind = 'system' | 'dice';
 
@@ -27,16 +27,23 @@ export class SystemAvatarService {
   readonly hasOwnSystemImage = computed<boolean>(() => this.identifierOf('system').length > 0);
   readonly hasOwnDiceImage = computed<boolean>(() => this.identifierOf('dice').length > 0);
 
+  /** Whether the room has set its own picture for system notices or for dice results. */
   hasOwnImageOfKind(kind: SystemAvatarKind): Signal<boolean> {
     return kind === 'dice' ? this.hasOwnDiceImage : this.hasOwnSystemImage;
   }
 
+  /**
+   * The image the room set for this kind of notice, or empty when it uses the bundled one.
+   *
+   * The empty image's identifier means the room asked for no picture at all.
+   */
   identifierOf(kind: SystemAvatarKind): string {
     const config = this.readConfig();
     if (!config) return '';
     return kind === 'dice' ? config.systemDiceAvatarIdentifier : config.systemAvatarIdentifier;
   }
 
+  /** Sets the room's picture for this kind of notice, which is shared with every peer. */
   setImage(kind: SystemAvatarKind, identifier: string): void {
     const config = Config.instance;
     if (kind === 'dice') config.systemDiceAvatarIdentifier = identifier;
@@ -44,16 +51,19 @@ export class SystemAvatarService {
     this.objectChange.notifyChanged(config.identifier);
   }
 
+  /** Puts this kind of notice back on the bundled picture for the whole room. */
   resetImage(kind: SystemAvatarKind): void {
     this.setImage(kind, '');
   }
 
+  /** Shows or hides the system's portrait beside notices, for the whole room. */
   setVisible(visible: boolean): void {
     const config = Config.instance;
     config.isSystemAvatarVisible = visible;
     this.objectChange.notifyChanged(config.identifier);
   }
 
+  /** Shows or hides speakers' portraits beside their lines, for the whole room. */
   setSpeakerVisible(visible: boolean): void {
     const config = Config.instance;
     config.isSpeakerAvatarVisible = visible;

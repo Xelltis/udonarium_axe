@@ -123,6 +123,13 @@ function resolveRoot(record: Record<string, unknown>): Record<string, unknown> {
   return asRecord(record['data']) ?? record;
 }
 
+/**
+ * Whether the pasted json has the shape of a warehouse character: a named `base` or a
+ * `baseAbility`, bare or wrapped in `data`.
+ *
+ * Every warehouse character has that shape, so this is only asked once the `dx3` slug has chosen
+ * the profile.
+ */
 export function isDx3AppspotCharacter(parsed: unknown): boolean {
   const record = asRecord(parsed);
   if (!record) return false;
@@ -242,6 +249,13 @@ function buildPalette(params: ImportedParam[], skills: Dx3Skill[]): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a `dx3` warehouse character, or null for data of another shape.
+ *
+ * Ability and sub-ability totals become parameters, HP and encroachment resources; skills grouped
+ * by ability, effects, combos, weapons, armour, items, loises, the profile and the outline become
+ * sections; and the palette offers a roll for each ability and each skill tied to one.
+ */
 export function buildDx3AppspotCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isDx3AppspotCharacter(parsed)) return null;
   const root = resolveRoot(asRecord(parsed)!);

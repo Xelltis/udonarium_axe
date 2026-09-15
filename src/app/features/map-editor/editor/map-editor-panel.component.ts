@@ -29,6 +29,7 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { downloadBlob } from '@axe/core/util/download-blob';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -110,6 +111,10 @@ import { createImageTexturePattern } from '@axe/features/map-editor/render/textu
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/**
+ * The SVG polygon points for the icon of a generated shape, drawn in a 24 by 24 box; empty for
+ * shapes that are not polygons or stars.
+ */
 export function buildShapeKindPoints(kind: ShapeGeneratorKind): string {
   const cx = 12;
   const cy = 12;
@@ -1539,12 +1544,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected async save(): Promise<void> {
     const archive = await packSceneWithImages(this.state.current, this.imageStorage);
     const blob = new Blob([archive.slice()], { type: 'application/zip' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'map.zip';
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, 'map.zip');
   }
 
   protected triggerLoad(): void {

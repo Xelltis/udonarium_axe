@@ -32,6 +32,13 @@ export interface ReplaySoundChoice {
 
 export const DEFAULT_REPLAY_SOUND_CHOICE: ReplaySoundChoice = { withEffects: true, withMusic: true };
 
+/**
+ * The sound effects and music of a replay video, timed on the storyboard's clock.
+ *
+ * Events the storyboard does not reach are passed over. Each change of music ends the track
+ * before it, and a track still playing runs to the end. Empty when the storyboard has no length
+ * or both kinds of sound are left out.
+ */
 export function buildReplaySoundtrack(
   events: readonly ReplayEvent[],
   storyboard: ReplayStoryboard,
@@ -83,14 +90,21 @@ export function buildReplaySoundtrack(
   return { effects, music, totalMs: storyboard.totalMs };
 }
 
+/** The sounds a soundtrack plays, effects first, one entry per cue and so with repeats. */
 export function collectSoundtrackAssetIds(soundtrack: ReplaySoundtrack): string[] {
   return [...soundtrack.effects, ...soundtrack.music].map((cue) => cue.audioIdentifier);
 }
 
+/** Whether a soundtrack has any sound at all. */
 export function hasReplaySound(soundtrack: ReplaySoundtrack): boolean {
   return soundtrack.effects.length > 0 || soundtrack.music.length > 0;
 }
 
+/**
+ * A soundtrack cut down to a shorter length, dropping cues that start after it and ending music at it.
+ *
+ * One that is already no longer comes back as it is; a length under a millisecond gives an empty one.
+ */
 export function clipReplaySoundtrack(soundtrack: ReplaySoundtrack, totalMs: number): ReplaySoundtrack {
   if (totalMs >= soundtrack.totalMs) return soundtrack;
   if (totalMs < 1) return EMPTY_REPLAY_SOUNDTRACK;

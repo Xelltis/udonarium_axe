@@ -11,6 +11,7 @@ export type TableFacingMark = (typeof TABLE_FACING_MARKS)[number];
 
 export const DEFAULT_TABLE_FACING_MARK: TableFacingMark = 'none';
 
+/** Reads a stored facing mark setting, falling back to none for anything unknown. */
 export function asTableFacingMark(value: unknown): TableFacingMark {
   return typeof value === 'string' && (TABLE_FACING_MARKS as readonly string[]).includes(value)
     ? (value as TableFacingMark)

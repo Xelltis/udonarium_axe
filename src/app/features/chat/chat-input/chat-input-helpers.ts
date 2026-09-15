@@ -1,6 +1,13 @@
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
 
+/**
+ * Whether a character may be picked as the speaker in this seat's chat input.
+ *
+ * Characters in the graveyard never speak, and neither do those in the private inventory of another
+ * connected peer. Anywhere else a character marked as non-talking is left out too, unless
+ * `ignoreNonTalk` is set, as it is for inputs that offer only characters.
+ */
 export function allowsChat(gameCharacter: GameCharacter, myPeerId: string, ignoreNonTalk = false): boolean {
   switch (gameCharacter.location.name) {
     case 'table':
@@ -24,7 +31,7 @@ export function allowsChat(gameCharacter: GameCharacter, myPeerId: string, ignor
 /**
  * Whether the keys belong to the field the caret sits in rather than to the window around it.
  *
- * The tab shortcut used to live on the chat input alone. Bound to the window it also reaches the
+ * The tab shortcut is bound to the window rather than to the chat input, so it also reaches the
  * fields beside it — a tab name, a sheet value — where Ctrl+arrow is how you step over a word.
  * The chat input itself is the one place the shortcut is meant to work from.
  */

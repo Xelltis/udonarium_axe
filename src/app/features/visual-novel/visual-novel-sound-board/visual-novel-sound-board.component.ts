@@ -90,6 +90,10 @@ export class VisualNovelSoundBoardComponent {
       .filter((cutIn) => this.matchesSoundFilter(cutIn.name));
   });
 
+  /**
+   * Plays a cut-in for the whole room and reports that something was played; the cut-in is skipped
+   * if it or the launcher is missing.
+   */
   playCutIn(identifier: string): void {
     const cutIn = this.objectStore.get<CutIn>(identifier);
     const launcher = this.objectStore.get<CutInLauncher>('CutInLauncher');
@@ -111,24 +115,35 @@ export class VisualNovelSoundBoardComponent {
     return jukebox?.isPlaying ? jukebox.audioIdentifier : '';
   });
 
+  /** Plays a track on the room's jukebox and refreshes which track shows as playing. */
   playBgm(identifier: string): void {
     this.jukebox?.play(identifier);
     this.seTick.update((tick) => tick + 1);
   }
 
+  /** Stops the room's jukebox and refreshes which track shows as playing. */
   stopBgm(): void {
     this.jukebox?.stop();
     this.seTick.update((tick) => tick + 1);
   }
 
+  /**
+   * Plays a sound through the room's jukebox; a sound tagged as a sound effect plays over the
+   * music, and anything else replaces the track.
+   */
   playSoundEffect(identifier: string): void {
     this.jukebox?.play(identifier);
   }
 
+  /** Stops a sound effect playing through the room's jukebox. */
   stopSoundEffect(identifier: string): void {
     this.jukebox?.stopSE(identifier);
   }
 
+  /**
+   * Whether a sound effect is playing, which turns its button into a stop button; rechecked when
+   * the board refreshes.
+   */
   isSoundEffectPlaying(identifier: string): boolean {
     this.seTick();
     return this.jukebox?.isSePlaying(identifier) ?? false;

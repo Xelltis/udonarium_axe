@@ -89,6 +89,10 @@ function resolveName(record: Record<string, unknown>): string {
   return '';
 }
 
+/**
+ * Whether the pasted json is a character from that service: its `sheetURL` points there, or it
+ * carries a `ver` and a name under one of the usual keys.
+ */
 export function isYtsheetCharacter(parsed: unknown): boolean {
   if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
   const record = parsed as Record<string, unknown>;
@@ -145,6 +149,13 @@ function buildScalarSection(record: Record<string, unknown>, handled: Set<string
   return fields.length > 0 ? { label: 'データ', groups: [{ label: '基本', fields }] } : null;
 }
 
+/**
+ * Reads a character from that service into the imported model without a system-specific profile.
+ *
+ * Keys shaped as a family, a number and a field, such as `weapon1Name`, gather into a section per
+ * family and a group per number; the other scalars go into a `データ` section, and the summary becomes
+ * the notes. Null for anything else.
+ */
 export function parseYtsheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isYtsheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

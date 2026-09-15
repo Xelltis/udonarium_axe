@@ -26,11 +26,13 @@ export class EffectAutoPlayService {
   private readonly _enabled = signal(this.storage?.getItem(STORAGE_KEY) === 'on');
   readonly enabled = this._enabled.asReadonly();
 
+  /** Turns automatic effects for resource changes on or off on this screen, and remembers it in this browser. */
   setEnabled(enabled: boolean): void {
     this._enabled.set(enabled);
     this.storage?.setItem(STORAGE_KEY, enabled ? 'on' : 'off');
   }
 
+  /** Flips automatic effects for resource changes on this screen, and remembers it. */
   toggle(): void {
     this.setEnabled(!this._enabled());
   }

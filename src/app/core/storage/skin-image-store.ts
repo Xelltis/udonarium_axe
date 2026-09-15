@@ -11,14 +11,15 @@ export const SKIN_IMAGE_MAX_SIDE = 2560;
 export const SKIN_IMAGE_MAX_BYTES = 24 * 1024 * 1024;
 
 /**
- * The picture a skin puts behind the room, kept where a picture will fit.
+ * The pictures a skin layers behind the room, kept where a picture will fit.
  *
  * A skin belongs to this browser and is never shared, so this cannot go in the image store
  * the room synchronises. It cannot go in local storage either: a background is megabytes and
- * that shelf holds a few. Its own database, keyed by which ladder the picture dresses.
+ * that shelf holds a few. Its own database, one picture per layer, keyed by the layer's id.
  */
 export class SkinImageStore {
   private static _instance: SkinImageStore;
+  /** The one skin picture store for the page, created on first use. */
   static get instance(): SkinImageStore {
     if (!SkinImageStore._instance) SkinImageStore._instance = new SkinImageStore();
     return SkinImageStore._instance;
@@ -26,22 +27,26 @@ export class SkinImageStore {
 
   private dbPromise: Promise<IDBDatabase | null> | null = null;
 
+  /** Whether the browser offers IndexedDB; without it nothing is stored and every read comes back empty. */
   isAvailable(): boolean {
     return typeof indexedDB !== 'undefined' && indexedDB !== null;
   }
 
-  async get(mode: string): Promise<Blob | null> {
-    const found = await this.request<unknown>('readonly', (store) => store.get(mode));
+  /** The picture stored for this layer id, or null when there is none or storage is unavailable. */
+  async get(layerId: string): Promise<Blob | null> {
+    const found = await this.request<unknown>('readonly', (store) => store.get(layerId));
     return found instanceof Blob ? found : null;
   }
 
-  async put(mode: string, blob: Blob): Promise<boolean> {
-    const done = await this.request<IDBValidKey>('readwrite', (store) => store.put(blob, mode));
+  /** Stores or replaces the picture for this layer id, resolving false when it could not be written. */
+  async put(layerId: string, blob: Blob): Promise<boolean> {
+    const done = await this.request<IDBValidKey>('readwrite', (store) => store.put(blob, layerId));
     return done !== null;
   }
 
-  async remove(mode: string): Promise<void> {
-    await this.request<undefined>('readwrite', (store) => store.delete(mode));
+  /** Deletes the picture stored for this layer id, if there is one. */
+  async remove(layerId: string): Promise<void> {
+    await this.request<undefined>('readwrite', (store) => store.delete(layerId));
   }
 
   /**

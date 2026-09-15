@@ -5,6 +5,12 @@ export interface DealPlan {
   indexes: number[][];
 }
 
+/**
+ * Splits a deck round-robin across the players, the way cards are dealt one at a time around a table.
+ *
+ * Players earlier in the order get the leftover cards when the deck does not divide evenly. With no
+ * players or no cards, nobody is dealt anything.
+ */
 export function planDeal(cardCount: number, participantCount: number): DealPlan {
   if (participantCount < 1 || cardCount < 1) {
     return { counts: new Array(Math.max(0, participantCount)).fill(0), indexes: [] };

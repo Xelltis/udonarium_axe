@@ -18,23 +18,26 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
-import { imageFileEqual } from '@axe/core/storage/image-file';
+import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { hexCircumradius, isFlatTopGrid, isHexGrid, pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildGameTableMaskContextMenu } from '@axe/features/tabletop/game-table-mask/game-table-mask-context-menu';
 import {
   buildHexOuterBorderSvg,
   buildHexOutlineMask,
   buildMaskCss,
+  type BuildMaskCssParams,
+  buildScratchedMaskCss,
   buildScratchingGridInfos,
   type ScratchGridInfo,
 } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
@@ -66,7 +69,8 @@ export class GameTableMaskComponent {
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly objectPanels = inject(ObjectPanelService);
+  private readonly panelService = inject(PanelService);
+  private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly modalService = inject(ModalService);
   private readonly coordinateService = inject(CoordinateService);
@@ -105,6 +109,7 @@ export class GameTableMaskComponent {
 
   readonly gameTableMask = input<GameTableMask | null>(null);
 
+  /** Whether a locked mask shows its lock mark; setting it writes straight to the mask. */
   get dispLockMark(): boolean {
     const mask = this.gameTableMask();
     return mask?.dispLockMark ?? false;
@@ -127,14 +132,17 @@ export class GameTableMaskComponent {
     return this.objectChange.versionOf(mask.identifier)();
   });
 
+  /** The mask's width in cells, never negative. */
   get width(): number {
     const mask = this.gameTableMask();
     return Math.max(0, mask?.width ?? 0);
   }
+  /** The mask's height in cells, never negative. */
   get height(): number {
     const mask = this.gameTableMask();
     return Math.max(0, mask?.height ?? 0);
   }
+  /** The mask's own opacity, or 0 when there is no mask. */
   get opacity(): number {
     const mask = this.gameTableMask();
     return mask?.opacity ?? 0;
@@ -149,6 +157,7 @@ export class GameTableMaskComponent {
     },
     { equal: imageFileEqual() }
   );
+  /** Whether the mask is locked in place; setting it writes straight to the mask. */
   get isLock(): boolean {
     const mask = this.gameTableMask();
     return mask?.isLock ?? false;
@@ -158,10 +167,17 @@ export class GameTableMaskComponent {
     if (mask) mask.isLock = isLock;
   }
 
+  /** The blend type for the mask picture, always 0, which draws it with hard-light blending. */
   get blendType(): number {
     return 0;
   }
 
+  /**
+   * The mask's `color`, its colour element's `value`; setting it writes straight to the mask.
+   *
+   * Nothing in the app reads or writes it: the template fills a mask that has no picture with
+   * `bgcolor`.
+   */
   get color(): string {
     const mask = this.gameTableMask();
     return mask?.color ?? '';
@@ -170,6 +186,10 @@ export class GameTableMaskComponent {
     const mask = this.gameTableMask();
     if (mask) mask.color = color;
   }
+  /**
+   * The background colour a mask without a picture is filled with; setting it writes straight to
+   * the mask.
+   */
   get bgcolor(): string {
     const mask = this.gameTableMask();
     return mask?.bgcolor ?? '';
@@ -179,6 +199,10 @@ export class GameTableMaskComponent {
     if (mask) mask.bgcolor = bgcolor;
   }
 
+  /**
+   * Whether the scratcher has asked to preview the pending scratch; setting it writes straight to
+   * the mask.
+   */
   get isPreview(): boolean {
     const mask = this.gameTableMask();
     return mask?.isPreview ?? false;
@@ -187,16 +211,25 @@ export class GameTableMaskComponent {
     const mask = this.gameTableMask();
     if (mask) mask.isPreview = isPreview;
   }
+  /**
+   * Whether the mask is shown as it will look once the pending scratch is done, which only the
+   * scratcher sees.
+   */
   get isPreviewMode(): boolean {
     const mask = this.gameTableMask();
     if (!mask) return false;
     return mask.isPreview && mask.isMine;
   }
 
+  /** The altitude rounded to one decimal place, for the altitude label. */
   get gameTableMaskAltitude(): number {
     return +this.altitude.toFixed(1);
   }
 
+  /**
+   * The cells scratched open, as a comma-separated list of `col:row`; setting it writes straight to
+   * the mask.
+   */
   get scratchedGrids() {
     const mask = this.gameTableMask();
     return mask?.scratchedGrids ?? '';
@@ -206,6 +239,10 @@ export class GameTableMaskComponent {
     if (mask) mask.scratchedGrids = scratchedGrids;
   }
 
+  /**
+   * The cells picked in the scratch in progress and not yet applied, in the same form as the open
+   * cells; setting it writes straight to the mask.
+   */
   get scratchingGrids() {
     const mask = this.gameTableMask();
     return mask?.scratchingGrids ?? '';
@@ -215,18 +252,58 @@ export class GameTableMaskComponent {
     if (mask) mask.scratchingGrids = scratchingGrids;
   }
 
+  /** Whether no cell of the mask has been scratched open. */
   get isNonScratched(): boolean {
     const mask = this.gameTableMask();
     return !mask?.scratchedGrids;
   }
 
+  /**
+   * Whether no cell is picked in the scratch in progress, counting picks not yet written to the
+   * mask.
+   */
   get isNonScratching(): boolean {
     const mask = this.gameTableMask();
     return !(mask?.scratchingGrids || this._currentScratchingSet);
   }
 
+  /**
+   * The CSS mask that cuts the open cells out of the mask, or shows the pending scratch in preview
+   * mode.
+   */
   get masksCss(): string {
-    return buildMaskCss({
+    return buildMaskCss(this.maskCssParams());
+  }
+
+  readonly scratchedColor = computed(() => {
+    const mask = this.gameTableMask();
+    if (!mask) return '';
+    this.objectChange.versionOf(mask.identifier)();
+    return mask.scratchedColor;
+  });
+
+  readonly scratchedImageFile = computed(
+    () => {
+      this.objectChange.fileVersion();
+      const mask = this.gameTableMask();
+      if (!mask) return ImageFile.Empty;
+      this.objectChange.versionOf(mask.identifier)();
+      return mask.scratchedImageFile;
+    },
+    { equal: imageFileEqual() }
+  );
+
+  /**
+   * The CSS mask cutting the after-scratch layer to the open cells, or empty when that layer is not
+   * drawn at all: the mask has neither an after-scratch colour nor picture, or no cell is open.
+   */
+  get scratchedLayerMask(): string {
+    if (this.scratchedColor().length < 1 && this.scratchedImageFile().url.length < 1) return '';
+    return buildScratchedMaskCss(this.maskCssParams());
+  }
+
+  private maskCssParams(): BuildMaskCssParams {
+    return {
       currentScratchingSet: this._currentScratchingSet,
       gridSize: this.gridSize,
       gridType: this.gridType(),
@@ -236,9 +313,10 @@ export class GameTableMaskComponent {
       scratchedGrids: this.scratchedGrids,
       scratchingGrids: this.scratchingGrids,
       width: this.width,
-    });
+    };
   }
 
+  /** The markers drawn over open and picked cells while the mask is being scratched. */
   get scratchingGridInfos(): ScratchGridInfo[] {
     return buildScratchingGridInfos({
       currentScratchingSet: this._currentScratchingSet,
@@ -254,12 +332,17 @@ export class GameTableMaskComponent {
     });
   }
 
+  /**
+   * The opacity the mask is drawn at: dimmed to 60% for the peer scratching it, and never under 0.4
+   * while anyone is scratching.
+   */
   get operateOpacity(): number {
     const mask = this.gameTableMask();
     const ret = (mask?.opacity ?? 0) * (mask?.isMine ? 0.6 : 1);
     return ret < 0.4 && this.isScratching ? 0.4 : ret;
   }
 
+  /** How high the mask floats above the table, in cells; setting it writes straight to the mask. */
   get altitude(): number {
     const mask = this.gameTableMask();
     return mask?.altitude ?? 0;
@@ -269,6 +352,10 @@ export class GameTableMaskComponent {
     if (mask) mask.altitude = altitude;
   }
 
+  /**
+   * Whether the mask shows a line and label for its altitude; setting it writes straight to the
+   * mask.
+   */
   get isAltitudeIndicate(): boolean {
     const mask = this.gameTableMask();
     return mask?.isAltitudeIndicate ?? false;
@@ -278,31 +365,44 @@ export class GameTableMaskComponent {
     if (mask) mask.isAltitudeIndicate = isAltitudeIndicate;
   }
 
+  /**
+   * Whether the table is turned more than a quarter either way, so the scratcher's name is turned
+   * over to stay readable.
+   */
   get isInverse(): boolean {
     return Math.abs(this.viewRotateZ()) % 360 > 90 && Math.abs(this.viewRotateZ()) % 360 < 270;
   }
+  /** Whether someone is scratching the mask, which is whenever it has an owner. */
   get isScratching(): boolean {
     const mask = this.gameTableMask();
     return !!mask?.owner;
   }
 
+  /** Whether a peer has taken the mask to scratch it. */
   get hasOwner(): boolean {
     const mask = this.gameTableMask();
     return mask?.hasOwner ?? false;
   }
+  /**
+   * Whether the peer scratching the mask is still connected; the scratcher's banner only shows
+   * while they are.
+   */
   get ownerIsOnline(): boolean {
     const mask = this.gameTableMask();
     return mask?.ownerIsOnline ?? false;
   }
+  /** The name of the peer scratching the mask, or empty when there is none. */
   get ownerName(): string {
     const mask = this.gameTableMask();
     return mask?.ownerName ?? '';
   }
+  /** The colour of the banner naming the scratcher. */
   get ownerColor(): string {
     const mask = this.gameTableMask();
     return mask?.ownerColor ?? '';
   }
 
+  /** The size of one table cell, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -316,18 +416,24 @@ export class GameTableMaskComponent {
     return table.gridType;
   });
 
+  /**
+   * Half the hex circumradius, the reach of the cross markers drawn on hex cells while scratching.
+   */
   get hexMarkerR(): number {
     return hexCircumradius(this.gridSize) * 0.5;
   }
 
+  /** A CSS mask in the shape of the mask's hex cells, or empty on a square grid. */
   get hexOutlineMask(): string {
     return buildHexOutlineMask(this.gridSize, this.gridType(), this.width, this.height);
   }
 
+  /** A CSS background tracing the outer edge of the mask's hex cells, or empty on a square grid. */
   get hexOuterBorder(): string {
     return buildHexOuterBorderSvg(this.gridSize, this.gridType(), this.width, this.height);
   }
 
+  /** The mask's width in pixels, measured by how its hexes lie on a hex grid. */
   get pixelWidth(): number {
     return (
       computeHexMaskGeometry(this.width, this.height, this.gridSize, this.gridType())?.pixelW ??
@@ -335,6 +441,7 @@ export class GameTableMaskComponent {
     );
   }
 
+  /** The mask's height in pixels, measured by how its hexes lie on a hex grid. */
   get pixelHeight(): number {
     return (
       computeHexMaskGeometry(this.width, this.height, this.gridSize, this.gridType())?.pixelH ??
@@ -352,17 +459,24 @@ export class GameTableMaskComponent {
     return grids.sort().join(',');
   }
 
+  /** Stops the browser starting a native drag on the mask. */
   onDragstart(e: Event) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /** Stops a press on a locked mask from going any further, unless the mask is being scratched. */
   onMaskMouseDown(e: MouseEvent) {
     if (this.isLock && !this.isScratching) {
       e.stopPropagation();
     }
   }
 
+  /**
+   * Cancels the input handler's gesture unless the local peer is scratching this mask.
+   *
+   * On a browser without pointer events, a left press by the scratcher picks the cell under it.
+   */
   onInputStart(e: MouseEvent | TouchEvent) {
     const mask = this.gameTableMask();
     if (!mask) return;
@@ -374,6 +488,7 @@ export class GameTableMaskComponent {
     }
   }
 
+  /** Picks the cell under a left press when the local peer is scratching this mask. */
   onInputStartPointer(e: PointerEvent) {
     const mask = this.gameTableMask();
     if (!mask) return;
@@ -385,6 +500,7 @@ export class GameTableMaskComponent {
 
   private _scratchingGridX = -1;
   private _scratchingGridY = -1;
+  /** Picks cells as the scratcher drags, on a browser without pointer events. */
   onInputMove(_e: MouseEvent | TouchEvent) {
     const mask = this.gameTableMask();
     if (!window.PointerEvent && mask && this.isScratching && mask.isMine && this.input?.isDragging) {
@@ -392,6 +508,9 @@ export class GameTableMaskComponent {
     }
   }
 
+  /**
+   * Picks cells as the scratcher drags across the mask, and keeps the move from reaching the table.
+   */
   onInputMovePointer(e: PointerEvent) {
     const mask = this.gameTableMask();
     if (mask && this.isScratching && mask.isMine && this.input?.isDragging && e.buttons < 2) {
@@ -403,6 +522,15 @@ export class GameTableMaskComponent {
 
   private _currentScratchingSet: Set<string> | null = null;
   private _scratchingTimerId: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * Toggles the cell under the pointer in the scratch in progress; only the peer scratching the
+   * mask can.
+   *
+   * While dragging, a cell is toggled once as the pointer enters it; a fresh press may toggle the
+   * same cell again. Picks are written to the mask after 250 ms without a new one, so a drag
+   * reaches other peers as one change. A point off the mask is ignored. When the table's grid is
+   * hidden, its grid clip is cleared.
+   */
   scratching(isStart: boolean, position: { offsetX: number; offsetY: number } | null = null) {
     const mask = this.gameTableMask();
     if (!mask || !mask.isMine) return;
@@ -468,6 +596,13 @@ export class GameTableMaskComponent {
     }, 250);
   }
 
+  /**
+   * Applies the scratch in progress to the open cells: a picked covered cell opens and a picked
+   * open cell is covered again.
+   *
+   * Picks not yet written to the mask are written first. The picks themselves are left for the
+   * caller to clear.
+   */
   scratched() {
     const mask = this.gameTableMask();
     if (!mask) return;
@@ -490,6 +625,14 @@ export class GameTableMaskComponent {
       .join(',');
   }
 
+  /**
+   * Opens the mask's right-click menu, or the menu for the whole selection when the mask is part of
+   * one.
+   *
+   * Starting a scratch there makes the local peer the owner, taking over from anyone scratching
+   * before. Finishing applies the scratch and releases the mask; cancelling releases it without
+   * applying anything.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -531,24 +674,34 @@ export class GameTableMaskComponent {
     this.contextMenuService.open(menuPosition, menuArray, this.name());
   }
 
+  /** Plays the pick-up sound when a drag of the mask starts. */
   onMove() {
     SoundEffect.play(PresetSound.cardPick);
   }
 
+  /** Plays the put-down sound when a drag of the mask ends. */
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
   }
 
+  /** Finishes the scratch when the done button is pressed with the primary button. */
   onScratchDonePointerDown(e: PointerEvent) {
     if (e.button !== 0) return false;
     return this.scratchDone(e);
   }
 
+  /** Cancels the scratch when the cancel button is pressed with the primary button. */
   onScratchCancelPointerDown(e: PointerEvent) {
     if (e.button !== 0) return false;
     return this.scratchCancel(e);
   }
 
+  /**
+   * Applies the scratch in progress, clears the picks and the preview, and releases the mask.
+   *
+   * Only the peer scratching the mask can finish it. It returns false either way, so a bound event
+   * goes no further.
+   */
   scratchDone(e: Event | null = null) {
     if (e) {
       e.preventDefault();
@@ -566,6 +719,12 @@ export class GameTableMaskComponent {
     return false;
   }
 
+  /**
+   * Throws the scratch in progress away and releases the mask without applying it.
+   *
+   * Another peer may only cancel once the scratcher has gone offline. It returns false either way,
+   * so a bound event goes no further.
+   */
   scratchCancel(e: Event | null = null) {
     if (e) {
       e.preventDefault();
@@ -583,10 +742,22 @@ export class GameTableMaskComponent {
   }
 
   private showDetail(gameObject: GameTableMask) {
-    const title = sheetPanelTitle(this.translateFn('feature.tabletop.panel.mask'), gameObject.name);
-    this.objectPanels.openSheet(gameObject, title, { width: 400, height: 300 });
+    this.selectionSignalService.selectObject(gameObject.identifier, gameObject.aliasName);
+    const option: PanelOption = {
+      title: sheetPanelTitle(this.translateFn('feature.tabletop.panel.mask'), gameObject.name),
+      ...sheetPanelBox(this.pointerDeviceService.pointers[0], 500, 600),
+    };
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/tabletop/game-table-mask-sheet/game-table-mask-sheet.component').then(
+          (m) => m.GameTableMaskSheetComponent
+        ),
+      option,
+      (component) => (component.gameTableMask = gameObject)
+    );
   }
 
+  /** Tracks list items by identifier, falling back to their index when they have none. */
   identify(index: number, item: { identifier?: string } | null): string | number {
     return item?.identifier ?? index;
   }

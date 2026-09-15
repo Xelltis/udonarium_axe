@@ -51,6 +51,13 @@ function toImageRegion(
   return { imageX, imageY, imageW, imageH };
 }
 
+/**
+ * Works out the block of grid cells, square or hex, that a scaled, shifted image covers, in screen
+ * and image coordinates.
+ *
+ * A cell the image misses by less than `tolerancePx` still counts. A non-positive size or scale, or
+ * an image covering no whole cell, gives an empty region.
+ */
 export function computeCoveredRegion(
   gridType: GridType,
   tx: number,
@@ -131,6 +138,10 @@ export function computeCoveredRegion(
   };
 }
 
+/**
+ * Snaps a screen position to the nearest spot a block of cells can start from, so a block drawn
+ * there lines up with the grid; hex grids snap to an even column or row so the stagger matches.
+ */
 export function snapAnchor(
   gridType: GridType,
   tx: number,
@@ -157,6 +168,10 @@ export function snapAnchor(
   return { tx: i * colSpacing - displayCell / 2, ty: j * rowSpacing - s3 };
 }
 
+/**
+ * The on-screen size of a block of cells, allowing for the half-cell stagger and pointed ends of
+ * hex grids; zero for fewer than one cell.
+ */
 export function footprintSize(
   gridType: GridType,
   cols: number,
@@ -180,6 +195,7 @@ export function footprintSize(
   };
 }
 
+/** How many columns best fill a width on the given grid, at least one. */
 export function colsForWidth(gridType: GridType, width: number, displayCell: number): number {
   if (!(width > 0) || !(displayCell > 0)) return 1;
   if (!isHexGrid(gridType)) return Math.max(1, Math.round(width / displayCell));
@@ -190,6 +206,7 @@ export function colsForWidth(gridType: GridType, width: number, displayCell: num
   return Math.max(1, Math.round((width - displayCell / 2) / displayCell));
 }
 
+/** How many rows best fill a height on the given grid, at least one. */
 export function rowsForHeight(gridType: GridType, height: number, displayCell: number): number {
   if (!(height > 0) || !(displayCell > 0)) return 1;
   if (!isHexGrid(gridType)) return Math.max(1, Math.round(height / displayCell));
@@ -200,6 +217,10 @@ export function rowsForHeight(gridType: GridType, height: number, displayCell: n
   return Math.max(1, Math.round((height - 2 * s3) / rowSpacing) + 1);
 }
 
+/**
+ * Whether the image on screen covers the whole frame, give or take `tolerancePx`, which is what
+ * lets the crop be applied.
+ */
 export function coversFrame(
   tx: number,
   ty: number,
@@ -219,6 +240,7 @@ export function coversFrame(
   );
 }
 
+/** The image scale that makes its width span the given number of columns; 0 for invalid input. */
 export function scaleForCols(gridType: GridType, cols: number, imgW: number, displayCell: number): number {
   if (!(cols >= 1) || !(imgW > 0) || !(displayCell > 0)) return 0;
   if (!isHexGrid(gridType)) return (cols * displayCell) / imgW;
@@ -229,6 +251,7 @@ export function scaleForCols(gridType: GridType, cols: number, imgW: number, dis
   return (cols * displayCell + displayCell / 2) / imgW;
 }
 
+/** The image scale that makes its height span the given number of rows; 0 for invalid input. */
 export function scaleForRows(gridType: GridType, rows: number, imgH: number, displayCell: number): number {
   if (!(rows >= 1) || !(imgH > 0) || !(displayCell > 0)) return 0;
   if (!isHexGrid(gridType)) return (rows * displayCell) / imgH;
@@ -239,6 +262,12 @@ export function scaleForRows(gridType: GridType, rows: number, imgH: number, dis
   return (2 * s3 + (rows - 1) * rowSpacing) / imgH;
 }
 
+/**
+ * Crops a rectangle out of an image into an image blob, preferring WebP, scaled down so its longest
+ * side fits `maxOutputPx`.
+ *
+ * Throws for an empty rectangle or where no canvas is available.
+ */
 export async function cropImageRegion(
   image: CanvasImageSource,
   sx: number,

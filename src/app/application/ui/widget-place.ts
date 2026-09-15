@@ -8,6 +8,9 @@ export const WIDGET_HOTBAR = 'hotbar';
 export const WIDGET_ROOM_RESTORE = 'roomRestore';
 export const WIDGET_FAB = 'fab';
 
+/**
+ * Puts a widget element where it was last left, or at its fallback place, kept inside the window.
+ */
 export function placeWidget(
   layout: WidgetLayoutService,
   name: string,
@@ -20,6 +23,12 @@ export function placeWidget(
   element.style.top = `${spot.top}px`;
 }
 
+/**
+ * Records where a widget element now stands.
+ *
+ * Its inline pixel position is used where it has one, and its bounding box otherwise. An element
+ * with no size, such as one not drawn, records nothing.
+ */
 export function rememberWidget(layout: WidgetLayoutService, name: string, element: HTMLElement): void {
   const left = pixelsOf(element.style.left);
   const top = pixelsOf(element.style.top);

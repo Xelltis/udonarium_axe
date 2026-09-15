@@ -53,16 +53,19 @@ export class CardTargetService {
     });
   }
 
+  /** Starts choosing a target for a card: the next other piece selected becomes the one its arrow points at. */
   beginPicking(card: Card): void {
     this._pickingIdentifier.set(card.identifier);
   }
 
+  /** Stops choosing a target, and says whether one was being chosen. */
   cancelPicking(): boolean {
     if (this._pickingIdentifier().length < 1) return false;
     this._pickingIdentifier.set('');
     return true;
   }
 
+  /** Takes the target arrow off a card, for every peer. */
   clearTarget(card: Card): void {
     card.targetIdentifier = '';
   }

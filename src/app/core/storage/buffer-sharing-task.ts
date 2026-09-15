@@ -17,7 +17,7 @@ export class BufferSharingTask<T> {
   private data: T | null = null;
   private uint8Array: Uint8Array | null = null;
   private chunks: Uint8Array[] = [];
-  private chunkSize: number = 32 * 1024;
+  private chunkSize: number = 64 * 1024;
   private chunkReceiveCount: number = 0;
   private sendChunkTimer: number | null = null;
 
@@ -43,18 +43,28 @@ export class BufferSharingTask<T> {
     if (data !== undefined) this.data = data;
   }
 
+  /**
+   * A task that sends data to one peer in chunks once started; the peer needs a receive
+   * task under the same identifier.
+   */
   static createSendTask<T>(identifier: string, sendTo: string, data?: T): BufferSharingTask<T> {
     const task = new BufferSharingTask(identifier, sendTo, data);
     task.onstart = () => task.initializeSend();
     return task;
   }
 
+  /** A task that collects the chunks sent under this identifier and decodes them once all have arrived. */
   static createReceiveTask<T>(identifier: string): BufferSharingTask<T> {
     const task = new BufferSharingTask<T>(identifier);
     task.onstart = () => task.initializeReceive();
     return task;
   }
 
+  /**
+   * Begins sending or listening; a send task can take its data here instead of at creation.
+   *
+   * A task runs only once, and starting it again just logs a warning.
+   */
   start(data?: T) {
     if (!this.onstart) {
       Logger.warn('[BufferTask] タスクは再利用できません');
@@ -84,6 +94,12 @@ export class BufferSharingTask<T> {
     this.dispose();
   }
 
+  /**
+   * Stops the task, calling `oncancel` and then `onfinish` with whatever data it holds.
+   *
+   * A send task also tells the receiving peer to give up. Does nothing once the task has
+   * finished, timed out or been cancelled.
+   */
   cancel() {
     if (this.isCanceled) return;
     if (this.sendTo != null) networkSend(`CANCEL_TASK_${this.identifier}`, null, this.sendTo);

@@ -377,6 +377,12 @@ export function appendBisect(
   appendGoreStain(sprites, `${prefix}-bisect`, center, base, after, preset, gush, fade);
 }
 
+/**
+ * A slash: one or more crescent strokes across the target, shaped by the preset's slash style.
+ *
+ * The wide and heavy styles gather a charge first and an iai style holds a still stance; all three
+ * leave an aftermath once the cut is made.
+ */
 export function appendSlash(
   sprites: EffectSprite[],
   prefix: string,

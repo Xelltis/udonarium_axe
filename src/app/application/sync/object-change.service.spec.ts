@@ -209,6 +209,15 @@ describe('ObjectChangeService', () => {
       expect(sig()).toBe(1);
     });
 
+    it('bumps the version of an object as it is removed, before its parent hears of it', () => {
+      const sig = service.versionOf('removed-1');
+      expect(sig()).toBe(0);
+
+      objectRemoved$.emit({ identifier: 'removed-1', aliasName: 'TestAlias' });
+
+      expect(sig()).toBe(1);
+    });
+
     it('adds up a change and a children change', () => {
       const sig = service.versionOf('combo-1');
 

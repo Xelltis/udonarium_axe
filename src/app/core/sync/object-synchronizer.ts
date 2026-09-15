@@ -25,6 +25,7 @@ const CATALOG_TICK_MS = 16;
 
 export class ObjectSynchronizer {
   private static _instance: ObjectSynchronizer;
+  /** The synchronizer shared by the whole app, created on first use. */
   static get instance(): ObjectSynchronizer {
     if (!ObjectSynchronizer._instance) ObjectSynchronizer._instance = new ObjectSynchronizer();
     return ObjectSynchronizer._instance;
@@ -37,6 +38,12 @@ export class ObjectSynchronizer {
 
   private constructor() {}
 
+  /**
+   * Starts handling object sync with peers: catalogs, object requests, updates and deletions.
+   *
+   * Calling it again replaces the earlier subscription. Each newly connected peer is sent the
+   * catalog of this device. While the network is isolated, sync messages are ignored.
+   */
   initialize() {
     this.destroy();
 
@@ -98,10 +105,10 @@ export class ObjectSynchronizer {
           }
           // A room being loaded takes objects away and puts some of them back under the names
           // they were saved under. To a seat that only watched, each of those is a deletion
-          // being undone, and it answers by having the loader delete it again - so the effect
-          // library and the sample cut-ins went missing from a room that had just been loaded,
-          // but only ever while somebody else was connected. The loader says which names are
-          // coming back, and they leave the graveyard before they arrive.
+          // being undone, and left to itself it has the loader delete it again, which takes the
+          // effect library and the sample cut-ins out of a room just loaded whenever somebody
+          // else is connected. The loader says which names are coming back, and they leave the
+          // graveyard before they arrive.
           case 'FORGET_DELETED_OBJECTS': {
             if (msg.isSendFromSelf) break;
             const { identifiers } = msg.data as { identifiers?: ObjectIdentifier[] };
@@ -118,6 +125,7 @@ export class ObjectSynchronizer {
     );
   }
 
+  /** Stops handling sync messages and cancels catalogs still being sent out. */
   destroy() {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
@@ -125,6 +133,7 @@ export class ObjectSynchronizer {
     this.catalogSenders.clear();
   }
 
+  /** Syncs again with every open peer by trading catalogs with each; gives how many were asked. */
   requestFullSync(): number {
     const peerIds = Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId);
     for (const peerId of peerIds) {
@@ -194,20 +203,36 @@ export class ObjectSynchronizer {
 
   private removePeerMap(targetPeerId: PeerId) {
     this.peerMap.delete(targetPeerId);
+    this.dropOrphanedRequests();
   }
 
   private synchronize() {
-    while (0 < this.requestMap.size && this.tasks.length < 32) this.runSynchronizeTask();
+    const exhausted = new Set<PeerId>();
+    while (0 < this.requestMap.size && this.tasks.length < 32) {
+      const targetPeerId = this.getTargetPeerId(exhausted);
+      if (!targetPeerId) {
+        this.dropOrphanedRequests();
+        return;
+      }
+      if (!this.runSynchronizeTask(targetPeerId)) exhausted.add(targetPeerId);
+    }
   }
 
-  private runSynchronizeTask() {
-    const targetPeerId = this.getTargetPeerId();
-    if (!targetPeerId) return;
+  /** Forgets what is still wanted only from peers that are no longer connected. */
+  private dropOrphanedRequests() {
+    const reachable = connectedPeerIds();
+    for (const [identifier, request] of this.requestMap) {
+      request.holderIds = request.holderIds.filter((holderId) => reachable.has(holderId));
+      if (request.holderIds.length < 1) this.requestMap.delete(identifier);
+    }
+  }
+
+  private runSynchronizeTask(targetPeerId: PeerId): boolean {
     const requests: SynchronizeRequest[] = this.makeRequestList(targetPeerId);
 
     if (requests.length < 1) {
-      this.removePeerMap(targetPeerId);
-      return;
+      if ((this.peerMap.get(targetPeerId)?.length ?? 0) < 1) this.peerMap.delete(targetPeerId);
+      return false;
     }
     const task = SynchronizeTask.create(targetPeerId, requests);
     this.tasks.push(task);
@@ -216,16 +241,26 @@ export class ObjectSynchronizer {
     if (targetPeerIdTasks) targetPeerIdTasks.push(task);
 
     task.onfinish = (task) => {
-      this.tasks.splice(this.tasks.indexOf(task), 1);
+      removeTask(this.tasks, task);
       const targetPeerIdTasks = this.peerMap.get(targetPeerId);
-      if (targetPeerIdTasks) targetPeerIdTasks.splice(targetPeerIdTasks.indexOf(task), 1);
+      if (targetPeerIdTasks) removeTask(targetPeerIdTasks, task);
       this.synchronize();
     };
 
     task.ontimeout = (_task, remainedRequests) => {
       Logger.warn('[ObjectSync] 同期タイムアウト');
-      for (const request of remainedRequests) this.requestMap.set(request.identifier, request);
+      const reachable = connectedPeerIds();
+      for (const request of remainedRequests) {
+        request.holderIds = request.holderIds.filter((holderId) => reachable.has(holderId));
+        if (request.holderIds.length < 1) continue;
+        const current = this.requestMap.get(request.identifier);
+        if (!current || current.version < request.version) {
+          this.requestMap.set(request.identifier, request);
+          for (const holderId of request.holderIds) this.addPeerMap(holderId);
+        }
+      }
     };
+    return true;
   }
 
   private makeRequestList(targetPeerId: PeerId, maxRequest: number = 32): SynchronizeRequest[] {
@@ -243,7 +278,7 @@ export class ObjectSynchronizer {
     return requests;
   }
 
-  private getTargetPeerId(): PeerId | null {
+  private getTargetPeerId(exclude: ReadonlySet<PeerId>): PeerId | null {
     let min = Infinity;
     let selectPeerId: PeerId | null = null;
     const peerContexts = Network.peerContexts;
@@ -254,6 +289,7 @@ export class ObjectSynchronizer {
     }
 
     for (const peerContext of peerContexts) {
+      if (exclude.has(peerContext.peerId)) continue;
       const tasks = this.peerMap.get(peerContext.peerId);
       if (peerContext.isOpen && tasks && tasks.length < min) {
         min = tasks.length;
@@ -262,4 +298,14 @@ export class ObjectSynchronizer {
     }
     return selectPeerId;
   }
+}
+
+/** The peers that can still be asked for an object: the ones connected right now. */
+function connectedPeerIds(): Set<PeerId> {
+  return new Set(Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId));
+}
+
+function removeTask(tasks: SynchronizeTask[], task: SynchronizeTask): void {
+  const index = tasks.indexOf(task);
+  if (index >= 0) tasks.splice(index, 1);
 }

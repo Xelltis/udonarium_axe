@@ -39,6 +39,11 @@ export interface ReplayScriptLine {
   startMs: number;
 }
 
+/**
+ * The lines of a storyboard as text to read.
+ *
+ * Chapter headings and empty shots are left out, and shots split from one line are joined back up.
+ */
 export function buildReplayScriptLines(storyboard: ReplayStoryboard): ReplayScriptLine[] {
   const lines: ReplayScriptLine[] = [];
 
@@ -68,6 +73,13 @@ export function buildReplayScriptLines(storyboard: ReplayStoryboard): ReplayScri
   return lines;
 }
 
+/**
+ * Writes a recording out as a Markdown script or story.
+ *
+ * The title, when given, is the top heading, and each chapter gets a heading of its own, with
+ * the elapsed time as a comment when asked for. Spoken lines are set as a script or as prose
+ * according to the format, and narration stands as plain paragraphs.
+ */
 export function buildReplayScriptMarkdown(
   storyboard: ReplayStoryboard,
   options: ReplayScriptOptions = DEFAULT_REPLAY_SCRIPT_OPTIONS

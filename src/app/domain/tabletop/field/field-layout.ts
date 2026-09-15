@@ -54,11 +54,13 @@ export interface FieldObject {
   drift: readonly { x: number; y: number }[];
 }
 
+/** The ground band a cell fell into, or 0 for a cell off the board. */
 export function bandAt(layout: FieldLayout, x: number, y: number): number {
   if (x < 0 || y < 0 || layout.width <= x || layout.height <= y) return 0;
   return layout.ground[y * layout.width + x];
 }
 
+/** What takes up a cell, or empty for a cell off the board or with nothing on it. */
 export function propAt(layout: FieldLayout, x: number, y: number): FieldGroundMark {
   if (x < 0 || y < 0 || layout.width <= x || layout.height <= y) return '';
   return layout.props[y * layout.width + x];

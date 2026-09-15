@@ -239,4 +239,126 @@ describe('ChatPaletteComponent', () => {
       expect(shown<HTMLSelectElement>('palette-headings-list')?.disabled).toBe(true);
     });
   });
+
+  describe('searching the palette', () => {
+    function speaker(text: string): void {
+      const char = createChar('術者');
+      char.chatPalette!.setPalette(text);
+      component.character.set(char);
+      fixture.detectChanges();
+    }
+
+    function root(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function searchBox(): HTMLInputElement | null {
+      return root().querySelector<HTMLInputElement>('[data-testid="palette-search"]');
+    }
+
+    function searchFor(query: string): HTMLInputElement {
+      const input = searchBox()!;
+      input.value = query;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      return input;
+    }
+
+    function resultsArea(): HTMLElement | null {
+      return root().querySelector<HTMLElement>('[data-testid="palette-search-results"]');
+    }
+
+    function results(): HTMLElement[] {
+      return [...(resultsArea()?.querySelectorAll<HTMLElement>('[data-result-line]') ?? [])];
+    }
+
+    function press(input: HTMLInputElement, key: string): KeyboardEvent {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      input.dispatchEvent(event);
+      fixture.detectChanges();
+      return event;
+    }
+
+    it('shows no results until something is searched for', () => {
+      speaker('2d6+3 攻撃');
+
+      expect(searchBox()).not.toBeNull();
+      expect(resultsArea()).toBeNull();
+    });
+
+    it('lists the lines holding what is searched for below the palette, those beginning with it first', () => {
+      speaker('◆戦闘\n1d100<=50 回避\n2d6+3 攻撃\n回避ロール 1d100\n◆技能\nCCB<=60 目星');
+
+      searchFor('回避');
+
+      expect(results().map((row) => row.dataset['resultLine'])).toEqual(['3', '1']);
+      const list = root().querySelector('[data-line="0"]')!.parentElement!;
+      expect(list.compareDocumentPosition(resultsArea()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('puts a result clicked into the input and picks out its line in the palette, as a palette row does', () => {
+      speaker('◆戦闘\n2d6+3 攻撃\n1d100<=50 回避');
+      searchFor('回避');
+
+      results()[0].click();
+      fixture.detectChanges();
+
+      expect(component.text()).toBe('1d100<=50 回避');
+      expect(component.selectedLine()).toBe(2);
+    });
+
+    it('sends a result clicked twice, as a palette row does', () => {
+      speaker('2d6+3 攻撃');
+      const send = vi.spyOn(component.chatInputComponent(), 'sendChat').mockImplementation(() => undefined);
+      searchFor('攻撃');
+
+      results()[0].click();
+      results()[0].click();
+
+      expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves through the results with the arrows and takes one into the input with Enter, sending nothing', () => {
+      speaker('攻撃 2d6\n2d6 攻撃');
+      const send = vi.spyOn(component.chatInputComponent(), 'sendChat').mockImplementation(() => undefined);
+      const input = searchFor('攻撃');
+
+      press(input, 'ArrowDown');
+      expect(results()[1].getAttribute('aria-selected')).toBe('true');
+      const enter = press(input, 'Enter');
+
+      expect(enter.defaultPrevented).toBe(true);
+      expect(component.text()).toBe('2d6 攻撃');
+      expect(component.selectedLine()).toBe(1);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('clears the search with Escape', () => {
+      speaker('2d6+3 攻撃');
+      const input = searchFor('攻撃');
+
+      press(input, 'Escape');
+
+      expect(component.searchQuery()).toBe('');
+      expect(resultsArea()).toBeNull();
+    });
+
+    it('says so when no line holds what is searched for', () => {
+      speaker('2d6+3 攻撃');
+
+      searchFor('回避');
+
+      expect(results()).toEqual([]);
+      expect(resultsArea()?.querySelector('[data-testid="palette-search-empty"]')).not.toBeNull();
+    });
+
+    it('is not offered while the palette is being edited', () => {
+      speaker('2d6+3 攻撃');
+
+      component.toggleEditMode();
+      fixture.detectChanges();
+
+      expect(searchBox()).toBeNull();
+    });
+  });
 });

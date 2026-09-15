@@ -8,6 +8,11 @@ const ZIP_MIME_TYPE = 'application/zip';
 
 let isWorkerBroken = false;
 
+/**
+ * Packs files into a zip in a worker, or on the main thread when no worker can be used.
+ *
+ * Images, audio, video and archives are stored as they are rather than compressed again.
+ */
 export async function createZipBlob(files: readonly File[]): Promise<Blob> {
   const entries: ZipEntry[] = files.map((file) => ({ name: file.name, type: file.type, blob: file }));
   const response = await requestWorker((id) => ({ id, kind: 'zip', entries }));
@@ -15,12 +20,17 @@ export async function createZipBlob(files: readonly File[]): Promise<Blob> {
   return createZipBlobOnMainThread(files);
 }
 
+/** Unpacks a zip into entries typed by their extensions, in a worker when one can be used. */
 export async function readZipEntries(blob: Blob): Promise<ZipEntry[]> {
   const response = await requestWorker((id) => ({ id, kind: 'unzip', blob }));
   if (response?.kind === 'unzip') return response.entries;
   return readZipEntriesOnMainThread(blob);
 }
 
+/**
+ * Packs files into a zip without a worker, compressing only what is not already compressed;
+ * `createZipBlob` falls back to this.
+ */
 export async function createZipBlobOnMainThread(files: readonly File[]): Promise<Blob> {
   const zipData: AsyncZippable = {};
   for (const file of files) {
@@ -35,6 +45,10 @@ export async function createZipBlobOnMainThread(files: readonly File[]): Promise
   });
 }
 
+/**
+ * Unpacks a zip without a worker, typing each entry by its extension and leaving unknown ones
+ * untyped; `readZipEntries` falls back to this.
+ */
 export async function readZipEntriesOnMainThread(blob: Blob): Promise<ZipEntry[]> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const unzipped = await new Promise<Unzipped>((resolve, reject) => {
@@ -84,10 +98,10 @@ function settleAll(response: ZipWorkerResponse | null): void {
  * this module to the next. A test that wants to watch a worker being fed hands its own in
  * here, which forgets the trouble as well.
  *
- * A test used to put its class on the global `Worker` instead. Which global that is depends
- * on where the module happened to be loaded from, so the class sometimes landed somewhere
- * the module could not see it - rarely, and only under load, which is the worst way for a
- * test to fail. Handing the factory in leaves nothing for the loading order to decide.
+ * Putting a class on the global `Worker` is no substitute. Which global that is depends on
+ * where the module happens to be loaded from, so the class can land somewhere the module
+ * cannot see it - rarely, and only under load, which is the worst way for a test to fail.
+ * Handing the factory in leaves nothing for the loading order to decide.
  */
 export function useZipWorkerFactory(factory: (() => Worker) | null): void {
   makeWorker = factory;

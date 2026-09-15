@@ -57,6 +57,10 @@ export function withRounds(ailment: StatusAilment, rounds: number): StatusAilmen
   return { ...ailment, rounds: next, timing: chosen ? ailment.timing : impliedBuffTiming(next) };
 }
 
+/**
+ * A fresh state of that name with nothing else set: no colour or icon, no rounds, and held until
+ * cleared.
+ */
 export function newStatusAilment(name: string): StatusAilment {
   return { name, color: '', icon: '', rounds: 0, timing: 'none', effect: '' };
 }
@@ -132,6 +136,10 @@ export function parseStatusAilments(text: string): StatusAilment[] {
   return ailments;
 }
 
+/**
+ * Writes the states down one to a line, as the catalog stores them. A state with no name is left
+ * out.
+ */
 export function formatStatusAilments(list: readonly StatusAilment[]): string {
   return list
     .map((ailment) => encodeStatusAilment(ailment))
@@ -139,6 +147,7 @@ export function formatStatusAilments(list: readonly StatusAilment[]): string {
     .join('\n');
 }
 
+/** The state of exactly that name in the list, or null. */
 export function findStatusAilment(list: readonly StatusAilment[], name: string): StatusAilment | null {
   return list.find((ailment) => ailment.name === name) ?? null;
 }

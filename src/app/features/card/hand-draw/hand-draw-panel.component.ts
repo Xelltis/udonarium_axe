@@ -57,19 +57,31 @@ export class HandDrawPanelComponent {
     return cards;
   });
 
+  /**
+   * The URL of a card's back, which is all of another player's hand that is shown; the empty image
+   * when the card has no back.
+   */
   backImageUrl(card: Card): string {
     this.objectChange.fileVersion();
     return this.imageService.getEmptyOr(card.backImage).url;
   }
 
+  /** Opens the hand of the player the user picked from the list. */
   select(userId: string): void {
     this.selectedUserId.set(userId);
   }
 
+  /** Goes back to the player list, where the panel also returns once the picked hand runs out. */
   clearSelection(): void {
     this.selectedUserId.set('');
   }
 
+  /**
+   * Takes the clicked card from the selected player's hand into the local player's hand.
+   *
+   * The card game service announces the draw in chat. The panel goes back to the player list when
+   * that player has no cards left, and nothing happens when no player is selected.
+   */
   draw(card: Card): void {
     const target = this.selected();
     if (!target) return;

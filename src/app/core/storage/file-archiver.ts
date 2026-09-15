@@ -29,6 +29,13 @@ const DROP_STACK_OFFSET = 20;
 const XML_MIME_TYPE = 'text/xml';
 const INTERNAL_DRAG_TYPE = 'application/x-axe-internal-drag';
 
+/**
+ * Whether a dropped file may be room or object XML: typed as plain text or XML, and not
+ * named as some other kind of file.
+ *
+ * Some systems report XML files as plain text, so the name is checked rather than the type
+ * trusted alone.
+ */
 export function isXmlCandidateFile(file: File): boolean {
   if (!file.type.startsWith('text/')) return false;
   if (file.type !== 'text/plain' && file.type !== XML_MIME_TYPE) return false;
@@ -39,12 +46,17 @@ export function isXmlCandidateFile(file: File): boolean {
 
 export class FileArchiver {
   private static _instance: FileArchiver;
+  /** The one file archiver for the page, created on first use. */
   static get instance(): FileArchiver {
     if (!FileArchiver._instance) FileArchiver._instance = new FileArchiver();
     return FileArchiver._instance;
   }
 
   networkService = Network;
+  /**
+   * The guard that asks, during online play, before dropped data overwrites the room settings; null
+   * until the domain has put one in the object store.
+   */
   get reloadCheck(): LoadGuard | null {
     return ObjectStore.instance.get<LoadGuard>('ReloadCheck');
   }
@@ -59,6 +71,12 @@ export class FileArchiver {
 
   private constructor() {}
 
+  /**
+   * Starts taking files dropped anywhere on the page and loading them with `load`.
+   *
+   * Calling it again removes the earlier listeners first. Drags that began inside the page are
+   * ignored when they are dropped.
+   */
   initialize() {
     this.destroy();
     this.addEventListeners();
@@ -120,6 +138,14 @@ export class FileArchiver {
     this.load(files, { x: event.clientX, y: event.clientY });
   }
 
+  /**
+   * Loads files as if dropped: images and audio into their stores, XML as room or object data, and
+   * zips by loading what is inside.
+   *
+   * Images over 2 MB and audio over 10 MB are skipped with a warning. Given a drop point, each
+   * image is announced for placing on the table, the next one offset a little from the last. Images
+   * inside a zip are not placed, and a zip exported as a CCFOLIA room is handed on whole instead.
+   */
   async load(files: File[] | FileList, dropPoint?: { x: number; y: number }): Promise<void> {
     await this.loadFiles(files, dropPoint, true);
   }
@@ -223,10 +249,15 @@ export class FileArchiver {
     }
   }
 
+  /** Unpacks a zip into its entries, in a worker where one can be used. */
   async readZipEntriesAsync(file: File | Blob): Promise<ZipEntry[]> {
     return readZipEntries(file);
   }
 
+  /**
+   * Packs files into a zip, reporting 0% before and 100% after, since packing
+   * reports no progress in between.
+   */
   async createZipBlobAsync(files: File[] | FileList, updateCallback?: UpdateCallback): Promise<Blob> {
     const saveFiles: File[] = files instanceof FileList ? toArrayOfFileList(files) : files;
 
@@ -238,6 +269,7 @@ export class FileArchiver {
     return blob;
   }
 
+  /** Packs files into a zip and hands it to the browser as a download named after `zipName`. */
   async saveAsync(files: File[] | FileList, zipName: string, updateCallback?: UpdateCallback): Promise<void> {
     if (!files) return;
     const blob = await this.createZipBlobAsync(files, updateCallback);

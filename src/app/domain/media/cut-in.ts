@@ -52,14 +52,17 @@ export class CutIn extends GameObject implements InnerXml {
   private _defVideoSizeWidth = 640;
   private _defVideoSizeHeight = 360;
 
+  /** The width a video cut-in is given by default, which with the default height sets its 16:9 shape. */
   get defVideoSizeWidth(): number {
     return this._defVideoSizeWidth;
   }
 
+  /** The height a video cut-in is given by default. */
   get defVideoSizeHeight(): number {
     return this._defVideoSizeHeight;
   }
 
+  /** The narrowest a cut-in may be sized, which is wider for a video than for a picture. */
   minSizeWidth(isVideo: boolean): number {
     if (isVideo) {
       return this.videoMinSizeWidth;
@@ -68,6 +71,7 @@ export class CutIn extends GameObject implements InnerXml {
     }
   }
 
+  /** The widest a cut-in may be sized, which is wider for a video than for a picture. */
   maxSizeWidth(isVideo: boolean): number {
     if (isVideo) {
       return this.videoMaxSizeWidth;
@@ -76,6 +80,7 @@ export class CutIn extends GameObject implements InnerXml {
     }
   }
 
+  /** The shortest a cut-in may be sized, which is taller for a video than for a picture. */
   minSizeHeight(isVideo: boolean): number {
     if (isVideo) {
       return this.videoMinSizeHeight;
@@ -84,6 +89,7 @@ export class CutIn extends GameObject implements InnerXml {
     }
   }
 
+  /** The tallest a cut-in may be sized, which is taller for a video than for a picture. */
   maxSizeHeight(isVideo: boolean): number {
     if (isVideo) {
       return this.videoMaxSizeHeight;
@@ -92,11 +98,13 @@ export class CutIn extends GameObject implements InnerXml {
     }
   }
 
+  /** The sound the cut-in plays, or null when none is set or its file is not in this peer's storage. */
   get audio(): AudioFile | null {
     return AudioStorage.instance.get(this.audioIdentifier);
   }
   private audioPlayer: AudioPlayer = new AudioPlayer();
 
+  /** The picture the cut-in shows, or the empty image when none is set or its file is not in storage. */
   get cutInImage(): ImageFile {
     if (!this.imageIdentifier) {
       return ImageFile.Empty;
@@ -105,6 +113,7 @@ export class CutIn extends GameObject implements InnerXml {
     return file ? file : ImageFile.Empty;
   }
 
+  /** Whether the text, trimmed, is an absolute http or https URL. */
   validUrl(url: string): boolean {
     if (!url) return false;
     try {
@@ -115,6 +124,12 @@ export class CutIn extends GameObject implements InnerXml {
     return /^https?:\/\//.test(url.trim());
   }
 
+  /**
+   * The YouTube video id taken from the video URL, for the embedded player.
+   *
+   * Watch, Shorts and youtu.be links are understood. Empty when this is not a video cut-in or
+   * the URL is not one of those; characters that could break out of the embed are stripped.
+   */
   get videoId(): string {
     if (!this.isVideoCutIn || !this.videoUrl) return '';
     let ret = '';
@@ -142,6 +157,12 @@ export class CutIn extends GameObject implements InnerXml {
     return ret.replace(/[<>/:\s\r\n]/g, '');
   }
 
+  /**
+   * Where the video starts, in whole seconds as text, from the URL's `start` or `t` parameter.
+   *
+   * Both plain seconds and the `1h2m3s` form are read. Null when there is no video id or no
+   * readable start.
+   */
   get videoStart(): string | null {
     if (!this.isVideoCutIn || !this.videoUrl || !this.videoId) return null;
     const result = /[&?](?:start|t)=([\dhms]+)/i.exec(this.videoUrl);
@@ -166,6 +187,7 @@ export class CutIn extends GameObject implements InnerXml {
     return null;
   }
 
+  /** The YouTube playlist id from the URL's `list` parameter. Empty when there is no video id or no list. */
   get playListId(): string {
     if (!this.isVideoCutIn || !this.videoId) return '';
     let ret = '';
@@ -178,6 +200,7 @@ export class CutIn extends GameObject implements InnerXml {
     return ret.replace(/[<>/:\s\r\n]/g, '');
   }
 
+  /** False only when a sound is named but its file is missing from this peer's storage. */
   get isValidAudio(): boolean {
     return (
       this.audioName.length == 0 ||
@@ -186,6 +209,7 @@ export class CutIn extends GameObject implements InnerXml {
     );
   }
 
+  /** The layered scene belonging to this cut-in, or null when it has never been given one. */
   get scene(): CutInScene | null {
     return CutInScene.of(this.identifier);
   }
@@ -205,6 +229,7 @@ export class CutIn extends GameObject implements InnerXml {
     return scene ? ObjectSerializer.instance.toXml(scene) : '';
   }
 
+  /** Reads the scene written inside the cut-in and ties it to this cut-in. Other children are ignored. */
   parseInnerXml(element: Element): void {
     for (const child of Array.from(element.children)) {
       const parsed = ObjectSerializer.instance.parseXml(child);
@@ -215,6 +240,7 @@ export class CutIn extends GameObject implements InnerXml {
 
   // GameObject Lifecycle. ObjectStore.delete() calls remove() rather than destroy(),
   // so a deletion made elsewhere reaches the scene only through here.
+  /** Destroys the cut-in's scene along with it, so no orphaned layers stay behind. */
   override onStoreRemoved(): void {
     super.onStoreRemoved();
     this.scene?.destroy();

@@ -82,8 +82,8 @@ export function wallLightInset(facing: number, cells: number): { x: number; y: n
  * How far down a lamp on a wall is turned, so that its light lands in front of it.
  *
  * A sconce comes out of the preset turned a little upward, which is how a torch stands in a
- * bracket but not where it throws anything: hung high on a wall, it lit the stone above itself
- * and left the floor to the dark. Aiming it is a right-angled triangle — the drop is how high
+ * bracket but not where it throws anything: hung high on a wall, it would light the stone above
+ * itself and leave the floor to the dark. Aiming it is a right-angled triangle — the drop is how high
  * it hangs, the run is how far out the pool should sit — so the angle follows from the two
  * rather than being guessed at.
  */
@@ -158,12 +158,25 @@ export class DungeonBuildService {
     return image.identifier;
   }
 
+  /**
+   * The image identifier a wall material stands for.
+   *
+   * A picture from the image library is used as it is; a bundled texture is registered on first
+   * use. An id `urls` does not know answers empty.
+   */
   resolveMaterial(material: DungeonMaterial, urls: Record<string, string>): string {
     if (material.kind === 'library') return material.identifier;
     const url = urls[material.id];
     return url ? this.registerAsset(url) : '';
   }
 
+  /**
+   * Builds a new table from generated blocks: the terrain, the ground effects, the lights, and the
+   * party stood on the cells it was given.
+   *
+   * Terrain goes in a few dozen blocks at a time, handing the thread back between batches so
+   * `onProgress` can move a bar. The table is made but not switched to.
+   */
   async build(
     size: MapSize,
     mood: MapMood,

@@ -5,7 +5,6 @@ import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-k
 import { CutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { DEFAULT_FOG_COLOR, DEFAULT_FOG_MODE, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { HoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import {
@@ -144,18 +143,22 @@ export class GameTable extends ObjectNode {
   @SyncVar() cutInIdentifiers: string = '';
 
   gridClipRect: { top: number; right: number; bottom: number; left: number } | null = null;
+  /** The terrain pieces on this table. */
   get terrains(): Terrain[] {
     return this.children.filter((o): o is Terrain => o instanceof Terrain);
   }
 
+  /** The light sources placed on this table. */
   get lightSources(): LightSource[] {
     return this.children.filter((o): o is LightSource => o instanceof LightSource);
   }
 
+  /** The boards standing on this table. */
   get whiteBoards(): WhiteBoard[] {
     return this.children.filter((o): o is WhiteBoard => o instanceof WhiteBoard);
   }
 
+  /** The area effects, such as a marsh or a vent in the ground, laid over this table. */
   get ambiences(): TableAmbience[] {
     return this.children.filter((o): o is TableAmbience => o instanceof TableAmbience);
   }
@@ -172,15 +175,16 @@ export class GameTable extends ObjectNode {
       .sort((a, b) => a.order - b.order);
   }
 
+  /** The masks covering parts of this table. */
   get masks(): GameTableMask[] {
     return this.children.filter((o): o is GameTableMask => o instanceof GameTableMask);
   }
 
-  get scratchMasks(): GameTableScratchMask[] {
-    return this.children.filter((o): o is GameTableScratchMask => o instanceof GameTableScratchMask);
-  }
-
   // GameObject Lifecycle
+  /**
+   * When the table arrives in the object store already selected, announces it as the table being
+   * viewed.
+   */
   override onStoreAdded() {
     super.onStoreAdded();
     if (this.selected) emitSelectGameTable({ identifier: this.identifier });

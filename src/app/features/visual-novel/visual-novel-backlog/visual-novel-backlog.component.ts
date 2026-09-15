@@ -12,8 +12,11 @@ import {
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import {
   encodeVnEmote,
@@ -31,6 +34,7 @@ import {
   VnPortraitEmote,
 } from '@axe/domain/visual-novel/vn-emote';
 import { isVnPortraitPosSet, VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
+import { buildBacklogEntryContextMenu } from '@axe/features/visual-novel/visual-novel-backlog/visual-novel-backlog-context-menu';
 import { VisualNovelDirectorService } from '@axe/features/visual-novel/visual-novel-director.service';
 import { vnEmoteLabel } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/visual-novel-emote-selection.service';
@@ -71,6 +75,9 @@ export class VisualNovelBacklogComponent {
   private readonly playback = inject(VisualNovelPlaybackService);
   private readonly director = inject(VisualNovelDirectorService);
   private readonly emoteSelection = inject(VisualNovelEmoteSelectionService);
+  private readonly contextMenuService = inject(ContextMenuService);
+  private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly viewport = inject(ViewportService);
 
   /**
    * Which line the reader is looking at, and where they can go from here.
@@ -151,14 +158,20 @@ export class VisualNovelBacklogComponent {
     this.playback.jumpToIdentifier(identifier);
   }
 
+  /** Narrows the backlog to the lines this reader sent, or lifts that narrowing. */
   toggleOnlyMine(): void {
     this.onlyMine.update((only) => !only);
   }
 
+  /** Narrows the backlog to the lines that carry an emote, or lifts that narrowing. */
   toggleOnlyEmote(): void {
     this.onlyEmote.update((only) => !only);
   }
 
+  /**
+   * Scrolls the backlog to the line now on the stage. Does nothing when that line is not among
+   * those listed.
+   */
   scrollToCurrent(): void {
     this.rowFor(this.currentIdentifier())?.scrollIntoView({ block: 'center' });
   }
@@ -177,6 +190,10 @@ export class VisualNovelBacklogComponent {
 
   readonly hiddenCount = computed(() => this.filteredEntries().length - this.windowedEntries().length);
 
+  /**
+   * Lists another 200 earlier lines above those already listed, which are cut short to keep a long
+   * log quick to draw.
+   */
   loadMoreEntries(): void {
     this.visibleCount.update((count) => count + BACKLOG_PAGE_SIZE);
   }
@@ -200,10 +217,50 @@ export class VisualNovelBacklogComponent {
     return list?.querySelector<HTMLElement>(`[data-vn-log-id="${identifier}"]`) ?? null;
   }
 
+  /**
+   * The character an emotion mark is shown as among the choices of the edit form; empty for no
+   * mark.
+   */
   emotionMarkLabel(mark: VnEmotionMark): string {
     return mark === 'none' ? '' : VN_EMOTION_MARK_CHARS[mark];
   }
 
+  /**
+   * What can be done with a line of the log, opened by a right click or a press held on it.
+   *
+   * The pencil on a line only shows under a mouse, so a touch screen reaches it through this. A
+   * right click while words reaching into the line are picked out keeps the browser's own menu,
+   * which is how they are copied with a mouse; a press held on a touch screen still opens this.
+   */
+  protected onEntryContextMenu(event: MouseEvent, entry: VnBacklogEntry): void {
+    if (this.editingIdentifier() === entry.message.identifier) return;
+    if (!this.viewport.isTouch() && this.wordsPickedOutReach(event.currentTarget)) return;
+    if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+    const actions = buildBacklogEntryContextMenu(
+      entry.message.changeable,
+      { edit: () => this.startEditEntry(entry) },
+      this.translate
+    );
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, entry.name);
+  }
+
+  /** Whether any of the words picked out on the page reach into this line of the log. */
+  private wordsPickedOutReach(row: EventTarget | null): boolean {
+    if (!(row instanceof Element)) return false;
+    const selection = row.ownerDocument.getSelection();
+    if (!selection || selection.isCollapsed || selection.toString().trim().length === 0) return false;
+    return Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index)).some((range) =>
+      range.intersectsNode(row)
+    );
+  }
+
+  /**
+   * Opens the edit form on a line, filled in with its text, its emote and where its portrait
+   * stands. Does nothing for a line that may not be changed.
+   */
   startEditEntry(entry: { message: ChatMessage; index: number }): void {
     if (!entry.message.changeable) return;
     const raw = entry.message.text ?? '';
@@ -221,10 +278,17 @@ export class VisualNovelBacklogComponent {
     this.editingIdentifier.set(entry.message.identifier);
   }
 
+  /** Closes the edit form without keeping what was changed in it. */
   cancelEditEntry(): void {
     this.editingIdentifier.set('');
   }
 
+  /**
+   * Writes the edit form back to the line and closes the form.
+   *
+   * Empty text is not kept, and the form stays open for it. The line is marked as edited only where
+   * its text or emote changed; a line that may no longer be changed closes the form without a word.
+   */
   saveEditEntry(): void {
     const message = this.playback.logMessages().find((candidate) => candidate.identifier === this.editingIdentifier());
     if (!message?.changeable) {

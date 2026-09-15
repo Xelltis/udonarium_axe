@@ -6,6 +6,7 @@ export const DEFAULT_MOVE_RANGE_ELEMENT_NAMES = '移動,移動力,Speed,速度';
 export const DEFAULT_CELL_DISTANCE = 1;
 export const DEFAULT_CELL_DISTANCE_UNIT: MoveUnit = 'cell';
 
+/** Splits the comma-separated names of the sheet fields that hold a piece's movement, trimming and dropping blanks. */
 export function parseMoveRangeElementNames(names: string): string[] {
   return names
     .split(',')

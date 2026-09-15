@@ -72,6 +72,10 @@ export interface ImportedRoom {
   skipped: ImportedRoomSkipped;
 }
 
+/**
+ * A blank imported room with no board size, scenes, panels, pieces or files and nothing skipped
+ * yet, for the room parser to fill.
+ */
 export function createEmptyImportedRoom(): ImportedRoom {
   return {
     version: '',

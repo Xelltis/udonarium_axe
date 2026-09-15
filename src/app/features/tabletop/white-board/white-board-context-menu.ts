@@ -15,6 +15,12 @@ export interface WhiteBoardMenuHandlers {
   onDelete(board: WhiteBoard): void;
 }
 
+/**
+ * A white board's right-click menu: draw, tilt, lock, then save, copy and delete.
+ *
+ * Tilting and locking act on the board directly; everything else is left to the handlers. The entry
+ * that takes everything off the board is offered only while something stands on it.
+ */
 export function buildWhiteBoardContextMenu(
   board: WhiteBoard,
   standingCount: number,

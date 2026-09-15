@@ -8,7 +8,7 @@
     @if (terrain) {
       <button (click)="openModal('floor')">{{ 'feature.inventory.sheet.changeFloorImage' | transloco }}</button>
       <button (click)="openModal('wall')">{{ 'feature.inventory.sheet.changeWallImage' | transloco }}</button>
-    } @else if (!(character || card || cardStack || rangeArea || scratchMask)) {
+    } @else if (!(character || card || cardStack || rangeArea)) {
       <button (click)="openModal('imageIdentifier', true)">
         {{ 'feature.inventory.sheet.changeImage' | transloco }}
       </button>
@@ -16,28 +16,6 @@
     <button (click)="clone()">{{ 'feature.inventory.sheet.copy' | transloco }}</button>
     <button (click)="saveToXML()">{{ 'feature.inventory.sheet.save' | transloco }}</button>
     @if (character) {}
-    @if (scratchMask) {
-      <div>
-        {{ 'feature.inventory.sheet.color' | transloco }}
-        <input
-          type="color"
-          name="color11"
-          list="color-list_11"
-          (change)="onChangeMaskFillColor($event)"
-          value="{{ scratchMask.color }}"
-        />
-        {{ 'feature.inventory.sheet.changeColor' | transloco }}
-        <input
-          type="color"
-          name="color12"
-          list="color-list_12"
-          (change)="onChangeMaskChangeColor($event)"
-          value="{{ scratchMask.changeColor }}"
-        />
-      </div>
-      <br />
-      {{ 'feature.inventory.sheet.scratchMaskNote' | transloco }}
-    }
   </div>
 }
 
@@ -282,6 +260,7 @@
                           class="material-icons text-ui-dim shrink-0 cursor-grab px-0.5 text-base! select-none active:cursor-grabbing"
                           draggable="true"
                           (dragstart)="onDragStart($event, childElement.identifier)"
+                          (contextmenu)="onDetailCardContextMenu($event, childElement)"
                           (dragend)="onDragEnd()"
                           [title]="'feature.inventory.sheet.dragSortTitle' | transloco"
                           >drag_indicator</span
@@ -1300,7 +1279,7 @@
             </div>
           }
         }
-        @if (!(card || cardStack || terrain || diceSymbol || scratchMask)) {
+        @if (!(card || cardStack || terrain || diceSymbol)) {
           @if (tabletopObject.imageDataElement) {
             <div
               class="bg-ui-elevated border-ui-border-panel text-ui-text rounded-ui-sm m-1 box-border min-w-50 flex-[1_0_auto] border border-solid px-2.5 py-2"

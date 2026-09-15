@@ -79,6 +79,7 @@ export function chatColorContrast(color: string, bubble: string, theme: 'light' 
   return contrastRatio(relativeLuminance(text), relativeLuminance(shown));
 }
 
+/** Converts an `rgb(r,g,b)` colour as written by `rgbToCss` to `#rrggbb`; anything else is returned unchanged. */
 export function cssToHex(css: string): string {
   const match = /rgb\((\d+),(\d+),(\d+)\)/.exec(css);
   if (!match) return css;

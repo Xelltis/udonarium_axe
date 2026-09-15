@@ -69,6 +69,7 @@ const SLOT_LABELS: Record<ResourceSlot, string> = {
   minCorrection: '最小補正',
 };
 
+/** The Japanese label naming a slot in a chat line; empty for the current value, which needs none. */
 export function resourceSlotLabel(slot: ResourceSlot): string {
   return SLOT_LABELS[slot];
 }
@@ -83,6 +84,7 @@ const SLOT_BADGE_PREFIXES: Record<ResourceSlot, string> = {
   minCorrection: '最小補正',
 };
 
+/** The shorter Japanese prefix put before a status name on a buff badge; empty for the current value. */
 export function resourceSlotBadgePrefix(slot: ResourceSlot): string {
   return SLOT_BADGE_PREFIXES[slot];
 }

@@ -8,6 +8,12 @@ export interface TurnIndicator {
   readonly sideName: string;
 }
 
+/**
+ * What the turn display shows for the current phase of the turn order.
+ *
+ * Null while turns are not being kept. Before and after a round it shows a status instead of a
+ * name; during one it names whoever is up, or the side whose phase it is, or says no one is up.
+ */
 export function buildTurnIndicator(
   phase: TurnPhase,
   round: number,

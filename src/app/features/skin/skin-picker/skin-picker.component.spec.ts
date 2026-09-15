@@ -4,6 +4,7 @@ import { ThemeService } from '@axe/application/ui/theme.service';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
+import { stubUnloadableImages } from '@axe/testing/unloadable-image';
 
 const PNG_HEAD = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -40,10 +41,12 @@ describe('SkinPickerComponent', () => {
     skins = TestBed.inject(SkinService);
     fixture = TestBed.createComponent(SkinPickerComponent);
     fixture.detectChanges();
+    stubUnloadableImages();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     document.documentElement.removeAttribute('style');
   });
 

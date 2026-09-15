@@ -100,6 +100,7 @@ describe('AudioSharingSystem', () => {
     vi.spyOn(AudioStorage.instance, 'get').mockReturnValue(null!);
     vi.spyOn(AudioStorage.instance, 'add').mockReturnValue(undefined!);
     vi.spyOn(AudioStorage.instance, 'synchronize').mockReturnValue(undefined!);
+    vi.spyOn(AudioStorage.instance, 'lazySynchronize').mockReturnValue(undefined!);
     vi.spyOn(BufferSharingTask, 'createSendTask').mockReturnValue(undefined!);
     vi.spyOn(BufferSharingTask, 'createReceiveTask').mockReturnValue(undefined!);
   });
@@ -139,9 +140,9 @@ describe('AudioSharingSystem', () => {
   describe('on CONNECT_PEER', () => {
     beforeEach(() => AudioSharingSystem.instance.initialize());
 
-    it('synchronises for a message it sent itself', () => {
+    it('sends the catalogue to the peer that connected, since everyone else has had it already', () => {
       emit('CONNECT_PEER', { peerId: 'peer-a' }, { sendFrom: 'self-peer' });
-      expect(AudioStorageMock.synchronize).toHaveBeenCalled();
+      expect(AudioStorageMock.synchronize).toHaveBeenCalledWith('peer-a');
     });
 
     it('does nothing for a message from someone else', () => {
@@ -174,6 +175,25 @@ describe('AudioSharingSystem', () => {
         expect.objectContaining({
           eventName: 'REQUEST_AUDIO_RESOURE',
           data: expect.objectContaining({ receiver: 'self-peer' }),
+        }),
+        'peer-a'
+      );
+    });
+
+    it('asks first for the audio the room is playing', () => {
+      AudioStorageMock.get.mockImplementation((id: string) => makeAudioFile({ identifier: id }));
+      AudioSharingSystem.instance.preferredIdentifiers = () => ['playing-now'];
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [
+        { identifier: 'another-track', state: AudioState.COMPLETE },
+        { identifier: 'playing-now', state: AudioState.COMPLETE },
+      ]);
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'REQUEST_AUDIO_RESOURE',
+          data: expect.objectContaining({ identifiers: [expect.objectContaining({ identifier: 'playing-now' })] }),
         }),
         'peer-a'
       );
@@ -420,7 +440,8 @@ describe('AudioSharingSystem', () => {
       await vi.waitFor(() => expect(task.start).toHaveBeenCalled());
       (task as unknown as { onfinish: () => void }).onfinish();
       expect(asAudioSharingPrivate(AudioSharingSystem.instance).sendTaskMap.has('finish-audio')).toBe(false);
-      expect(AudioStorageMock.synchronize).toHaveBeenCalled();
+      expect(AudioStorageMock.synchronize).toHaveBeenCalledWith('peer-r');
+      expect(vi.mocked(AudioStorage.instance.lazySynchronize)).toHaveBeenCalledWith(1000);
     });
 
     it('survives being asked to send audio that is neither', async () => {
@@ -479,7 +500,7 @@ describe('AudioSharingSystem', () => {
       expect(asAudioSharingPrivate(AudioSharingSystem.instance).receiveTaskMap.has('fin-id')).toBe(false);
       // the dispatch announces the audio and it is added
       expect(AudioStorageMock.add).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'fin-id' }));
-      expect(AudioStorageMock.synchronize).toHaveBeenCalled();
+      expect(vi.mocked(AudioStorage.instance.lazySynchronize)).toHaveBeenCalledWith(1000);
     });
 
     it('announces nothing when the task finishes empty-handed', () => {

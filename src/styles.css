@@ -1389,6 +1389,44 @@ input[type='range']::-moz-range-thumb {
   }
 }
 
+/*
+ * The lighter way of drawing (RenderLiteService): nothing blurs what lies behind it. A frosted
+ * panel over a table that moves is blurred afresh every frame, which Firefox and small machines
+ * cannot keep up with.
+ */
+:root.render-lite *,
+:root.render-lite *::before,
+:root.render-lite *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/*
+ * Nor does every object on the table ask for a compositing layer of its own. The host element
+ * only moves when its stacking order does; the element inside that follows the pointer is
+ * promoted while it is dragged (MovableDirective), and that inline style still applies.
+ * Firefox gives up on will-change past an area budget, and small machines pay for every layer.
+ */
+:root.render-lite
+  :is(
+    text-note,
+    card-stack,
+    card,
+    game-character,
+    coin,
+    dice-symbol,
+    terrain,
+    game-table-mask,
+    game-table-scratch-mask,
+    table-ambience,
+    peer-cursor,
+    range,
+    white-board,
+    light-source
+  ).will-change-transform {
+  will-change: auto;
+}
+
 :root.motion-reduced
   :is(
     .animate-sheet-up,
@@ -3011,8 +3049,69 @@ body.mobile-layout visual-novel-overlay button:not(.material-icons) {
   min-height: 40px;
 }
 
-body.touch-input :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) {
+body.touch-input :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar, visual-novel-overlay) {
   -webkit-touch-callout: none;
+}
+
+/*
+ * A press held on a line of chat opens what can be done with it, copying its words among them.
+ * Left selectable, the same press would also start picking the words out under the menu. The box
+ * a line is edited in stays selectable.
+ */
+body.touch-input chat-message .msg-text {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body.touch-input chat-message .msg-text textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/*
+ * A small button that stays on a phone is given a larger place to be pressed than it is drawn.
+ * The button keeps its drawn size, so a row of them keeps its room. Beside another such button it
+ * reaches sideways only half the narrowest gap written between them, 2px, so neither takes a
+ * press on the edge of the other.
+ */
+body.touch-input .touch-target {
+  position: relative;
+}
+
+body.touch-input .touch-target::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+body.touch-input .touch-target:has(+ .touch-target)::after {
+  right: -1px;
+}
+
+body.touch-input .touch-target + .touch-target::after {
+  left: -1px;
+}
+
+/*
+ * The table takes long presses and drags on whatever lies under the finger. iOS answers a long
+ * press on a picture with the menu that saves it, in place of moving the piece; a mouse never
+ * brings that menu up, so it is kept off everywhere, whether or not the screen has been told
+ * apart as a touch screen yet.
+ */
+game-table {
+  -webkit-touch-callout: none;
+}
+
+/*
+ * iPadOS lifts a picture under a finger out of the page to be dropped somewhere else. A mouse
+ * dragging a picture the table has not taken the drag for may still carry it out to be saved,
+ * so this holds only where the primary pointer is coarse, which is how an iPad reports itself
+ * with or without a trackpad, and is read by the browser before any script has run.
+ */
+@media (pointer: coarse) {
+  game-table img {
+    -webkit-user-drag: none;
+  }
 }
 
 body.mobile-layout app-mobile-chat-pane .chat-input,

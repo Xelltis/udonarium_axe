@@ -4,6 +4,7 @@ export type FogMode = (typeof FOG_MODES)[number];
 
 export const DEFAULT_FOG_MODE: FogMode = 'normal';
 
+/** Reads a stored fog mode, falling back to normal for anything unknown. */
 export function asFogMode(value: unknown): FogMode {
   return typeof value === 'string' && (FOG_MODES as readonly string[]).includes(value)
     ? (value as FogMode)
@@ -35,6 +36,7 @@ const RULES: Record<FogMode, FogRules> = {
   hard: { remembersGround: false, clearedStaysLit: false, tracksFoundPieces: false },
 };
 
+/** What a table's fog mode asks for, with an unknown mode read as normal. */
 export function fogRules(mode: unknown): FogRules {
   return RULES[asFogMode(mode)];
 }

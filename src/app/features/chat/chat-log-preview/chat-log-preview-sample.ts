@@ -8,6 +8,12 @@ const GM_COLOR = '#5b5b5b';
 const HERO_COLOR = '#b0413e';
 const SAGE_COLOR = '#2e6b9e';
 
+/**
+ * A made-up tab of a short scene, for previewing a log style when the real tabs have nothing said.
+ *
+ * The lines are translated narration, speech, two dice results and an out-of-story aside, stamped a
+ * minute apart from twenty minutes before `now`, with each roll a second after the line before it.
+ */
 export function buildChatLogPreviewSample(t: TranslateFn, tabName: string, now: number = Date.now()): ChatLogTab {
   const key = (name: string) => t(`feature.chat.log.sample.${name}`);
   const gm = key('gm');

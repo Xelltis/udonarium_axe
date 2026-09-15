@@ -23,7 +23,7 @@ describe('ChatInputComponent', () => {
   });
 
   beforeEach(() => {
-    vi.spyOn(DiceBot, 'loadGameSystemAsync').mockResolvedValue(gameSystem);
+    vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(gameSystem);
     fixture = TestBed.createComponent(ChatInputComponent);
     component = fixture.componentInstance;
   });
@@ -83,6 +83,17 @@ describe('ChatInputComponent', () => {
         toTicker: false,
       });
       expect(component.text).toBe('');
+    });
+
+    it('hands the line to the dice bot, which decides whether it must wait for the system', async () => {
+      fixture.detectChanges();
+      component.text = 'こんにちは';
+      const outgoing = sent();
+
+      component.sendChat(null);
+      await outgoing;
+
+      expect(DiceBot.gameSystemForLineAsync).toHaveBeenCalledWith(component.gameType, 'こんにちは');
     });
 
     it('offers the ticker only where this screen runs one, and marks the line when it is asked to', async () => {

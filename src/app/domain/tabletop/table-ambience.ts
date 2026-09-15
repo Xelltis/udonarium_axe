@@ -22,6 +22,7 @@ export class TableAmbience extends TabletopObject {
   @SyncVar() ambienceDensity: number = DEFAULT_AMBIENCE_DENSITY;
   @SyncVar() isLock: boolean = false;
 
+  /** How many grid cells wide the area is, kept in its common data. */
   get width(): number {
     return this.getCommonValue('width', 1);
   }
@@ -29,6 +30,7 @@ export class TableAmbience extends TabletopObject {
     this.setCommonValue('width', width);
   }
 
+  /** How many grid cells tall the area is, kept in its common data. */
   get height(): number {
     return this.getCommonValue('height', 1);
   }
@@ -36,14 +38,20 @@ export class TableAmbience extends TabletopObject {
     this.setCommonValue('height', height);
   }
 
+  /** The kind of effect, with an unknown stored kind read as swamp. */
   get kind(): AmbienceKind {
     return ambienceKindOf(this.ambienceKind, 'swamp');
   }
 
+  /** The colour it is drawn in: the one set on it, or its kind's own when none is. */
   get color(): string {
     return ambienceColorOf(this.kind, this.ambienceColor);
   }
 
+  /**
+   * How thick the effect is drawn, from 0 to 1, with a stored value that is not a number read as
+   * the default.
+   */
   get density(): number {
     return ambienceDensityOf(this.ambienceDensity);
   }
@@ -60,6 +68,9 @@ export class TableAmbience extends TabletopObject {
     return hash;
   }
 
+  /**
+   * Makes an area effect of the given kind with its name and size data, and registers it for sync.
+   */
   static create(name: string, kind: AmbienceKind, width: number, height: number, identifier?: string): TableAmbience {
     const object = identifier ? new TableAmbience(identifier) : new TableAmbience();
     object.createDataElements();

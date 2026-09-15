@@ -12,7 +12,11 @@
       "no": "아니요"
     },
     "dialog": {
-      "confirmTitle": "확인"
+      "confirmTitle": "확인",
+      "updatedTitle": "Udonarium Axe가 업데이트되었습니다",
+      "updatedMessage": "새 버전으로 바꾸려면 페이지를 새로고침해 주세요. 새로고침하기 전까지는 열리지 않는 화면이 있습니다.",
+      "reload": "새로고침",
+      "later": "나중에"
     },
     "language": {
       "ja": "日本語",
@@ -33,6 +37,11 @@
       "auto": "이펙트: 자동",
       "on": "이펙트: 항상 재생",
       "off": "이펙트: 끄기"
+    },
+    "renderLite": {
+      "auto": "렌더링: 자동",
+      "on": "렌더링: 가볍게",
+      "off": "렌더링: 기본"
     },
     "panel": {
       "peerMenu": "접속 정보",
@@ -105,6 +114,12 @@
       "stair_spiral": "나선 계단",
       "poison_pool": "독 늪",
       "cactus_skin": "선인장 껍질"
+    },
+    "reorder": {
+      "toTop": "맨 위로",
+      "up": "한 칸 위로",
+      "down": "한 칸 아래로",
+      "toBottom": "맨 아래로"
     }
   },
   "feature": {
@@ -616,6 +631,8 @@
         "presetdropOut": "떨어지며 사라지기",
         "endMsHint": "종료가 0이면 장면 끝까지 표시합니다.",
         "toggleKey": "이 위치에 키 찍기 / 지우기",
+        "removeKeysHere": "재생 헤드 위치의 키 제거",
+        "removeSoundHere": "재생 헤드 위치의 SE 제거",
         "easing": "보간",
         "easingMixed": "(키마다 다름)",
         "easinglinear": "등속",
@@ -1173,6 +1190,7 @@
         "collapseAll": "모두 접기",
         "expandAll": "모두 펼치기",
         "selectFolder": "이 폴더 전체 선택",
+        "showOnTable": "테이블에서 보기",
         "moveTable": "테이블로 이동",
         "moveCommon": "공유 인벤토리로 이동",
         "movePersonal": "개인 인벤토리로 이동",
@@ -1238,8 +1256,6 @@
         "popupMaxHeight": "팝업 세로 최대",
         "limitHeight": "height 설정값으로 높이 제한",
         "color": "색상",
-        "changeColor": "드러난 부분 색상",
-        "scratchMaskNote": "※ width, height 항목은 최대 50",
         "tabSheet": "시트",
         "tabSettings": "설정",
         "portrait": "포트레이트",
@@ -1726,7 +1742,6 @@
         "createLight": "광원 만들기",
         "defaultCharacterName": "새 캐릭터",
         "defaultMaskName": "맵 마스크",
-        "defaultScratchMaskName": "스크래치 마스크",
         "defaultTerrainName": "지형",
         "defaultNoteName": "공유 메모",
         "defaultNoteText": "텍스트를 입력해 주세요",
@@ -1752,7 +1767,6 @@
         "range": "사거리 범위 설정",
         "rangeFollow": "캐릭터를 따라가기",
         "mask": "맵 마스크 설정",
-        "scratchMask": "스크래치 마스크 설정",
         "textNote": "공유 메모 설정"
       },
       "rangeDocking": {
@@ -1765,6 +1779,31 @@
         "confirm": "확정",
         "finish": "종료",
         "cancel": "취소"
+      },
+      "maskSheet": {
+        "basicSection": "기본 설정",
+        "name": "이름",
+        "width": "너비",
+        "height": "높이",
+        "opacity": "불투명도",
+        "maskSection": "마스크",
+        "scratchedSection": "스크래치 후",
+        "scratchedHint": "스크래치로 열린 칸에 테이블 대신 표시됩니다.",
+        "image": "이미지",
+        "color": "색",
+        "maskImageAlt": "마스크 이미지",
+        "scratchedImageAlt": "스크래치 후 이미지",
+        "setLabel": "설정",
+        "setImage": "이미지 설정",
+        "clearLabel": "해제",
+        "clearImage": "이미지 해제",
+        "none": "없음",
+        "clearColor": "색 지우기",
+        "dataSheet": "상세 데이터",
+        "openDataSheet": "모든 데이터 항목을 시트로 열기",
+        "copy": "복제 만들기",
+        "saving": "저장 중 {{percent}}%",
+        "save": "저장"
       },
       "contextMenu": {
         "altitudeSetting": "고도 설정",
@@ -1835,7 +1874,6 @@
         "aliasTerrain": "지형",
         "aliasCharacter": "캐릭터",
         "aliasMask": "마스크",
-        "aliasScratchMask": "스크래치 마스크",
         "aliasTextNote": "메모",
         "aliasRange": "사거리",
         "aliasDiceSymbol": "주사위",
@@ -2631,7 +2669,9 @@
         "jumpToOriginal": "원래 메시지로 이동",
         "shareAsMemo": "공유 메모로 보내기",
         "ticker": "티커",
-        "copyToTab": "다른 탭으로 복사"
+        "copyToTab": "다른 탭으로 복사",
+        "copyText": "본문 복사",
+        "selectText": "텍스트 선택"
       },
       "stream": {
         "title": "발언의 흐름",
@@ -2660,7 +2700,12 @@
         "indexTitle": "인덱스",
         "noTarget": "대상이 선택되지 않았습니다",
         "headingBullet": "◆",
-        "footerHintTouch": "탭: 입력 ／ 두 번 탭: 전송"
+        "footerHintTouch": "탭: 입력 ／ 두 번 탭: 전송",
+        "searchPlaceholder": "팔레트 줄 검색",
+        "searchResults": "검색 결과",
+        "searchCount": "{{count}}개",
+        "searchNoMatch": "일치하는 줄이 없습니다",
+        "searchClear": "검색 지우기"
       },
       "messageSetting": {
         "sectionText": "글자",
@@ -2862,6 +2907,7 @@
         "title": "다이스봇",
         "titleWith": "다이스봇＜{{name}}＞",
         "descSuffix": " 설명",
+        "unreachable": "다이스봇「{{name}}」을(를) 불러오지 못해 이 발언의 주사위는 굴리지 않았습니다. 다시 보내도 굴려지지 않으면 페이지를 새로고침하세요.",
         "intro": "【다이스봇】채팅에 주사위용 문자를 입력하면 주사위를 굴릴 수 있습니다\n입력 예) 2d6+1 공격!\n출력 예) 2d6+1 공격!\n　　　　  diceBot: (2d6) → 7\n위처럼 주사위 문자 뒤에 공백을 두고 발언할 수도 있습니다.\n아래는 사용 예\n　3D6+1>=9 : 3d6+1로 목표값 9 이상인지 판정\n　1D100<=50 : D100으로 50% 목표의 하방 굴림 예\n　3U6[5] : 3d6의 눈이 5 이상이면 다시 굴려 합산(상방 무한)\n　3B6 : 3d6의 눈을 따로따로 출력(합산하지 않음)\n　10B6>=4 : 10d6을 굴려 4 이상인 눈의 개수를 셈\n　2R6[>3]>=5 : 2D6의 눈이 3보다 크면 다시 굴려 5 이상인 눈의 개수를 셈\n　(8/2)D(4+6)<=(5*3): 개수·주사위·달성값에 사칙연산도 사용 가능\n　c(10-4*3/2+2): c(계산식)으로 계산만 실행 가능\n　choice[a,b,c]: 나열한 요소에서 하나를 골라 표시. 무작위 공격 대상 결정 등에\n　S3d6 : 각 명령 앞에 \"S\"를 붙이면 남에게 결과가 보이지 않는 시크릿 굴림\n　3d6/2 : 주사위 눈을 나눗셈(끝수 처리는 게임 시스템에 따름). 올림은 /2C, 반올림은 /2R, 버림은 /2F\n　D66 : D66 주사위. 순서는 게임에 따름. D66N: 그대로, D66A: 오름차순, D66D: 내림차순\n\n자세한 내용은 아래 URL의 명령어 가이드를 참고하세요\nhttps://docs.bcdice.org/\n===================================\n"
       }
     },

@@ -3,7 +3,7 @@ import { type EffectKind, isEffectKind } from '@axe/domain/effect/effect-kind';
 /**
  * An effect built out of stages.
  *
- * One effect used to be one look with one landing. A stage list makes it a run: it leaves
+ * Without stages an effect is one look with one landing. A stage list makes it a run: it leaves
  * somewhere, travels, lands, throws off what it lands into, and leaves something behind.
  * Each stage names one of the looks the tool already draws, so the parts are the effects
  * that exist rather than a new vocabulary to learn.
@@ -68,6 +68,7 @@ export interface StageLayout {
  */
 const laidOut = new WeakMap<readonly EffectStage[], StageLayout>();
 
+/** Where each stage falls on the clock, laid out once and reused for as long as the list is the same array. */
 export function stageLayoutOf(stages: readonly EffectStage[]): StageLayout {
   const known = laidOut.get(stages);
   if (known) return known;
@@ -77,6 +78,12 @@ export function stageLayoutOf(stages: readonly EffectStage[]): StageLayout {
   return layout;
 }
 
+/**
+ * Works out afresh where each stage falls on the clock; `stageLayoutOf` is the cached way in.
+ *
+ * Each branch of a spawn gets windows of its own after the spawn's. The whole run lasts at
+ * least 80 milliseconds.
+ */
 export function layOutStages(stages: readonly EffectStage[]): StageLayout {
   const windows: StageWindow[] = [];
   let at = 0;
@@ -146,6 +153,12 @@ export function parseEffectStages(raw: string | null | undefined): EffectStage[]
   }
 }
 
+/**
+ * Writes a stage list into the form a preset stores.
+ *
+ * An empty list writes as an empty string, which is what an effect of one look holds. Stages
+ * past the most a run may have are dropped.
+ */
 export function encodeEffectStages(stages: readonly EffectStage[]): string {
   if (stages.length < 1) return '';
   try {

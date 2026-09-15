@@ -83,6 +83,11 @@ export function isCcfoliaCharacter(parsed: unknown): boolean {
   return false;
 }
 
+/**
+ * Reads a piece from the other tool into the imported model: name, notes, source link, colour,
+ * palette, picture, resources, parameters, size in cells and initiative. Null when there is no
+ * `data` object to read.
+ */
 export function parseCcfoliaCharacter(parsed: unknown): ImportedCharacter | null {
   if (parsed == null || typeof parsed !== 'object') return null;
   const record = parsed as Record<string, unknown>;

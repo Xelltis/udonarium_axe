@@ -36,6 +36,7 @@ export class RoomSnapshotService {
    */
   readonly isKeeping = signal(!storedStopped());
 
+  /** Turns the keeping of room snapshots on or off for this browser, and remembers the choice. */
   setKeeping(keeping: boolean): void {
     this.isKeeping.set(keeping);
     try {
@@ -45,14 +46,17 @@ export class RoomSnapshotService {
     }
   }
 
+  /** Whether this browser's snapshot store can be used. Every other member does nothing where it cannot. */
   get isSupported(): boolean {
     return this.store.isAvailable();
   }
 
+  /** The newest snapshot listed, or null while there is none. */
   get latest(): RoomSnapshotMeta | null {
     return this._snapshots()[0] ?? null;
   }
 
+  /** Reads the list of snapshots again from the store, publishes it to `snapshots` and returns it. */
   async refresh(): Promise<readonly RoomSnapshotMeta[]> {
     if (!this.isSupported) return [];
     const metas = await this.store.list();
@@ -60,6 +64,12 @@ export class RoomSnapshotService {
     return metas;
   }
 
+  /**
+   * Saves the room as it stands into this browser as a new snapshot, then removes the expired ones.
+   *
+   * Answers null where snapshots are unsupported, while a capture is already running, or when the
+   * save fails, which is logged. How long it took lands in `lastCaptureMs` either way.
+   */
   async capture(): Promise<RoomSnapshotMeta | null> {
     if (!this.isSupported || this._isCapturing()) return null;
     this._isCapturing.set(true);
@@ -80,6 +90,12 @@ export class RoomSnapshotService {
     }
   }
 
+  /**
+   * Loads a snapshot back into the room, as a room file dropped on the table would be.
+   *
+   * Answers false where snapshots are unsupported, while a restore is already running, for an id
+   * the store does not hold, or when loading fails, which is logged.
+   */
   async restore(id: number): Promise<boolean> {
     if (!this.isSupported || this._isRestoring()) return false;
     this._isRestoring.set(true);
@@ -100,12 +116,14 @@ export class RoomSnapshotService {
     }
   }
 
+  /** Deletes one snapshot from this browser and lists the rest again. */
   async remove(id: number): Promise<void> {
     if (!this.isSupported) return;
     await this.store.remove(id);
     await this.refresh();
   }
 
+  /** Deletes every snapshot kept in this browser and lists them again. */
   async clear(): Promise<void> {
     if (!this.isSupported) return;
     await this.store.clear();

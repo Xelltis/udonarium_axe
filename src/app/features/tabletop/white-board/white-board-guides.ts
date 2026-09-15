@@ -178,6 +178,7 @@ export function guideUnder(
   return null;
 }
 
+/** A new guide line with an identifier of its own, across the given axis at a position. */
 export function newGuide(axis: 'x' | 'y', at: number): SceneGuideLine {
   return { id: newId(), axis, at };
 }

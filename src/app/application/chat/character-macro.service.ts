@@ -52,6 +52,13 @@ export class CharacterMacroService {
       .filter((character) => character.location.name === 'table' && character.targeted);
   }
 
+  /**
+   * Speaks a palette line as a piece, with the game system already in hand or none at all.
+   *
+   * References to the piece's data in the line are filled in and the marked pieces stand in as the
+   * targets unless others are given. Answers null, sending nothing, when there is no tab to speak
+   * into.
+   */
   send(character: GameCharacter, line: string, options: MacroSendOptions = {}): ChatMessage | null {
     const tab = this.resolveTab(options.tab);
     if (!tab) return null;
@@ -76,6 +83,13 @@ export class CharacterMacroService {
     );
   }
 
+  /**
+   * Speaks a palette line as a piece, loading the dice system it is rolled under first.
+   *
+   * The system is the one asked for, else the piece's palette's, else the room's default, else
+   * whatever chat is set to; the plain bot the piece and the room start with does not count as a
+   * choice. A game system handed in skips the lookup.
+   */
   async sendAsCharacter(
     character: GameCharacter,
     line: string,

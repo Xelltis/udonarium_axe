@@ -9,8 +9,15 @@ import { CatalogItem, ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { generateUuid } from '@axe/core/util/uuid';
 
+/**
+ * How long a finished transfer waits before telling everyone else what this seat now holds.
+ * Transfers finish in runs while a room fills up, and each run needs to be told only once.
+ */
+const CATALOG_BROADCAST_DELAY_MS = 1000;
+
 export class ImageSharingSystem {
   private static _instance: ImageSharingSystem;
+  /** The one image sharing system for the page, created on first use. */
   static get instance(): ImageSharingSystem {
     if (!ImageSharingSystem._instance) ImageSharingSystem._instance = new ImageSharingSystem();
     return ImageSharingSystem._instance;
@@ -24,6 +31,12 @@ export class ImageSharingSystem {
 
   private constructor() {}
 
+  /**
+   * Starts answering the network messages that trade images between peers, and registers image URLs
+   * found in loaded XML as linked images.
+   *
+   * Calling it again drops the earlier subscriptions first, so it never listens twice.
+   */
   initialize() {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
@@ -32,7 +45,7 @@ export class ImageSharingSystem {
       networkMessage$.subscribe((msg) => {
         switch (msg.eventName) {
           case 'CONNECT_PEER':
-            if (msg.isSendFromSelf) ImageStorage.instance.synchronize();
+            if (msg.isSendFromSelf) ImageStorage.instance.synchronize((msg.data as { peerId: string }).peerId);
             break;
           case 'SYNCHRONIZE_FILE_LIST': {
             if (msg.isSendFromSelf) break;
@@ -138,7 +151,8 @@ export class ImageSharingSystem {
 
     task.onfinish = (task) => {
       this.stopSendTask(task.identifier);
-      ImageStorage.instance.synchronize();
+      ImageStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
+      if (task.sendTo) ImageStorage.instance.synchronize(task.sendTo);
     };
 
     task.start(updateImages);
@@ -154,7 +168,7 @@ export class ImageSharingSystem {
           identifier: task.identifier,
           updateImages: data,
         });
-      ImageStorage.instance.synchronize();
+      ImageStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
     };
     task.ontimeout = (task) => {
       Logger.warn('[ImageSync] receiveTask timeout', task.identifier);

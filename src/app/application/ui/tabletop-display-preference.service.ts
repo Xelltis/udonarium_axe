@@ -22,6 +22,10 @@ export class TabletopDisplayPreferenceService {
   /** Only what this screen has been told; anything else is still the table's to answer. */
   readonly own = this.state.asReadonly();
 
+  /**
+   * Pins the given display settings on this screen over whatever the table says, and writes them
+   * down in this browser.
+   */
   set(patch: Partial<TabletopDisplaySettings>): void {
     this.write({ ...this.state(), ...patch });
   }

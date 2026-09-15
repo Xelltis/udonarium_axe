@@ -1,6 +1,7 @@
 export const PERF_TERRAIN_GRID_RASTER = 'terrainGridRaster';
 export const PERF_VISION_SCENE = 'visionScene';
 export const PERF_VISION_MEMO_MISS = 'visionMemoMiss';
+export const PERF_VISION_CELLS_MISS = 'visionCellsMiss';
 export const PERF_EFFECT_FRAME = 'effectFrame';
 export const PERF_PARTICLES = 'particles';
 export const PERF_TO_DATA_URL = 'toDataUrl';
@@ -9,6 +10,9 @@ export const PERF_SVG_BUILD = 'svgBuild';
 export const PERF_TRANSFORM_INIT = 'transformInit';
 export const PERF_AMBIENCE_LAYER = 'ambienceLayer';
 export const PERF_DESERIALIZE_SCENE = 'deserializeScene';
+export const PERF_EFFECT_RENDERABLES = 'effectRenderables';
+export const PERF_INBOUND_DRAIN = 'inboundDrain';
+export const PERF_SE_DECODE = 'seDecode';
 
 class PerfCounters {
   enabled = false;
@@ -39,6 +43,10 @@ class PerfCounters {
 /** What the table does to itself, counted only while somebody is watching. */
 export const perfCounters = new PerfCounters();
 
+/**
+ * Runs the computation and returns its value, adding the milliseconds it took under `<label>.ms`
+ * while the performance counters are enabled.
+ */
 export function perfTimed<T>(label: string, compute: () => T): T {
   if (!perfCounters.enabled) return compute();
   const started = performance.now();

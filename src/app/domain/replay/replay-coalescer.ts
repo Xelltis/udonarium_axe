@@ -17,10 +17,22 @@ const COALESCIBLE_KINDS: ReadonlySet<ReplayEventKind> = new Set([
   ReplayEventKind.ObjectValue,
 ]);
 
+/**
+ * How long, in milliseconds, a run of events of this kind may keep folding together.
+ *
+ * Value changes use the value window; moves and turns use the move window.
+ */
 export function windowFor(kind: ReplayEventKind, windows: CoalesceWindows = DEFAULT_COALESCE_WINDOWS): number {
   return kind === ReplayEventKind.ObjectValue ? windows.value : windows.move;
 }
 
+/**
+ * Whether the next event can be folded into the previous one in the recording.
+ *
+ * Only moves, turns and value changes fold, and only when both are the same kind, by the same
+ * actor, on the same target and object. The window is measured from the previous event's time,
+ * which a merge keeps, so a run stops folding once it has lasted the window.
+ */
 export function canMergeReplayEvents(
   previous: ReplayEvent,
   next: ReplayEvent,
@@ -33,6 +45,13 @@ export function canMergeReplayEvents(
   return next.at - previous.at <= windowFor(previous.kind, windows);
 }
 
+/**
+ * Folds the next event into the previous one, as one event spanning both.
+ *
+ * It keeps the previous event's sequence number and time, runs each change from the earlier
+ * value to the later one, joins the change lists, extends a move's path and counts how many
+ * events it now stands for.
+ */
 export function mergeReplayEvents(previous: ReplayEvent, next: ReplayEvent): ReplayEvent {
   const detail = mergeDetail(previous.detail, next.detail);
   if (previous.kind === ReplayEventKind.ObjectMove) detail['path'] = mergePath(previous, next);

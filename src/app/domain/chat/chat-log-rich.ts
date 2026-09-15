@@ -93,6 +93,14 @@ const TAB_FILTER_SCRIPT =
 const esc = ChatLogExporter.escapeHtml;
 const attr = ChatLogExporter.escapeAttribute;
 
+/**
+ * Renders a chat log as a standalone html page in one of the themed styles.
+ *
+ * For every tab it merges the spoken tabs in the order lines were placed, adding buttons to filter
+ * by tab when there is more than one; otherwise it takes the first tab. Only lines the reader may
+ * see are kept. The labels default to Japanese and can be replaced one at a time, and the room name
+ * and the export time are shown when given.
+ */
 export function renderRichChatLog(
   style: RichChatLogStyle,
   scope: ChatLogScope,

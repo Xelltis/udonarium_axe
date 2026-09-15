@@ -43,15 +43,18 @@ export class OpenUrlComponent {
     });
   }
 
+  /** Whether the link is a well-formed http or https address that may be opened. */
   get isValid(): boolean {
     return this.validUrl(this.url.trim());
   }
 
+  /** Whether the link leads off this site, in which case its host is shown in bold. */
   get isOuter(): boolean {
     if (!this.isValid || this.urlObj === null) return false;
     return window.location.origin !== this.urlObj.origin;
   }
 
+  /** Whether a string parses as an absolute address that starts with http:// or https://. */
   validUrl(url: string): boolean {
     if (!url) return false;
     try {
@@ -62,11 +65,13 @@ export class OpenUrlComponent {
     return /^https?:\/\//.test(url.trim());
   }
 
+  /** Opens the link in a new tab, without giving it a handle back to this page, and closes with true. */
   openUrl() {
     window.open(this.url.trim(), '_blank', 'noopener');
     this.modalService.resolve(true);
   }
 
+  /** Closes without opening the link, resolving with false. */
   cancel() {
     this.modalService.resolve(false);
   }

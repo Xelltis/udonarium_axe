@@ -161,6 +161,13 @@ export interface ReplayLayerSample {
   glowColor: string;
 }
 
+/**
+ * A recorded layer's state at one moment of its scene: its tracks, or where it rests, with its
+ * running touch laid on top.
+ *
+ * It is visible from its start until its end, unless hidden. A layer that runs to the end of
+ * the scene, or past it, stays visible to the last moment.
+ */
 export function replaySampleAt(layer: ReplayCutInLayer, ms: number, durationMs: number): ReplayLayerSample {
   const endMs = layer.endMs > 0 ? Math.min(layer.endMs, durationMs) : durationMs;
   const touch = effectAt(layer.effect, ms, layer.effectStrength);

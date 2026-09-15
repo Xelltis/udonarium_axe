@@ -202,6 +202,10 @@ export const LIGHT_PRESETS: Record<Exclude<LightPreset, LightPreset.CUSTOM>, Lig
   },
 };
 
+/**
+ * A complete light spec for a preset: the defaults, then the preset's own values, then any
+ * overrides. The preset named is always kept.
+ */
 export function lightSpecFromPreset(preset: LightPreset, overrides: Partial<LightSpec> = {}): LightSpec {
   const base: LightSpec = {
     enabled: true,
@@ -264,6 +268,11 @@ export interface MutableLightFields {
   lightCastShadows?: boolean;
 }
 
+/**
+ * Sets a light's preset and, for every preset but custom, copies that preset's values onto it.
+ *
+ * Optional fields are written only when the light has them.
+ */
 export function applyLightPreset(target: MutableLightFields, preset: LightPreset): void {
   target.lightPreset = preset;
   if (preset === LightPreset.CUSTOM) return;

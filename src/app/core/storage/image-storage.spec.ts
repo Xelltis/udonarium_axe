@@ -1,3 +1,4 @@
+import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 
@@ -69,6 +70,56 @@ describe('ImageStorage', () => {
       expect(catalog.length).toBeGreaterThanOrEqual(1);
       const item = catalog.find((c) => c.identifier === 'https://example.com/catalog.png');
       expect(item).toBeTruthy();
+    });
+  });
+
+  describe('sending the catalogue', () => {
+    const cancelWaiting = () =>
+      (storage as unknown as { catalogSchedule: { cancel(): void } }).catalogSchedule.cancel();
+
+    const catalogueTargets = () =>
+      vi
+        .mocked(Network.instance.send)
+        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === 'SYNCHRONIZE_FILE_LIST')
+        .map(([, sendTo]) => sendTo);
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      cancelWaiting();
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      cancelWaiting();
+      vi.useRealTimers();
+    });
+
+    it('sends a later waiting call to the peer that call names', () => {
+      storage.lazySynchronize(1000, 'peer-a');
+      vi.advanceTimersByTime(1000);
+      storage.lazySynchronize(1000, 'peer-b');
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual(['peer-a', 'peer-b']);
+    });
+
+    it('still tells everyone later after telling one peer now', () => {
+      storage.lazySynchronize(1000);
+      storage.synchronize('peer-a');
+      vi.advanceTimersByTime(1000);
+
+      expect(catalogueTargets()).toEqual(['peer-a', undefined]);
+    });
+
+    it('sends one catalogue once a quick run of added images stops', () => {
+      for (let n = 0; n < 10; n++) {
+        storage.add(`https://example.com/run-${n}.png`);
+        vi.advanceTimersByTime(50);
+      }
+
+      expect(catalogueTargets()).toEqual([]);
+      vi.advanceTimersByTime(50);
+      expect(catalogueTargets()).toEqual([undefined]);
     });
   });
 });

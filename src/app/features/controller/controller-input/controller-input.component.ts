@@ -64,18 +64,24 @@ export class ControllerInputComponent {
     return object instanceof GameCharacter ? object.selectedPortraitIndex : 0;
   });
 
+  /**
+   * Switches the speaking character to one of its portraits, written on the character, from the
+   * portrait picker.
+   */
   setPortraitIndex(num: number) {
     const object = this.objectStore.get(this.sendFrom());
     if (object instanceof GameCharacter) object.selectedPortraitIndex = num;
     this.portraitIndex.set(num);
   }
 
+  /** Whether a whisper target is chosen, which tints the input to show the message is private. */
   get isDirect(): boolean {
     return this.sendTo() != null && this.sendTo().length > 0;
   }
 
   private _colorSelectNo: number = 0;
 
+  /** Which of the speaker's three chat colours is picked, held between 0 and 2. */
   get colorSelectNo(): number {
     return this._colorSelectNo;
   }
@@ -84,6 +90,10 @@ export class ControllerInputComponent {
     this._colorSelectNo = Math.max(0, Math.min(2, num));
   }
 
+  /**
+   * The inline style for one colour swatch, drawn with a thicker, rounded border when it is the
+   * picked one.
+   */
   colorSelectorStyle(index: number): Record<string, string> {
     const selected = index === this.colorSelectNo;
     return {
@@ -93,6 +103,7 @@ export class ControllerInputComponent {
     };
   }
 
+  /** The current speaker's picked chat colour, which the remote controller sends its messages in. */
   get selectChatColor(): string {
     return this.characterChatColor(this.colorSelectNo);
   }
@@ -144,6 +155,7 @@ export class ControllerInputComponent {
     return all.filter((character) => this.isVisibleToMe(character));
   });
 
+  /** The reader's own cursor, which is spoken as when no character is chosen. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
@@ -153,15 +165,24 @@ export class ControllerInputComponent {
   readonly selectNum = input(0);
   readonly allBox = output<{ check: boolean }>();
 
+  /** Picks one of the speaker's three chat colours from its swatch. */
   setColorNum(num: number) {
     this.colorSelectNo = num;
   }
 
+  /**
+   * The chat colour in one slot of the speaking character, or the default colour when the speaker
+   * is not a character.
+   */
   characterChatColor(num: number) {
     const object = this.objectStore.get(this.sendFrom());
     return object instanceof GameCharacter ? chatColorOf(object, num) : DEFAULT_CHAT_COLOR;
   }
 
+  /**
+   * Opens the chat colour settings panel for the speaking character near the pointer; does nothing
+   * when the speaker is not a character.
+   */
   shoeColorSetting() {
     const object = this.objectStore.get(this.sendFrom());
     if (object instanceof GameCharacter) {
@@ -212,6 +233,7 @@ export class ControllerInputComponent {
     }, this.destroyRef);
   }
 
+  /** Asks the parent to tick every character when none is selected, or to untick them all otherwise. */
   allBoxCheck() {
     if (this.selectNum() > 0) {
       this.allBox.emit({ check: false });

@@ -8,6 +8,7 @@
 export const MIN_CORRIDOR_WIDTH = 1;
 export const MAX_CORRIDOR_WIDTH = 4;
 
+/** A passage width rounded to whole cells and kept between one and four; missing or not a number gives one. */
 export function clampCorridorWidth(width: number | undefined): number {
   if (width === undefined || !Number.isFinite(width)) return MIN_CORRIDOR_WIDTH;
   return Math.min(MAX_CORRIDOR_WIDTH, Math.max(MIN_CORRIDOR_WIDTH, Math.round(width)));
@@ -106,24 +107,29 @@ export interface DungeonLayout {
   seed: number;
 }
 
+/** Whether a cell position lies on the board. */
 export function inBounds(layout: Pick<DungeonLayout, 'width' | 'height'>, x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < layout.width && y < layout.height;
 }
 
+/** What a cell of the board is; anywhere off the board reads as rock. */
 export function cellAt(layout: DungeonLayout, x: number, y: number): DungeonCellValue {
   if (!inBounds(layout, x, y)) return DungeonCell.Rock;
   return layout.cells[y * layout.width + x] as DungeonCellValue;
 }
 
+/** Sets what a cell of the board is; a position off the board is ignored. */
 export function setCell(layout: DungeonLayout, x: number, y: number, value: DungeonCellValue): void {
   if (!inBounds(layout, x, y)) return;
   layout.cells[y * layout.width + x] = value;
 }
 
+/** Whether a kind of cell is open ground (room, corridor, door or hazard) rather than rock. */
 export function isOpenCell(value: DungeonCellValue): boolean {
   return value !== DungeonCell.Rock;
 }
 
+/** Whether the cell at a position is open ground; off the board it is not. */
 export function isWalkable(layout: DungeonLayout, x: number, y: number): boolean {
   return isOpenCell(cellAt(layout, x, y));
 }
@@ -138,6 +144,11 @@ export function maskOfKind(layout: DungeonLayout, kinds: readonly DungeonCellVal
   return mask;
 }
 
+/**
+ * The middle cell of a room's bounding box, rounded towards the top left.
+ *
+ * A room carved to a shape may not include this cell; {@link firstCellOf} finds one that is.
+ */
 export function roomCenter(room: DungeonRect): DungeonPoint {
   return { x: room.x + Math.floor(room.w / 2), y: room.y + Math.floor(room.h / 2) };
 }
@@ -170,6 +181,7 @@ export function reachableCells(layout: DungeonLayout, start: DungeonPoint): Set<
   return seen;
 }
 
+/** How many cells of the board are anything other than rock. */
 export function countOpenCells(layout: DungeonLayout): number {
   let total = 0;
   for (const cell of layout.cells) if (cell !== DungeonCell.Rock) total++;

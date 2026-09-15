@@ -316,6 +316,10 @@ export class GameCharacterComponent {
     return !this.visionService.isTokenVisible(char);
   });
 
+  /**
+   * Whether the piece is locked in place, read and written on the character; false while no
+   * character is bound.
+   */
   get isLock(): boolean {
     const char = this.gameCharacter();
     return char?.isLock ?? false;
@@ -354,6 +358,7 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char?.identifier ?? '')();
     return char?.altitude ?? 0;
   });
+  /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
   setAltitude(altitude: number) {
     const char = this.gameCharacter();
     if (char) char.altitude = altitude;
@@ -368,6 +373,10 @@ export class GameCharacterComponent {
     },
     { equal: imageFileEqual() }
   );
+  /**
+   * The piece's turn on the table in degrees, read and written on the character; 0 while no
+   * character is bound.
+   */
   get rotate(): number {
     const char = this.gameCharacter();
     return char?.rotate ?? 0;
@@ -376,6 +385,10 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (char) char.rotate = rotate;
   }
+  /**
+   * The piece's tilt in degrees, read and written on the character and set by the roll handles; 0
+   * while no character is bound.
+   */
   get roll(): number {
     const char = this.gameCharacter();
     return char?.roll ?? 0;
@@ -402,6 +415,7 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.specifyKomaImageFlag;
   });
+  /** Whether the piece casts a drop shadow under its picture. */
   get isDropShadow(): boolean {
     const char = this.gameCharacter();
     return char?.isDropShadow ?? false;
@@ -410,6 +424,7 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (char) char.isDropShadow = isDropShadow;
   }
+  /** Whether the piece shows its elevation label while it is raised or lowered by half a cell or more. */
   get isAltitudeIndicate(): boolean {
     const char = this.gameCharacter();
     return char?.isAltitudeIndicate ?? false;
@@ -438,6 +453,7 @@ export class GameCharacterComponent {
     this.buffViewMode.update(nextBuffViewMode);
   }
 
+  /** The size of one grid cell on the current table, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -548,8 +564,8 @@ export class GameCharacterComponent {
   /**
    * Whether the piece may be turned at all.
    *
-   * Seen from above there was nothing turning it would show, so it was held still. A table
-   * that shows facing has something to show, and hands the handles back.
+   * Seen from above, turning a piece shows nothing, so it is held still. A table that shows
+   * facing has something to show, and hands the handles back.
    */
   readonly canTurn = computed(() => {
     if (this.isPoster()) return false;
@@ -585,15 +601,39 @@ export class GameCharacterComponent {
     });
   }
 
-  readonly pieceGauges = computed<PieceGauge[]>(() => {
-    const char = this.gameCharacter();
-    const detail = char?.detailDataElement;
-    if (!detail) return [];
-    this.objectChange.versionOf(detail.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(detail)) this.objectChange.versionOf(element.identifier)();
-    return selectPieceGauges(detail);
-  });
+  readonly pieceGauges = computed<PieceGauge[]>(
+    () => {
+      const detail = this.gameCharacter()?.detailDataElement ?? null;
+      if (this.followedTree(detail) === null || !detail) return [];
+      return selectPieceGauges(detail);
+    },
+    { equal: sameEntries }
+  );
+
+  /**
+   * Follows one part of the piece's data so that a computation hears it change, and hands back
+   * everything under it.
+   *
+   * A part the piece does not have yet is followed through every data element, since it may be
+   * added anywhere under the piece. A part it has is followed through itself, what is under it
+   * and the data elements it hangs from, which are what change when it is taken away or another
+   * is put in its place, rather than through every data element of every piece on the table.
+   * The piece itself is not followed: moving it changes it many times a second, and none of that
+   * reaches its data.
+   */
+  private followedTree(element: DataElement | null): DataElement[] | null {
+    if (!element) {
+      this.objectChange.collectionOf('data')();
+      return null;
+    }
+    for (let node = element.parent; node instanceof DataElement; node = node.parent) {
+      this.objectChange.versionOf(node.identifier)();
+    }
+    this.objectChange.versionOf(element.identifier)();
+    const descendants = collectDataElements(element);
+    for (const descendant of descendants) this.objectChange.versionOf(descendant.identifier)();
+    return descendants;
+  }
 
   /**
    * Whether the reader may read the numbers on this piece's bars.
@@ -614,15 +654,14 @@ export class GameCharacterComponent {
     return this.pieceGauges().map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }));
   });
 
-  readonly buffBadges = computed<BuffBadge[]>(() => {
-    const char = this.gameCharacter();
-    const buffEl = char?.buffDataElement;
-    if (!buffEl) return [];
-    this.objectChange.versionOf(buffEl.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(buffEl)) this.objectChange.versionOf(element.identifier)();
-    return toBuffBadges(buffEl);
-  });
+  readonly buffBadges = computed<BuffBadge[]>(
+    () => {
+      const buffEl = this.gameCharacter()?.buffDataElement ?? null;
+      if (this.followedTree(buffEl) === null || !buffEl) return [];
+      return toBuffBadges(buffEl);
+    },
+    { equal: sameEntries }
+  );
 
   readonly orbitPieceGauges = computed(() => this.pieceGauges().slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES));
 
@@ -631,15 +670,11 @@ export class GameCharacterComponent {
   private readonly decorScale = `scale(${(1 / DECOR_SUPERSAMPLE).toFixed(6)})`;
 
   private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
-    const char = this.gameCharacter();
-    const detail = char?.detailDataElement;
     const snapshot = new Map<string, ResourceSnapshot>();
-    if (!detail) return snapshot;
+    const elements = this.followedTree(this.gameCharacter()?.detailDataElement ?? null);
+    if (elements === null) return snapshot;
 
-    this.objectChange.versionOf(detail.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(detail)) {
-      this.objectChange.versionOf(element.identifier)();
+    for (const element of elements) {
       if (!isResourceElement(element)) continue;
       snapshot.set(element.identifier, {
         current: Number(element.currentValue),
@@ -930,9 +965,9 @@ export class GameCharacterComponent {
   protected readonly pedestalStyleHidden = computed(() => this.pedestalStyleOf('#A0E0FF'));
   protected readonly pedestalStyleTargeted = computed(() => this.pedestalStyleOf('#ff3b30'));
 
-  // The pedestal styles ran as getters on every change-detection pass and built a fresh
-  // record each time. Computed, they hand back the same object until something changes,
-  // which saves a thousand allocations and as many clip paths a pass with three hundred characters on the table.
+  // Computed rather than read as getters, the pedestal styles hand back the same object until
+  // something changes, instead of a fresh record on every change-detection pass: a thousand
+  // allocations and as many clip paths a pass with three hundred characters on the table.
   protected readonly pedestalOuterStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
     if (!params) return {} as Record<string, string>;
@@ -982,21 +1017,35 @@ export class GameCharacterComponent {
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private unhighlightTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /**
+   * The piece's height in grid cells, its base position and altitude together, rounded to one
+   * decimal for the elevation label.
+   */
   get elevation(): number {
     const char = this.gameCharacter();
     if (!char) return 0;
     return +((char.posZ + this.altitude() * this.gridSize) / this.gridSize).toFixed(1);
   }
 
+  /** How far a chat bubble over the piece is lifted, in pixels; always 0 for this component. */
   get chatBubbleAltitude(): number {
     return 0;
   }
 
+  /** Stops the browser's native drag of the piece's images, so only the movable directive moves it. */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /**
+   * Takes every press straight back off the piece's own input handler, which has nothing to do with
+   * a move or a release.
+   *
+   * The handler adds document-wide move and release listeners on each press, and cancelling removes
+   * them at once. The press itself is not stopped: moving and turning the piece are left to the
+   * movable and rotable directives, which listen for it themselves.
+   */
   onInputStart(_e: MouseEvent | TouchEvent) {
     if (this.input) this.input.cancel();
   }
@@ -1111,6 +1160,12 @@ export class GameCharacterComponent {
     }
   }
 
+  /**
+   * Opens the character's context menu at the pointer, if the reader may view the piece.
+   *
+   * When several pieces are selected the shared selection menu opens instead. Seen from above with
+   * a radial menu style chosen, the menu opens as a radial menu around the piece.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -1235,7 +1290,7 @@ export class GameCharacterComponent {
     const heard = entries.filter((entry) => entry.playsSound);
     const loudest = loudestChange(heard);
     // One line is heard, so all three of what is heard come from it. Taken apart, a point of
-    // damage alongside a large heal was played as a large hurt, in the heal's own voice.
+    // damage alongside a large heal would play as a large hurt, in the heal's own voice.
     if (loudest) SoundEffect.playLocal(resourceChangeSound(loudest.kind, loudest.ratio, loudest.soundSet));
 
     const shown = entries.filter((entry) => entry.playsEffect);
@@ -1257,11 +1312,13 @@ export class GameCharacterComponent {
     return char.zindex;
   });
 
+  /** Brings the piece to the top and plays the pick-up sound when a drag or turn starts. */
   onMove() {
     this.gameCharacter()?.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
   }
 
+  /** Plays the put-down sound when a drag or turn ends. */
   onMoved() {
     SoundEffect.play(PresetSound.piecePut);
   }
@@ -1315,6 +1372,7 @@ export class GameCharacterComponent {
     return this.objectStore.get<Config>('Config')?.moveStrict === true;
   }
 
+  /** Starts carrying the piece: raises it, shows how far it may move and fires its pick-up triggers. */
   onPickUp() {
     this.onMove();
     const character = this.gameCharacter();
@@ -1323,6 +1381,10 @@ export class GameCharacterComponent {
     this.triggerFire.pickedUp(character);
   }
 
+  /**
+   * Puts the carried piece down: plays the put-down sound, hides the move range and fires its
+   * put-down triggers.
+   */
   onPutDown() {
     this.onMoved();
     this.moveRangeService.hide();
@@ -1330,10 +1392,15 @@ export class GameCharacterComponent {
     if (character) this.triggerFire.putDown(character);
   }
 
+  /** Hides the move range once the press on the piece ends, whether or not it was dragged. */
   onLetGo() {
     this.moveRangeService.hide();
   }
 
+  /**
+   * Aims at the piece on an Alt press, or clears every aim on Shift+Alt, swallowing the press so it
+   * does not also start a drag.
+   */
   checkKey(event: KeyboardEvent | MouseEvent) {
     const key_event = (event || window.event) as KeyboardEvent | MouseEvent;
     const key_shift = key_event.shiftKey;
@@ -1363,6 +1430,7 @@ export class GameCharacterComponent {
     this.uiSignalService.notifyTargetChange(char.identifier, char.aliasName);
   }
 
+  /** Takes the aim mark off every character in the room, signalling each change so its marker redraws. */
   clearEveryTarget(): void {
     for (const object of this.objectStore.getObjects(GameCharacter)) {
       if (!object.targeted) continue;
@@ -1444,4 +1512,23 @@ export class GameCharacterComponent {
     }
     return count;
   });
+}
+
+/**
+ * The same list, or one holding entries of the same values in the same order.
+ *
+ * The bars and buff icons are drawn from those values alone, so a list worked out again from data
+ * that did not change them is kept as it was and nothing drawn from it is drawn again.
+ */
+function sameEntries<T extends object>(a: readonly T[], b: readonly T[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((entry, index) => sameFields(entry, b[index]));
+}
+
+/** Whether two flat records hold the same keys with the same values. */
+function sameFields(a: object, b: object): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => Object.is((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }

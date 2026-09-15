@@ -27,6 +27,14 @@ export interface PieceImageView {
   onImageLoad(event: Event): void;
 }
 
+/**
+ * Works out how a piece's picture is sized and transformed from its inputs, as signals a piece
+ * component binds in its template.
+ *
+ * The picture's natural size is unknown until `onImageLoad` is called from the image's load
+ * event, and forgotten again whenever the image URL changes; until then no supersampling is
+ * applied.
+ */
 export function pieceImageView(inputs: PieceImageViewInputs): PieceImageView {
   const natural = linkedSignal<string, { width: number; height: number } | null>({
     source: inputs.imageUrl,

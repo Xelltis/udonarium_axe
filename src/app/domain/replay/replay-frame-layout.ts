@@ -26,6 +26,12 @@ export const REPLAY_FRAME_PRESETS: Readonly<Record<string, ReplayFrameSize>> = {
   '2160p': { width: 3840, height: 2160 },
 };
 
+/**
+ * Where each part of a replay video frame goes at the given size: the portrait, the dialogue box
+ * with its name and text, the chapter title, the board and the progress bar.
+ *
+ * It is laid out for 1920 by 1080 and scaled by whichever side fits tighter.
+ */
 export function replayFrameLayout(size: ReplayFrameSize): ReplayFrameLayout {
   const scale = Math.min(size.width / REFERENCE_WIDTH, size.height / REFERENCE_HEIGHT);
   const at = (value: number): number => Math.round(value * scale);
@@ -70,6 +76,12 @@ export function replayFrameLayout(size: ReplayFrameSize): ReplayFrameLayout {
 
 export type ReplayTextMeasure = (text: string) => number;
 
+/**
+ * Breaks text into lines that fit a width, character by character, keeping its own line breaks.
+ *
+ * At most `maxLines` come back, the last ending in an ellipsis when text was cut off. Nothing
+ * comes back when there is no width or no line to fill.
+ */
 export function wrapReplayText(measure: ReplayTextMeasure, text: string, maxWidth: number, maxLines: number): string[] {
   if (maxWidth <= 0 || maxLines < 1) return [];
 
@@ -122,6 +134,12 @@ function ellipsize(measure: ReplayTextMeasure, line: string, maxWidth: number): 
   return `${characters.join('')}…`;
 }
 
+/**
+ * Where to draw a picture so it covers the target entirely, scaled evenly and centred, with the
+ * overflow off the edges.
+ *
+ * A picture with no size simply fills the target.
+ */
 export function coverRect(
   source: ReplayFrameSize,
   target: ReplayFrameSize

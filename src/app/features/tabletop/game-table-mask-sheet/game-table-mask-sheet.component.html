@@ -1,0 +1,248 @@
+@if (gameTableMask) {
+  <div class="flex flex-col gap-4" [attr.data-version]="maskVersion()">
+    <section class="bg-ui-accent-bg border-ui-border-panel rounded-ui-sm box-border border p-3">
+      <h3
+        class="text-ui-accent border-ui-border-panel m-0 mb-2.5 flex items-center gap-1.5 border-b pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-[16px]!"
+      >
+        <i class="material-icons">tune</i>
+        {{ 'feature.tabletop.maskSheet.basicSection' | transloco }}
+      </h3>
+      <div class="mb-2 flex items-center gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 text-[12px]">{{ 'feature.tabletop.maskSheet.name' | transloco }}</label>
+        <input
+          class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text box-border min-w-0 flex-1 border px-2 py-1 text-[13px]"
+          type="text"
+          data-field="name"
+          [(ngModel)]="name"
+        />
+      </div>
+      <div class="mb-2 flex items-center gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 text-[12px]">{{ 'feature.tabletop.maskSheet.width' | transloco }}</label>
+        <input
+          class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text box-border w-17.5 flex-none border px-2 py-1 text-[13px]"
+          type="number"
+          min="1"
+          step="1"
+          data-field="width"
+          [(ngModel)]="width"
+        />
+      </div>
+      <div class="mb-2 flex items-center gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 text-[12px]">{{
+          'feature.tabletop.maskSheet.height' | transloco
+        }}</label>
+        <input
+          class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text box-border w-17.5 flex-none border px-2 py-1 text-[13px]"
+          type="number"
+          min="1"
+          step="1"
+          data-field="height"
+          [(ngModel)]="height"
+        />
+      </div>
+      <div class="mb-2 flex items-center gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 text-[12px]">{{
+          'feature.tabletop.maskSheet.opacity' | transloco
+        }}</label>
+        <input class="accent-ui-accent min-w-0 flex-1" type="range" min="0" max="100" step="1" [(ngModel)]="opacity" />
+        <input
+          class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text box-border w-17.5 flex-none border px-2 py-1 text-[13px]"
+          type="number"
+          min="0"
+          max="100"
+          step="1"
+          data-field="opacity"
+          [(ngModel)]="opacity"
+        />
+      </div>
+    </section>
+
+    <section class="bg-ui-accent-bg border-ui-border-panel rounded-ui-sm box-border border p-3">
+      <h3
+        class="text-ui-accent border-ui-border-panel m-0 mb-2.5 flex items-center gap-1.5 border-b pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-[16px]!"
+      >
+        <i class="material-icons">layers</i>
+        {{ 'feature.tabletop.maskSheet.maskSection' | transloco }}
+      </h3>
+      <div class="mb-2 flex items-start gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 pt-2 text-[12px]">{{
+          'feature.tabletop.maskSheet.image' | transloco
+        }}</label>
+        <div
+          class="border-ui-border-panel rounded-ui-sm bg-ui-panel flex w-36 flex-col items-center gap-1 border-2 px-1.5 py-2"
+        >
+          <div
+            class="border-ui-border-panel rounded-ui-sm bg-ui-input flex size-15 items-center justify-center overflow-hidden border"
+          >
+            @if (maskImage().url) {
+              <img
+                class="size-full object-contain"
+                [src]="maskImage().url | safe: 'resourceUrl'"
+                [alt]="'feature.tabletop.maskSheet.maskImageAlt' | transloco"
+              />
+            } @else {
+              <div class="text-ui-muted flex size-full items-center justify-center">
+                <i class="material-icons text-[28px]! opacity-40">image_not_supported</i>
+              </div>
+            }
+          </div>
+          <div class="flex w-full items-center justify-center gap-1">
+            <button
+              class="bg-ui-accent border-ui-accent rounded-ui-sm inline-flex min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+              type="button"
+              data-action="set-mask-image"
+              (click)="openMaskImageModal()"
+              [title]="'feature.tabletop.maskSheet.setImage' | transloco"
+            >
+              <i class="material-icons">edit</i>
+              {{ 'feature.tabletop.maskSheet.setLabel' | transloco }}
+            </button>
+            @if (maskImage().isSet) {
+              <button
+                class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.25 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+                type="button"
+                data-action="clear-mask-image"
+                (click)="clearMaskImage()"
+                [title]="'feature.tabletop.maskSheet.clearImage' | transloco"
+              >
+                <i class="material-icons">close</i>
+                {{ 'feature.tabletop.maskSheet.clearLabel' | transloco }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="mb-2 flex items-center gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 text-[12px]">{{ 'feature.tabletop.maskSheet.color' | transloco }}</label>
+        <input
+          #maskColorPicker
+          class="border-ui-border-panel rounded-ui-sm box-border h-7 w-12 flex-none cursor-pointer border bg-transparent p-0.5"
+          type="color"
+          data-field="mask-color"
+          [value]="maskColor"
+          (change)="setMaskColor(maskColorPicker.value)"
+        />
+        <span class="text-ui-muted font-mono text-[12px]">{{ maskColor }}</span>
+      </div>
+    </section>
+
+    <section class="bg-ui-accent-bg border-ui-border-panel rounded-ui-sm box-border border p-3">
+      <h3
+        class="text-ui-accent border-ui-border-panel m-0 mb-2.5 flex items-center gap-1.5 border-b pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-[16px]!"
+      >
+        <i class="material-icons">grid_on</i>
+        {{ 'feature.tabletop.maskSheet.scratchedSection' | transloco }}
+      </h3>
+      <p class="text-ui-muted m-0 mb-2.5 text-[12px]">{{ 'feature.tabletop.maskSheet.scratchedHint' | transloco }}</p>
+      <div class="mb-2 flex items-start gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 pt-2 text-[12px]">{{
+          'feature.tabletop.maskSheet.image' | transloco
+        }}</label>
+        <div
+          class="border-ui-border-panel rounded-ui-sm bg-ui-panel flex w-36 flex-col items-center gap-1 border-2 px-1.5 py-2"
+        >
+          <div
+            class="border-ui-border-panel rounded-ui-sm bg-ui-input flex size-15 items-center justify-center overflow-hidden border"
+          >
+            @if (scratchedImage().url) {
+              <img
+                class="size-full object-contain"
+                [src]="scratchedImage().url | safe: 'resourceUrl'"
+                [alt]="'feature.tabletop.maskSheet.scratchedImageAlt' | transloco"
+              />
+            } @else {
+              <div class="text-ui-muted flex size-full items-center justify-center">
+                <i class="material-icons text-[28px]! opacity-40">image_not_supported</i>
+              </div>
+            }
+          </div>
+          <div class="flex w-full items-center justify-center gap-1">
+            <button
+              class="bg-ui-accent border-ui-accent rounded-ui-sm inline-flex min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+              type="button"
+              data-action="set-scratched-image"
+              (click)="openScratchedImageModal()"
+              [title]="'feature.tabletop.maskSheet.setImage' | transloco"
+            >
+              <i class="material-icons">edit</i>
+              {{ 'feature.tabletop.maskSheet.setLabel' | transloco }}
+            </button>
+            @if (scratchedImage().isSet) {
+              <button
+                class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.25 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+                type="button"
+                data-action="clear-scratched-image"
+                (click)="clearScratchedImage()"
+                [title]="'feature.tabletop.maskSheet.clearImage' | transloco"
+              >
+                <i class="material-icons">close</i>
+                {{ 'feature.tabletop.maskSheet.clearLabel' | transloco }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="mb-2 flex items-center gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 text-[12px]">{{ 'feature.tabletop.maskSheet.color' | transloco }}</label>
+        <input
+          #scratchedColorInput
+          class="border-ui-border-panel rounded-ui-sm box-border h-7 w-12 flex-none cursor-pointer border bg-transparent p-0.5"
+          type="color"
+          data-field="scratched-color"
+          [value]="scratchedColorPicker"
+          (change)="setScratchedColor(scratchedColorInput.value)"
+        />
+        <span class="text-ui-muted text-[12px]" [class.font-mono]="scratchedColor">{{
+          scratchedColor || ('feature.tabletop.maskSheet.none' | transloco)
+        }}</span>
+        @if (scratchedColor) {
+          <button
+            class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text ml-auto inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.25 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+            type="button"
+            data-action="clear-scratched-color"
+            (click)="clearScratchedColor()"
+            [title]="'feature.tabletop.maskSheet.clearColor' | transloco"
+          >
+            <i class="material-icons">close</i>
+            {{ 'feature.tabletop.maskSheet.none' | transloco }}
+          </button>
+        }
+      </div>
+    </section>
+
+    <section class="flex justify-end gap-2">
+      <button
+        class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text mr-auto inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+        type="button"
+        data-action="open-data-sheet"
+        (click)="openDataSheet()"
+        [title]="'feature.tabletop.maskSheet.openDataSheet' | transloco"
+      >
+        <i class="material-icons">list_alt</i>
+        {{ 'feature.tabletop.maskSheet.dataSheet' | transloco }}
+      </button>
+      <button
+        class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+        type="button"
+        (click)="clone()"
+      >
+        <i class="material-icons">content_copy</i>
+        {{ 'feature.tabletop.maskSheet.copy' | transloco }}
+      </button>
+      <button
+        class="bg-ui-accent border-ui-accent rounded-ui-sm inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+        type="button"
+        [disabled]="isSaving()"
+        (click)="saveToXML()"
+      >
+        @if (isSaving()) {
+          <i class="material-icons">hourglass_empty</i>
+          {{ 'feature.tabletop.maskSheet.saving' | transloco: { percent: progressPercent() } }}
+        } @else {
+          <i class="material-icons">save</i>
+          {{ 'feature.tabletop.maskSheet.save' | transloco }}
+        }
+      </button>
+    </section>
+  </div>
+}

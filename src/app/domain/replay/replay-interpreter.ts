@@ -79,6 +79,11 @@ const CHAT_ONLY_KINDS: ReadonlySet<ReplayEventKind> = new Set([
   ReplayEventKind.Marker,
 ]);
 
+/**
+ * Whether a network event is left out of the recording.
+ *
+ * Besides the listed names, all file transfer, audio transfer and task cancel traffic is left out.
+ */
 export function isIgnoredReplayEvent(eventName: string): boolean {
   if (REPLAY_IGNORED_EVENT_NAMES.has(eventName)) return true;
   return eventName.startsWith('FILE_') || eventName.startsWith('AUDIO_') || eventName.startsWith('CANCEL_TASK_');
@@ -95,12 +100,24 @@ export function shouldDiffObjectChange(level: ReplayDetailLevel, aliasName: stri
   return isNew && aliasName === CHAT_ALIAS;
 }
 
+/**
+ * Whether events of this kind are kept at the given level of detail.
+ *
+ * Full keeps everything, chat only keeps chat lines, dice lines and markers, and notable keeps
+ * everything but bare object updates.
+ */
 export function isRecordableKind(kind: ReplayEventKind, level: ReplayDetailLevel): boolean {
   if (level === ReplayDetailLevel.Full) return true;
   if (level === ReplayDetailLevel.ChatOnly) return CHAT_ONLY_KINDS.has(kind);
   return kind !== ReplayEventKind.ObjectUpdate;
 }
 
+/**
+ * Turns a change to an object into a draft event, carrying a patch of just the fields that
+ * changed, attribute by attribute.
+ *
+ * Null when nothing actually changed.
+ */
 export function interpretObjectChange(input: ObjectChangeInput): ReplayDraft | null {
   const diff = diffSyncData(input.before ? flattenSyncData(input.before) : null, flattenSyncData(input.after));
   if (!diff) return null;
@@ -115,10 +132,18 @@ export function interpretObjectChange(input: ObjectChangeInput): ReplayDraft | n
   return { ...draft, targetIdentifier: draft.targetIdentifier ?? input.identifier, patch };
 }
 
+/** The draft event for an object taken out of the room, naming what kind of object it was. */
 export function interpretObjectRemove(identifier: string, aliasName: string): ReplayDraft {
   return { kind: ReplayEventKind.ObjectRemove, targetIdentifier: identifier, detail: { aliasName } };
 }
 
+/**
+ * Turns a network event into a draft event for the recording.
+ *
+ * Dice and coin rolls, shuffles, sound effects, effect casts, table changes, resource changes,
+ * visual novel mode and peers joining or leaving are understood. Resource changes and peers
+ * coming and going carry no signal to play back. Null for any other event.
+ */
 export function interpretSignal(eventName: string, data: unknown): ReplayDraft | null {
   const record = (data ?? {}) as Record<string, unknown>;
   const signal: ReplaySignal = { name: eventName, data };

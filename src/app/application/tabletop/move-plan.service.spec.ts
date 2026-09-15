@@ -287,8 +287,6 @@ describe('MovePlanService', () => {
 
       // The block's own cell and its height are reached at the end of the hop and never before,
       // so nobody watching sees the piece arrive, wind back and cross a second time.
-      // Written before the hop, the very first thing every other screen saw was the piece
-      // standing on the block; then it went back and crossed again.
       const arrived = (at: { x: number; z: number }) => at.x === 6 * GRID && at.z === 2 * GRID;
       const first = seen.findIndex(arrived);
 

@@ -50,10 +50,9 @@ test.describe('インベントリパネル', () => {
     const panel = page.locator('inventory-filter-panel');
     await expect(panel.locator('input[placeholder="タグ名"]').first()).toBeVisible({ timeout: 5000 });
     await expect(panel.locator('select').first()).toBeVisible();
-    // 卓上とインベントリの二枚ぶんの表示項目欄が並ぶ。
-    await expect(
-      panel.locator('input[placeholder="スペース区切りでタグ名、スラッシュで改行 例: HP MP / メモ"]').first()
-    ).toBeVisible();
+    // 卓上とインベントリの二枚ぶんの表示項目欄が並ぶ。書き方の例は増えていくので、文言ではなく欄の名前で探す。
+    await expect(panel.locator('input[name="data-tag"]')).toBeVisible();
+    await expect(panel.locator('input[name="table-data-tag"]')).toBeVisible();
 
     // 「表示設定」をもう一度押すとパネルが閉じる。
     await settingsButton.click();

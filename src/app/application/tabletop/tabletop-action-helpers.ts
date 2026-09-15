@@ -15,6 +15,7 @@ export interface RangeMenuItem {
   typeName: string;
 }
 
+/** The card codes of a full deck of playing cards and its two jokers, which name the bundled card images. */
 export function getTrumpCardCodes(): string[] {
   const cardCodes: string[] = [];
   for (const suit of ['c', 'd', 'h', 's']) {
@@ -26,6 +27,11 @@ export function getTrumpCardCodes(): string[] {
   return cardCodes;
 }
 
+/**
+ * The kinds of die the create menu offers, in the order a `typeIndex` counts them.
+ *
+ * `imagePathPrefix` names the bundled folder each kind's face images are in.
+ */
 export function getDiceMenuItems(): DiceMenuItem[] {
   return [
     { menuName: 'D4', diceName: 'D4', type: DiceType.D4, imagePathPrefix: '4_dice' },
@@ -92,6 +98,7 @@ export function getDicePlacements(position: { x: number; y: number }, count: num
   return placements;
 }
 
+/** The range shapes the create menu offers: a translation key for each, and the type it is made as. */
 export function getRangeMenuItems(): RangeMenuItem[] {
   return [
     { menuName: 'feature.tabletop.action.rangeShapeLine', typeName: 'LINE' },

@@ -3,6 +3,10 @@ import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
+/**
+ * The lock or unlock entry for a piece, whichever undoes its current state, playing the matching
+ * sound.
+ */
 export function buildLockToggleAction(
   isLocked: boolean,
   setLocked: (next: boolean) => void,
@@ -104,6 +108,10 @@ export function copyBeside<T extends TabletopObject>(obj: T, gridSize: number, a
   return copy;
 }
 
+/**
+ * The copy entry for a piece, which puts a copy down one cell along and plays a sound, the
+ * piece-put sound unless told otherwise.
+ */
 export function buildCopyAction<T extends TabletopObject>(
   obj: T,
   gridSize: number,

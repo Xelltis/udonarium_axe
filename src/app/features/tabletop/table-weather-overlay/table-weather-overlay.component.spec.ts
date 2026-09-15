@@ -1,11 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import type { MockInstance } from 'vitest';
 
 describe('TableWeatherOverlayComponent', () => {
   let fixture: ComponentFixture<TableWeatherOverlayComponent>;
@@ -91,6 +94,64 @@ describe('TableWeatherOverlayComponent', () => {
       table.weatherKind = 'rain';
       fixture.detectChanges();
       expect(fixture.componentInstance.maskImage()).toBe('none');
+    });
+  });
+
+  describe('how often it looks at the view again', () => {
+    let playback: EffectPlaybackService;
+    let coordinates: CoordinateService;
+    let project: MockInstance<CoordinateService['convertManyToGlobal']>;
+
+    beforeEach(() => {
+      playback = TestBed.inject(EffectPlaybackService);
+      coordinates = TestBed.inject(CoordinateService);
+      TestBed.inject(RenderLiteService).setting.set('off');
+      coordinates.tabletopOriginElement = document.createElement('div');
+      project = vi
+        .spyOn(coordinates, 'convertManyToGlobal')
+        .mockImplementation((points) => points.map((point) => ({ x: point.x, y: point.y, z: 0 })));
+      table.weatherKind = 'rain';
+    });
+
+    afterEach(() => {
+      coordinates.tabletopOriginElement = document.body;
+      document.documentElement.classList.remove('render-lite');
+    });
+
+    function runTo(ms: number): string {
+      playback.now.set(ms);
+      return fixture.componentInstance.maskImage();
+    }
+
+    it('projects a view that stands still once a second, not once a tick', () => {
+      expect(runTo(0)).not.toBe('none');
+      for (let ms = 16; ms < 1000; ms += 16) runTo(ms);
+      expect(project).toHaveBeenCalledTimes(1);
+
+      runTo(1000);
+      expect(project).toHaveBeenCalledTimes(2);
+    });
+
+    it('projects a view that has been written out at the next tick', () => {
+      runTo(0);
+      coordinates.invalidateTabletopTransform();
+
+      runTo(50);
+      expect(project).toHaveBeenCalledTimes(1);
+
+      runTo(100);
+      expect(project).toHaveBeenCalledTimes(2);
+    });
+
+    it('follows a turning camera less often while the table is drawn the lighter way', () => {
+      TestBed.inject(RenderLiteService).setting.set('on');
+
+      for (let ms = 0; ms < 1200; ms += 16) {
+        coordinates.invalidateTabletopTransform();
+        runTo(ms);
+      }
+
+      expect(project).toHaveBeenCalledTimes(3);
     });
   });
 

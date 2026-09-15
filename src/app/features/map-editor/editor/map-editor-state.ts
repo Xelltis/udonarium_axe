@@ -140,10 +140,19 @@ export class MapEditorState {
 
   readonly selection = signal<Selection | null>(null);
 
+  /**
+   * The scene being edited.
+   *
+   * Undo, redo and loading swap in a different scene object, so read it afresh each time rather
+   * than holding on to it.
+   */
   get current(): MapScene {
     return this.scene;
   }
 
+  /**
+   * Tells whatever draws the scene that it has changed, without recording a step in the history.
+   */
   bump(): void {
     this.tick.update((v) => v + 1);
   }
@@ -153,19 +162,29 @@ export class MapEditorState {
     this.canRedo.set(this.history.canRedo());
   }
 
+  /**
+   * Marks the start of a stroke or drag; it does nothing, since the step is recorded when the
+   * gesture ends.
+   */
   beginGesture(): void {}
 
+  /**
+   * Records the scene as it stands as one undoable step, dropping anything that could have been
+   * redone.
+   */
   endGesture(): void {
     this.history.commit(this.scene);
     this.refreshHistoryFlags();
   }
 
+  /** Makes a change to the scene, redraws it and records it as one undoable step. */
   applyCommitted(fn: (scene: MapScene) => void): void {
     fn(this.scene);
     this.bump();
     this.endGesture();
   }
 
+  /** Takes the scene back one recorded step; does nothing at the oldest step kept. */
   undo(): void {
     const snapshot = this.history.undo();
     if (!snapshot) return;
@@ -174,6 +193,7 @@ export class MapEditorState {
     this.refreshHistoryFlags();
   }
 
+  /** Puts back the step last undone; does nothing when there is none. */
   redo(): void {
     const snapshot = this.history.redo();
     if (!snapshot) return;
@@ -182,6 +202,10 @@ export class MapEditorState {
     this.refreshHistoryFlags();
   }
 
+  /**
+   * The fill new cells and shapes take from the toolbar: the solid colour, or the texture with its
+   * scale and rotation.
+   */
   currentFill(): FillStyle {
     if (this.fillMode() === 'texture') {
       return {
@@ -194,6 +218,10 @@ export class MapEditorState {
     return { type: 'solid', color: this.solidColor() };
   }
 
+  /**
+   * The outline new shapes take from the toolbar, filled with the current texture when the outline
+   * is set to one.
+   */
   currentStroke(): StrokeStyle {
     return {
       color: this.strokeColor(),
@@ -211,6 +239,7 @@ export class MapEditorState {
     };
   }
 
+  /** The drop shadow new shapes take from the toolbar, or null while shadows are off. */
   currentShadow(): ShapeShadow | null {
     if (!this.shadowEnabled()) return null;
     return {
@@ -221,10 +250,15 @@ export class MapEditorState {
     };
   }
 
+  /** The layers from the topmost down, as the layer list shows them, in a new array. */
   layersTopFirst(): MapLayer[] {
     return this.scene.layers.slice().reverse();
   }
 
+  /**
+   * Puts the layers in the order given, topmost first, as one undoable step; an order that leaves a
+   * layer out is ignored.
+   */
   reorderLayersTopFirst(orderedIds: string[]): void {
     const byId = new Map(this.scene.layers.map((l) => [l.id, l]));
     const next = orderedIds
@@ -236,6 +270,7 @@ export class MapEditorState {
     this.applyCommitted((scene) => scene.layers.splice(0, scene.layers.length, ...next));
   }
 
+  /** The layer picked in the layer list, or null when none is picked or it no longer exists. */
   activeLayer(): MapLayer | null {
     const id = this.activeLayerId();
     if (!id) return null;
@@ -280,6 +315,13 @@ export class MapEditorState {
     return kind + ' ' + this.layerCounter;
   }
 
+  /**
+   * The layer new work of a kind goes onto.
+   *
+   * That is the active layer when it is of the kind and unlocked, then the topmost visible and
+   * unlocked layer of the kind, and otherwise a new layer, which becomes active. Making one is not
+   * recorded as a step of its own.
+   */
   ensureLayerFor(kind: LayerKind): MapLayer {
     const active = this.activeLayer();
     if (active && active.kind === kind && !active.locked) return active;
@@ -296,6 +338,10 @@ export class MapEditorState {
     return created;
   }
 
+  /**
+   * The cell layer erasing works on: the active layer when it is an unlocked cell layer, then the
+   * topmost visible and unlocked one, or null.
+   */
   topmostCellLayer(): CellLayer | null {
     const active = this.activeLayer();
     if (active && active.kind === 'cell' && !active.locked) return active;
@@ -336,12 +382,20 @@ export class MapEditorState {
     return created;
   }
 
+  /**
+   * Paints a cell with the function and look in hand, onto a matching layer or a new one; recorded
+   * when the gesture ends.
+   */
   paintFunctionCell(col: number, row: number): void {
     const layer = this.ensureFunctionLayerFor(this.functionRole());
     setFunctionCell(layer, col, row);
     this.bump();
   }
 
+  /**
+   * Clears a cell from every visible, unlocked function layer of the role in hand; recorded when
+   * the gesture ends.
+   */
   eraseFunctionCellAt(col: number, row: number): void {
     const role = this.functionRole();
     const layers = this.scene.layers.filter(
@@ -352,12 +406,20 @@ export class MapEditorState {
     this.bump();
   }
 
+  /**
+   * Paints a cell with the current fill on the cell layer for new work; recorded when the gesture
+   * ends.
+   */
   paintCell(col: number, row: number): void {
     const layer = this.ensureLayerFor('cell') as CellLayer;
     setCell(layer, col, row, this.currentFill());
     this.bump();
   }
 
+  /**
+   * Clears a cell from the cell layer erasing works on, doing nothing when there is none; recorded
+   * when the gesture ends.
+   */
   eraseCellAt(col: number, row: number): void {
     const layer = this.topmostCellLayer();
     if (!layer) return;
@@ -365,11 +427,18 @@ export class MapEditorState {
     this.bump();
   }
 
+  /** Flood-fills outward from a cell with the current fill, as one undoable step. */
   floodFillAt(col: number, row: number): void {
     const layer = this.ensureLayerFor('cell') as CellLayer;
     this.applyCommitted(() => floodFill(this.scene, layer, col, row, this.currentFill()));
   }
 
+  /**
+   * Adds a shape with the current outline and shadow, as one undoable step.
+   *
+   * Given a layer name it goes on a new layer of its own; otherwise it goes on the shape layer for
+   * new work.
+   */
   addShapeItem(shape: ShapeKind, points: number[], fill: FillStyle | null, layerName?: string): void {
     const layer =
       layerName !== undefined
@@ -394,6 +463,7 @@ export class MapEditorState {
     return created;
   }
 
+  /** Adds an empty layer on top and makes it active, as one undoable step. */
   addEmptyLayer(kind: LayerKind, name: string): MapLayer {
     const created = createLayer(kind, name);
     this.applyCommitted((scene) => addLayer(scene, created));
@@ -412,6 +482,11 @@ export class MapEditorState {
     return created;
   }
 
+  /**
+   * Places the stamp in hand at a point on a new layer of its own, as one undoable step.
+   *
+   * Size, rotation, flips and colour come from the toolbar. Does nothing while no stamp is chosen.
+   */
   placeStamp(x: number, y: number, layerName: string): void {
     const stampId = this.stampId();
     if (!stampId) return;
@@ -430,11 +505,19 @@ export class MapEditorState {
     this.applyCommitted(() => addStamp(layer, item));
   }
 
+  /**
+   * Places an image on a new layer of its own as one undoable step, giving it an id when it has
+   * none.
+   */
   placeImage(item: ImageItem, layerName: string): void {
     const layer = this.createNamedLayer('image', layerName) as ImageLayer;
     this.applyCommitted(() => addImage(layer, { ...item, id: item.id || newId() }));
   }
 
+  /**
+   * Adds a freehand stroke in the current pen colour and width, as one undoable step; a stroke of
+   * fewer than two points is dropped.
+   */
   addFreehand(points: number[]): void {
     if (points.length < 4) return;
     const layer = this.ensureLayerFor('freehand') as FreehandLayer;
@@ -447,6 +530,9 @@ export class MapEditorState {
     this.applyCommitted(() => addStroke(layer, stroke));
   }
 
+  /**
+   * Adds text at a point in the current font size, colour, weight and slant, as one undoable step.
+   */
   addTextItem(x: number, y: number, text: string, align: TextAlign = 'left'): void {
     const layer = this.ensureLayerFor('text') as TextLayer;
     const item: TextItem = {
@@ -463,6 +549,10 @@ export class MapEditorState {
     this.applyCommitted(() => addText(layer, item));
   }
 
+  /**
+   * Starts a blank scene of the given size and background, clearing the history, the active layer
+   * and the selection.
+   */
   newScene(cols: number, rows: number, cellPx: number, background: string): void {
     this.scene = createScene(cols, rows, cellPx);
     this.scene.background = background;
@@ -478,6 +568,7 @@ export class MapEditorState {
     return this.scene.layers.length === 0 && !this.canUndo();
   }
 
+  /** Opens a scene for editing, clearing the history, the active layer and the selection. */
   loadScene(scene: MapScene): void {
     this.scene = scene;
     this.history.reset(this.scene);
@@ -487,34 +578,40 @@ export class MapEditorState {
     this.refreshHistoryFlags();
   }
 
+  /** Changes the scene's size in cells, as one undoable step. */
   resize(cols: number, rows: number): void {
     this.applyCommitted(() => resizeScene(this.scene, cols, rows));
   }
 
+  /** Changes how many pixels one cell spans, as one undoable step. */
   setCellPx(cellPx: number): void {
     this.applyCommitted(() => {
       this.scene.cellPx = cellPx;
     });
   }
 
+  /** Changes the scene's background colour, as one undoable step. */
   setBackground(color: string): void {
     this.applyCommitted(() => {
       this.scene.background = color;
     });
   }
 
+  /** Changes the colour the grid is drawn in, as one undoable step. */
   setGridColor(color: string): void {
     this.applyCommitted(() => {
       this.scene.gridColor = color;
     });
   }
 
+  /** Shows or hides the grid, as one undoable step. */
   toggleGrid(): void {
     this.applyCommitted(() => {
       this.scene.gridVisible = !this.scene.gridVisible;
     });
   }
 
+  /** Changes the scene's grid between square and hex, as one undoable step. */
   setGridType(gridType: GridType): void {
     this.applyCommitted(() => {
       this.scene.gridType = gridType;
@@ -525,6 +622,7 @@ export class MapEditorState {
     return this.scene.layers.find((l) => l.id === id);
   }
 
+  /** Removes the selected item from its layer as one undoable step, and clears the selection. */
   deleteSelection(): void {
     const sel = this.selection();
     if (!sel) return;
@@ -543,6 +641,10 @@ export class MapEditorState {
     this.selection.set(null);
   }
 
+  /**
+   * Shifts the selected item by a distance in pixels while it is dragged; recorded when the gesture
+   * ends.
+   */
   moveSelection(dxPx: number, dyPx: number): void {
     const sel = this.selection();
     if (!sel) return;
@@ -579,6 +681,7 @@ export class MapEditorState {
     this.bump();
   }
 
+  /** Changes the selected stamp, as one undoable step; does nothing unless a stamp is selected. */
   updateSelectedStamp(patch: Partial<StampItem>): void {
     const sel = this.selection();
     if (!sel) return;
@@ -587,6 +690,10 @@ export class MapEditorState {
     this.applyCommitted(() => updateStamp(layer, sel.itemId, patch));
   }
 
+  /**
+   * The selected item together with its layer, or null when nothing is selected or the item is
+   * gone.
+   */
   selectedItem(): { layer: MapLayer; item: ShapeItem | StampItem | TextItem | ImageItem | FreehandStroke } | null {
     const sel = this.selection();
     if (!sel) return null;
@@ -615,6 +722,10 @@ export class MapEditorState {
     return null;
   }
 
+  /**
+   * Changes the selected freehand stroke, as one undoable step; does nothing unless a stroke is
+   * selected.
+   */
   updateSelectedFreehand(patch: Partial<FreehandStroke>): void {
     const sel = this.selection();
     if (!sel) return;
@@ -623,6 +734,7 @@ export class MapEditorState {
     this.applyCommitted(() => updateStroke(layer, sel.itemId, patch));
   }
 
+  /** Changes the selected image, as one undoable step; does nothing unless an image is selected. */
   updateSelectedImage(patch: Partial<ImageItem>): void {
     const sel = this.selection();
     if (!sel) return;
@@ -631,6 +743,9 @@ export class MapEditorState {
     this.applyCommitted(() => updateImage(layer, sel.itemId, patch));
   }
 
+  /**
+   * Changes the selected image while it is dragged or resized, redrawing without recording a step.
+   */
   updateSelectedImageLive(patch: Partial<ImageItem>): void {
     const sel = this.selection();
     if (!sel) return;
@@ -640,6 +755,10 @@ export class MapEditorState {
     this.bump();
   }
 
+  /**
+   * Moves one point of the selected shape while it is dragged, redrawing without recording a step;
+   * an index past the shape's points is ignored.
+   */
   updateSelectedShapePointLive(index: number, x: number, y: number): void {
     const sel = this.selection();
     if (!sel) return;
@@ -698,6 +817,10 @@ export class MapEditorState {
     return null;
   }
 
+  /**
+   * The item under a point, searching from the topmost layer down and skipping hidden and locked
+   * layers, or null.
+   */
   hitTest(x: number, y: number): Selection | null {
     for (let i = this.scene.layers.length - 1; i >= 0; i -= 1) {
       const layer = this.scene.layers[i];
@@ -708,6 +831,12 @@ export class MapEditorState {
     return null;
   }
 
+  /**
+   * Erases at a point on the active layer; recorded when the gesture ends.
+   *
+   * Freehand strokes are cut apart wherever they pass within the radius, and on other layers the
+   * topmost item under the point is removed whole. Cell layers and locked layers are left alone.
+   */
   eraseAt(x: number, y: number, radius: number): void {
     const layer = this.activeLayer();
     if (!layer || layer.locked || layer.kind === 'cell') return;
@@ -740,6 +869,10 @@ export class MapEditorState {
     this.bump();
   }
 
+  /**
+   * Rounds a coordinate to the nearest half cell while snapping is on, or to a whole pixel while it
+   * is off.
+   */
   snap(v: number): number {
     if (this.snapEnabled()) {
       const step = this.scene.cellPx / 2;
@@ -748,6 +881,10 @@ export class MapEditorState {
     return Math.round(v);
   }
 
+  /**
+   * Snaps a point to half cells on a square grid and to the centre of the cell under it on any
+   * other, or to whole pixels while snapping is off.
+   */
   snapPoint(x: number, y: number): { x: number; y: number } {
     if (!this.snapEnabled()) return { x: Math.round(x), y: Math.round(y) };
     if (this.scene.gridType === GridType.SQUARE) {

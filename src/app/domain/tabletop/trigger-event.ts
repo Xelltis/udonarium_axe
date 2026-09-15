@@ -18,12 +18,14 @@ export const DEFAULT_TRIGGER_MOMENT: TriggerMoment = 'stop';
 export const DEFAULT_TRIGGER_TARGET: TriggerTarget = 'all';
 export const DEFAULT_TRIGGER_COLOR = '#c0392b';
 
+/** Reads a stored trigger moment, falling back to going off when a walk ends on the ground. */
 export function asTriggerMoment(value: unknown): TriggerMoment {
   return typeof value === 'string' && (TRIGGER_MOMENTS as readonly string[]).includes(value)
     ? (value as TriggerMoment)
     : DEFAULT_TRIGGER_MOMENT;
 }
 
+/** Reads a stored trigger target, falling back to everyone for anything unknown. */
 export function asTriggerTarget(value: unknown): TriggerTarget {
   return typeof value === 'string' && (TRIGGER_TARGETS as readonly string[]).includes(value)
     ? (value as TriggerTarget)

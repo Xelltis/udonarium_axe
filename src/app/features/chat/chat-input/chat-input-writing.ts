@@ -6,6 +6,7 @@ export class WritingPeerManager {
   private readonly peers: Map<string, ResettableTimeout> = new Map();
   readonly names = signal<string[]>([]);
 
+  /** Marks a peer as typing, or keeps them marked for another two seconds if they already are. */
   add(peerId: string): void {
     if (!this.peers.has(peerId)) {
       this.peers.set(
@@ -20,6 +21,10 @@ export class WritingPeerManager {
     this.peers.get(peerId)!.reset();
   }
 
+  /**
+   * Stops showing a peer as typing straight away, such as when their message arrives; unknown peers
+   * are ignored.
+   */
   remove(peerId: string): void {
     if (!this.peers.has(peerId)) return;
     this.peers.get(peerId)!.stop();
@@ -27,6 +32,10 @@ export class WritingPeerManager {
     this.updateNames();
   }
 
+  /**
+   * Cancels every pending expiry and forgets all peers without updating `names`, for when the owner
+   * goes away.
+   */
   destroy(): void {
     for (const [, timeout] of this.peers) {
       timeout.stop();

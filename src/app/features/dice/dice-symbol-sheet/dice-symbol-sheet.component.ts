@@ -52,6 +52,7 @@ export class DiceSymbolSheetComponent {
 
   private readonly _diceSymbol = signal<DiceSymbol | null>(null);
 
+  /** The die this sheet edits, handed in by whoever opens the panel. */
   get diceSymbol(): DiceSymbol | null {
     return this._diceSymbol();
   }
@@ -94,6 +95,7 @@ export class DiceSymbolSheetComponent {
     }, this.destroyRef);
   }
 
+  /** The die's name; setting it writes the name data element, which syncs to every peer. */
   get name(): string {
     return this._diceSymbol()?.name ?? '';
   }
@@ -104,6 +106,7 @@ export class DiceSymbolSheetComponent {
     if (el) el.value = value;
   }
 
+  /** The die's size on the table in cells; it reads 1 while there is no die. */
   get size(): number {
     return this._diceSymbol()?.size ?? 1;
   }
@@ -112,6 +115,7 @@ export class DiceSymbolSheetComponent {
     if (dice) dice.size = value;
   }
 
+  /** Whether the die's name is kept off the table for seats that may not see hidden things. */
   get hideName(): boolean {
     return this._diceSymbol()?.hideName ?? false;
   }
@@ -120,6 +124,9 @@ export class DiceSymbolSheetComponent {
     if (dice) dice.hideName = value;
   }
 
+  /**
+   * Whether the face picture is drawn at a height of its own rather than fitted to the die's size.
+   */
   get specifyKomaImageFlag(): boolean {
     return this._diceSymbol()?.specifyKomaImageFlag ?? false;
   }
@@ -128,6 +135,10 @@ export class DiceSymbolSheetComponent {
     if (dice) dice.specifyKomaImageFlag = value;
   }
 
+  /**
+   * The height in pixels the face picture is drawn at when it has a height of its own; writes are
+   * clamped to 50 to 750, and ones that are not numbers are ignored.
+   */
   get komaImageHeight(): number {
     return this._diceSymbol()?.komaImageHeight ?? 100;
   }
@@ -139,11 +150,16 @@ export class DiceSymbolSheetComponent {
     dice.komaImageHeight = Math.min(750, Math.max(50, num));
   }
 
+  /** Turns the die to a face directly, without rolling it. */
   selectFace(faceName: string) {
     const dice = this._diceSymbol();
     if (dice) dice.face = faceName;
   }
 
+  /**
+   * Lets the user pick a picture for a face; closing the picker without choosing leaves the face as
+   * it was.
+   */
   openFaceImageModal(faceName: string) {
     const dice = this._diceSymbol();
     if (!dice) return;
@@ -155,6 +171,10 @@ export class DiceSymbolSheetComponent {
     });
   }
 
+  /**
+   * Puts a face back to the bundled picture for a standard die of that many faces, or leaves it
+   * blank for any other die.
+   */
   clearFaceImage(faceName: string) {
     const dice = this._diceSymbol();
     if (!dice) return;
@@ -170,6 +190,10 @@ export class DiceSymbolSheetComponent {
     }
   }
 
+  /**
+   * Places a copy of the die beside the original, offset by 50 pixels each way, and plays the
+   * die-put sound.
+   */
   clone() {
     const dice = this._diceSymbol();
     if (!dice) return;
@@ -181,6 +205,10 @@ export class DiceSymbolSheetComponent {
     SoundEffect.play(PresetSound.dicePut);
   }
 
+  /**
+   * Downloads the die as a save file, showing progress until shortly after it finishes; does
+   * nothing while a save is running.
+   */
   async saveToXML() {
     const dice = this._diceSymbol();
     if (!dice || this.isSaving()) return;

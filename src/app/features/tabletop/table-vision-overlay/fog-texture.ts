@@ -52,6 +52,10 @@ export function fogPatternImage(): HTMLCanvasElement | null {
   return tileImage;
 }
 
+/**
+ * A repeating pattern of the fog's mottling tile for the context, or null where the tile or the
+ * pattern cannot be made.
+ */
 export function fogPattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
   const image = fogPatternImage();
   if (!image || typeof ctx.createPattern !== 'function') return null;

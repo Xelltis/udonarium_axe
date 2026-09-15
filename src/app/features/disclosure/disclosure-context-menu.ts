@@ -55,6 +55,15 @@ function ownerCandidates(): DisclosureCandidate[] {
   return result;
 }
 
+/**
+ * The disclosure and owner entries appended to a piece's right-click menu.
+ *
+ * Whoever may edit the piece's disclosure gets a submenu of who can see it: everyone, chosen players
+ * (listing the connected players who are not game masters) or the game master only. The game master,
+ * or a player who may claim the piece, gets a submenu to set its owner. Every choice writes the piece
+ * and sends it to the room. Gives an empty list when neither applies, and otherwise leads with a
+ * separator.
+ */
 export function buildDisclosureContextMenu(object: DisclosableObject, t: TranslateFn): ContextMenuAction[] {
   const ownerUserId = object.owner ?? '';
   const myUserId = PeerCursor.myCursor?.userId ?? '';

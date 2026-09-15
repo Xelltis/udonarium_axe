@@ -6,8 +6,8 @@ import { MapBlock, MapBlocks, MapMaterial } from '@axe/domain/tabletop/map-block
  * Whether the obstacle material has any business with this piece.
  *
  * It stands for what the rocks and the posts are made of. Foliage wears a ground texture
- * rather than a wall one, and dressing a canopy in planks is how a wood came to be roofed
- * in decking. A piece that came with a skin of its own is left in it, wall shelf or not.
+ * rather than a wall one, and dressing a canopy in planks would roof a wood in
+ * decking. A piece that came with a skin of its own is left in it, wall shelf or not.
  */
 function wearsWalls(block: MapBlock): boolean {
   const side = block.skin?.side;

@@ -39,6 +39,12 @@ export interface OverlayFeedOptions {
 
 export const DEFAULT_OVERLAY_FEED_OPTIONS: OverlayFeedOptions = { limit: 6, maxAgeMs: 120_000 };
 
+/**
+ * The lines the streaming overlay shows at the given moment.
+ *
+ * Whispers, secret rolls, messages that are not for display and blank ones are left out, and so
+ * are those past the age limit. Of the rest only the last `limit` stay, in the order given.
+ */
 export function buildOverlayFeed(
   sources: readonly OverlaySource[],
   now: number,

@@ -42,9 +42,9 @@ describe('lightSourcesOn()', () => {
   });
 
   /**
-   * A light used to sit outside any table, the way a piece still does, so a room saved then
-   * carries lights with no table over them. They are shown wherever the reader is looking,
-   * which is what they did when they were saved.
+   * A room saved before lights belonged to a table carries lights outside any table, the way a
+   * piece still sits. They are shown wherever the reader is looking, which is how they were
+   * shown when the room was saved.
    */
   it('carries a light saved before lights belonged to a table onto every table', () => {
     const here = table('table-here');

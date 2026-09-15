@@ -12,6 +12,7 @@
           'system-message': chatMessage.isSystem,
           'dicebot-message': chatMessage.isDicebot,
         }"
+        (contextmenu)="onMessageContextMenu($event)"
       >
         <div
           class="rounded-ui-sm [&_img]:rounded-ui-sm size-16 shrink-0 overflow-hidden p-0 align-top [&_img]:size-full [&_img]:object-cover [&_img]:object-[50%_0%] [&_img]:align-bottom"
@@ -144,6 +145,7 @@
           }
           <div
             class="msg-text [&_a]:text-ui-accent px-2.5 pt-0.5 align-top text-(length:--chat-font-size) leading-normal whitespace-pre-line text-inherit"
+            [class.select-text!]="isSelectingText()"
           >
             @if (isEditing()) {
               <div class="flex flex-col gap-1.5 py-1">
@@ -174,7 +176,7 @@
                 </div>
               </div>
             } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
-              <span [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"></span>
+              <span #messageBody [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"></span>
               @for (badge of emoteBadges(); track $index) {
                 <span
                   class="rounded-ui bg-ui-accent-bg text-ui-accent ml-1 px-1 align-middle text-[10px] whitespace-nowrap"
@@ -214,6 +216,7 @@
           'system-message': chatMessage.isSystem,
           'dicebot-message': chatMessage.isDicebot,
         }"
+        (contextmenu)="onMessageContextMenu($event)"
       >
         <div
           class="group/body rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-text grow border border-solid px-1.5 pt-0.5 pb-0.75"
@@ -263,6 +266,7 @@
             }
             <font
               class="msg-text [&_a]:text-ui-accent px-2.5 pt-0.5 align-top text-(length:--chat-font-size) leading-normal whitespace-pre-line text-inherit"
+              [class.select-text!]="isSelectingText()"
             >
               @if (isEditing()) {
                 <span class="ml-1.5 inline-flex w-full max-w-md flex-col gap-1 align-top">
@@ -293,7 +297,7 @@
                   </span>
                 </span>
               } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
-                <span [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"></span>
+                <span #messageBody [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"></span>
                 @for (badge of emoteBadges(); track $index) {
                   <span
                     class="rounded-ui bg-ui-accent-bg text-ui-accent ml-1 px-1 align-middle text-[10px] whitespace-nowrap"

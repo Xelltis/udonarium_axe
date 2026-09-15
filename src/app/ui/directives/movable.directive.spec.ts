@@ -5,6 +5,8 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { Network } from '@axe/core/network/network';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
@@ -769,5 +771,83 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
 
     expect(directive.contactSupportZ(50, 50)).toBe(8 * GRID);
+  });
+});
+
+describe('MovableDirective telling the others where a piece was dropped', () => {
+  @Component({
+    selector: 'drop-host',
+    template: `<div appMovable [movable.option]="{}"></div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MovableDirective],
+  })
+  class DropHostComponent {}
+
+  interface Internals {
+    tabletopObject: TabletopObject;
+    input: { pointer: { x: number; y: number; z: number }; cancel(): void; destroy(): void } | null;
+    coordinateService: { convertToLocal(pointer: unknown, element: HTMLElement): { x: number; y: number; z: number } };
+    surfaceUnderPointer(): HTMLElement | null;
+    computeBeamRest(pointer: unknown): { x: number; y: number; z: number } | null;
+    maybeSwitchSurfaceOnDrop(): void;
+  }
+
+  function mount(piece: GameCharacter): Internals {
+    if (!ObjectStore.instance.get(piece.identifier)) ObjectStore.instance.add(piece, false);
+    TestBed.configureTestingModule({ imports: [DropHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(DropHostComponent);
+    fixture.detectChanges();
+    const directive = fixture.debugElement.children[0].injector.get(MovableDirective) as unknown as Internals;
+    directive.tabletopObject = piece;
+    directive.input = { pointer: { x: 120, y: 120, z: 0 }, cancel: () => undefined, destroy: () => undefined };
+    return directive;
+  }
+
+  function surfacesSentFor(piece: GameCharacter): (string | undefined)[] {
+    const surfaces: (string | undefined)[] = [];
+    vi.spyOn(Network.instance, 'send').mockImplementation((message) => {
+      const { eventName, data } = message as {
+        eventName: string;
+        data: { identifier: string; syncData: { attributes?: { location?: { surface?: string } } } };
+      };
+      if (eventName === 'UPDATE_GAME_OBJECT' && data.identifier === piece.identifier) {
+        surfaces.push(data.syncData.attributes?.location?.surface);
+      }
+    });
+    return surfaces;
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends the board a piece was dropped on, where no snapping follows to send it later', () => {
+    const piece = GameCharacter.create('dropped on a board', 1, '');
+    const directive = mount(piece);
+    const board = document.createElement('div');
+    board.dataset['surface'] = 'a-board';
+    board.setAttribute('data-surface-overflow', '');
+    Object.defineProperty(board, 'offsetWidth', { value: 500 });
+    Object.defineProperty(board, 'offsetHeight', { value: 500 });
+    vi.spyOn(directive, 'computeBeamRest').mockReturnValue(null);
+    vi.spyOn(directive, 'surfaceUnderPointer').mockReturnValue(board);
+    vi.spyOn(directive.coordinateService, 'convertToLocal').mockReturnValue({ x: 100, y: 100, z: 0 });
+    const surfaces = surfacesSentFor(piece);
+
+    directive.maybeSwitchSurfaceOnDrop();
+
+    expect(surfaces).toEqual(['a-board']);
+  });
+
+  it('sends a piece taken off a wall onto a beam as off the wall', () => {
+    const piece = GameCharacter.create('taken off a wall', 1, '');
+    piece.location.surface = 'north-wall';
+    const directive = mount(piece);
+    vi.spyOn(directive, 'computeBeamRest').mockReturnValue({ x: 50, y: 50, z: 100 });
+    const surfaces = surfacesSentFor(piece);
+
+    directive.maybeSwitchSurfaceOnDrop();
+
+    expect(surfaces).toEqual([undefined]);
   });
 });

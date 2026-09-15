@@ -18,6 +18,7 @@ const objectPropertyKeySet = new Set(Object.getOwnPropertyNames(Object.prototype
 
 export class ObjectSerializer {
   private static _instance: ObjectSerializer;
+  /** The serializer shared by the whole app, created on first use. */
   static get instance(): ObjectSerializer {
     if (!ObjectSerializer._instance) ObjectSerializer._instance = new ObjectSerializer();
     return ObjectSerializer._instance;
@@ -25,6 +26,12 @@ export class ObjectSerializer {
 
   private constructor() {}
 
+  /**
+   * Writes a game object as an XML element named after its alias.
+   *
+   * Attributes come from toAttributes when the object has it, from the sync data otherwise, and
+   * innerXml supplies the content when defined. Identifiers and versions are not written.
+   */
   toXml(gameObject: GameObject): string {
     const attributes =
       'toAttributes' in gameObject
@@ -42,6 +49,7 @@ export class ObjectSerializer {
     return `<${tagName}${attrStr}>${innerXml}</${tagName}>`;
   }
 
+  /** Flattens sync data to XML attributes, giving nested values dotted names and dropping null. */
   static toAttributes(syncData: object): Attributes {
     const attributes: Attributes = {};
     for (const syncVar of Object.keys(syncData as Record<string, unknown>)) {
@@ -84,6 +92,13 @@ export class ObjectSerializer {
     return attributes;
   }
 
+  /**
+   * Builds a game object from XML text or an element, adds it to the store and reads its content.
+   *
+   * The tag picks the class and the object gets a new identifier. Attributes are read before it
+   * enters the store, so it reaches the room filled in; child content follows. Null when the XML is
+   * empty or the tag names no registered class.
+   */
   parseXml(xml: string | Element): GameObject | null {
     const xmlElement = typeof xml === 'string' ? xml2element(xml) : xml;
     if (!xmlElement) {
@@ -109,6 +124,13 @@ export class ObjectSerializer {
     return gameObject;
   }
 
+  /**
+   * Writes XML attributes into sync data, turning dotted names back into nested objects and arrays.
+   *
+   * Where the field already holds a non-string value the text is parsed as JSON, and a value that
+   * does not parse leaves the default alone; anything else is stored as text. Names that would
+   * reach Object.prototype are skipped.
+   */
   static parseAttributes(syncData: object, attributes: NamedNodeMap): void {
     for (const { name, value: rawValue } of Array.from(attributes)) {
       const value = decodeEntityReference(rawValue);

@@ -112,6 +112,13 @@ interface ChangeEntry {
   name: string;
 }
 
+/**
+ * The summary of a session as one viewer may see it: how long it ran, what was said and rolled,
+ * how the dice fell, what each piece took, and the titles earned.
+ *
+ * Only events the viewer is allowed to see are counted. With none, the digest is empty apart
+ * from the room name and start time.
+ */
 export function buildReplayDigest(
   events: readonly ReplayEvent[],
   manifest: Pick<ReplayManifest, 'roomName' | 'startedAt' | 'endedAt' | 'actors' | 'targets'>,

@@ -65,6 +65,10 @@ export interface ImportedCharacter {
   sourceFormat: ImportSourceFormat;
 }
 
+/**
+ * A blank imported character from the given source, size 1 with nothing else filled in, for a
+ * parser to fill.
+ */
 export function createEmptyImportedCharacter(sourceFormat: ImportSourceFormat): ImportedCharacter {
   return {
     name: '',
@@ -85,6 +89,10 @@ export function createEmptyImportedCharacter(sourceFormat: ImportSourceFormat): 
   };
 }
 
+/**
+ * Reads a number out of json that may hold it as a number or as text. The fallback for anything
+ * else, for blank text and for a value that is not finite.
+ */
 export function toFiniteNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
   if (typeof value === 'string' && value.trim() !== '') {
@@ -101,6 +109,9 @@ export function asString(value: unknown): string {
   return '';
 }
 
+/**
+ * Whether a json value holds something worth a field: a finite number, or text that is not blank.
+ */
 export function isNonEmptyScalar(value: unknown): value is string | number {
   if (typeof value === 'number') return Number.isFinite(value);
   return typeof value === 'string' && value.trim() !== '';
@@ -139,6 +150,12 @@ export function profileSectionOf(
   return built.length > 0 ? { label: 'プロフィール', groups: [{ label: '基本', fields: built }] } : null;
 }
 
+/**
+ * Decides what kind of sheet field a value becomes.
+ *
+ * A number or numeric text becomes a number field, text with a line break or over 40 characters a
+ * note, and any other text a line of text.
+ */
 export function classifyScalar(raw: string | number): { value: string | number; kind: ImportedFieldKind } {
   if (typeof raw === 'number') return { value: raw, kind: Number.isFinite(raw) ? 'number' : 'text' };
   if (raw.includes('\n') || raw.length > 40) return { value: raw, kind: 'note' };
@@ -146,6 +163,7 @@ export function classifyScalar(raw: string | number): { value: string | number; 
   return { value: raw, kind: 'text' };
 }
 
+/** The colour as written when it is a `#rgb` or `#rrggbb` hex, otherwise empty. */
 export function normalizeHexColor(value: unknown): string {
   if (typeof value !== 'string') return '';
   const trimmed = value.trim();

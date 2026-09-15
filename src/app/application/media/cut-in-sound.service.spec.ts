@@ -153,8 +153,8 @@ describe('CutInSoundService', () => {
   });
 
   it('leaves the other scene going when one of them is stopped', () => {
-    // A cut-in closing used to clear the timers of whatever else had just been set going,
-    // so re-firing one that was already up left the new window silent.
+    // Closing one cut-in must leave the timers of anything else just set going, or re-firing
+    // one that is already up leaves the new window silent.
     const first = play(makeScene([{ t: 500, a: 'se-1', v: 100 }]));
     play(makeScene([{ t: 500, a: 'se-2', v: 100 }]));
 

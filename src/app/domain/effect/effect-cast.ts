@@ -22,6 +22,12 @@ export interface EffectCastPoint {
 
 const MAX_TARGETS_PER_CAST = 32;
 
+/**
+ * Reads a cast that came in over the network into a shape that is safe to play.
+ *
+ * Null when there is no effect named or no target left to play on. Targets past 32 are
+ * dropped, and a coordinate or seed that is not a number reads as 0.
+ */
 export function normalizeEffectCast(raw: unknown): EffectCast | null {
   if (!raw || typeof raw !== 'object') return null;
   const source = raw as Record<string, unknown>;

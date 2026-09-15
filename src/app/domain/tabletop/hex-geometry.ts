@@ -10,14 +10,20 @@
 
 import { GridType } from '@axe/domain/tabletop/game-table';
 
+/**
+ * The distance from a hex's centre to a corner, for a grid whose cell size is measured across the
+ * flats.
+ */
 export function hexCircumradius(gridSize: number): number {
   return gridSize / Math.sqrt(3);
 }
 
+/** Whether the grid is the flat-topped hex grid, whose columns line up vertically. */
 export function isFlatTopGrid(gridType: GridType): boolean {
   return gridType === GridType.HEX_VERTICAL;
 }
 
+/** Whether the grid is one of the two hex grids rather than squares. */
 export function isHexGrid(gridType: GridType): boolean {
   return gridType === GridType.HEX_VERTICAL || gridType === GridType.HEX_HORIZONTAL;
 }
@@ -27,15 +33,24 @@ export interface HexSpacing {
   rowSpacing: number;
 }
 
+/** How far apart neighbouring hex centres sit along the columns and along the rows. */
 export function hexSpacing(gridSize: number, isFlatTop: boolean): HexSpacing {
   const s = hexCircumradius(gridSize);
   return isFlatTop ? { colSpacing: 1.5 * s, rowSpacing: gridSize } : { colSpacing: gridSize, rowSpacing: 1.5 * s };
 }
 
+/**
+ * The angle of a hex's first corner, in radians: 0 for flat-topped hexes, a quarter turn back for
+ * pointy-topped ones.
+ */
 export function hexStartAngle(isFlatTop: boolean): number {
   return isFlatTop ? 0 : -Math.PI / 2;
 }
 
+/**
+ * The centre of a hex cell in table pixels, with odd columns (flat-topped) or odd rows
+ * (pointy-topped) shifted by half a step.
+ */
 export function hexCellCenter(
   col: number,
   row: number,
@@ -65,6 +80,11 @@ export function hexVertices(cx: number, cy: number, s: number, startAngle: numbe
   return verts;
 }
 
+/**
+ * The column and row of the hex whose centre is nearest a point in table pixels.
+ *
+ * The answer is not held to the table, so it can be negative or past the last cell.
+ */
 export function pixelToHexCell(
   px: number,
   py: number,
@@ -93,6 +113,7 @@ export function pixelToHexCell(
   return { col: bestCol, row: bestRow };
 }
 
+/** Outlines one hex on a canvas with the context's current stroke style. */
 export function strokeHexPath(
   context: CanvasRenderingContext2D,
   cx: number,
@@ -112,6 +133,7 @@ export function strokeHexPath(
   context.stroke();
 }
 
+/** Fills one hex on a canvas with the context's current fill style. */
 export function fillHexPath(
   context: CanvasRenderingContext2D,
   cx: number,

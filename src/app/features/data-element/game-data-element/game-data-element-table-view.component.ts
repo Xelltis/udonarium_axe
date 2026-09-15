@@ -86,33 +86,55 @@ export class GameDataElementTableViewComponent {
     return element.getAttribute(DataElementAttribute.ROW_HEADER_LABEL).trim();
   });
 
+  /**
+   * Whether a click on a check cell looks up judgement candidates instead of ticking it: the sheet
+   * allows judgement and the reader has switched it on.
+   */
   isJudgeMode(): boolean {
     return this.isJudgeModeEnabled() && this._judgeActive();
   }
 
+  /**
+   * Switches judgement mode on or off from the table's button, closing any candidate list that is
+   * open.
+   */
   toggleJudgeActive(): void {
     this._judgeActive.update((v) => !v);
     this.judgeCandidatesState.set(null);
   }
 
+  /** The cell a row holds under the named column, or null when the row has none there. */
   getTableCell(row: DataElement, columnName: string): DataElement | null {
     return getTableCellShared(row, columnName);
   }
 
+  /**
+   * Whether the column is a gap: a narrow column between skill columns whose box, when ticked, adds
+   * to the distance judged across it.
+   */
   isGapTableColumn(column: DataElementTableColumn): boolean {
     return isGapColumn(column);
   }
 
+  /** Whether a gap column's box is ticked; false for a column that is not a gap. */
   isGapTableColumnActive(column: DataElementTableColumn): boolean {
     const gapCell = this.getGapTableColumnCell(column);
     return gapCell ? this.isTableCheckCellChecked(gapCell) : false;
   }
 
+  /**
+   * The tooltip on a gap column's box: the label of its gap cell, or the column's own label when
+   * the cell has none.
+   */
   getGapTableColumnTitle(column: DataElementTableColumn): string {
     const gapCell = this.getGapTableColumnCell(column);
     return gapCell ? this.getTableCellLabel(gapCell) || column.label : column.label;
   }
 
+  /**
+   * Ticks or unticks a gap column from a click anywhere on it. Does nothing for a column that is
+   * not a gap, or while values are locked.
+   */
   toggleGapTableColumn(column: DataElementTableColumn, event?: Event): void {
     if (!this.isGapTableColumn(column)) return;
     event?.stopPropagation();
@@ -122,6 +144,10 @@ export class GameDataElementTableViewComponent {
     this.toggleTableCheckCell(gapCell);
   }
 
+  /**
+   * Sets a gap column from its box being changed. While values are locked the box is put back as it
+   * was.
+   */
   setGapTableColumnActive(column: DataElementTableColumn, event: Event): void {
     event.stopPropagation();
     const gapCell = this.getGapTableColumnCell(column);
@@ -152,10 +178,15 @@ export class GameDataElementTableViewComponent {
     return cells;
   }
 
+  /**
+   * Whether the column's heading gets a box that ticks every check cell under it. Judgement mode
+   * takes the box away.
+   */
   hasTableColumnChecks(column: DataElementTableColumn): boolean {
     return !this.isJudgeMode() && this.tableColumnCheckCells(column).length > 0;
   }
 
+  /** Whether every check cell in the column is ticked; false for a column with none. */
   isTableColumnAllChecked(column: DataElementTableColumn): boolean {
     const cells = this.tableColumnCheckCells(column);
     return cells.length > 0 && cells.every((cell) => this.isTableCheckCellChecked(cell));
@@ -168,6 +199,12 @@ export class GameDataElementTableViewComponent {
     return ticked > 0 && ticked < cells.length;
   }
 
+  /**
+   * Ticks or unticks every check cell in the column from the box on its heading.
+   *
+   * Only the cells whose state changes are written. While values are locked the box is put back as
+   * it was.
+   */
   setTableColumnChecked(column: DataElementTableColumn, event: Event): void {
     event.stopPropagation();
     const wanted = this.isTableColumnAllChecked(column);
@@ -210,6 +247,12 @@ export class GameDataElementTableViewComponent {
     return texts;
   });
 
+  /**
+   * The text a cell shows in the table.
+   *
+   * A resource reads as current/max with its unit, a check as its label, a formula as its result,
+   * and an image as a note that its picture has not loaded; anything else is its value on one line.
+   */
   getTableCellDisplayText(cell: DataElement): string {
     this.objectChange.versionOf(cell.identifier)();
 
@@ -229,6 +272,7 @@ export class GameDataElementTableViewComponent {
     }
   }
 
+  /** The address of an image cell's picture, or empty while the room does not have the file. */
   getTableCellImageUrl(cell: DataElement): string {
     this.objectChange.versionOf(cell.identifier)();
     this.objectChange.fileVersion();
@@ -236,16 +280,24 @@ export class GameDataElementTableViewComponent {
     return image?.url ?? '';
   }
 
+  /** The label a cell carries beside its value, such as the skill name next to a check box. */
   getTableCellLabel(cell: DataElement): string {
     this.objectChange.versionOf(cell.identifier)();
     return getCellLabel(cell);
   }
 
+  /** Whether a check cell is ticked, as its box shows it and as judgement counts it. */
   isTableCheckCellChecked(cell: DataElement): boolean {
     this.objectChange.versionOf(cell.identifier)();
     return isCheckCellChecked(cell);
   }
 
+  /**
+   * Ticks or unticks a check cell, following its box when the change came from one and flipping it
+   * otherwise.
+   *
+   * While values are locked the box is put back as it was.
+   */
   toggleTableCheckCell(cell: DataElement, event?: Event): void {
     if (this.isValueLocked()) {
       if (event?.target instanceof HTMLInputElement) event.target.checked = this.isTableCheckCellChecked(cell);
@@ -255,16 +307,25 @@ export class GameDataElementTableViewComponent {
     this.objectChange.notifyChanged(cell.identifier);
   }
 
+  /** The choices a select cell offers in its dropdown. */
   getTableSelectOptions(cell: DataElement): string[] {
     this.objectChange.versionOf(cell.identifier)();
     return getSelectOptions(cell);
   }
 
+  /**
+   * Whether a select cell's value is one of its choices; the dropdown adds an entry for a value
+   * that is not, so it still shows.
+   */
   isTableSelectValueListed(cell: DataElement): boolean {
     this.objectChange.versionOf(cell.identifier)();
     return isSelectValueListed(cell);
   }
 
+  /**
+   * Stores the choice picked in a select cell's dropdown. While values are locked the dropdown is
+   * put back to the stored value.
+   */
   setTableSelectCellValueFromEvent(cell: DataElement, event: Event): void {
     if (this.isValueLocked()) {
       if (event.target instanceof HTMLSelectElement) event.target.value = String(cell.value ?? '');
@@ -275,6 +336,11 @@ export class GameDataElementTableViewComponent {
     this.objectChange.notifyChanged(cell.identifier);
   }
 
+  /**
+   * Turns the mouse wheel into sideways scrolling while the table is wider than its box.
+   *
+   * Once the table can scroll no further that way, the wheel is left to scroll the page.
+   */
   onTableWheel(event: WheelEvent): void {
     const scrollElement = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     if (!scrollElement || scrollElement.scrollWidth <= scrollElement.clientWidth) return;
@@ -290,6 +356,13 @@ export class GameDataElementTableViewComponent {
     scrollElement.scrollLeft = nextScrollLeft;
   }
 
+  /**
+   * In judgement mode, finds the ticked skills nearest to the clicked cell and opens the candidate
+   * list for it.
+   *
+   * The distance across columns grows by the sheet's gap distance for each ticked gap between them,
+   * and wraps round the edges where the sheet loops.
+   */
   onJudgeCheckCellClick(row: DataElement, colName: string, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
@@ -344,10 +417,18 @@ export class GameDataElementTableViewComponent {
     return costs;
   }
 
+  /** Closes the judgement candidate list. */
   closeJudgeCandidates(): void {
     this.judgeCandidatesState.set(null);
   }
 
+  /**
+   * Types a 2d6 roll for the chosen candidate into the chat input and closes the list.
+   *
+   * The target is the sheet's base difficulty (5 when unset) plus the candidate's distance,
+   * followed by a note of what is judged from what. The roll is only typed in; sending it is left
+   * to the reader.
+   */
   sendCandidateToChat(candidate: SkillJudgementCandidate): void {
     const element = this.element();
     const baseDifficulty = parseInt(element.getAttribute(DataElementAttribute.BASE_DIFFICULTY)) || 5;

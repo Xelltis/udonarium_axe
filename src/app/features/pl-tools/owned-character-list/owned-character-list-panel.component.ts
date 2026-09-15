@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PartyService } from '@axe/application/party/party.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { matchesSearchText, normalizeSearchText, splitSearchTerms } from '@axe/core/util/text-search';
@@ -29,6 +30,7 @@ export class OwnedCharacterListPanelComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly tableFocus = inject(TableFocusService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly registry = inject(ChatPaletteRegistryService);
   private readonly partyService = inject(PartyService);
@@ -118,6 +120,6 @@ export class OwnedCharacterListPanelComponent {
   protected focusToKoma(character: GameCharacter): void {
     if (!this.canFocus(character)) return;
     this.selectionSignalService.selectObject(character.identifier, character.aliasName);
-    this.selectionSignalService.focusToCoordinate(character.location.x, character.location.y);
+    this.tableFocus.focusOn(character);
   }
 }

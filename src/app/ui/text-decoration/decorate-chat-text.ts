@@ -11,6 +11,10 @@ const HTML_ESCAPE_MAP: Readonly<Record<string, string>> = {
   '>': '&gt;',
 };
 
+/**
+ * Escapes the characters that could start markup or break an attribute, so text can be put
+ * into HTML as it was typed. A value that is not a string is converted without escaping.
+ */
 export function escapeHtml(text: unknown): string {
   if (typeof text !== 'string') return String(text);
   return text.replace(/[&'`"<>]/g, (match) => HTML_ESCAPE_MAP[match] ?? match);
@@ -20,6 +24,12 @@ const RUBY_NOTATION = /[|｜]([^|｜\s]+?)《(.+?)》/g;
 
 const ESCAPED_SPACE = /\\s/g;
 
+/**
+ * Turns the ruby notation (`|word《reading》`, with a half- or full-width bar) into `<ruby>`
+ * markup, and `\s` into a space.
+ *
+ * Expects text that has already been escaped.
+ */
 export function applyRubyMarkup(escapedHtml: string): string {
   return escapedHtml
     .replace(RUBY_NOTATION, '<ruby class="chat-ruby"><rb>$1</rb><rt>$2</rt></ruby>')
@@ -54,6 +64,11 @@ export function splitRubyNotation(text: string): RubyPart[] {
   return parts;
 }
 
+/**
+ * Gathers each run of lines starting with `>` into one quote block, the lines joined by breaks.
+ *
+ * Expects escaped HTML, so it looks for the escaped `&gt;`.
+ */
 export function decorateQuoteLines(html: string): string {
   const lines = html.split('\n');
   const parts: string[] = [];

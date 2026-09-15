@@ -93,6 +93,20 @@ describe('MapEditorLayerDrawerComponent', () => {
     expect(drawer.addLayerMenuOpen()).toBe(false);
   });
 
+  it('offers a pencil on the layer in hand, for a screen that cannot double-click its name', () => {
+    state.applyCommitted(() => addLayer(state.current, shapeLayer('layer-6')));
+    state.applyCommitted(() => addLayer(state.current, shapeLayer('layer-7')));
+    state.activeLayerId.set('layer-6');
+    fixture.detectChanges();
+
+    const pencils = fixture.nativeElement.querySelectorAll('[data-testid="map-layer-rename"]');
+    expect(pencils).toHaveLength(1);
+
+    (pencils[0] as HTMLButtonElement).click();
+
+    expect((drawer as unknown as { renamingLayerId(): string | null }).renamingLayerId()).toBe('layer-6');
+  });
+
   it('renames a layer and hides it', () => {
     state.applyCommitted(() => addLayer(state.current, shapeLayer('layer-5')));
     const layer = state.current.layers.find((l) => l.id === 'layer-5')!;

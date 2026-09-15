@@ -147,8 +147,7 @@ export const DEFAULT_SHADE_RGB = '0,0,0';
 /**
  * A colour written `#rrggbb` or `#rgb`, as the three parts `rgba()` takes.
  *
- * Anything it cannot read comes back as black, which is what dimming meant before a table
- * could say otherwise.
+ * Anything it cannot read comes back as black, the shade of a table that names none.
  */
 export function shadeRgbOf(color: string | null | undefined): string {
   if (!color) return DEFAULT_SHADE_RGB;

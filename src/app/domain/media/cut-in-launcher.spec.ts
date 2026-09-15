@@ -139,7 +139,7 @@ describe('CutInLauncher', () => {
     });
   });
 
-  // The tests for the uploaded music and the chat trigger now live with the cut-in service.
+  // The uploaded music and the chat trigger are tested with the cut-in service.
 
   describe('stopBlankTagCutIn()', () => {
     it('counts the stamp up and says the music stopped the cut-ins', () => {
@@ -232,7 +232,7 @@ describe('CutInLauncher', () => {
       expect(soundSpy).not.toHaveBeenCalled();
     });
 
-    it('starts nothing at another end for a cut-in launched for yourself alone', () => {
+    it('still sounds at another end after a cut-in was last launched for somebody alone', () => {
       const launcher = new CutInLauncher('CutInLauncher');
       launcher.initialize();
 
@@ -244,7 +244,7 @@ describe('CutInLauncher', () => {
       ctx.syncData = { ...ctx.syncData, launchMySelf: true, soundOnlyTimeStamp: 1 };
       launcher.apply(ctx);
 
-      expect(soundSpy).not.toHaveBeenCalled();
+      expect(soundSpy).toHaveBeenCalledOnce();
     });
   });
 
@@ -401,6 +401,42 @@ describe('CutInLauncher', () => {
 
       expect(emitted).toBe(true);
       cleanup();
+    });
+
+    it('still says so after a cut-in was last launched for somebody alone', () => {
+      const launcher = new CutInLauncher('CutInLauncher');
+      launcher.initialize();
+      launcher.apply(launcher.toContext());
+
+      let emitted = false;
+      const cleanup = stopCutInByBgm$.subscribe(() => {
+        emitted = true;
+      });
+
+      const ctx = launcher.toContext();
+      ctx.syncData = { ...ctx.syncData, launchMySelf: true, stopBlankTagCutInTimeStamp: 1 };
+      launcher.apply(ctx);
+
+      expect(emitted).toBe(true);
+      cleanup();
+    });
+
+    it('still launches at another peer once a launch for everyone follows one for somebody alone', () => {
+      const launcher = new CutInLauncher('CutInLauncher');
+      launcher.initialize();
+      launcher.apply(launcher.toContext());
+
+      const startSpy = vi.spyOn(launcher, 'startSelfCutIn').mockImplementation(() => {});
+      const mine = launcher.toContext();
+      mine.syncData = { ...mine.syncData, launchMySelf: true, launchIsStart: true, launchTimeStamp: 1 };
+      launcher.apply(mine);
+      expect(startSpy).not.toHaveBeenCalled();
+
+      const everyone = launcher.toContext();
+      everyone.syncData = { ...everyone.syncData, launchMySelf: false, launchIsStart: true, launchTimeStamp: 2 };
+      launcher.apply(everyone);
+
+      expect(startSpy).toHaveBeenCalledOnce();
     });
   });
 });

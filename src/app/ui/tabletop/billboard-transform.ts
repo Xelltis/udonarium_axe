@@ -14,6 +14,15 @@ const DEFAULT_TABLE_Y = 0;
 const DEFAULT_TABLE_Z = 10;
 const COS_DENOM_MIN = 0.05;
 
+/**
+ * The CSS transform that turns part of a piece, such as its picture, name or gauges, to face
+ * the viewer however the table and the piece are turned.
+ *
+ * It undoes the table's view rotation, the piece's own rotation and roll, and the rotation its
+ * parent carries. In the 3D view it is also pushed back along Z so that something lifted by
+ * `verticalOffset3D` still appears that far above the piece as the table tilts; the flat view
+ * needs no such push.
+ */
 export function makeBillboardTransform(opts: BillboardTransformOptions): string {
   const tableX = opts.rotation?.x ?? DEFAULT_TABLE_X;
   const tableY = opts.rotation?.y ?? DEFAULT_TABLE_Y;
@@ -40,6 +49,13 @@ export interface LabelOrbitTransformOptions {
   readonly mode2d: boolean;
 }
 
+/**
+ * The CSS transform that moves a piece's label away from it.
+ *
+ * In the 3D view the label is lifted straight up by `distance3d`. In the flat view it is moved
+ * `distance2d` across the table in the direction that points up the screen at the table's current
+ * turn, the z of `rotation`, so the label stays above the piece on screen as the view is turned.
+ */
 export function makeLabelOrbitTransform(opts: LabelOrbitTransformOptions): string {
   if (!opts.mode2d) {
     return `translateY(${-opts.distance3d}px)`;
@@ -60,6 +76,13 @@ export interface ScreenLiftTransformOptions {
   readonly mode2d: boolean;
 }
 
+/**
+ * The CSS transform that places something above a piece on screen, clear of its picture.
+ *
+ * In the 3D view the lift is the piece's height as seen at the table's tilt plus `screenLift3d`,
+ * worked out along the table's and the piece's turn and the piece's roll. The flat view uses
+ * the label offset of `makeLabelOrbitTransform` instead.
+ */
 export function makeScreenLiftTransform(opts: ScreenLiftTransformOptions): string {
   if (opts.mode2d) {
     return makeLabelOrbitTransform({

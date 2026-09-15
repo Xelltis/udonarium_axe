@@ -80,24 +80,29 @@ function buildHexSvgMask(polygons: string[], pixelW: number, pixelH: number): st
 
 const EMPTY_MASK = 'radial-gradient(#000, #000) 0px 0px / 0px 0px no-repeat';
 
-function buildHexMaskSvg(params: BuildMaskCssParams): string {
+function visibilityOf(params: BuildMaskCssParams): (gridStr: string) => boolean {
+  const scratchedSet = splitGridSet(params.scratchedGrids);
+  const scratchingSet = params.currentScratchingSet ?? splitGridSet(params.scratchingGrids);
+  return (gridStr) => isCellVisible(gridStr, scratchedSet, scratchingSet, params.isPreviewMode);
+}
+
+function hexCellPolygons(
+  params: BuildMaskCssParams,
+  include: (gridStr: string) => boolean
+): { polygons: string[]; geo: HexMaskGeometry } | null {
   const geo = computeHexMaskGeometry(params.width, params.height, params.gridSize, params.gridType);
-  if (!geo) return EMPTY_MASK;
+  if (!geo) return null;
   const isFlatTop = isFlatTopGrid(params.gridType);
   const s = hexCircumradius(params.gridSize);
   const maskS = s + 1;
   const { colSpacing, rowSpacing } = hexSpacing(params.gridSize, isFlatTop);
-
-  const scratchedSet = splitGridSet(params.scratchedGrids);
-  const scratchingSet = params.currentScratchingSet ?? splitGridSet(params.scratchingGrids);
 
   const verts = hexVertOffsets(maskS, isFlatTop);
 
   const polygons: string[] = [];
   for (let col = 0; col < params.width; col++) {
     for (let row = 0; row < params.height; row++) {
-      const gridStr = `${col}:${row}`;
-      if (!isCellVisible(gridStr, scratchedSet, scratchingSet, params.isPreviewMode)) continue;
+      if (!include(`${col}:${row}`)) continue;
 
       const { x, y } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
       const cx = x + geo.offsetX;
@@ -106,10 +111,35 @@ function buildHexMaskSvg(params: BuildMaskCssParams): string {
       polygons.push(`<polygon points="${points}"/>`);
     }
   }
-
-  return buildHexSvgMask(polygons, geo.pixelW, geo.pixelH);
+  return { polygons, geo };
 }
 
+function squareCellMasks(params: BuildMaskCssParams, include: (gridStr: string) => boolean): string[] {
+  const masks: string[] = [];
+  for (let x = 0; x < params.width; x++) {
+    for (let y = 0; y < params.height; y++) {
+      if (!include(`${x}:${y}`)) continue;
+
+      masks.push(
+        `radial-gradient(#000, #000) ${x * params.gridSize - 1}px ${y * params.gridSize - 1}px / ${params.gridSize + 2}px ${params.gridSize + 2}px no-repeat`
+      );
+    }
+  }
+  return masks;
+}
+
+function buildHexMaskSvg(params: BuildMaskCssParams): string {
+  const cells = hexCellPolygons(params, visibilityOf(params));
+  if (!cells) return EMPTY_MASK;
+  return buildHexSvgMask(cells.polygons, cells.geo.pixelW, cells.geo.pixelH);
+}
+
+/**
+ * A CSS mask in the shape of a mask's hex cells, each grown by a pixel so neighbours meet without a
+ * seam.
+ *
+ * Empty on a square grid or when there are no cells.
+ */
 export function buildHexOutlineMask(gridSize: number, gridType: GridType, width: number, height: number): string {
   const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
   if (!geo) return '';
@@ -184,6 +214,12 @@ function hexNeighborOffset(col: number, row: number, edgeIdx: number, isFlatTop:
       )[edgeIdx];
 }
 
+/**
+ * A CSS background tracing a light line round the outer edge of a mask's hex cells, leaving the
+ * inner edges out.
+ *
+ * Empty on a square grid or when there are no cells.
+ */
 export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, width: number, height: number): string {
   const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
   if (!geo) return '';
@@ -219,29 +255,50 @@ export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, wid
   return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}") 0px 0px / ${geo.pixelW}px ${geo.pixelH}px no-repeat`;
 }
 
+/**
+ * The CSS mask that cuts the scratched-open cells out of a mask.
+ *
+ * In preview mode, a cell a pending scratch would change is shown as it will be once the scratch is
+ * done. An empty string leaves the mask whole, and on a hex grid the mask is drawn as SVG.
+ */
 export function buildMaskCss(params: BuildMaskCssParams): string {
   if (isHexGrid(params.gridType)) return buildHexMaskSvg(params);
 
   if (!params.isPreviewMode && params.isNonScratched) return '';
 
-  const masks: string[] = [];
-  const scratchedSet = splitGridSet(params.scratchedGrids);
-  const scratchingSet = params.currentScratchingSet ?? splitGridSet(params.scratchingGrids);
-
-  for (let x = 0; x < params.width; x++) {
-    for (let y = 0; y < params.height; y++) {
-      const gridStr = `${x}:${y}`;
-      if (!isCellVisible(gridStr, scratchedSet, scratchingSet, params.isPreviewMode)) continue;
-
-      masks.push(
-        `radial-gradient(#000, #000) ${x * params.gridSize - 1}px ${y * params.gridSize - 1}px / ${params.gridSize + 2}px ${params.gridSize + 2}px no-repeat`
-      );
-    }
-  }
-
+  const masks = squareCellMasks(params, visibilityOf(params));
   return masks.length ? masks.join(',') : EMPTY_MASK;
 }
 
+/**
+ * The CSS mask that keeps only the cells {@link buildMaskCss} cuts out of a mask: those scratched
+ * open, or in preview mode those the pending scratch would leave open.
+ *
+ * Each cell grows by the same pixel as in the mask itself, so the two meet without a seam, and a
+ * hex grid is drawn as SVG. Empty when no cell is open, on either kind of grid.
+ */
+export function buildScratchedMaskCss(params: BuildMaskCssParams): string {
+  if (!params.isPreviewMode && params.isNonScratched) return '';
+  const isVisible = visibilityOf(params);
+  const isOpen = (gridStr: string) => !isVisible(gridStr);
+
+  if (isHexGrid(params.gridType)) {
+    const cells = hexCellPolygons(params, isOpen);
+    if (!cells || !cells.polygons.length) return '';
+    return buildHexSvgMask(cells.polygons, cells.geo.pixelW, cells.geo.pixelH);
+  }
+
+  return squareCellMasks(params, isOpen).join(',');
+}
+
+/**
+ * The markers drawn over cells while a mask is being scratched, one for each cell that is open,
+ * picked, or both.
+ *
+ * Each marker carries its cell's centre and a state: `scrached` for an open cell, `scraching` for a
+ * picked covered cell, and `restore` for an open cell that is picked to be covered again. Hex cells
+ * also carry an inset outline.
+ */
 export function buildScratchingGridInfos(params: BuildScratchingGridInfosParams): ScratchGridInfo[] {
   const ret: ScratchGridInfo[] = [];
   if (!params.hasGameTableMask || (params.isNonScratching && params.isNonScratched)) return ret;

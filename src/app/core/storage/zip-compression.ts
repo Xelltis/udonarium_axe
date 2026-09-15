@@ -22,6 +22,10 @@ const PRECOMPRESSED_EXTENSIONS = [
   '.gz',
 ];
 
+/**
+ * Whether a file type or extension says the bytes are already compressed, as images, audio, video
+ * and archives are, so deflating them again would gain nothing.
+ */
 export function isPrecompressed(name: string, mimeType: string): boolean {
   const type = mimeType.toLowerCase();
   if (PRECOMPRESSED_TYPE_PREFIXES.some((prefix) => type.startsWith(prefix))) return true;
@@ -30,6 +34,7 @@ export function isPrecompressed(name: string, mimeType: string): boolean {
   return PRECOMPRESSED_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
 }
 
+/** The deflate level to zip a file at: stored as it is when already compressed, level 6 otherwise. */
 export function zipCompressionLevel(name: string, mimeType: string): 0 | 6 {
   return isPrecompressed(name, mimeType) ? ZIP_STORE_LEVEL : ZIP_DEFLATE_LEVEL;
 }

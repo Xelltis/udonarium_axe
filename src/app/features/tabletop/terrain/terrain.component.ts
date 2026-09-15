@@ -249,9 +249,11 @@ export class TerrainComponent {
   readonly is3D = input(false);
   readonly gridCanvases = viewChildren<ElementRef<HTMLCanvasElement>>('gridCanvas');
 
+  /** The table selecter, which says which table is on view. */
   get tableSelecter(): TableSelecter {
     return this.tabletopService.tableSelecter;
   }
+  /** The table currently shown, which the menu's surface entries work against. */
   get currentTable(): GameTable {
     return this.tabletopService.currentTable;
   }
@@ -297,9 +299,9 @@ export class TerrainComponent {
   /**
    * A terrain nobody has given a picture to.
    *
-   * It used to be shown as a white block, which is a placeholder standing in the way of the
-   * map. It is glass instead: the wall is there and stops what it stops, but only the game
-   * master is shown where it stands.
+   * A white block would be a placeholder standing in the way of the map. It is glass instead:
+   * the wall is there and stops what it stops, but only the game master is shown where it
+   * stands.
    */
   readonly isBlank = computed(() => {
     this.objectChange.fileVersion();
@@ -453,6 +455,7 @@ export class TerrainComponent {
     return surfaceOf(this.terrain()) !== 'floor';
   });
 
+  /** The size of one table cell, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -569,6 +572,9 @@ export class TerrainComponent {
 
   readonly terrainGridClipStyle = computed<Record<string, string>>(() => this.makeTerrainGridClipStyle());
 
+  /**
+   * The style that lays the grid over one step of a stepped hex slope, masked to that step's hexes.
+   */
   terrainGridClipStepStyle(step: HexSlopeStepFloor): Record<string, string> {
     return this.makeTerrainGridClipStyle(step);
   }
@@ -648,15 +654,23 @@ export class TerrainComponent {
   private _initialized = false;
   readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
 
+  /** Stops the browser starting a native drag on the terrain. */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /** Cancels the input handler's gesture as soon as a press starts. */
   onInputStart(_e: MouseEvent | TouchEvent) {
     this.input?.cancel();
   }
 
+  /**
+   * Opens the terrain's right-click menu, or the menu for the whole selection when the terrain is
+   * part of one.
+   *
+   * In the flat view with a radial menu style chosen, it opens as a radial menu.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -701,10 +715,12 @@ export class TerrainComponent {
     this.contextMenuService.open(menuPosition, menu.actions, this.name());
   }
 
+  /** Plays the block pick-up sound when a drag or turn of the terrain starts. */
   onMove() {
     SoundEffect.play(PresetSound.blockPick);
   }
 
+  /** Plays the block put-down sound when a drag or turn of the terrain ends. */
   onMoved() {
     SoundEffect.play(PresetSound.blockPut);
   }
@@ -770,10 +786,10 @@ export class TerrainComponent {
    * What the fog leaves of a face, as a mask over it.
    *
    * A block standing in ground nobody has walked to is not there to be seen. Painted over in
-   * the colour of the fog it stood up out of the mist as a solid slab of it, and the shape of
-   * the slab told the party the wall was there. Taken away instead, the face thins out across
-   * the cell at the edge of what has been reached, the way the mist on the floor does, and the
-   * rest of the block is simply gone.
+   * the colour of the fog it would stand up out of the mist as a solid slab of it, and the shape
+   * of the slab would tell the party the wall is there. Taken away instead, the face thins out
+   * across the cell at the edge of what has been reached, the way the mist on the floor does,
+   * and the rest of the block is simply gone.
    *
    * A hex board and a slope carry a clip of their own and are shown or hidden whole.
    */
@@ -835,7 +851,7 @@ export class TerrainComponent {
    *
    * Building them takes a gradient stop per cell and a clip path per face, and a template
    * calls a plain method on every pass of change detection. A flickering lamp ticks twenty
-   * times a second, and every terrain on the board was rebuilding all of it each time.
+   * times a second, and every terrain on the board would be rebuilding all of it each time.
    */
   protected readonly topShade = computed(() => this.shadedTop(this.topFaceImage().url));
   protected readonly northShade = computed(() =>
@@ -863,7 +879,7 @@ export class TerrainComponent {
    * Whether the block is drawn with an underside, which is whenever it has a floor at all.
    *
    * Asking how high it stands is the wrong question: a block may be built at a height or be
-   * one of a stack, and read from either the answer was wrong for the other. One standing on
+   * one of a stack, and read from either the answer is wrong for the other. One standing on
    * the table hides its own underside anyway, so there is nothing to be saved by leaving it
    * off and a whole class of see-through boxes to be had by trying.
    */
@@ -981,8 +997,8 @@ export class TerrainComponent {
    * The colour this table paints its dark in, for the faces of a block.
    *
    * The darkness is one sheet lying on the floor, so nothing standing on the table is covered
-   * by it and every face darkens itself. Doing that in black left a building grey while the
-   * floor around it wore the table's own colour.
+   * by it and every face darkens itself. Doing that in black would leave a building grey
+   * while the floor around it wears the table's own colour.
    */
   private readonly shadeRgb = computed(() => shadeRgbOf(this.visionService.ambientShade()?.color));
 

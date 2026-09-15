@@ -6,6 +6,13 @@ import {
   makeBrush,
 } from '@axe/features/tabletop/range/range-render-util';
 
+/**
+ * Draws a circle range of radius `range` cells onto the grid and outline canvases.
+ *
+ * The grid canvas gets the cells whose centres fall inside, or the exact disc when `fillOutLine` is
+ * set. The centre is marked with a small square while the range follows a character, otherwise a dot.
+ * A circle needs no polygon clip, so nothing is returned.
+ */
 export function renderCircle(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
@@ -48,6 +55,12 @@ export function renderCircle(
   }
 }
 
+/**
+ * Draws a cone range: a triangle from the origin out to `range` cells, `width` cells across at its far end.
+ *
+ * It is turned by `degree` and filled and outlined as the other shapes are. The clip returned runs a
+ * margin round the cone, for cutting the range's element down to it.
+ */
 export function renderCorn(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,

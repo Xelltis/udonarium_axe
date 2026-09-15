@@ -16,6 +16,10 @@ interface ResolvedSurface extends OverlaySurface {
   heightPx: number;
 }
 
+/**
+ * A CSS `rgba()` colour from a hex colour of three or six digits, with or without the `#`; anything
+ * unreadable gives white at the same alpha.
+ */
 export function hexToRgba(color: string, alpha: number): string {
   let hex = color.trim();
   if (hex.startsWith('#')) hex = hex.slice(1);
@@ -28,6 +32,10 @@ export function hexToRgba(color: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/**
+ * How brightly an animated light glows at a moment, as a multiplier: a pulse swells slowly between
+ * about half and full, a flicker jitters between 0.6 and full, and anything else stays at 1.
+ */
 export function animationIntensity(animation: string | undefined, timeMs: number): number {
   switch (animation) {
     case 'pulse':
@@ -264,10 +272,30 @@ function isAnimated(shape: OverlayShape): boolean {
 export const OVERLAY_PIXEL_BUDGET = 12_000_000;
 export const MIN_OVERLAY_SCALE = 0.5;
 
-export function overlayScale(width: number, height: number, budget = OVERLAY_PIXEL_BUDGET): number {
+/**
+ * The budget and the floor while the table is drawn the lighter way.
+ *
+ * The browsers that are drawn that way are the ones that give up on a large canvas first, so
+ * the darkness is let down further for them, and the edges of a hex are let soften to pay for it.
+ */
+export const LIGHT_OVERLAY_PIXEL_BUDGET = 4_000_000;
+export const LIGHT_MIN_OVERLAY_SCALE = 0.35;
+
+/**
+ * How many canvas pixels an overlay of this size is drawn with, to one pixel of the board.
+ *
+ * One while it fits inside the budget, and otherwise as much less as keeps it inside, but never
+ * less than the floor.
+ */
+export function overlayScale(
+  width: number,
+  height: number,
+  budget = OVERLAY_PIXEL_BUDGET,
+  minScale = MIN_OVERLAY_SCALE
+): number {
   const pixels = width * height;
   if (!(pixels > budget)) return 1;
-  return Math.max(MIN_OVERLAY_SCALE, Math.sqrt(budget / pixels));
+  return Math.max(minScale, Math.sqrt(budget / pixels));
 }
 
 export interface DirtyRect {
@@ -278,44 +306,92 @@ export interface DirtyRect {
 }
 
 /**
- * The ground the lights that move cover, and nothing else.
+ * The ground the lights that move cover, and nothing else, a patch for each group of them.
  *
- * A board is mostly still. One candle guttering in a corner used to mean clearing the whole
- * board and laying the whole of it down again twenty times a second, which on a large table
- * is tens of millions of pixels a frame for the sake of a few hundred thousand. Kept to the
- * box the moving lights actually reach, the rest of the board is left where it is.
+ * A board is mostly still. Redrawn whole, one candle guttering in a corner would mean clearing
+ * the whole board and laying the whole of it down again twenty times a second, which on a large
+ * table is tens of millions of pixels a frame for the sake of a few hundred thousand. Kept to the
+ * boxes the moving lights actually reach, the rest of the board is left where it is, and two
+ * torches at opposite ends of a room redraw their own two corners rather than the room between.
+ * Lights whose boxes meet are redrawn in one patch.
  */
-export function animatedGlowBounds(
+export function animatedGlowPatches(
   plan: OverlayPlan,
   widthPx: number,
   heightPx: number,
   margin = 0,
   surface?: OverlaySurface
-): DirtyRect | null {
+): DirtyRect[] {
   const resolved = resolvedSurfaceOf(widthPx, heightPx, surface);
   const offsetX = margin - resolved.originX;
   const offsetY = margin - resolved.originY;
 
-  let left = Infinity;
-  let top = Infinity;
-  let right = -Infinity;
-  let bottom = -Infinity;
+  const boxes: Box[] = [];
   for (const shape of plan.glows) {
     if (!isAnimated(shape) || shape.dimPx <= 0) continue;
-    left = Math.min(left, shape.x - shape.dimPx + offsetX);
-    top = Math.min(top, shape.y - shape.dimPx + offsetY);
-    right = Math.max(right, shape.x + shape.dimPx + offsetX);
-    bottom = Math.max(bottom, shape.y + shape.dimPx + offsetY);
+    boxes.push({
+      left: shape.x - shape.dimPx + offsetX,
+      top: shape.y - shape.dimPx + offsetY,
+      right: shape.x + shape.dimPx + offsetX,
+      bottom: shape.y + shape.dimPx + offsetY,
+    });
   }
-  if (!(right > left) || !(bottom > top)) return null;
 
   const width = widthPx + 2 * margin;
   const height = heightPx + 2 * margin;
-  const x = Math.max(0, Math.floor(left));
-  const y = Math.max(0, Math.floor(top));
-  const w = Math.min(width, Math.ceil(right)) - x;
-  const h = Math.min(height, Math.ceil(bottom)) - y;
-  return w > 0 && h > 0 ? { x, y, width: w, height: h } : null;
+  const patches: DirtyRect[] = [];
+  for (const box of mergeMeeting(boxes)) {
+    const x = Math.max(0, Math.floor(box.left));
+    const y = Math.max(0, Math.floor(box.top));
+    const w = Math.min(width, Math.ceil(box.right)) - x;
+    const h = Math.min(height, Math.ceil(box.bottom)) - y;
+    if (w > 0 && h > 0) patches.push({ x, y, width: w, height: h });
+  }
+  return patches;
+}
+
+interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** The boxes with every two that meet taken together, until no two of what is left meet. */
+function mergeMeeting(boxes: readonly Box[]): Box[] {
+  const merged = boxes.map((box) => ({ ...box }));
+  let joined = true;
+  while (joined) {
+    joined = false;
+    for (let i = 0; i < merged.length && !joined; i++) {
+      for (let j = i + 1; j < merged.length; j++) {
+        const a = merged[i];
+        const b = merged[j];
+        if (a.left > b.right || b.left > a.right || a.top > b.bottom || b.top > a.bottom) continue;
+        merged[i] = {
+          left: Math.min(a.left, b.left),
+          top: Math.min(a.top, b.top),
+          right: Math.max(a.right, b.right),
+          bottom: Math.max(a.bottom, b.bottom),
+        };
+        merged.splice(j, 1);
+        joined = true;
+        break;
+      }
+    }
+  }
+  return merged;
+}
+
+/** Whether a light reaches into the patch a pass redraws, which every light does on a pass of the whole board. */
+function reachesPatch(shape: OverlayShape, patch: DirtyRect | null, offsetX: number, offsetY: number): boolean {
+  if (!patch) return true;
+  return (
+    shape.x + shape.dimPx + offsetX >= patch.x &&
+    shape.x - shape.dimPx + offsetX <= patch.x + patch.width &&
+    shape.y + shape.dimPx + offsetY >= patch.y &&
+    shape.y - shape.dimPx + offsetY <= patch.y + patch.height
+  );
 }
 
 /** The baked surfaces, holding what does not change over time. */
@@ -522,6 +598,10 @@ function unwalkedMask(vision: OverlayVision): CellMask {
   return cellMaskOf(vision, unwalkedPaths, (index) => !vision.explored.get(index));
 }
 
+/**
+ * Fills the cells nobody has explored yet with the context's current fill, softened by the blur;
+ * the outline is traced once per vision and reused.
+ */
 export function fillUnwalkedCells(ctx: CanvasRenderingContext2D, vision: OverlayVision, blurPx = 0): void {
   fillMask(ctx, vision.grid, unwalkedMask(vision), blurPx);
 }
@@ -538,6 +618,10 @@ function fillMask(ctx: CanvasRenderingContext2D, grid: CellGrid, mask: CellMask,
   if (blurPx > 0) ctx.filter = previous;
 }
 
+/**
+ * Fills the cells the predicate keeps with the context's current fill, softened by a blur when one
+ * is given.
+ */
 export function fillCells(
   ctx: CanvasRenderingContext2D,
   grid: CellGrid,
@@ -558,6 +642,58 @@ interface OverlayBounds {
   offsetY: number;
   scale: number;
   patch?: DirtyRect | null;
+}
+
+/**
+ * The seen cells with their edge softened, laid down once for the corner a moving light redraws.
+ *
+ * Softening the mask with a filter on every pass rasterises the blur twenty times a second, and
+ * Firefox does that by hand. The corner is widened by the reach of the blur, so its edge comes
+ * out as soft as it would from the whole mask. Only the corner is kept, not the board.
+ */
+interface SoftMask {
+  key: string;
+  image: CanvasImageSource | null;
+  /** Where the kept corner starts, in canvas pixels. */
+  left: number;
+  top: number;
+}
+
+const softSeenMasks = new WeakMap<OverlayVision, Map<string, SoftMask>>();
+
+function softSeenMaskOf(vision: OverlayVision, mask: CellMask, bounds: OverlayBounds, patch: DirtyRect): SoftMask {
+  const scale = bounds.scale;
+  const reach = Math.ceil((vision.blurPx * 3) / Math.min(1, scale));
+  const left = Math.max(0, Math.floor((patch.x - reach) * scale));
+  const top = Math.max(0, Math.floor((patch.y - reach) * scale));
+  const right = Math.min(Math.ceil(bounds.width * scale), Math.ceil((patch.x + patch.width + reach) * scale));
+  const bottom = Math.min(Math.ceil(bounds.height * scale), Math.ceil((patch.y + patch.height + reach) * scale));
+  const key = [left, top, right, bottom, scale, bounds.offsetX, bounds.offsetY, vision.blurPx].join(',');
+
+  let byCorner = softSeenMasks.get(vision);
+  if (!byCorner) {
+    byCorner = new Map();
+    softSeenMasks.set(vision, byCorner);
+  }
+  const kept = byCorner.get(key);
+  if (kept) return kept;
+
+  // Even a corner that would not bake is remembered, or every pass would make a canvas and throw it away.
+  const soft: SoftMask = { key, image: null, left, top };
+  byCorner.set(key, soft);
+  if (!(right > left) || !(bottom > top) || typeof document === 'undefined') return soft;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = right - left;
+  canvas.height = bottom - top;
+  const context = canvas.getContext('2d');
+  if (!context || typeof context.drawImage !== 'function') return soft;
+  context.setTransform(scale, 0, 0, scale, -left, -top);
+  context.translate(bounds.offsetX, bounds.offsetY);
+  context.fillStyle = 'rgba(0, 0, 0, 1)';
+  fillMask(context, vision.grid, mask, vision.blurPx);
+  soft.image = canvas;
+  return soft;
 }
 
 /**
@@ -598,8 +734,18 @@ function throughVision(
   target.translate(bounds.offsetX, bounds.offsetY);
   draw(target);
   target.globalCompositeOperation = 'destination-in';
-  target.fillStyle = 'rgba(0, 0, 0, 1)';
-  fillMask(target, vision.grid, mask, vision.blurPx);
+  const soft = patch && vision.blurPx > 0 ? softSeenMaskOf(vision, mask, bounds, patch) : null;
+  if (patch && soft?.image) {
+    const x = patch.x * bounds.scale;
+    const y = patch.y * bounds.scale;
+    const width = patch.width * bounds.scale;
+    const height = patch.height * bounds.scale;
+    target.setTransform(1, 0, 0, 1, 0, 0);
+    target.drawImage(soft.image, x - soft.left, y - soft.top, width, height, x, y, width, height);
+  } else {
+    target.fillStyle = 'rgba(0, 0, 0, 1)';
+    fillMask(target, vision.grid, mask, vision.blurPx);
+  }
   target.globalCompositeOperation = 'source-over';
   reset(target, bounds.scale);
 
@@ -717,6 +863,15 @@ function paintShadows(
   }
 }
 
+/**
+ * Draws one frame of the lighting and vision overlay: the darkness, the glowing lights and the
+ * shadows.
+ *
+ * A bake of the same size and scale supplies what does not change, so over it only the lights that
+ * animate are drawn again, and given a dirty rectangle only that part of the canvas is redrawn.
+ * Without a usable bake the whole plan is drawn. The margin widens the canvas around the table on
+ * every side.
+ */
 export function drawOverlayPlan(
   ctx: CanvasRenderingContext2D,
   plan: OverlayPlan,
@@ -744,8 +899,16 @@ export function drawOverlayPlan(
   reset(ctx, scale);
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
-  if (patch) ctx.clearRect(patch.x, patch.y, patch.width, patch.height);
-  else ctx.clearRect(0, 0, width, height);
+  if (patch) {
+    ctx.clearRect(patch.x, patch.y, patch.width, patch.height);
+    // A light reaching into the patch from beside it is drawn whole, and nothing past the edge was cleared for it.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(patch.x, patch.y, patch.width, patch.height);
+    ctx.clip();
+  } else {
+    ctx.clearRect(0, 0, width, height);
+  }
 
   if (usable) blit(ctx, usable.base.image, patch, width, height, scale);
 
@@ -757,7 +920,10 @@ export function drawOverlayPlan(
   // only add it to itself.
   const glow = (target: CanvasRenderingContext2D): void => {
     target.globalCompositeOperation = 'lighter';
-    for (const shape of plan.glows) if (!usable || isAnimated(shape)) drawGlow(target, shape, timeMs);
+    for (const shape of plan.glows) {
+      if ((!usable || isAnimated(shape)) && reachesPatch(shape, patch, offsetX, offsetY))
+        drawGlow(target, shape, timeMs);
+    }
     target.globalCompositeOperation = 'source-over';
   };
   if (plan.vision?.clipReveals) {
@@ -776,7 +942,9 @@ export function drawOverlayPlan(
     paintShadows(ctx, plan, images);
   }
 
+  if (patch) ctx.restore();
   ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
   reset(ctx, scale);
 }
 

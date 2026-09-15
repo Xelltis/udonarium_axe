@@ -94,6 +94,13 @@ describe('ChatLogExporter', () => {
       expect(result).toContain('こんにちは');
     });
 
+    it('keeps the line breaks of a message as breaks', () => {
+      const msg = createMockMessage({ text: '一行目\n二行目\r\n三行目' });
+      const result = ChatLogExporter.formatMessageStandard(false, '', msg);
+
+      expect(result).toContain('一行目<br>二行目<br>三行目');
+    });
+
     it('puts the name of the tab in front where there is one', () => {
       const msg = createMockMessage();
       const result = ChatLogExporter.formatMessageStandard(false, 'メインタブ', msg);
@@ -344,6 +351,13 @@ describe('ChatLogExporter', () => {
       expect(result).toContain('探索者');
       expect(result).toContain('目星チェック');
       expect(result).toContain('[メインタブ]');
+    });
+
+    it('keeps the line breaks of a message as breaks there too', () => {
+      const msg = createMockMessage({ text: '一行目\n二行目' });
+      const result = ChatLogExporter.formatMessageCoc('メインタブ', msg);
+
+      expect(result).toContain('一行目<br>二行目');
     });
 
     it('renders an attached picture there as well', () => {

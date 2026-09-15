@@ -23,6 +23,7 @@ import { toHotbarSlotKind } from '@axe/domain/hotbar/hotbar-slot-kind';
 export class HotbarSet extends ObjectNode implements InnerXml {
   private members: readonly HotbarSlot[] = [];
 
+  /** A holder for saving the slots the bar has now to a file. */
   static of(hotbar: Hotbar): HotbarSet {
     const set = new HotbarSet();
     set.members = [...hotbar.slots];
@@ -30,15 +31,23 @@ export class HotbarSet extends ObjectNode implements InnerXml {
   }
 
   // GameObject Lifecycle
+  /** Takes the holder straight back out of the store, so it is never shared with the room. */
   override onStoreAdded() {
     super.onStoreAdded();
     ObjectStore.instance.remove(this);
   }
 
+  /** The slots to write out, as they stood when the holder was made. */
   override innerXml(): string {
     return this.members.map((slot) => ObjectSerializer.instance.toXml(slot)).join('');
   }
 
+  /**
+   * Reads the slots from a file onto the reader's own bar, making the bar if there is none yet.
+   *
+   * What stood on the bar is set aside first so the read can be undone. Nothing happens when no
+   * reader is named yet, or when the file holds no slot the bar can take; both are logged.
+   */
   override parseInnerXml(element: Element) {
     const hotbar = Hotbar.ensureMine();
     if (!hotbar) {

@@ -24,6 +24,7 @@ interface RecordingRow extends ReplayRecordingMeta {
 
 export class IndexedDbReplayLogStore extends ReplayLogStore {
   private static _instance: IndexedDbReplayLogStore;
+  /** The one IndexedDB-backed replay store for the page, created on first use. */
   static get instance(): IndexedDbReplayLogStore {
     if (!IndexedDbReplayLogStore._instance) IndexedDbReplayLogStore._instance = new IndexedDbReplayLogStore();
     return IndexedDbReplayLogStore._instance;
@@ -31,10 +32,15 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
 
   private dbPromise: Promise<IDBDatabase | null> | null = null;
 
+  /**
+   * Whether the browser offers IndexedDB at all; if the database then fails to open, reads
+   * come back empty and writes fail.
+   */
   isAvailable(): boolean {
     return typeof indexedDB !== 'undefined' && indexedDB !== null;
   }
 
+  /** Adds an empty recording row and returns its new id, or null when the database cannot be written. */
   async createRecording(input: ReplayRecordingInput): Promise<number | null> {
     const row: Omit<RecordingRow, 'id'> = {
       roomName: input.roomName,
@@ -49,6 +55,10 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
     return typeof key === 'number' ? key : null;
   }
 
+  /**
+   * Changes a recording's room name, end time or manifest, keeping fields left
+   * undefined; an unknown id is ignored.
+   */
   async updateRecording(id: number, update: ReplayRecordingUpdate): Promise<void> {
     await this.mutateRecording(id, (row) => {
       if (update.roomName !== undefined) row.roomName = update.roomName;
@@ -57,22 +67,29 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
     });
   }
 
+  /** Every recording's metadata, newest first; empty when the database cannot be read. */
   async listRecordings(): Promise<ReplayRecordingMeta[]> {
     const rows = await this.run<RecordingRow[]>([RECORDING_STORE], 'readonly', (stores) => stores[0].getAll());
     if (!rows) return [];
     return sortRecordingsByNewest(rows.map(toMeta));
   }
 
+  /** One recording's metadata, or null when there is no such recording or the database cannot be read. */
   async getRecording(id: number): Promise<ReplayRecordingMeta | null> {
     const row = await this.run<RecordingRow | undefined>([RECORDING_STORE], 'readonly', (stores) => stores[0].get(id));
     return row ? toMeta(row) : null;
   }
 
+  /** The encoded manifest saved with a recording, or null when it has none. */
   async getManifest(id: number): Promise<Uint8Array | null> {
     const row = await this.run<RecordingRow | undefined>([RECORDING_STORE], 'readonly', (stores) => stores[0].get(id));
     return row?.manifest ?? null;
   }
 
+  /**
+   * Stores a chunk of recorded events and adds its event count and size to the recording's totals
+   * in one transaction, resolving false when the write failed.
+   */
   async appendChunk(input: ReplayChunkInput): Promise<boolean> {
     return await this.runOk([CHUNK_STORE, RECORDING_STORE], ([chunks, recordings]) => {
       chunks.add(input);
@@ -83,6 +100,7 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
     });
   }
 
+  /** A recording's event chunks in index order; empty when the database cannot be read. */
   async listChunks(recordingId: number): Promise<ReplayChunkRecord[]> {
     const rows = await this.run<ReplayChunkRecord[]>([CHUNK_STORE], 'readonly', (stores) =>
       stores[0].index(RECORDING_INDEX).getAll(recordingId)
@@ -90,6 +108,10 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
     return (rows ?? []).sort((a, b) => a.index - b.index);
   }
 
+  /**
+   * Stores a keyframe and adds its size to the recording's total in one transaction,
+   * resolving false when the write failed.
+   */
   async putKeyframe(input: ReplayKeyframeInput): Promise<boolean> {
     const row = { ...input, byteSize: input.blob.size };
     return await this.runOk([KEYFRAME_STORE, RECORDING_STORE], ([keyframes, recordings]) => {
@@ -100,6 +122,7 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
     });
   }
 
+  /** A recording's keyframes in sequence order; empty when the database cannot be read. */
   async listKeyframes(recordingId: number): Promise<ReplayKeyframeRecord[]> {
     const rows = await this.run<ReplayKeyframeRecord[]>([KEYFRAME_STORE], 'readonly', (stores) =>
       stores[0].index(RECORDING_INDEX).getAll(recordingId)
@@ -107,6 +130,12 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
     return (rows ?? []).sort((a, b) => a.seq - b.seq);
   }
 
+  /**
+   * Deletes a recording together with its chunks and keyframes.
+   *
+   * Only their keys are read beforehand, so a long recording is never loaded just to be thrown
+   * away.
+   */
   async removeRecording(id: number): Promise<void> {
     // Deleting needs the keys alone; reading the rows would hold a whole recording before deleting it.
     const chunks = await this.keysOf(CHUNK_STORE, id);
@@ -134,6 +163,7 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
     ) as IDBValidKey[];
   }
 
+  /** Deletes every recording, chunk and keyframe in the database. */
   async clear(): Promise<void> {
     for (const name of [CHUNK_STORE, KEYFRAME_STORE, RECORDING_STORE]) {
       await this.run<undefined>([name], 'readwrite', (stores) => stores[0].clear());

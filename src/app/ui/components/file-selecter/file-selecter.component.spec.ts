@@ -40,7 +40,7 @@ describe('FileSelecterComponent', () => {
 
     it('keeps back what the tool brought with it, whatever language the screen is in', () => {
       // The tag is a stored word shared round the room, not the word for it on this screen,
-      // so matching it against a translation used to leave these on show for half the world.
+      // so matching it against a translation would leave these on show for half the world.
       put('a-die-face', SYSTEM_RESERVED_TAG);
 
       expect(component.getAllImage().map((image) => image.identifier)).not.toContain('a-die-face');

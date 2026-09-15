@@ -91,7 +91,7 @@ describe('BuffManagerPanelComponent', () => {
 
   it('shows the timing a buff already carries, rather than the first choice on the list', async () => {
     // A buff granted from the chat arrives with its timing already set. Read through a plain
-    // value binding, the select stood on whatever came first and said "round end" for a buff
+    // value binding, the select would stand on whatever came first and say "round end" for a buff
     // that runs out on somebody's turn - right underneath, and wrong on the screen.
     const buffed = makeCharacter('バフ持ち');
     buffed.buffs.addRound('練技', '筋力+2', 3, { timing: 'turnStart', trigger: '術者' });

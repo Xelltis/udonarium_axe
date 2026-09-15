@@ -48,11 +48,13 @@ export function makeChatTickerPath(width: number, height: number, fontSize: numb
   return { margin, perimeter: horizontal * 2 + vertical * 2, segments };
 }
 
+/** Wraps a distance along the ticker's path into 0 up to the perimeter; a path with no length gives 0. */
 export function normalizeTickerDistance(distance: number, perimeter: number): number {
   if (!(perimeter > 0)) return 0;
   return ((distance % perimeter) + perimeter) % perimeter;
 }
 
+/** Where a glyph stands at a distance along the ticker's path, and which way it is turned there. */
 export function pointAtChatTickerDistance(path: ChatTickerPath, distance: number): ChatTickerPoint {
   let remaining = normalizeTickerDistance(distance, path.perimeter);
   for (const segment of path.segments) {
@@ -86,6 +88,12 @@ export function makeChatTickerRepeatOffsets(
   return Array.from({ length: count }, (_, index) => interval * index);
 }
 
+/**
+ * The text a chat line runs as in the ticker: `name：text` on one line, followed by a separator mark.
+ *
+ * Whispers, secret rolls, system lines and lines with no words give null, meaning they are never
+ * shown in the ticker.
+ */
 export function formatChatTickerMessage(message: ChatTickerMessageLike): string | null {
   if (message.isDirect || message.isSecret || message.isSystem) return null;
   const text = (message.text ?? '').replace(/\s+/g, ' ').trim();

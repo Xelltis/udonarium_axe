@@ -90,16 +90,30 @@ export class RemoteControllerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
+  /**
+   * The translated name of a part of a resource, such as its current or maximum value, for the slot
+   * buttons.
+   */
   slotLabel(slot: ResourceSlot): string {
     return this.t(SLOT_LABEL_KEYS[slot]);
   }
 
+  /**
+   * The selected character's remote controller palette, whose lines fill the palette list; null
+   * before a character is chosen.
+   */
   get palette(): ChatPalette | null {
     return this.character()?.remoteController ?? null;
   }
 
   private _gameSystem!: GameSystemClass;
 
+  /**
+   * The id of the dice bot loaded for the panel, empty until one has loaded.
+   *
+   * Setting it loads that game system in the background and stores its id on the selected
+   * character's remote controller palette once it arrives.
+   */
   get gameType(): string {
     return this._gameSystem == null ? '' : this._gameSystem.ID;
   }
@@ -113,6 +127,10 @@ export class RemoteControllerComponent {
     });
   }
 
+  /**
+   * The identifier of the character the panel works for; setting it switches the panel to that
+   * character.
+   */
   get sendFrom(): string {
     return this.character()?.identifier ?? '';
   }
@@ -122,6 +140,7 @@ export class RemoteControllerComponent {
 
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
 
+  /** Every dice bot the app knows, as the catalog lists them. */
   get diceBotInfos() {
     return this.diceBotCatalog.infos();
   }
@@ -139,9 +158,11 @@ export class RemoteControllerComponent {
     for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
     return [...tabs];
   });
+  /** This user's own cursor. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
+  /** Every peer cursor in the room. */
   get otherPeers(): PeerCursor[] {
     return this.objectStore.getObjects(PeerCursor);
   }
@@ -179,34 +200,40 @@ export class RemoteControllerComponent {
     });
   }
 
+  /** The name of the data item the room's inventory is sorted by. */
   get sortTag(): string {
     return this.inventoryService.sortTag;
   }
   set sortTag(sortTag: string) {
     this.inventoryService.sortTag = sortTag;
   }
+  /** Whether the room's inventory sorts ascending or descending. */
   get sortOrder(): SortOrder {
     return this.inventoryService.sortOrder;
   }
   set sortOrder(sortOrder: SortOrder) {
     this.inventoryService.sortOrder = sortOrder;
   }
+  /** The display items the room's inventory list shows, as typed. */
   get dataTag(): string {
     return this.inventoryService.dataTag;
   }
   set dataTag(dataTag: string) {
     this.inventoryService.dataTag = dataTag;
   }
+  /** The room's inventory display items, one name each. */
   get dataTags(): string[] {
     return this.inventoryService.dataTags;
   }
 
+  /** The translated name of the inventory's current sort direction. */
   get sortOrderName(): string {
     return this.sortOrder === SortOrder.ASC
       ? this.t('feature.inventory.list.sortAsc')
       : this.t('feature.inventory.list.sortDesc');
   }
 
+  /** The display item name that stands for a line break in a row of the target list. */
   get newLineString(): string {
     return this.inventoryService.newLineString;
   }
@@ -264,14 +291,23 @@ export class RemoteControllerComponent {
       .join('、');
   }
 
+  /** Flips the sign of the amount the change button adds, from the plus-minus button. */
   reverseValue() {
     this.remoteNumber = -this.remoteNumber;
   }
 
+  /** Picks the colour the next buff is given; picking the colour already chosen clears it. */
   selectBuffColor(id: string): void {
     this.buffColorId.update((current) => (current === id ? '' : id));
   }
 
+  /**
+   * Puts the buff typed into the buff field on every ticked target and announces it in the chat,
+   * from Enter or the add button.
+   *
+   * A colour chosen in the panel is added unless the typed line names one. Empty text does nothing,
+   * and with no ticked target an error is shown instead.
+   */
   sendBuffChat(event: KeyboardEvent | null): void {
     if (event) event.preventDefault();
     const textVal = this.text().trim();
@@ -300,6 +336,10 @@ export class RemoteControllerComponent {
     this.text.set('');
   }
 
+  /**
+   * Points the change buttons at a data item and the part of it they move, with the name the chat
+   * line calls it by.
+   */
   remoteSelect(name: string, nowOrMax: ResourceSlot, dispName: string) {
     this.remoteControllerSelect.set({ name, nowOrMax, dispName });
   }
@@ -325,6 +365,10 @@ export class RemoteControllerComponent {
     this.remoteSelect(choice.name, slot, this.displayNameOf(choice, slot));
   }
 
+  /**
+   * Switches which part of the chosen item the change buttons move; does nothing before an item is
+   * chosen.
+   */
   chooseSlot(slot: ResourceSlot): void {
     const choice = this.chosenChoice();
     if (!choice) return;
@@ -337,6 +381,10 @@ export class RemoteControllerComponent {
     return `${choice.name}${this.t('feature.controller.remote.slotNameSeparator')}${this.slotLabel(slot)}`;
   }
 
+  /**
+   * Names the selected character in the panel's title, or shows the plain title when none is
+   * selected.
+   */
   updatePanelTitle() {
     const char = this.character();
     this.panelService.title = char
@@ -344,6 +392,12 @@ export class RemoteControllerComponent {
       : this.t('feature.controller.remote.panelTitle');
   }
 
+  /**
+   * Switches the panel to the character with this identifier and loads its dice bot.
+   *
+   * A character this user may not view is ignored. Palette editing in progress is finished first,
+   * which saves the edited text.
+   */
   onSelectedCharacter(identifier: string) {
     const object = this.objectStore.get(identifier);
     if (object instanceof GameCharacter && !this.disclosureService.canView(object)) return;
@@ -360,10 +414,15 @@ export class RemoteControllerComponent {
     this.updatePanelTitle();
   }
 
+  /** Puts a palette line into the buff field. */
   selectPalette(line: string) {
     this.text.set(line);
   }
 
+  /**
+   * Puts a palette line into the buff field; clicking the same line again within 400ms sends it as
+   * a buff.
+   */
   clickPalette(line: string) {
     if (this.doubleClickTimer && this.text() === line) {
       clearTimeout(this.doubleClickTimer);
@@ -377,10 +436,17 @@ export class RemoteControllerComponent {
     }
   }
 
+  /** Clears the highlighted palette row. */
   resetPaletteSelect() {
     this.selectedLine.set(-1);
   }
 
+  /**
+   * Opens the palette's text for editing, or writes the edited text back to the palette when
+   * editing ends.
+   *
+   * Editing also ends when the panel switches character or closes, so an edit is never lost.
+   */
   toggleEditMode() {
     this.isEdit.set(!this.isEdit());
     if (this.isEdit()) {
@@ -392,14 +458,23 @@ export class RemoteControllerComponent {
     }
   }
 
+  /** The translated name of an inventory tab. */
   getTabTitle(inventoryType: string) {
     return this.t(getTabTitleKey(inventoryType));
   }
 
+  /**
+   * The inventory behind a tab: the table, this user's personal inventory, the graveyard, or the
+   * shared one.
+   */
   getInventory(inventoryType: string) {
     return getInventory(inventoryType, this.inventoryService);
   }
 
+  /**
+   * The pieces listed under an inventory tab that this user may view, re-read as the inventory,
+   * files, characters or this user's cursor change.
+   */
   getGameObjects(inventoryType: string): TabletopObject[] {
     this.inventoryService.inventoryVersion();
     this.objectChange.fileVersion();
@@ -408,6 +483,9 @@ export class RemoteControllerComponent {
     return getGameObjects(inventoryType, this.inventoryService).filter((object) => this.canView(object));
   }
 
+  /**
+   * Whether this user may see a piece in the target list; only characters can be hidden from them.
+   */
   canView(object: TabletopObject): boolean {
     return object instanceof GameCharacter ? this.disclosureService.canView(object) : true;
   }
@@ -458,6 +536,9 @@ export class RemoteControllerComponent {
     if (!this.counterChoices().some((choice) => choice.name === chosen.name)) this.remoteSelect('', 'now', '');
   }
 
+  /**
+   * The data elements the target list shows for a character, re-read when the character changes.
+   */
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {
     this.objectChange.versionOf(gameObject.identifier)();
     return getInventoryTags(gameObject, this.inventoryService);
@@ -475,12 +556,23 @@ export class RemoteControllerComponent {
     });
   }
 
+  /**
+   * The characters in the selected tab that the panel's operations apply to: only the ticked ones
+   * with `checkedOnly`, otherwise all of them.
+   */
   getTargetCharacters(checkedOnly: boolean): GameCharacter[] {
     this.uiSignalService.targetChange();
     const objectList = this.getGameObjects(this.selectTab());
     return getTargetCharacters(objectList, checkedOnly);
   }
 
+  /**
+   * Steps every buff on the characters in the selected tab down a round and announces which
+   * characters it touched.
+   *
+   * With `checkedOnly` only ticked characters are affected. Nothing happens without a chat tab or
+   * without any character to act on.
+   */
   remoteDecBuffRound(checkedOnly: boolean) {
     if (!this.chatTab()) return;
     const targets = decreaseBuffRound(this.getTargetCharacters(checkedOnly));
@@ -490,14 +582,27 @@ export class RemoteControllerComponent {
     });
   }
 
+  /**
+   * Steps the buffs on the ticked characters down a round, from the button for selected targets.
+   */
   decBuffRoundSelect() {
     this.remoteDecBuffRound(true);
   }
 
+  /**
+   * Steps the buffs on every character in the selected tab down a round, from the button for all.
+   */
   decBuffRoundAll() {
     this.remoteDecBuffRound(false);
   }
 
+  /**
+   * Clears the buffs that have run out on the characters in the selected tab and announces which
+   * characters it touched.
+   *
+   * With `checkedOnly` only ticked characters are affected. Nothing happens without a chat tab or
+   * without any character to act on.
+   */
   remoteBuffDeleteZeroRound(checkedOnly: boolean) {
     if (!this.chatTab()) return;
     const targets = deleteZeroRoundBuffs(this.getTargetCharacters(checkedOnly));
@@ -507,14 +612,23 @@ export class RemoteControllerComponent {
     });
   }
 
+  /** Clears the run-out buffs on the ticked characters, from the button for selected targets. */
   deleteZeroRoundBuffSelect() {
     this.remoteBuffDeleteZeroRound(true);
   }
 
+  /** Clears the run-out buffs on every character in the selected tab, from the button for all. */
   deleteZeroRoundBuffAll() {
     this.remoteBuffDeleteZeroRound(false);
   }
 
+  /**
+   * Adds the panel's amount to the chosen part of the chosen item on every ticked character, and
+   * announces the result in the chat.
+   *
+   * The recovery limit options stop a value at its maximum or minimum. An error is shown instead
+   * when no item is chosen or when no ticked character carries it.
+   */
   remoteChangeValue() {
     const gameCharacters = this.getTargetCharacters(true);
     const chosen = this.remoteControllerSelect();
@@ -550,6 +664,7 @@ export class RemoteControllerComponent {
     }
   }
 
+  /** Opens a character's buff panel at the pointer, from the buff edit button on its row. */
   buffEdit(gameCharacter: GameCharacter) {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -569,6 +684,12 @@ export class RemoteControllerComponent {
     );
   }
 
+  /**
+   * Ticks or unticks every character in the selected tab as a target, from the select-all box.
+   *
+   * The tick stays in this browser: `targeted` is not synced, and the change is announced only to
+   * this client's views.
+   */
   allBoxCheck(value: { check: boolean }) {
     const objectList = this.getGameObjects(this.selectTab());
     for (const object of objectList) {
@@ -579,11 +700,16 @@ export class RemoteControllerComponent {
     }
   }
 
+  /**
+   * Ticks or unticks a character as a target, from a click on its row. The tick stays in this
+   * browser and is not shared with the room.
+   */
   targetBlockClick(object: GameCharacter) {
     object.targeted = !object.targeted;
     this.uiSignalService.notifyTargetChange(object.identifier, object.aliasName);
   }
 
+  /** Highlights a palette row and treats it as a click on its line, so a second click sends it. */
   onClickPaletteRow(row: PaletteRow): void {
     this.selectedLine.set(row.lineIndex);
     this.clickPalette(row.text);

@@ -18,6 +18,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { downloadBlob } from '@axe/core/util/download-blob';
 import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
   clampBoardPitch,
@@ -235,8 +236,8 @@ export class WhiteBoardEditorComponent {
   /**
    * Ink settings reach what is already down as well as what is next.
    *
-   * A line drawn in the wrong colour was a line to be rubbed out and drawn again, which is
-   * not how anything else works.
+   * A line drawn in the wrong colour would otherwise be a line to be rubbed out and drawn again,
+   * which is not how anything else works.
    */
   protected setInk(change: MarkStyleChange): void {
     if (change.color !== undefined) this.color.set(change.color);
@@ -417,6 +418,7 @@ export class WhiteBoardEditorComponent {
   /** Bumped by hand, since the board's own values are not signals. */
   protected readonly revision = signal(0);
 
+  /** The board's name, which also titles this panel. */
   get name(): string {
     this.revision();
     return this.board?.name ?? '';
@@ -428,6 +430,11 @@ export class WhiteBoardEditorComponent {
     this.settingChanged();
   }
 
+  /**
+   * How many grid cells wide the board is.
+   *
+   * A new width is held within the allowed sides, and the drawing surface grows or shrinks with it.
+   */
   get width(): number {
     this.revision();
     return this.board?.width ?? 1;
@@ -437,6 +444,12 @@ export class WhiteBoardEditorComponent {
     this.resized();
   }
 
+  /**
+   * How many grid cells deep the board is.
+   *
+   * A new height keeps the board's bottom edge where it stands on the table, and the drawing surface
+   * grows or shrinks with it.
+   */
   get height(): number {
     this.revision();
     return this.board?.height ?? 1;
@@ -446,6 +459,7 @@ export class WhiteBoardEditorComponent {
     this.resized();
   }
 
+  /** How far the board is tilted up off the table, in degrees held within the board's pitch limits. */
   get pitch(): number {
     this.revision();
     return this.board?.pitch ?? 0;
@@ -455,6 +469,7 @@ export class WhiteBoardEditorComponent {
     this.settingChanged();
   }
 
+  /** How far the board is turned on the table, in whole degrees. */
   get rotate(): number {
     this.revision();
     return this.board?.rotate ?? 0;
@@ -464,6 +479,7 @@ export class WhiteBoardEditorComponent {
     this.settingChanged();
   }
 
+  /** How much the board's face shows, as 0 to 100; a change is sent to the room at once. */
   get opacityPercent(): number {
     this.revision();
     return Math.round((this.board?.opacity ?? 1) * 100);
@@ -506,6 +522,7 @@ export class WhiteBoardEditorComponent {
     return this.board?.opacity ?? 1;
   }
 
+  /** The colour of the board's face. */
   get boardColor(): string {
     this.revision();
     return this.board?.color ?? '#f4f1e8';
@@ -515,6 +532,7 @@ export class WhiteBoardEditorComponent {
     this.settingChanged();
   }
 
+  /** Whether the board casts a shadow on the table. */
   get isDropShadow(): boolean {
     this.revision();
     return this.board?.isDropShadow ?? true;
@@ -530,11 +548,13 @@ export class WhiteBoardEditorComponent {
     return groupLayers(this.scene);
   }
 
+  /** The board's sheets, topmost first, as the layer drawer counts them. */
   get layers(): MapLayer[] {
     this.revision();
     return [...this.scene.layers].reverse();
   }
 
+  /** The names of the bundles sheets are filed under, offered when filing a sheet in the layer drawer. */
   get groupNames(): string[] {
     this.revision();
     return groupNames(this.scene);
@@ -687,6 +707,7 @@ export class WhiteBoardEditorComponent {
     this.touched();
   }
 
+  /** The ruled grid's spacing in board pixels; changing it keeps the board the same size. */
   get spacing(): number {
     this.revision();
     return this.scene.cellPx;
@@ -696,6 +717,7 @@ export class WhiteBoardEditorComponent {
     this.touched();
   }
 
+  /** Whether the board is locked in place on the table. */
   get isLock(): boolean {
     this.revision();
     return this.board?.isLock ?? false;
@@ -770,13 +792,20 @@ export class WhiteBoardEditorComponent {
     });
   }
 
+  /**
+   * Points the editor at a board, just after the panel opens.
+   *
+   * The board's saved drawing is loaded, or a blank sheet of its size when it has none or the drawing
+   * cannot be read. That drawing becomes the bottom of the undo stack, and the panel is titled and
+   * drawn on the next microtask.
+   */
   bindToBoard(board: WhiteBoard): void {
     this.board = board;
     const grid = this.tabletopService.gridSize();
     this.scene =
       (board.scene ? deserializeScene(board.scene) : null) ?? createBoardScene(board.width, board.height, grid);
     // The board as it stands is the bottom of the undo stack. Left unset, the first thing
-    // undone went back to the blank sheet the editor was built with, four squares by three.
+    // undone would go back to the blank sheet the editor was built with, four squares by three.
     this.history.reset(this.scene);
     this.refreshHistory();
     queueMicrotask(() => {
@@ -785,10 +814,12 @@ export class WhiteBoardEditorComponent {
     });
   }
 
+  /** How wide the drawing surface is, in board pixels. */
   get sceneWidth(): number {
     return sceneWidthPx(this.scene);
   }
 
+  /** How tall the drawing surface is, in board pixels. */
   get sceneHeight(): number {
     return sceneHeightPx(this.scene);
   }
@@ -1331,11 +1362,7 @@ export class WhiteBoardEditorComponent {
     await this.paintMarks(ctx, false);
     const blob = await new Promise<Blob | null>((keep) => sheet.toBlob(keep, 'image/png'));
     if (!blob) return;
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${this.board?.name || 'whiteboard'}.png`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    downloadBlob(blob, `${this.board?.name || 'whiteboard'}.png`);
   }
 
   private pickSticker(): void {
@@ -1363,6 +1390,7 @@ export class WhiteBoardEditorComponent {
     return image ? { x: image.naturalWidth, y: image.naturalHeight } : undefined;
   }
 
+  /** The guide lines pulled onto the board from its rulers, empty when there are none. */
   get guides(): SceneGuideLine[] {
     this.revision();
     return this.scene.guides ?? [];

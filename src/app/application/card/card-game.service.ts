@@ -50,10 +50,18 @@ export class CardGameService {
     return seats;
   }
 
+  /** The cards in a user's hand, in the order they were taken into it. */
   handCardsOf(userId: string): Card[] {
     return selectHandCardsOf(this.objectStore.getObjects<Card>(Card), userId);
   }
 
+  /**
+   * Shuffles a stack and deals all of it evenly into every participant's hand, announcing the deal
+   * in chat.
+   *
+   * Jokers beyond `keepJokerCount` are put back on the bottom of the stack rather than dealt. With
+   * nobody to deal to, a system message says so and nothing moves.
+   */
   dealAll(cardStack: CardStack, keepJokerCount = 1): DealResult {
     const seats = this.participants();
     if (seats.length < 1) {
@@ -83,6 +91,7 @@ export class CardGameService {
     return { dealt: cards.length, participants: seats.length };
   }
 
+  /** Takes a card from someone else's hand into your own and says so in chat. False while you have no user id. */
   drawFromHand(card: Card, fromName: string): boolean {
     const myUserId = this.myUserId();
     if (myUserId.length < 1) return false;
@@ -95,6 +104,13 @@ export class CardGameService {
     return true;
   }
 
+  /**
+   * Discards every pair of the same rank among the cards, face up, onto the discard stack on the
+   * table, and announces it.
+   *
+   * The discard stack is created if the table has none. Returns the pairs discarded, empty when
+   * there were none.
+   */
   discardPairs(cards: readonly Card[]): Card[][] {
     const pairs = findTrumpPairs(cards);
     if (pairs.length < 1) return [];

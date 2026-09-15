@@ -180,6 +180,13 @@ export class MiniJukeboxComponent {
     return this.bgmList().indexOf(this.jukebox.audio);
   }
 
+  /**
+   * Plays the track before the current one in the list for the whole room, wrapping round to the
+   * last.
+   *
+   * When nothing from the list is playing it starts at the last track. Any cut-in playing without a
+   * tag is stopped first.
+   */
   playPrev() {
     const list = this.bgmList();
     if (!list.length) return;
@@ -188,6 +195,13 @@ export class MiniJukeboxComponent {
     this.playBGM(prev.identifier);
   }
 
+  /**
+   * Plays the track after the current one in the list for the whole room, wrapping round to the
+   * first.
+   *
+   * When nothing from the list is playing it starts at the first track. Any cut-in playing without
+   * a tag is stopped first.
+   */
   playNext() {
     const list = this.bgmList();
     if (!list.length) return;
@@ -201,6 +215,10 @@ export class MiniJukeboxComponent {
     this.jukebox?.play(identifier, true);
   }
 
+  /**
+   * Stops the room's music, or when it is stopped, plays the last track again; does nothing when no
+   * track has been played yet.
+   */
   togglePlayStop() {
     if (this.isPlaying()) {
       this.jukebox?.stop();
@@ -210,16 +228,24 @@ export class MiniJukeboxComponent {
     }
   }
 
+  /** Steps the room's repeat mode on through none, all and one. */
   cycleRepeatMode() {
     this.jukebox?.cycleRepeatMode();
   }
 
+  /** Shows where the seek bar is being dragged to without moving playback yet. */
   onSeekInput(event: Event) {
     const value = (event.target as HTMLInputElement).valueAsNumber / 100;
     this.isSeeking.set(true);
     this.seekPreview.set(value);
   }
 
+  /**
+   * Seeks the room's music to where the user let go of the seek bar.
+   *
+   * The seek is skipped while the track's duration is unknown, but the drag preview ends either
+   * way.
+   */
   onSeekCommit(event: Event) {
     const value = (event.target as HTMLInputElement).valueAsNumber / 100;
     const dur = this.jukebox?.duration ?? 0;
@@ -229,14 +255,22 @@ export class MiniJukeboxComponent {
     this.isSeeking.set(false);
   }
 
+  /** Opens or closes the track list under the player. */
   togglePlaylist() {
     this.isPlaylistOpen.update((v) => !v);
   }
 
+  /**
+   * Locks or unlocks the seek bar; the lock is kept on the jukebox, so it holds for the whole room.
+   */
   toggleSeekLock() {
     if (this.jukebox) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
   }
 
+  /**
+   * Shrinks the player to an icon near the bottom-right corner, or brings it back to where it first
+   * stood, kept inside the window.
+   */
   toggleMinimize() {
     const willMinimize = !this.isMinimized();
     this.isMinimized.set(willMinimize);
@@ -255,10 +289,17 @@ export class MiniJukeboxComponent {
     }
   }
 
+  /** Plays the track the user clicked in the list for the whole room. */
   playFromList(identifier: string) {
     this.playBGM(identifier);
   }
 
+  /**
+   * The music volume from the player's slider, 0.5 until one is set.
+   *
+   * Setting it changes what this browser plays at, scaled by the room volume; it is not sent to
+   * other peers.
+   */
   get volume(): number {
     return this.jukebox?.volume ?? 0.5;
   }

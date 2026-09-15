@@ -53,7 +53,7 @@ describe('WhiteBoardComponent', () => {
 
   it('wears a picture that arrived after the board did, without the board being moved', () => {
     // The bytes of a picture follow the name of it, so the arrival has to move the view too;
-    // otherwise the board stood blank for everybody else until somebody dragged it.
+    // otherwise the board would stand blank for everybody else until somebody dragged it.
     const before = component.imageUrl();
 
     const element = board.imageDataElement?.getFirstElementByName('imageIdentifier');

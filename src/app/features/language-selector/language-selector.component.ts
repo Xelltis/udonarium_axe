@@ -11,6 +11,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class LanguageSelectorComponent {
   readonly language = inject(LanguageService);
 
+  /**
+   * Switches the interface to the next language on offer, going round to the first after the last.
+   */
   toggle(): void {
     this.language.toggle();
   }

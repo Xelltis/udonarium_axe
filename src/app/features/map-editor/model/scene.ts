@@ -182,19 +182,26 @@ export interface SceneGuideLine {
   at: number;
 }
 
+/** A fresh random identifier for a layer or for an item on one. */
 export function newId(): string {
   return crypto.randomUUID();
 }
 
+/** The key a cell is stored under in a layer's cell record, written `col,row`. */
 export function cellKey(col: number, row: number): string {
   return col + ',' + row;
 }
 
+/** Reads the column and row back out of a cell key. */
 export function parseCellKey(key: string): { col: number; row: number } {
   const comma = key.indexOf(',');
   return { col: Number(key.slice(0, comma)), row: Number(key.slice(comma + 1)) };
 }
 
+/**
+ * A blank scene with no layers, a transparent background and the grid showing; 20 by 15 square
+ * cells of 64 px unless told otherwise.
+ */
 export function createScene(cols = 20, rows = 15, cellPx = 64, gridType: GridType = GridType.SQUARE): MapScene {
   return {
     version: MAP_SCENE_VERSION,
@@ -209,6 +216,11 @@ export function createScene(cols = 20, rows = 15, cellPx = 64, gridType: GridTyp
   };
 }
 
+/**
+ * A new empty layer of the given kind, visible, unlocked and fully opaque, with a fresh id.
+ *
+ * A function layer starts with the default role and a copy of the default spec.
+ */
 export function createLayer(kind: LayerKind, name: string): MapLayer {
   const base: BaseLayer = { id: newId(), kind, name, visible: true, locked: false, opacity: 1 };
   switch (kind) {
@@ -229,10 +241,15 @@ export function createLayer(kind: LayerKind, name: string): MapLayer {
   }
 }
 
+/** A deep copy of a scene sharing nothing with the original, as the undo history keeps. */
 export function cloneScene(scene: MapScene): MapScene {
   return structuredClone(scene);
 }
 
+/**
+ * The scene's width in pixels. A hex grid is measured by how its hexes lie, which is not simply
+ * columns times the cell size.
+ */
 export function sceneWidthPx(scene: MapScene): number {
   if (isHexGrid(scene.gridType)) {
     const geo = computeHexMaskGeometry(scene.cols, scene.rows, scene.cellPx, scene.gridType);
@@ -241,6 +258,10 @@ export function sceneWidthPx(scene: MapScene): number {
   return scene.cols * scene.cellPx;
 }
 
+/**
+ * The scene's height in pixels. A hex grid is measured by how its hexes lie, which is not simply
+ * rows times the cell size.
+ */
 export function sceneHeightPx(scene: MapScene): number {
   if (isHexGrid(scene.gridType)) {
     const geo = computeHexMaskGeometry(scene.cols, scene.rows, scene.cellPx, scene.gridType);

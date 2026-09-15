@@ -50,10 +50,18 @@ export class ChatMessageService {
 
   gameType: string = 'DiceBot';
 
+  /** The room's chat tabs, in the order they are listed. */
   get chatTabs(): readonly ChatTab[] {
     return this.chatTabList.chatTabs;
   }
 
+  /**
+   * Sets the chat clock by a public time server, then again every six hours.
+   *
+   * Lines are ordered by the time they are stamped with, so peers whose own clocks disagree would
+   * otherwise interleave wrongly. A failed request keeps the clock as it was and tries again on the
+   * same schedule. Calling it while a check is already scheduled does nothing.
+   */
   calibrateTimeOffset() {
     if (this.calibrationTimer != null) {
       return;
@@ -92,10 +100,12 @@ export class ChatMessageService {
     }, 6 * HOURS);
   }
 
+  /** The current time in milliseconds by the calibrated chat clock, which is what lines are stamped with. */
   getTime(): number {
     return Math.floor(this.timeOffset + (performance.now() - this.performanceOffset));
   }
 
+  /** Writes a notice into the system tab under the system's name, in green unless a colour is given. */
   sendSystemMessage(text: string, color?: string, from?: string): ChatMessage {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     const sysTab = chatTabList!.systemMessageTab!;
@@ -113,6 +123,7 @@ export class ChatMessageService {
     return sysTab.addMessage(chatMessage);
   }
 
+  /** Writes a notice into the given tab under the system's name, in green unless a colour is given. */
   sendSystemMessageToTab(
     chatTab: ChatTab,
     text: string,
@@ -162,16 +173,26 @@ export class ChatMessageService {
     return chatTab.addMessage(chatMessage);
   }
 
+  /** A kept-back notice, as `sendSecretSystemMessageToTab` writes it, in the first tab of the room. */
   sendSecretSystemMessageToMainTab(text: string, from?: string, dieIdentifiers: readonly string[] = []): ChatMessage {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     return this.sendSecretSystemMessageToTab(chatTabList!.chatTabs[0], text, from, undefined, dieIdentifiers);
   }
 
+  /**
+   * Writes a notice into the first tab of the room, which is where the round and other table-wide
+   * events are announced.
+   */
   sendSystemMessageToMainTab(text: string, color?: string): ChatMessage {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     return this.sendSystemMessageToTab(chatTabList!.chatTabs[0], text, color);
   }
 
+  /**
+   * Writes a notice only one reader receives, addressed to the piece or peer named by `sendTo`.
+   *
+   * An address that names neither leaves the line addressed to nobody.
+   */
   sendSystemMessageOnePlayer(
     chatTab: ChatTab,
     text: string,
@@ -195,7 +216,12 @@ export class ChatMessageService {
     return chatTab.addMessage(chatMessage);
   }
 
-  // speaks as whoever spoke last
+  /**
+   * Speaks a notice as whoever this reader last spoke as, with that speaker's portrait where it
+   * still matches.
+   *
+   * It goes to the named tab, or the system tab when none is named or the name is not a tab.
+   */
   sendSystemMessageAsLastSpeaker(text: string, chatTabIdentifier?: string) {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     const sysTab = this.resolveChatTab(chatTabIdentifier) ?? chatTabList!.systemMessageTab!;
@@ -208,6 +234,15 @@ export class ChatMessageService {
     this.sendMessage(sysTab!, text, null, sendFrom, undefined, imgIndex, '#006633');
   }
 
+  /**
+   * Speaks a line into a tab as a piece or a peer, and tells the dice table and resource edits
+   * about it.
+   *
+   * Image references to the speaker's data are lifted out into attachments, a trailing portrait
+   * command picks the portrait and is removed from the text, and a line sent under a dice system is
+   * tagged with it. A line not whispered to anyone also records who this reader last spoke as,
+   * which `sendSystemMessageAsLastSpeaker` follows.
+   */
   sendMessage(
     chatTab: ChatTab,
     text: string,
@@ -434,6 +469,12 @@ export class ChatMessageService {
     return -1;
   }
 
+  /**
+   * Opens the latest kept-back roll of a die to the table, across every tab.
+   *
+   * Answers how many were opened: 1, or 0 when the die has no kept-back roll or this reader may not
+   * show it.
+   */
   discloseDieRolls(dieIdentifier: string): number {
     const tag = dieRollTag(dieIdentifier);
     let latest: ChatMessage | null = null;
@@ -461,6 +502,12 @@ export class ChatMessageService {
     return message.isSendFromSelf || this.rolePermission.canSeeHidden;
   }
 
+  /**
+   * Shows a kept-back line to the table and moves it to the end of its tab, stamped with when it
+   * was shown.
+   *
+   * Does nothing for a line this reader may not disclose.
+   */
   discloseMessage(message: ChatMessage): void {
     if (!this.canDiscloseMessage(message)) return;
     message.tag = message.tags.filter((tag) => tag !== 'secret').join(' ');

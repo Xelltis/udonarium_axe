@@ -1,9 +1,9 @@
 /**
  * What the dice held.
  *
- * The library returns each roll and its outcome, and this tool used to take the formatted
- * text alone and throw the rest away, which left no way to count afterwards what a roll had shown.
- * This puts that into a form that can travel with the line.
+ * The library returns each roll and its outcome. The formatted text alone leaves no way to
+ * count afterwards what a roll showed, so this puts the rest into a form that can travel with
+ * the line.
  *
  * Reading it back out of the text is not an option: the wording differs between systems,
  * and what you would be reading has already been through substitutions and inserted breaks.
@@ -37,6 +37,10 @@ export interface DiceRollSource {
   fumble?: unknown;
 }
 
+/**
+ * Picks the faces and the outcome out of the library's roll result, to travel with the line. Null
+ * when there is no result, or it holds neither.
+ */
 export function diceRollDetailOf(system: string, source: DiceRollSource | null | undefined): DiceRollDetail | null {
   if (!source) return null;
 
@@ -57,6 +61,10 @@ export function encodeDiceRollDetail(detail: DiceRollDetail | null): string {
   }
 }
 
+/**
+ * Reads back the detail carried with a line, keeping only well-formed faces and a known outcome.
+ * Null for empty or unreadable text, or text that holds neither.
+ */
 export function parseDiceRollDetail(raw: string | null | undefined): DiceRollDetail | null {
   if (!raw || raw.length < 1) return null;
 

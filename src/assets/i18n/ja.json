@@ -12,7 +12,11 @@
       "no": "いいえ"
     },
     "dialog": {
-      "confirmTitle": "確認"
+      "confirmTitle": "確認",
+      "updatedTitle": "Udonarium Axe が更新されました",
+      "updatedMessage": "新しい版に切り替えるため、ページを再読み込みしてください。再読み込みするまで、開けない画面があります。",
+      "reload": "再読み込み",
+      "later": "あとで"
     },
     "language": {
       "ja": "日本語",
@@ -33,6 +37,11 @@
       "auto": "エフェクト: 自動",
       "on": "エフェクト: 常に再生",
       "off": "エフェクト: 停止"
+    },
+    "renderLite": {
+      "auto": "描画: 自動",
+      "on": "描画: 軽くする",
+      "off": "描画: 通常"
     },
     "panel": {
       "peerMenu": "接続情報",
@@ -105,6 +114,12 @@
       "stair_spiral": "螺旋階段",
       "poison_pool": "毒の沼",
       "cactus_skin": "サボテンの肌"
+    },
+    "reorder": {
+      "toTop": "いちばん上へ",
+      "up": "ひとつ上へ",
+      "down": "ひとつ下へ",
+      "toBottom": "いちばん下へ"
     }
   },
   "feature": {
@@ -616,6 +631,8 @@
         "presetdropOut": "落ちて消える",
         "endMsHint": "終了 0 でシーンの最後まで表示します。",
         "toggleKey": "この位置にキーを打つ / 外す",
+        "removeKeysHere": "再生ヘッドの位置のキーを外す",
+        "removeSoundHere": "再生ヘッドの位置の SE を外す",
         "easing": "補間",
         "easingMixed": "（キーごとに異なる）",
         "easinglinear": "等速",
@@ -1173,6 +1190,7 @@
         "collapseAll": "すべて折りたたむ",
         "expandAll": "すべて展開",
         "selectFolder": "このフォルダを全選択",
+        "showOnTable": "卓で表示",
         "moveTable": "テーブルに移動",
         "moveCommon": "共有イベントリに移動",
         "movePersonal": "個人イベントリに移動",
@@ -1238,8 +1256,6 @@
         "popupMaxHeight": "ポップアップ縦幅最大",
         "limitHeight": "height設定値に高さを制限",
         "color": "カラー",
-        "changeColor": "更新部カラー",
-        "scratchMaskNote": "※width、height項目は最大50",
         "tabSheet": "シート",
         "tabSettings": "設定",
         "portrait": "ポートレート",
@@ -1726,7 +1742,6 @@
         "createLight": "光源を作成",
         "defaultCharacterName": "新しいキャラクター",
         "defaultMaskName": "マップマスク",
-        "defaultScratchMaskName": "スクラッチマスク",
         "defaultTerrainName": "地形",
         "defaultNoteName": "共有メモ",
         "defaultNoteText": "テキストを入力してください",
@@ -1752,7 +1767,6 @@
         "range": "射程範囲設定",
         "rangeFollow": "キャラクターに追従",
         "mask": "マップマスク設定",
-        "scratchMask": "スクラッチマスク設定",
         "textNote": "共有メモ設定"
       },
       "rangeDocking": {
@@ -1765,6 +1779,31 @@
         "confirm": "確定",
         "finish": "終了",
         "cancel": "キャンセル"
+      },
+      "maskSheet": {
+        "basicSection": "基本設定",
+        "name": "名前",
+        "width": "幅",
+        "height": "高さ",
+        "opacity": "不透明度",
+        "maskSection": "マスク",
+        "scratchedSection": "削ったあと",
+        "scratchedHint": "削って開けたマスに、盤面の代わりに表示します。",
+        "image": "画像",
+        "color": "色",
+        "maskImageAlt": "マスクの画像",
+        "scratchedImageAlt": "削ったあとの画像",
+        "setLabel": "設定",
+        "setImage": "画像を設定",
+        "clearLabel": "外す",
+        "clearImage": "画像を外す",
+        "none": "なし",
+        "clearColor": "色をなしにする",
+        "dataSheet": "詳細データ",
+        "openDataSheet": "すべてのデータ項目をシートで開く",
+        "copy": "コピーを作る",
+        "saving": "保存中 {{percent}}%",
+        "save": "保存"
       },
       "contextMenu": {
         "altitudeSetting": "高度設定",
@@ -1835,7 +1874,6 @@
         "aliasTerrain": "地形",
         "aliasCharacter": "キャラクター",
         "aliasMask": "マスク",
-        "aliasScratchMask": "スクラッチマスク",
         "aliasTextNote": "メモ",
         "aliasRange": "射程",
         "aliasDiceSymbol": "ダイス",
@@ -2631,7 +2669,9 @@
         "jumpToOriginal": "元のメッセージへ移動",
         "shareAsMemo": "共有メモにする",
         "ticker": "ティッカー",
-        "copyToTab": "別のタブにコピー"
+        "copyToTab": "別のタブにコピー",
+        "copyText": "本文をコピー",
+        "selectText": "文字を選ぶ"
       },
       "stream": {
         "title": "発言の流れ",
@@ -2660,7 +2700,12 @@
         "indexTitle": "インデックス",
         "noTarget": "対象が未選択です",
         "headingBullet": "◆",
-        "footerHintTouch": "タップ: 入力 ／ 2回タップ: 送信"
+        "footerHintTouch": "タップ: 入力 ／ 2回タップ: 送信",
+        "searchPlaceholder": "パレットの行を検索",
+        "searchResults": "検索結果",
+        "searchCount": "{{count}} 件",
+        "searchNoMatch": "一致する行がありません",
+        "searchClear": "検索をクリア"
       },
       "messageSetting": {
         "sectionText": "文字",
@@ -2862,6 +2907,7 @@
         "title": "ダイスボット",
         "titleWith": "ダイスボット＜{{name}}＞",
         "descSuffix": "の説明",
+        "unreachable": "ダイスボット「{{name}}」を読み込めなかったので、この発言のダイスは振られていません。もう一度送っても振れないときは、ページを再読み込みしてください。",
         "intro": "【ダイスボット】チャットにダイス用の文字を入力するとダイスロールが可能\n入力例）２ｄ６＋１　攻撃！\n出力例）2d6+1　攻撃！\n　　　　  diceBot: (2d6) → 7\n上記のようにダイス文字の後ろに空白を入れて発言する事も可能。\n以下、使用例\n　3D6+1>=9 ：3d6+1で目標値9以上かの判定\n　1D100<=50 ：D100で50％目標の下方ロールの例\n　3U6[5] ：3d6のダイス目が5以上の場合に振り足しして合計する(上方無限)\n　3B6 ：3d6のダイス目をバラバラのまま出力する（合計しない）\n　10B6>=4 ：10d6を振り4以上のダイス目の個数を数える\n　2R6[>3]>=5 ：2D6のダイス目が3より大きい場合に振り足して、5以上のダイス目の個数を数える\n　(8/2)D(4+6)<=(5*3)：個数・ダイス・達成値には四則演算も使用可能\n　c(10-4*3/2+2)：c(計算式）で計算だけの実行も可能\n　choice[a,b,c]：列挙した要素から一つを選択表示。ランダム攻撃対象決定などに\n　S3d6 ： 各コマンドの先頭に「S」を付けると他人結果の見えないシークレットロール\n　3d6/2 ： ダイス出目を割り算（端数処理はゲームシステム依存）。切り上げは /2C、四捨五入は /2R、切り捨ては /2F\n　D66 ： D66ダイス。順序はゲームに依存。D66N：そのまま、D66A：昇順、D66D：降順\n\n詳細は下記URLのコマンドガイドを参照\nhttps://docs.bcdice.org/\n===================================\n"
       }
     },

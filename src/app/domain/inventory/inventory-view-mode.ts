@@ -15,6 +15,7 @@ export function nextInventoryViewMode(mode: InventoryViewMode): InventoryViewMod
   return INVENTORY_VIEW_MODES[(at + 1) % INVENTORY_VIEW_MODES.length];
 }
 
+/** Whether a stored value names one of the ways the inventory can draw its pieces. */
 export function isInventoryViewMode(value: unknown): value is InventoryViewMode {
   return typeof value === 'string' && INVENTORY_VIEW_MODES.includes(value as InventoryViewMode);
 }

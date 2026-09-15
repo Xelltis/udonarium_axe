@@ -10,6 +10,7 @@ import {
   stripPortraitCommand,
 } from '@axe/application/chat/chat-message-helpers';
 import { ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
+import { DiceBot } from '@axe/domain/dice/dice-bot';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 describe('chat-message-helpers', () => {
@@ -60,6 +61,36 @@ describe('chat-message-helpers', () => {
       };
       const gameSystem = { ID: 'DiceBot' } as GameSystemClass;
       expect(resolveChatMessageTag(gameSystem, '1D100<=50', dicebot)).toBe('DiceBot');
+    });
+
+    describe('under a system whose code could not be fetched', () => {
+      function standIn() {
+        return DiceBot['unreachableSystem']('Cthulhu7th');
+      }
+
+      it('tags a line whose first word looks like a dice command as secret', () => {
+        const dicebot = new DiceBot();
+
+        for (const line of ['S2d6', 'SCC<=50 hide', 'Schoice[a,b]', 's1d100 おそるおそる']) {
+          expect(resolveChatMessageTag(standIn(), line, dicebot)).toBe('Cthulhu7th secret');
+        }
+      });
+
+      it('tags an ordinary line with the game system alone', () => {
+        const dicebot = new DiceBot();
+
+        for (const line of ['Sure', 'Sorry 2 late', 'sounds good']) {
+          expect(resolveChatMessageTag(standIn(), line, dicebot)).toBe('Cthulhu7th');
+        }
+      });
+
+      it('leaves a loaded system to its own command pattern', async () => {
+        const dicebot = new DiceBot();
+        const loaded = await DiceBot.loadGameSystemAsync('Cthulhu7th');
+
+        expect(resolveChatMessageTag(loaded, 'SCC<=50', dicebot)).toBe('Cthulhu7th secret');
+        expect(resolveChatMessageTag(loaded, 'S<3 you', dicebot)).toBe('Cthulhu7th');
+      });
     });
   });
 

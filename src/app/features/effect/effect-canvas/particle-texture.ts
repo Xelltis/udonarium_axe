@@ -22,6 +22,13 @@ function shelfFor(shape: ParticleShape): Map<string, HTMLCanvasElement> {
   return shelf;
 }
 
+/**
+ * The sprite for a particle shape in a colour, baked on first request and kept for the life of the
+ * page.
+ *
+ * Chunks are a lit polygon, smoke is a soft coreless disc, and every other shape is a disc with a
+ * white-hot centre. Returns null where there is no document to make a canvas in.
+ */
 export function particleTexture(shape: ParticleShape, color: string): HTMLCanvasElement | null {
   const shelf = shelfFor(shape);
   const cached = shelf.get(color);

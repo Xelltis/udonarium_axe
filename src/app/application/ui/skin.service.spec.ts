@@ -9,6 +9,7 @@ import { chatBubbleBaseTone, resetChatBubbleBaseTone } from '@axe/domain/ui/chat
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { readSkinFile, SKIN_FILE_NAME } from '@axe/domain/ui/skin-file';
 import { MAX_LAYERS, SkinLayer } from '@axe/domain/ui/skin-layer';
+import { stubUnloadableImages } from '@axe/testing/unloadable-image';
 
 /** The first bytes of a PNG, so what the guard sniffs is what a picture actually starts with. */
 const PNG_HEAD = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -54,10 +55,12 @@ describe('SkinService', () => {
     document.documentElement.removeAttribute('style');
     AttachedDocuments.reset(document);
     resetChatBubbleBaseTone();
+    stubUnloadableImages();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     TestBed.resetTestingModule();
     document.documentElement.removeAttribute('style');
     resetChatBubbleBaseTone();

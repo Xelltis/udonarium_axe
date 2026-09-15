@@ -1335,6 +1335,23 @@ describe('GameTableComponent', () => {
       vi.useRealTimers();
     });
 
+    it('counts the view as written out again once the glide has landed', () => {
+      vi.useFakeTimers();
+      fixture.detectChanges();
+      const tableEl = component.gameTable().nativeElement;
+      const coordinates = component['coordinateService'];
+
+      TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 3 });
+      fixture.detectChanges();
+      vi.advanceTimersByTime(149);
+      const whileGliding = coordinates.tabletopTransformVersion();
+
+      vi.advanceTimersByTime(1);
+      expect(tableEl.style.transition).toBe('');
+      expect(coordinates.tabletopTransformVersion()).toBeGreaterThan(whileGliding);
+      vi.useRealTimers();
+    });
+
     it('drops the glide when the table goes before it lands', () => {
       vi.useFakeTimers();
       fixture.detectChanges();

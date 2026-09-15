@@ -105,6 +105,10 @@ export class ChatWindowComponent {
     this.chatSpeaker.set(sendFrom);
   }
 
+  /**
+   * The dice bot system chat lines are rolled with, shared through the chat message service;
+   * 'DiceBot' when none is chosen.
+   */
   get gameType(): string {
     return !this.chatMessageService.gameType ? 'DiceBot' : this.chatMessageService.gameType;
   }
@@ -113,6 +117,12 @@ export class ChatWindowComponent {
   }
 
   private readonly _chatTabidentifier = signal('');
+  /**
+   * The identifier of the chat tab this window shows.
+   *
+   * Changing it tells the active-tab service, retitles the panel and, when the tab really changed,
+   * scrolls the log to the bottom.
+   */
   get chatTabidentifier(): string {
     return this._chatTabidentifier();
   }
@@ -129,8 +139,8 @@ export class ChatWindowComponent {
 
   /**
    * Bound to the window rather than to the input: a tab nobody may speak in renders no textarea,
-   * and the shortcut used to live on that textarea, so arriving at such a tab left no way back
-   * out by keyboard. Focus follows to the window when the input goes away.
+   * so a shortcut living on that textarea would leave no way back out of such a tab by keyboard.
+   * Focus follows to the window when the input goes away.
    */
   switchTabByKey(event: Event, direction: number): void {
     if (editsTextInPlace(event.target)) return;
@@ -139,6 +149,10 @@ export class ChatWindowComponent {
     if (!this.canSpeakCurrentTab()) this.hostElement.nativeElement.focus();
   }
 
+  /**
+   * Moves to the next or previous tab the reader may view, wrapping around at either end; does
+   * nothing when the current tab is not among them.
+   */
   chatTabSwitchRelative(direction: number) {
     const chatTabs = this.visibleChatTabs();
     const index = chatTabs.findIndex((elm) => elm.identifier == this.chatTabidentifier);
@@ -315,17 +329,29 @@ export class ChatWindowComponent {
     }
   }
 
+  /**
+   * Follows the log down when the chat tab adds a message, and rechecks how near the bottom it sits
+   * when auto-follow is off.
+   */
   onAddMessage() {
     this.scrollToBottom();
     if (!this.chatPrefs.autoFollowScroll()) this.refreshNearBottom();
   }
 
+  /** Jumps the log to the newest message and clears the new-message notice, from its button. */
   onClickScrollToBottom() {
     this.hasNewMessage.set(false);
     this.newMessageCount.set(0);
     this.scrollToBottom(true);
   }
 
+  /**
+   * Scrolls the log to the newest message and marks the tab as read.
+   *
+   * Without force it acts only while the log is following new messages, and moves the scroll only
+   * when auto-follow is on in the chat preferences. The scroll waits a tick, and calls within that
+   * tick are merged into one.
+   */
   scrollToBottom(isForce: boolean = false) {
     if (isForce) this.isAutoScroll = true;
     if (!this.isAutoScroll) return;
@@ -350,12 +376,20 @@ export class ChatWindowComponent {
     }, 0);
   }
 
+  /**
+   * Decides whether the log keeps following new messages, which it does only while scrolled to the
+   * bottom.
+   */
   checkAutoScroll() {
     const distance = this.distanceFromBottom();
     if (distance == null) return;
     this.isAutoScroll = distance <= AT_BOTTOM_THRESHOLD_PX;
   }
 
+  /**
+   * Titles the panel after the current tab and hands the tab to the panel; falls back to the plain
+   * chat window title without one.
+   */
   updatePanelTitle() {
     const tab = this.chatTab();
     if (tab) {
@@ -367,10 +401,15 @@ export class ChatWindowComponent {
     }
   }
 
+  /**
+   * Retitles the panel after a tab is selected; the title is read from the current tab, not from
+   * the identifier.
+   */
   onSelectedTab(_identifier: string) {
     this.updatePanelTitle();
   }
 
+  /** Opens the chat tab settings panel near the pointer, with the current tab selected. */
   showTabSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -381,6 +420,7 @@ export class ChatWindowComponent {
     component.selectedTab.set(this.chatTab());
   }
 
+  /** Opens the dice table settings panel near the pointer, loading it on first use. */
   showDiceTableSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -399,6 +439,7 @@ export class ChatWindowComponent {
     );
   }
 
+  /** Opens the chat message settings panel near the pointer for the current tab. */
   showChatSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -412,6 +453,7 @@ export class ChatWindowComponent {
     component.chatTabidentifier = this.chatTabidentifier;
   }
 
+  /** Opens the vote menu near the pointer for the current tab, loading it on first use. */
   showVoteMenu() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -428,6 +470,7 @@ export class ChatWindowComponent {
     );
   }
 
+  /** Opens the alarm menu near the pointer, loading it on first use. */
   showAlarmMenu() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -461,6 +504,15 @@ export class ChatWindowComponent {
     return objects;
   }
 
+  /**
+   * Sends a line from the chat input to the current tab.
+   *
+   * Character references in the text are filled in from the speaker. A line that targets characters
+   * is sent once for each targeted piece on the table, filled in against that piece and tagged with
+   * its name, with the parts that change the speaker's own resources or buffs taken out after the
+   * first copy so they apply once; with nothing targeted, the line says so. Nothing is sent when
+   * the reader may not speak in the tab. A line marked for the ticker is also shown there.
+   */
   sendChat(value: ChatOutgoing) {
     const tab = this.chatTab();
     if (tab && !canRoleSpeakTab(tab, PeerCursor.myRole)) return;

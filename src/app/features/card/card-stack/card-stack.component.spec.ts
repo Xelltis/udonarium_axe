@@ -137,7 +137,7 @@ describe('CardStackComponent', () => {
     });
 
     it('asks for no change detector', () => {
-      // No change detector is needed now that nothing is marked by hand.
+      // No change detector is needed, since nothing is marked by hand.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((component as any).changeDetector).toBeUndefined();
     });

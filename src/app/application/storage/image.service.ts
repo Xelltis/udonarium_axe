@@ -12,12 +12,14 @@ export class ImageService {
 
   constructor() {}
 
+  /** The picture named, or the skeleton placeholder when it is missing, unknown or empty. */
   getSkeletonOr(arg: ImageFile | string | null): ImageFile {
     if (!arg) return skeletonImage;
     const image = arg instanceof ImageFile ? arg : this.imageStorage.get(arg);
     return image && !image.isEmpty ? image : skeletonImage;
   }
 
+  /** The picture named, or the empty image when it is missing, unknown or empty. */
   getEmptyOr(arg: ImageFile | string | null): ImageFile {
     if (!arg) return ImageFile.Empty;
     const image = arg instanceof ImageFile ? arg : this.imageStorage.get(arg);

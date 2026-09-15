@@ -23,10 +23,12 @@ export const DEFAULT_CHAT_SOUND: ChatSoundSetting = {
   type: DEFAULT_CHAT_SOUND_TYPE,
 };
 
+/** Whether a stored value names a known chat notification sound. */
 export function isChatSoundType(value: unknown): value is ChatSoundType {
   return typeof value === 'string' && (CHAT_SOUND_TYPES as readonly string[]).includes(value);
 }
 
+/** A stored volume held between 0 and 1, or the default for anything that is not a number. */
 export function clampChatSoundVolume(value: unknown): number {
   const volume = Number(value);
   if (!Number.isFinite(volume)) return CHAT_SOUND_VOLUME_DEFAULT;

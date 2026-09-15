@@ -13,6 +13,7 @@ const STORE_NAME = 'snapshots';
 
 export class IndexedDbRoomSnapshotStore extends RoomSnapshotStore {
   private static _instance: IndexedDbRoomSnapshotStore;
+  /** The one IndexedDB-backed room snapshot store for the page, created on first use. */
   static get instance(): IndexedDbRoomSnapshotStore {
     if (!IndexedDbRoomSnapshotStore._instance) {
       IndexedDbRoomSnapshotStore._instance = new IndexedDbRoomSnapshotStore();
@@ -22,10 +23,15 @@ export class IndexedDbRoomSnapshotStore extends RoomSnapshotStore {
 
   private dbPromise: Promise<IDBDatabase | null> | null = null;
 
+  /**
+   * Whether the browser offers IndexedDB at all; if the database then fails to open, reads
+   * come back empty and writes fail.
+   */
   isAvailable(): boolean {
     return typeof indexedDB !== 'undefined' && indexedDB !== null;
   }
 
+  /** Stores a room snapshot and returns its new id, or null when the database cannot be written. */
   async put(input: RoomSnapshotInput): Promise<number | null> {
     const record = {
       roomName: input.roomName,
@@ -37,6 +43,7 @@ export class IndexedDbRoomSnapshotStore extends RoomSnapshotStore {
     return typeof key === 'number' ? key : null;
   }
 
+  /** Every snapshot's metadata without its bytes, newest first; empty when the database cannot be read. */
   async list(): Promise<RoomSnapshotMeta[]> {
     const records = await this.request<RoomSnapshotRecord[]>('readonly', (store) => store.getAll());
     if (!records) return [];
@@ -44,15 +51,18 @@ export class IndexedDbRoomSnapshotStore extends RoomSnapshotStore {
     return sortSnapshotsByNewest(metas);
   }
 
+  /** One snapshot with its bytes, or null when there is none with that id or the database cannot be read. */
   async get(id: number): Promise<RoomSnapshotRecord | null> {
     const record = await this.request<RoomSnapshotRecord | undefined>('readonly', (store) => store.get(id));
     return record ?? null;
   }
 
+  /** Deletes the snapshot with this id, if there is one. */
   async remove(id: number): Promise<void> {
     await this.request<undefined>('readwrite', (store) => store.delete(id));
   }
 
+  /** Deletes every stored snapshot. */
   async clear(): Promise<void> {
     await this.request<undefined>('readwrite', (store) => store.clear());
   }

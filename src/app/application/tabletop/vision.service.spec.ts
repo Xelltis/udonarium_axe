@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { PERF_VISION_SCENE, perfCounters } from '@axe/core/util/perf-counters';
+import { PERF_VISION_CELLS_MISS, PERF_VISION_SCENE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -506,6 +506,34 @@ describe('VisionService', () => {
     expect(scene!.sightSegments.length).toBeGreaterThan(4);
   });
 
+  describe.each([
+    ['square', GridType.SQUARE],
+    ['hex', GridType.HEX_VERTICAL],
+  ])('a terrain on a %s table looked at by somebody else', (_, gridType) => {
+    it('is read again for a player the game master looks through', () => {
+      addPeer('p1', PeerRole.Player);
+      makeMyCursor('gm', PeerRole.GameMaster);
+      const table = makeDarkTable();
+      table.gridType = gridType;
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 500;
+      pc.location.y = 500;
+      pc.visionRange = 4;
+      table.appendChild(pc);
+      const wall = Terrain.create('wall', 2, 1, 1, 'wall.png', 'floor.png');
+      wall.location.x = 800;
+      wall.location.y = 800;
+      table.appendChild(wall);
+
+      const asMaster = service.terrainFogCover(wall)!.brightness[0];
+      service.previewAsUserId.set('p1');
+      const asPlayer = service.terrainFogCover(wall)!.brightness[0];
+
+      expect(asPlayer).toBeLessThan(asMaster);
+    });
+  });
+
   it('lets the game master look through the eyes of a player', () => {
     makeMyCursor('gm', PeerRole.GameMaster);
     makeDarkTable();
@@ -543,6 +571,106 @@ describe('VisionService', () => {
     expect(viewer.userId).toBe('guest-2');
     expect(viewer.isGameMaster).toBe(false);
     expect(viewer.visionOwnerIds).toContain('player-3');
+  });
+
+  describe.each([
+    ['square', GridType.SQUARE],
+    ['hex', GridType.HEX_VERTICAL],
+  ])('a piece changed on a %s table', (_, gridType) => {
+    let character: GameCharacter;
+
+    async function announce(identifier: string): Promise<void> {
+      objectChanged$.emit({ aliasName: 'character', identifier, isSendFromSelf: true });
+      await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+    }
+
+    beforeEach(async () => {
+      vi.useFakeTimers();
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      table.gridType = gridType;
+      character = GameCharacter.create('c', 1, '');
+      character.location.x = 100;
+      character.location.y = 100;
+      character.owner = 'p1';
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('keeps the scene when nothing the scene is made of has changed', async () => {
+      const before = service.scene();
+      perfCounters.enabled = true;
+      perfCounters.clear();
+
+      character.name = 'renamed';
+      await announce(character.identifier);
+
+      expect(service.scene()).toBe(before);
+      expect(perfCounters.drain().get(PERF_VISION_SCENE)).toBeUndefined();
+    });
+
+    it('builds the scene again when the piece moves', async () => {
+      const before = service.scene();
+
+      character.location.x = 300;
+      await announce(character.identifier);
+
+      const after = service.scene();
+      expect(after).not.toBe(before);
+      expect(after!.visionSources.find((source) => source.sourceId === character.identifier)?.x).toBe(325);
+    });
+
+    it('builds it again when the piece is lit', async () => {
+      character.lightEnabled = true;
+      await announce(character.identifier);
+
+      expect(service.scene()!.lights.map((light) => light.sourceId)).toContain(character.identifier);
+    });
+
+    describe('with more than one pair of eyes on it', () => {
+      let other: GameCharacter;
+
+      beforeEach(async () => {
+        character.visionRange = 4;
+        other = GameCharacter.create('d', 1, '');
+        other.location.x = 600;
+        other.location.y = 600;
+        other.owner = 'p1';
+        other.visionRange = 4;
+        await announce(character.identifier);
+        service.sharedVisibleCells();
+      });
+
+      it('works the cells out again only for the eyes that moved', async () => {
+        perfCounters.enabled = true;
+        perfCounters.clear();
+
+        character.location.x = 150;
+        await announce(character.identifier);
+        service.sharedVisibleCells();
+
+        expect(perfCounters.drain().get(PERF_VISION_CELLS_MISS)).toBe(1);
+      });
+
+      it("keeps the reader's view as it was when a monster nobody looks through moves", async () => {
+        const monster = GameCharacter.create('m', 1, '');
+        monster.isNpc = true;
+        monster.visionRange = 4;
+        await announce(monster.identifier);
+        const before = service.overlayVision();
+
+        monster.location.x = 350;
+        await announce(monster.identifier);
+
+        expect(service.overlayVision()).toBe(before);
+      });
+    });
   });
 
   describe('what is remembered while the scene holds still', () => {
@@ -993,8 +1121,8 @@ describe('VisionService', () => {
       addPeer('p2', PeerRole.Player);
       // The torch-bearing piece belongs to the other player; the reader has none. Their
       // brightness must follow the party's sight, as the fog itself does - asked any other
-      // way, a reader with no eyes was answered with 'whatever a lamp touches', and every
-      // brazier on the map lit its own walls for them.
+      // way, a reader with no eyes would be answered with 'whatever a lamp touches', and every
+      // brazier on the map would light its own walls for them.
       const grid = cellGridOf(20, 20, 50, GridType.SQUARE);
       const all = new CellBits(cellCount(grid));
       for (let i = 0; i < cellCount(grid); i++) all.set(i);

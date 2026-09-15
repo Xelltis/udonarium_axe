@@ -6,6 +6,7 @@ import { Translation, TranslocoLoader } from '@jsverse/transloco';
 export class TranslocoHttpLoader implements TranslocoLoader {
   private readonly http = inject(HttpClient);
 
+  /** Fetches the translation file for a language from the bundled assets. */
   getTranslation(lang: string) {
     return this.http.get<Translation>(`assets/i18n/${lang}.json`);
   }

@@ -73,6 +73,12 @@ function hexGeometry(radius: number, gridSize: number, isFlatTop: boolean): Edit
   return { cells, viewWidth, viewHeight };
 }
 
+/**
+ * The cells of the shape editor's board, laid out for its SVG.
+ *
+ * The board spans `radius` cells each way from cell (0, 0) at its centre, as squares or as flat-top
+ * or pointy-top hexagons, with half a cell of padding round the edge.
+ */
 export function buildEditorBoardGeometry(
   gridType: EditorGridType,
   radius: number = DEFAULT_RADIUS,
@@ -88,6 +94,7 @@ export function buildEditorBoardGeometry(
   }
 }
 
+/** Reads `"gx,gy"` cell keys back into cell coordinates, skipping any key that is not two numbers. */
 export function cellsFromKeys(keys: Iterable<string>): CellCoord[] {
   const result: CellCoord[] = [];
   for (const key of keys) {

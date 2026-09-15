@@ -57,17 +57,25 @@ export class PortraitPickerComponent {
     this.destroyRef.onDestroy(() => this.stopWatching());
   }
 
+  /** Picks the previous or next portrait from the arrow buttons; nothing past either end. */
   step(direction: number): void {
     const next = this.selectedIndex() + direction;
     if (next < 0 || next >= this.choices().length) return;
     this.picked.emit(next);
   }
 
+  /** Called when a portrait in the list is clicked: closes the list and emits it if it is a different one. */
   pick(index: number): void {
     this.close();
     if (index !== this.selectedIndex()) this.picked.emit(index);
   }
 
+  /**
+   * Opens the list of portraits above or below the picker, or closes it if it is open.
+   *
+   * While open, the current portrait is scrolled into view, and a press outside, Escape or a
+   * window resize is listened for. Does nothing in a browser without the popover API.
+   */
   toggle(): void {
     if (this.isOpen()) {
       this.close();
@@ -85,6 +93,7 @@ export class PortraitPickerComponent {
     window.addEventListener('resize', this.onResize);
   }
 
+  /** Hides the list and stops listening for presses outside it; nothing when it is already closed. */
   close(): void {
     if (!this.isOpen()) return;
     this.isOpen.set(false);

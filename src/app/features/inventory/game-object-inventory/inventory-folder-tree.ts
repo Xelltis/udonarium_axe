@@ -22,6 +22,13 @@ interface FolderBuilder<T> {
   children: Map<string, FolderBuilder<T>>;
 }
 
+/**
+ * Arranges items into a folder tree by their folder paths.
+ *
+ * Declared paths open their folders even with nothing in them, and items without a path are kept
+ * loose. Folders at each level are sorted by name with numbers in numeric order, and each counts
+ * the items in it and in every folder below.
+ */
 export function buildFolderTree<T>(
   items: readonly T[],
   pathOf: (item: T) => string,
@@ -61,6 +68,7 @@ function openFolder<T>(roots: Map<string, FolderBuilder<T>>, segments: readonly 
   return node;
 }
 
+/** Every folder path in the tree, each folder before the folders inside it. */
 export function collectFolderPaths<T>(tree: FolderTree<T>): string[] {
   const paths: string[] = [];
   const walk = (nodes: readonly FolderNode<T>[]) => {
@@ -73,6 +81,7 @@ export function collectFolderPaths<T>(tree: FolderTree<T>): string[] {
   return paths;
 }
 
+/** The folder's own path followed by the path of every folder beneath it. */
 export function descendantFolderPaths<T>(node: FolderNode<T>): string[] {
   const paths = [node.path];
   for (const child of node.children) paths.push(...descendantFolderPaths(child));

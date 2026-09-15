@@ -10,6 +10,7 @@ export interface GridLook {
   readonly gridFontColor: string;
 }
 
+/** The key a grid picture is kept under, made of everything that changes how it is drawn. */
 export function gridFaceKey(
   look: GridLook,
   widthPx: number,
@@ -36,6 +37,12 @@ export function gridFaceKey(
 export class GridFaceCache {
   private readonly faces = new Map<string, string>();
 
+  /**
+   * The grid picture kept under the key, or one made now and kept.
+   *
+   * The 32 used most lately are kept. A picture that could not be made is not kept, and reads as
+   * empty.
+   */
   remember(key: string, make: () => string | null): string {
     const kept = this.faces.get(key);
     if (kept !== undefined) {
@@ -50,6 +57,12 @@ export class GridFaceCache {
     return made;
   }
 
+  /**
+   * A grid picture for one surface of the table as a data URL, drawn once for each look, size,
+   * offset and labelling and reused after that.
+   *
+   * Empty where nothing can be drawn, such as outside a browser or for a surface with no area.
+   */
   dataUrl(
     look: GridLook,
     widthPx: number,

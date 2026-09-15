@@ -5,6 +5,7 @@ import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -274,6 +275,14 @@ describe('HotbarRunnerService', () => {
       character.location.name = 'graveyard';
 
       expect(run(slotOf('focus', ''), character)).toEqual({ ok: false, reason: 'offTable' });
+    });
+
+    it('looks at a character on the table where it stands, through the table focus', () => {
+      const focusOn = vi.spyOn(TestBed.inject(TableFocusService), 'focusOn').mockImplementation(() => undefined);
+      character.location.name = 'table';
+
+      expect(run(slotOf('focus', ''), character)).toEqual({ ok: true });
+      expect(focusOn).toHaveBeenCalledWith(character);
     });
   });
 

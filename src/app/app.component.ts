@@ -18,6 +18,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -28,6 +29,8 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -56,7 +59,6 @@ import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
-import { OverviewPanelComponent } from '@axe/features/inventory/overview-panel/overview-panel.component';
 import { LanguageSelectorComponent } from '@axe/features/language-selector/language-selector.component';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
@@ -90,6 +92,7 @@ import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-me
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
+import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import {
@@ -136,6 +139,7 @@ const FAB_MARGIN_PX = 12;
     NgClass,
     DraggableDirective,
     WidgetPlaceDirective,
+    ReloadNoticeDirective,
     TranslocoModule,
   ],
   // The drawer opens toward whichever side of the screen has room for it, and a window that
@@ -145,6 +149,7 @@ const FAB_MARGIN_PX = 12;
 export class AppComponent {
   readonly theme = inject(ThemeService);
   readonly motion = inject(MotionService);
+  readonly renderLite = inject(RenderLiteService);
   readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);
   readonly widgets = inject(WidgetVisibilityService);
@@ -270,8 +275,15 @@ export class AppComponent {
     inject(FogMemoryWriterService);
     inject(CutInService);
     inject(GravityService);
+    inject(LegacyScratchMaskMigrationService);
     inject(TurnOrderService);
     inject(SkinService);
+
+    const reloadNotice = inject(ReloadNoticeService);
+    PanelService.loadFailureNotice = () => reloadNotice.tellReloadNeeded();
+    TooltipDirective.loadTooltipPanelComponent = reloadNotice.noticingFailure(() =>
+      import('@axe/features/inventory/overview-panel/overview-panel.component').then((m) => m.OverviewPanelComponent)
+    );
 
     afterNextRender(() => {
       this.measureFabSides();
@@ -297,6 +309,11 @@ export class AppComponent {
     this.roomPanels.open(name);
   }
 
+  /**
+   * Saves the room to a file from the save button, named after the room, showing progress as it goes.
+   *
+   * A press while a save is already running is ignored.
+   */
   async save() {
     if (this.isSaving()) return;
     this.isSaving.set(true);
@@ -316,6 +333,12 @@ export class AppComponent {
     }, 500);
   }
 
+  /**
+   * Loads the files chosen in the file picker into the room.
+   *
+   * Refused for a role that may not edit the tabletop. The picker is cleared either way, so the
+   * same file can be chosen again.
+   */
   handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!this.rolePermission.canEditTabletop) {
@@ -341,4 +364,3 @@ ContextMenuService.loadFourWayRadialMenuComponent = () =>
 ModalService.ModalComponentClass = ModalComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
 TabletopActionService.diceCreateDialogComponentClass = DiceSymbolCreateDialogComponent;
-TooltipDirective.TooltipPanelComponentClass = OverviewPanelComponent;

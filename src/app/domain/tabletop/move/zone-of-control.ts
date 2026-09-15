@@ -13,6 +13,7 @@ export const DEFAULT_ZOC_MODE: ZocMode = 'none';
 export const DEFAULT_ZOC_RANGE = 1;
 export const DEFAULT_ZOC_EXTRA_COST = 1;
 
+/** The value as a zone-of-control mode, reading anything unknown, such as an empty setting, as none. */
 export function asZocMode(value: unknown): ZocMode {
   return typeof value === 'string' && (ZOC_MODES as readonly string[]).includes(value)
     ? (value as ZocMode)

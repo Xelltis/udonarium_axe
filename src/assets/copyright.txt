@@ -28,7 +28,6 @@ Comment: 本プロジェクトで作成した素材です。作り方は次の�
  ローカルの ComfyUI による生成で、指標を重ねたもの。
 
 Files: images/dice/*
- images/april_dice/*
  sounds/alarm/*
 Copyright: 2014 torgtaitai
 License: BSD-3-Clause

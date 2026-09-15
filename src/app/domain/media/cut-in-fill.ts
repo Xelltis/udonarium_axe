@@ -37,6 +37,7 @@ export function rayDegOf(fill: CutInFill): number {
   return Math.min(20, Math.max(0.3, fillScaleOf(fill) / 12));
 }
 
+/** Whether a stored value names one of the ways a band layer can be painted. */
 export function isCutInFillShape(value: unknown): value is CutInFillShape {
   return typeof value === 'string' && (CUT_IN_FILL_SHAPES as readonly string[]).includes(value);
 }
@@ -46,6 +47,13 @@ export function fillStops(fill: CutInFill): string[] {
   return [fill.from, fill.mid, fill.to].filter((colour) => colour.length > 0);
 }
 
+/**
+ * The CSS background that paints a band layer.
+ *
+ * Speed lines and halftone draw a pattern in the first colour, with the last as the clear
+ * middle or the ground. Any other shape with fewer than two colours is one flat colour, or
+ * transparent with none; an angle that is not a number reads as 90 degrees.
+ */
 export function fillCss(fill: CutInFill): string {
   const stops = fillStops(fill);
   const angle = Number.isFinite(fill.angleDeg) ? fill.angleDeg : 90;

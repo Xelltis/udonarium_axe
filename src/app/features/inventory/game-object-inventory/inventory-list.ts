@@ -8,14 +8,20 @@ export interface InventoryRow {
   readonly folderPath: string;
 }
 
+/** A row of the inventory list for a piece, with its folder name normalised into a path. */
 export function buildInventoryRow(object: TabletopObject, folderName: string): InventoryRow {
   return { object, identifier: object.identifier, folderPath: normalizeFolderPath(folderName) };
 }
 
+/**
+ * The normalised text a row is searched by: the piece's name, its owner's name, its folder path and
+ * the given data element texts.
+ */
 export function inventorySearchText(row: InventoryRow, ownerName: string, elementTexts: readonly string[]): string {
   return normalizeSearchText([row.object.name, ownerName, row.folderPath, ...elementTexts].join(' '));
 }
 
+/** The rows whose search text matches the search terms; with no terms, a copy of every row. */
 export function filterInventoryRows(
   rows: readonly InventoryRow[],
   terms: readonly string[],
@@ -31,6 +37,10 @@ export const INVENTORY_HIDDEN_FILTERS: readonly InventoryHiddenFilter[] = ['all'
 
 export type InventoryHiddenDisplay = 'dim' | 'full';
 
+/**
+ * The rows the hidden filter keeps: every row for `all`, only the rows hidden from the inventory
+ * for `only`, and the rest for `exclude`.
+ */
 export function filterInventoryRowsByHidden(
   rows: readonly InventoryRow[],
   filter: InventoryHiddenFilter,

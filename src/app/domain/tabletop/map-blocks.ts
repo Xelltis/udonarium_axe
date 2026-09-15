@@ -126,6 +126,10 @@ export const MAP_HEAVY_TERRAINS = 350;
 /** What one terrain costs to sync: itself, the five it is built from, and its six values. */
 export const SYNC_OBJECTS_PER_TERRAIN = 12;
 
+/**
+ * How many synced objects laying these blocks on a table would make, so the generator can warn
+ * before a map gets too heavy.
+ */
 export function syncObjectCount(blocks: readonly MapBlock[]): number {
   return blocks.length * SYNC_OBJECTS_PER_TERRAIN;
 }

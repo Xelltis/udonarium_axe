@@ -7,12 +7,17 @@ import {
   NO_SYSTEM_AVATAR,
   SystemAvatarService,
 } from '@axe/application/chat/system-avatar.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { emitFileLoaded } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -25,6 +30,7 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-message.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import type { MockInstance } from 'vitest';
 
 describe('ChatMessageComponent', () => {
   let component: ChatMessageComponent;
@@ -72,7 +78,8 @@ describe('ChatMessageComponent', () => {
 
   it('drops the cover on a secret roll as soon as the tag loses it', () => {
     // The reveal changes only the tag. Nothing else drawn while the line is hidden depends on
-    // that message, so without a version to watch the cover stayed on until something else drew.
+    // that message, so without a version to watch the cover would stay on until something
+    // else draws.
     vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
 
     const message = new ChatMessage();
@@ -240,6 +247,16 @@ describe('ChatMessageComponent', () => {
       expect(avatar?.getAttribute('src')).toBe(DEFAULT_SYSTEM_DICE_AVATAR_URL);
     });
 
+    it('stands in for a roll that names a picture this seat does not hold', () => {
+      const message = dicebotMessage();
+      message.imageIdentifier = '1d6_dice[00]';
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      const avatar = fixture.nativeElement.querySelector('img') as HTMLImageElement | null;
+      expect(avatar?.getAttribute('src')).toBe(DEFAULT_SYSTEM_DICE_AVATAR_URL);
+    });
+
     it('serves the picture the room has chosen instead', () => {
       const image = ImageStorage.instance.add('room-system-chan.png');
       try {
@@ -314,6 +331,45 @@ describe('ChatMessageComponent', () => {
         cursor.destroy();
         ImageStorage.instance.delete(characterImage.identifier);
         ImageStorage.instance.delete(playerImage.identifier);
+      }
+    });
+
+    it('stops reading through the tab once it has found the line a roll answers', async () => {
+      const service = TestBed.inject(SystemAvatarService);
+      const characterImage = ImageStorage.instance.add('character-face-2.png');
+      const chatTab = new ChatTab();
+      chatTab.initialize();
+      try {
+        service.setSpeakerVisible(true);
+        const spoken = chatTab.addMessage({
+          from: 'roller-user',
+          name: 'アリス',
+          text: '2d6',
+          imageIdentifier: characterImage.identifier,
+          timestamp: 1000,
+        });
+        const rolled = chatTab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller-user',
+          name: '<BCDice：アリス>',
+          tag: 'system',
+          text: '(2D6) → 7',
+          timestamp: spoken.timestamp + 1,
+        });
+        fixture.componentRef.setInput('chatMessage', rolled);
+        fixture.detectChanges();
+        expect(component.systemAvatarImage()?.url).toBe('character-face-2.png');
+
+        chatTab.addMessage({ from: 'another-user', name: 'ボブ', text: 'こんにちは', timestamp: 2000 });
+        await Promise.resolve();
+        const read = vi.spyOn(chatTab, 'chatMessages', 'get');
+
+        expect(component.systemAvatarImage()?.url).toBe('character-face-2.png');
+        expect(read).not.toHaveBeenCalled();
+      } finally {
+        service.setSpeakerVisible(false);
+        chatTab.destroy();
+        ImageStorage.instance.delete(characterImage.identifier);
       }
     });
 
@@ -596,6 +652,356 @@ describe('ChatMessageComponent', () => {
           .find((n, idx) => idx >= before && n.text === '2D6 → 7');
         created?.destroy();
       }
+    });
+  });
+
+  describe('the menu of what can be done with a line', () => {
+    let open: MockInstance<ContextMenuService['open']>;
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const strays: Element[] = [];
+
+    beforeEach(() => {
+      open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(false);
+    });
+
+    afterEach(() => {
+      if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+      window.getSelection()?.removeAllRanges();
+      strays.splice(0).forEach((stray) => stray.remove());
+    });
+
+    function wordsIn(element: Element, words: string): Text {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if ((node as Text).data.includes(words)) return node as Text;
+      }
+      throw new Error(`"${words}" is not drawn`);
+    }
+
+    function outsideTheLine(words: string): Text {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = words;
+      (fixture.nativeElement as Element).before(paragraph);
+      strays.push(paragraph);
+      return paragraph.firstChild as Text;
+    }
+
+    function pickOut(start: Text, startOffset: number, end: Text, endOffset: number): void {
+      const range = document.createRange();
+      range.setStart(start, startOffset);
+      range.setEnd(end, endOffset);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    function said(text: string): ChatMessage {
+      const message = new ChatMessage();
+      message.initialize();
+      message.from = 'someone-else';
+      message.to = '';
+      message.name = 'テスト';
+      message.tag = '';
+      message.imageIdentifier = '';
+      message.messColor = '#000000';
+      message.text = text;
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+      return message;
+    }
+
+    function pressOn(target: Element): MouseEvent {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    function offered(): ContextMenuAction[] {
+      return open.mock.calls[0][1];
+    }
+
+    it('opens on a right click or a press held on the line, with what its buttons offer', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      said('こんにちは');
+
+      const event = pressOn(fixture.nativeElement.querySelector('.msg-text'));
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(offered().map((action) => action.name)).toEqual(
+        expect.arrayContaining([
+          t('feature.chat.message.reply'),
+          t('feature.chat.message.quote'),
+          t('feature.chat.message.copyText'),
+        ])
+      );
+    });
+
+    it("leaves a link the browser's own menu", () => {
+      said('https://example.com');
+      const link = fixture.nativeElement.querySelector('.msg-text a') as Element | null;
+
+      expect(link).not.toBeNull();
+      pressOn(link!);
+
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('offers nothing in a window that only reads the log', () => {
+      fixture.componentRef.setInput('readOnly', true);
+      said('こんにちは');
+
+      pressOn(fixture.nativeElement.querySelector('.msg-text'));
+
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('copies the words of the line as the reader is shown them', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      said('こんにちは');
+
+      pressOn(fixture.nativeElement.querySelector('.msg-text'));
+      offered()
+        .find((action) => action.name === t('feature.chat.message.copyText'))
+        ?.action?.();
+
+      expect(writeText).toHaveBeenCalledWith('こんにちは');
+    });
+
+    it("leaves the browser's own menu to a right click with words in the line picked out", () => {
+      said('こんにちは、みなさん');
+      const body = fixture.nativeElement.querySelector('.msg-text') as Element;
+      const words = wordsIn(body, 'みなさん');
+      pickOut(words, words.data.indexOf('みなさん'), words, words.data.length);
+
+      const event = pressOn(body);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it("leaves the browser's own menu when the words picked out run on into the line", () => {
+      said('こんにちは、みなさん');
+      const body = fixture.nativeElement.querySelector('.msg-text') as Element;
+      const before = outsideTheLine('前の話');
+      const words = wordsIn(body, 'こんにちは');
+      pickOut(before, 1, words, words.data.indexOf('、'));
+
+      const event = pressOn(body);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('still opens over a line when the words picked out lie elsewhere on the page', () => {
+      said('こんにちは');
+      const elsewhere = outsideTheLine('前の話');
+      pickOut(elsewhere, 0, elsewhere, 2);
+
+      const event = pressOn(fixture.nativeElement.querySelector('.msg-text'));
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(open).toHaveBeenCalledTimes(1);
+    });
+
+    it('copies only the words picked out in the line when a press held on a touch screen opens the menu', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      said('こんにちは、みなさん');
+      const body = fixture.nativeElement.querySelector('.msg-text') as Element;
+      const words = wordsIn(body, 'みなさん');
+      pickOut(words, words.data.indexOf('みなさん'), words, words.data.length);
+
+      pressOn(body);
+      offered()
+        .find((action) => action.name === t('feature.chat.message.copyText'))
+        ?.action?.();
+
+      expect(writeText).toHaveBeenCalledWith('みなさん');
+    });
+
+    describe('copying the words', () => {
+      function copied(): MockInstance<(text: string) => Promise<void>> {
+        const t = TestBed.inject(TRANSLATE_FN);
+        const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+        pressOn(fixture.nativeElement.querySelector('.msg-text'));
+        offered()
+          .find((action) => action.name === t('feature.chat.message.copyText'))
+          ?.action?.();
+        return writeText;
+      }
+
+      it('copies a notice from the room in the words the reader is shown, not the key it is kept as', () => {
+        const t = TestBed.inject(TRANSLATE_FN);
+        const message = said(encodeI18nMessage('feature.lobby.errors.generic', { errorType: 'timeout' }));
+        message.from = 'System';
+        fixture.detectChanges();
+
+        expect(copied()).toHaveBeenCalledWith(t('feature.lobby.errors.generic', { errorType: 'timeout' }));
+      });
+
+      it('copies ruby as the words with their reading after them, and an escaped space as a space', () => {
+        said('前｜漢字《かんじ》後\\sです');
+
+        expect(copied()).toHaveBeenCalledWith('前漢字（かんじ）後 です');
+      });
+    });
+
+    describe('over a picture on the line', () => {
+      const images: string[] = [];
+
+      afterEach(() => {
+        images.splice(0).forEach((identifier) => ImageStorage.instance.delete(identifier));
+      });
+
+      function saidWithPictures(): void {
+        const portrait = ImageStorage.instance.add('speaker-portrait.png');
+        const attached = ImageStorage.instance.add('attached-picture.png');
+        images.push(portrait.identifier, attached.identifier);
+        const message = said('見て');
+        message.imageIdentifier = portrait.identifier;
+        message.attachmentImageIdentifiers = JSON.stringify([attached.identifier]);
+        TestBed.inject(ObjectChangeService).notifyChanged(message.identifier);
+        fixture.detectChanges();
+      }
+
+      function attachedPicture(): Element {
+        return fixture.nativeElement.querySelector('.message-attachment-image');
+      }
+
+      function portrait(): Element {
+        return fixture.nativeElement.querySelector('img[src="speaker-portrait.png"]');
+      }
+
+      it("leaves the browser's own menu to a right click on a picture attached to the line", () => {
+        saidWithPictures();
+
+        const event = pressOn(attachedPicture());
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it("leaves the browser's own menu to a press held on an attached picture on a touch screen", () => {
+        vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+        saidWithPictures();
+
+        const event = pressOn(attachedPicture());
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it("leaves the browser's own menu to a right click on the speaker's portrait", () => {
+        saidWithPictures();
+
+        const event = pressOn(portrait());
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it("still opens the line's menu from a press held on the speaker's portrait on a touch screen", () => {
+        vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+        saidWithPictures();
+
+        const event = pressOn(portrait());
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(open).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('picking out the words of a line on a touch screen', () => {
+      async function pickingOut(): Promise<Element> {
+        const t = TestBed.inject(TRANSLATE_FN);
+        vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+        said('こんにちは、みなさん');
+        const body = fixture.nativeElement.querySelector('.msg-text') as Element;
+        pressOn(body);
+        offered()
+          .find((action) => action.name === t('feature.chat.message.selectText'))
+          ?.action?.();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        open.mockClear();
+        return body;
+      }
+
+      function isSelectable(body: Element): boolean {
+        fixture.detectChanges();
+        return body.classList.contains('select-text!');
+      }
+
+      it('is offered from the menu of a line on a touch screen', () => {
+        const t = TestBed.inject(TRANSLATE_FN);
+        vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+        said('こんにちは');
+
+        pressOn(fixture.nativeElement.querySelector('.msg-text'));
+
+        expect(offered().map((action) => action.name)).toContain(t('feature.chat.message.selectText'));
+      });
+
+      it('lets the words of that line be picked out, and picks them all out', async () => {
+        const body = await pickingOut();
+
+        expect(isSelectable(body)).toBe(true);
+        expect(window.getSelection()?.toString()).toBe('こんにちは、みなさん');
+      });
+
+      it('opens no menu over the words while they are being picked out', async () => {
+        const body = await pickingOut();
+
+        const event = pressOn(body);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it('ends once the words are let go, and the menu opens again', async () => {
+        const body = await pickingOut();
+
+        window.getSelection()?.removeAllRanges();
+
+        expect(isSelectable(body)).toBe(false);
+        pressOn(body);
+        expect(open).toHaveBeenCalledTimes(1);
+      });
+
+      it('ends once the words picked out move off the line', async () => {
+        const body = await pickingOut();
+        const elsewhere = outsideTheLine('前の話');
+
+        pickOut(elsewhere, 0, elsewhere, 2);
+
+        expect(isSelectable(body)).toBe(false);
+      });
+
+      it('ends on a tap somewhere else, letting the words go', async () => {
+        const body = await pickingOut();
+        const elsewhere = outsideTheLine('前の話');
+
+        elsewhere.parentElement!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+        expect(isSelectable(body)).toBe(false);
+        expect(window.getSelection()?.toString()).toBe('');
+      });
+
+      it('carries on through a tap on the line itself', async () => {
+        const body = await pickingOut();
+
+        body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+        expect(isSelectable(body)).toBe(true);
+      });
     });
   });
 

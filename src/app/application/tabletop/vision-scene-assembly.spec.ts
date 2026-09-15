@@ -1,4 +1,5 @@
 import {
+  characterSceneKey,
   collectLights,
   collectSegments,
   collectShadowCasters,
@@ -29,6 +30,35 @@ function standing(name: string, x: number, y: number): GameCharacter {
 }
 
 describe('vision scene assembly', () => {
+  describe('what a piece gives the scene', () => {
+    it('stays as it was for a change the scene is not made of', () => {
+      const character = standing('c', 100, 100);
+      const before = characterSceneKey(character);
+
+      character.name = 'renamed';
+
+      expect(characterSceneKey(character)).toBe(before);
+    });
+
+    it.each<[string, (character: GameCharacter) => void]>([
+      ['moving it', (character) => (character.location.x = 150)],
+      ['raising it', (character) => (character.altitude = 1)],
+      ['lighting it', (character) => (character.lightEnabled = true)],
+      ['widening its sight', (character) => (character.visionRange = 12)],
+      ['turning it', (character) => (character.rotate = 90)],
+      ['handing it to somebody', (character) => (character.owner = 'p2')],
+      ['showing its sight', (character) => (character.showVisionRange = true)],
+      ['letting it cast a shadow or not', (character) => (character.castsShadow = !character.castsShadow)],
+    ])('changes for %s', (_, change) => {
+      const character = standing('c', 100, 100);
+      const before = characterSceneKey(character);
+
+      change(character);
+
+      expect(characterSceneKey(character)).not.toBe(before);
+    });
+  });
+
   it('walls the table with the perimeter and only the walls that are shown', () => {
     const table = makeTable();
     table.showNorthWall = true;

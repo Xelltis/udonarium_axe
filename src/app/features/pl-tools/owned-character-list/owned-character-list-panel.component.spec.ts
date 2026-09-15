@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -140,6 +141,15 @@ describe('OwnedCharacterListPanelComponent', () => {
     (component as unknown as { focusToKoma: (c: GameCharacter) => void }).focusToKoma(character);
 
     expect(selection.focusCoordinate()).toBe(before);
+  });
+
+  it('looks for the piece where it stands, through the table focus', () => {
+    const character = makeCharacter('卓上', 'me', 'table');
+    const focusOn = vi.spyOn(TestBed.inject(TableFocusService), 'focusOn').mockImplementation(() => undefined);
+
+    (component as unknown as { focusToKoma: (c: GameCharacter) => void }).focusToKoma(character);
+
+    expect(focusOn).toHaveBeenCalledWith(character);
   });
 
   it('opens the palette and the sheet', () => {

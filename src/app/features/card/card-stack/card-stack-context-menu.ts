@@ -6,6 +6,15 @@ import { Network } from '@axe/core/index';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 
+/**
+ * Builds the context menu for a card stack on the table.
+ *
+ * Entries that only touch the stack (flipping, shuffling, the count label, unifying card sizes,
+ * copying, deleting) act on it directly and play their sound, and shuffling also raises the event
+ * that plays the shuffle animation. Drawing, splitting, dealing, copying the detail schema and
+ * opening the detail sheet go through the callbacks. A draw callback that returns null means no
+ * card came off, so no draw sound plays.
+ */
 export function buildCardStackContextMenu(
   cardStack: CardStack,
   gridSize: number,

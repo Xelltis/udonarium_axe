@@ -76,6 +76,8 @@ chore(release): bump version to 1.2.2
 
 `pre-commit` の `vitest related` は staged ファイルから import を逆にたどって当たる spec だけを回す
 （[scripts/vitest-related.mjs](../scripts/vitest-related.mjs)。テンプレートは隣の `.ts` に読み替える）。
+ただし、テストのセットアップが読み込むファイル（間接的に読むものも含む）や、ランナーの設定
+（`vitest.config.ts` など）を staged にしたときは、どの spec にも効くので全量を回す。
 全量は `pre-push` と CI が見る。
 
 設定: [../lefthook.yml](../lefthook.yml)
@@ -144,8 +146,8 @@ E2E は載せていない。Playwright は CI だと 5 ブラウザぶん走る�
 - **`conventional-changelog-conventionalcommits` は 9 系に留める** — 10 系にすると
   `@semantic-release/release-notes-generator` が節を 1 つも出さず、リリースノートが見出しだけになる
   （壊れるのはリリース時だけなので、上げる前に commit-analyzer / release-notes-generator を直接叩いて確かめる）
-- **`bcdice` を上げたら `node scripts/generate-bcdice-i18n.mjs` を実行する** — 新しいシステムの翻訳が
-  抜けたままだと、全システムを静的読み込みした時点で `table.$[] is not a function` で落ちる
+- **`bcdice` を上げたら `node scripts/generate-bcdice-importers.mjs` を実行する** — ゲームシステムと翻訳は
+  この一覧から 1 つずつ読み込む。新しいシステムが一覧に無いと、そのシステムを選んでも DiceBot で振られる
 
 ## 依存の脆弱性（`npm audit`）
 

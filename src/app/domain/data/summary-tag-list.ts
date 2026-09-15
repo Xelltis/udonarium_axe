@@ -10,6 +10,12 @@
 /** A `/` on its own, which asks the view for a line break rather than naming an item. */
 export const SUMMARY_NEW_LINE = '/';
 
+/**
+ * Splits a room's display-item line into item names, taking the quotes off quoted names.
+ *
+ * Whitespace outside quotes separates names, a quote also ends the name before it, and empty names are
+ * dropped. A `/` on its own comes through as {@link SUMMARY_NEW_LINE}.
+ */
 export function splitSummaryTags(raw: string): string[] {
   const tags: string[] = [];
   let current = '';

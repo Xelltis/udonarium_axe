@@ -19,6 +19,13 @@ export interface HotbarBarMenuCallbacks {
   onHide: () => void;
 }
 
+/**
+ * Builds the right-click menu for one slot of the bar: edit (fill, for an empty slot), copy, paste
+ * and clear.
+ *
+ * Copy and clear are offered only for a filled slot, and each optional entry only where its
+ * callback is given.
+ */
 export function buildHotbarSlotContextMenu(
   isFilled: boolean,
   callbacks: HotbarSlotMenuCallbacks,
@@ -40,6 +47,12 @@ export function buildHotbarSlotContextMenu(
   return actions;
 }
 
+/**
+ * Builds the right-click menu for the bar itself: showing labels and key hints, pinning it, putting
+ * it back in its place, loading a bar, undoing and hiding it.
+ *
+ * The two undo entries appear only where their callbacks are given.
+ */
 export function buildHotbarBarContextMenu(
   state: { showsLabel: boolean; showsHint: boolean; pinned: boolean },
   callbacks: HotbarBarMenuCallbacks,

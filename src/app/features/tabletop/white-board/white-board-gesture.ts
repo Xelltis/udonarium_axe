@@ -78,6 +78,7 @@ interface Grabbed {
   turnedTo: number;
 }
 
+/** The upright box with two points at opposite corners, whichever way round they were dragged. */
 export function boxBetweenPoints(from: BoardPoint, to: BoardPoint): MarkBox {
   return {
     x: Math.min(from.x, to.x),
@@ -87,6 +88,12 @@ export function boxBetweenPoints(from: BoardPoint, to: BoardPoint): MarkBox {
   };
 }
 
+/**
+ * A picture's crop window after one of its grips is dragged by (dx, dy).
+ *
+ * The window stays inside the picture and never shrinks below a minimum size; the sides the grip
+ * does not hold stay put.
+ */
 export function pullWindow(window: MarkBox, grip: Handle, dx: number, dy: number, picture: MarkBox): MarkBox {
   const next = { ...window };
   if (grip.includes('w')) {
@@ -117,22 +124,27 @@ export class BoardGesture {
 
   constructor(private readonly host: GestureHost) {}
 
+  /** Where the pointer last was while a path is being laid, for drawing the segment still to come. */
   get hover(): BoardPoint | null {
     return this.hovering;
   }
 
+  /** The selection box being dragged out over the board, or null when none is. */
   band(): MarkBox | null {
     return this.bandFrom && this.bandTo ? boxBetweenPoints(this.bandFrom, this.bandTo) : null;
   }
 
+  /** Whether the tool in hand draws freehand ink, as the pen and the marker do. */
   isPenning(): boolean {
     return this.host.tool() === 'pen' || this.host.tool() === 'marker';
   }
 
+  /** Makes a guide the thing being dragged, as when one is pulled off a ruler. */
   dragGuide(guide: SceneGuideLine): void {
     this.draggingGuide = guide;
   }
 
+  /** The line, arrow or shape being dragged out but not yet laid down, or null when there is none. */
   pendingMark(): ShapeItem | null {
     const from = this.dragFrom;
     const to = this.dragTo;
@@ -144,6 +156,14 @@ export class BoardGesture {
     return null;
   }
 
+  /**
+   * Starts whatever the tool in hand does at a pressed point.
+   *
+   * Pens start a stroke, the eraser rubs out, lines and shapes start a drag, text and notes start
+   * typing, a path gains a point, and select grabs what is under the pointer or starts a selection
+   * box. With `adding`, select adds to or takes from what is held, and on a jointed shape takes a
+   * joint away.
+   */
   begin(at: BoardPoint, adding: boolean): void {
     switch (this.host.tool()) {
       case 'pen':
@@ -180,6 +200,13 @@ export class BoardGesture {
     }
   }
 
+  /**
+   * Carries the gesture under way to a new pointer position, and redraws.
+   *
+   * Moves a guide, a path's next segment, a stroke, a joint, held marks or a grip, the selection box,
+   * or the far end of a line or shape, snapping to guides where guiding is on. The eraser only rubs
+   * out while `pressing`.
+   */
   drag(at: BoardPoint, pressing: boolean): void {
     if (this.draggingGuide) {
       const guide = this.draggingGuide;
@@ -224,6 +251,12 @@ export class BoardGesture {
     }
   }
 
+  /**
+   * Finishes the gesture where the pointer lets go, and tells the host the board was touched.
+   *
+   * A pen stroke is smoothed and kept, a line or shape dragged far enough is laid down and held, and a
+   * selection box big enough holds what lies inside it. Whatever was grabbed is let go.
+   */
   end(at: BoardPoint): void {
     const scene = this.host.scene();
     if (this.isPenning() && this.drawingPoints.length > 3) {

@@ -386,7 +386,7 @@
                           border: 'solid 0.07em #555',
                         }"
                       >
-                        <div class="max-w-[24em] truncate [-webkit-transform-style:preserve-3d] transform-3d">
+                        <div class="max-w-[24em] truncate">
                           {{ name() }}
                           @if (isLock) {
                             <i class="material-icons inline align-middle text-[1em]!">lock</i>
@@ -399,7 +399,7 @@
                         data-testid="piece-name"
                         [ngStyle]="{ transform: nameStackTransform() }"
                       >
-                        <div class="max-w-[24em] truncate [-webkit-transform-style:preserve-3d] transform-3d">
+                        <div class="max-w-[24em] truncate">
                           {{ name() }}
                           @if (isLock) {
                             <i class="material-icons inline align-middle text-[1em]!">lock</i>
@@ -418,7 +418,7 @@
                     [ngStyle]="{ transform: rollHandleHeadTransform() }"
                   >
                     <i
-                      class="material-icons hidden will-change-[opacity] group-hover:inline group-active:inline"
+                      class="material-icons hidden group-hover:inline group-active:inline"
                       [style.font-size.px]="rollHandleIconSizePx()"
                       >autorenew</i
                     >
@@ -431,7 +431,7 @@
                     [ngStyle]="{ transform: rollHandleFootTransform() }"
                   >
                     <i
-                      class="material-icons hidden will-change-[opacity] group-hover:inline group-active:inline"
+                      class="material-icons hidden group-hover:inline group-active:inline"
                       [style.font-size.px]="rollHandleIconSizePx()"
                       >autorenew</i
                     >

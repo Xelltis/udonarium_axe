@@ -26,11 +26,16 @@ export class RoomSettingComponent {
   readonly password = signal<string>('');
   readonly roomNameTooLong = computed(() => this.roomName().length > 255);
 
+  /** This browser's peer ID on the network. */
   get peerId(): string {
     return Network.peerId;
   }
   readonly isConnected = computed(() => Network.peerIds.length > 1);
 
+  /**
+   * This browser's own cursor, which carries the reader's role and the password kept for
+   * reconnecting.
+   */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
@@ -44,6 +49,12 @@ export class RoomSettingComponent {
     });
   }
 
+  /**
+   * Opens a new room under the name and password typed in, and closes the dialog.
+   *
+   * A player who creates a room becomes its game master. The room and the role are written down in
+   * this browser so it can find its way back after a reload.
+   */
   createRoom() {
     const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
     const roomId = PeerContext.generateId('***');

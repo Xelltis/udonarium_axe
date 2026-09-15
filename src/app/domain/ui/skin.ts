@@ -386,10 +386,12 @@ export const CUSTOM_SEED: Readonly<Record<SkinMode, SkinRecipe>> = {
   dark: { hue: 220, chroma: 12, accentHue: 220, accentChroma: 45 },
 };
 
+/** The built-in skins for light or dark mode, in the order they are offered. */
 export function skinsFor(mode: SkinMode): Skin[] {
   return SKINS.filter((entry) => entry.mode === mode);
 }
 
+/** The built-in skin with this id in the given mode, or null when there is none, as for a custom skin. */
 export function skinById(id: string, mode: SkinMode): Skin | null {
   return SKINS.find((entry) => entry.id === id && entry.mode === mode) ?? null;
 }
@@ -432,6 +434,11 @@ export function asRecipe(value: unknown, mode: SkinMode): SkinRecipe {
   return recipe;
 }
 
+/**
+ * A custom skin's recipe from the JSON text a browser kept.
+ *
+ * Nothing kept, or text that cannot be read, gives the mode's starting recipe.
+ */
 export function parseRecipe(text: string | null, mode: SkinMode): SkinRecipe {
   if (!text) return CUSTOM_SEED[mode];
   try {

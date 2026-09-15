@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 
 describe('ChatTab', () => {
@@ -43,6 +44,135 @@ describe('ChatTab', () => {
       const tab = new ChatTab();
       tab.initialize();
       expect(tab.chatMessages).toEqual([]);
+    });
+  });
+
+  describe('findRollSource()', () => {
+    function tabWithChatter(count: number): ChatTab {
+      const tab = new ChatTab();
+      tab.initialize();
+      for (let i = 0; i < count; i++) {
+        tab.addMessage({ from: `user-${i % 3}`, name: `話者${i % 3}`, text: `発言${i}`, timestamp: 1000 + i * 10 });
+      }
+      return tab;
+    }
+
+    it('finds the line a roll answers among a long log', () => {
+      const tab = tabWithChatter(500);
+      try {
+        const said = tab.addMessage({ from: 'roller', name: 'アリス', text: '2d6', timestamp: 3005 });
+        tab.addMessage({ from: 'user-1', name: '話者1', text: '割り込み', timestamp: 3005 });
+        const rolled = tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<BCDice：アリス>',
+          text: '(2D6) → 7',
+          timestamp: 3006,
+        });
+
+        expect(tab.findRollSource(rolled)).toBe(said);
+      } finally {
+        tab.destroy();
+      }
+    });
+
+    it('finds the line a secret roll answers once that line is disclosed after the result', () => {
+      const disclose = (tab: ChatTab, message: ChatMessage, at: number) => {
+        message.tag = message.tags.filter((tag) => tag !== 'secret').join(' ');
+        message.disclosedAt = at;
+        tab.appendChild(message);
+      };
+      const tab = tabWithChatter(50);
+      try {
+        const said = tab.addMessage({
+          from: 'roller',
+          name: 'アリス',
+          text: 'S2d6',
+          tag: 'DiceBot secret',
+          timestamp: 3005,
+        });
+        const rolled = tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<Secret-BCDice：アリス>',
+          text: '(2D6) → 7',
+          tag: 'system secret',
+          timestamp: 3006,
+        });
+        tab.addMessage({ from: 'user-1', name: '話者1', text: 'その後', timestamp: 3010 });
+
+        disclose(tab, rolled, 4000);
+        disclose(tab, said, 4001);
+
+        expect(said.index).toBeGreaterThan(rolled.index);
+        expect(tab.findRollSource(rolled)).toBe(said);
+      } finally {
+        tab.destroy();
+      }
+    });
+
+    it('reads the log once however many results look for a line it does not hold', () => {
+      const tab = tabWithChatter(300);
+      const results = Array.from({ length: 40 }, (_, i) =>
+        tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<BCDice：アリス>',
+          text: `(1D6) → ${i}`,
+          timestamp: 1001 + i * 10,
+        })
+      );
+      const readings = vi.spyOn(ChatMessage.prototype, 'timestamp', 'get');
+      try {
+        for (let pass = 0; pass < 2; pass++) {
+          for (const rolled of results) expect(tab.findRollSource(rolled)).toBeNull();
+        }
+
+        expect(readings.mock.calls.length).toBeLessThan(2 * tab.chatMessages.length);
+      } finally {
+        readings.mockRestore();
+        tab.destroy();
+      }
+    });
+
+    it('finds a line that arrives after it was first looked for, and not one that has left the tab', () => {
+      const tab = tabWithChatter(20);
+      try {
+        const rolled = tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<BCDice：アリス>',
+          text: '(2D6) → 7',
+          timestamp: 3006,
+        });
+        expect(tab.findRollSource(rolled)).toBeNull();
+
+        const said = tab.addMessage({ from: 'roller', name: 'アリス', text: '2d6', timestamp: 3005 });
+        expect(tab.findRollSource(rolled)).toBe(said);
+
+        tab.removeChild(said);
+        expect(tab.findRollSource(rolled)).toBeNull();
+      } finally {
+        tab.destroy();
+      }
+    });
+
+    it('finds nothing said at that moment by somebody else', () => {
+      const tab = tabWithChatter(20);
+      try {
+        tab.addMessage({ from: 'bystander', name: 'ボブ', text: '2d6', timestamp: 3005 });
+        const rolled = tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<BCDice：アリス>',
+          text: '(2D6) → 7',
+          timestamp: 3006,
+        });
+
+        expect(tab.findRollSource(rolled)).toBeNull();
+      } finally {
+        tab.destroy();
+      }
     });
   });
 

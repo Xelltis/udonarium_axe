@@ -25,6 +25,11 @@ export class ChatTickerSelectionService {
     }, this.destroyRef);
   }
 
+  /**
+   * Asks every peer's ticker to show this line, without posting it to the ticker tab again.
+   *
+   * An empty identifier sends nothing.
+   */
   showMessage(messageIdentifier: string): void {
     if (messageIdentifier.length < 1) return;
     networkSend(CHAT_TICKER_SELECTION_EVENT_NAME, { messageIdentifier });

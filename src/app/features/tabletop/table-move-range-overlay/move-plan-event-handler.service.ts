@@ -33,8 +33,8 @@ export class MovePlanEventHandlerService {
 
   private listen(opening: number): void {
     // Every move opens on a press that has yet to finish, this one included: a move opened
-    // while another was already open was closed by the very press that opened it, since the
-    // click that press ends with was taken for a choice.
+    // while another is already open would be closed by the very press that opened it, since the
+    // click that press ends with would be taken for a choice.
     if (this.armedFor !== opening) {
       this.armedFor = opening;
       this.armed = false;

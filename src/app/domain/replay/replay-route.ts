@@ -7,15 +7,23 @@ export interface ReplayRoutePoint {
 export const REPLAY_ROUTE_MAX_POINTS = 128;
 export const REPLAY_ROUTE_MIN_STEP = 12;
 
+/** Reads a recorded position as a route point. A coordinate that is missing or not a number reads as 0. */
 export function toRoutePoint(value: unknown): ReplayRoutePoint {
   const record = (value ?? {}) as Record<string, unknown>;
   return { x: numberOf(record['x']), y: numberOf(record['y']), z: numberOf(record['z']) };
 }
 
+/** The straight-line distance between two points, height included. */
 export function distanceBetween(a: ReplayRoutePoint, b: ReplayRoutePoint): number {
   return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
 }
 
+/**
+ * Adds a point to the path a piece was dragged along.
+ *
+ * A point closer than `minStep` to the last one takes its place instead, and a path grown past
+ * `maxPoints` is thinned evenly, keeping both ends.
+ */
 export function appendRoutePoint(
   path: readonly ReplayRoutePoint[],
   point: ReplayRoutePoint,
@@ -29,6 +37,11 @@ export function appendRoutePoint(
   return next.length > maxPoints ? thinRoute(next, maxPoints) : next;
 }
 
+/**
+ * An evenly spaced selection of a path's points, always keeping the first and last.
+ *
+ * A path already within the limit comes back whole.
+ */
 export function thinRoute(path: readonly ReplayRoutePoint[], maxPoints: number): ReplayRoutePoint[] {
   if (path.length <= maxPoints || maxPoints < 2) return [...path];
 
@@ -39,6 +52,11 @@ export function thinRoute(path: readonly ReplayRoutePoint[], maxPoints: number):
   return kept;
 }
 
+/**
+ * The whole route of a move: from where it started, along the recorded path, to where it ended.
+ *
+ * A point that repeats the one before it is skipped.
+ */
 export function buildReplayRoute(
   from: ReplayRoutePoint,
   path: readonly ReplayRoutePoint[],
@@ -53,12 +71,18 @@ export function buildReplayRoute(
   return points;
 }
 
+/** The total length of a route, summed segment by segment. */
 export function routeLength(points: readonly ReplayRoutePoint[]): number {
   let total = 0;
   for (let index = 1; index < points.length; index++) total += distanceBetween(points[index - 1], points[index]);
   return total;
 }
 
+/**
+ * The point a fraction of the way along a route, measured by distance rather than by points.
+ *
+ * The fraction is held between 0 and 1. An empty route gives the origin.
+ */
 export function pointAlongRoute(points: readonly ReplayRoutePoint[], progress: number): ReplayRoutePoint {
   if (points.length < 1) return { x: 0, y: 0, z: 0 };
   if (points.length < 2) return points[0];
@@ -79,6 +103,7 @@ export function pointAlongRoute(points: readonly ReplayRoutePoint[], progress: n
   return points[points.length - 1];
 }
 
+/** Eases progress, held between 0 and 1, along a quadratic curve so a replayed move starts and stops gently. */
 export function easeInOut(progress: number): number {
   const clamped = Math.max(0, Math.min(1, progress));
   return clamped < 0.5 ? 2 * clamped * clamped : 1 - Math.pow(-2 * clamped + 2, 2) / 2;

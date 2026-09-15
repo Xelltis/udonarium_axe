@@ -233,11 +233,19 @@ export const MAX_FIELD_SIZE = 60;
 export const MIN_FIELD_DENSITY = 0;
 export const MAX_FIELD_DENSITY = 100;
 
+/**
+ * A requested board width held between 20 and 60 cells and rounded; the smallest for anything that
+ * is not a number.
+ */
 export function clampFieldSize(size: number): number {
   if (!Number.isFinite(size)) return MIN_FIELD_SIZE;
   return Math.min(MAX_FIELD_SIZE, Math.max(MIN_FIELD_SIZE, Math.round(size)));
 }
 
+/**
+ * A requested prop density held between 0 and 100 and rounded; 50 for anything that is not a
+ * number.
+ */
 export function clampFieldDensity(density: number): number {
   if (!Number.isFinite(density)) return 50;
   return Math.min(MAX_FIELD_DENSITY, Math.max(MIN_FIELD_DENSITY, Math.round(density)));
@@ -392,6 +400,7 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
   },
 };
 
+/** The mood with that id, or woodland for an unknown one. */
 export function fieldAtmosphereById(id: string): FieldAtmosphere {
   return FIELD_ATMOSPHERES[id as FieldAtmosphereId] ?? FIELD_ATMOSPHERES.woodland;
 }

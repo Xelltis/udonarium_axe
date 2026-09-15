@@ -327,6 +327,7 @@
           (dragstart)="onPlaylistDragStart(i)"
           (dragover)="onPlaylistDragOver($event, i)"
           (dragend)="onPlaylistDragEnd()"
+          (contextmenu)="onPlaylistContextMenu($event, audio)"
         >
           <div
             class="text-ui-dim w-5 shrink-0 cursor-grab text-center opacity-40 active:cursor-grabbing [&_.material-icons]:text-[18px]!"

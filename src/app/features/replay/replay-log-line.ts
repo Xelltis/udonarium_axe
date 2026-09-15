@@ -50,6 +50,7 @@ const ICONS: Record<string, string> = {
   [ReplayEventKind.Marker]: 'bookmark',
 };
 
+/** The wall-clock time of an event as `HH:MM:SS` in the viewer's time zone. */
 export function formatReplayTime(at: number): string {
   const date = new Date(at);
   const pad = (value: number): string => String(value).padStart(2, '0');
@@ -58,6 +59,14 @@ export function formatReplayTime(at: number): string {
 
 export { replayScriptElapsed as formatReplayElapsed } from '@axe/domain/replay/replay-script';
 
+/**
+ * Turns a replay event into a line of the replay log: a translation key with its parameters, an
+ * icon, and whether it was secret.
+ *
+ * Actor and target names are looked up as they were when the event happened. A move says whether
+ * the piece changed place, surface or height, and an event of an unknown kind reads as a plain
+ * update.
+ */
 export function toReplayLogLine(event: ReplayEvent, names: ReplayNameLookup): ReplayLogLine {
   const actor = names.actorName(event.actorId);
   const target = event.targetId ? names.targetName(event.targetId) : '';

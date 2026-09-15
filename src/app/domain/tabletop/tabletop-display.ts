@@ -126,6 +126,7 @@ export const MAX_MULTI_ANGLE_PAUSE_SECONDS = 30;
 export const MIN_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS = 5;
 export const MAX_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS = 300;
 
+/** Reads a stored multi-angle motion mode, falling back to continuous for anything unknown. */
 export function asMultiAngleMotionMode(value: unknown): MultiAngleMotionMode {
   return value === 'quarter-turn' || value === 'piece-quarter-turn' ? value : 'continuous';
 }
@@ -218,7 +219,7 @@ export function normalizeTabletopDisplayOwn(value: unknown): TabletopDisplayOwn 
 }
 
 /**
- * What is in force on this screen: what it has been told, over what the table used to carry.
+ * What is in force on this screen: what it has been told, over what the table still carries.
  *
  * The table is read first so that a room saved while these were still the table's own keeps
  * looking the way it did until this screen says otherwise.

@@ -284,7 +284,8 @@ describe('FileArchiver', () => {
       await FileArchiver.instance.saveAsync([file], 'archive');
 
       expect(clickSpy).toHaveBeenCalledTimes(1);
-      expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock');
+      // The url outlives the click, for a browser that reads the archive after it.
+      expect(revokeObjectURLSpy).not.toHaveBeenCalled();
     });
 
     it('reports nought and a hundred percent', async () => {

@@ -26,6 +26,7 @@ export class SkyWayFacade {
   publication: Publication<LocalDataStream> | null = null;
 
   peer: PeerContext = PeerContext.parse('???');
+  /** Whether open has finished and the session has not been closed since. */
   get isOpen(): boolean {
     return this.peer.isOpen;
   }
@@ -38,6 +39,12 @@ export class SkyWayFacade {
   onSubscribed: ((peer: IPeerContext, subscription: Subscription) => void) | null = null;
   onRoomRestore: ((peer: IPeerContext) => void) | null = null;
 
+  /**
+   * Creates a SkyWay context with a backend token, then joins the room and a lobby as the peer.
+   *
+   * An open session is closed first. Failures are reported through onFatalError, not thrown, and
+   * onOpen fires at the end. A peer that is not in a room gets a context but joins no channel.
+   */
   async open(peer: IPeerContext) {
     if (this.isOpen) await this.close();
     try {
@@ -60,6 +67,7 @@ export class SkyWayFacade {
     }
   }
 
+  /** Leaves the lobby and room and disposes the context; errors are logged, not thrown. */
   async close() {
     try {
       this.peer = PeerContext.parse('???');
@@ -73,6 +81,7 @@ export class SkyWayFacade {
     }
   }
 
+  /** Starts leaving the room and lobby without waiting, for a page that is unloading; never throws. */
   leaveImmediately() {
     try {
       if (this.roomPerson?.state !== 'left') {
@@ -86,6 +95,11 @@ export class SkyWayFacade {
     }
   }
 
+  /**
+   * Joins the room and lobby again as the same peer after leaveImmediately, with a new data stream.
+   *
+   * For when the page did not unload after all. Does nothing once closed or with the context disposed.
+   */
   async rejoinAfterLeave() {
     if (this.isDestroyed || !this.context || this.context.disposed) return;
     try {
@@ -350,6 +364,7 @@ export class SkyWayFacade {
     await this.roomPerson?.unpublish(publication);
   }
 
+  /** Peer ids of every member of the lobbies the token covers; empty while the session is closed. */
   async listAllPeers(): Promise<string[]> {
     if (this.isDestroyed || !this.isOpen) return [];
 
@@ -381,6 +396,11 @@ export class SkyWayFacade {
     return allPeerIds;
   }
 
+  /**
+   * Every lobby member with the room name from its metadata, for the room list; empty while closed.
+   *
+   * A member whose metadata does not parse is listed with an empty room name.
+   */
   async listAllLobbyMembers(): Promise<{ peerId: string; roomName: string }[]> {
     if (this.isDestroyed || !this.isOpen) return [];
     if (!this.context) return [];

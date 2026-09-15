@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -6,6 +9,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { Playlist } from '@axe/domain/media/playlist';
 import { JukeboxComponent } from '@axe/features/media/jukebox/jukebox.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -159,6 +163,36 @@ describe('JukeboxComponent', () => {
 
       component.stopBGM(audio);
       expect(stopSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('moving a track of the playlist from its menu', () => {
+    let playlist: Playlist;
+
+    beforeEach(() => {
+      playlist = ObjectStore.instance.get<Playlist>('Playlist') ?? new Playlist('Playlist');
+      if (!ObjectStore.instance.get<Playlist>('Playlist')) playlist.initialize();
+    });
+
+    afterEach(() => {
+      playlist.entries = [];
+    });
+
+    it('moves a track beside the one shown next to it, past a hidden one in between', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      for (const id of ['pl-a', 'pl-hidden', 'pl-b', 'pl-c']) AudioStorage.instance.add(makeReadyAudio(id));
+      AudioStorage.instance.get('pl-hidden')!.isHidden = true;
+      playlist.entries = ['pl-a', 'pl-hidden', 'pl-b', 'pl-c'];
+      vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+
+      const event = new MouseEvent('contextmenu', { cancelable: true });
+      component.onPlaylistContextMenu(event, AudioStorage.instance.get('pl-c')!);
+      const actions = open.mock.calls[0][1] as ContextMenuAction[];
+      actions.find((action) => action.name === t('common.reorder.up'))?.action?.();
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(playlist.entries).toEqual(['pl-a', 'pl-hidden', 'pl-c', 'pl-b']);
     });
   });
 

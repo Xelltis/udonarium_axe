@@ -29,11 +29,16 @@ export function parseBuffStrength(effect: string): string {
   return Number(normalized) === 0 ? '' : normalized;
 }
 
+/** The colour a buff's badge is drawn in, or the translucent black default when none was set. */
 export function buffColorOf(element: DataElement): string {
   const color = (element.getAttribute(DataElementAttribute.BUFF_COLOR) ?? '').trim();
   return color.length > 0 ? color : DEFAULT_BUFF_COLOR;
 }
 
+/**
+ * The mark shown on a buff's badge, or `✦` when none was set. It may name a picture instead;
+ * `buffIconUrlOf` tells which.
+ */
 export function buffIconOf(element: DataElement): string {
   const icon = (element.getAttribute(DataElementAttribute.BUFF_ICON) ?? '').trim();
   return icon.length > 0 ? icon : DEFAULT_ICON;

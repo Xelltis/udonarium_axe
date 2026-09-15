@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
-import { DataElement } from '@axe/domain/data/data-element';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { cellKeyOf, CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -91,9 +90,9 @@ function layTerrainBlock(
  * The exact placement a block is to wear, where this is the very cell it was read from.
  *
  * A placement belongs to one block standing on one cell, but it is carried on the spec, and a
- * spec is what tells one painted layer from another. Painting more cells into the layer an
- * imported wall made handed every one of them that wall's own position, so the new cells came
- * out stacked on top of it and nothing at all stood where the brush had been.
+ * spec is what tells one painted layer from another. Handed on as it stands, every cell painted
+ * into the layer an imported wall made would take that wall's own position, stacking the new
+ * cells on top of it and leaving nothing at all where the brush went.
  */
 function placementFor(
   spec: { placement: BlockPlacement | null },
@@ -121,24 +120,6 @@ function blockOrigin(placed: BlockPlacement | null, rect: CellRect, grid: CellGr
 
 /** A mask counts its opacity out of this, so the fraction it shows is the current value over it. */
 const MASK_OPACITY_FULL = 100;
-
-/**
- * A mask carries no colour until one is written down for it, and the setter will not write
- * what is not already there, so the element has to be laid alongside it.
- */
-function paintMaskColor(mask: GameTableMask, color: string): void {
-  const common = mask.commonDataElement;
-  if (!common) return;
-  const held = common.getFirstElementByName('color');
-  if (held) {
-    held.value = color;
-    held.currentValue = color;
-    return;
-  }
-  common.appendChild(
-    DataElement.create('color', color, { type: 'colors', currentValue: color }, `color_${mask.identifier}`)
-  );
-}
 
 function setMaskOpacity(mask: GameTableMask, fraction: number): void {
   const element = mask.commonDataElement?.getFirstElementByName('opacity');
@@ -205,6 +186,7 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
   };
 }
 
+/** What a mask is painted as, so the map editor can tell one mask from another and lay it down again as it was. */
 export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null): MaskPaintSpec {
   return {
     name: mask.name,
@@ -382,7 +364,7 @@ export class FunctionalPaintService {
         placed ? placed.depth : block.height,
         MASK_OPACITY_FULL
       );
-      paintMaskColor(mask, block.spec.color);
+      mask.paintColor(block.spec.color);
       setMaskOpacity(mask, block.spec.opacity);
       mask.isLock = block.spec.locked;
       mask.dispLockMark = block.spec.showsLockMark;

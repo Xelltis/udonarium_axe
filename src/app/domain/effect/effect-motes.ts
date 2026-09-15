@@ -23,6 +23,7 @@ const MOTE_BY_TAG: Record<string, EffectMote> = {
 
 const MOTE_STYLES: readonly EffectMote[] = ['spark', 'frost', 'arc', 'leaf', 'haze', 'none'];
 
+/** Whether a stored value names a known kind of particle. Empty is not one; it leaves the choice to the family. */
 export function isEffectMote(value: unknown): value is EffectMote {
   return typeof value === 'string' && MOTE_STYLES.includes(value as EffectMote);
 }
