@@ -16,6 +16,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import {
   encodeVnEmote,
@@ -76,6 +77,7 @@ export class VisualNovelBacklogComponent {
   private readonly emoteSelection = inject(VisualNovelEmoteSelectionService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly viewport = inject(ViewportService);
 
   /**
    * Which line the reader is looking at, and where they can go from here.
@@ -226,10 +228,13 @@ export class VisualNovelBacklogComponent {
   /**
    * What can be done with a line of the log, opened by a right click or a press held on it.
    *
-   * The pencil on a line only shows under a mouse, so a touch screen reaches it through this.
+   * The pencil on a line only shows under a mouse, so a touch screen reaches it through this. A
+   * right click while words reaching into the line are picked out keeps the browser's own menu,
+   * which is how they are copied with a mouse; a press held on a touch screen still opens this.
    */
   protected onEntryContextMenu(event: MouseEvent, entry: VnBacklogEntry): void {
     if (this.editingIdentifier() === entry.message.identifier) return;
+    if (!this.viewport.isTouch() && this.wordsPickedOutReach(event.currentTarget)) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
     const actions = buildBacklogEntryContextMenu(
       entry.message.changeable,
@@ -240,6 +245,16 @@ export class VisualNovelBacklogComponent {
     event.preventDefault();
     event.stopPropagation();
     this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, entry.name);
+  }
+
+  /** Whether any of the words picked out on the page reach into this line of the log. */
+  private wordsPickedOutReach(row: EventTarget | null): boolean {
+    if (!(row instanceof Element)) return false;
+    const selection = row.ownerDocument.getSelection();
+    if (!selection || selection.isCollapsed || selection.toString().trim().length === 0) return false;
+    return Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index)).some((range) =>
+      range.intersectsNode(row)
+    );
   }
 
   /**
