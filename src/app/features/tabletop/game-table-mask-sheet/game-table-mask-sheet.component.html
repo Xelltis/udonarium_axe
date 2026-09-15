@@ -185,12 +185,12 @@
       <div class="mb-2 flex items-center gap-2 last:mb-0">
         <label class="text-ui-muted min-w-22.5 text-[12px]">{{ 'feature.tabletop.maskSheet.color' | transloco }}</label>
         <input
-          #scratchedColorPicker
+          #scratchedColorInput
           class="border-ui-border-panel rounded-ui-sm box-border h-7 w-12 flex-none cursor-pointer border bg-transparent p-0.5"
           type="color"
           data-field="scratched-color"
           [value]="scratchedColorPicker"
-          (change)="setScratchedColor(scratchedColorPicker.value)"
+          (change)="setScratchedColor(scratchedColorInput.value)"
         />
         <span class="text-ui-muted text-[12px]" [class.font-mono]="scratchedColor">{{
           scratchedColor || ('feature.tabletop.maskSheet.none' | transloco)

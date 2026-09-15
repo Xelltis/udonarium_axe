@@ -168,6 +168,15 @@ describe('GameTableMaskSheetComponent', () => {
       expect(action('clear-scratched-image')).toBeNull();
     });
 
+    it('shows the stored colour in its picker, and a mid grey while there is none', async () => {
+      expect(field('scratched-color').value).toBe('#808080');
+
+      mask.scratchedColor = '#112233';
+      await settle();
+
+      expect(field('scratched-color').value).toBe('#112233');
+    });
+
     it('adds the colour element on the first pick, and empties it from the none button', async () => {
       pickColor('scratched-color', '#112233');
       expect(mask.commonDataElement!.getFirstElementByName('scratchedColor')).not.toBeNull();
