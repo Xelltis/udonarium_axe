@@ -47,7 +47,7 @@ import { vnEmoteLabels } from '@axe/features/visual-novel/visual-novel-emote-lab
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
+import { decorateChatStyleText, splitRubyNotation } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -289,10 +289,20 @@ export class ChatMessageComponent {
     return { reachesLine: true, inside: allInside ? selection.toString() : '' };
   }
 
-  /** The words of a line as this reader is shown them, or nothing where they are kept from the reader. */
+  /**
+   * The words of a line as this reader is shown them, or nothing where they are kept from the reader.
+   *
+   * A notice from the room is read in the reader's language. Ruby comes out as the words with their
+   * reading after them in brackets, since plain text cannot set a reading over its words, and the
+   * log saved from chat keeps the reading as well.
+   */
   private readableText(message: ChatMessage): string {
     if (this.isSecret() && !message.isSendFromSelf && !this.canRevealSecret) return '';
-    return vnBodyOf(message.vnEmote, message.text ?? '').trim();
+    const text = this.isSystemMessage ? decodeI18nMessage(message.text, this.t) : (message.text ?? '');
+    return splitRubyNotation(vnBodyOf(message.vnEmote, text))
+      .map((part) => (part.reading.length > 0 ? `${part.text}（${part.reading}）` : part.text))
+      .join('')
+      .trim();
   }
 
   private copyText(text: string): void {

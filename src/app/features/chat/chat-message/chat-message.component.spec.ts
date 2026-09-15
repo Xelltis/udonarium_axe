@@ -7,6 +7,7 @@ import {
   NO_SYSTEM_AVATAR,
   SystemAvatarService,
 } from '@axe/application/chat/system-avatar.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -823,6 +824,34 @@ describe('ChatMessageComponent', () => {
         ?.action?.();
 
       expect(writeText).toHaveBeenCalledWith('みなさん');
+    });
+
+    describe('copying the words', () => {
+      function copied(): MockInstance<(text: string) => Promise<void>> {
+        const t = TestBed.inject(TRANSLATE_FN);
+        const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+        pressOn(fixture.nativeElement.querySelector('.msg-text'));
+        offered()
+          .find((action) => action.name === t('feature.chat.message.copyText'))
+          ?.action?.();
+        return writeText;
+      }
+
+      it('copies a notice from the room in the words the reader is shown, not the key it is kept as', () => {
+        const t = TestBed.inject(TRANSLATE_FN);
+        const message = said(encodeI18nMessage('feature.lobby.errors.generic', { errorType: 'timeout' }));
+        message.from = 'System';
+        fixture.detectChanges();
+
+        expect(copied()).toHaveBeenCalledWith(t('feature.lobby.errors.generic', { errorType: 'timeout' }));
+      });
+
+      it('copies ruby as the words with their reading after them, and an escaped space as a space', () => {
+        said('前｜漢字《かんじ》後\\sです');
+
+        expect(copied()).toHaveBeenCalledWith('前漢字（かんじ）後 です');
+      });
     });
 
     describe('over a picture on the line', () => {
