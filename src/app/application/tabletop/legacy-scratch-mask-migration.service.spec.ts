@@ -9,9 +9,13 @@ import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { waitFor } from '@axe/testing/wait-for';
+
+/** Well past the delay a pass waits for, on the fake clock. */
+const WELL_PAST_A_PASS_MS = 1000;
 
 describe('LegacyScratchMaskMigrationService', () => {
   let store: ObjectStore;
@@ -28,6 +32,7 @@ describe('LegacyScratchMaskMigrationService', () => {
     setNetworkIsolated(false);
     ObjectSynchronizer.instance.destroy();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   function legacyOn(identifier: string, name = '古いマスク'): GameTableScratchMask {
@@ -51,6 +56,22 @@ describe('LegacyScratchMaskMigrationService', () => {
     const [mask, ...pieces] = objects.map((object) => object.toContext());
     for (const object of [...objects].reverse()) store.remove(object);
     return { mask, pieces };
+  }
+
+  /**
+   * What goes on in a room that has nothing to do with legacy masks: a piece put down and moved, a
+   * value on it changed, the table set up, and the seat's cursor following the play.
+   */
+  async function somethingElseHappens(): Promise<void> {
+    const piece = GameTableMask.create('ほかの駒', 2, 2, 100, 'unrelated-piece');
+    table.appendChild(piece);
+    await vi.advanceTimersByTimeAsync(WELL_PAST_A_PASS_MS);
+    piece.location = { name: 'table', x: 150, y: 50 };
+    piece.commonDataElement!.getFirstElementByName('opacity')!.currentValue = 30;
+    table.gridShow = true;
+    PeerCursor.myCursor.movingCharacterIdentifier = piece.identifier;
+    PeerCursor.myCursor.lastControlCharacterName = piece.name;
+    await vi.advanceTimersByTimeAsync(WELL_PAST_A_PASS_MS);
   }
 
   it('converts the legacy masks already in the room when it starts', async () => {
@@ -105,6 +126,90 @@ describe('LegacyScratchMaskMigrationService', () => {
     PeerCursor.myCursor.role = PeerRole.Player;
 
     await waitFor(() => table.masks.length === 1, { description: 'the promoted seat to convert the mask' });
+    expect(store.getObjects(GameTableScratchMask)).toEqual([]);
+  });
+
+  it('does not look through the room again on unrelated changes while this seat may not convert', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    legacyOn('left-for-an-editor');
+    const passes = vi.spyOn(LegacyScratchMaskMigrationService.prototype, 'migrate');
+    TestBed.inject(LegacyScratchMaskMigrationService);
+    await vi.advanceTimersByTimeAsync(WELL_PAST_A_PASS_MS);
+    expect(passes).toHaveBeenCalledTimes(1);
+
+    await somethingElseHappens();
+
+    expect(passes).toHaveBeenCalledTimes(1);
+    expect(store.getObjects(GameTableScratchMask)).toHaveLength(1);
+  });
+
+  it('does not look through the room again on unrelated changes while a mask waits for the rest of it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Player;
+    const sent = sentByAnOlderSeat('still-arriving');
+    const passes = vi.spyOn(LegacyScratchMaskMigrationService.prototype, 'migrate');
+    TestBed.inject(LegacyScratchMaskMigrationService);
+    ObjectSynchronizer.instance.initialize();
+    localDispatch('UPDATE_GAME_OBJECT', sent.mask, 'older-seat');
+    await vi.advanceTimersByTimeAsync(WELL_PAST_A_PASS_MS);
+    const passesBeforeOtherChanges = passes.mock.calls.length;
+    expect(passesBeforeOtherChanges).toBeGreaterThan(0);
+    expect(store.get('still-arriving')).toBeInstanceOf(GameTableScratchMask);
+
+    await somethingElseHappens();
+
+    expect(passes).toHaveBeenCalledTimes(passesBeforeOtherChanges);
+    expect(store.get('still-arriving')).toBeInstanceOf(GameTableScratchMask);
+  });
+
+  it('converts a legacy mask that arrives before its table once the table arrives', async () => {
+    const lateTable = new GameTable('table-arriving-late');
+    lateTable.initialize();
+    lateTable.appendChild(GameTableScratchMask.create('遅れた卓のマスク', 2, 2, 100, 'on-a-late-table'));
+    const objects = withEverythingBelow(lateTable);
+    const [tableSent, ...maskSent] = objects.map((object) => object.toContext());
+    for (const object of [...objects].reverse()) store.remove(object);
+    await nextTask();
+    const passes = vi.spyOn(LegacyScratchMaskMigrationService.prototype, 'migrate');
+    TestBed.inject(LegacyScratchMaskMigrationService);
+    ObjectSynchronizer.instance.initialize();
+    await waitFor(() => passes.mock.calls.length > 0, { description: 'the pass made on starting' });
+    const passesBeforeArrival = passes.mock.calls.length;
+
+    for (const piece of maskSent) localDispatch('UPDATE_GAME_OBJECT', piece, 'older-seat');
+    await waitFor(() => passes.mock.calls.length > passesBeforeArrival, {
+      description: 'a pass over the mask whose table has not arrived',
+    });
+    expect(store.getObjects(GameTableMask)).toEqual([]);
+    expect(store.get('on-a-late-table')).toBeInstanceOf(GameTableScratchMask);
+
+    localDispatch('UPDATE_GAME_OBJECT', tableSent, 'older-seat');
+
+    await waitFor(() => store.getObjects(GameTableMask).length === 1, {
+      description: 'the mask to be converted onto the table that arrived',
+    });
+    expect(store.getObjects(GameTableMask)[0].parent).toBe(store.get('table-arriving-late'));
+    expect(store.getObjects(GameTableScratchMask)).toEqual([]);
+  });
+
+  it('converts what a replay held back once the replay has let go and a seat changes', async () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Player;
+    legacyOn('held-by-a-replay');
+    setNetworkIsolated(true);
+    await nextTask();
+    const passes = vi.spyOn(LegacyScratchMaskMigrationService.prototype, 'migrate');
+    TestBed.inject(LegacyScratchMaskMigrationService);
+    await waitFor(() => passes.mock.calls.length > 0, { description: 'the pass made on starting' });
+    expect(table.masks).toEqual([]);
+
+    setNetworkIsolated(false);
+    PeerCursor.myCursor.lastControlCharacterName = '戻ってきた卓';
+
+    await waitFor(() => table.masks.length === 1, { description: 'the mask the replay held back to be converted' });
     expect(store.getObjects(GameTableScratchMask)).toEqual([]);
   });
 
