@@ -81,11 +81,9 @@ jobs:
           BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
           # axe_*.zip は GitHub Release 用なので S3 には載せない
-          # *.gz は自前ホストの Apache 向け。CloudFront は自分で圧縮するので載せない
           aws s3 sync dist/ "s3://$BUCKET/" \
             --delete \
             --exclude "axe_*.zip" \
-            --exclude "*.gz" \
             --cache-control "public, max-age=31536000, immutable"
 
           # ハッシュが付かないファイルは即時反映させたいので revalidate
