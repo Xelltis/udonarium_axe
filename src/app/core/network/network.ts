@@ -4,7 +4,7 @@ import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 
-type QueueItem = { data: unknown; sendTo: string | undefined };
+type QueueItem = { data: unknown; sendTo: string | undefined; turn: number };
 type ConnectionClass = new (...args: never[]) => Connection;
 
 const unknownPeer = PeerContext.parse('???');
@@ -108,6 +108,9 @@ export class Network {
   private connection: Connection | null = null;
 
   private queue: Map<string | symbol, QueueItem> = new Map();
+  private lastTurn = 0;
+  private lastBroadcastTurn = 0;
+  private readonly lastTurnByPeer: Map<string, number> = new Map();
   private sendInterval: number | null = null;
   private sendCallback = () => {
     this.sendQueue();
@@ -187,14 +190,38 @@ export class Network {
    * Queues a message for the next send.
    *
    * A message given a replaceKey takes the place of one queued under the same key and
-   * destination that has not gone out yet, and keeps that one's turn in the queue.
+   * destination that has not gone out yet. It keeps that one's turn while nothing that reaches
+   * any of the same peers has been queued behind it, and otherwise goes to the back, so it never
+   * overtakes a message queued after the one it replaces.
    */
   send(data: unknown, sendTo?: string, replaceKey?: string) {
     const queueKey = replaceKey == null ? Symbol() : `${sendTo ?? ''}\n${replaceKey}`;
-    this.queue.set(queueKey, { data, sendTo });
+    const waiting = this.queue.get(queueKey);
+    if (waiting && !this.hasQueuedBehind(waiting)) {
+      waiting.data = data;
+    } else {
+      this.queue.delete(queueKey);
+      this.queue.set(queueKey, { data, sendTo, turn: this.takeTurn(sendTo) });
+    }
     if (this.sendInterval === null) {
       this.sendInterval = setZeroTimeout(this.sendCallback);
     }
+  }
+
+  private takeTurn(sendTo: string | undefined): number {
+    const turn = ++this.lastTurn;
+    if (sendTo == null) {
+      this.lastBroadcastTurn = turn;
+    } else {
+      this.lastTurnByPeer.set(sendTo, turn);
+    }
+    return turn;
+  }
+
+  /** Whether a message reaching any of the peers this one reaches was queued after it. */
+  private hasQueuedBehind(item: QueueItem): boolean {
+    if (item.sendTo == null) return item.turn < this.lastTurn;
+    return item.turn < this.lastBroadcastTurn || item.turn < (this.lastTurnByPeer.get(item.sendTo) ?? 0);
   }
 
   private sendQueue() {
@@ -231,6 +258,7 @@ export class Network {
       this.sendInterval = setZeroTimeout(this.sendCallback);
     } else {
       this.sendInterval = null;
+      this.lastTurnByPeer.clear();
     }
   }
 
