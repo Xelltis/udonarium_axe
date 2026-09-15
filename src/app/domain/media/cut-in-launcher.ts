@@ -89,8 +89,8 @@ export class CutInLauncher extends GameObject {
    * Closes every untagged cut-in that carries a sound, here at once and on the other peers as the
    * change arrives, so a new track from the jukebox does not play over it.
    *
-   * While the last launch is one a user started for themselves alone, the other peers ignore every
-   * change to the launcher, so the stop happens on this peer only.
+   * The stop reaches the other peers even while the last launch is one a user started for themselves
+   * alone, since that holds back only the launch it belongs to.
    */
   stopBlankTagCutIn() {
     this.stopBlankTagCutInTimeStamp = this.stopBlankTagCutInTimeStamp + 1;
