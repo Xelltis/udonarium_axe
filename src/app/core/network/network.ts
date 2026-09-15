@@ -276,6 +276,6 @@ export class Network {
   }
 
   private async dynamicImport(_mode: string = ''): Promise<ConnectionClass> {
-    return (await import('./skyway/skyway-connection')).SkyWayConnection;
+    return (await import('@axe/core/network/skyway/skyway-connection')).SkyWayConnection;
   }
 }
