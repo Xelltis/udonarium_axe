@@ -218,11 +218,9 @@ export class ObjectSynchronizer {
     }
   }
 
-  /** Forgets what is still wanted only from peers that can no longer be asked for it. */
+  /** Forgets what is still wanted only from peers that are no longer connected. */
   private dropOrphanedRequests() {
-    const reachable = new Set(
-      Network.peerContexts.filter((peer) => peer.isOpen && this.peerMap.has(peer.peerId)).map((peer) => peer.peerId)
-    );
+    const reachable = new Set(Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId));
     for (const [identifier, request] of this.requestMap) {
       request.holderIds = request.holderIds.filter((holderId) => reachable.has(holderId));
       if (request.holderIds.length < 1) this.requestMap.delete(identifier);
@@ -253,7 +251,10 @@ export class ObjectSynchronizer {
       Logger.warn('[ObjectSync] 同期タイムアウト');
       for (const request of remainedRequests) {
         const current = this.requestMap.get(request.identifier);
-        if (!current || current.version < request.version) this.requestMap.set(request.identifier, request);
+        if (!current || current.version < request.version) {
+          this.requestMap.set(request.identifier, request);
+          for (const holderId of request.holderIds) this.addPeerMap(holderId);
+        }
       }
     };
     return true;

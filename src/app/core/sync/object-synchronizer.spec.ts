@@ -161,6 +161,7 @@ describe('ObjectSynchronizer', () => {
       requestMap: Map<string, SynchronizeRequest>;
       peerMap: Map<string, SynchronizeTask[]>;
       tasks: SynchronizeTask[];
+      synchronize: () => void;
       getTargetPeerId: (exclude: ReadonlySet<string>) => string | null;
     };
     const internals = () => ObjectSynchronizer.instance as unknown as Internals;
@@ -217,6 +218,33 @@ describe('ObjectSynchronizer', () => {
 
       expect(internals().requestMap.size).toBe(0);
       expect(requested()).toEqual([]);
+    });
+
+    it('asks another connected holder once the peer it was asking leaves', () => {
+      peers = [
+        { peerId: 'peer-a', isOpen: true },
+        { peerId: 'peer-b', isOpen: true },
+      ];
+      internals().peerMap.set('peer-a', []);
+      internals().peerMap.set('peer-b', []);
+      internals().requestMap.set('held-by-both', {
+        identifier: 'held-by-both',
+        version: 1,
+        holderIds: ['peer-a', 'peer-b'],
+        ttl: 2,
+      });
+      internals().synchronize();
+      const asked = internals().tasks[0].peerId;
+      const idle = asked === 'peer-a' ? 'peer-b' : 'peer-a';
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'held-by-the-asked', version: 1 }], asked);
+      expect(internals().peerMap.has(idle)).toBe(false);
+      const requestedBefore = requested().length;
+
+      peers = peers.filter((peer) => peer.peerId !== asked);
+      localDispatch('DISCONNECT_PEER', { peerId: asked }, asked);
+
+      expect(requested().slice(requestedBefore)).toEqual([['held-by-both', idle]]);
+      expect(internals().tasks.map((task) => task.peerId)).toEqual([idle]);
     });
 
     it('keeps a newer version it heard of while an older request timed out', () => {
