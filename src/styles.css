@@ -3070,7 +3070,9 @@ body.touch-input chat-message .msg-text textarea {
 
 /*
  * A small button that stays on a phone is given a larger place to be pressed than it is drawn.
- * The button keeps its drawn size, so a row of them keeps its room.
+ * The button keeps its drawn size, so a row of them keeps its room. Beside another such button it
+ * reaches sideways only half the narrowest gap written between them, 2px, so neither takes a
+ * press on the edge of the other.
  */
 body.touch-input .touch-target {
   position: relative;
@@ -3080,6 +3082,14 @@ body.touch-input .touch-target::after {
   content: '';
   position: absolute;
   inset: -8px -4px;
+}
+
+body.touch-input .touch-target:has(+ .touch-target)::after {
+  right: -1px;
+}
+
+body.touch-input .touch-target + .touch-target::after {
+  left: -1px;
 }
 
 /*
