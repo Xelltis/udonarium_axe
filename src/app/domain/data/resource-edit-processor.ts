@@ -1,3 +1,4 @@
+import { emitDiceBotUnreachable } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -42,7 +43,8 @@ export { BuffByCharacter, BuffEdit, DiceRollResult, ResourceByCharacter, Resourc
 export class ResourceEditProcessor {
   constructor(
     private diceRollAsync: (message: string, gameSystem: GameSystemClass) => Promise<DiceRollResult>,
-    private loadGameSystemAsync: (gameType: string) => Promise<GameSystemClass>
+    private loadGameSystemAsync: (gameType: string) => Promise<GameSystemClass>,
+    private isUnreachable: (gameSystem: GameSystemClass) => boolean = () => false
   ) {}
 
   /**
@@ -125,9 +127,11 @@ export class ResourceEditProcessor {
    * Works out and applies the collected resource and buff commands, then posts one report to the chat tab.
    *
    * Untargeted commands act on the speaker's character and are skipped when the speaker is not a character.
-   * Amounts are rolled with the message's game system. A command whose amount cannot be worked out is named
-   * in the report instead of applied. The report comes from BCDice when any dice were rolled, and nothing is
-   * posted when there is nothing to report.
+   * Amounts are rolled with the game system the loader gives for the message. A command whose amount cannot
+   * be worked out is named in the report instead of applied. When the loader gives a system whose code could
+   * not be fetched, no amount is worked out or reported as unreadable, and the sender is told the dice bot
+   * could not be fetched; text changes and buffs still apply. The report comes from BCDice when any dice were
+   * rolled, and nothing is posted when there is nothing to report.
    */
   async resourceEditProcess(
     sendFromObject: GameCharacter | null,
@@ -139,6 +143,8 @@ export class ResourceEditProcessor {
     const allEditList: ResourceEdit[] = [];
     const unreadableCommands: string[] = [];
     const gameSystem = await this.loadGameSystemAsync(originalMessage.tags ? originalMessage.tags[0] : '');
+    const canWorkOutAmounts = !this.isUnreachable(gameSystem);
+    let leftAmountsAlone = false;
 
     for (const res of resourceByCharacter) {
       const oneText = res.resourceCommand;
@@ -152,11 +158,20 @@ export class ResourceEditProcessor {
       const oneResourceEdit = this.defaultResourceEdit();
       if (!this.commandToEdit(oneResourceEdit, oneText, object, targeted)) continue;
 
-      if (oneResourceEdit.operator != '>' && !(await this.rollResourceEdit(oneResourceEdit, gameSystem))) {
-        unreadableCommands.push(`${targeted ? `[${object.name}] ` : ''}${oneText}を計算できません    `);
-        continue;
+      if (oneResourceEdit.operator != '>') {
+        if (!canWorkOutAmounts) {
+          leftAmountsAlone = true;
+          continue;
+        }
+        if (!(await this.rollResourceEdit(oneResourceEdit, gameSystem))) {
+          unreadableCommands.push(`${targeted ? `[${object.name}] ` : ''}${oneText}を計算できません    `);
+          continue;
+        }
       }
       allEditList.push(oneResourceEdit);
+    }
+    if (leftAmountsAlone) {
+      emitDiceBotUnreachable({ messageIdentifier: originalMessage.identifier, gameType: gameSystem.ID });
     }
 
     const repBuffCommandList: BuffEdit[] = [];

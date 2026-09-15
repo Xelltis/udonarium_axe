@@ -1,3 +1,4 @@
+import { diceBotUnreachable$, DiceBotUnreachableEvent } from '@axe/core/event/domain-events';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -351,6 +352,33 @@ describe('ResourceEditProcessor', () => {
 
       expect(character.status.getValue('MP', 'now')).toBe(95);
       expect(systemText()).toContain('t:HP-t{敏捷度}を計算できません');
+    });
+
+    it('leaves the amounts alone and says the dice bot could not be fetched when it has none to work them out with', async () => {
+      const standIn = { ID: 'DiceBot' };
+      mockLoadGameSystemAsync.mockResolvedValue(standIn);
+      const withoutDiceBot = new ResourceEditProcessor(
+        mockDiceRollAsync,
+        mockLoadGameSystemAsync,
+        (gameSystem) => gameSystem === standIn
+      );
+      const line = speak('t:HP-5');
+      const unrolled: DiceBotUnreachableEvent[] = [];
+      const stopListening = diceBotUnreachable$.subscribe((event) => unrolled.push(event));
+
+      await withoutDiceBot.resourceEditProcess(
+        null,
+        [{ resourceCommand: 't:HP-5', object: character }],
+        [],
+        line,
+        false
+      );
+      stopListening();
+
+      expect(mockDiceRollAsync).not.toHaveBeenCalled();
+      expect(systemText()).not.toContain('計算できません');
+      expect(character.status.getValue('HP', 'now')).toBe(200);
+      expect(unrolled).toEqual([{ messageIdentifier: line.identifier, gameType: 'DiceBot' }]);
     });
   });
 

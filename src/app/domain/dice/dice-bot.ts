@@ -36,7 +36,8 @@ export class DiceBot extends GameObject {
   private static readonly unreachableSystems = new WeakSet<GameSystemClass>();
   private resourceProcessor = new ResourceEditProcessor(
     DiceBot.diceRollAsync.bind(DiceBot),
-    DiceBot.loadGameSystemAsync.bind(DiceBot)
+    DiceBot.loadResourceGameSystemAsync.bind(DiceBot),
+    DiceBot.isUnreachable.bind(DiceBot)
   );
   private cleanups: (() => void)[] = [];
 
@@ -133,6 +134,21 @@ export class DiceBot extends GameObject {
       const id = this.diceBotInfos.some((info) => info.id === gameType) ? gameType : PLAIN_DICE_BOT;
       return DiceBot.loadedOrFetched(id);
     });
+  }
+
+  /**
+   * The game system a resource change is worked out with: the message's own, or the plain dice bot
+   * while the code of that one cannot be fetched.
+   *
+   * A change's amount is arithmetic and plain dice, which the plain dice bot can work out, so a
+   * change is not held up by a system it rarely needs. A bracketed command only the room's system
+   * knows is then reported as one that could not be worked out, and a division may round as the
+   * plain dice bot does rather than as that system would.
+   */
+  private static async loadResourceGameSystemAsync(gameType: string): Promise<GameSystemClass> {
+    const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
+    if (!DiceBot.isUnreachable(gameSystem)) return gameSystem;
+    return DiceBot.loadGameSystemAsync(PLAIN_DICE_BOT);
   }
 
   /**

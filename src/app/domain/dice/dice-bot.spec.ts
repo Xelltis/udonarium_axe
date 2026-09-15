@@ -3,6 +3,7 @@ import { diceBotUnreachable$, DiceBotUnreachableEvent, emitSendMessage } from '@
 import { Logger } from '@axe/core/logging/logger';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -131,6 +132,35 @@ describe('DiceBot', () => {
       expect(unrolled).toEqual([{ messageIdentifier: line.identifier, gameType: UNREACHABLE }]);
 
       bot.destroy();
+      tab.destroy();
+    });
+
+    it('works out a resource change with the plain dice bot meanwhile', async () => {
+      await failFetching(Infinity);
+      PeerCursor.createMyCursor();
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const character = GameCharacter.create('キャラクター', 1, '');
+      const bot = new DiceBot();
+      bot.initialize();
+      const line = tab.addMessage({ from: 'me', name: 'わたし', text: ':HP-5', timestamp: 1000, tag: UNREACHABLE });
+
+      const unrolled: DiceBotUnreachableEvent[] = [];
+      const stopListening = diceBotUnreachable$.subscribe((event) => unrolled.push(event));
+      await bot['resourceProcessor'].resourceEditProcess(
+        character,
+        [{ resourceCommand: ':HP-5', object: character }],
+        [],
+        line,
+        false
+      );
+      stopListening();
+
+      expect(character.status.getValue('HP', 'now')).toBe(195);
+      expect(tab.chatMessages.map((message) => message.text).join('\n')).not.toContain('計算できません');
+      expect(unrolled).toEqual([]);
+
+      bot.destroy();
+      character.destroy();
       tab.destroy();
     });
 
