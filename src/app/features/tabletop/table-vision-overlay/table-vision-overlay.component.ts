@@ -45,6 +45,11 @@ export class TableVisionOverlayComponent {
   private surfaceOriginX = 0;
   private surfaceOriginY = 0;
   private surfaceCells: SurfacePoint[][] | undefined = undefined;
+  /**
+   * The board size and shape the surface cells were built for. A scene is rebuilt whenever anything
+   * on the table moves, and the cells depend on none of that.
+   */
+  private surfaceKey = '';
   private margin = 0;
   private scale = 1;
   private animated = false;
@@ -73,6 +78,7 @@ export class TableVisionOverlayComponent {
         this.margin = 0;
         this.scale = 1;
         this.surfaceCells = undefined;
+        this.surfaceKey = '';
         this.stopLoop();
         if (canvas.width !== 0) canvas.width = 0;
         if (canvas.height !== 0) canvas.height = 0;
@@ -93,9 +99,13 @@ export class TableVisionOverlayComponent {
       this.surfaceOriginY = hex ? -hex.offsetY : 0;
       this.surfaceWidth = hex ? hex.pixelW : scene.widthPx;
       this.surfaceHeight = hex ? hex.pixelH : scene.heightPx;
-      this.surfaceCells = hex
-        ? hexSurfaceCells(cols, rows, scene.gridSize, gridType, HEX_SURFACE_INFLATE_PX)
-        : undefined;
+      const surfaceKey = hex ? `${cols}:${rows}:${scene.gridSize}:${gridType}` : '';
+      if (surfaceKey !== this.surfaceKey) {
+        this.surfaceCells = hex
+          ? hexSurfaceCells(cols, rows, scene.gridSize, gridType, HEX_SURFACE_INFLATE_PX)
+          : undefined;
+        this.surfaceKey = surfaceKey;
+      }
 
       const cw = this.surfaceWidth + 2 * this.margin;
       const ch = this.surfaceHeight + 2 * this.margin;

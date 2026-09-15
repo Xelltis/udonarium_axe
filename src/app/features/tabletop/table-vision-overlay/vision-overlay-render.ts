@@ -99,15 +99,37 @@ function carveReveal(ctx: CanvasRenderingContext2D, shape: OverlayShape): void {
   if (coned) ctx.restore();
 }
 
-function fillPolygons(ctx: CanvasRenderingContext2D, polygons: { x: number; y: number }[][]): void {
-  ctx.beginPath();
+/**
+ * The polygons of a set of cells as one path, traced once for the set.
+ *
+ * The board's surface cells stay the same for as long as the board does, and a plan's lit cells for
+ * as long as the plan, while the darkness is laid down again on every draw.
+ */
+const polygonPaths = new WeakMap<object, Path2D>();
+
+function tracePolygons(sink: PathSink, polygons: { x: number; y: number }[][]): void {
   for (const polygon of polygons) {
     if (polygon.length < 3) continue;
-    ctx.moveTo(polygon[0].x, polygon[0].y);
-    for (let i = 1; i < polygon.length; i++) ctx.lineTo(polygon[i].x, polygon[i].y);
-    ctx.closePath();
+    sink.moveTo(polygon[0].x, polygon[0].y);
+    for (let i = 1; i < polygon.length; i++) sink.lineTo(polygon[i].x, polygon[i].y);
+    sink.closePath();
   }
-  ctx.fill();
+}
+
+function fillPolygons(ctx: CanvasRenderingContext2D, polygons: { x: number; y: number }[][]): void {
+  if (typeof Path2D !== 'function') {
+    ctx.beginPath();
+    tracePolygons(ctx, polygons);
+    ctx.fill();
+    return;
+  }
+  let path = polygonPaths.get(polygons);
+  if (!path) {
+    path = new Path2D();
+    tracePolygons(path, polygons);
+    polygonPaths.set(polygons, path);
+  }
+  ctx.fill(path);
 }
 
 function carveCells(ctx: CanvasRenderingContext2D, cells: { x: number; y: number }[][]): void {
@@ -573,6 +595,8 @@ type CellMask = { path: Path2D } | { keep: (index: number) => boolean };
  */
 const seenPaths = new WeakMap<OverlayVision, CellMask>();
 const unwalkedPaths = new WeakMap<OverlayVision, CellMask>();
+const exploredPaths = new WeakMap<OverlayVision, CellMask>();
+const rememberedPaths = new WeakMap<OverlayVision, CellMask>();
 
 function cellMaskOf(
   vision: OverlayVision,
@@ -596,6 +620,14 @@ function seenMask(vision: OverlayVision): CellMask {
 
 function unwalkedMask(vision: OverlayVision): CellMask {
   return cellMaskOf(vision, unwalkedPaths, (index) => !vision.explored.get(index));
+}
+
+function exploredMask(vision: OverlayVision): CellMask {
+  return cellMaskOf(vision, exploredPaths, (index) => vision.explored.get(index));
+}
+
+function rememberedMask(vision: OverlayVision): CellMask {
+  return cellMaskOf(vision, rememberedPaths, (index) => vision.explored.get(index) && !vision.visible.get(index));
 }
 
 /**
@@ -799,7 +831,7 @@ function paintDarkness(
     ctx.globalCompositeOperation = 'destination-out';
     ctx.fillStyle = '#000000';
     ctx.globalAlpha = 1;
-    fillCells(ctx, vision.grid, (index) => vision.explored.get(index), vision.blurPx);
+    fillMask(ctx, vision.grid, exploredMask(vision), vision.blurPx);
   }
   ctx.globalCompositeOperation = 'source-over';
 
@@ -816,21 +848,18 @@ function paintFog(ctx: CanvasRenderingContext2D, plan: OverlayPlan): void {
   const vision = plan.vision;
   if (!vision?.fogEnabled) return;
 
-  const remembered = (index: number): boolean => vision.explored.get(index) && !vision.visible.get(index);
-  const unwalked = (index: number): boolean => !vision.explored.get(index);
-
   ctx.globalCompositeOperation = 'source-over';
   // Cleared ground carries no mist. Only a shade over it, which is what says the fog has
   // gone and nobody is standing there now.
   if (vision.veilAlpha > 0) {
     ctx.fillStyle = vision.veilColor;
     ctx.globalAlpha = vision.veilAlpha;
-    fillCells(ctx, vision.grid, remembered, vision.blurPx);
+    fillMask(ctx, vision.grid, rememberedMask(vision), vision.blurPx);
   }
   if (vision.unexploredAlpha > 0) {
     ctx.fillStyle = vision.fogColor;
     ctx.globalAlpha = vision.unexploredAlpha;
-    fillCells(ctx, vision.grid, unwalked, vision.blurPx);
+    fillMask(ctx, vision.grid, unwalkedMask(vision), vision.blurPx);
 
     // The mottling that keeps the mist from reading as a sheet of paint. It rides in the
     // surface baked when the scene changes, so it costs nothing on a frame of its own.
@@ -838,7 +867,7 @@ function paintFog(ctx: CanvasRenderingContext2D, plan: OverlayPlan): void {
     if (pattern) {
       ctx.fillStyle = pattern;
       ctx.globalAlpha = Math.min(1, vision.unexploredAlpha * CLOUD_OVER_UNWALKED);
-      fillCells(ctx, vision.grid, unwalked, vision.blurPx);
+      fillMask(ctx, vision.grid, unwalkedMask(vision), vision.blurPx);
     }
   }
   ctx.globalAlpha = 1;
