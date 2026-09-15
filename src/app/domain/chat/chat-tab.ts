@@ -85,7 +85,10 @@ export class ChatTab extends ObjectNode implements InnerXml {
    * The line a dice result answers: said by whoever rolled, the moment before the result.
    *
    * The messages are kept in the order they were placed in, so the search starts where that
-   * moment falls and stops at the result itself rather than reading through the whole log.
+   * moment falls rather than at the top of the log, and the line is usually the next one or
+   * close by. A kept-back line disclosed later is placed at the moment it was shown, which is
+   * never earlier than that moment but can be after the result, so the search reads on past the
+   * result until it finds the line.
    */
   findRollSource(dice: ChatMessage): ChatMessage | null {
     const originFrom = dice.originFrom ?? '';
@@ -98,7 +101,7 @@ export class ChatTab extends ObjectNode implements InnerXml {
       if (messages[middle].index < said) low = middle + 1;
       else high = middle;
     }
-    for (let i = low; i < messages.length && messages[i].index < dice.index; i++) {
+    for (let i = low; i < messages.length; i++) {
       const candidate = messages[i];
       if (candidate.timestamp === said && candidate.from === originFrom) return candidate;
     }

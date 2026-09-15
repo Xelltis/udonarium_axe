@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 
 describe('ChatTab', () => {
@@ -69,6 +70,41 @@ describe('ChatTab', () => {
           timestamp: 3006,
         });
 
+        expect(tab.findRollSource(rolled)).toBe(said);
+      } finally {
+        tab.destroy();
+      }
+    });
+
+    it('finds the line a secret roll answers once that line is disclosed after the result', () => {
+      const disclose = (tab: ChatTab, message: ChatMessage, at: number) => {
+        message.tag = message.tags.filter((tag) => tag !== 'secret').join(' ');
+        message.disclosedAt = at;
+        tab.appendChild(message);
+      };
+      const tab = tabWithChatter(50);
+      try {
+        const said = tab.addMessage({
+          from: 'roller',
+          name: 'アリス',
+          text: 'S2d6',
+          tag: 'DiceBot secret',
+          timestamp: 3005,
+        });
+        const rolled = tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<Secret-BCDice：アリス>',
+          text: '(2D6) → 7',
+          tag: 'system secret',
+          timestamp: 3006,
+        });
+        tab.addMessage({ from: 'user-1', name: '話者1', text: 'その後', timestamp: 3010 });
+
+        disclose(tab, rolled, 4000);
+        disclose(tab, said, 4001);
+
+        expect(said.index).toBeGreaterThan(rolled.index);
         expect(tab.findRollSource(rolled)).toBe(said);
       } finally {
         tab.destroy();
