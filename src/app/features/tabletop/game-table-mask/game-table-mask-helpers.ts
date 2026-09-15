@@ -82,6 +82,29 @@ function buildHexSvgMask(polygons: string[], pixelW: number, pixelH: number): st
 
 const EMPTY_MASK = 'radial-gradient(#000, #000) 0px 0px / 0px 0px no-repeat';
 
+const HEX_SHAPE_CACHE_LIMIT = 16;
+const outlineMasks = new Map<string, string>();
+const outerBorders = new Map<string, string>();
+
+/**
+ * The string built for a key, built once and kept among the most recently asked for.
+ *
+ * The key holds every argument the string is built from, so a kept string is always the one the
+ * builder would give.
+ */
+function remembered(kept: Map<string, string>, key: string, build: () => string): string {
+  const held = kept.get(key);
+  if (held !== undefined) {
+    kept.delete(key);
+    kept.set(key, held);
+    return held;
+  }
+  const built = build();
+  if (kept.size >= HEX_SHAPE_CACHE_LIMIT) kept.delete(kept.keys().next().value as string);
+  kept.set(key, built);
+  return built;
+}
+
 function visibilityOf(params: BuildMaskCssParams): (gridStr: string) => boolean {
   const scratchedSet = splitGridSet(params.scratchedGrids);
   const scratchingSet = params.currentScratchingSet ?? splitGridSet(params.scratchingGrids);
@@ -143,6 +166,12 @@ function buildHexMaskSvg(params: BuildMaskCssParams): string {
  * Empty on a square grid or when there are no cells.
  */
 export function buildHexOutlineMask(gridSize: number, gridType: GridType, width: number, height: number): string {
+  return remembered(outlineMasks, `${gridSize}|${gridType}|${width}|${height}`, () =>
+    buildHexOutlineMaskAfresh(gridSize, gridType, width, height)
+  );
+}
+
+function buildHexOutlineMaskAfresh(gridSize: number, gridType: GridType, width: number, height: number): string {
   const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
   if (!geo) return '';
   const isFlatTop = isFlatTopGrid(gridType);
@@ -223,6 +252,12 @@ function hexNeighborOffset(col: number, row: number, edgeIdx: number, isFlatTop:
  * Empty on a square grid or when there are no cells.
  */
 export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, width: number, height: number): string {
+  return remembered(outerBorders, `${gridSize}|${gridType}|${width}|${height}`, () =>
+    buildHexOuterBorderSvgAfresh(gridSize, gridType, width, height)
+  );
+}
+
+function buildHexOuterBorderSvgAfresh(gridSize: number, gridType: GridType, width: number, height: number): string {
   const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
   if (!geo) return '';
   const isFlatTop = isFlatTopGrid(gridType);
