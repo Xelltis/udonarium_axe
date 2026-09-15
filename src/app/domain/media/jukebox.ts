@@ -32,6 +32,7 @@ export class Jukebox extends GameObject {
   private audioPlayer: AudioPlayer = new AudioPlayer();
   private fadingPlayer: AudioPlayer | null = null;
   private audioUpdateCleanup: (() => void) | null = null;
+  private releaseGestures: (() => void) | null = null;
   private isInitialSync = true;
   private static readonly CROSSFADE_MS = 600;
   private static readonly SYNC_SEEK_THRESHOLD_MS = 250;
@@ -91,22 +92,24 @@ export class Jukebox extends GameObject {
   }
 
   /**
-   * Arranges for the track to start again on the user's gestures, since browsers block playback until
-   * then.
+   * Listens to the user's gestures for as long as the jukebox is in the room, since browsers block
+   * playback until the user has interacted with the page.
    *
-   * Trying stops once a gesture has let the track sound, the room is not playing, or a try failed
-   * for a reason a gesture cannot help, such as a track that cannot be loaded; only a refusal for
-   * want of a gesture is tried again. While the track's file is still arriving, gestures leave it to
-   * start as the file comes rather than loading it again.
+   * A gesture starts the room's track again only while the room is playing and the player's latest
+   * play was refused for want of a gesture. A track already sounding, a silent room, a track that
+   * failed for another reason such as one that cannot be loaded, and a track whose file is still
+   * arriving are left alone, so a gesture never loads a track again for nothing.
    */
   override onStoreAdded() {
     super.onStoreAdded();
     this.unlockAfterUserInteraction();
   }
 
-  /** Stops this peer's playback when the jukebox leaves the room. */
+  /** Stops this peer's playback, and listening to the user's gestures, when the jukebox leaves the room. */
   override onStoreRemoved() {
     super.onStoreRemoved();
+    this.releaseGestures?.();
+    this.releaseGestures = null;
     this._stop();
   }
 
@@ -266,19 +269,10 @@ export class Jukebox extends GameObject {
   }
 
   private unlockAfterUserInteraction() {
-    let hasTried = false;
-    onFirstUserInteraction(() => {
-      if (this.isPlaying && !this.audioPlayer.paused) return true;
-      if (!this.isPlaying) {
-        this.audioPlayer.stop();
-        return true;
-      }
-      if (this.audioUpdateCleanup) return false;
-      if (hasTried && !this.audioPlayer.isAwaitingGesture) return true;
-      hasTried = true;
-      this.audioPlayer.stop();
-      this._play();
-      return !this.audioPlayer.paused;
+    this.releaseGestures?.();
+    this.releaseGestures = onFirstUserInteraction(() => {
+      if (this.isPlaying && this.audioPlayer.isAwaitingGesture && !this.audioUpdateCleanup) this._play();
+      return false;
     });
   }
 

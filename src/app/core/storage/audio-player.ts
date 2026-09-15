@@ -192,7 +192,8 @@ export class AudioPlayer {
   /**
    * Whether the browser refused the latest play because the user had not yet interacted with the
    * page, so a later gesture may start it. False before anything has played, while a play is still
-   * settling, and when a play failed for any other reason, such as a track that cannot be loaded.
+   * settling, once the player is stopped, and when a play failed for any other reason, such as a
+   * track that cannot be loaded.
    */
   get isAwaitingGesture(): boolean {
     return this._isAwaitingGesture;
@@ -358,6 +359,8 @@ export class AudioPlayer {
 
   /** Stops playback, rewinds and unloads the track; does nothing before anything has played. */
   stop() {
+    this.playAttempt++;
+    this._isAwaitingGesture = false;
     if (!this._audioElm) return;
     this._audioElm.pause();
     this._audioElm.currentTime = 0;

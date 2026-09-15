@@ -340,7 +340,7 @@ describe('Jukebox', () => {
       jukebox.destroy();
     });
 
-    it('gives up after one more try when the track fails for a reason a gesture cannot help', () => {
+    it('does not try again a track that failed for a reason a gesture cannot help', () => {
       const browser = playerThatTheBrowserMayRefuse();
       browser.allowsPlayback = true;
       browser.canPlayTrack = false;
@@ -348,10 +348,39 @@ describe('Jukebox', () => {
 
       lift();
       lift();
+
+      expect(playSpy).not.toHaveBeenCalled();
+      jukebox.destroy();
+    });
+
+    it('tries a track the room starts after a gesture that came while the room was silent', () => {
+      const browser = playerThatTheBrowserMayRefuse();
+      const jukebox = new Jukebox();
+      jukebox.initialize();
+      AudioStorage.instance.add(makeReadyAudio(TRACK));
+
+      lift();
+      const context = jukebox.toContext();
+      context.syncData = { ...context.syncData, audioIdentifier: TRACK, isPlaying: true };
+      jukebox.apply(context);
+      const playSpy = vi.spyOn(jukebox as unknown as { _play: () => void }, '_play');
+
+      browser.allowsPlayback = true;
+      lift();
       lift();
 
       expect(playSpy).toHaveBeenCalledTimes(1);
       jukebox.destroy();
+    });
+
+    it('lets go of the gestures once it leaves the room', () => {
+      playerThatTheBrowserMayRefuse();
+      const { jukebox, playSpy } = joinRoomPlaying();
+
+      jukebox.destroy();
+      lift();
+
+      expect(playSpy).not.toHaveBeenCalled();
     });
 
     it('waits for a file still arriving without starting again, then tries once the browser refused it', () => {

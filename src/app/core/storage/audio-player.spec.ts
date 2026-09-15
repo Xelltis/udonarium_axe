@@ -469,6 +469,17 @@ describe('AudioPlayer', () => {
       expect(player.isAwaitingGesture).toBe(false);
     });
 
+    it('clears when the player is stopped', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-stopped' }));
+      await settle();
+
+      player.stop();
+
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
     it('stays false when playing fails for a reason a gesture cannot help', async () => {
       const player = new AudioPlayer();
       audioElmMock.play.mockRejectedValueOnce(new DOMException('gone', 'NotSupportedError'));
