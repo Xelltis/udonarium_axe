@@ -1217,7 +1217,7 @@ export class VisualNovelOverlayComponent {
     }
     const emote = encodeVnEmote({ ...this.emoteSelection.emote(), flipped: this.speakerFlip() === true });
     const attachedSe = this.attachedSe();
-    DiceBot.loadGameSystemAsync(this.gameType).then((gameSystem) => {
+    DiceBot.gameSystemForLineAsync(this.gameType, evaluated).then((gameSystem) => {
       this.chatMessageService.sendMessage(
         tab,
         evaluated,

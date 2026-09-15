@@ -519,8 +519,9 @@ export class ChatInputComponent {
    *
    * It does nothing for a seat that may not speak, for an empty draft, or while an IME is
    * composing. While a suggestion is highlighted it asks the parent to apply that instead. The
-   * message is emitted once the game system's dice bot has loaded, while the draft, reply and quote
-   * are cleared at once.
+   * message is emitted under the game system the dice bot hands over for the line, which does not
+   * wait for the system's code when the line cannot be a secret roll; the draft, reply and quote are
+   * cleared at once.
    */
   sendChat(event: Event | null) {
     if (event) event.preventDefault();
@@ -550,7 +551,7 @@ export class ChatInputComponent {
       quoteOf: this.quoteTarget()?.identifier ?? '',
       toTicker: this.showsTickerSwitch() && this.sendsToTicker(),
     };
-    DiceBot.loadGameSystemAsync(this.gameType).then((gameSystem) => {
+    DiceBot.gameSystemForLineAsync(this.gameType, draft.text).then((gameSystem) => {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
     });
     this.text = '';

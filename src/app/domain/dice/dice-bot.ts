@@ -29,11 +29,16 @@ import type Loader from 'bcdice/lib/loader/loader';
 /** The dice bot everything starts with, which nobody has to have chosen. */
 export const PLAIN_DICE_BOT = 'DiceBot';
 
+/** How long the code of a game system may take to arrive before a call gives up on it for now. */
+const FETCH_TIMEOUT_MS = 10_000;
+
 @SyncObject('dice-bot')
 export class DiceBot extends GameObject {
   private static loader: Loader;
   private static queue: PromiseQueue | null = null;
   private static readonly unreachableSystems = new WeakSet<GameSystemClass>();
+  /** Chat lines waiting for their game system, behind which the lines after them wait. */
+  private static linesWaiting = 0;
   private resourceProcessor = new ResourceEditProcessor(
     DiceBot.diceRollAsync.bind(DiceBot),
     DiceBot.loadResourceGameSystemAsync.bind(DiceBot),
@@ -121,9 +126,9 @@ export class DiceBot extends GameObject {
   /**
    * The game system for an id, fetching its code the first time.
    *
-   * An id not in the catalog gives the plain dice bot. One whose code cannot be fetched gives a
-   * stand-in under the same id that recognises no command and rolls nothing; the next call tries
-   * the fetch again.
+   * An id not in the catalog gives the plain dice bot. One whose code cannot be fetched, or does not
+   * arrive within ten seconds, gives a stand-in under the same id that recognises no command and
+   * rolls nothing; the next call tries the fetch again.
    */
   static async loadGameSystemAsync(gameType: string): Promise<GameSystemClass> {
     return await DiceBot.loadingQueue.add(() => {
@@ -131,9 +136,59 @@ export class DiceBot extends GameObject {
       if (system) {
         return system;
       }
-      const id = this.diceBotInfos.some((info) => info.id === gameType) ? gameType : PLAIN_DICE_BOT;
-      return DiceBot.loadedOrFetched(id);
+      return DiceBot.loadedOrFetched(DiceBot.catalogIdOf(gameType));
     });
+  }
+
+  /**
+   * The game system a chat line is sent under, which the line is tagged with.
+   *
+   * A system already loaded is handed over at once. So is a line no system could take for a secret
+   * roll, under a description holding only the id: such a line is tagged with the id alone whichever
+   * system it is sent under, so it need not wait for the code to arrive. Any other line waits for the
+   * system, as does every line after one that waits, so lines go out in the order they were written.
+   * Every line waits until the catalog of systems has loaded.
+   */
+  static async gameSystemForLineAsync(gameType: string, text: string): Promise<GameSystemClass> {
+    if (DiceBot.linesWaiting === 0 && DiceBot.diceBotInfos.length > 0) {
+      const custom = this.loadCustomGameSystem(gameType);
+      if (custom) return custom;
+      const id = DiceBot.catalogIdOf(gameType);
+      const loaded = DiceBot.loadedSystem(id);
+      if (loaded) return loaded;
+      if (!DiceBot.mayBeSecretRoll(text)) return DiceBot.describedSystem(id);
+    }
+    DiceBot.linesWaiting++;
+    try {
+      return await DiceBot.loadGameSystemAsync(gameType);
+    } finally {
+      DiceBot.linesWaiting--;
+    }
+  }
+
+  private static catalogIdOf(gameType: string): string {
+    return DiceBot.diceBotInfos.some((info) => info.id === gameType) ? gameType : PLAIN_DICE_BOT;
+  }
+
+  private static loadedSystem(id: string): GameSystemClass | null {
+    try {
+      return DiceBot.loader.getGameSystemClass(id);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Whether some game system could take the line for a secret roll, or a reference filled in
+   * before the line is tagged could make it one.
+   *
+   * A line is a secret roll only when, after any repeat count, it begins with `s` and the system
+   * recognises what follows. Every system's command pattern can begin with any character, so
+   * anything after the `s` counts. A reference in braces is filled in from the speaker's data before
+   * the chat window tags the line, and could bring an `s` of its own.
+   */
+  private static mayBeSecretRoll(text: string): boolean {
+    return DiceBot.secretRollMatch(text) !== null || toHalfWidth(text).includes('{');
   }
 
   /**
@@ -165,7 +220,7 @@ export class DiceBot extends GameObject {
       return DiceBot.loader.getGameSystemClass(id);
     } catch {
       try {
-        return await DiceBot.loader.dynamicLoad(id);
+        return await DiceBot.withinFetchTimeout(DiceBot.loader.dynamicLoad(id));
       } catch (e) {
         Logger.warn(`[DiceBot] ${id} を読み込めません`, e);
         return DiceBot.unreachableSystem(id);
@@ -174,12 +229,35 @@ export class DiceBot extends GameObject {
   }
 
   /**
-   * A stand-in for a system whose code could not be fetched: its id and name, no help, no command
-   * pattern, and an eval that recognises nothing. It is never constructed, so it has no constructor.
+   * The fetch, or a rejection once it has taken longer than FETCH_TIMEOUT_MS, so a fetch that
+   * stalls on a poor connection holds up the queue behind it for no longer than that. The fetch
+   * itself carries on, and a system that arrives late is there for the next call.
+   */
+  private static withinFetchTimeout<T>(fetching: Promise<T>): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`No answer within ${FETCH_TIMEOUT_MS} ms`)), FETCH_TIMEOUT_MS);
+    });
+    return Promise.race([fetching, timedOut]).finally(() => clearTimeout(timer));
+  }
+
+  /**
+   * A stand-in for a system whose code could not be fetched, which the dice bot knows by sight and
+   * rolls nothing under.
    */
   private static unreachableSystem(id: string): GameSystemClass {
+    const system = DiceBot.describedSystem(id);
+    DiceBot.unreachableSystems.add(system);
+    return system;
+  }
+
+  /**
+   * A system known only from the catalog: its id and name, no help, no command pattern, and an eval
+   * that recognises nothing. It is never constructed, so it has no constructor.
+   */
+  private static describedSystem(id: string): GameSystemClass {
     const info = DiceBot.diceBotInfos.find((each) => each.id === id);
-    const system = {
+    return {
       ID: id,
       NAME: info?.name ?? id,
       SORT_KEY: info?.sortKey ?? '',
@@ -187,8 +265,6 @@ export class DiceBot extends GameObject {
       COMMAND_PATTERN: null,
       eval: () => null,
     } as unknown as GameSystemClass;
-    DiceBot.unreachableSystems.add(system);
-    return system;
   }
 
   private static isUnreachable(gameSystem: GameSystemClass): boolean {
@@ -325,12 +401,7 @@ export class DiceBot extends GameObject {
    * command pattern has no secret lines.
    */
   checkSecretDiceCommand(gameSystem: GameSystemClass, chatText: string): boolean {
-    const text: string = toHalfWidth(chatText).toLowerCase();
-    const nonRepeatText = text
-      .replace(/^(\d+)?\s+/, 'repeat1 ')
-      .replace(/^x(\d+)?\s+/, 'repeat1 ')
-      .replace(/repeat(\d+)?\s+/, '');
-    const regArray = /^s(.*)?/gi.exec(nonRepeatText);
+    const regArray = DiceBot.secretRollMatch(chatText);
     if (gameSystem.COMMAND_PATTERN) {
       return !!(regArray && gameSystem.COMMAND_PATTERN.test(regArray[1]));
     }
@@ -338,6 +409,19 @@ export class DiceBot extends GameObject {
       return !!regArray && DiceBot.looksLikeCommand(regArray[1] ?? '');
     }
     return false;
+  }
+
+  /**
+   * The line read the way a secret roll is looked for, in half-width lower case with any repeat
+   * count taken off: null unless it then begins with `s`, and otherwise holding what follows it.
+   */
+  private static secretRollMatch(chatText: string): RegExpExecArray | null {
+    const text: string = toHalfWidth(chatText).toLowerCase();
+    const nonRepeatText = text
+      .replace(/^(\d+)?\s+/, 'repeat1 ')
+      .replace(/^x(\d+)?\s+/, 'repeat1 ')
+      .replace(/repeat(\d+)?\s+/, '');
+    return /^s(.*)?/gi.exec(nonRepeatText);
   }
 
   /**

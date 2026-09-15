@@ -221,6 +221,182 @@ describe('DiceBot', () => {
       expect(dynamicLoad.mock.calls.filter(([id]) => id === UNREACHABLE)).toHaveLength(2);
     });
 
+    describe('a fetch that never settles', () => {
+      const FETCH_TIMEOUT_MS = 10_000;
+      let giveUp: () => void = () => undefined;
+
+      afterEach(async () => {
+        vi.useRealTimers();
+        giveUp();
+        giveUp = () => undefined;
+        await settle();
+      });
+
+      /** What the promise has settled with so far, or 'pending'. */
+      function settledValue<T>(promise: Promise<T>): () => T | 'pending' {
+        let value: T | 'pending' = 'pending';
+        void promise.then((settled) => (value = settled));
+        return () => value;
+      }
+
+      it('gives the stand-in once the fetch has taken too long, and fetches again next time', async () => {
+        await DiceBot.ensureLoaded();
+        const loader = DiceBot['loader'];
+        const lookUp = loader.getGameSystemClass.bind(loader);
+        const fetch = loader.dynamicLoad.bind(loader);
+        vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+        vi.spyOn(loader, 'getGameSystemClass').mockImplementation((id: string) => {
+          if (id === UNREACHABLE) throw new Error('not loaded yet');
+          return lookUp(id);
+        });
+        let stall = true;
+        const dynamicLoad = vi.spyOn(loader, 'dynamicLoad').mockImplementation((id: string) => {
+          if (id === UNREACHABLE && stall) {
+            return new Promise((_, reject) => (giveUp = () => reject(new Error('gave up'))));
+          }
+          return fetch(id);
+        });
+        vi.useFakeTimers();
+
+        const first = settledValue(DiceBot.loadGameSystemAsync(UNREACHABLE));
+        await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS - 1);
+        expect(first()).toBe('pending');
+        await vi.advanceTimersByTimeAsync(1);
+
+        const standIn = first();
+        expect(standIn).not.toBe('pending');
+        expect(standIn !== 'pending' && standIn.ID).toBe(UNREACHABLE);
+        expect(standIn !== 'pending' && DiceBot['isUnreachable'](standIn)).toBe(true);
+
+        stall = false;
+        vi.useRealTimers();
+        const second = await DiceBot.loadGameSystemAsync(UNREACHABLE);
+        expect(second.eval('CC<=50')?.text).toContain('1D100<=50');
+        expect(dynamicLoad.mock.calls.filter(([id]) => id === UNREACHABLE)).toHaveLength(2);
+      });
+    });
+
+    describe('a line sent while the system is being fetched', () => {
+      let release: () => void = () => undefined;
+
+      afterEach(async () => {
+        release();
+        release = () => undefined;
+        await settle();
+      });
+
+      /** Holds the fetch of the unreachable system until the returned function is called. */
+      async function holdFetching(): Promise<() => void> {
+        await DiceBot.ensureLoaded();
+        const loader = DiceBot['loader'];
+        const lookUp = loader.getGameSystemClass.bind(loader);
+        const fetch = loader.dynamicLoad.bind(loader);
+        const released = new Promise<void>((resolve) => (release = resolve));
+        let arrived = false;
+        vi.spyOn(loader, 'getGameSystemClass').mockImplementation((id: string) => {
+          if (id === UNREACHABLE && !arrived) throw new Error('not loaded yet');
+          return lookUp(id);
+        });
+        vi.spyOn(loader, 'dynamicLoad').mockImplementation(async (id: string) => {
+          if (id === UNREACHABLE && !arrived) {
+            await released;
+            arrived = true;
+          }
+          return fetch(id);
+        });
+        void DiceBot.getHelpMessage(UNREACHABLE);
+        return release;
+      }
+
+      /** The tag the chat would give the line under the system it is handed. */
+      async function tagOf(line: string): Promise<string> {
+        const gameSystem = await DiceBot.gameSystemForLineAsync(UNREACHABLE, line);
+        const bot = new DiceBot();
+        if (bot.checkSecretDiceCommand(gameSystem, line) || bot.checkSecretEditCommand(line)) {
+          return `${gameSystem.ID} secret`;
+        }
+        return gameSystem.ID;
+      }
+
+      it.each(['こんにちは', '2d6 攻撃', 'CC<=50', 'x3 2d6', ':HP-5', 'hello there'])(
+        'sends %s at once under the id the room chose',
+        async (line) => {
+          const release = await holdFetching();
+          const sent: string[] = [];
+
+          void tagOf(line).then((tag) => sent.push(tag));
+          await new Promise((resolve) => setTimeout(resolve, 20));
+
+          expect(sent).toEqual([UNREACHABLE]);
+          release();
+          await settle();
+        }
+      );
+
+      it('sends a line holding a secret resource change at once, tagged as secret', async () => {
+        await holdFetching();
+        const sent: string[] = [];
+
+        void tagOf('よろしく st:HP-2').then((tag) => sent.push(tag));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(sent).toEqual([`${UNREACHABLE} secret`]);
+      });
+
+      it.each(['SCC<=50', 'x2 S2d6', '3 s1d100', 'sure', '{秘密}CC<=50', 'x{回数} S2d6'])(
+        'holds %s until the system has arrived, then tags it as the system does',
+        async (line) => {
+          const release = await holdFetching();
+          const sent: string[] = [];
+
+          const tagged = tagOf(line).then((tag) => sent.push(tag));
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          expect(sent).toEqual([]);
+
+          release();
+          await tagged;
+          const loaded = await DiceBot.loadGameSystemAsync(UNREACHABLE);
+          const secret = new DiceBot().checkSecretDiceCommand(loaded, line);
+          expect(sent).toEqual([secret ? `${UNREACHABLE} secret` : UNREACHABLE]);
+        }
+      );
+
+      it('keeps an ordinary line behind a held one, so lines go out in the order they were written', async () => {
+        const release = await holdFetching();
+        const sent: string[] = [];
+
+        const held = DiceBot.gameSystemForLineAsync(UNREACHABLE, 'SCC<=50').then(() => sent.push('SCC<=50'));
+        const ordinary = DiceBot.gameSystemForLineAsync(UNREACHABLE, 'こんにちは').then(() => sent.push('こんにちは'));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(sent).toEqual([]);
+
+        release();
+        await Promise.all([held, ordinary]);
+        expect(sent).toEqual(['SCC<=50', 'こんにちは']);
+      });
+
+      it('hands over the system itself once it has been loaded', async () => {
+        await DiceBot.loadGameSystemAsync(UNREACHABLE);
+        const loader = DiceBot['loader'];
+        const fetch = vi.spyOn(loader, 'dynamicLoad');
+
+        for (const line of ['SCC<=50', 'こんにちは']) {
+          const gameSystem = await DiceBot.gameSystemForLineAsync(UNREACHABLE, line);
+          expect(gameSystem.ID).toBe(UNREACHABLE);
+          expect(gameSystem.eval('CC<=50')?.text).toContain('1D100<=50');
+        }
+        expect(fetch).not.toHaveBeenCalled();
+      });
+
+      it('sends an ordinary line under the plain dice bot for an id not in the catalog', async () => {
+        await DiceBot.ensureLoaded();
+
+        const gameSystem = await DiceBot.gameSystemForLineAsync('NoSuchSystem', 'こんにちは');
+
+        expect(gameSystem.ID).toBe('DiceBot');
+      });
+    });
+
     describe('telling a secret line from an ordinary one', () => {
       function standIn() {
         return DiceBot['unreachableSystem'](UNREACHABLE);
