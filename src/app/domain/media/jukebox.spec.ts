@@ -279,14 +279,21 @@ describe('Jukebox', () => {
     const TRACK = 'bgm-gesture';
 
     function playerThatTheBrowserMayRefuse() {
-      const browser = { allowsPlayback: false };
+      const browser = { allowsPlayback: false, canPlayTrack: true };
       const sounding = new WeakSet<AudioPlayer>();
+      const refused = new WeakSet<AudioPlayer>();
       stubAudioPlayerStop();
       vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(function (this: AudioPlayer) {
-        if (browser.allowsPlayback) sounding.add(this);
+        sounding.delete(this);
+        refused.delete(this);
+        if (!browser.allowsPlayback) refused.add(this);
+        else if (browser.canPlayTrack) sounding.add(this);
       });
       vi.spyOn(AudioPlayer.prototype, 'paused', 'get').mockImplementation(function (this: AudioPlayer) {
         return !sounding.has(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'isAwaitingGesture', 'get').mockImplementation(function (this: AudioPlayer) {
+        return refused.has(this);
       });
       return browser;
     }
@@ -330,6 +337,44 @@ describe('Jukebox', () => {
       lift();
 
       expect(playSpy).not.toHaveBeenCalled();
+      jukebox.destroy();
+    });
+
+    it('gives up after one more try when the track fails for a reason a gesture cannot help', () => {
+      const browser = playerThatTheBrowserMayRefuse();
+      browser.allowsPlayback = true;
+      browser.canPlayTrack = false;
+      const { jukebox, playSpy } = joinRoomPlaying();
+
+      lift();
+      lift();
+      lift();
+
+      expect(playSpy).toHaveBeenCalledTimes(1);
+      jukebox.destroy();
+    });
+
+    it('waits for a file still arriving without starting again, then tries once the browser refused it', () => {
+      playerThatTheBrowserMayRefuse();
+      const jukebox = new Jukebox();
+      jukebox.initialize();
+      const audio = makeAudioFile({ identifier: 'bgm-arriving' });
+      AudioStorage.instance.add(audio);
+      const context = jukebox.toContext();
+      context.syncData = { ...context.syncData, audioIdentifier: 'bgm-arriving', isPlaying: true };
+      jukebox.apply(context);
+      const playSpy = vi.spyOn(jukebox as unknown as { _play: () => void }, '_play');
+
+      lift();
+      lift();
+      expect(playSpy).not.toHaveBeenCalled();
+
+      const ctx = (audio as unknown as { context: Record<string, unknown> }).context;
+      ctx['blob'] = new Blob(['data']);
+      ctx['url'] = 'blob:data';
+      updateAudioResource$.emit();
+      lift();
+      expect(playSpy).toHaveBeenCalledTimes(1);
       jukebox.destroy();
     });
   });

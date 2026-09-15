@@ -187,6 +187,17 @@ export class AudioPlayer {
     return this._audioElm?.paused ?? true;
   }
 
+  private _isAwaitingGesture = false;
+  private playAttempt = 0;
+  /**
+   * Whether the browser refused the latest play because the user had not yet interacted with the
+   * page, so a later gesture may start it. False before anything has played, while a play is still
+   * settling, and when a play failed for any other reason, such as a track that cannot be loaded.
+   */
+  get isAwaitingGesture(): boolean {
+    return this._isAwaitingGesture;
+  }
+
   /** The playback position in seconds, or 0 before anything has played. */
   get currentTime(): number {
     return this._audioElm?.currentTime ?? 0;
@@ -252,10 +263,13 @@ export class AudioPlayer {
    *
    * With no audio passed it plays the current one again, and does nothing if there is none. For
    * link-only audio the bytes are also fetched into a cache in the background so later plays load
-   * locally. A browser refusing to start playback is logged, not thrown.
+   * locally. A browser refusing to start playback is logged, not thrown, and a refusal for want of
+   * a gesture is kept as `isAwaitingGesture` until the next play.
    */
   play(audio?: AudioFile) {
     this.stop();
+    const attempt = ++this.playAttempt;
+    this._isAwaitingGesture = false;
     if (audio !== undefined) this.audio = audio;
     if (!this.audio) return;
 
@@ -274,6 +288,9 @@ export class AudioPlayer {
     this.audioElm.src = url;
     this.audioElm.load();
     this.audioElm.play().catch((reason) => {
+      if (attempt === this.playAttempt) {
+        this._isAwaitingGesture = (reason as { name?: unknown } | null)?.name === 'NotAllowedError';
+      }
       Logger.warn('[AudioPlayer] 再生失敗', reason);
     });
   }

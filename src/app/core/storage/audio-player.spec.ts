@@ -451,6 +451,46 @@ describe('AudioPlayer', () => {
     });
   });
 
+  describe('instance isAwaitingGesture', () => {
+    const settle = () => new Promise((resolve) => setTimeout(resolve));
+
+    it('is false before anything has played', () => {
+      expect(new AudioPlayer().isAwaitingGesture).toBe(false);
+    });
+
+    it('is true once the browser refuses to play for want of a gesture, and clears as the next play starts', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-refused' }));
+      await settle();
+      expect(player.isAwaitingGesture).toBe(true);
+
+      player.play();
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
+    it('stays false when playing fails for a reason a gesture cannot help', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('gone', 'NotSupportedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-unsupported' }));
+      await settle();
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
+    it('ignores the refusal of a play that a later play has replaced', async () => {
+      const player = new AudioPlayer();
+      let refuseFirst: (reason: unknown) => void = () => {};
+      audioElmMock.play.mockReturnValueOnce(new Promise((_resolve, reject) => (refuseFirst = reject)));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-replaced' }));
+      player.play();
+
+      refuseFirst(new DOMException('blocked', 'NotAllowedError'));
+      await settle();
+
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+  });
+
   // ─── play / pause / stop ─────────────────────────────────────────────────
 
   describe('play()', () => {

@@ -92,7 +92,12 @@ export class Jukebox extends GameObject {
 
   /**
    * Arranges for the track to start again on the user's gestures, since browsers block playback until
-   * then, and to stop trying once one of them has let it sound or the room is not playing.
+   * then.
+   *
+   * Trying stops once a gesture has let the track sound, the room is not playing, or a try failed
+   * for a reason a gesture cannot help, such as a track that cannot be loaded; only a refusal for
+   * want of a gesture is tried again. While the track's file is still arriving, gestures leave it to
+   * start as the file comes rather than loading it again.
    */
   override onStoreAdded() {
     super.onStoreAdded();
@@ -261,10 +266,17 @@ export class Jukebox extends GameObject {
   }
 
   private unlockAfterUserInteraction() {
+    let hasTried = false;
     onFirstUserInteraction(() => {
       if (this.isPlaying && !this.audioPlayer.paused) return true;
+      if (!this.isPlaying) {
+        this.audioPlayer.stop();
+        return true;
+      }
+      if (this.audioUpdateCleanup) return false;
+      if (hasTried && !this.audioPlayer.isAwaitingGesture) return true;
+      hasTried = true;
       this.audioPlayer.stop();
-      if (!this.isPlaying) return true;
       this._play();
       return !this.audioPlayer.paused;
     });
