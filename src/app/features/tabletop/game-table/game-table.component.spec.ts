@@ -11,6 +11,7 @@ import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
@@ -1094,6 +1095,49 @@ describe('GameTableComponent', () => {
       expect(style?.mask).toContain('data:image/svg+xml');
       expect(style?.['-webkit-mask']).toBe(style?.mask);
       expect(borderStyle?.background).toContain('data:image/svg+xml');
+    });
+
+    it('keeps the hex outline when only something standing on the table changes', async () => {
+      const table = component.currentTable;
+      table.width = 6;
+      table.height = 5;
+      table.gridSize = 50;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      const style = component.tableSurfaceStyle();
+      const borderStyle = component.tableSurfaceBorderStyle();
+
+      perfCounters.enabled = true;
+      perfCounters.clear();
+      const terrain = Terrain.create('crate', 1, 1, 1, '', '');
+      table.appendChild(terrain);
+      await Promise.resolve();
+
+      try {
+        expect(component.tableSurfaceStyle()).toBe(style);
+        expect(component.tableSurfaceBorderStyle()).toBe(borderStyle);
+        expect(perfCounters.drain().get(PERF_HEX_MASK_SVG) ?? 0).toBe(0);
+      } finally {
+        perfCounters.enabled = false;
+        perfCounters.clear();
+        terrain.destroy();
+      }
+    });
+
+    it('builds the hex outline again for the size the table has now', async () => {
+      const table = component.currentTable;
+      table.width = 6;
+      table.height = 5;
+      table.gridType = GridType.HEX_VERTICAL;
+      table.gridSize = 0;
+      await Promise.resolve();
+      const atNothing = component.tableSurfaceStyle();
+
+      table.gridSize = 50;
+      await Promise.resolve();
+
+      expect(component.tableSurfaceStyle()).not.toBe(atNothing);
+      expect(component.tableSurfaceStyle().width).toBe(`${(50 / Math.sqrt(3)) * 2 + (50 / Math.sqrt(3)) * 1.5 * 5}px`);
     });
   });
 

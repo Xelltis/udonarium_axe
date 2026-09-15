@@ -581,11 +581,26 @@ export class GameTableComponent {
    * The same measure the run's wrapper wears, so a tile held to it is held to what can be seen.
    */
   private readonly boardPixelSize = computed<{ width: number; height: number }>(() => {
-    const table = this.watchCurrentTable();
-    const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
+    const { width, height, gridSize, gridType } = this.surfaceShape();
+    const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
     if (geo) return { width: geo.pixelW, height: geo.pixelH };
-    return { width: table.width * table.gridSize, height: table.height * table.gridSize };
+    return { width: width * gridSize, height: height * gridSize };
   });
+
+  /**
+   * What the board's outline is built from, compared field by field, so that a change to something
+   * standing on the table does not build the outline again.
+   */
+  private readonly surfaceShape = computed(
+    () => {
+      const table = this.watchCurrentTable();
+      return { width: table.width, height: table.height, gridSize: table.gridSize, gridType: table.gridType };
+    },
+    {
+      equal: (a, b) =>
+        a.width === b.width && a.height === b.height && a.gridSize === b.gridSize && a.gridType === b.gridType,
+    }
+  );
 
   readonly underLayers = computed(() => this.laidLayers().filter((layer) => !layer.placedOver));
   readonly overLayers = computed(() => this.laidLayers().filter((layer) => layer.placedOver));
@@ -667,8 +682,8 @@ export class GameTableComponent {
   readonly showsTableSurfaceVeil = computed(() => this.underLayers().length === 0);
 
   readonly tableSurfaceStyle = computed<Record<string, string>>(() => {
-    const table = this.watchCurrentTable();
-    const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
+    const { width, height, gridSize, gridType } = this.surfaceShape();
+    const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
     if (!geo) {
       return {
         width: '100%',
@@ -679,7 +694,7 @@ export class GameTableComponent {
         mask: 'none',
       };
     }
-    const mask = buildHexOutlineMask(table.gridSize, table.gridType, table.width, table.height);
+    const mask = buildHexOutlineMask(gridSize, gridType, width, height);
     return {
       width: `${geo.pixelW}px`,
       height: `${geo.pixelH}px`,
@@ -691,8 +706,8 @@ export class GameTableComponent {
   });
 
   readonly tableSurfaceBorderStyle = computed<Record<string, string>>(() => {
-    const table = this.watchCurrentTable();
-    const background = buildHexOuterBorderSvg(table.gridSize, table.gridType, table.width, table.height);
+    const { width, height, gridSize, gridType } = this.surfaceShape();
+    const background = buildHexOuterBorderSvg(gridSize, gridType, width, height);
     return { background: background || 'none' };
   });
 
