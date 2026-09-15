@@ -601,11 +601,14 @@ export class GameCharacterComponent {
     });
   }
 
-  readonly pieceGauges = computed<PieceGauge[]>(() => {
-    const detail = this.gameCharacter()?.detailDataElement ?? null;
-    if (this.followedTree(detail) === null || !detail) return [];
-    return selectPieceGauges(detail);
-  });
+  readonly pieceGauges = computed<PieceGauge[]>(
+    () => {
+      const detail = this.gameCharacter()?.detailDataElement ?? null;
+      if (this.followedTree(detail) === null || !detail) return [];
+      return selectPieceGauges(detail);
+    },
+    { equal: sameEntries }
+  );
 
   /**
    * Follows one part of the piece's data so that a computation hears it change, and hands back
@@ -613,15 +616,19 @@ export class GameCharacterComponent {
    *
    * A part the piece does not have yet is followed through every data element, since it may be
    * added anywhere under the piece. A part it has is followed through itself, what is under it
-   * and the nodes it hangs from, which are what change when it is taken away, rather than
-   * through every data element of every piece on the table.
+   * and the data elements it hangs from, which are what change when it is taken away or another
+   * is put in its place, rather than through every data element of every piece on the table.
+   * The piece itself is not followed: moving it changes it many times a second, and none of that
+   * reaches its data.
    */
   private followedTree(element: DataElement | null): DataElement[] | null {
     if (!element) {
       this.objectChange.collectionOf('data')();
       return null;
     }
-    for (let node = element.parent; node; node = node.parent) this.objectChange.versionOf(node.identifier)();
+    for (let node = element.parent; node instanceof DataElement; node = node.parent) {
+      this.objectChange.versionOf(node.identifier)();
+    }
     this.objectChange.versionOf(element.identifier)();
     const descendants = collectDataElements(element);
     for (const descendant of descendants) this.objectChange.versionOf(descendant.identifier)();
@@ -647,11 +654,14 @@ export class GameCharacterComponent {
     return this.pieceGauges().map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }));
   });
 
-  readonly buffBadges = computed<BuffBadge[]>(() => {
-    const buffEl = this.gameCharacter()?.buffDataElement ?? null;
-    if (this.followedTree(buffEl) === null || !buffEl) return [];
-    return toBuffBadges(buffEl);
-  });
+  readonly buffBadges = computed<BuffBadge[]>(
+    () => {
+      const buffEl = this.gameCharacter()?.buffDataElement ?? null;
+      if (this.followedTree(buffEl) === null || !buffEl) return [];
+      return toBuffBadges(buffEl);
+    },
+    { equal: sameEntries }
+  );
 
   readonly orbitPieceGauges = computed(() => this.pieceGauges().slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES));
 
@@ -1502,4 +1512,23 @@ export class GameCharacterComponent {
     }
     return count;
   });
+}
+
+/**
+ * The same list, or one holding entries of the same values in the same order.
+ *
+ * The bars and buff icons are drawn from those values alone, so a list worked out again from data
+ * that did not change them is kept as it was and nothing drawn from it is drawn again.
+ */
+function sameEntries<T extends object>(a: readonly T[], b: readonly T[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((entry, index) => sameFields(entry, b[index]));
+}
+
+/** Whether two flat records hold the same keys with the same values. */
+function sameFields(a: object, b: object): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => Object.is((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }

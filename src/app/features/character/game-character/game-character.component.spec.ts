@@ -834,6 +834,156 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    describe('what the bars, buff icons and resource readings are worked out from', () => {
+      const settle = () => new Promise<void>((resolve) => queueMicrotask(resolve));
+
+      const walksUnder = (element: DataElement) => {
+        const readChildren = Object.getOwnPropertyDescriptor(DataElement.prototype, 'children')!.get!;
+        const counter = { walks: 0 };
+        Object.defineProperty(element, 'children', {
+          configurable: true,
+          get() {
+            counter.walks++;
+            return readChildren.call(element);
+          },
+        });
+        return counter;
+      };
+
+      const resourceSnapshot = () => component['resourceSnapshot']();
+
+      const pieceWithBuff = async () => {
+        const character = GameCharacter.create('ゲージ', 1, '');
+        character.addExtendData();
+        const buff = DataElement.create('毒', 3, { type: DataElementType.NUMBER_RESOURCE, currentValue: 'ダメージ2' });
+        character.buffDataElement!.appendChild(buff);
+        fixture.componentRef.setInput('gameCharacter', character);
+        await settle();
+        const hp = DataElement.findElementByReference(character.rootDataElement!, 'HP')!;
+        return { character, buff, hp };
+      };
+
+      it('walks nothing again while the piece is dragged about', async () => {
+        const { character } = await pieceWithBuff();
+        const objectChange = TestBed.inject(ObjectChangeService);
+
+        try {
+          const gauges = component.pieceGauges();
+          const badges = component.buffBadges();
+          const snapshot = resourceSnapshot();
+          const detailWalks = walksUnder(character.detailDataElement!);
+          const buffWalks = walksUnder(character.buffDataElement!);
+          const pieceVersion = objectChange.versionOf(character.identifier)();
+
+          character.location.x = 120;
+          character.location.y = 80;
+          character.posZ = 0;
+          await settle();
+
+          expect(objectChange.versionOf(character.identifier)()).toBeGreaterThan(pieceVersion);
+          expect(component.pieceGauges()).toBe(gauges);
+          expect(component.buffBadges()).toBe(badges);
+          expect(resourceSnapshot()).toBe(snapshot);
+          expect(detailWalks.walks).toBe(0);
+          expect(buffWalks.walks).toBe(0);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('moves a bar and its reading when the value behind it changes', async () => {
+        const { character, hp } = await pieceWithBuff();
+
+        try {
+          const gauges = component.pieceGauges();
+          const snapshot = resourceSnapshot();
+          const lowered = Number(hp.currentValue) - 1;
+
+          hp.currentValue = lowered;
+          await settle();
+
+          expect(component.pieceGauges()).not.toBe(gauges);
+          expect(component.pieceGauges().find((gauge) => gauge.identifier === hp.identifier)?.current).toBe(lowered);
+          expect(resourceSnapshot().get(hp.identifier)?.current).toBe(lowered);
+          expect(resourceSnapshot()).not.toBe(snapshot);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('shows a buff once it is put on the piece', async () => {
+        const { character } = await pieceWithBuff();
+
+        try {
+          expect(component.buffBadges().map((badge) => badge.name)).toEqual(['毒']);
+
+          character.buffDataElement!.appendChild(
+            DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE, currentValue: '+1' })
+          );
+          await settle();
+
+          expect(component.buffBadges().map((badge) => badge.name)).toEqual(['毒', '加護']);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('draws its bars from a detail put in place of the old one', async () => {
+        const { character } = await pieceWithBuff();
+
+        try {
+          expect(component.pieceGauges().map((gauge) => gauge.name)).toEqual(['HP', 'MP']);
+
+          const root = character.rootDataElement!;
+          character.detailDataElement!.destroy();
+          const detail = DataElement.create('detail', '', {});
+          const sp = DataElement.create('SP', 5, { type: DataElementType.NUMBER_RESOURCE, currentValue: '4' });
+          sp.setAttribute(DataElementAttribute.PIECE_GAUGE, 'true');
+          detail.appendChild(sp);
+          root.appendChild(detail);
+          await settle();
+
+          expect(component.pieceGauges().map((gauge) => gauge.name)).toEqual(['SP']);
+          expect([...resourceSnapshot().keys()]).toEqual([sp.identifier]);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('keeps the same bars while only a buff changes', async () => {
+        const { character, buff } = await pieceWithBuff();
+
+        try {
+          const gauges = component.pieceGauges();
+
+          buff.value = 2;
+          await settle();
+
+          expect(component.buffBadges()[0].rounds).toBe(2);
+          expect(component.pieceGauges()).toBe(gauges);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('keeps the same buff icons while only a bar moves', async () => {
+        const { character, hp } = await pieceWithBuff();
+
+        try {
+          const badges = component.buffBadges();
+          const gauges = component.pieceGauges();
+
+          hp.currentValue = Number(hp.currentValue) - 1;
+          await settle();
+
+          expect(component.pieceGauges()).not.toBe(gauges);
+          expect(component.buffBadges()).toBe(badges);
+        } finally {
+          character.destroy();
+        }
+      });
+    });
+
     describe('the buffs as the switch for how they show', () => {
       beforeEach(() => TestBed.inject(BuffViewPreferenceService).set('icon'));
 
