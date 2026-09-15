@@ -2666,7 +2666,8 @@
         "shareAsMemo": "Send to shared memo",
         "ticker": "Ticker",
         "copyToTab": "Copy to another tab",
-        "copyText": "Copy text"
+        "copyText": "Copy text",
+        "selectText": "Select text"
       },
       "stream": {
         "title": "Message stream",

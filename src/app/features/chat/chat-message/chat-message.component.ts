@@ -1,5 +1,6 @@
 import { DatePipe, NgClass, NgStyle } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -7,6 +8,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   signal,
   viewChild,
@@ -219,11 +221,13 @@ export class ChatMessageComponent {
    * through this. A link keeps the browser's own menu, and so does a line being edited. So does a
    * right click while words reaching into the line are picked out, which is how they are copied
    * with a mouse; a press held on a touch screen still opens this, and copies just those words.
-   * Pictures keep the browser's menu as {@link keepsBrowserMenu} tells.
+   * Pictures keep the browser's menu as {@link keepsBrowserMenu} tells, and nothing opens over
+   * words being picked out on a touch screen, where the system's own handles are over them.
    */
   protected onMessageContextMenu(event: MouseEvent): void {
     const message = this.chatMessage;
     if (!message || this.readOnly() || this.isEditing()) return;
+    if (this.isSelectingText()) return;
     if (this.keepsBrowserMenu(event.target)) return;
     const picked = this.wordsPickedOutIn(this.hostElement.nativeElement);
     if (picked.reachesLine && !this.viewport.isTouch()) return;
@@ -239,6 +243,7 @@ export class ChatMessageComponent {
         hasOriginal: !!(message.replyTo || message.quoteOf),
         text: this.readableText(message),
         selectedText: picked.inside,
+        isTouch: this.viewport.isTouch(),
       },
       {
         reply: () => this.clickReply(),
@@ -252,6 +257,7 @@ export class ChatMessageComponent {
         showInTicker: () => this.clickShowInTicker(),
         jumpToOriginal: () => (message.replyTo ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
         copyText: (text) => this.copyText(text),
+        selectText: () => this.selectText(),
       },
       this.t
     );
@@ -308,6 +314,68 @@ export class ChatMessageComponent {
   private copyText(text: string): void {
     if (text.length === 0) return;
     void navigator.clipboard?.writeText(text).catch(() => undefined);
+  }
+
+  /**
+   * Whether the words of this line may be picked out on a touch screen.
+   *
+   * They otherwise may not there, so that a press held on the line opens its menu rather than
+   * starting to pick them out.
+   */
+  protected readonly isSelectingText = signal(false);
+
+  private readonly messageBody = viewChild<ElementRef<HTMLElement>>('messageBody');
+  private readonly injector = inject(Injector);
+  private stopFollowingSelection: (() => void) | null = null;
+
+  /**
+   * Lets the words of this line be picked out, and picks them all out so the system's handles and
+   * its own actions for them come up.
+   *
+   * That lasts until the words are let go or moved off the line, or something off the line is tapped.
+   */
+  selectText(): void {
+    this.isSelectingText.set(true);
+    afterNextRender(() => this.pickOutBody(), { injector: this.injector });
+  }
+
+  private pickOutBody(): void {
+    const body = this.messageBody()?.nativeElement;
+    const selection = body?.ownerDocument.getSelection();
+    if (!body || !selection) {
+      this.endSelectingText();
+      return;
+    }
+    const range = body.ownerDocument.createRange();
+    range.selectNodeContents(body);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    this.followSelection(body.ownerDocument);
+  }
+
+  private followSelection(page: Document): void {
+    const line = this.hostElement.nativeElement;
+    const onSelectionChange = () => {
+      if (!this.wordsPickedOutIn(line).reachesLine) this.endSelectingText();
+    };
+    const onPointerDown = (event: Event) => {
+      if (event.target instanceof Node && line.contains(event.target)) return;
+      const stillPicked = this.wordsPickedOutIn(line).reachesLine;
+      this.endSelectingText();
+      if (stillPicked) page.getSelection()?.removeAllRanges();
+    };
+    page.addEventListener('selectionchange', onSelectionChange);
+    page.addEventListener('pointerdown', onPointerDown, true);
+    this.stopFollowingSelection = () => {
+      page.removeEventListener('selectionchange', onSelectionChange);
+      page.removeEventListener('pointerdown', onPointerDown, true);
+    };
+  }
+
+  private endSelectingText(): void {
+    this.stopFollowingSelection?.();
+    this.stopFollowingSelection = null;
+    this.isSelectingText.set(false);
   }
 
   readonly imageFile = computed(() => {
@@ -618,6 +686,7 @@ export class ChatMessageComponent {
 
   private readonly _registerDestroy = this.destroyRef.onDestroy(() => {
     if (this.highlightTimer) clearTimeout(this.highlightTimer);
+    this.stopFollowingSelection?.();
   });
 
   private readonly jumpEffect = effect(() => {

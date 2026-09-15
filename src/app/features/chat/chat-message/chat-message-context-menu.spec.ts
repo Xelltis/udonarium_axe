@@ -16,6 +16,7 @@ function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuStat
     hasOriginal: true,
     text: 'こんにちは',
     selectedText: '',
+    isTouch: false,
     ...partial,
   };
 }
@@ -30,6 +31,7 @@ function callbacks(): ChatMessageMenuCallbacks {
     showInTicker: vi.fn(),
     jumpToOriginal: vi.fn(),
     copyText: vi.fn(),
+    selectText: vi.fn(),
   };
 }
 
@@ -108,14 +110,37 @@ describe('buildChatMessageContextMenu()', () => {
     expect(calls.copyText).toHaveBeenCalledWith('みなさん');
   });
 
+  it('offers picking the words out on a touch screen, after copying them', () => {
+    const menu = buildChatMessageContextMenu(state({ isTouch: true }), callbacks(), translate);
+
+    expect(menu.map((action) => action.name).slice(-2)).toEqual([
+      'feature.chat.message.copyText',
+      'feature.chat.message.selectText',
+    ]);
+  });
+
+  it('offers no picking out under a mouse, which picks words out by itself', () => {
+    const menu = buildChatMessageContextMenu(state({ isTouch: false }), callbacks(), translate);
+
+    expect(menu.map((action) => action.name)).not.toContain('feature.chat.message.selectText');
+  });
+
+  it('offers no picking out where the words are kept from the reader', () => {
+    const menu = buildChatMessageContextMenu(state({ isTouch: true, text: '' }), callbacks(), translate);
+
+    expect(menu.map((action) => action.name)).not.toContain('feature.chat.message.selectText');
+  });
+
   it('calls back rather than acting on the line itself', () => {
     const calls = callbacks();
-    const menu = buildChatMessageContextMenu(state(), calls, translate);
+    const menu = buildChatMessageContextMenu(state({ isTouch: true }), calls, translate);
 
     menu.find((action) => action.name === 'feature.chat.message.reply')?.action?.();
     menu.find((action) => action.name === 'feature.chat.message.copyText')?.action?.();
+    menu.find((action) => action.name === 'feature.chat.message.selectText')?.action?.();
 
     expect(calls.reply).toHaveBeenCalledTimes(1);
     expect(calls.copyText).toHaveBeenCalledTimes(1);
+    expect(calls.selectText).toHaveBeenCalledTimes(1);
   });
 });

@@ -918,6 +918,91 @@ describe('ChatMessageComponent', () => {
         expect(open).toHaveBeenCalledTimes(1);
       });
     });
+
+    describe('picking out the words of a line on a touch screen', () => {
+      async function pickingOut(): Promise<Element> {
+        const t = TestBed.inject(TRANSLATE_FN);
+        vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+        said('こんにちは、みなさん');
+        const body = fixture.nativeElement.querySelector('.msg-text') as Element;
+        pressOn(body);
+        offered()
+          .find((action) => action.name === t('feature.chat.message.selectText'))
+          ?.action?.();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        open.mockClear();
+        return body;
+      }
+
+      function isSelectable(body: Element): boolean {
+        fixture.detectChanges();
+        return body.classList.contains('select-text!');
+      }
+
+      it('is offered from the menu of a line on a touch screen', () => {
+        const t = TestBed.inject(TRANSLATE_FN);
+        vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+        said('こんにちは');
+
+        pressOn(fixture.nativeElement.querySelector('.msg-text'));
+
+        expect(offered().map((action) => action.name)).toContain(t('feature.chat.message.selectText'));
+      });
+
+      it('lets the words of that line be picked out, and picks them all out', async () => {
+        const body = await pickingOut();
+
+        expect(isSelectable(body)).toBe(true);
+        expect(window.getSelection()?.toString()).toBe('こんにちは、みなさん');
+      });
+
+      it('opens no menu over the words while they are being picked out', async () => {
+        const body = await pickingOut();
+
+        const event = pressOn(body);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it('ends once the words are let go, and the menu opens again', async () => {
+        const body = await pickingOut();
+
+        window.getSelection()?.removeAllRanges();
+
+        expect(isSelectable(body)).toBe(false);
+        pressOn(body);
+        expect(open).toHaveBeenCalledTimes(1);
+      });
+
+      it('ends once the words picked out move off the line', async () => {
+        const body = await pickingOut();
+        const elsewhere = outsideTheLine('前の話');
+
+        pickOut(elsewhere, 0, elsewhere, 2);
+
+        expect(isSelectable(body)).toBe(false);
+      });
+
+      it('ends on a tap somewhere else, letting the words go', async () => {
+        const body = await pickingOut();
+        const elsewhere = outsideTheLine('前の話');
+
+        elsewhere.parentElement!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+        expect(isSelectable(body)).toBe(false);
+        expect(window.getSelection()?.toString()).toBe('');
+      });
+
+      it('carries on through a tap on the line itself', async () => {
+        const body = await pickingOut();
+
+        body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+        expect(isSelectable(body)).toBe(true);
+      });
+    });
   });
 
   describe('the ticker action', () => {

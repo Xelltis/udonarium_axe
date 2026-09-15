@@ -2666,7 +2666,8 @@
         "shareAsMemo": "共有メモにする",
         "ticker": "ティッカー",
         "copyToTab": "別のタブにコピー",
-        "copyText": "本文をコピー"
+        "copyText": "本文をコピー",
+        "selectText": "文字を選ぶ"
       },
       "stream": {
         "title": "発言の流れ",

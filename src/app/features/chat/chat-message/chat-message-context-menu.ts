@@ -15,6 +15,8 @@ export interface ChatMessageMenuState {
   text: string;
   /** The words picked out inside the line when the menu opened, copied in place of the whole line; empty where none were. */
   selectedText: string;
+  /** Whether the pointer is a touch, under which the words of a line are picked out only on asking. */
+  isTouch: boolean;
 }
 
 export interface ChatMessageMenuCallbacks {
@@ -26,6 +28,7 @@ export interface ChatMessageMenuCallbacks {
   showInTicker: () => void;
   jumpToOriginal: () => void;
   copyText: (text: string) => void;
+  selectText: () => void;
 }
 
 /**
@@ -34,7 +37,8 @@ export interface ChatMessageMenuCallbacks {
  * The same actions sit on the line as buttons that only show under a mouse, so a touch screen
  * reaches them through this instead. Only what those buttons would offer is offered, and copying
  * the words is added, since a press held on the line does not pick them out. Where some of the
- * words were already picked out, copying takes just those.
+ * words were already picked out, copying takes just those. On a touch screen picking the words
+ * out is offered too, for copying a part of them or handing them to the system's own actions.
  */
 export function buildChatMessageContextMenu(
   state: ChatMessageMenuState,
@@ -71,6 +75,9 @@ export function buildChatMessageContextMenu(
     if (actions.length > 0) actions.push(ContextMenuSeparator);
     const copied = state.selectedText.trim().length > 0 ? state.selectedText : state.text;
     actions.push({ name: t('feature.chat.message.copyText'), action: () => callbacks.copyText(copied) });
+    if (state.isTouch) {
+      actions.push({ name: t('feature.chat.message.selectText'), action: () => callbacks.selectText() });
+    }
   }
   return actions;
 }
