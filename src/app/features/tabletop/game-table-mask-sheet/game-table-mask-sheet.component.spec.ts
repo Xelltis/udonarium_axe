@@ -4,6 +4,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { GameTableMaskSheetComponent } from '@axe/features/tabletop/game-table-mask-sheet/game-table-mask-sheet.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -198,6 +199,17 @@ describe('GameTableMaskSheetComponent', () => {
       action('clear-scratched-image')!.click();
 
       expect(mask.scratchedImageIdentifier).toBe('');
+    });
+  });
+
+  describe('the data sheet', () => {
+    it('opens the generic sheet of the mask from its button, for the data the panel does not show', () => {
+      const openSheet = vi.spyOn(TestBed.inject(ObjectPanelService), 'openSheet').mockImplementation(() => undefined);
+
+      action('open-data-sheet')!.click();
+
+      expect(openSheet).toHaveBeenCalledTimes(1);
+      expect(openSheet.mock.calls[0][0]).toBe(mask);
     });
   });
 

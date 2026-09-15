@@ -212,6 +212,16 @@
 
     <section class="flex justify-end gap-2">
       <button
+        class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text mr-auto inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+        type="button"
+        data-action="open-data-sheet"
+        (click)="openDataSheet()"
+        [title]="'feature.tabletop.maskSheet.openDataSheet' | transloco"
+      >
+        <i class="material-icons">list_alt</i>
+        {{ 'feature.tabletop.maskSheet.dataSheet' | transloco }}
+      </button>
+      <button
         class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
         type="button"
         (click)="clone()"

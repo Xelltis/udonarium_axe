@@ -1795,6 +1795,8 @@
         "clearImage": "Remove image",
         "none": "None",
         "clearColor": "Use no color",
+        "dataSheet": "Data sheet",
+        "openDataSheet": "Open every data item in a sheet",
         "copy": "Duplicate",
         "saving": "Saving {{percent}}%",
         "save": "Save"

@@ -1795,6 +1795,8 @@
         "clearImage": "画像を外す",
         "none": "なし",
         "clearColor": "色をなしにする",
+        "dataSheet": "詳細データ",
+        "openDataSheet": "すべてのデータ項目をシートで開く",
         "copy": "コピーを作る",
         "saving": "保存中 {{percent}}%",
         "save": "保存"

@@ -1795,6 +1795,8 @@
         "clearImage": "이미지 해제",
         "none": "없음",
         "clearColor": "색 지우기",
+        "dataSheet": "상세 데이터",
+        "openDataSheet": "모든 데이터 항목을 시트로 열기",
         "copy": "복제 만들기",
         "saving": "저장 중 {{percent}}%",
         "save": "저장"

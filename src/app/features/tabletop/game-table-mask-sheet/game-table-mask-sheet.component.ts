@@ -1,13 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -49,6 +52,8 @@ export class GameTableMaskSheetComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly objectPanels = inject(ObjectPanelService);
+  private readonly t = inject(TRANSLATE_FN);
 
   private readonly _gameTableMask = signal<GameTableMask | null>(null);
 
@@ -229,6 +234,17 @@ export class GameTableMaskSheetComponent {
   clearScratchedImage() {
     const mask = this._gameTableMask();
     if (mask) mask.scratchedImageIdentifier = '';
+  }
+
+  /**
+   * Opens the mask in the generic data sheet, which lists every data element it holds, lets items be
+   * added under its detail, and can move into a window of its own.
+   */
+  openDataSheet() {
+    const mask = this._gameTableMask();
+    if (!mask) return;
+    const title = sheetPanelTitle(this.t('feature.tabletop.panel.mask'), mask.name);
+    this.objectPanels.openSheet(mask, title, { width: 400, height: 300 });
   }
 
   /**
