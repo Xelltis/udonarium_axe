@@ -454,6 +454,10 @@ describe('AudioPlayer', () => {
   describe('instance isAwaitingGesture', () => {
     const settle = () => new Promise((resolve) => setTimeout(resolve));
 
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
     it('is false before anything has played', () => {
       expect(new AudioPlayer().isAwaitingGesture).toBe(false);
     });
