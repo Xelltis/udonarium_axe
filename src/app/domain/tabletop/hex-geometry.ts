@@ -8,6 +8,7 @@
  *   pointy-topped hexes line their rows up horizontally
  */
 
+import { PERF_HEX_CELL_SCAN, perfCounters } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 /**
@@ -149,9 +150,19 @@ export function hexVertices(cx: number, cy: number, s: number, startAngle: numbe
 }
 
 /**
+ * How near a cell boundary a point may be, as a share of half a cell, before rounding alone is not
+ * trusted to name its cell. Far above what rounding can get wrong, and far below a pixel.
+ */
+const HEX_ROUND_TOLERANCE = 1e-9;
+
+/**
  * The column and row of the hex whose centre is nearest a point in table pixels.
  *
  * The answer is not held to the table, so it can be negative or past the last cell.
+ *
+ * The point is rounded to the nearest hex directly. Only a point that lies on or within a hair of
+ * a boundary between cells is settled by comparing the centres around it, which is also what decides
+ * a tie: the cell with the smallest column, then the smallest row, wins it.
  */
 export function pixelToHexCell(
   px: number,
@@ -159,9 +170,49 @@ export function pixelToHexCell(
   gridSize: number,
   isFlatTop: boolean
 ): { col: number; row: number } {
-  const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
+  const { colSpacing, rowSpacing } = hexLayoutOf(gridSize, isFlatTop);
   const colEst = px / colSpacing;
   const rowEst = py / rowSpacing;
+
+  const x = isFlatTop ? colEst : colEst - rowEst / 2;
+  const z = isFlatTop ? rowEst - colEst / 2 : rowEst;
+  const y = -x - z;
+  let rx = Math.round(x);
+  let ry = Math.round(y);
+  let rz = Math.round(z);
+  const dx = Math.abs(rx - x);
+  const dy = Math.abs(ry - y);
+  const dz = Math.abs(rz - z);
+  if (dx > dy && dx > dz) rx = -ry - rz;
+  else if (dy > dz) ry = -rx - rz;
+  else rz = -rx - ry;
+
+  // How far inside its cell the point lies, where 1 is the centre and 0 a boundary. NaN, which
+  // anything not a number comes out as, fails the comparison and goes to the scan.
+  const ex = x - rx;
+  const ey = y - ry;
+  const ez = z - rz;
+  const inside = 1 - Math.max(Math.abs(ex - ey), Math.abs(ey - ez), Math.abs(ez - ex));
+  if (inside > HEX_ROUND_TOLERANCE * (1 + Math.abs(colEst) + Math.abs(rowEst))) {
+    const col = isFlatTop ? rx : rx + Math.floor(rz / 2);
+    const row = isFlatTop ? rz + Math.floor(rx / 2) : rz;
+    return { col: col + 0, row: row + 0 };
+  }
+
+  perfCounters.bump(PERF_HEX_CELL_SCAN);
+  return scanNearestHexCell(px, py, colSpacing, rowSpacing, colEst, rowEst, isFlatTop);
+}
+
+/** The nearest hex centre to a point, found by comparing the candidates around its estimated cell. */
+function scanNearestHexCell(
+  px: number,
+  py: number,
+  colSpacing: number,
+  rowSpacing: number,
+  colEst: number,
+  rowEst: number,
+  isFlatTop: boolean
+): { col: number; row: number } {
   let bestCol = 0;
   let bestRow = 0;
   let bestDist = Infinity;

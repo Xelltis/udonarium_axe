@@ -22,6 +22,7 @@ export const PERF_TERRAIN_COVER_MISS = 'terrainCoverMiss';
 export const PERF_VISION_VOLUME_PAINT = 'visionVolumePaint';
 export const PERF_RANGE_RENDER = 'rangeRender';
 export const PERF_MAP_EDITOR_DRAW = 'mapEditorDraw';
+export const PERF_HEX_CELL_SCAN = 'hexCellScan';
 
 class PerfCounters {
   enabled = false;

@@ -1,6 +1,7 @@
+import { PERF_HEX_CELL_SCAN, perfCounters } from '@axe/core/util/perf-counters';
 import { pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
 import { legacyHexCellCenter, legacyHexSpacing, legacyPixelToHexCell } from '@axe/testing/legacy-hex-lookup';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 type Point = readonly [number, number];
 
@@ -126,4 +127,23 @@ describe('pixelToHexCell against the scan it replaced', () => {
       });
     });
   }
+});
+
+describe('pixelToHexCell on ordinary points', () => {
+  afterEach(() => {
+    perfCounters.enabled = false;
+    perfCounters.clear();
+  });
+
+  it('names almost every cell without comparing the centres around it', () => {
+    perfCounters.enabled = true;
+    perfCounters.clear();
+    const count = 50_000;
+    for (const [px, py] of scatteredPoints(42, count, 50)) {
+      pixelToHexCell(px, py, 50, true);
+      pixelToHexCell(px, py, 50, false);
+    }
+    const scans = perfCounters.drain().get(PERF_HEX_CELL_SCAN) ?? 0;
+    expect(scans).toBeLessThan(count * 2 * 0.01);
+  });
 });
