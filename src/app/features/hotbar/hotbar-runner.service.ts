@@ -7,10 +7,10 @@ import { EffectLibraryService } from '@axe/application/effect/effect-library.ser
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -60,7 +60,7 @@ export class HotbarRunnerService {
   private readonly characterDice = inject(CharacterDiceService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly panelService = inject(PanelService);
-  private readonly selectionSignal = inject(SelectionSignalService);
+  private readonly tableFocus = inject(TableFocusService);
   private readonly uiSignal = inject(UiSignalService);
   private readonly cutInService = inject(CutInService);
   private readonly turnOrder = inject(TurnOrderService);
@@ -267,7 +267,7 @@ export class HotbarRunnerService {
   private runFocus(character: GameCharacter): HotbarRunResult {
     if (character.location.name !== 'table') return failed('offTable');
 
-    this.selectionSignal.focusToCoordinate(character.location.x, character.location.y);
+    this.tableFocus.focusOn(character);
     return OK;
   }
 

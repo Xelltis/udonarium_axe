@@ -1,7 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -1374,6 +1378,48 @@ describe('GameObjectInventoryComponent', () => {
 
       expect(component.multiMoveTargets().size).toBe(1);
       expect(component.filteredRows()[0].identifier).toBe([...component.multiMoveTargets()][0]);
+    });
+  });
+
+  describe('showing a piece on the table', () => {
+    function onTheWall(): GameCharacter {
+      const character = GameCharacter.create('壁のぬし', 1, '');
+      character.location = { name: 'table', x: 120, y: 80, surface: 'north-wall' };
+      return character;
+    }
+
+    function spyOnFocus() {
+      return vi.spyOn(TestBed.inject(TableFocusService), 'focusOn').mockImplementation(() => undefined);
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('shows a piece from its menu through the table focus', () => {
+      const piece = onTheWall();
+      const focusOn = spyOnFocus();
+      TestBed.inject(PointerDeviceService).primeForContextMenu(0, 0);
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+
+      component.onContextMenu(new MouseEvent('contextmenu'), piece);
+      const name = TestBed.inject(TRANSLATE_FN)('feature.inventory.contextMenu.showOnTable');
+      open.mock.calls[0][1].find((action) => action.name === name)?.action?.();
+
+      expect(focusOn).toHaveBeenCalledWith(piece);
+    });
+
+    it('shows a piece on a double click through the table focus', () => {
+      const piece = onTheWall();
+      const focusOn = spyOnFocus();
+      const row = document.createElement('div');
+      row.addEventListener('dblclick', (event) =>
+        (component as unknown as { focusToObject(e: Event, o: GameCharacter): void }).focusToObject(event, piece)
+      );
+
+      row.dispatchEvent(new MouseEvent('dblclick'));
+
+      expect(focusOn).toHaveBeenCalledWith(piece);
     });
   });
 });

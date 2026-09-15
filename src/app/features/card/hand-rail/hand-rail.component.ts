@@ -14,6 +14,7 @@ import { CardGameService } from '@axe/application/card/card-game.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -60,6 +61,7 @@ export class HandRailComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly tableFocus = inject(TableFocusService);
   private readonly coordinateService = inject(CoordinateService);
   private readonly tabletopService = inject(TabletopService);
   protected readonly rail = inject(HandRailService);
@@ -209,7 +211,7 @@ export class HandRailComponent {
     card.update();
     this.objectChange.notifyChanged(card.identifier);
     this.selectionSignalService.selectObject(card.identifier, card.aliasName);
-    if (focus) this.selectionSignalService.focusToCoordinate(card.location.x, card.location.y);
+    if (focus) this.tableFocus.focusOn(card);
   }
 
   protected readonly pairCount = computed(() => findTrumpPairs(this.cards()).length);

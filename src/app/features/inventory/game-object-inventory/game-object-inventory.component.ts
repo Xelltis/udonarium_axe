@@ -27,6 +27,7 @@ import { tableItemNames } from '@axe/application/inventory/summary-items';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -147,6 +148,7 @@ export class GameObjectInventoryComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly tableFocus = inject(TableFocusService);
   private readonly turnOrderService = inject(TurnOrderService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
@@ -1140,7 +1142,7 @@ export class GameObjectInventoryComponent {
         showDetail: (c) => this.showDetail(c),
         showChatPalette: (c) => this.showChatPalette(c),
         showRemoteController: (c) => this.showRemoteController(c),
-        focusOnTable: (o) => this.selectionSignalService.focusToCoordinate(o.location.x, o.location.y),
+        focusOnTable: (o) => this.tableFocus.focusOn(o),
         cloneGameObject: (o) => this.cloneGameObject(o),
         deleteGameObject: (o) => this.deleteGameObject(o),
         setFolder: (o, folderPath) => this.setFolder(o, folderPath),
@@ -1386,7 +1388,7 @@ export class GameObjectInventoryComponent {
     if (gameObject.location.name != 'table') {
       return;
     }
-    this.selectionSignalService.focusToCoordinate(gameObject.location.x, gameObject.location.y);
+    this.tableFocus.focusOn(gameObject);
   }
 
   /**
