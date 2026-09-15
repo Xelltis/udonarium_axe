@@ -47,6 +47,74 @@ export function hexStartAngle(isFlatTop: boolean): number {
   return isFlatTop ? 0 : -Math.PI / 2;
 }
 
+/** The measurements every cell of one hex grid shares. */
+export interface HexLayout {
+  readonly gridSize: number;
+  readonly isFlatTop: boolean;
+  readonly circumradius: number;
+  readonly colSpacing: number;
+  readonly rowSpacing: number;
+  readonly startAngle: number;
+}
+
+const LAYOUT_CACHE_LIMIT = 32;
+const flatTopLayouts = new Map<number, HexLayout>();
+const pointyTopLayouts = new Map<number, HexLayout>();
+
+/**
+ * The spacing, circumradius and first corner of a hex grid, worked out once for each cell size.
+ *
+ * The values are exactly what {@link hexSpacing}, {@link hexCircumradius} and {@link hexStartAngle}
+ * give. Only a size a table can have is remembered; zero, a negative size or one that is not a
+ * number is worked out afresh on every call, so a size read before its real value arrived is never
+ * kept.
+ */
+export function hexLayoutOf(gridSize: number, isFlatTop: boolean): HexLayout {
+  const layouts = isFlatTop ? flatTopLayouts : pointyTopLayouts;
+  const held = layouts.get(gridSize);
+  if (held) return held;
+  const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
+  const layout: HexLayout = {
+    gridSize,
+    isFlatTop,
+    circumradius: hexCircumradius(gridSize),
+    colSpacing,
+    rowSpacing,
+    startAngle: hexStartAngle(isFlatTop),
+  };
+  if (gridSize > 0 && Number.isFinite(gridSize)) {
+    if (layouts.size >= LAYOUT_CACHE_LIMIT) layouts.clear();
+    layouts.set(gridSize, layout);
+  }
+  return layout;
+}
+
+interface CornerTable {
+  readonly cos: readonly number[];
+  readonly sin: readonly number[];
+}
+
+function cornersFrom(startAngle: number): CornerTable {
+  const cos: number[] = [];
+  const sin: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = startAngle + (i * Math.PI) / 3;
+    cos.push(Math.cos(angle));
+    sin.push(Math.sin(angle));
+  }
+  return { cos, sin };
+}
+
+const FLAT_TOP_CORNERS = cornersFrom(hexStartAngle(true));
+const POINTY_TOP_CORNERS = cornersFrom(hexStartAngle(false));
+
+/** The unit offsets of a hex's six corners, kept for the two ways up and worked out for any other turn. */
+function cornersOf(startAngle: number): CornerTable {
+  if (startAngle === hexStartAngle(true)) return FLAT_TOP_CORNERS;
+  if (startAngle === hexStartAngle(false)) return POINTY_TOP_CORNERS;
+  return cornersFrom(startAngle);
+}
+
 /**
  * The centre of a hex cell in table pixels, with odd columns (flat-topped) or odd rows
  * (pointy-topped) shifted by half a step.
@@ -72,10 +140,10 @@ export function hexCellCenter(
 
 /** The corners come back clockwise. */
 export function hexVertices(cx: number, cy: number, s: number, startAngle: number): { x: number; y: number }[] {
+  const { cos, sin } = cornersOf(startAngle);
   const verts: { x: number; y: number }[] = [];
   for (let i = 0; i < 6; i++) {
-    const angle = startAngle + (i * Math.PI) / 3;
-    verts.push({ x: cx + s * Math.cos(angle), y: cy + s * Math.sin(angle) });
+    verts.push({ x: cx + s * cos[i], y: cy + s * sin[i] });
   }
   return verts;
 }
@@ -113,6 +181,23 @@ export function pixelToHexCell(
   return { col: bestCol, row: bestRow };
 }
 
+/** Anything a hex outline can be traced onto: a canvas context, or a Path2D kept to draw later. */
+export interface HexPathSink {
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  closePath(): void;
+}
+
+/** Traces one hex outline from its first corner round to its last, and closes it. */
+export function traceHexPath(sink: HexPathSink, cx: number, cy: number, s: number, startAngle: number): void {
+  const { cos, sin } = cornersOf(startAngle);
+  sink.moveTo(cx + s * cos[0], cy + s * sin[0]);
+  for (let i = 1; i < 6; i++) {
+    sink.lineTo(cx + s * cos[i], cy + s * sin[i]);
+  }
+  sink.closePath();
+}
+
 /** Outlines one hex on a canvas with the context's current stroke style. */
 export function strokeHexPath(
   context: CanvasRenderingContext2D,
@@ -122,14 +207,7 @@ export function strokeHexPath(
   startAngle: number
 ): void {
   context.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const angle = startAngle + (i * Math.PI) / 3;
-    const x = cx + s * Math.cos(angle);
-    const y = cy + s * Math.sin(angle);
-    if (i === 0) context.moveTo(x, y);
-    else context.lineTo(x, y);
-  }
-  context.closePath();
+  traceHexPath(context, cx, cy, s, startAngle);
   context.stroke();
 }
 
@@ -142,13 +220,6 @@ export function fillHexPath(
   startAngle: number
 ): void {
   context.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const angle = startAngle + (i * Math.PI) / 3;
-    const x = cx + s * Math.cos(angle);
-    const y = cy + s * Math.sin(angle);
-    if (i === 0) context.moveTo(x, y);
-    else context.lineTo(x, y);
-  }
-  context.closePath();
+  traceHexPath(context, cx, cy, s, startAngle);
   context.fill();
 }

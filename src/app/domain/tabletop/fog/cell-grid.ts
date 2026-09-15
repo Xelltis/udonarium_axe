@@ -1,9 +1,8 @@
 import { hexStepsAt, SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
-  hexCircumradius,
-  hexSpacing,
-  hexStartAngle,
+  hexCellCenter,
+  hexLayoutOf,
   hexVertices,
   isFlatTopGrid,
   isHexGrid,
@@ -85,8 +84,8 @@ export function cellPolygonOf(grid: CellGrid, index: number): CellPoint[] {
       { x: centre.x - half, y: centre.y + half },
     ];
   }
-  const flatTop = isFlatTopGrid(grid.type);
-  return hexVertices(centre.x, centre.y, hexCircumradius(grid.sizePx), hexStartAngle(flatTop));
+  const { circumradius, startAngle } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));
+  return hexVertices(centre.x, centre.y, circumradius, startAngle);
 }
 
 /**
@@ -99,23 +98,35 @@ export function gridExtentPx(grid: CellGrid): { minX: number; minY: number; maxX
   if (!isHexGrid(grid.type)) {
     return { minX: 0, minY: 0, maxX: grid.cols * grid.sizePx, maxY: grid.rows * grid.sizePx };
   }
-  const flatTop = isFlatTopGrid(grid.type);
-  const { colSpacing, rowSpacing } = hexSpacing(grid.sizePx, flatTop);
-  const s = hexCircumradius(grid.sizePx);
+  const { colSpacing, rowSpacing, circumradius } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));
   return {
-    minX: -s,
-    minY: -s,
-    maxX: colSpacing * grid.cols + s,
-    maxY: rowSpacing * grid.rows + s,
+    minX: -circumradius,
+    minY: -circumradius,
+    maxX: colSpacing * grid.cols + circumradius,
+    maxY: rowSpacing * grid.rows + circumradius,
   };
+}
+
+/**
+ * A function giving the centre of the cell at a column and row, with the grid's measurements looked
+ * up once rather than for every cell.
+ */
+function cellCentreFinder(grid: CellGrid): (col: number, row: number) => CellPoint {
+  if (!isHexGrid(grid.type)) {
+    const size = grid.sizePx;
+    return (col, row) => ({ x: (col + 0.5) * size, y: (row + 0.5) * size });
+  }
+  const { colSpacing, rowSpacing, isFlatTop } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));
+  return (col, row) => hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
 }
 
 /** Visits every cell with its index and centre, row by row. Does nothing on a grid with no size. */
 export function forEachCell(grid: CellGrid, visit: (index: number, cx: number, cy: number) => void): void {
   if (grid.sizePx <= 0) return;
+  const centreOf = cellCentreFinder(grid);
   for (let row = 0; row < grid.rows; row++) {
     for (let col = 0; col < grid.cols; col++) {
-      const centre = cellCentre({ x: col, y: row }, grid);
+      const centre = centreOf(col, row);
       visit(row * grid.cols + col, centre.x, centre.y);
     }
   }
@@ -143,10 +154,11 @@ export function forEachCellInBox(
   const highY = Math.min(maxY, extent.maxY);
   if (lowX > highX || lowY > highY) return;
   const bounds = boxToCellBounds(grid, lowX, lowY, highX, highY);
+  const centreOf = cellCentreFinder(grid);
   for (let row = bounds.fromRow; row <= bounds.toRow; row++) {
     for (let col = bounds.fromCol; col <= bounds.toCol; col++) {
       const index = row * grid.cols + col;
-      const centre = cellCentre({ x: col, y: row }, grid);
+      const centre = centreOf(col, row);
       if (centre.x < minX || centre.x > maxX || centre.y < minY || centre.y > maxY) continue;
       visit(index, centre.x, centre.y);
     }
