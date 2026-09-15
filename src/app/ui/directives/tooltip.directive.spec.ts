@@ -181,6 +181,90 @@ describe('TooltipDirective', () => {
     expect(panels()).toHaveLength(0);
   });
 
+  describe('a detail still on its way on a touch screen', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function touchEvent(type: string, x: number, y: number, fingersDown: number): Event {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      const touch = { clientX: x, clientY: y };
+      Object.defineProperty(event, 'changedTouches', { value: [touch] });
+      Object.defineProperty(event, 'touches', { value: fingersDown > 0 ? [touch] : [] });
+      return event;
+    }
+
+    async function tap(testId: string): Promise<void> {
+      const piece = fixture.nativeElement.querySelector(`[data-testid="${testId}"]`) as HTMLElement;
+      piece.dispatchEvent(touchEvent('touchstart', 5, 5, 1));
+      piece.dispatchEvent(touchEvent('touchend', 5, 5, 0));
+      await Promise.resolve();
+    }
+
+    async function waitForDetail(): Promise<(panel: typeof StubTooltipPanelComponent) => void> {
+      TooltipDirective.TooltipPanelComponentClass = null;
+      let deliver!: (panel: typeof StubTooltipPanelComponent) => void;
+      TooltipDirective.loadTooltipPanelComponent = () => new Promise((resolve) => (deliver = resolve));
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      await tap('first-piece');
+      return (panel) => deliver(panel);
+    }
+
+    async function arrive(deliver: (panel: typeof StubTooltipPanelComponent) => void): Promise<void> {
+      deliver(StubTooltipPanelComponent);
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    it('shows the detail of the tapped piece once it arrives', async () => {
+      const deliver = await waitForDetail();
+
+      await arrive(deliver);
+
+      expect(panels()).toHaveLength(4);
+    });
+
+    it('does not show it once the table has been touched somewhere else', async () => {
+      const deliver = await waitForDetail();
+
+      document.body.dispatchEvent(touchEvent('touchstart', 400, 400, 1));
+      await arrive(deliver);
+
+      expect(panels()).toHaveLength(0);
+    });
+
+    it('does not show it once a pointer has gone down somewhere else', async () => {
+      const deliver = await waitForDetail();
+
+      document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      await arrive(deliver);
+
+      expect(panels()).toHaveLength(0);
+    });
+
+    it('still shows it when the touch lands on the piece itself', async () => {
+      const deliver = await waitForDetail();
+      const piece = fixture.nativeElement.querySelector('[data-testid="piece-body"]') as HTMLElement;
+
+      piece.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      await arrive(deliver);
+
+      expect(panels()).toHaveLength(4);
+    });
+
+    it('stops listening for touches elsewhere once the wait is over', async () => {
+      const bodyAdd = vi.spyOn(document.body, 'addEventListener');
+      const bodyRemove = vi.spyOn(document.body, 'removeEventListener');
+      const deliver = await waitForDetail();
+      const waitingListeners = bodyAdd.mock.calls.filter(([type]) => type === 'pointerdown');
+      expect(waitingListeners).toHaveLength(1);
+
+      await arrive(deliver);
+
+      expect(bodyRemove.mock.calls.filter(([type]) => type === 'pointerdown')).toHaveLength(1);
+    });
+  });
+
   it('turns each detail toward the edge it belongs to', async () => {
     await hover('first-piece');
 

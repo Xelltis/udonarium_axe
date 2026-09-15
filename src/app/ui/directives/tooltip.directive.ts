@@ -74,6 +74,7 @@ export class TooltipDirective {
   private callbackOnMouseLeave = (e: Event) => this.onMouseLeave(e as MouseEvent);
   private callbackOnMouseDown = (e: Event) => this.onMouseDown(e as MouseEvent);
   private callbackOnMouseMove = (e: Event) => this.onMouseMove(e as MouseEvent);
+  private callbackOnPressWhileWaiting = (e: Event) => this.onPressWhileWaiting(e);
 
   private openTooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private closeTooltipTimer: ReturnType<typeof setTimeout> | null = null;
@@ -197,22 +198,41 @@ export class TooltipDirective {
     if (this.closeTooltipTimer) clearTimeout(this.closeTooltipTimer);
     if (this.openTooltipTimer) clearTimeout(this.openTooltipTimer);
     this.closeTooltipTimer = this.openTooltipTimer = null;
-    this.waitingForPanel = false;
+    this.stopWaitingForPanel();
   }
 
-  /** Fetches the detail panel, and shows it if this piece still wants it once it arrives. */
+  /**
+   * Fetches the detail panel, and shows it if this piece still wants it once it arrives.
+   *
+   * A touch or a press anywhere but this piece while it is on its way means the reader has moved
+   * on, so it is not shown then, the same as a showing would close.
+   */
   private fetchPanelThenOpen() {
     const load = TooltipDirective.loadTooltipPanelComponent;
     if (!load) return;
     this.waitingForPanel = true;
+    document.body.addEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
+    document.body.addEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
     void load()
       .then((panelClass) => {
         TooltipDirective.TooltipPanelComponentClass = panelClass;
         if (this.waitingForPanel) this.open();
       })
       .catch(() => {
-        this.waitingForPanel = false;
+        this.stopWaitingForPanel();
       });
+  }
+
+  private onPressWhileWaiting(e: Event) {
+    const host = this.viewContainerRef.element.nativeElement as Element;
+    if (!host.contains(e.target as Node)) this.stopWaitingForPanel();
+  }
+
+  private stopWaitingForPanel() {
+    if (!this.waitingForPanel) return;
+    this.waitingForPanel = false;
+    document.body.removeEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
+    document.body.removeEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
   }
 
   private open() {
@@ -223,7 +243,7 @@ export class TooltipDirective {
       this.fetchPanelThenOpen();
       return;
     }
-    this.waitingForPanel = false;
+    this.stopWaitingForPanel();
 
     const parentViewContainerRef = OverlayLayers.current() ?? ContextMenuService.defaultParentViewContainerRef;
     const injector = parentViewContainerRef.injector;
