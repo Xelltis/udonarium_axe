@@ -2,6 +2,8 @@ import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { SkyWayConnection } from '@axe/core/network/skyway/skyway-connection';
+import { decompressAsync } from '@axe/core/util/compress';
+import * as MessagePack from '@axe/core/util/message-pack';
 import { PERF_INBOUND_DRAIN, perfCounters } from '@axe/core/util/perf-counters';
 
 function flushMicrotasks(): Promise<void> {
@@ -22,9 +24,15 @@ describe('SkyWayConnection', () => {
   describe('sending', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
     let connAny: Record<string, any>;
-    let sent: { isCompressed?: boolean }[];
+    let sent: { data: Uint8Array; isCompressed?: boolean }[];
 
     const compressible = () => new Uint8Array(8 * 1024);
+
+    const messagesIn = async (container: { data: Uint8Array; isCompressed?: boolean }) =>
+      MessagePack.decode(container.isCompressed ? await decompressAsync(container.data) : container.data) as {
+        eventName: string;
+        data: { index?: number };
+      }[];
 
     beforeEach(() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
@@ -32,7 +40,7 @@ describe('SkyWayConnection', () => {
       Object.defineProperty(connAny, 'peers', { get: () => [PeerContext.parse('peer-a')], configurable: true });
       sent = [];
       vi.spyOn(connAny, 'sendBroadcast').mockImplementation((container: unknown) => {
-        sent.push(container as { isCompressed?: boolean });
+        sent.push(container as { data: Uint8Array; isCompressed?: boolean });
       });
     });
 
@@ -51,15 +59,40 @@ describe('SkyWayConnection', () => {
       expect(sent[0].isCompressed).toBe(true);
     });
 
-    it('leaves a batch carrying a piece of a file as it is, since those bytes are compressed already', async () => {
+    it('sends a piece of a file as it is and still gzips the rest of its batch', async () => {
       connAny.send([
         { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 2, chunk: compressible() } },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
         { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
       ]);
       await connAny.outboundQueue;
 
-      expect(sent).toHaveLength(1);
-      expect(sent[0].isCompressed).toBeFalsy();
+      expect(sent.map((container) => !!container.isCompressed)).toEqual([false, true]);
+      expect((await messagesIn(sent[0])).map((m) => m.eventName)).toEqual(['FILE_SEND_CHUNK_some-image']);
+      expect((await messagesIn(sent[1])).map((m) => m.eventName)).toEqual(['UPDATE_GAME_OBJECT', 'UPDATE_GAME_OBJECT']);
+    });
+
+    it('keeps the order of a batch that mixes pieces of a file with other messages', async () => {
+      const batch: { eventName: string; data: unknown }[] = [
+        { eventName: 'START_FILE_TRANSMISSION', data: { taskIdentifier: 'some-image' } },
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 3, chunk: compressible() } },
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 1, length: 3, chunk: compressible() } },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 2, length: 3, chunk: compressible() } },
+      ];
+      connAny.send(batch);
+      await connAny.outboundQueue;
+
+      const received: { eventName: string; data: { index?: number } }[] = [];
+      for (const container of sent) {
+        const messages = await messagesIn(container);
+        if (messages.some((m) => m.eventName.startsWith('FILE_SEND_CHUNK_')))
+          expect(container.isCompressed).toBeFalsy();
+        received.push(...messages);
+      }
+      expect(received.map((m) => [m.eventName, m.data.index])).toEqual(
+        batch.map((m) => [m.eventName, (m.data as { index?: number }).index])
+      );
     });
   });
 

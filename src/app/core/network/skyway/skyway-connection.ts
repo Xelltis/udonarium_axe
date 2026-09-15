@@ -161,12 +161,23 @@ export class SkyWayConnection implements Connection {
   /**
    * Sends data to one peer, or to every connected peer when sendTo is omitted.
    *
-   * The data is encoded, and a large batch without file chunks is compressed; sends go out in call
-   * order after the current task. Nothing is sent while no peer is connected, and a message for a
-   * peer whose channel is not open is dropped.
+   * A batch goes out in runs that keep its order: pieces of a file are sent on their own and as
+   * they are, and a large run of the other messages is compressed. Sends go out in call order
+   * after the current task. Nothing is sent while no peer is connected, and a message for a peer
+   * whose channel is not open is dropped.
    */
   send(data: unknown, sendTo?: string) {
     if (this.peers.length < 1) return;
+    if (!Array.isArray(data) || data.length < 2) {
+      this.sendContainer(data, sendTo, false);
+      return;
+    }
+    for (const run of SkyWayConnection.splitAtFileChunks(data)) {
+      this.sendContainer(run.messages, sendTo, !run.carriesFileChunks);
+    }
+  }
+
+  private sendContainer(data: unknown, sendTo: string | undefined, compressible: boolean) {
     const container: DataContainer = {
       data: MessagePack.encode(data),
       ttl: 1,
@@ -176,12 +187,7 @@ export class SkyWayConnection implements Connection {
     this.bandwidthUsage += byteLength;
     this.outboundQueue = this.outboundQueue.then(async () => {
       await waitZeroTimeout();
-      if (
-        container.data.byteLength > 1024 &&
-        Array.isArray(data) &&
-        data.length > 1 &&
-        !SkyWayConnection.carriesFileChunk(data)
-      ) {
+      if (compressible && container.data.byteLength > 1024) {
         try {
           const compressed = await compressAsync(container.data);
           if (compressed.byteLength < container.data.byteLength) {
@@ -202,16 +208,24 @@ export class SkyWayConnection implements Connection {
   }
 
   /**
-   * Whether a batch carries a piece of an image or audio file.
+   * Splits a batch, in order, into runs that are all pieces of an image or audio file or none.
    *
-   * Those bytes are already compressed, so gzipping the batch around them costs time and
-   * saves nothing.
+   * Those bytes are already compressed, so gzipping them costs time and saves nothing, while the
+   * messages around them still compress well.
    */
-  private static carriesFileChunk(batch: readonly unknown[]): boolean {
-    return batch.some((message) => {
+  private static splitAtFileChunks(batch: readonly unknown[]): { messages: unknown[]; carriesFileChunks: boolean }[] {
+    const runs: { messages: unknown[]; carriesFileChunks: boolean }[] = [];
+    for (const message of batch) {
       const eventName = (message as { eventName?: unknown } | null)?.eventName;
-      return typeof eventName === 'string' && eventName.startsWith('FILE_SEND_CHUNK_');
-    });
+      const isFileChunk = typeof eventName === 'string' && eventName.startsWith('FILE_SEND_CHUNK_');
+      const last = runs.at(-1);
+      if (last && last.carriesFileChunks === isFileChunk) {
+        last.messages.push(message);
+      } else {
+        runs.push({ messages: [message], carriesFileChunks: isFileChunk });
+      }
+    }
+    return runs;
   }
 
   private sendUnicast(container: DataContainer, sendTo: string) {
