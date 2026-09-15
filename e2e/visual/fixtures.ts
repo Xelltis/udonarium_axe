@@ -92,6 +92,14 @@ export async function openTableSetting(page: Page) {
   await expect(page.locator('modal select[name="tableGridType"]')).toBeVisible();
 }
 
+/** Turns the table to flat-topped hexes from the table settings. */
+export async function useHexGrid(page: Page) {
+  await openTableSetting(page);
+  await page.locator('modal select[name="tableGridType"]').selectOption('1');
+  await settle(page);
+  await closeModal(page);
+}
+
 export async function holdAnimationsAt(page: Page, ms: number) {
   await page.evaluate((at) => {
     for (const animation of document.getAnimations()) {
