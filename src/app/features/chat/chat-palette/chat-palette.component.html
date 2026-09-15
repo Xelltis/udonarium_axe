@@ -218,6 +218,73 @@
   </div>
 
   @if (!isEdit() && viewMode() === 'palette') {
+    @if (isSearching()) {
+      <div
+        class="border-ui-border-panel box-border max-h-[40%] min-h-0 shrink-0 overflow-y-auto border-t border-solid font-sans"
+        data-testid="palette-search-results"
+        role="listbox"
+        [attr.aria-label]="'feature.chat.palette.searchResults' | transloco"
+        #searchResultsList
+      >
+        @for (result of searchResults(); track result.row.lineIndex; let i = $index) {
+          <div
+            class="text-ui-text hover:bg-ui-hover box-border flex cursor-pointer items-baseline gap-2 overflow-hidden px-2 py-0.5 text-[0.88em] leading-[1.65]"
+            role="option"
+            [class.bg-ui-accent-bg!]="activeSearchResult() === i"
+            [attr.aria-selected]="activeSearchResult() === i"
+            [attr.data-result-line]="result.row.lineIndex"
+            (click)="pickSearchResult(result)"
+            (contextmenu)="onPaletteRowMenu(result.row, $event)"
+          >
+            <span class="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+              @for (segment of result.segments; track $index) {
+                @if (segment.hit) {
+                  <mark class="bg-ui-accent-bg text-ui-accent rounded-sm whitespace-pre">{{ segment.text }}</mark>
+                } @else {
+                  <span class="whitespace-pre">{{ segment.text }}</span>
+                }
+              }
+            </span>
+            @if (result.heading) {
+              <span class="text-ui-dim max-w-[40%] shrink-0 truncate text-[0.8em]">{{ result.heading }}</span>
+            }
+          </div>
+        } @empty {
+          <div class="text-ui-dim p-2 text-center text-[0.8em] select-none" data-testid="palette-search-empty">
+            {{ 'feature.chat.palette.searchNoMatch' | transloco }}
+          </div>
+        }
+      </div>
+    }
+    <div class="border-ui-border-panel flex shrink-0 items-center gap-1.5 border-t border-solid px-1.5 py-1">
+      <i class="material-icons text-ui-muted text-[16px]!">search</i>
+      <input
+        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border min-w-0 flex-1 border border-solid px-1.75 py-1 text-[12px] transition-[border-color] outline-none"
+        type="text"
+        name="palette-search"
+        autocomplete="off"
+        data-testid="palette-search"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        (keydown)="onSearchKeydown($event)"
+        [placeholder]="'feature.chat.palette.searchPlaceholder' | transloco"
+        [attr.aria-label]="'feature.chat.palette.searchPlaceholder' | transloco"
+      />
+      @if (isSearching()) {
+        <span class="text-ui-dim shrink-0 text-[11px] whitespace-nowrap">{{
+          'feature.chat.palette.searchCount' | transloco: { count: searchResults().length }
+        }}</span>
+        <button
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0.5 [&_.material-icons]:text-base!"
+          type="button"
+          data-action="clear-palette-search"
+          (click)="clearSearch()"
+          [title]="'feature.chat.palette.searchClear' | transloco"
+        >
+          <i class="material-icons">close</i>
+        </button>
+      }
+    </div>
     <div
       class="text-ui-dim border-ui-border-panel grow-0 border-t border-solid px-1.5 py-0.5 text-center text-[0.68em] select-none"
     >

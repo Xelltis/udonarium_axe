@@ -2700,7 +2700,12 @@
         "indexTitle": "Index",
         "noTarget": "No target selected",
         "headingBullet": "◆",
-        "footerHintTouch": "Tap: insert / Double tap: send"
+        "footerHintTouch": "Tap: insert / Double tap: send",
+        "searchPlaceholder": "Search palette lines",
+        "searchResults": "Search results",
+        "searchCount": "{{count}} found",
+        "searchNoMatch": "No matching lines",
+        "searchClear": "Clear search"
       },
       "messageSetting": {
         "sectionText": "Text",

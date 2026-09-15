@@ -2700,7 +2700,12 @@
         "indexTitle": "인덱스",
         "noTarget": "대상이 선택되지 않았습니다",
         "headingBullet": "◆",
-        "footerHintTouch": "탭: 입력 ／ 두 번 탭: 전송"
+        "footerHintTouch": "탭: 입력 ／ 두 번 탭: 전송",
+        "searchPlaceholder": "팔레트 줄 검색",
+        "searchResults": "검색 결과",
+        "searchCount": "{{count}}개",
+        "searchNoMatch": "일치하는 줄이 없습니다",
+        "searchClear": "검색 지우기"
       },
       "messageSetting": {
         "sectionText": "글자",

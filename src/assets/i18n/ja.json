@@ -2700,7 +2700,12 @@
         "indexTitle": "インデックス",
         "noTarget": "対象が未選択です",
         "headingBullet": "◆",
-        "footerHintTouch": "タップ: 入力 ／ 2回タップ: 送信"
+        "footerHintTouch": "タップ: 入力 ／ 2回タップ: 送信",
+        "searchPlaceholder": "パレットの行を検索",
+        "searchResults": "検索結果",
+        "searchCount": "{{count}} 件",
+        "searchNoMatch": "一致する行がありません",
+        "searchClear": "検索をクリア"
       },
       "messageSetting": {
         "sectionText": "文字",

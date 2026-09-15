@@ -24,6 +24,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { splitSearchTerms } from '@axe/core/util/text-search';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatPalette, PaletteIndex } from '@axe/domain/chat/chat-palette';
@@ -36,6 +37,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatPaletteRegistryService } from '@axe/features/chat/chat-palette/chat-palette-registry.service';
+import { PaletteSearchResult, searchPaletteRows } from '@axe/features/chat/chat-palette/chat-palette-search';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { BadgeComponent } from '@axe/ui/components/badge/badge.component';
@@ -95,6 +97,23 @@ export class ChatPaletteComponent {
    * cannot see. A plain list needs nowhere to be put.
    */
   readonly paletteHeadings = computed((): PaletteRow[] => this.paletteRows().filter((row) => row.kind === 'heading'));
+
+  readonly searchResultsRef = viewChild<ElementRef<HTMLElement>>('searchResultsList');
+
+  /** What is typed into the search box under the palette. */
+  readonly searchQuery = signal('');
+
+  /** Whether any word is searched for, so the results are shown under the palette. */
+  readonly isSearching = computed(() => splitSearchTerms(this.searchQuery()).length > 0);
+
+  /** The lines holding what is searched for, in the order they are listed under the palette. */
+  readonly searchResults = computed(() => searchPaletteRows(this.paletteRows(), this.searchQuery()));
+
+  /**
+   * The result Enter takes into the input, moved with the arrow keys; back on the first whenever the
+   * results change.
+   */
+  readonly activeSearchResult = linkedSignal({ source: this.searchResults, computation: () => 0 });
 
   /** Whether this palette stands in a window of its own. */
   readonly windowed = this.panelService.windowed;
@@ -404,6 +423,52 @@ export class ChatPaletteComponent {
   onClickPaletteRow(row: PaletteRow): void {
     this.selectedLine.set(row.lineIndex);
     this.clickPalette(row.text);
+  }
+
+  /**
+   * Puts a search result into the input and picks out its line in the palette, sending it on a
+   * second click, as a palette row does.
+   */
+  pickSearchResult(result: PaletteSearchResult): void {
+    this.onClickPaletteRow(result.row);
+    this.japmIndex(result.row.lineIndex);
+  }
+
+  /**
+   * The keys of the search box: the arrows move through the results, Enter takes the one picked out
+   * into the input without sending it and moves on to the input, and Escape clears the search.
+   * Nothing is done while an IME is composing.
+   */
+  onSearchKeydown(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    const results = this.searchResults();
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (results.length === 0) return;
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const next = Math.min(results.length - 1, Math.max(0, this.activeSearchResult() + step));
+      this.activeSearchResult.set(next);
+      this.searchResultsRef()
+        ?.nativeElement.querySelectorAll<HTMLElement>('[data-result-line]')
+        [next]?.scrollIntoView({ block: 'nearest' });
+    } else if (event.key === 'Enter') {
+      const result = results[this.activeSearchResult()];
+      if (!result) return;
+      event.preventDefault();
+      this.selectPalette(result.row.text);
+      this.japmIndex(result.row.lineIndex);
+      this.chatInputComponent().textAreaElementRef().nativeElement.focus();
+    } else if (event.key === 'Escape') {
+      if (this.searchQuery() === '') return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.clearSearch();
+    }
+  }
+
+  /** Empties the search box, which takes the results away. */
+  clearSearch(): void {
+    this.searchQuery.set('');
   }
 
   /**
