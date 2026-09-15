@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PERF_MOVE_REACH_BUILD, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -175,6 +176,7 @@ export class MoveRangeService {
   private build(character: GameCharacter): { view: MoveRangeView; terms: WalkTerms; start: number } | null {
     const opened = this.opening(character);
     if (!opened) return null;
+    perfCounters.bump(PERF_MOVE_REACH_BUILD);
     const { table, rules, walk } = opened;
 
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);

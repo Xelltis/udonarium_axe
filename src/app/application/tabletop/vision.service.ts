@@ -8,6 +8,7 @@ import {
 } from '@axe/application/tabletop/vision-scene-assembly';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
+  PERF_TERRAIN_COVER_MISS,
   PERF_VISION_CELLS_MISS,
   PERF_VISION_MEMO_MISS,
   PERF_VISION_SCENE,
@@ -606,6 +607,7 @@ export class VisionService {
     const key = `${terrain.identifier}:${terrain.location.x}:${terrain.location.y}:${terrain.rotate}:${cols}x${rows}:${planeZ}`;
     const held = byTerrain.get(key);
     if (held) return held;
+    perfCounters.bump(PERF_TERRAIN_COVER_MISS);
     const built = this.coverOf(terrain, grid, explored, cols, rows, planeZ);
     byTerrain.set(key, built);
     return built;

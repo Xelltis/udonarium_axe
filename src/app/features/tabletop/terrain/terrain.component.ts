@@ -1126,6 +1126,7 @@ export class TerrainComponent {
     const slide = this.gridSlide();
 
     perfCounters.bump(PERF_TERRAIN_GRID_RASTER);
+    if (slide.grow === 0) perfCounters.bump(`${PERF_TERRAIN_GRID_RASTER}:unslid`);
     for (const gridCanvas of this.gridCanvases()) {
       const render = new GridLineRender(gridCanvas.nativeElement);
       render.renderViewport(

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, injec
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { PERF_VISION_VOLUME_PAINT, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -118,6 +119,7 @@ export class TableVisionVolumeOverlayComponent {
     grid: CellGrid,
     volumes: readonly VisionVolume[]
   ): void {
+    perfCounters.bump(PERF_VISION_VOLUME_PAINT);
     const table = this.tabletopService.currentTableVersion();
     const width = table.width * grid.sizePx;
     const height = table.height * grid.sizePx;

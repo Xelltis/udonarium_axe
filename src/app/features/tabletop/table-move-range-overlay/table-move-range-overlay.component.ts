@@ -4,6 +4,7 @@ import { MovePlan, MovePlanService } from '@axe/application/tabletop/move-plan.s
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PERF_MOVE_RANGE_PAINT, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -138,6 +139,7 @@ export class TableMoveRangeOverlayComponent {
     plan: MovePlan | null,
     others: readonly { grid: CellGrid; reach: CellBits | null; way: number[]; jumping: boolean }[]
   ): void {
+    perfCounters.bump(PERF_MOVE_RANGE_PAINT);
     const extent = gridExtentPx(grid);
     const width = Math.max(1, Math.ceil(extent.maxX - extent.minX));
     const height = Math.max(1, Math.ceil(extent.maxY - extent.minY));

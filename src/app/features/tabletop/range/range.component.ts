@@ -25,6 +25,7 @@ import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PERF_RANGE_RENDER, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
@@ -485,6 +486,7 @@ export class RangeComponent {
     const rangeCanvasRef = this.rangeCanvas();
     if (!gridCanvasRef || !rangeCanvasRef) return;
     if (!gridCanvasRef.nativeElement.getContext('2d')) return;
+    perfCounters.bump(PERF_RANGE_RENDER);
     const render = new RangeRender(gridCanvasRef.nativeElement, rangeCanvasRef.nativeElement);
 
     const w = this.width();

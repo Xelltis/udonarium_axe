@@ -1,3 +1,4 @@
+import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
   hexCellCenter,
@@ -74,6 +75,7 @@ function hexVertOffsets(s: number, isFlatTop: boolean): { x: number; y: number }
 
 function buildHexSvgMask(polygons: string[], pixelW: number, pixelH: number): string {
   if (!polygons.length) return EMPTY_MASK;
+  perfCounters.bump(PERF_HEX_MASK_SVG);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pixelW}" height="${pixelH}"><g fill="#000">${polygons.join('')}</g></svg>`;
   return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}") 0px 0px / ${pixelW}px ${pixelH}px no-repeat`;
 }
@@ -249,6 +251,7 @@ export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, wid
   }
 
   if (!lines.length) return '';
+  perfCounters.bump(PERF_HEX_MASK_SVG);
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${geo.pixelW}" height="${geo.pixelH}">` +
     `<g stroke="#ccc" stroke-width="2" stroke-linecap="round">${lines.join('')}</g></svg>`;

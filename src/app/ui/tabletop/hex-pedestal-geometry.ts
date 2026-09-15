@@ -1,3 +1,4 @@
+import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { hexCircumradius, hexStartAngle } from '@axe/domain/tabletop/hex-geometry';
 
 export interface HexFlowerParams {
@@ -170,6 +171,7 @@ export function buildHexRingClipPath(outline: Point[], bbox: BoundingBox, border
  * corner instead. `L` is the piece's width in pixels and `g` the grid size.
  */
 export function calcHexFlowerParams(size: number, gridSize: number, isFlatTop: boolean): HexFlowerParams {
+  perfCounters.bump(PERF_HEX_PEDESTAL_OUTLINE);
   const L = size * gridSize;
   const outline =
     size % 1 !== 0
