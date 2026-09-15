@@ -292,10 +292,7 @@ export class GameTableComponent {
       if (!focus || !this.gameTable) return;
       this.glideTimer = setTimeout(() => {
         this.gameTable().nativeElement.style.transition = '0.2s ease-out';
-        this.glideTimer = setTimeout(() => {
-          this.glideTimer = null;
-          this.gameTable().nativeElement.style.transition = '';
-        }, 100);
+        this.glideTimer = setTimeout(() => this.landGlide(), 100);
         const moved = glideTransform(focus, this.tableVisualCenter(), {
           rotateX: this.gestureService.viewRotateX,
           rotateZ: this.gestureService.viewRotateZ,
@@ -1183,6 +1180,18 @@ export class GameTableComponent {
     this.objectChangeService.versionOf(table.identifier)();
     this.objectChangeService.versionOf(this.tableSelecter.identifier)();
     return table;
+  }
+
+  /**
+   * Takes the easing off the table once the camera has glided to the focus.
+   *
+   * Taking it off lands the camera at once, so whatever read the view while it was on the way is
+   * told the view has been written out again.
+   */
+  private landGlide(): void {
+    this.glideTimer = null;
+    this.gameTable().nativeElement.style.transition = '';
+    this.coordinateService.invalidateTabletopTransform();
   }
 
   private tableVisualCenter(): { x: number; y: number } {
