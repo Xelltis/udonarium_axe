@@ -219,11 +219,12 @@ export class ChatMessageComponent {
    * through this. A link keeps the browser's own menu, and so does a line being edited. So does a
    * right click while words reaching into the line are picked out, which is how they are copied
    * with a mouse; a press held on a touch screen still opens this, and copies just those words.
+   * Pictures keep the browser's menu as {@link keepsBrowserMenu} tells.
    */
   protected onMessageContextMenu(event: MouseEvent): void {
     const message = this.chatMessage;
     if (!message || this.readOnly() || this.isEditing()) return;
-    if (event.target instanceof Element && event.target.closest('a, textarea, input')) return;
+    if (this.keepsBrowserMenu(event.target)) return;
     const picked = this.wordsPickedOutIn(this.hostElement.nativeElement);
     if (picked.reachesLine && !this.viewport.isTouch()) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
@@ -258,6 +259,19 @@ export class ChatMessageComponent {
     event.preventDefault();
     event.stopPropagation();
     this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name));
+  }
+
+  /**
+   * Whether a right click or a press held on this part of the line is left to the browser.
+   *
+   * A link or a text box always is. So is a picture sent with the line, whose browser menu is the
+   * only way to open or save it. Any other picture, such as the speaker's portrait, is under a
+   * mouse; a press held on it on a touch screen opens the line's menu instead.
+   */
+  private keepsBrowserMenu(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) return false;
+    if (target.closest('a, textarea, input, .message-attachment-image')) return true;
+    return !this.viewport.isTouch() && target.closest('img') !== null;
   }
 
   /**

@@ -824,6 +824,71 @@ describe('ChatMessageComponent', () => {
 
       expect(writeText).toHaveBeenCalledWith('みなさん');
     });
+
+    describe('over a picture on the line', () => {
+      const images: string[] = [];
+
+      afterEach(() => {
+        images.splice(0).forEach((identifier) => ImageStorage.instance.delete(identifier));
+      });
+
+      function saidWithPictures(): void {
+        const portrait = ImageStorage.instance.add('speaker-portrait.png');
+        const attached = ImageStorage.instance.add('attached-picture.png');
+        images.push(portrait.identifier, attached.identifier);
+        const message = said('見て');
+        message.imageIdentifier = portrait.identifier;
+        message.attachmentImageIdentifiers = JSON.stringify([attached.identifier]);
+        TestBed.inject(ObjectChangeService).notifyChanged(message.identifier);
+        fixture.detectChanges();
+      }
+
+      function attachedPicture(): Element {
+        return fixture.nativeElement.querySelector('.message-attachment-image');
+      }
+
+      function portrait(): Element {
+        return fixture.nativeElement.querySelector('img[src="speaker-portrait.png"]');
+      }
+
+      it("leaves the browser's own menu to a right click on a picture attached to the line", () => {
+        saidWithPictures();
+
+        const event = pressOn(attachedPicture());
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it("leaves the browser's own menu to a press held on an attached picture on a touch screen", () => {
+        vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+        saidWithPictures();
+
+        const event = pressOn(attachedPicture());
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it("leaves the browser's own menu to a right click on the speaker's portrait", () => {
+        saidWithPictures();
+
+        const event = pressOn(portrait());
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it("still opens the line's menu from a press held on the speaker's portrait on a touch screen", () => {
+        vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+        saidWithPictures();
+
+        const event = pressOn(portrait());
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(open).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('the ticker action', () => {
