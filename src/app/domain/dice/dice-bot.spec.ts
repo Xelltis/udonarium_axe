@@ -158,6 +158,29 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('says nothing about a line that only changes a resource or a buff', async () => {
+      await failFetching(Infinity);
+      const me = { userId: 'me' } as IPeerContext;
+      setPeerContextProvider({ peerContext: me, peerContexts: [me], peerIds: ['me'], peerId: 'me' });
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const bot = new DiceBot();
+      bot.initialize();
+      const lines = [':HP-5', 't:MP+3', 's:HP-1d6', 'st:HP-2', '&毒3'].map((text, i) =>
+        tab.addMessage({ from: 'me', name: 'わたし', text, timestamp: 1000 + i, tag: UNREACHABLE })
+      );
+
+      const unrolled: DiceBotUnreachableEvent[] = [];
+      const stopListening = diceBotUnreachable$.subscribe((event) => unrolled.push(event));
+      for (const line of lines) emitSendMessage({ messageIdentifier: line.identifier, messageTarget: null });
+      await settle();
+      stopListening();
+
+      expect(unrolled).toEqual([]);
+
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('works out a resource change with the plain dice bot meanwhile', async () => {
       await failFetching(Infinity);
       PeerCursor.createMyCursor();

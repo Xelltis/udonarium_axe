@@ -197,10 +197,14 @@ export class DiceBot extends GameObject {
 
   /**
    * Whether text under the stand-in may be a dice command: its first word holds a digit or one of
-   * `<>=[(`. With no command pattern to go by, this keeps ordinary chat from being taken for a roll.
+   * `<>=[(`, and is not a resource or buff change, which begins with `:` or `&` after an optional
+   * `s` or `t`. With no command pattern to go by, this keeps ordinary chat, and changes worked out
+   * apart from any roll, from being taken for a roll.
    */
   private static looksLikeCommand(text: string): boolean {
-    return /^\S*[\d<>=[(]/.test(text);
+    const firstWord = /^\S*/.exec(text)?.[0] ?? '';
+    if (/^[sｓＳ]?[tｔＴ]?[:：&＆]/i.test(firstWord)) return false;
+    return /[\d<>=[(]/.test(firstWord);
   }
 
   private static get loadingQueue(): PromiseQueue {
