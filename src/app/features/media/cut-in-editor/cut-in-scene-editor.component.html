@@ -55,7 +55,7 @@
       class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[14px]!"
       type="button"
       data-testid="cut-in-remove-keys"
-      [disabled]="!isEditable() || !hasKeyAtPlayhead()"
+      [disabled]="!isEditable() || !canRemoveKeysAtPlayhead()"
       [title]="'feature.media.cutInEditor.removeKeysHere' | transloco"
       (click)="removeKeysAtPlayhead()"
     >

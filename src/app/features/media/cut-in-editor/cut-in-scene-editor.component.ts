@@ -233,12 +233,16 @@ export class CutInSceneEditorComponent {
     return this.layers().find((layer) => layer.identifier === identifier) ?? null;
   });
 
-  /** Whether the layer in hand has a key at the playhead, for the button that takes it away. */
-  protected readonly hasKeyAtPlayhead = computed(() => {
+  /**
+   * Whether the layer in hand has a key at the playhead that may be taken away, for the button
+   * that does it. A locked layer's keys stay where they are, as they do on the timeline.
+   */
+  protected readonly canRemoveKeysAtPlayhead = computed(() => {
     const layer = this.selected();
     if (!layer) return false;
     this.objectChange.versionOf(layer.identifier)();
     this.bumped();
+    if (layer.locked) return false;
     const ms = this.playheadMs();
     return layerKeyTimes(layer).some((time) => Math.abs(time - ms) <= KEY_TOLERANCE_MS);
   });
@@ -532,8 +536,9 @@ export class CutInSceneEditorComponent {
     if (moveLayerKeys(moved.layer, moved.fromMs, moved.toMs)) this.changed();
   }
 
+  /** Takes away every key a layer has at a moment, unless the layer is locked. */
   protected onRemoveKey(removed: { layer: CutInLayer; ms: number }): void {
-    if (!this.isEditable()) return;
+    if (!this.isEditable() || removed.layer.locked) return;
     if (removeLayerKeys(removed.layer, removed.ms)) this.changed();
   }
 

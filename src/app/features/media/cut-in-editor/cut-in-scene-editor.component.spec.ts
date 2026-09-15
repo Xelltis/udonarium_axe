@@ -465,10 +465,12 @@ describe('CutInSceneEditorComponent', () => {
 
   describe('taking away what stands at the playhead, for a screen that cannot double-click', () => {
     type PlayheadApi = {
-      hasKeyAtPlayhead(): boolean;
+      canRemoveKeysAtPlayhead(): boolean;
       hasSoundAtPlayhead(): boolean;
       removeKeysAtPlayhead(): void;
       removeSoundAtPlayhead(): void;
+      onToggleLocked(layer: CutInLayer): void;
+      onRemoveKey(removed: { layer: CutInLayer; ms: number }): void;
     };
 
     function playhead(): PlayheadApi {
@@ -488,16 +490,59 @@ describe('CutInSceneEditorComponent', () => {
       editor().changed();
 
       editor().onSeek(500);
-      expect(playhead().hasKeyAtPlayhead()).toBe(false);
+      expect(playhead().canRemoveKeysAtPlayhead()).toBe(false);
 
       editor().onSeek(1000);
-      expect(playhead().hasKeyAtPlayhead()).toBe(true);
+      expect(playhead().canRemoveKeysAtPlayhead()).toBe(true);
 
       playhead().removeKeysAtPlayhead();
 
       expect(layer.trackSet.x?.map((key) => key.t)).toEqual([0]);
       expect(layer.trackSet.opacity ?? []).toEqual([]);
-      expect(playhead().hasKeyAtPlayhead()).toBe(false);
+      expect(playhead().canRemoveKeysAtPlayhead()).toBe(false);
+    });
+
+    describe('on a locked layer', () => {
+      function keyedAtPlayhead(): CutInLayer {
+        editor().addImageLayer();
+        const layer = component.layers()[0];
+        layer.tracks = encodeCutInTracks({
+          x: [
+            { t: 0, v: 0 },
+            { t: 1000, v: 10 },
+          ],
+        });
+        editor().changed();
+        editor().onSeek(1000);
+        fixture.detectChanges();
+        return layer;
+      }
+
+      function removeKeysButton(): HTMLButtonElement {
+        return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+          '[data-testid="cut-in-remove-keys"]'
+        )!;
+      }
+
+      it('turns off the button that takes the keys away', () => {
+        const layer = keyedAtPlayhead();
+        expect(removeKeysButton().disabled).toBe(false);
+
+        playhead().onToggleLocked(layer);
+        fixture.detectChanges();
+
+        expect(removeKeysButton().disabled).toBe(true);
+      });
+
+      it('leaves the keys where they are, whatever asks for them to go', () => {
+        const layer = keyedAtPlayhead();
+        playhead().onToggleLocked(layer);
+
+        playhead().removeKeysAtPlayhead();
+        playhead().onRemoveKey({ layer, ms: 1000 });
+
+        expect(layer.trackSet.x?.map((key) => key.t)).toEqual([0, 1000]);
+      });
     });
 
     it('takes away the sound the playhead stands on', () => {
