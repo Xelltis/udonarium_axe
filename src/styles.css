@@ -3094,16 +3094,24 @@ body.touch-input .touch-target + .touch-target::after {
 
 /*
  * The table takes long presses and drags on whatever lies under the finger. iOS answers a long
- * press on a picture with the menu that saves it, and iPadOS lifts the picture out to be dropped
- * somewhere else, both in place of moving the piece. Neither happens with a mouse, so this holds
- * whether or not the screen has been told apart as a touch screen yet.
+ * press on a picture with the menu that saves it, in place of moving the piece; a mouse never
+ * brings that menu up, so it is kept off everywhere, whether or not the screen has been told
+ * apart as a touch screen yet.
  */
 game-table {
   -webkit-touch-callout: none;
 }
 
-game-table img {
-  -webkit-user-drag: none;
+/*
+ * iPadOS lifts a picture under a finger out of the page to be dropped somewhere else. A mouse
+ * dragging a picture the table has not taken the drag for may still carry it out to be saved,
+ * so this holds only where the primary pointer is coarse, which is how an iPad reports itself
+ * with or without a trackpad, and is read by the browser before any script has run.
+ */
+@media (pointer: coarse) {
+  game-table img {
+    -webkit-user-drag: none;
+  }
 }
 
 body.mobile-layout app-mobile-chat-pane .chat-input,
