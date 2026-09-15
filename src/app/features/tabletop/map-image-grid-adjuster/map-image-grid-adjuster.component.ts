@@ -222,7 +222,7 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     const canvas = this.hexCanvasRef()?.nativeElement;
     if (!canvas || typeof canvas.getContext !== 'function') return;
     if (!canvas.getContext('2d')) return;
-    new GridLineRender(canvas).renderViewport(w, h, cell, type, this.gridColor, 'transparent', 0, 0);
+    new GridLineRender(canvas).renderViewport(w, h, cell, type, this.gridColor, 'transparent', 0, 0, false);
   }
 
   private measureStage(stage: HTMLElement) {
