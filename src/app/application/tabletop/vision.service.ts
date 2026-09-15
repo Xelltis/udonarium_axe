@@ -311,8 +311,8 @@ export class VisionService {
    * Whether a piece still gives the scene what it gave when the scene was last built.
    *
    * A piece is changed for many things the lights and the sight never read, its name or a note
-   * on it among them, and building the scene again for those set every eye on the table to work
-   * out its cells again.
+   * on it among them, and building the scene again for those would set every eye on the table to
+   * work out its cells again.
    */
   private leavesSceneAsBuilt(identifier: string): boolean {
     const built = this.sceneKeys.get(identifier);

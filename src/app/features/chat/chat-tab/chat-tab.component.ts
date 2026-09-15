@@ -306,9 +306,9 @@ export class ChatTabComponent {
    * Lets go of the lines far above a reader who has come to rest at the bottom, on iOS.
    *
    * iOS never narrows the rendered lines while it scrolls, since moving the scroll position
-   * under a momentum scroll makes it jump, so a long session there kept every line that arrived
-   * in the document. Once the reader rests at the bottom the lines are cut back to what fills
-   * the panel, the way a jump to the bottom does.
+   * under a momentum scroll makes it jump, so without this a long session there would keep every
+   * line that arrives in the document. Once the reader rests at the bottom the lines are cut back
+   * to what fills the panel, the way a jump to the bottom does.
    */
   private trimRenderedRangeOnIOS() {
     const panel = this.panelService.scrollablePanel;

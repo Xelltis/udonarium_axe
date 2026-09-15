@@ -33,8 +33,8 @@ export function visibleCellsLightKey(scene: VisionScene): string {
  * The cells each pair of eyes reaches, kept for as long as neither the eyes nor what they look
  * through have changed.
  *
- * A piece crossing the floor builds the scene again, and every pair of eyes on the table worked
- * out its cells again with it, though only the one that moved could see anything new.
+ * A piece crossing the floor builds the scene again. Without this, every pair of eyes on the table
+ * would work out its cells again with it, though only the one that moved could see anything new.
  */
 export class VisibleCellsMemo {
   private surroundings: readonly unknown[] = [];
