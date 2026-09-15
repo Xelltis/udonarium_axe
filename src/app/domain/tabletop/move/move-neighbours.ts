@@ -1,63 +1,10 @@
+import { CellStep, hexStepsAt, ORTHOGONAL_STEPS, SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
 import { cellColRow, CellGrid, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 
 /** A step across a corner is a step, the same as one along a side. */
 export const DIAGONAL_COSTS_ONE_CELL = true;
-
-type Step = readonly [number, number];
-
-const ORTHOGONAL_STEPS: readonly Step[] = [
-  [0, -1],
-  [1, 0],
-  [0, 1],
-  [-1, 0],
-];
-
-const DIAGONAL_STEPS: readonly Step[] = [
-  [1, -1],
-  [1, 1],
-  [-1, 1],
-  [-1, -1],
-];
-
-const SQUARE_STEPS_WITH_CORNERS: readonly Step[] = [...ORTHOGONAL_STEPS, ...DIAGONAL_STEPS];
-
-const FLAT_TOP_EVEN_COLUMN_STEPS: readonly Step[] = [
-  [0, -1],
-  [1, -1],
-  [1, 0],
-  [0, 1],
-  [-1, 0],
-  [-1, -1],
-];
-
-const FLAT_TOP_ODD_COLUMN_STEPS: readonly Step[] = [
-  [0, -1],
-  [1, 0],
-  [1, 1],
-  [0, 1],
-  [-1, 1],
-  [-1, 0],
-];
-
-const POINTY_TOP_EVEN_ROW_STEPS: readonly Step[] = [
-  [0, -1],
-  [1, 0],
-  [0, 1],
-  [-1, 1],
-  [-1, 0],
-  [-1, -1],
-];
-
-const POINTY_TOP_ODD_ROW_STEPS: readonly Step[] = [
-  [1, -1],
-  [1, 0],
-  [1, 1],
-  [0, 1],
-  [-1, 0],
-  [0, -1],
-];
 
 /**
  * Which way a piece may step out of a cell.
@@ -66,12 +13,9 @@ const POINTY_TOP_ODD_ROW_STEPS: readonly Step[] = [
  * On squares there are corners, and whether a piece may cut them is the table's to say:
  * allowed, a step across one costs what a step along a side does.
  */
-function stepsFor(gridType: GridType, col: number, row: number, cutsCorners: boolean): readonly Step[] {
+function stepsFor(gridType: GridType, col: number, row: number, cutsCorners: boolean): readonly CellStep[] {
   if (!isHexGrid(gridType)) return cutsCorners ? SQUARE_STEPS_WITH_CORNERS : ORTHOGONAL_STEPS;
-  if (isFlatTopGrid(gridType)) {
-    return Math.abs(col % 2) === 1 ? FLAT_TOP_ODD_COLUMN_STEPS : FLAT_TOP_EVEN_COLUMN_STEPS;
-  }
-  return Math.abs(row % 2) === 1 ? POINTY_TOP_ODD_ROW_STEPS : POINTY_TOP_EVEN_ROW_STEPS;
+  return hexStepsAt(isFlatTopGrid(gridType), col, row);
 }
 
 /**
