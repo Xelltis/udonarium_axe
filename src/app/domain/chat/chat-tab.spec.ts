@@ -111,6 +111,52 @@ describe('ChatTab', () => {
       }
     });
 
+    it('reads the log once however many results look for a line it does not hold', () => {
+      const tab = tabWithChatter(300);
+      const results = Array.from({ length: 40 }, (_, i) =>
+        tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<BCDice：アリス>',
+          text: `(1D6) → ${i}`,
+          timestamp: 1001 + i * 10,
+        })
+      );
+      const readings = vi.spyOn(ChatMessage.prototype, 'timestamp', 'get');
+      try {
+        for (let pass = 0; pass < 2; pass++) {
+          for (const rolled of results) expect(tab.findRollSource(rolled)).toBeNull();
+        }
+
+        expect(readings.mock.calls.length).toBeLessThan(2 * tab.chatMessages.length);
+      } finally {
+        readings.mockRestore();
+        tab.destroy();
+      }
+    });
+
+    it('finds a line that arrives after it was first looked for, and not one that has left the tab', () => {
+      const tab = tabWithChatter(20);
+      try {
+        const rolled = tab.addMessage({
+          from: 'System-BCDice',
+          originFrom: 'roller',
+          name: '<BCDice：アリス>',
+          text: '(2D6) → 7',
+          timestamp: 3006,
+        });
+        expect(tab.findRollSource(rolled)).toBeNull();
+
+        const said = tab.addMessage({ from: 'roller', name: 'アリス', text: '2d6', timestamp: 3005 });
+        expect(tab.findRollSource(rolled)).toBe(said);
+
+        tab.removeChild(said);
+        expect(tab.findRollSource(rolled)).toBeNull();
+      } finally {
+        tab.destroy();
+      }
+    });
+
     it('finds nothing said at that moment by somebody else', () => {
       const tab = tabWithChatter(20);
       try {
