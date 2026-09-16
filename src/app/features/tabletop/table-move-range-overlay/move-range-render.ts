@@ -1,5 +1,14 @@
+import { hexSideStepsAt, ORTHOGONAL_STEPS } from '@axe/domain/tabletop/cell-steps';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, CellGrid, cellIndexAt, CellPoint, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
+import {
+  cellColRow,
+  CellGrid,
+  cellIndexOf,
+  CellPoint,
+  cellPolygonOf,
+  sameCellGrid,
+} from '@axe/domain/tabletop/fog/cell-grid';
+import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 
 export interface OutlineSegment {
   x1: number;
@@ -7,8 +16,6 @@ export interface OutlineSegment {
   x2: number;
   y2: number;
 }
-
-const EDGE_PROBE_OVERSHOOT = 1.2;
 
 /**
  * The outline of every marked cell, one polygon per cell, for filling in the area on an overlay.
@@ -24,30 +31,69 @@ export function moveRangePolygons(grid: CellGrid, cells: CellBits): CellPoint[][
 /**
  * The edges round the outside of the marked cells, leaving out every edge two marked cells share.
  *
- * Each edge is checked by probing just past its midpoint, which serves square and hex cells alike.
- * Empty for a grid without a size.
+ * Side `i` of a cell runs from corner `i` to corner `i + 1`, and the step tables say which cell
+ * lies across it, on squares and on hexes of either bearing. Empty for a grid without a size.
  */
 export function moveRangeOutline(grid: CellGrid, cells: CellBits): OutlineSegment[] {
   const edges: OutlineSegment[] = [];
   if (grid.sizePx <= 0) return edges;
+  const hex = isHexGrid(grid.type);
+  const flatTop = hex && isFlatTopGrid(grid.type);
 
   for (let index = 0; index < cells.count; index++) {
     if (!cells.get(index)) continue;
-    const centre = cellCenterOf(grid, index);
+    const { col, row } = cellColRow(grid, index);
     const corners = cellPolygonOf(grid, index);
-    for (let corner = 0; corner < corners.length; corner++) {
-      const a = corners[corner];
-      const b = corners[(corner + 1) % corners.length];
-      const midX = (a.x + b.x) / 2;
-      const midY = (a.y + b.y) / 2;
-      const beyond = cellIndexAt(
-        grid,
-        centre.x + (midX - centre.x) * EDGE_PROBE_OVERSHOOT,
-        centre.y + (midY - centre.y) * EDGE_PROBE_OVERSHOOT
-      );
-      if (beyond >= 0 && beyond !== index && cells.get(beyond)) continue;
+    const steps = hex ? hexSideStepsAt(flatTop, col, row) : ORTHOGONAL_STEPS;
+    for (let side = 0; side < corners.length; side++) {
+      const [acrossCol, acrossRow] = steps[side];
+      const beyond = cellIndexOf(grid, col + acrossCol, row + acrossRow);
+      if (beyond >= 0 && cells.get(beyond)) continue;
+      const a = corners[side];
+      const b = corners[(side + 1) % corners.length];
       edges.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
     }
   }
   return edges;
+}
+
+interface CellPaths {
+  grid: CellGrid;
+  sizePx: number;
+  area: Path2D;
+  border: Path2D;
+}
+
+const drawn = new WeakMap<CellBits, CellPaths>();
+
+/**
+ * The area and the outline of a set of cells, as paths kept against the cells themselves.
+ *
+ * A reach is drawn again on every repaint - a peer moving their pointer repaints the whole
+ * overlay - while the cells behind it hold still, so the paths are traced once and handed back
+ * for as long as the same cells are drawn on the same grid.
+ *
+ * The cells drawn from are taken to stand still: a caller that rewrites a `CellBits` it has
+ * already drawn must hand over a new one rather than change that one in place.
+ */
+export function cellPathsFor(grid: CellGrid, cells: CellBits): { area: Path2D; border: Path2D } {
+  const held = drawn.get(cells);
+  if (held && sameCellGrid(held.grid, grid) && held.sizePx === grid.sizePx) return held;
+
+  const area = new Path2D();
+  for (const polygon of moveRangePolygons(grid, cells)) {
+    area.moveTo(polygon[0].x, polygon[0].y);
+    for (let corner = 1; corner < polygon.length; corner++) area.lineTo(polygon[corner].x, polygon[corner].y);
+    area.closePath();
+  }
+
+  const border = new Path2D();
+  for (const edge of moveRangeOutline(grid, cells)) {
+    border.moveTo(edge.x1, edge.y1);
+    border.lineTo(edge.x2, edge.y2);
+  }
+
+  const paths: CellPaths = { grid, sizePx: grid.sizePx, area, border };
+  drawn.set(cells, paths);
+  return paths;
 }

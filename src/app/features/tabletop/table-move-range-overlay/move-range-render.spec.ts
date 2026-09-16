@@ -2,12 +2,13 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
+  cellPathsFor,
   moveRangeOutline,
   moveRangePolygons,
   OutlineSegment,
 } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
 import { legacyCellCenterOf, legacyCellIndexAt, legacyCellPolygonOf } from '@axe/testing/legacy-hex-lookup';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** The outline as it was drawn before, each edge checked by probing just past its midpoint. */
 function legacyOutline(grid: CellGrid, cells: CellBits): OutlineSegment[] {
@@ -119,5 +120,61 @@ describe('the shape a reach is drawn as', () => {
       const bits = bitsOf(cellCount(hex), [cellIndexOf(hex, 2, 2), cellIndexOf(hex, 2, 3)]);
       expect(moveRangeOutline(hex, bits)).toHaveLength(10);
     }
+  });
+});
+
+describe('the paths a drawn reach is kept as', () => {
+  const grid = cellGridOf(6, 6, 50, GridType.SQUARE);
+  let traced: number;
+
+  beforeEach(() => {
+    traced = 0;
+    // happy-dom has no canvas, so the paths are counted rather than drawn.
+    vi.stubGlobal(
+      'Path2D',
+      class {
+        constructor() {
+          traced++;
+        }
+        moveTo(): void {}
+        lineTo(): void {}
+        closePath(): void {}
+      }
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('traces a set of cells once and hands the same paths back', () => {
+    const cells = bitsOf(cellCount(grid), [cellIndexOf(grid, 2, 2), cellIndexOf(grid, 3, 2)]);
+
+    const first = cellPathsFor(grid, cells);
+    const second = cellPathsFor(grid, cells);
+
+    expect(second.area).toBe(first.area);
+    expect(second.border).toBe(first.border);
+    expect(traced).toBe(2);
+  });
+
+  it('traces them again on a board of another size', () => {
+    const cells = bitsOf(cellCount(grid), [cellIndexOf(grid, 2, 2)]);
+    const first = cellPathsFor(grid, cells);
+
+    const smaller = cellPathsFor(cellGridOf(6, 6, 37, GridType.SQUARE), cells);
+
+    expect(smaller.area).not.toBe(first.area);
+    expect(traced).toBe(4);
+  });
+
+  it('traces them again on a board whose cells are numbered differently', () => {
+    const cells = bitsOf(cellCount(grid), [cellIndexOf(grid, 2, 2)]);
+    const first = cellPathsFor(grid, cells);
+
+    const hex = cellPathsFor(cellGridOf(6, 6, 50, GridType.HEX_VERTICAL), cells);
+
+    expect(hex.area).not.toBe(first.area);
+    expect(traced).toBe(4);
   });
 });

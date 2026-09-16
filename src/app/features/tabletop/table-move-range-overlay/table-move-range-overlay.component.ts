@@ -10,7 +10,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellGridOf, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { moveRangeOutline, moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
+import { cellPathsFor } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
 import { overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -191,20 +191,10 @@ export class TableMoveRangeOverlayComponent {
     stroke: string,
     dash: readonly number[] = []
   ): void {
-    const area = new Path2D();
-    for (const polygon of moveRangePolygons(grid, cells)) {
-      area.moveTo(polygon[0].x, polygon[0].y);
-      for (let corner = 1; corner < polygon.length; corner++) area.lineTo(polygon[corner].x, polygon[corner].y);
-      area.closePath();
-    }
+    const { area, border } = cellPathsFor(grid, cells);
     context.fillStyle = fill;
     context.fill(area);
 
-    const border = new Path2D();
-    for (const edge of moveRangeOutline(grid, cells)) {
-      border.moveTo(edge.x1, edge.y1);
-      border.lineTo(edge.x2, edge.y2);
-    }
     context.strokeStyle = stroke;
     context.lineWidth = MOVE_RANGE_BORDER_WIDTH_PX;
     context.lineJoin = 'round';
