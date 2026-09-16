@@ -119,6 +119,8 @@ export interface SnapOptions {
   maxDiffPixelRatio?: number;
   threshold?: number;
   animationAt?: number;
+  /** How long a picture may take to settle; a large 3D board rasterised in software takes seconds per shot. */
+  timeout?: number;
 }
 
 export async function snap(page: Page, name: string, options: SnapOptions = {}) {
