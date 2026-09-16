@@ -67,14 +67,14 @@
         >
           @if (!this.gameCharacter()!.hideInventory) {
             <div
-              class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ffcc80] [-webkit-transform-style:preserve-3d] backface-hidden transform-3d"
+              class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ffcc80] backface-hidden"
               [ngStyle]="pedestalStyleShown()"
               [style.transform]="multiAnglePiecePedestalRotation()"
             ></div>
           }
           @if (this.gameCharacter()!.hideInventory) {
             <div
-              class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#A0E0FF] [-webkit-transform-style:preserve-3d] backface-hidden transform-3d"
+              class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#A0E0FF] backface-hidden"
               [ngStyle]="pedestalStyleHidden()"
               [style.transform]="multiAnglePiecePedestalRotation()"
             ></div>
