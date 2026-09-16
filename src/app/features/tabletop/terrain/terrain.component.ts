@@ -49,6 +49,12 @@ import {
   HexSlopeStepFloor,
 } from '@axe/features/tabletop/terrain/hex-slope-step-geometry';
 import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
+import {
+  hexFloorClipPathOf,
+  hexWallsOf,
+  NO_HEX_WALLS,
+  TerrainHexWall,
+} from '@axe/features/tabletop/terrain/terrain-hex-shapes';
 import { terrainWallFace, type WallSide } from '@axe/features/tabletop/terrain/terrain-wall-face';
 import {
   wallLightLayerStyle,
@@ -546,17 +552,7 @@ export class TerrainComponent {
   readonly hexFloorClipPath = computed<string | null>(() => {
     const params = this.pedestalHexParams();
     if (!params) return null;
-    const { outline, bbox } = params;
-    const W = bbox.maxX - bbox.minX;
-    const H = bbox.maxY - bbox.minY;
-    const points = outline
-      .map((v) => {
-        const px = v.x - bbox.minX;
-        const py = v.y - bbox.minY;
-        return `${((px / W) * 100).toFixed(2)}% ${((py / H) * 100).toFixed(2)}%`;
-      })
-      .join(', ');
-    return `polygon(${points})`;
+    return hexFloorClipPathOf(params);
   });
 
   readonly hexFloorDimStyle = computed<Record<string, string>>(() => {
@@ -617,36 +613,11 @@ export class TerrainComponent {
     };
   });
 
-  readonly hexWalls = computed<{ edgeLength: number; px: number; py: number; angle: number; brightness: number }[]>(
-    () => {
-      const params = this.pedestalHexParams();
-      if (!params) return [];
-      const { outline } = params;
-      const containerW = this.width() * this.gridSize;
-      const containerH = this.depth() * this.gridSize;
-      const useSurfaceShading = this.isSurfaceShading();
-
-      return outline.map((v1, i) => {
-        const v2 = outline[(i + 1) % outline.length];
-        const dx = v2.x - v1.x;
-        const dy = v2.y - v1.y;
-        const edgeLength = Math.sqrt(dx * dx + dy * dy);
-        const edgeAngle = Math.atan2(dy, dx);
-
-        const brightness = useSurfaceShading
-          ? Math.max(0.3, Math.min(1.0, 0.65 - 0.35 * Math.cos(edgeAngle) + 0.15 * Math.sin(edgeAngle)))
-          : 1.0;
-
-        return {
-          edgeLength: edgeLength + 1,
-          px: containerW / 2 + v2.x,
-          py: containerH / 2 + v2.y,
-          angle: edgeAngle + Math.PI,
-          brightness,
-        };
-      });
-    }
-  );
+  readonly hexWalls = computed<readonly TerrainHexWall[]>(() => {
+    const params = this.pedestalHexParams();
+    if (!params) return NO_HEX_WALLS;
+    return hexWallsOf(params, this.width() * this.gridSize, this.depth() * this.gridSize, this.isSurfaceShading());
+  });
 
   math = Math;
   slopeDirectionState = SlopeDirection;
