@@ -119,6 +119,9 @@ export class TableVisionVolumeOverlayComponent {
       if (!grid || volumes.every((volume) => !volume.cells)) {
         if (canvas.width !== 0) canvas.width = 0;
         if (canvas.height !== 0) canvas.height = 0;
+        // Left at the board's size, an empty canvas is still a box as large as the board.
+        canvas.style.width = '';
+        canvas.style.height = '';
         this.painted = null;
         return;
       }

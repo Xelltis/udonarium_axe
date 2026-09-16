@@ -124,5 +124,38 @@ describe('TableVisionVolumeOverlayComponent', () => {
       perfCounters.enabled = false;
       perfCounters.clear();
     });
+
+    it('leaves no box the size of the board once there is nothing to tint', async () => {
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        contextThatTakesAnything() as unknown as never
+      );
+      const table = darkTable();
+      watcherOn(table);
+      const grid = cellGridOf(20, 20, 50, GridType.SQUARE);
+      const shared = signal<{ grid: CellGrid; cells: CellBits } | null>({ grid, cells: seeing(grid, [0, 1]) });
+      const seenByPiece = signal<CellBits | null>(seeing(grid, [0, 1]));
+      TestBed.overrideProvider(VisionService, {
+        useValue: {
+          sharedVisibleCells: shared,
+          visibleCellsOf: () => ({ cells: seenByPiece() }),
+          isTokenVisible: () => true,
+        },
+      });
+
+      const fixture = TestBed.createComponent(TableVisionVolumeOverlayComponent);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const canvas = (fixture.nativeElement as HTMLElement).querySelector('canvas');
+      expect(canvas?.style.width).toBe('1000px');
+
+      shared.set(null);
+      seenByPiece.set(null);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(canvas?.style.width).toBe('');
+      expect(canvas?.style.height).toBe('');
+      expect(canvas?.width).toBe(0);
+    });
   });
 });

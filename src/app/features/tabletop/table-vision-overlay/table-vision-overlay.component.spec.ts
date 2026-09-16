@@ -72,6 +72,22 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     expect(perfCounters.drain().get(PERF_HEX_SURFACE_CELLS)).toBe(1);
   });
 
+  it('stands no canvas on a table with nothing to draw over it', async () => {
+    const canvasNow = (): HTMLCanvasElement | null => (fixture.nativeElement as HTMLElement).querySelector('canvas');
+    expect(canvasNow()).toBeNull();
+
+    await show(hexScene());
+    expect(canvasNow()?.width).toBeGreaterThan(0);
+
+    scene.set(null);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(canvasNow()).toBeNull();
+
+    await show(hexScene());
+    expect(canvasNow()?.width).toBeGreaterThan(0);
+  });
+
   it('builds it again for a board of another size', async () => {
     await show(hexScene());
     await show(hexScene({ widthPx: 600 }));
