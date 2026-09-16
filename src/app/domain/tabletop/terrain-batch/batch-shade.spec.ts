@@ -1,6 +1,6 @@
-import { capShadeRows, runShade } from '@axe/domain/tabletop/terrain-batch/batch-shade';
+import { capShadeRows, wallShade } from '@axe/domain/tabletop/terrain-batch/batch-shade';
 import { SquareBlock, squareCapsOf } from '@axe/domain/tabletop/terrain-batch/square-caps';
-import { wallRunsOf } from '@axe/domain/tabletop/terrain-batch/wall-runs';
+import { SquareWall } from '@axe/domain/tabletop/terrain-batch/square-walls';
 import { describe, expect, it } from 'vitest';
 
 const GRID = 50;
@@ -35,6 +35,26 @@ describe('the shade across a cap', () => {
     ]);
   });
 
+  it('runs on towards the next cell of a block that goes on into the cap beside it', () => {
+    const [west, east] = squareCapsOf([{ ...block('long', 6, 4) }], GRID);
+    const light = [1, 1, 0.5, 0.5];
+
+    // The block's third cell is the first one past the edge of the chunk.
+    expect(capShadeRows(west, GRID, (cell) => light[cell.index])).toEqual([
+      [
+        { at: 1, value: 1 },
+        { at: 76, value: 1 },
+        { at: 126, value: 0.5 },
+      ],
+    ]);
+    expect(capShadeRows(east, GRID, (cell) => light[cell.index])).toEqual([
+      [
+        { at: -24, value: 1 },
+        { at: 26, value: 0.5 },
+      ],
+    ]);
+  });
+
   it('comes down to one stop for a row lit evenly', () => {
     const [cap] = squareCapsOf([block('a', 0), block('b', 1), block('c', 2)], GRID);
 
@@ -42,27 +62,26 @@ describe('the shade across a cap', () => {
   });
 });
 
-describe('the shade along a run of wall', () => {
-  it('shades each face by its own cells and changes at once between faces', () => {
-    const [run] = wallRunsOf([
-      { identifier: 'a', side: 'south', startX: 0, startY: 50, lengthPx: 100, heightPx: 100, look: 'stone' },
-      { identifier: 'b', side: 'south', startX: 100, startY: 50, lengthPx: 50, heightPx: 100, look: 'stone' },
-    ]);
+describe('the shade along a wall', () => {
+  const wall: SquareWall = {
+    key: 'a:south',
+    identifier: 'a',
+    side: 'south',
+    startX: 0,
+    startY: 50,
+    lengthPx: 100,
+    heightPx: 100,
+  };
 
-    expect(runShade(run, (face) => (face.identifier === 'a' ? [0.2, 0.6] : [1]))).toEqual([
+  it('runs smoothly from the middle of one cell to the middle of the next, holding out to the ends', () => {
+    expect(wallShade(wall, [0.2, 0.6])).toEqual([
       { at: 0, value: 0.2 },
       { at: 25, value: 0.2 },
       { at: 75, value: 0.6 },
-      { at: 100, value: 0.6 },
-      { at: 100, value: 1 },
     ]);
   });
 
-  it('spreads one reading for a whole face over all of it', () => {
-    const [run] = wallRunsOf([
-      { identifier: 'a', side: 'north', startX: 0, startY: 0, lengthPx: 150, heightPx: 100, look: 'stone' },
-    ]);
-
-    expect(runShade(run, () => [0.4])).toEqual([{ at: 0, value: 0.4 }]);
+  it('spreads one reading for a whole wall over all of it', () => {
+    expect(wallShade(wall, [0.4])).toEqual([{ at: 0, value: 0.4 }]);
   });
 });

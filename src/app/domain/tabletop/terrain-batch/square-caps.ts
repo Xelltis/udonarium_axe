@@ -17,6 +17,8 @@ export interface SquareBlock {
 export interface CapCell {
   readonly identifier: string;
   readonly index: number;
+  /** How many cells across the block is, which says whether it goes on past either side of the cell. */
+  readonly cols: number;
 }
 
 /**
@@ -162,7 +164,11 @@ export function squareCapsOf(blocks: readonly SquareBlock[], gridSize: number): 
         }
         for (let c = col; c <= end; c++) {
           const placed = at.get(`${c},${row}`)!;
-          cells[(row - minRow) * cols + (c - minCol)] = { identifier: placed.block.identifier, index: placed.index };
+          cells[(row - minRow) * cols + (c - minCol)] = {
+            identifier: placed.block.identifier,
+            index: placed.index,
+            cols: placed.block.cols,
+          };
         }
         const x0 = CAP_BLEED + (col - minCol) * gridSize - (reachesTowards(col - 1, row) ? CAP_BLEED : 0);
         const x1 = CAP_BLEED + (end + 1 - minCol) * gridSize + (reachesTowards(end + 1, row) ? CAP_BLEED : 0);

@@ -38,13 +38,23 @@ describe('the blocks that do not move, drawn together on a square board', () => 
     expect([...layout.merged].sort()).toEqual([east.identifier, west.identifier].sort());
     expect(layout.squareCaps).toHaveLength(1);
     expect(layout.squareCaps[0].topPx).toBe(100);
-    // The sides the two press together are gone; the north and south sides of both each make one run.
-    expect(layout.wallRuns.map((run) => `${run.side}:${run.lengthPx}`).sort()).toEqual([
-      'east:50',
-      'north:100',
-      'south:100',
-      'west:50',
-    ]);
+    // The sides the two press together are gone.
+    expect(layout.squareWalls.map((wall) => wall.key).sort()).toEqual(
+      [
+        `${east.identifier}:east`,
+        `${east.identifier}:north`,
+        `${east.identifier}:south`,
+        `${west.identifier}:north`,
+        `${west.identifier}:south`,
+        `${west.identifier}:west`,
+      ].sort()
+    );
+    expect(layout.squareWalls.find((wall) => wall.key === `${west.identifier}:west`)).toMatchObject({
+      startX: 100,
+      startY: 150,
+      lengthPx: 50,
+      heightPx: 100,
+    });
   });
 
   it('draws a selected wall alone, and still lets it hide its neighbour side', () => {
@@ -53,7 +63,7 @@ describe('the blocks that do not move, drawn together on a square board', () => 
     const layout = stillTerrainLayoutOf([still(west), still(east, { selected: true })], grid);
 
     expect([...layout.merged]).toEqual([west.identifier]);
-    expect(layout.wallRuns.map((run) => run.side).sort()).toEqual(['north', 'south', 'west']);
+    expect(layout.squareWalls.map((wall) => wall.side).sort()).toEqual(['north', 'south', 'west']);
   });
 
   it('draws alone a wall the fog has cut back, and keeps the side of its neighbour that faces it', () => {
@@ -62,7 +72,7 @@ describe('the blocks that do not move, drawn together on a square board', () => 
     const layout = stillTerrainLayoutOf([still(west), still(east, { shownWhole: false })], grid);
 
     expect([...layout.merged]).toEqual([west.identifier]);
-    expect(layout.wallRuns.map((run) => run.side).sort()).toEqual(['east', 'north', 'south', 'west']);
+    expect(layout.squareWalls.map((wall) => wall.side).sort()).toEqual(['east', 'north', 'south', 'west']);
   });
 
   it('draws alone blocks laid over one another, and a block hanging off the board', () => {
@@ -73,7 +83,7 @@ describe('the blocks that do not move, drawn together on a square board', () => 
 
     expect(layout.merged.size).toBe(0);
     expect(layout.squareCaps).toHaveLength(0);
-    expect(layout.wallRuns).toHaveLength(0);
+    expect(layout.squareWalls).toHaveLength(0);
   });
 
   it('keeps the side of a wall drawn together that faces a wall anyone may move', () => {
@@ -82,7 +92,7 @@ describe('the blocks that do not move, drawn together on a square board', () => 
     unlocked.isLocked = false;
     const layout = stillTerrainLayoutOf([still(merged), still(unlocked)], grid);
 
-    expect(layout.wallRuns.map((run) => run.side).sort()).toEqual(['east', 'north', 'south', 'west']);
+    expect(layout.squareWalls.map((wall) => wall.side).sort()).toEqual(['east', 'north', 'south', 'west']);
   });
 });
 
@@ -108,7 +118,7 @@ for (const isFlatTop of [true, false]) {
       expect(layout.hexCaps[0].blocks).toHaveLength(2);
       expect(layout.hexWalls.map((walls) => walls.hidden.size)).toEqual([1, 1]);
       expect(layout.squareCaps).toHaveLength(0);
-      expect(layout.wallRuns).toHaveLength(0);
+      expect(layout.squareWalls).toHaveLength(0);
     });
 
     it('draws a flower of hexes together as one block of seven cells', () => {

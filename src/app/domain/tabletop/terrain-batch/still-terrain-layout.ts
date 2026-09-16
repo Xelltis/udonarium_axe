@@ -4,7 +4,7 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { isBatchable } from '@axe/domain/tabletop/terrain-batch/batchable';
 import { HexCapSheet, hexCapSheetsOf } from '@axe/domain/tabletop/terrain-batch/hex-caps';
 import { SquareCap, squareCapsOf } from '@axe/domain/tabletop/terrain-batch/square-caps';
-import { SquareFace, WallRun, wallRunsOf } from '@axe/domain/tabletop/terrain-batch/wall-runs';
+import { SquareWall, squareWallOf } from '@axe/domain/tabletop/terrain-batch/square-walls';
 import { hiddenFacesByTerrain, hiddenFacesOf } from '@axe/domain/tabletop/terrain-occlusion/hidden-faces';
 import { OcclusionShape, occlusionShapeOf } from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
 import { BlockSide } from '@axe/domain/tabletop/terrain-shade';
@@ -29,7 +29,7 @@ export interface StillTerrainLayout {
   /** The identifiers of the blocks drawn together, which are not to be drawn alone as well. */
   readonly merged: ReadonlySet<string>;
   readonly squareCaps: readonly SquareCap[];
-  readonly wallRuns: readonly WallRun[];
+  readonly squareWalls: readonly SquareWall[];
   readonly hexCaps: readonly HexCapSheet[];
   readonly hexWalls: readonly HexBlockWalls[];
 }
@@ -45,35 +45,8 @@ function topLook(terrain: Terrain): string {
   return `${terrain.faceImageIdentifier('top')}|${terrain.faceImageIdentifier('floor')}`;
 }
 
-function sideLook(terrain: Terrain, side: BlockSide): string {
-  const texture = terrain.isTiledTexture ? 'tile' : 'stretch';
-  return `${terrain.faceImageIdentifier(side)}|${terrain.faceImageIdentifier('wall')}|${texture}`;
-}
-
-function squareFaceOf(terrain: Terrain, side: BlockSide, gridSize: number): SquareFace {
-  const { x, y } = terrain.location;
-  const widthPx = terrain.width * gridSize;
-  const depthPx = terrain.depth * gridSize;
-  const base = {
-    identifier: terrain.identifier,
-    side,
-    heightPx: terrain.height * gridSize,
-    look: sideLook(terrain, side),
-  };
-  switch (side) {
-    case 'north':
-      return { ...base, startX: x, startY: y, lengthPx: widthPx };
-    case 'south':
-      return { ...base, startX: x, startY: y + depthPx, lengthPx: widthPx };
-    case 'west':
-      return { ...base, startX: x, startY: y + depthPx, lengthPx: depthPx };
-    default:
-      return { ...base, startX: x + widthPx, startY: y + depthPx, lengthPx: depthPx };
-  }
-}
-
 /**
- * Works out which blocks are drawn together, and the caps, runs and sheets they are drawn as.
+ * Works out which blocks are drawn together, and the caps, walls and sheets they are drawn as.
  *
  * A block is drawn together with others when {@link isBatchable} allows it, it is not selected,
  * the fog leaves all of it drawn and every cell it covers is on the board and its own. A side of
@@ -124,7 +97,7 @@ export function stillTerrainLayoutOf(inputs: readonly StillTerrainInput[], grid:
       identifier: terrain.identifier,
       hidden: hiddenFacesOf(hidden, terrain.identifier),
     }));
-    return { merged, squareCaps: [], wallRuns: [], hexCaps, hexWalls };
+    return { merged, squareCaps: [], squareWalls: [], hexCaps, hexWalls };
   }
 
   const squareCaps = squareCapsOf(
@@ -139,12 +112,12 @@ export function stillTerrainLayoutOf(inputs: readonly StillTerrainInput[], grid:
     })),
     gridSize
   );
-  const faces: SquareFace[] = [];
+  const squareWalls: SquareWall[] = [];
   for (const { terrain } of chosen) {
     const covered = hiddenFacesOf(hidden, terrain.identifier);
     for (const side of SIDES) {
-      if (!covered.has(side)) faces.push(squareFaceOf(terrain, side, gridSize));
+      if (!covered.has(side)) squareWalls.push(squareWallOf(terrain, side, gridSize));
     }
   }
-  return { merged, squareCaps, wallRuns: wallRunsOf(faces), hexCaps: [], hexWalls: [] };
+  return { merged, squareCaps, squareWalls, hexCaps: [], hexWalls: [] };
 }

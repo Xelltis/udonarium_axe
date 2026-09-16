@@ -6,16 +6,16 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { capShadeRows, runShade, ShadeStop } from '@axe/domain/tabletop/terrain-batch/batch-shade';
+import { capShadeRows, ShadeStop, wallShade } from '@axe/domain/tabletop/terrain-batch/batch-shade';
 import { SquareCap } from '@axe/domain/tabletop/terrain-batch/square-caps';
+import { SquareWall } from '@axe/domain/tabletop/terrain-batch/square-walls';
 import { StillTerrainLayout, stillTerrainLayoutOf } from '@axe/domain/tabletop/terrain-batch/still-terrain-layout';
-import { WallRun } from '@axe/domain/tabletop/terrain-batch/wall-runs';
 import { faceShadeOf, sideShadeLine, topShadeGrid } from '@axe/domain/tabletop/terrain-shade';
 
 const NO_LAYOUT: StillTerrainLayout = {
   merged: new Set(),
   squareCaps: [],
-  wallRuns: [],
+  squareWalls: [],
   hexCaps: [],
   hexWalls: [],
 };
@@ -64,10 +64,10 @@ function keptWhereUnchanged<T extends { readonly key?: string; readonly identifi
  *
  * Every face a block draws is a surface the browser keeps and moves with the camera, and a dungeon
  * is hundreds of blocks. Drawn together, the tops of neighbouring blocks are one surface, the sides
- * pressed between them are not drawn at all, and the sides lying end to end are one surface.
+ * pressed between them are not drawn at all.
  *
  * The layout is worked out again when a block, the selection, the table or what the fog leaves of
- * a block changes, and a cap, run or sheet that comes out the same is handed back as the same
+ * a block changes, and a cap, wall or sheet that comes out the same is handed back as the same
  * object, so nothing is drawn again for it. How brightly each is lit is read apart from the layout,
  * so a light that changes redraws the shade without laying anything out again.
  */
@@ -150,7 +150,7 @@ export class TerrainBatchService {
       return {
         merged: sameSet(before.merged, next.merged) ? before.merged : next.merged,
         squareCaps: keptWhereUnchanged(before.squareCaps, next.squareCaps),
-        wallRuns: keptWhereUnchanged(before.wallRuns, next.wallRuns),
+        squareWalls: keptWhereUnchanged(before.squareWalls, next.squareWalls),
         hexCaps: keptWhereUnchanged(before.hexCaps, next.hexCaps),
         hexWalls: keptWhereUnchanged(before.hexWalls, next.hexWalls),
       };
@@ -194,16 +194,18 @@ export class TerrainBatchService {
     });
   }
 
-  /** How brightly each face along a run is lit, as the shade along it. */
-  runShade(run: WallRun): ShadeStop[] {
-    const ambient = () => this.visionService.ambientBrightness();
-    return runShade(run, (face) => {
-      const terrain = this.terrainOf(face.identifier);
-      if (!terrain) return [1];
-      this.objectChange.versionOf(face.identifier)();
-      const cells = this.visionService.terrainFogCover(terrain);
-      return sideShadeLine(faceShadeOf(run.side, terrain.isSurfaceShading), run.side, cells, ambient).brightness;
-    });
+  /** How brightly a wall is lit along its length, as the shade along it. */
+  wallShade(wall: SquareWall): ShadeStop[] {
+    const terrain = this.terrainOf(wall.identifier);
+    if (!terrain) return wallShade(wall, [1]);
+    this.objectChange.versionOf(wall.identifier)();
+    const line = sideShadeLine(
+      faceShadeOf(wall.side, terrain.isSurfaceShading),
+      wall.side,
+      this.visionService.terrainFogCover(terrain),
+      () => this.visionService.ambientBrightness()
+    );
+    return wallShade(wall, line.brightness);
   }
 
   /** How brightly the top of a hex block is lit, which is one reading for all of it. */

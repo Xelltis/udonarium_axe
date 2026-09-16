@@ -16,6 +16,11 @@ export interface HexBlock {
 export interface HexCapBlock {
   readonly identifier: string;
   readonly path: string;
+  /**
+   * The edges the block shares with tops of the same height on other sheets, as open lines. Drawn
+   * across the join, just outside the sheet, they cover the hairline two sheets leave where they meet.
+   */
+  readonly seams: string;
 }
 
 /**
@@ -36,15 +41,10 @@ export interface HexCapSheet {
   readonly height: number;
   /** Every cell on the sheet as one path, laid under the blocks so no hairline between them shows the floor. */
   readonly outline: string;
-  /**
-   * The edges the sheet shares with tops of the same height on other sheets, as open lines. Stroked
-   * across the join, they cover the hairline two sheets leave where they meet.
-   */
-  readonly seams: string;
   readonly blocks: readonly HexCapBlock[];
 }
 
-/** How far a sheet's box reaches past its outermost corner, which is what a stroke across a join needs. */
+/** How far a sheet's box reaches past its outermost corner, which is what a join drawn just outside it needs. */
 export const HEX_CAP_BLEED = 1;
 
 /** How many columns and rows of cells the tops are gathered into sheets over. */
@@ -105,8 +105,8 @@ export function hexCapSheetsOf(blocks: readonly HexBlock[], gridSize: number, is
     const top = minY - HEX_CAP_BLEED;
     const point = (x: number, y: number) => `${number(x - left)} ${number(y - top)}`;
 
-    const seams: string[] = [];
     const blockPaths: HexCapBlock[] = members.map((block) => {
+      const seams: string[] = [];
       const subpaths = block.cells.map(([col, row]) => {
         const centre = centreOf(col, row);
         const sides = hexSideStepsAt(isFlatTop, col, row);
@@ -120,7 +120,7 @@ export function hexCapSheetsOf(blocks: readonly HexBlock[], gridSize: number, is
         }
         return `M${corners.map((corner) => point(centre.x + corner.x, centre.y + corner.y)).join('L')}Z`;
       });
-      return { identifier: block.identifier, path: subpaths.join('') };
+      return { identifier: block.identifier, path: subpaths.join(''), seams: seams.join('') };
     });
 
     sheets.push({
@@ -133,7 +133,6 @@ export function hexCapSheetsOf(blocks: readonly HexBlock[], gridSize: number, is
       width: maxX - minX + 2 * HEX_CAP_BLEED,
       height: maxY - minY + 2 * HEX_CAP_BLEED,
       outline: blockPaths.map((block) => block.path).join(''),
-      seams: seams.join(''),
       blocks: blockPaths,
     });
   }

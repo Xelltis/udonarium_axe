@@ -16,12 +16,12 @@ describe('the tops of blocks on a square board, gathered into caps', () => {
     expect([cap.left, cap.top, cap.width, cap.height]).toEqual([99, 149, 152, 102]);
     expect([cap.cols, cap.rows]).toEqual([3, 2]);
     expect(cap.cells).toEqual([
-      { identifier: 'a', index: 0 },
-      { identifier: 'b', index: 0 },
-      { identifier: 'b', index: 1 },
+      { identifier: 'a', index: 0, cols: 1 },
+      { identifier: 'b', index: 0, cols: 2 },
+      { identifier: 'b', index: 1, cols: 2 },
       null,
-      { identifier: 'b', index: 2 },
-      { identifier: 'b', index: 3 },
+      { identifier: 'b', index: 2, cols: 2 },
+      { identifier: 'b', index: 3, cols: 2 },
     ]);
     // Cut to the cells without reaching past them, since nothing else stands against the cap.
     expect(cap.path).toBe('M1 1H151V51H1ZM51 51H151V101H51Z');
@@ -56,7 +56,7 @@ describe('the tops of blocks on a square board, gathered into caps', () => {
     expect(cap.cells[4]).toBeNull();
     expect(cap.path).toBe('M1 1H151V51H1ZM1 51H51V101H1ZM101 51H151V101H101ZM1 101H151V151H1Z');
     expect(capCellAt(cap, 76, 76, GRID)).toBeNull();
-    expect(capCellAt(cap, 126, 76, GRID)).toEqual({ identifier: '21', index: 0 });
+    expect(capCellAt(cap, 126, 76, GRID)).toEqual({ identifier: '21', index: 0, cols: 1 });
   });
 
   it('reaches over a join above or below only along the part of a row that has one', () => {

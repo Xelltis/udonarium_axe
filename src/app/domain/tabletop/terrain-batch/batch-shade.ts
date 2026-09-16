@@ -1,5 +1,5 @@
 import { CAP_BLEED, CapCell, SquareCap } from '@axe/domain/tabletop/terrain-batch/square-caps';
-import { RunFace, WallRun } from '@axe/domain/tabletop/terrain-batch/wall-runs';
+import { SquareWall } from '@axe/domain/tabletop/terrain-batch/square-walls';
 
 /** A brightness at a point across a surface, in pixels from its start. */
 export interface ShadeStop {
@@ -16,12 +16,25 @@ const SAME_SHADE = 0.0005;
  * Within a block the shade runs smoothly from the middle of one cell to the middle of the next, and
  * holds from the middle of the first and last cells out to the block's ends, which is how a block
  * drawn alone is shaded. Where one block meets the next the shade changes at once.
+ *
+ * A block that goes on past the stretch, into a surface beside it, runs on towards the middle of
+ * its next cell there instead of holding, so the two surfaces meet in the same shade.
  */
-function stretchStops(values: readonly number[], startPx: number, cellPx: number, into: ShadeStop[]): void {
+function stretchStops(
+  values: readonly number[],
+  startPx: number,
+  cellPx: number,
+  into: ShadeStop[],
+  before?: number,
+  after?: number
+): void {
   if (values.length === 0) return;
-  into.push({ at: startPx, value: values[0] });
+  into.push(before === undefined ? { at: startPx, value: values[0] } : { at: startPx - cellPx / 2, value: before });
   values.forEach((value, index) => into.push({ at: startPx + (index + 0.5) * cellPx, value }));
-  into.push({ at: startPx + values.length * cellPx, value: values[values.length - 1] });
+  const endPx = startPx + values.length * cellPx;
+  into.push(
+    after === undefined ? { at: endPx, value: values[values.length - 1] } : { at: endPx + cellPx / 2, value: after }
+  );
 }
 
 /** The stops that change nothing dropped: a stop between two of the same shade, and a repeat at one point. */
@@ -54,13 +67,27 @@ export function capShadeRows(cap: SquareCap, gridSize: number, valueOf: (cell: C
       const first = cap.cells[row * cap.cols + col];
       const values = [first ? valueOf(first) : 1];
       let end = col;
+      let last = first;
       while (first && end + 1 < cap.cols) {
         const next = cap.cells[row * cap.cols + end + 1];
         if (!next || next.identifier !== first.identifier) break;
         values.push(valueOf(next));
+        last = next;
         end++;
       }
-      stretchStops(values, CAP_BLEED + col * gridSize, gridSize, stops);
+      const before = first && col === 0 && first.index % first.cols > 0 ? { ...first, index: first.index - 1 } : null;
+      const after =
+        last && end === cap.cols - 1 && (last.index % last.cols) + 1 < last.cols
+          ? { ...last, index: last.index + 1 }
+          : null;
+      stretchStops(
+        values,
+        CAP_BLEED + col * gridSize,
+        gridSize,
+        stops,
+        before ? valueOf(before) : undefined,
+        after ? valueOf(after) : undefined
+      );
       col = end + 1;
     }
     rows.push(simplified(stops));
@@ -69,15 +96,13 @@ export function capShadeRows(cap: SquareCap, gridSize: number, valueOf: (cell: C
 }
 
 /**
- * The shade along a run of wall, measured from its start.
+ * The shade along a wall, measured from its start.
  *
- * @param valuesOf how brightly each cell along one face is lit, from the end the run starts at.
+ * @param values how brightly each cell along the wall is lit, from the end it starts at; one reading
+ *   is spread over all of it.
  */
-export function runShade(run: WallRun, valuesOf: (face: RunFace) => readonly number[]): ShadeStop[] {
+export function wallShade(wall: SquareWall, values: readonly number[]): ShadeStop[] {
   const stops: ShadeStop[] = [];
-  for (const face of run.faces) {
-    const values = valuesOf(face);
-    stretchStops(values, face.offsetPx, face.lengthPx / Math.max(1, values.length), stops);
-  }
+  stretchStops(values, 0, wall.lengthPx / Math.max(1, values.length), stops);
   return simplified(stops);
 }

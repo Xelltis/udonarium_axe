@@ -92,14 +92,14 @@ describe('TerrainBatchService', () => {
     await settled();
     const before = service.layout();
     const nearCap = before.squareCaps.find((cap) => cap.left < 200)!;
-    const nearRuns = before.wallRuns.filter((run) => run.startX < 200);
+    const nearWalls = before.squareWalls.filter((wall) => wall.startX < 200);
 
     far.location = { name: 'table', x: 16 * GRID, y: 15 * GRID };
     await settled();
     const after = service.layout();
 
     expect(after.squareCaps).toContain(nearCap);
-    for (const run of nearRuns) expect(after.wallRuns).toContain(run);
+    for (const wall of nearWalls) expect(after.squareWalls).toContain(wall);
     expect(after.squareCaps.find((cap) => cap.left > 200)).not.toBe(before.squareCaps.find((cap) => cap.left > 200));
   });
 
@@ -125,19 +125,19 @@ describe('TerrainBatchService', () => {
     ]);
   });
 
-  it('shades a run by the way it faces and the light along each face', async () => {
+  it('shades a wall by the way it faces and the light along it', async () => {
     const wall = wallAt(3, 3);
     const vision = TestBed.inject(VisionService);
     vi.spyOn(vision, 'terrainFogCover').mockReturnValue({ cols: 1, rows: 1, cleared: [true], brightness: [0.5] });
     await settled();
-    const north = service.layout().wallRuns.find((run) => run.side === 'north')!;
+    const north = service.layout().squareWalls.find((one) => one.side === 'north')!;
 
-    expect(service.runShade(north)).toEqual([{ at: 0, value: 0.15 }]);
+    expect(service.wallShade(north)).toEqual([{ at: 0, value: 0.15 }]);
 
     wall.isSurfaceShading = false;
     await settled();
 
-    expect(service.runShade(service.layout().wallRuns.find((run) => run.side === 'north')!)).toEqual([
+    expect(service.wallShade(service.layout().squareWalls.find((one) => one.side === 'north')!)).toEqual([
       { at: 0, value: 0.5 },
     ]);
   });

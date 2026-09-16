@@ -27,7 +27,7 @@ for (const isFlatTop of [true, false]) {
       const [sheet] = sheets;
       expect(sheet.blocks.map((one) => one.identifier)).toEqual(['here', 'there']);
       expect(sheet.outline).toBe(sheet.blocks.map((one) => one.path).join(''));
-      expect(sheet.seams).toBe('');
+      expect(sheet.blocks.map((one) => one.seams)).toEqual(['', '']);
     });
 
     it('cuts each hex to its six corners, measured from the corner of the sheet', () => {
@@ -60,9 +60,9 @@ for (const isFlatTop of [true, false]) {
       const sheets = hexCapSheetsOf([block('inside', 7, 7), block('beyond', 7 + dx, 7 + dy)], GRID, isFlatTop);
 
       expect(sheets).toHaveLength(2);
-      for (const sheet of sheets) expect(pointsOf(sheet.seams)).toHaveLength(2);
+      for (const sheet of sheets) expect(pointsOf(sheet.blocks[0].seams)).toHaveLength(2);
       const [a, b] = sheets.map((sheet) =>
-        pointsOf(sheet.seams).map((p) => ({ x: p.x + sheet.left, y: p.y + sheet.top }))
+        pointsOf(sheet.blocks[0].seams).map((p) => ({ x: p.x + sheet.left, y: p.y + sheet.top }))
       );
       const key = (p: { x: number; y: number }) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
       expect(a.map(key).sort()).toEqual(b.map(key).sort());
@@ -76,7 +76,7 @@ for (const isFlatTop of [true, false]) {
         isFlatTop
       );
 
-      expect(sheets.map((sheet) => sheet.seams)).toEqual(['', '']);
+      expect(sheets.map((sheet) => sheet.blocks[0].seams)).toEqual(['', '']);
     });
 
     it('keeps tops of different pictures on sheets of their own', () => {
@@ -88,7 +88,7 @@ for (const isFlatTop of [true, false]) {
       );
 
       expect(sheets).toHaveLength(2);
-      for (const sheet of sheets) expect(pointsOf(sheet.seams)).toHaveLength(2);
+      for (const sheet of sheets) expect(pointsOf(sheet.blocks[0].seams)).toHaveLength(2);
     });
   });
 }
