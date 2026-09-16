@@ -91,3 +91,19 @@ describe('floodFill on scattered paint', () => {
     `);
   });
 });
+
+describe('floodFill over a fill that was written out more than once', () => {
+  it('spreads over the cells whose fill matches without being the very same one', () => {
+    const scene = createScene(3, 1, 64, GridType.SQUARE);
+    const layer = createLayer('cell', 'cells') as CellLayer;
+    // Painted one cell at a time, as a room that has been played in has them: the same red,
+    // written out three times over.
+    setCell(layer, 0, 0, { type: 'solid', color: '#ff0000' });
+    setCell(layer, 1, 0, { type: 'solid', color: '#ff0000' });
+    setCell(layer, 2, 0, { type: 'solid', color: '#ff0000' });
+
+    floodFill(scene, layer, 0, 0, GREEN);
+
+    expect(Object.values(layer.cells)).toEqual([GREEN, GREEN, GREEN]);
+  });
+});

@@ -68,22 +68,33 @@ export function floodFill(scene: MapScene, layer: CellLayer, col: number, row: n
   const startFill = getCell(layer, col, row);
   if (fillStyleEquals(startFill, fill)) return;
 
-  const queue: [number, number][] = [[col, row]];
-  const visited = new Set<string>();
-  visited.add(cellKey(col, row));
+  // The fill being spread over is written out once and each cell weighed against that, rather
+  // than both being written out again at every one of the four or six ways out of every cell.
+  const startKey = JSON.stringify(startFill);
+  const spreadsOver = (cell: FillStyle | null): boolean => cell === startFill || JSON.stringify(cell) === startKey;
 
-  while (queue.length > 0) {
-    const [c, r] = queue.shift()!;
-    if (fillStyleEquals(getCell(layer, c, r), startFill)) {
+  const cols = scene.cols;
+  const queue = new Int32Array(cols * scene.rows);
+  const visited = new Uint8Array(cols * scene.rows);
+  let head = 0;
+  let tail = 0;
+  queue[tail++] = row * cols + col;
+  visited[row * cols + col] = 1;
+
+  while (head < tail) {
+    const at = queue[head++];
+    const c = at % cols;
+    const r = (at - c) / cols;
+    if (spreadsOver(getCell(layer, c, r))) {
       setCell(layer, c, r, fill);
     }
     const neighbors = cellNeighbors(scene.gridType, c, r);
     for (const [nc, nr] of neighbors) {
-      const k = cellKey(nc, nr);
-      if (!visited.has(k) && inBounds(scene, nc, nr) && fillStyleEquals(getCell(layer, nc, nr), startFill)) {
-        visited.add(k);
-        queue.push([nc, nr]);
-      }
+      if (!inBounds(scene, nc, nr)) continue;
+      const nearby = nr * cols + nc;
+      if (visited[nearby] || !spreadsOver(getCell(layer, nc, nr))) continue;
+      visited[nearby] = 1;
+      queue[tail++] = nearby;
     }
   }
 }
