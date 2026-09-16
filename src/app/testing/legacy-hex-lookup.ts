@@ -137,3 +137,58 @@ export function legacyForEachNeighbourCell(grid: CellGrid, index: number, visit:
     visit(neighbour);
   }
 }
+
+/** The top-left corner that put a piece's anchor on the nearest hex centre, found by scanning. */
+export function legacyCalcHexSnapPosition(
+  posX: number,
+  posY: number,
+  gridSize: number,
+  gridType: GridType,
+  halfWidth: number = gridSize / 2,
+  halfHeight: number = gridSize / 2
+): { x: number; y: number } {
+  const isFlatTop = gridType === GridType.HEX_VERTICAL;
+  const { colSpacing, rowSpacing } = legacyHexSpacing(gridSize, isFlatTop);
+  const { col, row } = legacyPixelToHexCell(posX, posY, gridSize, isFlatTop);
+  const { x, y } = legacyHexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
+  return { x: x - halfWidth, y: y - halfHeight };
+}
+
+/** The top-left corner that put a piece's anchor on the nearest hex corner, each corner worked out afresh. */
+export function legacyCalcHexVertexSnapPosition(
+  posX: number,
+  posY: number,
+  gridSize: number,
+  gridType: GridType,
+  halfWidth: number = gridSize / 2,
+  halfHeight: number = gridSize / 2
+): { x: number; y: number } {
+  const isFlatTop = gridType === GridType.HEX_VERTICAL;
+  const s = gridSize / Math.sqrt(3);
+  const startAngle = isFlatTop ? 0 : -Math.PI / 2;
+  const { colSpacing, rowSpacing } = legacyHexSpacing(gridSize, isFlatTop);
+  const colEst = posX / colSpacing;
+  const rowEst = posY / rowSpacing;
+  let bestX = 0;
+  let bestY = 0;
+  let bestDist = Infinity;
+  for (let col = Math.floor(colEst) - 1; col <= Math.ceil(colEst) + 1; col++) {
+    for (let row = Math.floor(rowEst) - 1; row <= Math.ceil(rowEst) + 1; row++) {
+      const { x: cx, y: cy } = legacyHexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
+      for (let k = 0; k < 6; k++) {
+        const angle = startAngle + (k * Math.PI) / 3;
+        const vx = cx + s * Math.cos(angle);
+        const vy = cy + s * Math.sin(angle);
+        const dx = posX - vx;
+        const dy = posY - vy;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestX = vx;
+          bestY = vy;
+        }
+      }
+    }
+  }
+  return { x: bestX - halfWidth, y: bestY - halfHeight };
+}

@@ -1,6 +1,13 @@
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { hexCellCenter, hexCircumradius, hexSpacing, hexStartAngle } from '@axe/domain/tabletop/hex-geometry';
+import {
+  hexCellCenter,
+  hexCornerOffsets,
+  hexLayoutOf,
+  hexSpacing,
+  hexStartAngle,
+  pixelToHexCell,
+} from '@axe/domain/tabletop/hex-geometry';
 import { WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -192,31 +199,11 @@ export function calcHexSnapPosition(
   halfHeight: number = gridSize / 2
 ): { x: number; y: number } {
   const isFlatTop = gridType === GridType.HEX_VERTICAL;
-  const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
+  const { colSpacing, rowSpacing } = hexLayoutOf(gridSize, isFlatTop);
+  const { col, row } = pixelToHexCell(posX, posY, gridSize, isFlatTop);
+  const { x, y } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
 
-  const colEst = posX / colSpacing;
-  const rowEst = posY / rowSpacing;
-
-  let bestX = 0;
-  let bestY = 0;
-  let bestDist = Infinity;
-
-  for (let col = Math.floor(colEst) - 1; col <= Math.ceil(colEst) + 1; col++) {
-    for (let row = Math.floor(rowEst) - 1; row <= Math.ceil(rowEst) + 1; row++) {
-      const { x: hx, y: hy } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
-
-      const dx = posX - hx;
-      const dy = posY - hy;
-      const dist = dx * dx + dy * dy;
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestX = hx;
-        bestY = hy;
-      }
-    }
-  }
-
-  return { x: bestX - halfWidth, y: bestY - halfHeight };
+  return { x: x - halfWidth, y: y - halfHeight };
 }
 
 /** The top-left corner that puts a piece's anchor on the nearest corner of a hex cell. */
@@ -229,9 +216,8 @@ export function calcHexVertexSnapPosition(
   halfHeight: number = gridSize / 2
 ): { x: number; y: number } {
   const isFlatTop = gridType === GridType.HEX_VERTICAL;
-  const s = hexCircumradius(gridSize);
-  const startAngle = hexStartAngle(isFlatTop);
-  const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
+  const { circumradius, colSpacing, rowSpacing } = hexLayoutOf(gridSize, isFlatTop);
+  const corners = hexCornerOffsets(circumradius, isFlatTop);
 
   const colEst = posX / colSpacing;
   const rowEst = posY / rowSpacing;
@@ -243,10 +229,9 @@ export function calcHexVertexSnapPosition(
   for (let col = Math.floor(colEst) - 1; col <= Math.ceil(colEst) + 1; col++) {
     for (let row = Math.floor(rowEst) - 1; row <= Math.ceil(rowEst) + 1; row++) {
       const { x: cx, y: cy } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
-      for (let k = 0; k < 6; k++) {
-        const angle = startAngle + (k * Math.PI) / 3;
-        const vx = cx + s * Math.cos(angle);
-        const vy = cy + s * Math.sin(angle);
+      for (const corner of corners) {
+        const vx = cx + corner.x;
+        const vy = cy + corner.y;
         const dx = posX - vx;
         const dy = posY - vy;
         const dist = dx * dx + dy * dy;
