@@ -589,8 +589,11 @@ export class TerrainComponent {
       top: `${bounds.top}px`,
       'backface-visibility': this.isSlope() ? 'visible' : 'hidden',
       transform,
-      filter: 'brightness(' + this.floorBrightness() + ')',
     };
+    // A filter of its own makes a layer and flattens what is under it; at full brightness it
+    // darkens nothing, so the grid is left without one.
+    const brightness = this.floorBrightness();
+    if (brightness !== 1) style.filter = 'brightness(' + brightness + ')';
     if (step != null) {
       style['-webkit-mask'] = step.mask;
       style.mask = step.mask;
