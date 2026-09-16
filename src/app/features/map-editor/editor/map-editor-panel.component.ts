@@ -403,7 +403,15 @@ export class MapEditorPanelComponent implements AfterViewInit {
   /** The gesture under way, holding values only between press and release. */
   private readonly gesture = new MapEditorGesture();
 
-  protected readonly cursorCell = signal<{ col: number; row: number } | null>(null);
+  /**
+   * The cell the pointer is over, which the view draws a marker on.
+   *
+   * A pointer crossing one cell reports the same cell many times over, and each of those was a
+   * fresh answer that set the whole view to work again.
+   */
+  protected readonly cursorCell = signal<{ col: number; row: number } | null>(null, {
+    equal: (a, b) => a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row),
+  });
   protected readonly spacePan = signal(false);
   protected readonly panning = signal(false);
   protected readonly draftCount = signal(0);
