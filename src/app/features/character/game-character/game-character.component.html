@@ -207,15 +207,13 @@
                   <div class="[-webkit-transform-style:preserve-3d] transform-3d">
                     <div
                       class="absolute m-auto [-webkit-transform-style:preserve-3d] transform-3d"
-                      [ngStyle]="{
-                        transform: 'translateX(-50%) translateX(' + (size() * gridSize) / 2 + 'px) ' + buffLabelOrbit(),
-                      }"
+                      [appBillboard]="buffOrbitFacing()"
                     >
                       <div
                         data-testid="buff-plate"
                         class="text-ui-text absolute bottom-0 left-0 box-border w-[18em] origin-bottom-left whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
                         [style.font-size.px]="decorFontSizePx"
-                        [ngStyle]="{ transform: buffStackTransform() }"
+                        [appBillboard]="buffStackFacing()"
                       >
                         <div class="flex w-full items-end justify-start pl-[1.5em]">
                           <button
@@ -307,14 +305,12 @@
                 @if (floatingChanges().length > 0) {
                   <div
                     class="pointer-events-none absolute [-webkit-transform-style:preserve-3d] transform-3d"
-                    [ngStyle]="{
-                      transform: 'translateX(-50%) translateX(' + (size() * gridSize) / 2 + 'px) ' + floatLabelOrbit(),
-                    }"
+                    [appBillboard]="floatOrbitFacing()"
                   >
                     <div
                       class="absolute bottom-0 left-0 flex origin-bottom-left flex-col items-center gap-[0.1em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
                       [style.font-size.px]="decorFontSizePx"
-                      [ngStyle]="{ transform: floatStackTransform() }"
+                      [appBillboard]="floatStackFacing()"
                     >
                       @for (change of floatingChanges(); track change.key) {
                         <span
@@ -331,14 +327,12 @@
                 @if (pieceGauges().length > 0 && !multiAngleResourceBuffOrbitEnabled()) {
                   <div
                     class="absolute [-webkit-transform-style:preserve-3d] transform-3d"
-                    [ngStyle]="{
-                      transform: 'translateX(-50%) translateX(' + (size() * gridSize) / 2 + 'px) ' + gaugeLabelOrbit(),
-                    }"
+                    [appBillboard]="gaugeOrbitFacing()"
                   >
                     <div
                       class="absolute top-0 left-0 flex origin-top-left flex-col items-center gap-[0.15em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
                       [style.font-size.px]="decorFontSizePx"
-                      [ngStyle]="{ transform: gaugeStackTransform() }"
+                      [appBillboard]="gaugeStackFacing()"
                     >
                       @for (row of gaugeRows(); track row.gauge.identifier) {
                         @let gauge = row.gauge;
@@ -372,15 +366,13 @@
                   <div
                     class="absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [style.font-size.px]="nameFontSizePx"
-                    [ngStyle]="{
-                      transform: 'translateX(-50%) translateX(' + (size() * gridSize) / 2 + 'px) ' + nameLabelOrbit(),
-                    }"
+                    [appBillboard]="nameOrbitFacing()"
                   >
                     @if (this.gameCharacter()!.nonTalkFlag) {
                       <div
                         class="absolute top-0 left-0 box-border origin-top-left rounded-[1.6em] px-[0.6em] py-[0.2em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
+                        [appBillboard]="nameStackFacing()"
                         [ngStyle]="{
-                          transform: nameStackTransform(),
                           'background-color': 'rgba(255,255,255, 0.6)',
                           color: '#333',
                           border: 'solid 0.07em #555',
@@ -397,7 +389,7 @@
                       <div
                         class="bg-ui-panel text-ui-text absolute top-0 left-0 box-border origin-top-left rounded-[1.6em] px-[0.6em] py-[0.2em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
                         data-testid="piece-name"
-                        [ngStyle]="{ transform: nameStackTransform() }"
+                        [appBillboard]="nameStackFacing()"
                       >
                         <div class="max-w-[24em] truncate">
                           {{ name() }}
@@ -440,6 +432,7 @@
                 @if (!isPoster() && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
                   <img
                     class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [appBillboard]="imageView.komaFacing()"
                     [ngStyle]="{
                       height: komaImageHeightSignal() * imageView.supersample() + 'px',
                       width: 'auto',
@@ -447,7 +440,6 @@
                       display: 'inline-block',
                       left: 'auto',
                       right: 'auto',
-                      transform: imageView.komaTransform(),
                     }"
                     (load)="imageView.onImageLoad($event)"
                     [src]="imageFile().url | safe: 'resourceUrl'"
@@ -456,12 +448,12 @@
                 @if (!isPoster() && 0 < imageFile().url.length && !specifyKomaImageFlag() && !imageView.fitsInCell()) {
                   <img
                     class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [appBillboard]="imageView.pieceFacing()"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),
                       maxWidth: 'none',
                       marginLeft: imageView.supersampleInset(),
                       marginRight: imageView.supersampleInset(),
-                      transform: imageView.pieceTransform(),
                     }"
                     (load)="imageView.onImageLoad($event)"
                     [src]="imageFile().url | safe: 'resourceUrl'"
@@ -470,13 +462,13 @@
                 @if (!isPoster() && 0 < imageFile().url.length && imageView.fitsInCell()) {
                   <img
                     class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto block object-contain align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [appBillboard]="imageView.pieceFacing()"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),
                       height: size() * gridSize * imageView.supersample() + 'px',
                       maxWidth: 'none',
                       marginLeft: imageView.supersampleInset(),
                       marginRight: imageView.supersampleInset(),
-                      transform: imageView.pieceTransform(),
                     }"
                     (load)="imageView.onImageLoad($event)"
                     [src]="imageFile().url | safe: 'resourceUrl'"
@@ -485,13 +477,13 @@
                 @if (isTargeted()) {
                   <div
                     class="pointer-events-none absolute bottom-0 left-0 [-webkit-transform-style:preserve-3d] transform-3d"
-                    [ngStyle]="{ transform: 'translateX(' + (size() * gridSize) / 2 + 'px) ' + targetLabelOrbit() }"
+                    [appBillboard]="targetOrbitFacing()"
                   >
                     <div
                       data-testid="target-marker"
                       class="absolute bottom-0 left-0 origin-bottom-left [-webkit-transform-style:preserve-3d] transform-3d"
                       [style.font-size.px]="decorFontSizePx"
-                      [ngStyle]="{ transform: targetStackTransform() }"
+                      [appBillboard]="targetStackFacing()"
                     >
                       <svg
                         class="animate-target-bob relative block w-[4.2em] drop-shadow-[0_0.08em_0.16em_rgba(0,0,0,0.85)]"

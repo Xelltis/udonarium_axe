@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { IPeerContext } from '@axe/core/network/peer-context';
@@ -16,6 +17,11 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+/** What a facing writes at the turn the table has been given, which is what the frame writes out. */
+function at(facing: BillboardFacing): string {
+  return facing(TestBed.inject(UiSignalService).tableViewRotation());
+}
 
 describe('DiceSymbolComponent', () => {
   let component: DiceSymbolComponent;
@@ -152,10 +158,10 @@ describe('DiceSymbolComponent', () => {
       const ui = TestBed.inject(UiSignalService);
 
       ui.notifyTableViewRotation(50, 0, 10);
-      const before = component.billboardTransform();
+      const before = at(component.nameFacing());
 
       ui.notifyTableViewRotation(60, 20, 120);
-      const after = component.billboardTransform();
+      const after = at(component.nameFacing());
 
       expect(before).not.toBe(after);
       expect(after).toContain('rotateZ(-120deg)');
@@ -169,7 +175,7 @@ describe('DiceSymbolComponent', () => {
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
 
-      expect(component.billboardTransform()).toContain('rotateZ(-45deg)');
+      expect(at(component.nameFacing())).toContain('rotateZ(-45deg)');
     });
 
     it('sets the owners name further out than the dies own', () => {
@@ -178,7 +184,7 @@ describe('DiceSymbolComponent', () => {
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
 
       const match = (s: string) => Number(s.match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0);
-      expect(match(component.billboardTransformOwner())).toBeLessThan(match(component.billboardTransform()));
+      expect(match(at(component.ownerFacing()))).toBeLessThan(match(at(component.nameFacing())));
     });
 
     it('takes the setting from the table', async () => {
@@ -199,7 +205,26 @@ describe('DiceSymbolComponent', () => {
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
 
-      expect(component.billboardTransformImage()).toContain('translateZ(0.00px)');
+      expect(at(component.imageFacing())).toContain('translateZ(0.00px)');
+    });
+
+    it('is turned by the frame without the die working its labels out again', async () => {
+      const diceSymbol = DiceSymbol.create('フレームテスト', 1, 1);
+      fixture.componentRef.setInput('diceSymbol', diceSymbol);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const frame = TestBed.inject(BillboardFrameService);
+      const ui = TestBed.inject(UiSignalService);
+      const facing = component.nameFacing();
+      const plate = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="dice-name"]')!;
+
+      for (let turn = 0; turn < 10; turn++) {
+        ui.notifyTableViewRotation(50, 0, turn * 12);
+        frame.apply({ x: 50, y: 0, z: turn * 12 });
+      }
+
+      expect(component.nameFacing()).toBe(facing);
+      expect(plate.style.transform).toBe(facing({ x: 50, y: 0, z: 108 }));
     });
 
     it('faces it anyway in the flat mode', async () => {
@@ -220,7 +245,7 @@ describe('DiceSymbolComponent', () => {
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
       TestBed.inject(ViewModePreferenceService).choose('auto');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.nameLabelOrbit()).toBe('translateY(-30px)');
+      expect(at(component.nameOrbitFacing())).toBe('translateX(-50%) translateX(25px) translateY(-30px)');
     });
 
     it('puts it up the screen in the flat mode', async () => {
@@ -229,7 +254,7 @@ describe('DiceSymbolComponent', () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const transform = component.nameLabelOrbit();
+      const transform = at(component.nameOrbitFacing());
       expect(transform).toContain('translateZ(-60.00px)');
     });
 
@@ -239,8 +264,8 @@ describe('DiceSymbolComponent', () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const nameZ = Math.abs(Number(component.nameLabelOrbit().match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0));
-      const ownerZ = Math.abs(Number(component.ownerLabelOrbit().match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0));
+      const nameZ = Math.abs(Number(at(component.nameOrbitFacing()).match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0));
+      const ownerZ = Math.abs(Number(at(component.ownerOrbitFacing()).match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0));
       expect(ownerZ).toBeGreaterThan(nameZ);
     });
 
@@ -250,8 +275,8 @@ describe('DiceSymbolComponent', () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.billboardTransform()).toContain('translateZ(0.00px)');
-      expect(component.billboardTransformOwner()).toContain('translateZ(0.00px)');
+      expect(at(component.nameFacing())).toContain('translateZ(0.00px)');
+      expect(at(component.ownerFacing())).toContain('translateZ(0.00px)');
     });
   });
 

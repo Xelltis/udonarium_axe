@@ -20,6 +20,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -37,6 +38,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { buildDiceSymbolContextMenu } from '@axe/features/dice/dice-symbol/dice-symbol-context-menu';
+import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -60,7 +62,7 @@ const TUMBLE_PATHS = 3;
   selector: 'dice-symbol',
   templateUrl: './dice-symbol.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
+  imports: [BillboardDirective, MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '(dragstart)': 'onDragstart($event)',
@@ -256,9 +258,9 @@ export class DiceSymbolComponent {
     return isOffTheFloor(dice);
   });
 
-  readonly billboardTransform = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(30)));
-  readonly billboardTransformOwner = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(55)));
-  readonly billboardTransformImage = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(0)));
+  readonly nameFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(30)));
+  readonly ownerFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(55)));
+  readonly imageFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(0)));
 
   readonly imageBillboardEnabled = computed(() => {
     if (this.isPoster()) return true;
@@ -271,7 +273,7 @@ export class DiceSymbolComponent {
     sizePx: computed(() => this.size() * this.gridSize),
     specifiedHeightPx: computed(() => (this.specifyImageFlag() ? +this.imageHeignt() : null)),
     billboardEnabled: this.imageBillboardEnabled,
-    billboardTransform: this.billboardTransformImage,
+    billboardFacing: this.imageFacing,
   });
 
   readonly mode2dEnabled = computed(() => {
@@ -279,32 +281,42 @@ export class DiceSymbolComponent {
     return this.tabletopService.mode2d();
   });
 
-  private labelOrbitTransform(distance3d: number, distance2d: number): string {
-    return makeLabelOrbitTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      distance3d,
-      distance2d,
-      mode2d: this.mode2dEnabled(),
-    });
+  private labelOrbitFacing(distance3d: number, distance2d: number): BillboardFacing {
+    const mode2d = this.mode2dEnabled();
+    return (rotation) => makeLabelOrbitTransform({ rotation, distance3d, distance2d, mode2d });
   }
 
-  readonly nameLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 5)}px)`;
-    return this.labelOrbitTransform(30, 60);
-  });
-  readonly ownerLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 8)}px)`;
-    return this.labelOrbitTransform(55, 90);
-  });
+  /** Where a label hangs from, counted from the middle of the die's ground. */
+  private labelStandFacing(orbit: BillboardFacing): BillboardFacing {
+    const stand = `translateX(-50%) translateX(${(this.size() * this.gridSize) / 2}px) `;
+    return (rotation) => stand + orbit(rotation);
+  }
 
-  private makeBillboardTransform(verticalOffset3D: number): string {
-    return makeBillboardTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      pieceRotate: this.rotateSignal(),
-      parentInverseRotation: 'rotateX(90deg)',
-      verticalOffset3D,
-      mode2d: this.mode2dEnabled(),
-    });
+  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.nameOrbit()));
+
+  private nameOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 5)}px)`);
+    return this.labelOrbitFacing(30, 60);
+  }
+
+  readonly ownerOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.ownerOrbit()));
+
+  private ownerOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 8)}px)`);
+    return this.labelOrbitFacing(55, 90);
+  }
+
+  private billboardFacing(verticalOffset3D: number): BillboardFacing {
+    const pieceRotate = this.rotateSignal();
+    const mode2d = this.mode2dEnabled();
+    return (rotation) =>
+      makeBillboardTransform({
+        rotation,
+        pieceRotate,
+        parentInverseRotation: 'rotateX(90deg)',
+        verticalOffset3D,
+        mode2d,
+      });
   }
 
   readonly movableOption = signal<MovableOption>({});

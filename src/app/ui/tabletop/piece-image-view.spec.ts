@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { BillboardFacing } from '@axe/application/ui/billboard-frame.service';
 import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
 import { supersampleFactor, supersampleTransform } from '@axe/ui/tabletop/supersample';
 
@@ -12,7 +13,9 @@ describe('pieceImageView', () => {
   const sizePx = signal(100);
   const specified = signal<number | null>(null);
   const billboard = signal(true);
-  const billboardTransform = signal('rotateX(50deg)');
+  const billboardFacing = signal<BillboardFacing>(() => 'rotateX(50deg)');
+  /** The camera has not been turned, which is the turn the register hands a facing before any frame. */
+  const atRest = null;
 
   const fitInCell = signal(false);
 
@@ -23,7 +26,7 @@ describe('pieceImageView', () => {
       sizePx,
       specifiedHeightPx: specified,
       billboardEnabled: billboard,
-      billboardTransform,
+      billboardFacing,
       squarePoster,
       fitInCell,
     });
@@ -50,7 +53,7 @@ describe('pieceImageView', () => {
     image.onImageLoad(loaded(400, 200));
     expect(image.supersample()).toBe(supersampleFactor(400, 100));
     expect(image.boxHeightPx()).toBe(50);
-    expect(image.komaTransform()).toBe(
+    expect(image.komaFacing()(atRest)).toBe(
       supersampleTransform({
         factor: image.supersample(),
         anchor: 'bottom',
@@ -89,7 +92,7 @@ describe('pieceImageView', () => {
   it('leaves the billboard turn off the picture when the table does not billboard', () => {
     const image = view();
     billboard.set(false);
-    expect(image.pieceTransform()).toBe(supersampleTransform({ factor: 1, anchor: 'bottom', inner: '' }));
+    expect(image.pieceFacing()(atRest)).toBe(supersampleTransform({ factor: 1, anchor: 'bottom', inner: '' }));
   });
 });
 
@@ -107,7 +110,7 @@ describe('a picture held to the ground its piece stands on', () => {
       sizePx,
       specifiedHeightPx: specified,
       billboardEnabled: signal(false),
-      billboardTransform: signal(''),
+      billboardFacing: signal<BillboardFacing>(() => ''),
       squarePoster: true,
       fitInCell,
     });
