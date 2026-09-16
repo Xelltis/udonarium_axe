@@ -4,7 +4,6 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
-import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Card } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -30,19 +29,16 @@ describe('GmToolbarComponent', () => {
     component = fixture.componentInstance;
   });
 
-  it('brings a hidden recording widget back', () => {
+  it('carries none of the widget switches, which belong to the display settings', () => {
     PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
-    const widgets = TestBed.inject(WidgetVisibilityService);
-    widgets.recording.set(false);
     fixture.detectChanges();
+    const icons = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('ui-icon-button i')).map((icon) =>
+      icon.textContent?.trim()
+    );
 
-    const button = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('button')).find((candidate) =>
-      candidate.textContent?.includes('radio_button_checked')
-    )!;
-    expect(button).toBeDefined();
-
-    button.click();
-    expect(widgets.recording()).toBe(true);
+    for (const widget of ['apps', 'schedule', 'radio_button_checked', 'network_check', 'play_circle']) {
+      expect(icons).not.toContain(widget);
+    }
   });
 
   it('offers no brush of its own, the painting having moved to the map editor', () => {

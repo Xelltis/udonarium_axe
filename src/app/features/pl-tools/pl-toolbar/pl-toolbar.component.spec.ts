@@ -134,6 +134,19 @@ describe('PlToolbarComponent', () => {
     expect(restored!.style.top).toBe('240px');
   });
 
+  it('carries none of the widget switches, which belong to the display settings', async () => {
+    setRole(PeerRole.Player);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const icons = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('ui-icon-button i')).map((icon) =>
+      icon.textContent?.trim()
+    );
+
+    for (const widget of ['apps', 'schedule', 'radio_button_checked', 'network_check', 'play_circle']) {
+      expect(icons).not.toContain(widget);
+    }
+  });
+
   describe('folding', () => {
     afterEach(() => localStorage.removeItem('ui-toolbars'));
 

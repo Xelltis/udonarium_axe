@@ -74,42 +74,6 @@
         (press)="releaseOrphanedOwnership()"
       />
 
-      <ui-icon-button
-        icon="apps"
-        [label]="'feature.hotbar.toggle' | transloco"
-        [active]="widgets.hotbar()"
-        testId="hotbar-toggle"
-        (press)="widgets.toggleHotbar()"
-      />
-
-      <ui-icon-button
-        icon="schedule"
-        [label]="'app.fab.clock' | transloco"
-        [active]="widgets.clock()"
-        (press)="widgets.toggleClock()"
-      />
-
-      <ui-icon-button
-        icon="radio_button_checked"
-        [label]="'app.fab.recording' | transloco"
-        [active]="widgets.recording()"
-        (press)="widgets.toggleRecording()"
-      />
-
-      <ui-icon-button
-        icon="network_check"
-        [label]="'app.fab.connectionQuality' | transloco"
-        [active]="widgets.connectionQuality()"
-        (press)="widgets.toggleConnectionQuality()"
-      />
-
-      <ui-icon-button
-        icon="play_circle"
-        [label]="'app.fab.miniPlayer' | transloco"
-        [active]="widgets.miniPlayer()"
-        (press)="widgets.toggleMiniPlayer()"
-      />
-
       @if (turnIndicator(); as turn) {
         <span
           class="border-ui-border-panel text-ui-muted flex h-8 max-w-64 items-center gap-1 border-l border-solid pl-2 text-[12px]"

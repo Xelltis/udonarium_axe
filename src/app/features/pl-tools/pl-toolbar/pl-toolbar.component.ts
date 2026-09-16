@@ -17,7 +17,6 @@ import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-prefere
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -57,7 +56,6 @@ export class PlToolbarComponent {
   private readonly turnOrder = inject(TurnOrderService);
   private readonly tabletopAction = inject(TabletopActionService);
   protected readonly handRail = inject(HandRailService);
-  protected readonly widgets = inject(WidgetVisibilityService);
   protected readonly active = inject(ActiveCharacterService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
   private readonly t = inject(TRANSLATE_FN);

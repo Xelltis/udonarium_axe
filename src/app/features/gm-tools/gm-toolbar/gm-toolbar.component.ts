@@ -17,7 +17,6 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { findOrphanedOwnership } from '@axe/domain/tabletop/ownership';
@@ -49,7 +48,6 @@ export class GmToolbarComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly turnOrder = inject(TurnOrderService);
   protected readonly handRail = inject(HandRailService);
-  protected readonly widgets = inject(WidgetVisibilityService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
 
