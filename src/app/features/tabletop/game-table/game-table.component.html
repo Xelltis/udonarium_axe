@@ -176,22 +176,14 @@
             ></dice-symbol>
           }
           @for (terrain of terrainsBySurface()[wall.surface]; track terrain.identifier) {
-            <terrain
-              class="absolute backface-visible transform-3d"
-              [class.will-change-transform]="!terrain.isLocked"
-              [terrain]="terrain"
-            ></terrain>
+            <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
           }
         </div>
       }
       @if (terrainsBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
           @for (terrain of terrainsBySurface().floor; track terrain.identifier) {
-            <terrain
-              class="absolute backface-visible transform-3d"
-              [class.will-change-transform]="!terrain.isLocked"
-              [terrain]="terrain"
-            ></terrain>
+            <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
           }
         </div>
       }
