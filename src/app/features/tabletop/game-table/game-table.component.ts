@@ -38,6 +38,7 @@ import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { buildToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -105,6 +106,11 @@ import { TableMoveRangeOverlayComponent } from '@axe/features/tabletop/table-mov
 import { TableTargetOverlayComponent } from '@axe/features/tabletop/table-target-overlay/table-target-overlay.component';
 import { TableTriggerOverlayComponent } from '@axe/features/tabletop/table-trigger-overlay/table-trigger-overlay.component';
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
+import {
+  LIGHT_MIN_OVERLAY_SCALE,
+  LIGHT_OVERLAY_PIXEL_BUDGET,
+  overlayScale,
+} from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
@@ -257,6 +263,7 @@ export class GameTableComponent {
   private _lastMode2dTableId: string | null = null;
   /** What the grid on the canvas was drawn from, so it is only drawn again when one of them changes. */
   private _gridDrawnFrom: string | null = null;
+  private readonly renderLite = inject(RenderLiteService);
   readonly gestureService = inject(GameTableGestureService);
 
   constructor() {
@@ -316,14 +323,7 @@ export class GameTableComponent {
           this.selectionSignalService.clearSelection();
         }
         this._lastTableId = id;
-        this.setGameTableGrid(
-          this.currentTable.width,
-          this.currentTable.height,
-          this.currentTable.gridSize,
-          this.currentTable.gridType,
-          this.currentTable.gridColor,
-          this.currentTable.gridFontColor
-        );
+        this.redrawTableGrid();
         this.syncMode2d();
       },
       this.destroyRef
@@ -346,6 +346,13 @@ export class GameTableComponent {
         this.snapToRealSize();
       });
     });
+    // How much drawing the machine is asked for decides how large the grid's canvas is, and the
+    // reader can turn that over at any time.
+    effect(() => {
+      this.renderLite.active();
+      if (!this._initialized) return;
+      untracked(() => this.redrawTableGrid());
+    });
     this.tabletopActionService.makeDefaultTable();
     this.tabletopActionService.makeDefaultTabletopObjects();
 
@@ -360,14 +367,7 @@ export class GameTableComponent {
       );
       this.gestureService.cancelInput();
 
-      this.setGameTableGrid(
-        this.currentTable.width,
-        this.currentTable.height,
-        this.currentTable.gridSize,
-        this.currentTable.gridType,
-        this.currentTable.gridColor,
-        this.currentTable.gridFontColor
-      );
+      this.redrawTableGrid();
       this.gestureService.setTransform(0, 0, 0, 0, 0, 0);
       this.coordinateService.tabletopOriginElement = this.gameObjects().nativeElement;
       this.syncMode2d();
@@ -1226,6 +1226,18 @@ export class GameTableComponent {
     };
   }
 
+  /** Draws the grid from the table as it stands now. */
+  private redrawTableGrid(): void {
+    this.setGameTableGrid(
+      this.currentTable.width,
+      this.currentTable.height,
+      this.currentTable.gridSize,
+      this.currentTable.gridType,
+      this.currentTable.gridColor,
+      this.currentTable.gridFontColor
+    );
+  }
+
   /**
    * Sizes the board and draws its grid, and shows or hides the grid as the table asks.
    *
@@ -1241,14 +1253,24 @@ export class GameTableComponent {
     gridColor: string = '#000000e6',
     gridFontColor: string = gridColor
   ) {
-    const drawnFrom = `${width}|${height}|${gridSize}|${gridType}|${gridColor}|${gridFontColor}`;
+    const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
+    const boardWidthPx = geo ? geo.pixelW : width * gridSize;
+    const boardHeightPx = geo ? geo.pixelH : height * gridSize;
+    // Drawn the lighter way, the grid is held to a canvas the machine can carry; drawn the usual
+    // way it covers the board pixel for pixel, as it always has.
+    const scale = this.renderLite.active()
+      ? overlayScale(boardWidthPx, boardHeightPx, LIGHT_OVERLAY_PIXEL_BUDGET, LIGHT_MIN_OVERLAY_SCALE)
+      : 1;
+    const drawnFrom = `${width}|${height}|${gridSize}|${gridType}|${gridColor}|${gridFontColor}|${scale}`;
     if (drawnFrom !== this._gridDrawnFrom) {
       this._gridDrawnFrom = drawnFrom;
+      const canvas = this.gridCanvas().nativeElement;
       this.gameTable().nativeElement.style.width = width * gridSize + 'px';
       this.gameTable().nativeElement.style.height = height * gridSize + 'px';
+      canvas.style.width = scale === 1 ? '' : `${boardWidthPx}px`;
+      canvas.style.height = scale === 1 ? '' : `${boardHeightPx}px`;
 
-      const render = new GridLineRender(this.gridCanvas().nativeElement);
-      const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
+      const render = new GridLineRender(canvas, scale);
       if (geo) {
         render.renderViewport(
           geo.pixelW,

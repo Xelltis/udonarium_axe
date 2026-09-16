@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
@@ -69,6 +70,43 @@ describe('drawing the grid over the board', () => {
     await Promise.resolve();
     await fixture.whenStable();
     expect(draws()).toBe(4);
+  });
+
+  it('covers the board pixel for pixel while the board is drawn the usual way', async () => {
+    TestBed.inject(RenderLiteService).set('off');
+    const table = component.currentTable;
+    table.width = 100;
+    table.height = 100;
+    table.gridSize = 50;
+    await Promise.resolve();
+    await fixture.whenStable();
+
+    const canvas = component.gridCanvas().nativeElement;
+    expect(canvas.width).toBe(5000);
+    expect(canvas.height).toBe(5000);
+    expect(canvas.style.width).toBe('');
+    expect(canvas.style.height).toBe('');
+  });
+
+  it('holds the grid to the light pixel budget while the board is drawn the lighter way', async () => {
+    const renderLite = TestBed.inject(RenderLiteService);
+    renderLite.set('off');
+    const table = component.currentTable;
+    table.width = 100;
+    table.height = 100;
+    table.gridSize = 50;
+    await Promise.resolve();
+    await fixture.whenStable();
+
+    renderLite.set('on');
+    await fixture.whenStable();
+
+    const canvas = component.gridCanvas().nativeElement;
+    expect(canvas.width * canvas.height).toBeLessThanOrEqual(4_000_000);
+    expect(canvas.width).toBeGreaterThan(0);
+    // The browser lets the canvas back up to the size of the board.
+    expect(canvas.style.width).toBe('5000px');
+    expect(canvas.style.height).toBe('5000px');
   });
 
   it('still shows and hides the grid on a change that draws nothing', async () => {
