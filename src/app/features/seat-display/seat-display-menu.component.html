@@ -1,0 +1,154 @@
+<section
+  class="border-ui-border-panel bg-ui-panel text-ui-text shadow-ui-md rounded-ui-lg flex w-64 flex-col gap-3 border border-solid p-3 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+  role="dialog"
+  data-testid="seat-display"
+  [attr.aria-label]="'feature.seatDisplay.title' | transloco"
+>
+  <header class="flex items-center justify-between gap-2">
+    <h2 class="text-ui-muted m-0 text-[12px] font-semibold tracking-wide">
+      {{ 'feature.seatDisplay.title' | transloco }}
+    </h2>
+    <ui-icon-button icon="close" [label]="'feature.seatDisplay.close' | transloco" (press)="closed.emit()" />
+  </header>
+
+  <div class="flex flex-col gap-1" role="group" [attr.aria-label]="'feature.seatDisplay.view.label' | transloco">
+    <div class="text-ui-muted flex items-baseline justify-between gap-2 text-[11px]">
+      <span>{{ 'feature.seatDisplay.view.label' | transloco }}</span>
+      @if (viewMode.mode() === 'auto') {
+        <span class="text-ui-dim">{{ autoViewKey() | transloco }}</span>
+      }
+    </div>
+    <div class="flex gap-1">
+      @for (mode of viewModes; track mode) {
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:text-ui-accent flex-1 cursor-pointer border border-solid px-1.5 py-1 text-[12px] transition-colors"
+          [class.border-ui-accent]="viewMode.mode() === mode"
+          [class.bg-ui-accent-bg]="viewMode.mode() === mode"
+          [class.text-ui-accent]="viewMode.mode() === mode"
+          [attr.aria-pressed]="viewMode.mode() === mode"
+          [attr.data-testid]="'seat-view-' + mode"
+          (click)="chooseViewMode(mode)"
+        >
+          {{ 'feature.seatDisplay.view.' + mode | transloco }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-1" role="group" [attr.aria-label]="'feature.seatDisplay.theme.label' | transloco">
+    <span class="text-ui-muted text-[11px]">{{ 'feature.seatDisplay.theme.label' | transloco }}</span>
+    <div class="flex gap-1">
+      @for (choice of themes; track choice) {
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:text-ui-accent flex-1 cursor-pointer border border-solid px-1.5 py-1 text-[12px] transition-colors"
+          [class.border-ui-accent]="theme.theme() === choice"
+          [class.bg-ui-accent-bg]="theme.theme() === choice"
+          [class.text-ui-accent]="theme.theme() === choice"
+          [attr.aria-pressed]="theme.theme() === choice"
+          [attr.data-testid]="'seat-theme-' + choice"
+          (click)="chooseTheme(choice)"
+        >
+          {{ 'common.theme.' + choice | transloco }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-1" role="group" [attr.aria-label]="'feature.seatDisplay.motion.label' | transloco">
+    <span class="text-ui-muted text-[11px]">{{ 'feature.seatDisplay.motion.label' | transloco }}</span>
+    <div class="flex gap-1">
+      @for (choice of motionSettings; track choice) {
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:text-ui-accent flex-1 cursor-pointer border border-solid px-1.5 py-1 text-[12px] transition-colors"
+          [class.border-ui-accent]="motion.setting() === choice"
+          [class.bg-ui-accent-bg]="motion.setting() === choice"
+          [class.text-ui-accent]="motion.setting() === choice"
+          [attr.aria-pressed]="motion.setting() === choice"
+          [attr.data-testid]="'seat-motion-' + choice"
+          (click)="motion.set(choice)"
+        >
+          {{ 'feature.seatDisplay.motion.' + choice | transloco }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-1" role="group" [attr.aria-label]="'feature.seatDisplay.renderLite.label' | transloco">
+    <span class="text-ui-muted text-[11px]">{{ 'feature.seatDisplay.renderLite.label' | transloco }}</span>
+    <div class="flex gap-1">
+      @for (choice of renderLiteSettings; track choice) {
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:text-ui-accent flex-1 cursor-pointer border border-solid px-1.5 py-1 text-[12px] transition-colors"
+          [class.border-ui-accent]="renderLite.setting() === choice"
+          [class.bg-ui-accent-bg]="renderLite.setting() === choice"
+          [class.text-ui-accent]="renderLite.setting() === choice"
+          [attr.aria-pressed]="renderLite.setting() === choice"
+          [attr.data-testid]="'seat-render-lite-' + choice"
+          (click)="renderLite.set(choice)"
+        >
+          {{ 'feature.seatDisplay.renderLite.' + choice | transloco }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-1" role="group" [attr.aria-label]="'feature.seatDisplay.language.label' | transloco">
+    <span class="text-ui-muted text-[11px]">{{ 'feature.seatDisplay.language.label' | transloco }}</span>
+    <div class="flex gap-1">
+      @for (lang of langs; track lang) {
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:text-ui-accent flex-1 cursor-pointer border border-solid px-1.5 py-1 text-[12px] transition-colors"
+          [class.border-ui-accent]="language.currentLang() === lang"
+          [class.bg-ui-accent-bg]="language.currentLang() === lang"
+          [class.text-ui-accent]="language.currentLang() === lang"
+          [attr.aria-pressed]="language.currentLang() === lang"
+          [attr.data-testid]="'seat-lang-' + lang"
+          (click)="chooseLanguage(lang)"
+        >
+          {{ 'common.language.' + lang | transloco }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (viewport.isCompact() && mobile.prefersDesktop()) {
+    <button
+      type="button"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:text-ui-accent flex cursor-pointer items-center justify-center gap-1.5 border border-solid px-2 py-1.5 text-[12px] transition-colors [&_i]:text-[16px]!"
+      data-testid="seat-use-mobile"
+      (click)="mobile.useMobileLayout()"
+    >
+      <i class="material-icons">smartphone</i>
+      {{ 'feature.mobile.useMobile' | transloco }}
+    </button>
+  }
+
+  <div
+    class="border-ui-border-panel flex flex-col gap-1 border-t border-solid pt-3"
+    role="group"
+    [attr.aria-label]="'feature.seatDisplay.widgets.label' | transloco"
+  >
+    <span class="text-ui-muted text-[11px]">{{ 'feature.seatDisplay.widgets.label' | transloco }}</span>
+    <div class="grid grid-cols-2 gap-1">
+      @for (widget of widgetSwitches(); track widget.key) {
+        <button
+          type="button"
+          class="rounded-ui-sm text-ui-text hover:bg-ui-menu-hover hover:text-ui-accent flex cursor-pointer items-center gap-1.5 border-none bg-transparent px-1.5 py-1 text-left text-[12px] transition-colors [&_i]:text-[16px]!"
+          [attr.aria-pressed]="widget.shown()"
+          [attr.data-testid]="'seat-widget-' + widget.key"
+          (click)="widget.toggle()"
+        >
+          <i class="material-icons" [class.text-ui-accent]="widget.shown()" [class.text-ui-dim]="!widget.shown()">{{
+            widget.shown() ? 'check_box' : 'check_box_outline_blank'
+          }}</i>
+          <span class="truncate">{{ widget.labelKey | transloco }}</span>
+        </button>
+      }
+    </div>
+  </div>
+</section>

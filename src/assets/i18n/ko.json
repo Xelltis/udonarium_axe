@@ -4110,6 +4110,39 @@
       "effectPlaceholder": "버프에 붙는 한 줄(예: 매 라운드 HP-1)",
       "iconImage": "이미지",
       "pickIconImage": "이미지에서 고르기"
+    },
+    "seatDisplay": {
+      "title": "이 기기의 표시",
+      "view": {
+        "label": "시점",
+        "auto": "자동",
+        "perspective": "3D",
+        "flat": "2D",
+        "nowFlat": "지금은 2D",
+        "nowPerspective": "지금은 3D"
+      },
+      "theme": {
+        "label": "테마"
+      },
+      "motion": {
+        "label": "이펙트",
+        "auto": "자동",
+        "on": "항상 재생",
+        "off": "끄기"
+      },
+      "renderLite": {
+        "label": "렌더링",
+        "auto": "자동",
+        "on": "가볍게",
+        "off": "기본"
+      },
+      "language": {
+        "label": "언어"
+      },
+      "widgets": {
+        "label": "위젯"
+      },
+      "close": "닫기"
     }
   },
   "app": {
@@ -4152,7 +4185,8 @@
       "viewAutoFlat": "시점: 자동 (2D)",
       "viewAutoPerspective": "시점: 자동 (3D)",
       "tabletopDisplay": "탁상 디스플레이",
-      "skin": "스킨"
+      "skin": "스킨",
+      "display": "표시"
     },
     "roomDataDefault": "룸 데이터"
   },

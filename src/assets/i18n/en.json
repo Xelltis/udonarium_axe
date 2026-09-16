@@ -3863,6 +3863,39 @@
       "effectPlaceholder": "A line to carry on the buff (e.g. HP-1 each round)",
       "iconImage": "Picture",
       "pickIconImage": "Pick a picture"
+    },
+    "seatDisplay": {
+      "title": "Display on this device",
+      "view": {
+        "label": "View",
+        "auto": "Auto",
+        "perspective": "3D",
+        "flat": "2D",
+        "nowFlat": "now 2D",
+        "nowPerspective": "now 3D"
+      },
+      "theme": {
+        "label": "Theme"
+      },
+      "motion": {
+        "label": "Effects",
+        "auto": "Auto",
+        "on": "Always play",
+        "off": "Off"
+      },
+      "renderLite": {
+        "label": "Rendering",
+        "auto": "Auto",
+        "on": "Lighter",
+        "off": "Full"
+      },
+      "language": {
+        "label": "Language"
+      },
+      "widgets": {
+        "label": "Widgets"
+      },
+      "close": "Close"
     }
   },
   "app": {
@@ -3905,7 +3938,8 @@
       "viewAutoFlat": "View: auto (2D)",
       "viewAutoPerspective": "View: auto (3D)",
       "tabletopDisplay": "Tabletop display",
-      "skin": "Skin"
+      "skin": "Skin",
+      "display": "Display"
     },
     "roomDataDefault": "Room data"
   },
