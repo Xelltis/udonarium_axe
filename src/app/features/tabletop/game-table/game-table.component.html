@@ -38,7 +38,7 @@
   }
 </ng-template>
 <div
-  class="pointer-events-none absolute inset-0 -m-1.25 bg-cover bg-center bg-no-repeat [&.is-filter]:filter-[blur(5px)] [&.is-filter]:will-change-[filter] [&.is-filter]:after:block [&.is-filter]:after:size-full [&.is-filter]:after:content-[''] [&.is-filter.black]:after:bg-[hsl(0,0%,10%)] [&.is-filter.black]:after:filter-[opacity(0.3)] [&.is-filter.white]:after:bg-[hsl(0,0%,97%)] [&.is-filter.white]:after:filter-[opacity(0.2)]"
+  class="pointer-events-none absolute inset-0 -m-1.25 bg-cover bg-center bg-no-repeat [&.is-filter]:filter-[blur(5px)] [&.is-filter]:will-change-[filter] [&.is-filter]:after:block [&.is-filter]:after:size-full [&.is-filter]:after:content-[''] [&.is-filter.black]:after:bg-[hsl(0,0%,10%)] [&.is-filter.black]:after:opacity-30 [&.is-filter.white]:after:bg-[hsl(0,0%,97%)] [&.is-filter.white]:after:opacity-20"
   [ngClass]="[backgroundFilterType ? 'is-filter' : '', backgroundFilterType]"
   [style.background-image]="'url(' + backgroundImage.url + ')' | safe: 'style'"
 ></div>
