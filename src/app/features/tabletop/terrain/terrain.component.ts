@@ -1098,8 +1098,17 @@ export class TerrainComponent {
 
     perfCounters.bump(PERF_TERRAIN_GRID_RASTER);
     if (slide.grow === 0) perfCounters.bump(`${PERF_TERRAIN_GRID_RASTER}:unslid`);
+    let drawn: HTMLCanvasElement | null = null;
     for (const gridCanvas of this.gridCanvases()) {
-      const render = new GridLineRender(gridCanvas.nativeElement);
+      const canvas = gridCanvas.nativeElement;
+      // Every step of a slope shows the same stretch of grid, so the rest are copies of the first.
+      if (drawn) {
+        canvas.width = drawn.width;
+        canvas.height = drawn.height;
+        canvas.getContext('2d')?.drawImage(drawn, 0, 0);
+        continue;
+      }
+      const render = new GridLineRender(canvas);
       render.renderViewport(
         slide.viewport.canvasWidth + slide.grow,
         slide.viewport.canvasHeight + slide.grow,
@@ -1110,6 +1119,7 @@ export class TerrainComponent {
         slide.offsetTop,
         slide.offsetLeft
       );
+      drawn = canvas;
     }
     let opacity: number = 0.0;
     setTimeout(() => {

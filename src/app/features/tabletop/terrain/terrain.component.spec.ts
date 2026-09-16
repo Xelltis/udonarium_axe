@@ -20,6 +20,7 @@ import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
@@ -511,6 +512,39 @@ describe('TerrainComponent', () => {
 
       expect(fixture.nativeElement.querySelectorAll('canvas')).toHaveLength(1);
 
+      terrain.destroy();
+    });
+
+    it('cuts the grid once for a slope and copies it onto the steps above', async () => {
+      let copied = 0;
+      const context = new Proxy({} as Record<string | symbol, unknown>, {
+        get: (target, key) => {
+          if (key === 'drawImage') return () => copied++;
+          return key in target ? target[key] : () => undefined;
+        },
+        set: (target, key, value) => {
+          target[key] = value;
+          return true;
+        },
+      });
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as null);
+      const cut = vi.spyOn(GridLineRender.prototype, 'renderViewport');
+      const table = component.currentTable;
+      const wasGridType = table.gridType;
+      table.gridType = GridType.HEX_VERTICAL;
+      const terrain = Terrain.create('hex slope terrain', 3, 3, 1, '', '');
+      terrain.isGrid = true;
+      terrain.isSlope = true;
+      terrain.slopeDirection = SlopeDirection.BOTTOM;
+      fixture.componentRef.setInput('terrain', terrain);
+      await fixture.whenStable();
+
+      const canvases = fixture.nativeElement.querySelectorAll('canvas').length;
+      expect(canvases).toBeGreaterThan(1);
+      expect(cut).toHaveBeenCalledTimes(1);
+      expect(copied).toBe(canvases - 1);
+
+      table.gridType = wasGridType;
       terrain.destroy();
     });
 
