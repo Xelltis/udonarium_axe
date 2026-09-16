@@ -40,6 +40,13 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, SlopeDirection, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
+import {
+  faceShadeOf,
+  sideCellIndexes,
+  sideShadeLine,
+  topShadeGrid,
+  topShadeOf,
+} from '@axe/domain/tabletop/terrain-shade';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
@@ -49,6 +56,7 @@ import {
   HexSlopeStepFloor,
 } from '@axe/features/tabletop/terrain/hex-slope-step-geometry';
 import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
+import { fogMaskOf, terrainTextureLayout } from '@axe/features/tabletop/terrain/terrain-face-look';
 import {
   hexFloorClipPathOf,
   hexWallsOf,
@@ -70,19 +78,13 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import {
-  cellGradient,
-  DEFAULT_SHADE_RGB,
   ShadedBackground,
   shadedBackgroundGrid,
   shadedBackgroundImage,
   shadeRgbOf,
-  STRETCHED_TEXTURE,
   TextureLayout,
 } from '@axe/ui/tabletop/shaded-background';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
-
-/** What is left of a face the fog covers end to end. */
-const HIDDEN_FACE: Record<string, string> = { display: 'none' };
 
 interface TerrainGridBounds {
   left: number;
@@ -413,11 +415,9 @@ export class TerrainComponent {
     this.terrainVersion();
     return this.terrain().isTiledTexture;
   });
-  private readonly textureLayout = computed<TextureLayout>(() => {
-    if (!this.isTiledTexture()) return STRETCHED_TEXTURE;
-    const side = `${this.gridSize}px`;
-    return { size: `${side} ${side}`, repeat: 'repeat' };
-  });
+  private readonly textureLayout = computed<TextureLayout>(() =>
+    terrainTextureLayout(this.isTiledTexture(), this.gridSize)
+  );
   readonly tileStyle = computed((): Record<string, string> => {
     if (!this.isTiledTexture()) return {};
     const texture = this.textureLayout();
@@ -724,19 +724,7 @@ export class TerrainComponent {
     return ret;
   });
 
-  private readonly floorShade = computed(() => {
-    if (!this.isSurfaceShading()) return 1.0;
-    switch (this.slopeDirection()) {
-      case SlopeDirection.TOP:
-        return 0.4;
-      case SlopeDirection.LEFT:
-        return 0.6;
-      case SlopeDirection.RIGHT:
-        return 0.9;
-      default:
-        return 1.0;
-    }
-  });
+  private readonly floorShade = computed(() => topShadeOf(this.slopeDirection(), this.isSurfaceShading()));
 
   private readonly fogCover = computed(() => {
     const terrain = this.terrain();
@@ -759,67 +747,17 @@ export class TerrainComponent {
   /**
    * What the fog leaves of a face, as a mask over it.
    *
-   * A block standing in ground nobody has walked to is not there to be seen. Painted over in
-   * the colour of the fog it would stand up out of the mist as a solid slab of it, and the shape
-   * of the slab would tell the party the wall is there. Taken away instead, the face thins out
-   * across the cell at the edge of what has been reached, the way the mist on the floor does,
-   * and the rest of the block is simply gone.
-   *
    * A hex board and a slope carry a clip of their own and are shown or hidden whole.
    */
   private fogMaskStyle(cleared: readonly boolean[], cols: number, rows: number): Record<string, string> | null {
-    if (this.isHex() || this.isSlope() || cleared.every((cell) => cell)) return null;
-    // A face standing wholly in ground nobody has reached is not drawn at all. A mask made of
-    // one reading cannot say this: a gradient with nothing kept anywhere is no gradient, and a
-    // face left without a mask is a face shown whole.
-    if (!cleared.some((cell) => cell)) return HIDDEN_FACE;
-    const mask = cellGradient(
-      cleared.map((cell) => (cell ? 1 : 0)),
-      cols,
-      rows,
-      DEFAULT_SHADE_RGB
-    );
-    if (!mask) return null;
-    return {
-      'mask-image': mask.image,
-      '-webkit-mask-image': mask.image,
-      'mask-size': mask.size,
-      '-webkit-mask-size': mask.size,
-      'mask-position': mask.position,
-      '-webkit-mask-position': mask.position,
-      'mask-repeat': 'no-repeat',
-      '-webkit-mask-repeat': 'no-repeat',
-      'mask-composite': 'add',
-      '-webkit-mask-composite': 'source-over',
-    };
-  }
-
-  /** The cells along one face, its left end first: the west and east faces stand up from the south end. */
-  private edgeIndexes(cover: TerrainFogCover, side: WallSide): number[] {
-    const { cols, rows } = cover;
-    switch (side) {
-      case 'north':
-        return Array.from({ length: cols }, (_, col) => col);
-      case 'south':
-        return Array.from({ length: cols }, (_, col) => (rows - 1) * cols + col);
-      case 'west':
-        return Array.from({ length: rows }, (_, i) => (rows - 1 - i) * cols);
-      default:
-        return Array.from({ length: rows }, (_, i) => (rows - 1 - i) * cols + cols - 1);
-    }
+    if (this.isHex() || this.isSlope()) return null;
+    return fogMaskOf(cleared, cols, rows);
   }
 
   private edgeCells(cover: TerrainFogCover, side: WallSide): boolean[] {
-    return this.edgeIndexes(cover, side).map((i) => cover.cleared[i]);
+    return sideCellIndexes(cover.cols, cover.rows, side).map((i) => cover.cleared[i]);
   }
 
-  /**
-   * The top of a block, shaded a cell at a time.
-   *
-   * The camera looks down on a table, so the top is the face most seen, and one figure for
-   * the whole of it lights the far end of a wall whose near end alone stands in a torch's
-   * reach.
-   */
   /**
    * The shading and the veils, worked out once for the scene rather than once a frame.
    *
@@ -828,16 +766,10 @@ export class TerrainComponent {
    * times a second, and every terrain on the board would be rebuilding all of it each time.
    */
   protected readonly topShade = computed(() => this.shadedTop(this.topFaceImage().url));
-  protected readonly northShade = computed(() =>
-    this.shadedFace(this.northFaceImage().url, this.isSurfaceShading() ? 0.3 : 1, 'north')
-  );
-  protected readonly southShade = computed(() => this.shadedFace(this.southFaceImage().url, 1, 'south'));
-  protected readonly westShade = computed(() =>
-    this.shadedFace(this.westFaceImage().url, this.isSurfaceShading() ? 0.5 : 1, 'west')
-  );
-  protected readonly eastShade = computed(() =>
-    this.shadedFace(this.eastFaceImage().url, this.isSurfaceShading() ? 0.8 : 1, 'east')
-  );
+  protected readonly northShade = computed(() => this.shadedSide(this.northFaceImage().url, 'north'));
+  protected readonly southShade = computed(() => this.shadedSide(this.southFaceImage().url, 'south'));
+  protected readonly westShade = computed(() => this.shadedSide(this.westFaceImage().url, 'west'));
+  protected readonly eastShade = computed(() => this.shadedSide(this.eastFaceImage().url, 'east'));
 
   /**
    * The underside of a block, which is only ever looked at on one hung off the ground.
@@ -846,7 +778,7 @@ export class TerrainComponent {
    * face turned away from every lamp on the table is the darkest side a block has.
    */
   protected readonly bottomShade = computed(() =>
-    this.shadedFace(this.bottomFaceImage().url, this.isSurfaceShading() ? 0.25 : 1, 'south')
+    this.shadedFace(this.bottomFaceImage().url, faceShadeOf('bottom', this.isSurfaceShading()), 'south')
   );
 
   /**
@@ -865,46 +797,24 @@ export class TerrainComponent {
   protected readonly westFog = computed(() => this.faceFogStyle('west'));
   protected readonly eastFog = computed(() => this.faceFogStyle('east'));
 
+  /** The top of a block, shaded a cell at a time where it can be. */
   private shadedTop(url: string): ShadedBackground {
-    const cover = this.fogCover();
-    const texture = this.textureLayout();
-    // A roof standing above the floor is a surface of its own, lit cell by cell by whatever is
-    // up there with it rather than by what reaches the ground below.
-    const roof = this.topIsRaised() ? this.topCover() : null;
-    if (roof && !this.isHex() && !this.isSlope()) {
-      const shade = this.floorShade();
-      return shadedBackgroundGrid(
-        url,
-        roof.brightness.map((brightness) => shade * brightness),
-        roof.cols,
-        roof.rows,
-        texture,
-        this.shadeRgb()
-      );
-    }
-    if (this.topIsRaised()) {
-      return shadedBackgroundGrid(url, [this.floorShade() * this.topBrightness()], 1, 1, texture, this.shadeRgb());
-    }
-    if (!cover || this.isHex() || this.isSlope()) {
-      return shadedBackgroundGrid(url, [this.floorBrightness()], 1, 1, texture, this.shadeRgb());
-    }
-    const shade = this.floorShade();
-    return shadedBackgroundGrid(
-      url,
-      cover.brightness.map((brightness) => shade * brightness),
-      cover.cols,
-      cover.rows,
-      texture,
-      this.shadeRgb()
-    );
+    const grid = topShadeGrid(this.topIsRaised(), !this.isHex() && !this.isSlope(), this.floorShade(), {
+      roof: () => this.topCover(),
+      floor: () => this.fogCover(),
+      top: () => this.topBrightness(),
+      whole: () => this.centerBrightness(),
+    });
+    return shadedBackgroundGrid(url, grid.brightness, grid.cols, grid.rows, this.textureLayout(), this.shadeRgb());
+  }
+
+  private shadedSide(url: string, side: WallSide): ShadedBackground {
+    return this.shadedFace(url, faceShadeOf(side, this.isSurfaceShading()), side);
   }
 
   private shadedFace(url: string, base: number, side: WallSide): ShadedBackground {
-    const cover = this.fogCover();
-    const texture = this.textureLayout();
-    if (!cover) return shadedBackgroundGrid(url, [base * this.ambientBrightness()], 1, 1, texture, this.shadeRgb());
-    const along = this.edgeIndexes(cover, side).map((i) => base * cover.brightness[i]);
-    return shadedBackgroundGrid(url, along, along.length, 1, texture, this.shadeRgb());
+    const line = sideShadeLine(base, side, this.fogCover(), () => this.ambientBrightness());
+    return shadedBackgroundGrid(url, line.brightness, line.cols, line.rows, this.textureLayout(), this.shadeRgb());
   }
 
   private faceFogStyle(side: WallSide): Record<string, string> | null {

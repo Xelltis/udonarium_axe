@@ -1,5 +1,6 @@
 import { hexCircumradius, hexStartAngle } from '@axe/domain/tabletop/hex-geometry';
 import { SlopeDirection } from '@axe/domain/tabletop/terrain';
+import { hexWallShadeOf } from '@axe/domain/tabletop/terrain-shade';
 
 export interface HexSlopeStepFloor {
   heightPx: number;
@@ -184,9 +185,7 @@ export function computeHexSlopeSteps(
       const edgeLength = Math.sqrt(dx * dx + dy * dy);
       const edgeAngle = Math.atan2(dy, dx);
 
-      const brightness = useSurfaceShading
-        ? Math.max(0.3, Math.min(1.0, 0.65 - 0.35 * Math.cos(edgeAngle) + 0.15 * Math.sin(edgeAngle)))
-        : 1.0;
+      const brightness = hexWallShadeOf(edgeAngle, useSurfaceShading);
 
       walls.push({
         edgeLength: edgeLength + 1,

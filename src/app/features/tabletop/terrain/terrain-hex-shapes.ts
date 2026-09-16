@@ -1,3 +1,4 @@
+import { hexWallShadeOf } from '@axe/domain/tabletop/terrain-shade';
 import { HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 
 /** One wall of a hex terrain: the face standing on an edge of its outline. */
@@ -77,16 +78,12 @@ export function hexWallsOf(
     const edgeLength = Math.sqrt(dx * dx + dy * dy);
     const edgeAngle = Math.atan2(dy, dx);
 
-    const brightness = useSurfaceShading
-      ? Math.max(0.3, Math.min(1.0, 0.65 - 0.35 * Math.cos(edgeAngle) + 0.15 * Math.sin(edgeAngle)))
-      : 1.0;
-
     return {
       edgeLength: edgeLength + 1,
       px: containerW / 2 + v2.x,
       py: containerH / 2 + v2.y,
       angle: edgeAngle + Math.PI,
-      brightness,
+      brightness: hexWallShadeOf(edgeAngle, useSurfaceShading),
     };
   });
   byBox.set(key, walls);
