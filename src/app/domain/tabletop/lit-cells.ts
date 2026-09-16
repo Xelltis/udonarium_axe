@@ -86,7 +86,8 @@ export function computeLitCells(
 function squareLitCells(shapes: readonly LitCellShape[], gridSize: number, bounds: LitCellBounds): LitCellPoint[][] {
   const maxCol = Math.ceil(bounds.widthPx / gridSize) - 1;
   const maxRow = Math.ceil(bounds.heightPx / gridSize) - 1;
-  const taken = new Set<string>();
+  const stride = maxCol + 1;
+  const taken = new Set<number>();
   const cells: LitCellPoint[][] = [];
 
   for (const shape of shapes) {
@@ -97,7 +98,7 @@ function squareLitCells(shapes: readonly LitCellShape[], gridSize: number, bound
 
     for (let col = fromCol; col <= toCol; col++) {
       for (let row = fromRow; row <= toRow; row++) {
-        const key = `${col},${row}`;
+        const key = row * stride + col;
         if (taken.has(key)) continue;
         const cx = (col + 0.5) * gridSize;
         const cy = (row + 0.5) * gridSize;
@@ -127,18 +128,24 @@ function hexLitCells(
   const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
   const circumradius = hexCircumradius(gridSize);
   const startAngle = hexStartAngle(isFlatTop);
-  const taken = new Set<string>();
+  // A cell whose centre falls off the table is left out below, and a column or row beyond these
+  // puts every centre off it: holding the walk to them drops only cells that were being walked
+  // over to be thrown away, and keeps the columns and rows within a count that numbers them.
+  const maxCol = Math.floor(bounds.widthPx / colSpacing);
+  const maxRow = Math.floor(bounds.heightPx / rowSpacing);
+  const stride = maxCol + 1;
+  const taken = new Set<number>();
   const cells: LitCellPoint[][] = [];
 
   for (const shape of shapes) {
-    const fromCol = Math.floor((shape.x - shape.dimPx - circumradius) / colSpacing);
-    const toCol = Math.ceil((shape.x + shape.dimPx + circumradius) / colSpacing);
-    const fromRow = Math.floor((shape.y - shape.dimPx - circumradius) / rowSpacing);
-    const toRow = Math.ceil((shape.y + shape.dimPx + circumradius) / rowSpacing);
+    const fromCol = Math.max(0, Math.floor((shape.x - shape.dimPx - circumradius) / colSpacing));
+    const toCol = Math.min(maxCol, Math.ceil((shape.x + shape.dimPx + circumradius) / colSpacing));
+    const fromRow = Math.max(0, Math.floor((shape.y - shape.dimPx - circumradius) / rowSpacing));
+    const toRow = Math.min(maxRow, Math.ceil((shape.y + shape.dimPx + circumradius) / rowSpacing));
 
     for (let col = fromCol; col <= toCol; col++) {
       for (let row = fromRow; row <= toRow; row++) {
-        const key = `${col},${row}`;
+        const key = row * stride + col;
         if (taken.has(key)) continue;
         const center = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
         if (center.x < 0 || center.y < 0 || center.x > bounds.widthPx || center.y > bounds.heightPx) continue;
