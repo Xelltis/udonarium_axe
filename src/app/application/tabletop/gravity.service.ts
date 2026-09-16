@@ -2,7 +2,11 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import {
+  footprintOf,
+  TabletopOverlapRegistryEntry,
+  TabletopOverlapService,
+} from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { SurfaceDims, surfaceWorldBox } from '@axe/domain/tabletop/surface-space';
@@ -145,12 +149,12 @@ export class GravityService {
     entries: TabletopOverlapRegistryEntry[],
     gridSize: number
   ): number {
-    const center = GravityService.footprintCenter(target);
+    const center = GravityService.footprintCenter(target, gridSize);
     const targetBottom = target.object.altitude * gridSize + target.object.posZ;
     let maxZ = 0;
     for (const entry of entries) {
       if (entry.object.identifier === target.object.identifier) continue;
-      if (!GravityService.containsPoint(entry, center.x, center.y)) continue;
+      if (!GravityService.containsPoint(entry, center.x, center.y, gridSize)) continue;
       const topZ = GravityService.topZ(entry.object, gridSize);
       if (topZ > targetBottom + POSZ_EPSILON) continue;
       if (topZ > maxZ) maxZ = topZ;
@@ -184,18 +188,16 @@ export class GravityService {
     return obj.posZ;
   }
 
-  private static footprintCenter(entry: TabletopOverlapRegistryEntry): { x: number; y: number } {
-    const w = entry.element.offsetWidth;
-    const h = entry.element.offsetHeight;
-    return { x: entry.object.location.x + w / 2, y: entry.object.location.y + h / 2 };
+  private static footprintCenter(entry: TabletopOverlapRegistryEntry, gridSize: number): { x: number; y: number } {
+    const { width, height } = footprintOf(entry, gridSize);
+    return { x: entry.object.location.x + width / 2, y: entry.object.location.y + height / 2 };
   }
 
-  private static containsPoint(entry: TabletopOverlapRegistryEntry, x: number, y: number): boolean {
+  private static containsPoint(entry: TabletopOverlapRegistryEntry, x: number, y: number, gridSize: number): boolean {
+    const { width, height } = footprintOf(entry, gridSize);
     const left = entry.object.location.x;
     const top = entry.object.location.y;
-    const right = left + entry.element.offsetWidth;
-    const bottom = top + entry.element.offsetHeight;
-    return x >= left && x <= right && y >= top && y <= bottom;
+    return x >= left && x <= left + width && y >= top && y <= top + height;
   }
 
   private surfaceDims(gridSize: number): SurfaceDims {
@@ -216,7 +218,7 @@ export class GravityService {
     for (const entry of entries) {
       const obj = entry.object;
       const surface = surfaceOf(obj);
-      const { width: w, height: h } = GravityService.footprintOf(obj, entry.element, gridSizePx);
+      const { width: w, height: h } = footprintOf(entry, gridSizePx);
       const altitudePx = obj.altitude * gridSizePx;
       const posZ = obj.posZ;
       const thicknessPx = obj instanceof Terrain ? obj.height * gridSizePx : 0;
@@ -239,23 +241,6 @@ export class GravityService {
       });
     }
     return cached;
-  }
-
-  /**
-   * How much floor a piece stands on.
-   *
-   * Terrain is laid out from its own footprint, so the numbers are already known and asking
-   * the element for them makes the browser lay the page out to answer.
-   */
-  private static footprintOf(
-    obj: TabletopObject,
-    element: HTMLElement,
-    gridSizePx: number
-  ): { width: number; height: number } {
-    if (obj instanceof Terrain) {
-      return { width: Math.max(0, obj.width) * gridSizePx, height: Math.max(0, obj.depth) * gridSizePx };
-    }
-    return { width: element.offsetWidth, height: element.offsetHeight };
   }
 
   private static buildSpatialIndex(cached: CachedEntry[]): Map<string, CachedEntry[]> {

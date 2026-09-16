@@ -263,6 +263,15 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
   });
 
+  it('climbs a block drawn together with others, in no element of its own', () => {
+    const box = block({ identifier: 'box', h: 1 });
+    const directive = mount(block({ identifier: 'dragged', h: 1, x: 500, y: 500 }), []);
+    TestBed.inject(TabletopOverlapService).registerWithoutElement(box, () => undefined);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
+    expect(directive.contactSupportZ(150, 50)).toBe(0);
+  });
+
   it('rests a canopy on a tower by the gap under it, not by its own height again', () => {
     const tower = block({ identifier: 'tower', h: 4 });
     const dragged = block({ identifier: 'dragged', h: 1, altitude: 3, x: 500, y: 500 });
@@ -528,6 +537,20 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       directive['holdAtBlocks'](0, 50);
 
       // A pixel short of the face at 200, which is what keeps whole pixels on the outside.
+      expect(directive.posX).toBe(199);
+    });
+
+    it('holds a character at the near face of one drawn in no element of its own', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      TestBed.inject(TabletopOverlapService).registerWithoutElement(cliff({ x: 200, y: 0 }), () => undefined);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 50;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](0, 50);
+
       expect(directive.posX).toBe(199);
     });
 

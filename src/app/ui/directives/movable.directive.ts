@@ -8,7 +8,11 @@ import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import {
+  footprintOf,
+  TabletopOverlapRegistryEntry,
+  TabletopOverlapService,
+} from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
@@ -424,11 +428,12 @@ export class MovableDirective implements MovableInteractionContext {
       if (surfaceOf(entry.object) !== selfSurface) continue;
       const left = entry.object.location.x;
       const top = entry.object.location.y;
+      const footprint = footprintOf(entry, gridSize);
       footprints.push({
         left,
         top,
-        right: left + entry.element.offsetWidth,
-        bottom: top + entry.element.offsetHeight,
+        right: left + footprint.width,
+        bottom: top + footprint.height,
         bottomZ: GravityService.contactBottomZ(entry.object, selfSurface, gridSize),
         topZ: GravityService.contactTopZ(entry.object, selfSurface, gridSize),
         climbable: !(sheer && entry.object instanceof Terrain && entry.object.blocksClimb),
@@ -845,12 +850,13 @@ export class MovableDirective implements MovableInteractionContext {
       if (surface === 'floor') continue;
       const entry: TabletopOverlapRegistryEntry | undefined = this.tabletopOverlap.get(obj.identifier);
       if (!entry) continue;
+      const footprint = footprintOf(entry, gridSize);
       const box = surfaceWorldBox(
         surface,
         obj.location.x,
         obj.location.y,
-        entry.element.offsetWidth,
-        entry.element.offsetHeight,
+        footprint.width,
+        footprint.height,
         obj.altitude * gridSize + obj.posZ,
         obj.height * gridSize,
         dims
