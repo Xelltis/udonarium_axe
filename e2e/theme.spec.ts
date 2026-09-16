@@ -7,34 +7,41 @@ test.describe('テーマ切り替え', () => {
     await waitAppReady(page);
   });
 
-  test('FAB の「表示」の小窓で、今のテーマに印が付いていること', async ({ page }) => {
+  test('FAB の「表示」の小窓に、今のテーマのアイコンが出ること', async ({ page }) => {
     const panel = await openSeatDisplay(page);
     // 起動時は theme='auto'。
-    await expect(panel.getByTestId('seat-theme-auto')).toHaveAttribute('aria-pressed', 'true');
-    await expect(panel.getByTestId('seat-theme-dark')).toHaveAttribute('aria-pressed', 'false');
+    const theme = panel.getByTestId('seat-theme');
+    await expect(theme).toHaveAttribute('title', '自動');
+    await expect(theme.locator('i.material-icons')).toHaveText('brightness_auto');
   });
 
-  test('ダークを選ぶと画面がダークになり、選んだものに印が移ること', async ({ page }) => {
+  test('押すごとに自動 → ダーク → ライト → 自動 と巡り、画面のテーマが変わること', async ({ page }) => {
     const panel = await openSeatDisplay(page);
+    const theme = panel.getByTestId('seat-theme');
 
-    await panel.getByTestId('seat-theme-dark').click();
-    await expect(panel.getByTestId('seat-theme-dark')).toHaveAttribute('aria-pressed', 'true');
+    await theme.click();
+    await expect(theme).toHaveAttribute('title', 'ダーク');
+    await expect(theme.locator('i.material-icons')).toHaveText('dark_mode');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
-    await panel.getByTestId('seat-theme-light').click();
+    await theme.click();
+    await expect(theme).toHaveAttribute('title', 'ライト');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+    await theme.click();
+    await expect(theme).toHaveAttribute('title', '自動');
   });
 
   test('選んだテーマはリロードしても残ること', async ({ page }) => {
     const panel = await openSeatDisplay(page);
-    await panel.getByTestId('seat-theme-dark').click();
+    await panel.getByTestId('seat-theme').click();
     await expect.poll(() => page.evaluate(() => localStorage.getItem('ui-theme'))).toBe('dark');
 
     await page.reload();
     await waitAppReady(page);
 
     const reopened = await openSeatDisplay(page);
-    await expect(reopened.getByTestId('seat-theme-dark')).toHaveAttribute('aria-pressed', 'true');
+    await expect(reopened.getByTestId('seat-theme')).toHaveAttribute('title', 'ダーク');
   });
 
   test('小窓は Escape と外側のクリックで閉じること', async ({ page }) => {

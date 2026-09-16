@@ -64,14 +64,15 @@ test.describe('ウィジェットと言語切替', () => {
     await expect(panel).toContainText('ニックネーム');
 
     const display = await openSeatDisplay(page);
-    await display.getByTestId('seat-lang-en').click();
+    const language = display.getByTestId('seat-lang');
+    await language.click();
     await expect(panel).toContainText('Nickname', { timeout: 10000 });
 
-    // どれを選んでも入れ替わり、日本語に戻せること。切り替えっぱなしで終わらないのを確かめる。
-    await display.getByTestId('seat-lang-ko').click();
+    // 三つを巡って戻ること。切り替えっぱなしで終わらないのを確かめる。
+    await language.click();
     await expect(panel).toContainText('닉네임', { timeout: 10000 });
 
-    await display.getByTestId('seat-lang-ja').click();
+    await language.click();
     await expect(panel).toContainText('ニックネーム', { timeout: 10000 });
   });
 });

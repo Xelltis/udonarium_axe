@@ -43,59 +43,65 @@ describe('SeatDisplayMenuComponent', () => {
     return found;
   }
 
-  function pressed(host: HTMLElement, prefix: string): string[] {
-    return [...host.querySelectorAll<HTMLElement>(`[data-testid^="${prefix}"][aria-pressed="true"]`)].map(
-      (button) => button.dataset['testid']!
-    );
+  function iconOf(button: HTMLElement): string {
+    return button.querySelector('i')!.textContent!.trim();
   }
 
-  it('marks the choice in force for every setting, as each service holds it', () => {
-    TestBed.inject(ViewModePreferenceService).choose('flat');
+  it('shows each setting as the icon of the choice in force, named in its tooltip', () => {
+    TestBed.inject(ViewModePreferenceService).choose('perspective');
     TestBed.inject(ThemeService).theme.set('dark');
     TestBed.inject(MotionService).set('off');
     TestBed.inject(RenderLiteService).set('on');
     const host = render();
 
-    expect(pressed(host, 'seat-view-')).toEqual(['seat-view-flat']);
-    expect(pressed(host, 'seat-theme-')).toEqual(['seat-theme-dark']);
-    expect(pressed(host, 'seat-motion-')).toEqual(['seat-motion-off']);
-    expect(pressed(host, 'seat-render-lite-')).toEqual(['seat-render-lite-on']);
-    expect(pressed(host, 'seat-lang-')).toEqual([`seat-lang-${TestBed.inject(LanguageService).currentLang()}`]);
+    expect(iconOf(byTestId(host, 'seat-view'))).toBe('view_in_ar');
+    expect(iconOf(byTestId(host, 'seat-theme'))).toBe('dark_mode');
+    expect(byTestId(host, 'seat-theme').title).toBe('ダーク');
+    expect(iconOf(byTestId(host, 'seat-motion'))).toBe('motion_photos_off');
+    expect(byTestId(host, 'seat-motion').title).toBe('エフェクト: 停止');
+    expect(iconOf(byTestId(host, 'seat-render-lite'))).toBe('blur_off');
+    expect(byTestId(host, 'seat-lang').textContent!.trim()).toBe(
+      TestBed.inject(LanguageService).currentLang().toUpperCase()
+    );
   });
 
-  it('sets each setting to the choice pressed', () => {
+  it('moves each setting on to its next choice when pressed', () => {
+    TestBed.inject(ViewModePreferenceService).choose('auto');
+    TestBed.inject(ThemeService).theme.set('auto');
+    TestBed.inject(MotionService).set('auto');
+    TestBed.inject(RenderLiteService).set('auto');
     const host = render();
 
-    byTestId(host, 'seat-view-perspective').click();
-    byTestId(host, 'seat-theme-light').click();
-    byTestId(host, 'seat-motion-on').click();
-    byTestId(host, 'seat-render-lite-off').click();
+    byTestId(host, 'seat-view').click();
+    byTestId(host, 'seat-theme').click();
+    byTestId(host, 'seat-motion').click();
+    byTestId(host, 'seat-render-lite').click();
     fixture.detectChanges();
 
     expect(TestBed.inject(ViewModePreferenceService).mode()).toBe('perspective');
-    expect(TestBed.inject(ThemeService).theme()).toBe('light');
+    expect(TestBed.inject(ThemeService).theme()).toBe('dark');
     expect(TestBed.inject(MotionService).setting()).toBe('on');
-    expect(TestBed.inject(RenderLiteService).setting()).toBe('off');
-    expect(pressed(host, 'seat-theme-')).toEqual(['seat-theme-light']);
+    expect(TestBed.inject(RenderLiteService).setting()).toBe('on');
+    expect(iconOf(byTestId(host, 'seat-theme'))).toBe('dark_mode');
   });
 
-  it('switches the language to the one pressed', () => {
-    const setLang = vi.spyOn(TestBed.inject(LanguageService), 'setLang').mockResolvedValue();
+  it('moves on to the next language when pressed', () => {
+    const toggle = vi.spyOn(TestBed.inject(LanguageService), 'toggle').mockResolvedValue();
     const host = render();
 
-    byTestId(host, 'seat-lang-ko').click();
+    byTestId(host, 'seat-lang').click();
 
-    expect(setLang).toHaveBeenCalledWith('ko');
+    expect(toggle).toHaveBeenCalledOnce();
   });
 
-  it('says what auto has settled on only while auto is chosen', () => {
+  it('names what auto has settled on while auto is chosen', () => {
     TestBed.inject(ViewModePreferenceService).choose('auto');
     const host = render();
-    expect(host.textContent).toMatch(/いまは (2D|3D)/);
+    expect(byTestId(host, 'seat-view').title).toMatch(/自動（(2D|3D)）/);
 
-    byTestId(host, 'seat-view-flat').click();
+    TestBed.inject(ViewModePreferenceService).choose('flat');
     fixture.detectChanges();
-    expect(host.textContent).not.toMatch(/いまは/);
+    expect(byTestId(host, 'seat-view').title).not.toMatch(/自動/);
   });
 
   it('shows and hides each widget, and shows which are out', () => {
@@ -138,17 +144,16 @@ describe('SeatDisplayMenuComponent', () => {
     expect(mobile.prefersDesktop()).toBe(false);
   });
 
-  it('asks to be closed on Escape, on its close button and on a press outside it', () => {
+  it('asks to be closed on Escape and on a press outside it', () => {
     const host = render();
     const closed = vi.fn();
     fixture.componentInstance.closed.subscribe(closed);
     document.body.appendChild(host);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    host.querySelector<HTMLButtonElement>('ui-icon-button button')!.click();
     document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 
-    expect(closed).toHaveBeenCalledTimes(3);
+    expect(closed).toHaveBeenCalledTimes(2);
   });
 
   it('stays open for a press inside it, and leaves a press on its opener to the opener', () => {
@@ -160,7 +165,7 @@ describe('SeatDisplayMenuComponent', () => {
     opener.setAttribute('data-seat-display-toggle', '');
     document.body.appendChild(opener);
 
-    byTestId(host, 'seat-theme-dark').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    byTestId(host, 'seat-theme').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     opener.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 
     expect(closed).not.toHaveBeenCalled();

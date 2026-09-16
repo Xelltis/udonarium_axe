@@ -4114,36 +4114,9 @@
     },
     "seatDisplay": {
       "title": "이 기기의 표시",
-      "view": {
-        "label": "시점",
-        "auto": "자동",
-        "perspective": "3D",
-        "flat": "2D",
-        "nowFlat": "지금은 2D",
-        "nowPerspective": "지금은 3D"
-      },
-      "theme": {
-        "label": "테마"
-      },
-      "motion": {
-        "label": "이펙트",
-        "auto": "자동",
-        "on": "항상 재생",
-        "off": "끄기"
-      },
-      "renderLite": {
-        "label": "렌더링",
-        "auto": "자동",
-        "on": "가볍게",
-        "off": "기본"
-      },
-      "language": {
-        "label": "언어"
-      },
       "widgets": {
         "label": "위젯"
-      },
-      "close": "닫기"
+      }
     }
   },
   "app": {

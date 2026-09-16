@@ -3867,36 +3867,9 @@
     },
     "seatDisplay": {
       "title": "この端末の表示",
-      "view": {
-        "label": "視点",
-        "auto": "自動",
-        "perspective": "3D",
-        "flat": "2D",
-        "nowFlat": "いまは 2D",
-        "nowPerspective": "いまは 3D"
-      },
-      "theme": {
-        "label": "テーマ"
-      },
-      "motion": {
-        "label": "エフェクト",
-        "auto": "自動",
-        "on": "常に再生",
-        "off": "停止"
-      },
-      "renderLite": {
-        "label": "描画",
-        "auto": "自動",
-        "on": "軽くする",
-        "off": "通常"
-      },
-      "language": {
-        "label": "言語"
-      },
       "widgets": {
         "label": "ウィジェット"
-      },
-      "close": "閉じる"
+      }
     }
   },
   "app": {
