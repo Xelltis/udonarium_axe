@@ -255,6 +255,8 @@ export class GameTableComponent {
   private _resizeFrame: number | null = null;
   private _lastTableId: string | null = null;
   private _lastMode2dTableId: string | null = null;
+  /** What the grid on the canvas was drawn from, so it is only drawn again when one of them changes. */
+  private _gridDrawnFrom: string | null = null;
   readonly gestureService = inject(GameTableGestureService);
 
   constructor() {
@@ -1224,6 +1226,13 @@ export class GameTableComponent {
     };
   }
 
+  /**
+   * Sizes the board and draws its grid, and shows or hides the grid as the table asks.
+   *
+   * A table announces every change to itself and to what stands on it, and drawing the grid over a
+   * whole board is the dearest thing on that path, so the drawing is left as it stands unless one
+   * of the things it is drawn from has changed.
+   */
   private setGameTableGrid(
     width: number,
     height: number,
@@ -1232,24 +1241,28 @@ export class GameTableComponent {
     gridColor: string = '#000000e6',
     gridFontColor: string = gridColor
   ) {
-    this.gameTable().nativeElement.style.width = width * gridSize + 'px';
-    this.gameTable().nativeElement.style.height = height * gridSize + 'px';
+    const drawnFrom = `${width}|${height}|${gridSize}|${gridType}|${gridColor}|${gridFontColor}`;
+    if (drawnFrom !== this._gridDrawnFrom) {
+      this._gridDrawnFrom = drawnFrom;
+      this.gameTable().nativeElement.style.width = width * gridSize + 'px';
+      this.gameTable().nativeElement.style.height = height * gridSize + 'px';
 
-    const render = new GridLineRender(this.gridCanvas().nativeElement);
-    const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
-    if (geo) {
-      render.renderViewport(
-        geo.pixelW,
-        geo.pixelH,
-        gridSize,
-        gridType,
-        gridColor,
-        gridFontColor,
-        -geo.offsetY,
-        -geo.offsetX
-      );
-    } else {
-      render.render(width, height, gridSize, gridType, gridColor, gridFontColor);
+      const render = new GridLineRender(this.gridCanvas().nativeElement);
+      const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
+      if (geo) {
+        render.renderViewport(
+          geo.pixelW,
+          geo.pixelH,
+          gridSize,
+          gridType,
+          gridColor,
+          gridFontColor,
+          -geo.offsetY,
+          -geo.offsetX
+        );
+      } else {
+        render.render(width, height, gridSize, gridType, gridColor, gridFontColor);
+      }
     }
 
     setTimeout(() => {
