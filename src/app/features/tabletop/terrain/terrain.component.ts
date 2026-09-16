@@ -13,22 +13,12 @@ import {
   signal,
   viewChildren,
 } from '@angular/core';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
-import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TerrainFogCover, VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
-import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
-import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
-import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -36,7 +26,6 @@ import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-coun
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, SlopeDirection, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
@@ -48,14 +37,12 @@ import {
   topShadeOf,
 } from '@axe/domain/tabletop/terrain-shade';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
-import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import {
   computeHexSlopeSteps,
   HexSlopeStepData,
   HexSlopeStepFloor,
 } from '@axe/features/tabletop/terrain/hex-slope-step-geometry';
-import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
 import { fogMaskOf, terrainTextureLayout } from '@axe/features/tabletop/terrain/terrain-face-look';
 import {
   hexFloorClipPathOf,
@@ -63,6 +50,7 @@ import {
   NO_HEX_WALLS,
   TerrainHexWall,
 } from '@axe/features/tabletop/terrain/terrain-hex-shapes';
+import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { terrainWallFace, type WallSide } from '@axe/features/tabletop/terrain/terrain-wall-face';
 import {
   wallLightLayerStyle,
@@ -123,22 +111,15 @@ function sameOrBothEmpty<T>(a: readonly T[], b: readonly T[]): boolean {
 })
 export class TerrainComponent {
   private readonly imageService = inject(ImageService);
-  private readonly tabletopActionService = inject(TabletopActionService);
-  private readonly contextMenuService = inject(ContextMenuService);
-  private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly objectPanels = inject(ObjectPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly coordinateService = inject(CoordinateService);
   protected readonly tabletopService = inject(TabletopService);
   protected readonly visionService = inject(VisionService);
-  private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly terrainMenu = inject(TerrainMenuService);
 
   constructor() {
     effect(() => {
@@ -642,51 +623,11 @@ export class TerrainComponent {
   /**
    * Opens the terrain's right-click menu, or the menu for the whole selection when the terrain is
    * part of one.
-   *
-   * In the flat view with a radial menu style chosen, it opens as a radial menu.
    */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
-
-    if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
-
-    const menuPosition = this.pointerDeviceService.pointers[0];
-    if (this.pieceContextMenu.openForSelection(this.terrain(), this.gridSize, menuPosition)) return;
-    const objectPosition = this.coordinateService.calcTabletopLocalCoordinate();
-    const overlapEntries = buildOverlapContextMenu(
-      this.tabletopOverlap,
-      this.terrain(),
-      menuPosition.x,
-      menuPosition.y,
-      this.translateFn
-    );
-    const surfaceEntries = buildSurfaceSwitchContextMenu(this.terrain()!, this.currentTable, this.translateFn);
-    const menu = buildTerrainContextMenuModel(
-      this.terrain()!,
-      this.gridSize,
-      objectPosition,
-      this.inventoryService,
-      this.tabletopActionService,
-      (terrain) => this.showDetail(terrain),
-      this.translateFn,
-      overlapEntries,
-      surfaceEntries
-    );
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        menuPosition,
-        menu.actions,
-        menu.radialGroups,
-        this.name(),
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(menuPosition, menu.actions, this.name());
+    this.terrainMenu.open(this.terrain());
   }
 
   /** Plays the block pick-up sound when a drag or turn of the terrain starts. */
@@ -994,11 +935,6 @@ export class TerrainComponent {
       offsetLeft: this.terrain().location.x + bounds.left + canvasLeft,
       offsetTop: this.terrain().location.y + bounds.top + canvasTop,
     };
-  }
-
-  private showDetail(gameObject: Terrain) {
-    const title = sheetPanelTitle(this.translateFn('feature.tabletop.panel.terrain'), gameObject.name);
-    this.objectPanels.openSheet(gameObject, title, { width: 600, height: 300 });
   }
 
   private setGameTableGrid(

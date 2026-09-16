@@ -1,11 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
@@ -22,6 +18,7 @@ import { LightSource } from '@axe/domain/tabletop/light-source';
 import { DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
+import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 
@@ -429,70 +426,23 @@ describe('TerrainComponent', () => {
     });
   });
 
-  describe('context menu display', () => {
-    function openMenu(mode2d: boolean, menuStyle: 'four-way' | 'radial' | 'standard'): Terrain {
+  describe('its right-click menu', () => {
+    it('hands a right-click to the terrain menu, and keeps it from the browser and the table', () => {
       const terrain = Terrain.create('地形メニュー', 2, 3, 1, '', '');
       fixture.componentRef.setInput('terrain', terrain);
-      const table = TestBed.inject(TabletopService).currentTable;
-      table.mode2d = mode2d;
-      table.tabletopMenuStyle = menuStyle;
-      table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
-      vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
-      vi.spyOn(TestBed.inject(TabletopOverlapService), 'findAt').mockReturnValue([]);
-      TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);
+      const open = vi.spyOn(TestBed.inject(TerrainMenuService), 'open').mockImplementation(() => undefined);
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      const stop = vi.spyOn(event, 'stopPropagation');
 
-      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
-      return terrain;
-    }
+      fixture.nativeElement.dispatchEvent(event);
 
-    it.each(['four-way', 'radial'] as const)('opens the four-way menu when the style is %s', (style) => {
-      const menus = TestBed.inject(ContextMenuService);
-      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
-      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
-      const terrain = openMenu(true, style);
-
-      try {
-        expect(openRadial).toHaveBeenCalledWith(
-          expect.objectContaining({ x: 240, y: 180 }),
-          expect.any(Array),
-          expect.any(Array),
-          '地形メニュー',
-          style === 'radial',
-          9,
-          1
-        );
-        expect(openRadial.mock.calls[0]?.[2].map((group) => group.name)).toEqual([
-          '地形・扉',
-          '見た目・照明',
-          '移動・作成',
-          'オブジェクト操作',
-        ]);
-        expect(openOrdinary).not.toHaveBeenCalled();
-      } finally {
-        terrain.destroy();
-      }
-    });
-
-    it('keeps the ordinary menu outside 2D mode', () => {
-      const menus = TestBed.inject(ContextMenuService);
-      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
-      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
-      const terrain = openMenu(false, 'radial');
-
-      try {
-        expect(openOrdinary).toHaveBeenCalledWith(
-          expect.objectContaining({ x: 240, y: 180 }),
-          expect.any(Array),
-          '地形メニュー'
-        );
-        expect(openRadial).not.toHaveBeenCalled();
-      } finally {
-        terrain.destroy();
-      }
+      expect(open).toHaveBeenCalledWith(terrain);
+      expect(event.defaultPrevented).toBe(true);
+      expect(stop).toHaveBeenCalled();
+      terrain.destroy();
     });
   });
-
   describe('the grid it carries', () => {
     it('builds no canvas for terrain that was never asked to show a grid', async () => {
       const terrain = Terrain.create('wall', 1, 1, 2, '', '');
