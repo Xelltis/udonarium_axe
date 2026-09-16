@@ -1,6 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { characterSceneKey } from '@axe/application/tabletop/vision-scene-assembly';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_MOVE_REACH_BUILD, perfCounters } from '@axe/core/util/perf-counters';
@@ -29,6 +30,34 @@ import { isHostileTo, zoneOfControl } from '@axe/domain/tabletop/move/zone-of-co
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+
+/** How many pieces' reaches are kept at once, well above what a table draws. */
+const REACH_CACHE_LIMIT = 64;
+
+/** A reach as it was worked out: what is drawn, what it was walked under, and where it set out from. */
+interface BuiltReach {
+  view: MoveRangeView;
+  terms: WalkTerms;
+  start: number;
+}
+
+/** One piece's reach, kept against the piece and everything else it turns on. */
+interface ReachEntry {
+  token: object;
+  version: number;
+  built: BuiltReach | null;
+  /** The same reach for a piece that means to jump, worked out only if it is asked for. */
+  leapt?: CellBits;
+}
+
+function sameStrings(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function sameElements<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
 
 export interface MoveRangeView {
   characterIdentifier: string;
@@ -96,10 +125,9 @@ export class MoveRangeService {
     const chosen = this.selection.selectedObject();
     if (chosen) this.objectChange.versionOf(chosen.identifier)();
     // The pieces are not children of the table, so their comings and goings and their walks
-    // across it are watched one by one: an enemy that steps aside opens the ground it held.
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    const standing = this.objectStore.getObjects<GameCharacter>(GameCharacter);
-    for (const piece of standing) this.objectChange.versionOf(piece.identifier)();
+    // across it are watched: an enemy that steps aside opens the ground it held. What they give
+    // a reach is read rather than their versions, so a piece renamed changes nothing here.
+    this.standingPieces();
 
     if (!table) return null;
     const rules = this.rulesOf(table);
@@ -111,7 +139,7 @@ export class MoveRangeService {
     const character = this.objectStore.get<GameCharacter>(chosen.identifier);
     if (!(character instanceof GameCharacter)) return null;
 
-    const built = this.build(character);
+    const built = this.reachEntry(character)?.built ?? null;
     if (!built) return null;
     return { ...built.view, held: wantsHeld ? built.view.held : null, showsReach: wantsReach };
   });
@@ -159,6 +187,117 @@ export class MoveRangeService {
     return this.opening(character) !== null;
   }
 
+  /**
+   * The reach drawn for a piece somebody else is moving, kept until the ground or the pieces
+   * standing on it change.
+   *
+   * The way they are drawing is theirs and comes over the wire; the reach around it is worked out
+   * here, and a peer moving their pointer changes neither the ground nor where anybody stands.
+   */
+  shownReachOf(character: GameCharacter, jumping: boolean): { grid: CellGrid; cells: CellBits } | null {
+    const held = this.reachEntry(character);
+    if (!held?.built) return null;
+    const { view, terms, start } = held.built;
+    if (!jumping) return { grid: view.grid, cells: view.cells };
+    held.leapt ??= reachableCells(view.grid, start, terms.walk, (index) => terms.leapt.get(index), terms.options);
+    return { grid: view.grid, cells: held.leapt };
+  }
+
+  /**
+   * What every piece on the table gives a reach, as one list.
+   *
+   * A piece is changed for many things a reach never reads — its name, its wounds — and reading
+   * each piece's version instead would work every reach out again for all of them.
+   */
+  private readonly pieceKeys = new Map<string, { version: number; key: string }>();
+
+  private readonly standingPieces = computed<string[]>(
+    () => {
+      this.objectChange.collectionOf(GameCharacter.aliasName)();
+      const keys: string[] = [];
+      const standing = new Set<string>();
+      for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+        const version = this.objectChange.versionOf(piece.identifier)();
+        standing.add(piece.identifier);
+        let held = this.pieceKeys.get(piece.identifier);
+        if (!held || held.version !== version) {
+          held = { version, key: characterSceneKey(piece) };
+          this.pieceKeys.set(piece.identifier, held);
+        }
+        keys.push(piece.identifier, held.key);
+      }
+      for (const identifier of [...this.pieceKeys.keys()]) {
+        if (!standing.has(identifier)) this.pieceKeys.delete(identifier);
+      }
+      return keys;
+    },
+    { equal: sameStrings }
+  );
+
+  private readonly terrainList = computed<readonly Terrain[]>(
+    () => {
+      this.objectChange.versionOf(this.tableSelecter.identifier)();
+      const table = this.tableSelecter.viewTable;
+      if (!table) return [];
+      this.objectChange.versionOf(table.identifier)();
+      return table.terrains;
+    },
+    { equal: sameElements }
+  );
+
+  /** A fresh object whenever a terrain changes, which is what the rasterised ground is kept against. */
+  private readonly terrainToken = computed<object>(() => {
+    for (const terrain of this.terrainList()) this.objectChange.versionOf(terrain.identifier)();
+    return {};
+  });
+
+  private raster: { token: object; gridKey: string; blocked: CellBits; leapt: CellBits } | null = null;
+
+  private rasterFor(grid: CellGrid): { blocked: CellBits; leapt: CellBits } {
+    const token = this.terrainToken();
+    const terrains = this.terrainList();
+    const gridKey = `${grid.cols}:${grid.rows}:${grid.sizePx}:${grid.type}`;
+    if (this.raster?.token !== token || this.raster.gridKey !== gridKey) {
+      this.raster = {
+        token,
+        gridKey,
+        blocked: blockedByTerrain(grid, terrains),
+        leapt: blockedByTerrain(grid, terrains, terrainBlocksJump),
+      };
+    }
+    return this.raster;
+  }
+
+  /** Everything a reach turns on besides the piece itself, as one object that is new whenever any of it is. */
+  private readonly reachToken = computed<object>(() => {
+    this.objectChange.versionOf(this.tableSelecter.identifier)();
+    this.objectChange.versionOf('Config')();
+    const table = this.tableSelecter.viewTable;
+    if (table) this.objectChange.versionOf(table.identifier)();
+    this.standingPieces();
+    this.terrainToken();
+    // What tells a piece the reader cannot see from one they can, which shapes the ground held
+    // against them.
+    this.vision.scene();
+    this.vision.viewer();
+    this.vision.overlayVision();
+    this.vision.foundPieces();
+    return {};
+  });
+
+  private readonly reaches = new Map<string, ReachEntry>();
+
+  private reachEntry(character: GameCharacter): ReachEntry | null {
+    const token = this.reachToken();
+    const version = this.objectChange.versionOf(character.identifier)();
+    const held = this.reaches.get(character.identifier);
+    if (held && held.token === token && held.version === version) return held;
+    const entry: ReachEntry = { token, version, built: this.build(character, true) };
+    if (this.reaches.size >= REACH_CACHE_LIMIT) this.reaches.clear();
+    this.reaches.set(character.identifier, entry);
+    return entry;
+  }
+
   /** What a reach needs before any ground is walked: a table, the rules for it, and a piece that moves. */
   private opening(character: GameCharacter): { table: GameTable; rules: RoomRules; walk: number } | null {
     const table = this.tableSelecter.viewTable;
@@ -173,7 +312,14 @@ export class MoveRangeService {
     return { table, rules, walk };
   }
 
-  private build(character: GameCharacter): { view: MoveRangeView; terms: WalkTerms; start: number } | null {
+  /**
+   * Works a piece's reach out.
+   *
+   * `reuse` takes the ground from the rasterised board kept for the terrain as it stands, which a
+   * caller reading through the signals may do. A caller asking outright is answered from the table
+   * itself, since a wall that has just moved has not told anybody yet.
+   */
+  private build(character: GameCharacter, reuse = false): BuiltReach | null {
     const opened = this.opening(character);
     if (!opened) return null;
     perfCounters.bump(PERF_MOVE_REACH_BUILD);
@@ -183,10 +329,11 @@ export class MoveRangeService {
     const start = pieceCellOf(grid, character, table.gridSize);
     if (start < 0) return null;
 
-    const blocked = blockedByTerrain(grid, table.terrains);
+    const paved = reuse ? this.rasterFor(grid) : null;
+    const blocked = paved ? paved.blocked.copy() : blockedByTerrain(grid, table.terrains);
     // Only the terrain differs between walking and jumping; everything else stands in the way
     // of both, so it is gathered once and laid over each of them.
-    const leapt = blockedByTerrain(grid, table.terrains, terrainBlocksJump);
+    const leapt = paved ? paved.leapt.copy() : blockedByTerrain(grid, table.terrains, terrainBlocksJump);
     const otherwise = new CellBits(cellCount(grid));
     const painted = moveBlockMapOn(table)?.read(grid);
     if (painted) otherwise.or(painted);
