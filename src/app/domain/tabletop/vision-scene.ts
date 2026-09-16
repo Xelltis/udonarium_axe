@@ -579,7 +579,8 @@ export function viewerShares(viewer: SceneViewer, ownerId: string, partyId: stri
   return viewer.partyIds.includes(partyId);
 }
 
-function ownedSources(scene: VisionScene, viewer: SceneViewer): SceneVisionSource[] {
+/** The eyes on the table this reader looks through: their own, their party's, or whoever they share with. */
+export function ownedSources(scene: VisionScene, viewer: SceneViewer): SceneVisionSource[] {
   return scene.visionSources.filter(
     (source) => viewerShares(viewer, source.owner, source.partyId) && source.type !== VisionType.BLIND
   );

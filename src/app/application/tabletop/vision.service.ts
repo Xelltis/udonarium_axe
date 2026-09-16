@@ -27,6 +27,7 @@ import {
   cellIndexAt,
   forEachCellInBox,
   forEachNeighbourCell,
+  sameCellGrid,
 } from '@axe/domain/tabletop/fog/cell-grid';
 import { fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import {
@@ -59,6 +60,7 @@ import {
   type LightGlow,
   objectBrightnessFor,
   type OverlayVision,
+  ownedSources,
   type SceneLight,
   type SceneViewer,
   type SceneVisionSource,
@@ -71,6 +73,52 @@ import {
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 
 const GEOMETRY_THROTTLE_MS = 40;
+
+/**
+ * Everything a terrain's fog cover is read against.
+ *
+ * A scene is built again whenever anything on the table moves, and most of what moves changes none
+ * of this: the lights a cover is lit by, the walls in the way of them, the eyes it is read for and
+ * the record of where the party has been.
+ */
+interface CoverScope {
+  readonly active: boolean;
+  readonly lights: string;
+  readonly lightIds: string;
+  readonly darknessLevel: number;
+  readonly fogEnabled: boolean;
+  readonly gridSize: number;
+  /** Which walls stand where, which moves only when a terrain or the table does. */
+  readonly walls: number;
+  readonly eyes: string;
+  readonly viewer: SceneViewer;
+  readonly grid: CellGrid | null;
+  readonly visible: CellBits | null;
+  readonly explored: CellBits | null;
+  readonly clearedStaysLit: boolean;
+}
+
+function sameCoverGrid(a: CellGrid | null, b: CellGrid | null): boolean {
+  return a === b || (!!a && !!b && sameCellGrid(a, b) && a.sizePx === b.sizePx);
+}
+
+function sameCoverScope(a: CoverScope, b: CoverScope): boolean {
+  return (
+    a.active === b.active &&
+    a.lights === b.lights &&
+    a.lightIds === b.lightIds &&
+    a.darknessLevel === b.darknessLevel &&
+    a.fogEnabled === b.fogEnabled &&
+    a.gridSize === b.gridSize &&
+    a.walls === b.walls &&
+    a.eyes === b.eyes &&
+    a.viewer === b.viewer &&
+    a.clearedStaysLit === b.clearedStaysLit &&
+    sameCoverGrid(a.grid, b.grid) &&
+    sameCells(a.visible, b.visible) &&
+    sameCells(a.explored, b.explored)
+  );
+}
 const RELEVANT_ALIASES = new Set(['character', 'light-source', 'terrain', 'game-table']);
 /** How many table cells one bucket of the sight index spans. */
 const SIGHT_INDEX_BUCKET_CELLS = 2;
@@ -622,12 +670,29 @@ export class VisionService {
    * the cells alone, which stay the same object while nobody's sight has changed: the light on a
    * terrain also turns on whose eyes it is read for, and on the lights of the scene.
    */
-  private readonly coverScope = computed(() => ({
-    scene: this.scene(),
-    viewer: this.viewer(),
-    cells: this.visionCells(),
-    explored: this.exploredCells(),
-  }));
+  private readonly coverScope = computed<CoverScope>(
+    () => {
+      const scene = this.scene();
+      const viewer = this.viewer();
+      const fog = this.overlayVision();
+      return {
+        active: this.active(),
+        lights: scene ? visibleCellsLightKey(scene) : '',
+        lightIds: scene ? scene.lights.map((light) => `${light.sourceId}:${light.revealToAll}`).join('|') : '',
+        darknessLevel: scene?.darknessLevel ?? 0,
+        fogEnabled: scene?.fogEnabled ?? false,
+        gridSize: scene?.gridSize ?? 0,
+        walls: this.standingEpoch(),
+        eyes: scene && !viewer.isGameMaster ? ownedSources(scene, viewer).map(visionSourceKey).join('|') : '',
+        viewer,
+        grid: this.visionCells()?.grid ?? null,
+        visible: fog?.visible ?? null,
+        explored: this.exploredCells(),
+        clearedStaysLit: fog?.clearedStaysLit ?? false,
+      };
+    },
+    { equal: sameCoverScope }
+  );
 
   private coverOf(
     terrain: Terrain,
