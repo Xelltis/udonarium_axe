@@ -3939,7 +3939,9 @@
       "viewAutoPerspective": "View: auto (3D)",
       "tabletopDisplay": "Tabletop display",
       "skin": "Skin",
-      "display": "Display"
+      "display": "Display",
+      "foldToolbar": "Fold the toolbar",
+      "unfoldToolbar": "Open the toolbar"
     },
     "roomDataDefault": "Room data"
   },

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
@@ -131,5 +132,47 @@ describe('PlToolbarComponent', () => {
     expect(restored).not.toBeNull();
     expect(restored!.style.left).toBe('360px');
     expect(restored!.style.top).toBe('240px');
+  });
+
+  describe('folding', () => {
+    afterEach(() => localStorage.removeItem('ui-toolbars'));
+
+    function tool(testId: string): HTMLElement | null {
+      return fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+    }
+
+    it('folds down to its title and opens again, and remembers which', async () => {
+      setRole(PeerRole.Player);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(tool('buff-view-cycle')).not.toBeNull();
+
+      tool('pl-toolbar-fold')!.click();
+      fixture.detectChanges();
+
+      expect(bar()).not.toBeNull();
+      expect(bar()!.textContent).toContain('PLツール');
+      expect(tool('buff-view-cycle')).toBeNull();
+      expect(TestBed.inject(ToolbarFoldService).isFolded('pl')).toBe(true);
+
+      tool('pl-toolbar-fold')!.click();
+      fixture.detectChanges();
+
+      expect(tool('buff-view-cycle')).not.toBeNull();
+      expect(TestBed.inject(ToolbarFoldService).isFolded('pl')).toBe(false);
+    });
+
+    it('closes the range menu along with the bar', async () => {
+      setRole(PeerRole.Player);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const toolbar = component as unknown as { rangeOpen: { set: (open: boolean) => void; (): boolean } };
+      toolbar.rangeOpen.set(true);
+
+      tool('pl-toolbar-fold')!.click();
+      tool('pl-toolbar-fold')!.click();
+
+      expect(toolbar.rangeOpen()).toBe(false);
+    });
   });
 });

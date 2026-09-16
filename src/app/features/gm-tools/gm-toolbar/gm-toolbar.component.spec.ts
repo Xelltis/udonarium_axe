@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Card } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -171,6 +172,46 @@ describe('GmToolbarComponent', () => {
       expect(restored).not.toBeNull();
       expect(restored!.style.left).toBe('480px');
       expect(restored!.style.top).toBe('320px');
+    });
+  });
+
+  describe('folding', () => {
+    afterEach(() => localStorage.removeItem('ui-toolbars'));
+
+    function tool(testId: string): HTMLElement | null {
+      return fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+    }
+
+    it('folds down to its title, keeping the player toolbar as it was, and opens again', () => {
+      PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+      fixture.detectChanges();
+      const tools = () => fixture.nativeElement.querySelectorAll('ui-icon-button').length;
+      const open = tools();
+
+      tool('gm-toolbar-fold')!.click();
+      fixture.detectChanges();
+
+      expect(tools()).toBe(1);
+      expect(fixture.nativeElement.textContent).toContain('GMツール');
+      expect(fixture.nativeElement.querySelector('app-npc-bar')).toBeNull();
+      expect(TestBed.inject(ToolbarFoldService).isFolded('gm')).toBe(true);
+      expect(TestBed.inject(ToolbarFoldService).isFolded('pl')).toBe(false);
+
+      tool('gm-toolbar-fold')!.click();
+      fixture.detectChanges();
+
+      expect(tools()).toBe(open);
+    });
+
+    it('closes the persona list along with the bar', () => {
+      PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+      fixture.detectChanges();
+      const persona = component as unknown as { togglePersona: () => void; personaOpen: () => boolean };
+      persona.togglePersona();
+
+      tool('gm-toolbar-fold')!.click();
+
+      expect(persona.personaOpen()).toBe(false);
     });
   });
 });

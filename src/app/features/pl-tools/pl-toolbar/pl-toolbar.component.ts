@@ -15,6 +15,7 @@ import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-hel
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -70,6 +71,17 @@ export class PlToolbarComponent {
 
   protected readonly rangeMenuItems = getRangeMenuItems();
   protected readonly rangeOpen = signal(false);
+
+  private readonly folds = inject(ToolbarFoldService);
+
+  /** Whether the bar is folded down to its title. */
+  protected readonly folded = computed(() => this.folds.isFolded('pl'));
+
+  /** Folds the bar down to its title, or opens it again; what was open in it closes with it. */
+  protected toggleFold(): void {
+    this.rangeOpen.set(false);
+    this.folds.toggle('pl');
+  }
 
   private readonly barRef = viewChild<ElementRef<HTMLElement>>('bar');
   private savedLeft: string | null = null;

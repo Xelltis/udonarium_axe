@@ -3939,7 +3939,9 @@
       "viewAutoPerspective": "視点: 自動（3D）",
       "tabletopDisplay": "卓上ディスプレイ",
       "skin": "スキン",
-      "display": "表示"
+      "display": "表示",
+      "foldToolbar": "ツールバーを畳む",
+      "unfoldToolbar": "ツールバーを開く"
     },
     "roomDataDefault": "ルームデータ"
   },

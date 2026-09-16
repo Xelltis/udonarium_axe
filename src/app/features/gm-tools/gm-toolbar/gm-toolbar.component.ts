@@ -15,6 +15,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -57,6 +58,17 @@ export class GmToolbarComponent {
   private savedTop: string | null = null;
 
   protected readonly personaOpen = signal(false);
+
+  private readonly folds = inject(ToolbarFoldService);
+
+  /** Whether the bar is folded down to its title. */
+  protected readonly folded = computed(() => this.folds.isFolded('gm'));
+
+  /** Folds the bar down to its title, or opens it again; what was open in it closes with it. */
+  protected toggleFold(): void {
+    this.personaOpen.set(false);
+    this.folds.toggle('gm');
+  }
 
   readonly isGameMaster = computed(() => {
     this.objectChange.trackMyCursor();
