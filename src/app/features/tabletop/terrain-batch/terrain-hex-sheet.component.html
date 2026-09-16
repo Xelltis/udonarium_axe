@@ -1,0 +1,69 @@
+<svg
+  class="absolute top-0 left-0 block overflow-visible"
+  [attr.width]="sheet().width"
+  [attr.height]="sheet().height"
+  [attr.viewBox]="'0 0 ' + sheet().width + ' ' + sheet().height"
+>
+  <defs>
+    <pattern
+      [attr.id]="underId"
+      patternUnits="userSpaceOnUse"
+      [attr.width]="tile().width"
+      [attr.height]="tile().height"
+    >
+      <image [attr.href]="url()" [attr.width]="tile().width" [attr.height]="tile().height" preserveAspectRatio="none" />
+    </pattern>
+    <pattern
+      [attr.id]="ownId"
+      patternUnits="objectBoundingBox"
+      [attr.width]="tile().shareX"
+      [attr.height]="tile().shareY"
+    >
+      <image [attr.href]="url()" [attr.width]="tile().width" [attr.height]="tile().height" preserveAspectRatio="none" />
+    </pattern>
+    <clipPath [attr.id]="outsideId">
+      <path clip-rule="evenodd" [attr.d]="outside()" />
+    </clipPath>
+  </defs>
+  <path [attr.d]="sheet().outline" [attr.fill]="'url(#' + underId + ')'" />
+  @for (block of sheet().blocks; track block.identifier) {
+    <path
+      class="[pointer-events:var(--terrain-batch-pointer,auto)]"
+      data-table-passthrough
+      [attr.d]="block.path"
+      [attr.fill]="'url(#' + ownId + ')'"
+      [attr.data-terrain]="block.identifier"
+    />
+  }
+  @if (shade().under; as under) {
+    <path
+      class="pointer-events-none"
+      [attr.d]="sheet().outline"
+      [attr.fill]="'rgba(' + shadeRgb() + ',' + under + ')'"
+    />
+  }
+  @for (group of shade().groups; track group.key) {
+    @if (group.over !== '0') {
+      <path
+        class="pointer-events-none"
+        [attr.d]="group.path"
+        [attr.fill]="'rgba(' + shadeRgb() + ',' + group.over + ')'"
+      />
+    }
+  }
+  @if (shade().seams) {
+    <g class="pointer-events-none" [attr.clip-path]="'url(#' + outsideId + ')'">
+      <path [attr.d]="shade().seams" fill="none" stroke-width="2" [attr.stroke]="'url(#' + underId + ')'" />
+      @for (group of shade().groups; track group.key) {
+        @if (group.seams && group.whole !== '0.000') {
+          <path
+            [attr.d]="group.seams"
+            fill="none"
+            stroke-width="2"
+            [attr.stroke]="'rgba(' + shadeRgb() + ',' + group.whole + ')'"
+          />
+        }
+      }
+    </g>
+  }
+</svg>

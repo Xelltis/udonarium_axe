@@ -49,7 +49,7 @@ async function buildDungeon(page: Page, gridLabel: string) {
   await settleUntilVisible(page, goTo, 120000);
   await goTo.click();
   await settle(page, 400);
-  await expect(page.locator('terrain').first()).toBeAttached();
+  await expect(page.locator('terrain-batch-layer [data-terrain]').first()).toBeAttached();
 }
 
 /**

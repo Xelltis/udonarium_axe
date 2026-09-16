@@ -45,6 +45,7 @@ import {
   ContactRider,
   dropTargetSurface,
   findContactSupportZ,
+  MovableLayerItem,
   nextContactLevel,
   registerLayer,
   setLayerCollidable,
@@ -96,7 +97,20 @@ export class MovableDirective implements MovableInteractionContext {
   private climbBlocks: MoveBlock[] | null = null;
   private dragReachZ: number | null = null;
 
-  private static layerHash: { [layerName: string]: MovableDirective[] } = {};
+  private static layerHash: { [layerName: string]: MovableLayerItem[] } = {};
+
+  /**
+   * Puts something hit like a piece, but not moved as one, in a layer, so a piece being dragged
+   * lets the pointer through it or not along with the pieces of that layer.
+   */
+  static joinLayer(layerName: string, item: MovableLayerItem): void {
+    registerLayer(MovableDirective.layerHash, layerName, item);
+  }
+
+  /** Takes something out of a layer it joined. */
+  static leaveLayer(layerName: string, item: MovableLayerItem): void {
+    unregisterLayer(MovableDirective.layerHash, layerName, item);
+  }
 
   private tabletopObject!: TabletopObject;
   layerName: string = '';
@@ -297,7 +311,7 @@ export class MovableDirective implements MovableInteractionContext {
       return;
     }
     if (this.registeredOverlapId && this.registeredOverlapId !== obj.identifier) {
-      this.tabletopOverlap.unregister(this.registeredOverlapId);
+      this.tabletopOverlap.unregister(this.registeredOverlapId, this.nativeElement);
     }
     this.tabletopOverlap.register(obj, this.nativeElement);
     this.registeredOverlapId = obj.identifier;
@@ -305,7 +319,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private unregisterOverlap() {
     if (this.registeredOverlapId) {
-      this.tabletopOverlap.unregister(this.registeredOverlapId);
+      this.tabletopOverlap.unregister(this.registeredOverlapId, this.nativeElement);
       this.registeredOverlapId = null;
     }
   }

@@ -120,6 +120,18 @@ describe('TabletopOverlapService', () => {
     expect(service.findAt(5, 5)).not.toContain(obj1);
   });
 
+  it('forgets a piece by its element only while that is still the element on record', () => {
+    const obj = makeObject('a');
+    const old = makeElement({ x: 0, y: 0, w: 10, h: 10 });
+    service.registerWithoutElement(obj, () => undefined);
+
+    service.unregister('a', old);
+    expect(service.get('a')?.element).toBeNull();
+
+    service.unregister('a', null);
+    expect(service.get('a')).toBeUndefined();
+  });
+
   describe('pieces drawn with no element of their own', () => {
     it('finds them through what draws them, after the pieces found by their elements', () => {
       const drawn = makeObject('drawn');

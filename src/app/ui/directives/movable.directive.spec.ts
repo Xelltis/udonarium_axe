@@ -115,6 +115,34 @@ describe('MovableDirective', () => {
   });
 });
 
+describe('MovableDirective layers', () => {
+  @Component({
+    selector: 'layer-host',
+    template: `<div appMovable [movable.option]="{ layerName: 'character', colideLayers: ['terrain'] }"></div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MovableDirective],
+  })
+  class LayerHostComponent {}
+
+  it('lets something that is not a piece join a layer, and leave it', () => {
+    TestBed.configureTestingModule({ imports: [LayerHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(LayerHostComponent);
+    fixture.detectChanges();
+    const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+    const joined = { layerName: 'terrain', input: null, setPointerEvents: vi.fn() };
+    const left = { layerName: 'wall', input: null, setPointerEvents: vi.fn() };
+    MovableDirective.joinLayer('terrain', joined);
+    MovableDirective.joinLayer('wall', left);
+    MovableDirective.leaveLayer('wall', left);
+
+    directive.setCollidableLayer(true);
+
+    expect(joined.setPointerEvents).toHaveBeenCalledWith(true);
+    expect(left.setPointerEvents).not.toHaveBeenCalled();
+    MovableDirective.leaveLayer('terrain', joined);
+  });
+});
+
 describe('MovableDirective drop preview', () => {
   interface Internals {
     input: {

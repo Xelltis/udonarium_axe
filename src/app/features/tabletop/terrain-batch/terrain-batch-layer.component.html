@@ -1,0 +1,22 @@
+@for (cap of layout().squareCaps; track cap.key) {
+  <div [appTerrainCap]="cap"></div>
+}
+@for (wall of layout().squareWalls; track wall.key) {
+  <div [appTerrainWall]="wall"></div>
+}
+@for (sheet of layout().hexCaps; track sheet.key) {
+  <div [appTerrainHexSheet]="sheet"></div>
+}
+@for (wall of hexWallFaces(); track wall.key) {
+  <div
+    class="chrome-smooth-image-trick [pointer-events:var(--terrain-batch-pointer,auto)] absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden"
+    data-table-passthrough
+    [attr.data-terrain]="wall.identifier"
+    [style.width.px]="wall.width"
+    [style.height.px]="wall.height"
+    [style.transform]="wall.transform"
+    [style.background-image]="hexWallBackground(wall)"
+    [style.background-size]="wall.tile"
+    [style.background-repeat]="wall.tile ? 'repeat' : null"
+  ></div>
+}

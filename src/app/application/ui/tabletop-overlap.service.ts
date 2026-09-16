@@ -70,8 +70,14 @@ export class TabletopOverlapService {
     this.hitSources.delete(source);
   }
 
-  /** Forgets a piece's element once its component is gone. */
-  unregister(identifier: string) {
+  /**
+   * Forgets a piece once whatever drew it is gone.
+   *
+   * Given the element it was drawn in, it forgets the piece only while that is still the element
+   * on record: the piece may already be drawn some other way, and recorded as such.
+   */
+  unregister(identifier: string, element?: HTMLElement | null) {
+    if (element !== undefined && this.registry.get(identifier)?.element !== element) return;
     this.registry.delete(identifier);
   }
 

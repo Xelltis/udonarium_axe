@@ -182,9 +182,10 @@
       }
       @if (terrainsBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          @for (terrain of terrainsBySurface().floor; track terrain.identifier) {
+          @for (terrain of floorTerrainsDrawnAlone(); track terrain.identifier) {
             <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
           }
+          <terrain-batch-layer />
         </div>
       }
       @for (beamGrid of beamTopGrids(); track beamGrid.identifier) {

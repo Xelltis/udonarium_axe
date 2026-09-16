@@ -26,6 +26,7 @@ import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
+import { TerrainBatchService } from '@axe/application/tabletop/terrain-batch.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import {
   ContextMenuAction,
@@ -113,6 +114,7 @@ import {
 } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
+import { TerrainBatchLayerComponent } from '@axe/features/tabletop/terrain-batch/terrain-batch-layer.component';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TableVisionVolumeOverlayComponent } from '@axe/features/tabletop/vision-volume/table-vision-volume-overlay.component';
 import {
@@ -185,6 +187,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     NgClass,
     NgTemplateOutlet,
     TerrainComponent,
+    TerrainBatchLayerComponent,
     WhiteBoardComponent,
     GameTableMaskComponent,
     TextNoteComponent,
@@ -234,6 +237,7 @@ export class GameTableComponent {
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly terrainBatch = inject(TerrainBatchService);
   private readonly tabletopActionService = inject(TabletopActionService);
   protected readonly visionService = inject(VisionService);
   private readonly modalService = inject(ModalService);
@@ -808,6 +812,13 @@ export class GameTableComponent {
   readonly diceSymbolsBySurface = computed(() => bucketBySurface(this.diceSymbols(), this.drawnSurfaces()));
   readonly coinsBySurface = computed(() => bucketBySurface(this.coins(), this.drawnSurfaces()));
   readonly terrainsBySurface = computed(() => bucketBySurface(this.terrains(), this.drawnSurfaces()));
+
+  /** The terrain on the floor that is not drawn together with the blocks that do not move. */
+  readonly floorTerrainsDrawnAlone = computed(() => {
+    const merged = this.terrainBatch.mergedTerrains();
+    const floor = this.terrainsBySurface().floor;
+    return merged.size === 0 ? floor : floor.filter((terrain) => !merged.has(terrain.identifier));
+  });
 
   readonly beamTopGrids = computed<readonly BeamTopGrid[]>(() => {
     const table = this.currentTable;
