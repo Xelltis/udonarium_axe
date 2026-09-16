@@ -9,7 +9,7 @@ import { occlusionShapeOf } from '@axe/domain/tabletop/terrain-occlusion/occlusi
 import { BlockSide } from '@axe/domain/tabletop/terrain-shade';
 import {
   capBackground,
-  hexWallKeysOf,
+  hiddenHexWallsOf,
   wallBackground,
   wallPlacement,
 } from '@axe/features/tabletop/terrain-batch/terrain-batch-look';
@@ -239,17 +239,34 @@ describe('the background of a wall', () => {
 for (const isFlatTop of [true, false]) {
   describe(`the walls of a hex block on ${isFlatTop ? 'flat' : 'pointy'}-topped hexes`, () => {
     const type = isFlatTop ? GridType.HEX_VERTICAL : GridType.HEX_HORIZONTAL;
-    const grid = cellGridOf(20, 20, GRID, type);
 
-    it.each([1, 2, 3])('names each wall of a block %i across as the sides its neighbours hide are named', (size) => {
-      const origin = blockOrigin({ x: 6, y: 6, w: 1, h: 1 }, { sizePx: GRID, type });
-      const offset = ((size - 1) * GRID) / 2;
+    /** The names of every side of a block `size` across, on a board of cells `gridSize` wide. */
+    function everySide(gridSize: number, size: number): ReadonlySet<string> {
+      const grid = cellGridOf(40, 40, gridSize, type);
+      const origin = blockOrigin({ x: 10, y: 10, w: 1, h: 1 }, { sizePx: gridSize, type });
+      const offset = ((size - 1) * gridSize) / 2;
       const block = wall(origin.x - offset, origin.y - offset, size, size);
-      const shape = occlusionShapeOf(block, grid, true)!;
+      return new Set(occlusionShapeOf(block, grid, true)!.faces.map((face) => face.key));
+    }
 
-      const keys = hexWallKeysOf(calcHexFlowerParams(size, GRID, isFlatTop));
+    it('finds each wall its neighbours hide, whatever size the cells are', () => {
+      for (let gridSize = 10; gridSize <= 120; gridSize++) {
+        for (let size = 1; size <= 6; size++) {
+          const hidden = everySide(gridSize, size);
+          const walls = hiddenHexWallsOf(calcHexFlowerParams(size, gridSize, isFlatTop), hidden);
 
-      expect([...keys].sort()).toEqual(shape.faces.map((face) => face.key).sort());
+          expect(walls, `${gridSize}px cells, ${size} across`).toHaveLength(hidden.size);
+          expect(walls.filter(Boolean), `${gridSize}px cells, ${size} across`).toHaveLength(hidden.size);
+        }
+      }
+    });
+
+    it('hides only the walls named', () => {
+      const params = calcHexFlowerParams(2, GRID, isFlatTop);
+      const [one] = everySide(GRID, 2);
+
+      expect(hiddenHexWallsOf(params, new Set([one])).filter(Boolean)).toHaveLength(1);
+      expect(hiddenHexWallsOf(params, new Set()).some(Boolean)).toBe(false);
     });
   });
 }

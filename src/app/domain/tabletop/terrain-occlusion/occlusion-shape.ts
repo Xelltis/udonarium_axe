@@ -45,6 +45,18 @@ export function hexFaceKey(localX: number, localY: number): string {
   return `hex:${tenth(localX)},${tenth(localY)}`;
 }
 
+/**
+ * Where the middle of a hex side lies, read back from its name; null for a name that is not a hex
+ * side's.
+ *
+ * Two ways of working a side out can land either side of a tenth of a pixel and name it
+ * differently, so a side is best matched to a name by how near its middle is rather than by the name.
+ */
+export function hexFaceMidpointOf(key: string): { x: number; y: number } | null {
+  const match = /^hex:(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(key);
+  return match ? { x: Number(match[1]), y: Number(match[2]) } : null;
+}
+
 function wholeCells(value: number): number | null {
   const rounded = Math.round(value);
   return Number.isFinite(value) && Math.abs(value - rounded) < GRID_TOLERANCE ? rounded : null;

@@ -21,7 +21,7 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { capCellAt } from '@axe/domain/tabletop/terrain-batch/square-caps';
 import { hexWallsOf } from '@axe/features/tabletop/terrain/terrain-hex-shapes';
 import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
-import { hexWallKeysOf } from '@axe/features/tabletop/terrain-batch/terrain-batch-look';
+import { hiddenHexWallsOf } from '@axe/features/tabletop/terrain-batch/terrain-batch-look';
 import { TerrainCapDirective } from '@axe/features/tabletop/terrain-batch/terrain-cap.directive';
 import { TerrainHexSheetComponent } from '@axe/features/tabletop/terrain-batch/terrain-hex-sheet.component';
 import { TerrainWallComponent } from '@axe/features/tabletop/terrain-batch/terrain-wall.component';
@@ -89,12 +89,12 @@ export class TerrainBatchLayerComponent {
       if (!terrain) continue;
       this.objectChange.versionOf(terrain.identifier)();
       const params = calcHexFlowerParams(terrain.width, gridSize, isFlatTop);
-      const keys = hexWallKeysOf(params);
+      const hidden = hiddenHexWallsOf(params, walls.hidden);
       const laid = hexWallsOf(params, terrain.width * gridSize, terrain.depth * gridSize, terrain.isSurfaceShading);
       const url = this.imageService.getSkeletonOr(terrain.wallImage).url;
       const tile = terrain.isTiledTexture ? `${gridSize}px ${gridSize}px` : null;
       laid.forEach((wall, index) => {
-        if (walls.hidden.has(keys[index])) return;
+        if (hidden[index]) return;
         faces.push({
           key: `${terrain.identifier}:${index}`,
           identifier: terrain.identifier,

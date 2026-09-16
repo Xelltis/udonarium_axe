@@ -1,7 +1,7 @@
 import { ShadeStop } from '@axe/domain/tabletop/terrain-batch/batch-shade';
 import { CAP_BLEED, SquareCap } from '@axe/domain/tabletop/terrain-batch/square-caps';
 import { SquareWall } from '@axe/domain/tabletop/terrain-batch/square-walls';
-import { hexFaceKey } from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
+import { hexFaceMidpointOf } from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
 import { HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { shadeAlongGradient } from '@axe/ui/tabletop/shaded-background';
 
@@ -107,14 +107,23 @@ export function wallBackground(
   };
 }
 
+/** How far the middle of a wall may lie from the middle a hidden side is named by, and still be that side, in pixels. */
+const SIDE_MATCH_PX = 0.5;
+
 /**
- * The key of each wall of a hex block, in the order its walls are laid out: the side from each
- * corner of its outline to the next, named as the sides the blocks around it hide are named.
+ * Which walls of a hex block the blocks around it hide, in the order its walls are laid out.
+ *
+ * The outline the walls stand on and the sides the neighbours hide are worked out apart, so a wall
+ * is matched to a hidden side by where their middles lie. Neighbouring walls' middles are half a cell
+ * apart, so a match within half a pixel is never the wrong wall.
  */
-export function hexWallKeysOf(params: HexFlowerParams): string[] {
+export function hiddenHexWallsOf(params: HexFlowerParams, hidden: ReadonlySet<string>): boolean[] {
+  const middles = [...hidden].map(hexFaceMidpointOf).filter((middle) => middle !== null);
   const { outline } = params;
   return outline.map((from, i) => {
     const to = outline[(i + 1) % outline.length];
-    return hexFaceKey((from.x + to.x) / 2, (from.y + to.y) / 2);
+    const x = (from.x + to.x) / 2;
+    const y = (from.y + to.y) / 2;
+    return middles.some((middle) => Math.abs(middle.x - x) <= SIDE_MATCH_PX && Math.abs(middle.y - y) <= SIDE_MATCH_PX);
   });
 }
