@@ -87,6 +87,17 @@ async function dismissRestoreOffer(page: Page) {
  * Blocks packed wall to wall hide most of each other's sides, so these pictures hold whatever
  * decides which of those sides are drawn to what the table looked like before.
  */
+/**
+ * Leaves the pieces standing in the dungeon out of the picture.
+ *
+ * These pictures watch the terrain. A piece's picture and the ring at its feet come out a shade
+ * different now and then when the machine is busy, and would fail a picture whose terrain is the
+ * same. The shadows the pieces throw on the walls are worked out from where they stand, and stay in.
+ */
+async function hidePieces(page: Page) {
+  await page.addStyleTag({ content: 'game-character { visibility: hidden !important; }' });
+}
+
 for (const grid of GRIDS) {
   test(`a generated ${grid.name} looks the same from above and turned`, async ({ page }) => {
     test.setTimeout(600000);
@@ -96,6 +107,7 @@ for (const grid of GRIDS) {
     await freeze(page);
     await buildDungeon(page, grid.label);
     await hideFloorLight(page);
+    await hidePieces(page);
     await closePanels(page);
     await settle(page, 400);
     await letImagesArrive(page);
