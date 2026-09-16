@@ -139,6 +139,20 @@ export function hexCellCenter(
   };
 }
 
+/**
+ * The offsets of a hex's six corners from its centre, clockwise, for a cell of this circumradius.
+ *
+ * The same corners `hexVertices` lays around a centre, for a drawing that wants them on their own.
+ */
+export function hexCornerOffsets(s: number, isFlatTop: boolean): { x: number; y: number }[] {
+  const { cos, sin } = cornersOf(hexStartAngle(isFlatTop));
+  const offsets: { x: number; y: number }[] = [];
+  for (let i = 0; i < 6; i++) {
+    offsets.push({ x: s * cos[i], y: s * sin[i] });
+  }
+  return offsets;
+}
+
 /** The corners come back clockwise. */
 export function hexVertices(cx: number, cy: number, s: number, startAngle: number): { x: number; y: number }[] {
   const { cos, sin } = cornersOf(startAngle);
