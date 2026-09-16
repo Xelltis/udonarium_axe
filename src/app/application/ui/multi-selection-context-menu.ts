@@ -4,7 +4,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { copyBeside } from '@axe/application/ui/tabletop-context-menu-actions';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
-import { isLockable } from '@axe/domain/tabletop/lockable';
+import { isLockedInPlace } from '@axe/domain/tabletop/lockable';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface MultiSelectionContextDeps {
@@ -30,7 +30,7 @@ export function buildMultiSelectionContextMenu(
 ): ContextMenuAction[] {
   const { t, selectionSignalService, gridSize, rollDice, diceOwners, storeDice } = deps;
   const count = objects.length;
-  const movable = objects.filter((o) => !(isLockable(o) && o.isLock));
+  const movable = objects.filter((o) => !isLockedInPlace(o));
   const dice = objects.filter((o): o is DiceSymbol => o instanceof DiceSymbol && o.isVisible);
 
   return [
