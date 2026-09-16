@@ -266,17 +266,6 @@
           }"
         ></coin>
       }
-      <div>
-        <div
-          class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-        ></div>
-        @for (cursor of peerCursors(); track cursor.identifier) {
-          <peer-cursor
-            class="absolute will-change-transform backface-visible transform-3d"
-            [cursor]="cursor"
-          ></peer-cursor>
-        }
-      </div>
       @for (range of ranges(); track range.identifier) {
         <range class="absolute will-change-transform backface-visible transform-3d" [range]="range"></range>
       }
