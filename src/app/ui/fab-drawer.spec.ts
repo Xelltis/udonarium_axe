@@ -4,6 +4,7 @@ import {
   FabDrawerSide,
   fabDrawerSide,
   fabLabelSideClasses,
+  fabPopoverSideClasses,
 } from '@axe/ui/fab-drawer';
 
 const VIEW = { width: 1000, height: 800 };
@@ -95,5 +96,12 @@ describe('FAB_COLUMN_CLASSES', () => {
 
   it('does not let an item be split between two columns', () => {
     expect(FAB_COLUMN_CLASSES).toContain('break-inside-avoid');
+  });
+});
+
+describe('fabPopoverSideClasses()', () => {
+  it('opens beside the drawer on the side its names are written on', () => {
+    expect(fabPopoverSideClasses({ up: false, left: false })).toBe('left-[calc(100%+10px)]');
+    expect(fabPopoverSideClasses({ up: true, left: true })).toBe('right-[calc(100%+10px)]');
   });
 });

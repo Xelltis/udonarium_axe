@@ -35,6 +35,17 @@ export async function closeFabMenu(page: Page) {
 }
 
 /**
+ * FAB を開き、最下段の「表示」からこの端末の表示設定の小窓を開く。開いた小窓を返す。
+ */
+export async function openSeatDisplay(page: Page): Promise<Locator> {
+  await openFabMenu(page);
+  const panel = page.locator('[data-testid="seat-display"]');
+  if (!(await panel.isVisible())) await page.locator('[data-testid="fab-display"]').click();
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
+/**
  * FAB を開いた上で data-label のメニュー項目をクリックする。
  * 既存テストで `getByText('インベントリ')` などを呼んでいた箇所の置換用。
  */

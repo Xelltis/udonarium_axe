@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openFabMenu, waitAppReady } from './helpers';
+import { openSeatDisplay, waitAppReady } from './helpers';
 
 /**
  * The small always-on pieces — clock, link quality, mini player, language —
@@ -57,15 +57,15 @@ test.describe('ウィジェットと言語切替', () => {
     const panel = page.locator('peer-menu');
     await expect(panel).toContainText('ニックネーム');
 
-    await openFabMenu(page);
-    await page.locator('app-language-selector').click();
+    const display = await openSeatDisplay(page);
+    await display.getByTestId('seat-lang-en').click();
     await expect(panel).toContainText('Nickname', { timeout: 10000 });
 
-    // 三つを巡って戻ること。切り替えっぱなしで終わらないのを確かめる。
-    await page.locator('app-language-selector').click();
+    // どれを選んでも入れ替わり、日本語に戻せること。切り替えっぱなしで終わらないのを確かめる。
+    await display.getByTestId('seat-lang-ko').click();
     await expect(panel).toContainText('닉네임', { timeout: 10000 });
 
-    await page.locator('app-language-selector').click();
+    await display.getByTestId('seat-lang-ja').click();
     await expect(panel).toContainText('ニックネーム', { timeout: 10000 });
   });
 });

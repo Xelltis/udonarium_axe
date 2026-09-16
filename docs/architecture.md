@@ -82,7 +82,7 @@ feature に紐付かない汎用 UI 部品。
 
 ユーザ向け 1 機能 = 1 サブフォルダ。
 
-- **配下**: `chat`, `tabletop`, `character`, `card`, `controller`, `data-element`, `dice`, `file`, `inventory`, `language-selector`, `lobby`, `media`, `vote`, `alarm`
+- **配下**: `chat`, `tabletop`, `character`, `card`, `controller`, `data-element`, `dice`, `file`, `inventory`, `lobby`, `media`, `vote`, `alarm`
 - **依存可能**: `core`, `domain`, `infrastructure`, `application`, `ui`
 - **入れる**: 1 機能の UI（component + html）、その feature 専用の context-menu builder / event-handler.service / helpers / spec
 - **入れない**: 他 feature の component を直接 import するのは原則禁止（共通化したいなら `ui/` / `application/` / `domain/` のいずれかへ）

@@ -33,7 +33,6 @@ import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
-import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WIDGET_FAB } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
@@ -44,7 +43,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { FAB_ENTRIES, FabEntry } from '@axe/domain/ui/fab-menu';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
-import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
@@ -59,7 +57,6 @@ import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
-import { LanguageSelectorComponent } from '@axe/features/language-selector/language-selector.component';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
@@ -74,6 +71,7 @@ import { ReplayIndicatorComponent } from '@axe/features/replay/replay-indicator/
 import { ReplayStagingBannerComponent } from '@axe/features/replay/replay-staging-banner/replay-staging-banner.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { RoomRestoreBannerComponent } from '@axe/features/room-archive/room-restore-banner/room-restore-banner.component';
+import { SeatDisplayMenuComponent } from '@axe/features/seat-display/seat-display-menu.component';
 import { StreamingOverlayComponent } from '@axe/features/streaming-overlay/streaming-overlay.component';
 import { CcfoliaRoomImportEventHandlerService } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import-event-handler.service';
 import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
@@ -101,6 +99,7 @@ import {
   FabDrawerSide,
   fabDrawerSide,
   fabLabelSideClasses,
+  fabPopoverSideClasses,
 } from '@axe/ui/fab-drawer';
 import { TranslocoModule } from '@jsverse/transloco';
 import { version as APP_VERSION } from '@pkg';
@@ -134,7 +133,7 @@ const FAB_MARGIN_PX = 12;
     InviteJoinComponent,
     StreamingOverlayComponent,
     ChatTickerComponent,
-    LanguageSelectorComponent,
+    SeatDisplayMenuComponent,
     VisualNovelOverlayComponent,
     NgClass,
     DraggableDirective,
@@ -147,10 +146,12 @@ const FAB_MARGIN_PX = 12;
   host: { '(window:resize)': 'measureFabSides()' },
 })
 export class AppComponent {
-  readonly theme = inject(ThemeService);
-  readonly motion = inject(MotionService);
-  readonly renderLite = inject(RenderLiteService);
-  readonly language = inject(LanguageService);
+  // Built with the shell, whether or not anything shows them: each dresses the page in this
+  // seat's setting as it starts, before the first screen is drawn.
+  private readonly theme = inject(ThemeService);
+  private readonly motion = inject(MotionService);
+  private readonly renderLite = inject(RenderLiteService);
+  private readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);
   readonly widgets = inject(WidgetVisibilityService);
   readonly viewport = inject(ViewportService);
@@ -198,6 +199,22 @@ export class AppComponent {
   protected toggleFab(): void {
     this.measureFabSides();
     this.fabOpen.set(!this.fabOpen());
+    if (!this.fabOpen()) this.seatDisplayOpen.set(false);
+  }
+
+  /** Whether this seat's display settings are open beside the drawer. */
+  protected readonly seatDisplayOpen = signal(false);
+
+  /** Which side of the drawer they open on, which is the side with room. */
+  protected readonly seatDisplaySide = computed(() => fabPopoverSideClasses(this.fabSide()));
+
+  protected toggleSeatDisplay(): void {
+    this.measureFabSides();
+    this.seatDisplayOpen.update((open) => !open);
+  }
+
+  protected closeSeatDisplay(): void {
+    this.seatDisplayOpen.set(false);
   }
 
   /** Reads where the button has been put, which is what settles the way the drawer opens. */
@@ -210,23 +227,8 @@ export class AppComponent {
   }
 
   protected readonly tabletop = inject(TabletopService);
-  private readonly viewMode = inject(ViewModePreferenceService);
-
-  /** Auto, then each of the two a reader may hold the table to. */
-  protected viewModeLabel(): string {
-    return viewModeLabelKey(this.viewMode.mode(), this.tabletop.mode2d());
-  }
-
-  protected viewModeIcon(): string {
-    return viewModeIcon(this.viewMode.mode(), this.tabletop.mode2d());
-  }
-
   /** The ticker is drawn for the screens that asked for it, and not fetched for the rest. */
   protected readonly tickerWanted = computed(() => this.tabletop.display().multiAngleTickerEnabled);
-
-  protected toggleViewMode(): void {
-    this.viewMode.choose(nextViewMode(this.viewMode.mode()));
-  }
 
   protected readonly fabEntries = FAB_ENTRIES;
 
@@ -236,21 +238,6 @@ export class AppComponent {
   }
   isSaving = signal(false);
   progressPercent = signal(0);
-  readonly themeLabel = computed(() => {
-    this.language.currentLang();
-    const t = this.theme.theme();
-    if (t === 'dark') return this.t('common.theme.dark');
-    if (t === 'light') return this.t('common.theme.light');
-    return this.t('common.theme.auto');
-  });
-  readonly motionLabel = computed(() => {
-    this.language.currentLang();
-    const setting = this.motion.setting();
-    if (setting === 'on') return this.t('common.motion.on');
-    if (setting === 'off') return this.t('common.motion.off');
-    return this.t('common.motion.auto');
-  });
-
   constructor() {
     inject(Title).setTitle(`Udonarium Axe ${APP_VERSION}`);
 

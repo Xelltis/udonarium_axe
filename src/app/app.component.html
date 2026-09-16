@@ -102,75 +102,24 @@
           }
           <div
             class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="viewModeLabel() | transloco"
-            data-testid="fab-view-mode"
-            (click)="toggleViewMode()"
+            [class.text-ui-accent]="seatDisplayOpen()"
+            [attr.data-label]="'app.fab.display' | transloco"
+            [attr.aria-expanded]="seatDisplayOpen()"
+            data-testid="fab-display"
+            data-seat-display-toggle
+            role="button"
+            (click)="toggleSeatDisplay()"
           >
-            <i class="material-icons">{{ viewModeIcon() }}</i>
+            <i class="material-icons">tune</i>
           </div>
-          @if (viewport.isCompact() && mobile.prefersDesktop()) {
-            <div
-              class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] [&_i]:text-[22px]"
-              [attr.data-label]="'feature.mobile.useMobile' | transloco"
-              (click)="mobile.useMobileLayout()"
-            >
-              <i class="material-icons">smartphone</i>
-            </div>
-          }
-          <div
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="themeLabel()"
-            (click)="theme.cycle()"
-          >
-            @switch (theme.theme()) {
-              @case ('auto') {
-                <i class="material-icons">brightness_auto</i>
-              }
-              @case ('dark') {
-                <i class="material-icons">dark_mode</i>
-              }
-              @case ('light') {
-                <i class="material-icons">light_mode</i>
-              }
-            }
-          </div>
-          <div
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="motionLabel()"
-            (click)="motion.cycle()"
-          >
-            @switch (motion.setting()) {
-              @case ('auto') {
-                <i class="material-icons">motion_photos_auto</i>
-              }
-              @case ('on') {
-                <i class="material-icons">motion_photos_on</i>
-              }
-              @case ('off') {
-                <i class="material-icons">motion_photos_off</i>
-              }
-            }
-          </div>
-          <div
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'common.renderLite.' + renderLite.setting() | transloco"
-            data-testid="fab-render-lite"
-            (click)="renderLite.cycle()"
-          >
-            @switch (renderLite.setting()) {
-              @case ('auto') {
-                <i class="material-icons">blur_circular</i>
-              }
-              @case ('on') {
-                <i class="material-icons">blur_off</i>
-              }
-              @case ('off') {
-                <i class="material-icons">blur_on</i>
-              }
-            }
-          </div>
-          <app-language-selector />
         </div>
+        @if (seatDisplayOpen()) {
+          <app-seat-display-menu
+            class="absolute bottom-0 z-20 block"
+            [ngClass]="seatDisplaySide()"
+            (closed)="closeSeatDisplay()"
+          />
+        }
       </nav>
       <button
         class="border-ui-border-panel bg-ui-panel shadow-ui-md text-ui-muted hover:text-ui-accent group-[.open]:bg-ui-elevated group-[.open]:text-ui-accent relative z-10 flex size-12 cursor-pointer items-center justify-center rounded-full border border-solid [backdrop-filter:blur(24px)_saturate(1.5)] transition-[color,background,box-shadow,transform] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:shadow-[0_0_0_2px_var(--ui-accent-glow),var(--ui-shadow-md)] hover:shadow-[0_0_0_2px_var(--ui-accent-glow),var(--ui-shadow-md)] [&_i]:text-[24px] [&_i]:leading-none [&_i]:transition-transform [&_i]:duration-220 [&_i]:ease-in-out group-[.open]:[&_i]:rotate-90"

@@ -67,3 +67,11 @@ export function fabLabelSideClasses(side: FabDrawerSide): string {
  */
 export const FAB_COLUMN_CLASSES =
   '[&>*]:break-inside-avoid [&>*]:[direction:ltr] [@media(max-height:760px)]:[column-count:2] [@media(max-height:760px)]:[direction:rtl]';
+
+/**
+ * Where something opened from an item in the drawer is hung: beside the drawer, on the same side
+ * the names of its items are written on, so it opens onto the screen rather than off it.
+ */
+export function fabPopoverSideClasses(side: FabDrawerSide): string {
+  return side.left ? 'right-[calc(100%+10px)]' : 'left-[calc(100%+10px)]';
+}
