@@ -176,17 +176,22 @@
             ></dice-symbol>
           }
           @for (terrain of terrainsBySurface()[wall.surface]; track terrain.identifier) {
-            <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
+            <terrain
+              class="absolute backface-visible transform-3d"
+              [class.will-change-transform]="!terrain.isLocked"
+              [terrain]="terrain"
+            ></terrain>
           }
         </div>
       }
       @if (terrainsBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          <div
-            class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-          ></div>
           @for (terrain of terrainsBySurface().floor; track terrain.identifier) {
-            <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
+            <terrain
+              class="absolute backface-visible transform-3d"
+              [class.will-change-transform]="!terrain.isLocked"
+              [terrain]="terrain"
+            ></terrain>
           }
         </div>
       }
@@ -220,9 +225,6 @@
       }
       @if (textNotesBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          <div
-            class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-          ></div>
           @for (textNote of textNotesBySurface().floor; track textNote.identifier) {
             <text-note
               class="absolute will-change-transform backface-visible transform-3d"
@@ -281,9 +283,6 @@
       }
       @if (diceSymbolsBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          <div
-            class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-          ></div>
           @for (diceSymbol of diceSymbolsBySurface().floor; track diceSymbol.identifier) {
             <dice-symbol
               class="absolute will-change-transform backface-visible transform-3d"
@@ -295,9 +294,6 @@
       }
       @if (charactersBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          <div
-            class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-          ></div>
           @for (character of charactersBySurface().floor; track character.identifier) {
             <game-character
               class="absolute will-change-transform backface-visible transform-3d"
@@ -308,9 +304,6 @@
         </div>
       }
       <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-        <div
-          class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-        ></div>
         @for (cursor of peerCursors(); track cursor.identifier) {
           <peer-cursor
             class="absolute will-change-transform backface-visible transform-3d"

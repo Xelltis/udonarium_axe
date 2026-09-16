@@ -94,7 +94,7 @@
           }
           @if (!isLock && canTurn()) {
             <div
-              class="rotate-grab absolute -top-5.5 -left-1.5 z-[-1] h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 will-change-[opacity] backface-hidden group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
+              class="rotate-grab absolute -top-5.5 -left-1.5 z-[-1] h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 backface-hidden group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
               [ngStyle]="pedestalGrabStyle()"
             >
               <div
@@ -412,7 +412,7 @@
                 @if (!isLock && !mode2dEnabled()) {
                   <div
                     data-testid="roll-grab-head"
-                    class="rotate-grab bg-ui-elevated text-ui-muted absolute top-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 will-change-[opacity] [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
+                    class="rotate-grab bg-ui-elevated text-ui-muted absolute top-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
                     [style.width.px]="rollHandleSizePx()"
                     [style.height.px]="rollHandleSizePx()"
                     [ngStyle]="{ transform: rollHandleHeadTransform() }"
@@ -425,7 +425,7 @@
                   </div>
                   <div
                     data-testid="roll-grab-foot"
-                    class="rotate-grab bg-ui-elevated text-ui-muted absolute bottom-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 will-change-[opacity] [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
+                    class="rotate-grab bg-ui-elevated text-ui-muted absolute bottom-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
                     [style.width.px]="rollHandleSizePx()"
                     [style.height.px]="rollHandleSizePx()"
                     [ngStyle]="{ transform: rollHandleFootTransform() }"
