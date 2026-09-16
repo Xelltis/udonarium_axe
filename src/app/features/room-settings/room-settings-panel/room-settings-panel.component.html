@@ -664,6 +664,21 @@
       </div>
 
       <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:border-ui-accent hover:text-ui-accent flex cursor-pointer items-center gap-2 border border-solid px-2.5 py-1.5 text-left text-[12px] transition-colors [&_i]:text-[18px]"
+          data-testid="room-settings-replay"
+          (click)="openReplay()"
+        >
+          <i class="material-icons">receipt_long</i>
+          {{ 'app.fab.replay' | transloco }}
+        </button>
+        <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+          {{ 'feature.roomSettings.replayHint' | transloco }}
+        </p>
+      </div>
+
+      <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
         <div class="flex flex-col gap-2">
           <div class="border-ui-accent border-l-2 border-solid pl-2">
             <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{

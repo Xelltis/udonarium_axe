@@ -2367,7 +2367,8 @@
       "panelRotationHint": "共通ウィンドウのタイトルバーに回転ボタンが出ます。卓を囲む席それぞれの向きへ回して置けます。",
       "tickerEnabled": "外周ティッカーを表示",
       "tickerSpeed": "速度",
-      "tickerSpeedUnit": "px/秒"
+      "tickerSpeedUnit": "px/秒",
+      "replayHint": "記録したセッションを読み返したり、盤面ごと再生したりします。記録はこの端末の中だけに残ります。"
     },
     "skin": {
       "title": "スキン",

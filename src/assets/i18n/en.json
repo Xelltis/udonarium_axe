@@ -2367,7 +2367,8 @@
       "panelRotationHint": "Puts a turn button on the title bar of every common window, so one can be set facing whichever side of the table is reading it.",
       "tickerEnabled": "Show edge ticker",
       "tickerSpeed": "Speed",
-      "tickerSpeedUnit": "px/s"
+      "tickerSpeedUnit": "px/s",
+      "replayHint": "Read back a recorded session, or play it back with the table. Recordings stay on this device."
     },
     "skin": {
       "title": "Skin",

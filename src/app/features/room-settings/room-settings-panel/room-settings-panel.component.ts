@@ -125,6 +125,14 @@ export class RoomSettingsPanelComponent {
   }
 
   /**
+   * Opens the replay, for reading back a session recorded in this browser. Anyone may open it,
+   * someone watching included: what may be recorded or edited is the replay's own to say.
+   */
+  openReplay(): void {
+    this.roomPanels.open('replay');
+  }
+
+  /**
    * Starts or stops keeping copies of the room on this device, from the checkbox; the copies never
    * leave the device.
    */

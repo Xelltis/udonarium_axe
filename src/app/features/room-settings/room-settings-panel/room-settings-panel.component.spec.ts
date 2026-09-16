@@ -310,6 +310,23 @@ describe('RoomSettingsPanelComponent', () => {
       expect(opened).toEqual(['characterImport']);
     });
 
+    it('opens the replay from the utility part, for someone watching as well', async () => {
+      const opened: string[] = [];
+      vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(((name: string) => {
+        opened.push(name);
+      }) as never);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      component.tab.set('utility');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const button = fixture.nativeElement.querySelector('[data-testid="room-settings-replay"]') as HTMLButtonElement;
+      expect(button.closest('[inert]')).toBeNull();
+      button.click();
+
+      expect(opened).toEqual(['replay']);
+    });
+
     it('shows the boxes only once an enemy holds ground', async () => {
       function boxes(): string[] {
         return [...fixture.nativeElement.querySelectorAll('input[type="number"]')].map(
