@@ -26,13 +26,6 @@
         (press)="openOwnedCharacterList()"
       />
 
-      <ui-icon-button
-        icon="style"
-        [label]="'app.fab.handCards' | transloco"
-        [active]="handRail.isOpen()"
-        (press)="toggleHandRail()"
-      />
-
       <div class="relative flex">
         <ui-icon-button
           icon="radar"
@@ -57,8 +50,6 @@
           </ul>
         }
       </div>
-
-      <ui-icon-button icon="timeline" [label]="'feature.buffManager.title' | transloco" (press)="openBuffManager()" />
 
       <ui-icon-button
         [icon]="buffViewIcon()"

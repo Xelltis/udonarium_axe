@@ -40,6 +40,7 @@ import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { FAB_ENTRIES, FAB_SUBMENUS, FabEntry, FabSubmenuName } from '@axe/domain/ui/fab-menu';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
@@ -47,6 +48,7 @@ import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handle
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
+import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { ChatPortraitImageComponent } from '@axe/features/chat/chat-portrait-img/chat-portrait-img.component';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
@@ -169,6 +171,7 @@ export class AppComponent {
   private readonly renderLite = inject(RenderLiteService);
   private readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);
+  private readonly handRail = inject(HandRailService);
   readonly widgets = inject(WidgetVisibilityService);
   readonly viewport = inject(ViewportService);
   readonly mobile = inject(MobileLayoutService);
@@ -297,17 +300,36 @@ export class AppComponent {
 
   protected readonly fabEntries = FAB_ENTRIES;
 
-  /** What each small menu of the drawer offers this seat, the game master's tools to the game master alone. */
-  protected readonly fabSubmenuEntries = computed<Readonly<Record<FabSubmenuName, readonly FabEntry[]>>>(() => {
-    const gameMaster = this.isMyselfGameMaster();
-    const offered = (entries: readonly FabEntry[]) => entries.filter((entry) => gameMaster || !entry.gameMasterOnly);
-    return { table: offered(FAB_SUBMENUS.table), media: offered(FAB_SUBMENUS.media) };
+  private readonly myRole = computed(() => {
+    this.objectChange.trackMyCursor();
+    return PeerCursor.myRole;
   });
 
+  /** What each small menu of the drawer offers this seat, by who each entry is for. */
+  protected readonly fabSubmenuEntries = computed<Readonly<Record<FabSubmenuName, readonly FabEntry[]>>>(() => {
+    const role = this.myRole();
+    const offered = (entries: readonly FabEntry[]) =>
+      entries.filter(
+        (entry) =>
+          !entry.audience || (entry.audience === 'gameMaster' ? role === PeerRole.GameMaster : role !== PeerRole.Guest)
+      );
+    return {
+      table: offered(FAB_SUBMENUS.table),
+      gameResources: offered(FAB_SUBMENUS.gameResources),
+      media: offered(FAB_SUBMENUS.media),
+    };
+  });
+
+  /** Whether an entry of a small menu is on, for those switched on and off rather than opened. */
+  protected fabEntryLit(entry: FabEntry): boolean | null {
+    if (entry.action.kind === 'visualNovel') return this.visualNovel.active();
+    if (entry.action.kind === 'handRail') return this.handRail.isOpen();
+    return null;
+  }
+
   protected chooseFab(entry: FabEntry, event: MouseEvent): void {
-    if (entry.action.kind === 'panel') this.open(entry.action.panel);
-    else if (entry.action.kind === 'visualNovel') this.visualNovel.toggle();
-    else this.toggleFabSubmenu(entry.action.submenu, event);
+    if (entry.action.kind === 'submenu') this.toggleFabSubmenu(entry.action.submenu, event);
+    else this.chooseFromFabSubmenu(entry);
   }
 
   /** Does what an entry of a small menu is for, and closes the menu behind it. */
@@ -315,6 +337,7 @@ export class AppComponent {
     this.closeFabSubmenu();
     if (entry.action.kind === 'panel') this.open(entry.action.panel);
     else if (entry.action.kind === 'visualNovel') this.visualNovel.toggle();
+    else if (entry.action.kind === 'handRail') this.handRail.toggle();
   }
   isSaving = signal(false);
   progressPercent = signal(0);

@@ -6,7 +6,6 @@ import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { OwnedCharacterListPanelComponent } from '@axe/features/pl-tools/owned-character-list/owned-character-list-panel.component';
 import { PlToolbarComponent } from '@axe/features/pl-tools/pl-toolbar/pl-toolbar.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -80,17 +79,6 @@ describe('PlToolbarComponent', () => {
       expect.objectContaining({ width: 420, height: 560 })
     );
     await expect(panelStub.openLazy.mock.calls[0][0]()).resolves.toBe(OwnedCharacterListPanelComponent);
-  });
-
-  it('opens and closes the hand rail', () => {
-    const rail = TestBed.inject(HandRailService);
-    const toolbar = component as unknown as { toggleHandRail: () => void };
-
-    expect(rail.isOpen()).toBe(false);
-    toolbar.toggleHandRail();
-    expect(rail.isOpen()).toBe(true);
-    toolbar.toggleHandRail();
-    expect(rail.isOpen()).toBe(false);
   });
 
   it('shows the toolbar to a player alone', async () => {

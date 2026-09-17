@@ -80,7 +80,7 @@ test.describe('GM ツールバー', () => {
 
   test('バフマネージャーが開くこと', async ({ page }) => {
     await becomeGm(page);
-    await tool(page, 'バフマネージャー').dispatchEvent('click');
+    await openPanel(page, 'バフマネージャー');
     await expect(page.locator('app-buff-manager-panel')).toBeVisible({ timeout: 10000 });
   });
 

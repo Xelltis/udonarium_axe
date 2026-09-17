@@ -135,7 +135,7 @@
                   (press)="importCharacterFromMenu()"
                 />
               </ui-fab-submenu>
-            } @else if (submenu === 'table' || submenu === 'media') {
+            } @else if (submenu === 'table' || submenu === 'gameResources' || submenu === 'media') {
               <ui-fab-submenu
                 class="block"
                 [label]="'app.fab.' + submenu | transloco"
@@ -146,7 +146,7 @@
                   <ui-fab-submenu-button
                     [icon]="entry.icon"
                     [label]="entry.labelKey | transloco"
-                    [lit]="entry.action.kind === 'visualNovel' ? visualNovel.active() : null"
+                    [lit]="fabEntryLit(entry)"
                     [testId]="'fab-entry-' + entry.key"
                     (press)="chooseFromFabSubmenu(entry)"
                   />

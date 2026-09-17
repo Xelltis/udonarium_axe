@@ -24,7 +24,7 @@ describe('the menu the room is reached through', () => {
       'chat',
       'roomSettings',
       'table',
-      'inventory',
+      'gameResources',
       'media',
       'skin',
     ]);
@@ -48,10 +48,26 @@ describe('the menu the room is reached through', () => {
       'tabletopDisplay',
       'visualNovel',
     ]);
-    expect(FAB_SUBMENUS.table.filter((entry) => entry.gameMasterOnly).map((entry) => entry.key)).toEqual([
+    expect(FAB_SUBMENUS.table.filter((entry) => entry.audience === 'gameMaster').map((entry) => entry.key)).toEqual([
       'mapEditor',
       'dungeonGenerator',
     ]);
+  });
+
+  it('gathers what the game is played with, keeping the buffs and the hand from someone watching', () => {
+    const resources = FAB_ENTRIES.find((entry) => entry.key === 'gameResources');
+
+    expect(resources?.action).toEqual({ kind: 'submenu', submenu: 'gameResources' });
+    expect(FAB_SUBMENUS.gameResources.map((entry) => entry.key)).toEqual([
+      'inventory',
+      'buffManager',
+      'statusAilment',
+      'hand',
+    ]);
+    expect(
+      FAB_SUBMENUS.gameResources.filter((entry) => entry.audience === 'playing').map((entry) => entry.key)
+    ).toEqual(['buffManager', 'hand']);
+    expect(FAB_SUBMENUS.gameResources.find((entry) => entry.key === 'hand')?.action).toEqual({ kind: 'handRail' });
   });
 
   it('names each entry by a key of its own, borrowing the panel title where the drawer has none', () => {

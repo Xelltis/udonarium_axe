@@ -24,7 +24,6 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
@@ -56,7 +55,6 @@ export class PlToolbarComponent {
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly tabletopAction = inject(TabletopActionService);
-  protected readonly handRail = inject(HandRailService);
   protected readonly active = inject(ActiveCharacterService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
   private readonly t = inject(TRANSLATE_FN);
@@ -118,10 +116,6 @@ export class PlToolbarComponent {
     if (character) this.objectPanels.openChatPalette(character);
   }
 
-  protected toggleHandRail(): void {
-    this.handRail.toggle();
-  }
-
   protected toggleRangeMenu(): void {
     if (!this.activeCharacter()) {
       this.rangeOpen.set(false);
@@ -164,10 +158,6 @@ export class PlToolbarComponent {
 
   protected openOwnedCharacterList(): void {
     this.roomPanels.open('ownedCharacters', { left: 100, top: 40 });
-  }
-
-  protected openBuffManager(): void {
-    this.roomPanels.open('buffManager', { left: 160, top: 100 });
   }
 
   protected openEffectLibrary(): void {

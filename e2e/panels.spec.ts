@@ -30,6 +30,25 @@ test.describe('左メニューからパネルを開く', () => {
     await expect(page.locator('app-cut-in-list')).toBeVisible({ timeout: 10000 });
   });
 
+  test('ゲームリソースの小窓から手札を開け閉めでき、見学にはバフマネージャーと手札が出ないこと', async ({ page }) => {
+    await openPanel(page, '手札');
+    await expect(page.locator('app-hand-rail .hand-rail')).toBeVisible({ timeout: 5000 });
+
+    await page.locator('[data-testid="fab-entry-gameResources"]').click();
+    const resources = page.locator('[data-testid="fab-submenu-gameResources"]');
+    await expect(resources.getByTestId('fab-entry-hand')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('app-pl-toolbar [title="手札を開閉"]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    const peerPanel = page.locator('ui-panel').filter({ hasText: '接続情報' });
+    await peerPanel.getByRole('button', { name: /^\s*見学\s*$/ }).click();
+    await page.locator('[data-testid="fab-entry-gameResources"]').click();
+    await expect(resources.getByTestId('fab-entry-inventory')).toBeVisible();
+    await expect(resources.getByTestId('fab-entry-statusAilment')).toBeVisible();
+    await expect(resources.getByTestId('fab-entry-buffManager')).toHaveCount(0);
+    await expect(resources.getByTestId('fab-entry-hand')).toHaveCount(0);
+  });
+
   test('画像・ジュークボックス・カットインは「メディア」の小窓にまとまり、選ぶと小窓が閉じること', async ({ page }) => {
     await openFabMenu(page);
     await expect(page.locator('[data-testid="fab-entry-jukebox"]')).toHaveCount(0);

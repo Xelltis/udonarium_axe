@@ -27,8 +27,6 @@
 
       <ui-icon-button icon="group_work" [label]="'feature.gmTools.party.title' | transloco" (press)="openPartyList()" />
 
-      <ui-icon-button icon="timeline" [label]="'feature.buffManager.title' | transloco" (press)="openBuffManager()" />
-
       <ui-icon-button icon="auto_awesome" [label]="'feature.effect.title' | transloco" (press)="openEffectLibrary()" />
 
       <ui-icon-button
@@ -52,13 +50,6 @@
         [active]="fogEnabled()"
         [dim]="!fogEnabled()"
         (press)="toggleFog()"
-      />
-
-      <ui-icon-button
-        icon="style"
-        [label]="'app.fab.handCards' | transloco"
-        [active]="handRail.isOpen()"
-        (press)="toggleHandRail()"
       />
 
       <ui-icon-button

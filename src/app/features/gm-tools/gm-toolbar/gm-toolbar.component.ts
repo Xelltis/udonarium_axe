@@ -21,7 +21,6 @@ import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.s
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { findOrphanedOwnership } from '@axe/domain/tabletop/ownership';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { NpcBarComponent } from '@axe/features/gm-tools/npc-bar/npc-bar.component';
 import { NpcBarService } from '@axe/features/gm-tools/npc-bar/npc-bar.service';
 import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
@@ -48,7 +47,6 @@ export class GmToolbarComponent {
   private readonly visionService = inject(VisionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly turnOrder = inject(TurnOrderService);
-  protected readonly handRail = inject(HandRailService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
 
@@ -100,10 +98,6 @@ export class GmToolbarComponent {
     this.turnOrder.next();
   }
 
-  protected toggleHandRail(): void {
-    this.handRail.toggle();
-  }
-
   protected readonly darknessEnabled = computed(() => {
     const table = this.tabletopService.currentTable;
     this.objectChange.versionOf(table.identifier)();
@@ -140,10 +134,6 @@ export class GmToolbarComponent {
 
   protected openPartyList(): void {
     this.roomPanels.open('partyList', { left: 120, top: 60 });
-  }
-
-  protected openBuffManager(): void {
-    this.roomPanels.open('buffManager', { left: 160, top: 100 });
   }
 
   protected openEffectLibrary(): void {
