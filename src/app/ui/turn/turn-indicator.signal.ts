@@ -1,5 +1,6 @@
 import { computed, inject, type Signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -14,6 +15,7 @@ export function turnIndicatorSignal(): Signal<TurnIndicator | null> {
   const objectChange = inject(ObjectChangeService);
   const objectStore = inject(ObjectStore);
   const turnOrder = inject(TurnOrderService);
+  const vision = inject(VisionService);
 
   return computed(() => {
     objectChange.versionOf('TurnState')();
@@ -21,6 +23,7 @@ export function turnIndicatorSignal(): Signal<TurnIndicator | null> {
     if (currentIdentifier) objectChange.versionOf(currentIdentifier)();
     const current = currentIdentifier ? objectStore.get(currentIdentifier) : null;
     const name = current instanceof GameCharacter ? current.name : '';
+    const unseen = current instanceof GameCharacter && !vision.mayBeListed(current);
     // The sides come from the room's rules and from the parties themselves, names and all, so
     // a mode switched back or a party renamed has to reach the heading without waiting for a turn.
     objectChange.versionOf('Config')();
@@ -28,6 +31,6 @@ export function turnIndicatorSignal(): Signal<TurnIndicator | null> {
     objectChange.collectionOf(GameCharacter.aliasName)();
     for (const party of objectStore.getObjects('party')) objectChange.versionOf(party.identifier)();
     const side = turnOrder.currentSide;
-    return buildTurnIndicator(turnOrder.phase, turnOrder.round, name, side ? turnOrder.sideName(side) : '');
+    return buildTurnIndicator(turnOrder.phase, turnOrder.round, name, side ? turnOrder.sideName(side) : '', unseen);
   });
 }

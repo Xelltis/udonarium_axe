@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
@@ -114,6 +115,24 @@ describe('GameObjectInventoryComponent', () => {
 
       expect(component.turnSides()).toEqual([]);
       expect(component.currentTurnSide()).toBe('');
+    });
+
+    it('names on the round only the pieces this reader can see, and no side made only of the unseen', () => {
+      const heroes = new Party();
+      heroes.name = '味方';
+      heroes.initialize();
+      const monsters = new Party();
+      monsters.name = '敵';
+      monsters.initialize();
+      putOnTable('勇者', heroes.identifier);
+      putOnTable('闇の魔物', monsters.identifier);
+      Config.instance.turnOrderMode = 'faction';
+      vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockImplementation(
+        (character) => character.name !== '闇の魔物'
+      );
+
+      expect(component.turnSides().map((group) => group.name)).toEqual(['味方']);
+      expect(component.turnOrderList().map((piece) => piece.name)).toEqual(['勇者']);
     });
 
     it('gathers the pieces under the party each is on', () => {
@@ -760,6 +779,20 @@ describe('GameObjectInventoryComponent', () => {
 
       afterEach(() => {
         PeerCursor.myCursor = originalCursor;
+      });
+
+      it('lists no piece the table keeps from this reader, not even while moving several at once', () => {
+        bePlayer();
+        putOnTable('村長');
+        putOnTable('闇の魔物');
+        vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockImplementation(
+          (character) => character.name !== '闇の魔物'
+        );
+
+        expect(component.filteredRows().map((row) => row.object.name)).toEqual(['村長']);
+
+        component.isMultiMove.set(true);
+        expect(component.filteredRows().map((row) => row.object.name)).toEqual(['村長']);
       });
 
       it('keeps every piece until the master filters', () => {

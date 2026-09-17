@@ -1073,4 +1073,39 @@ export class VisionService {
     const z = eyeHeightPx(character.altitude, character.posZ, scene.gridSize);
     return this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene, x, y, viewer, z));
   }
+
+  /**
+   * Whether a character may be named in a list this reader reads: the inventory, the round, the
+   * speakers in the chat.
+   *
+   * A list would otherwise name what the table keeps in the dark or under the fog, so a piece on
+   * the table is listed only where it is drawn. Anything off the table, in a tab of its own or in
+   * the graveyard, is not the table's to hide.
+   */
+  mayBeListed(character: GameCharacter): boolean {
+    return character.location.name !== 'table' || this.isTokenVisible(character);
+  }
+
+  /**
+   * Whether the players, between them, can see a character on the table, whoever is asking.
+   *
+   * For what one seat says to everyone, such as whose turn it is: the game master who says it sees
+   * the whole board, so their own view cannot answer. The party sees what its eyes reach now, the
+   * ground it has cleared on a table that keeps it, and the pieces it has met on one that follows
+   * them.
+   */
+  isSeenByParty(character: GameCharacter): boolean {
+    const scene = this.scene();
+    if (!scene || !(scene.darknessEnabled || scene.fogEnabled)) return true;
+    if (character.location.name !== 'table' || surfaceOf(character) !== 'floor') return true;
+    if (this.foundPieces().has(character.identifier)) return true;
+    const cells = this.visionCells();
+    if (!cells) return true;
+    const half = (scene.gridSize * (character.size || 1)) / 2;
+    const cell = cellIndexAt(cells.grid, character.location.x + half, character.location.y + half);
+    if (cell < 0 || cells.shared.get(cell)) return true;
+    const table = this.currentTable();
+    if (!table?.fogEnabled || !fogRules(table.fogMode).remembersGround) return false;
+    return this.exploredCells()?.get(cell) ?? false;
+  }
 }
