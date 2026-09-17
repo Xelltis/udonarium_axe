@@ -41,6 +41,16 @@ describe('GmToolbarComponent', () => {
     }
   });
 
+  it('leads with the object list and the non-player bar, then the party', () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+    fixture.detectChanges();
+    const icons = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('ui-icon-button i')).map((icon) =>
+      icon.textContent?.trim()
+    );
+
+    expect(icons.slice(1, 4)).toEqual(['category', 'groups', 'group_work']);
+  });
+
   it('offers no brush of its own, the painting having moved to the map editor', () => {
     PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
     fixture.detectChanges();

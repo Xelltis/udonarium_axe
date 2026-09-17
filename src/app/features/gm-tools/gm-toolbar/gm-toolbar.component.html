@@ -25,14 +25,14 @@
     @if (!folded()) {
       <ui-icon-button icon="category" [label]="'app.fab.objectList' | transloco" (press)="openObjectList()" />
 
-      <ui-icon-button icon="group_work" [label]="'feature.gmTools.party.title' | transloco" (press)="openPartyList()" />
-
       <ui-icon-button
         icon="groups"
         [label]="'app.fab.npcBar' | transloco"
         [active]="npcBar.isOpen()"
         (press)="toggleNpcBar()"
       />
+
+      <ui-icon-button icon="group_work" [label]="'feature.gmTools.party.title' | transloco" (press)="openPartyList()" />
 
       <ui-icon-button
         [icon]="darknessEnabled() ? 'bedtime' : 'bedtime_off'"
