@@ -37,7 +37,9 @@ async function settleUntilVisible(page: Page, locator: Locator, limitMs: number)
  * moments every run.
  */
 async function buildDungeon(page: Page, gridLabel: string) {
-  await page.locator('app-gm-toolbar').getByRole('button', { name: 'マップ生成' }).click();
+  await page.locator('[data-testid="fab-entry-table"]').click();
+  await settle(page);
+  await page.locator('[data-testid="fab-submenu-table"] [data-testid="fab-entry-dungeonGenerator"]').click();
   await settleLazy(page);
   const panel = page.locator('ui-panel').filter({ hasText: 'マップ生成' });
   await panel.getByRole('button', { name: gridLabel, exact: true }).click();

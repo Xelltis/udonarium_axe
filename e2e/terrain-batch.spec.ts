@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { openPanel, waitAppReady } from './helpers';
 
 /**
  * The walls of a generated dungeon are locked, so they are drawn together rather than as a box
@@ -24,7 +24,7 @@ async function typeInto(input: Locator, text: string) {
 
 /** Builds a small dungeon from a fixed seed on the grid named, and goes to its table. */
 async function buildDungeon(page: Page, gridLabel: string) {
-  await page.locator('app-gm-toolbar').getByRole('button', { name: 'マップ生成' }).click();
+  await openPanel(page, 'マップ生成');
   const panel = page.locator('ui-panel').filter({ hasText: 'マップ生成' });
   await panel.getByRole('button', { name: gridLabel, exact: true }).click();
   await typeInto(panel.locator('input[name="room-count-number"]'), '3');
