@@ -225,7 +225,7 @@ export class AppComponent {
   protected readonly fabSubmenuOpeners: readonly FabSubmenuOpener[] = [
     { kind: 'saveLoad', icon: 'sd_storage', labelKey: 'app.fab.saveLoad', testId: 'fab-save-load' },
     { kind: 'widgets', icon: 'widgets', labelKey: 'app.fab.widgets', testId: 'fab-widgets' },
-    { kind: 'display', icon: 'tune', labelKey: 'app.fab.display', testId: 'fab-display' },
+    { kind: 'display', icon: 'display_settings', labelKey: 'app.fab.display', testId: 'fab-display' },
   ];
 
   /** Which of the drawer's menus is open beside it, if any; opening one closes the one before. */

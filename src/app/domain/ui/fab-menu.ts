@@ -51,7 +51,7 @@ export const FAB_ENTRIES: readonly FabEntry[] = [
   panel('peerMenu', 'people', 'peerMenu'),
   panel('chat', 'speaker_notes', 'chatWindow'),
   panel('roomSettings', 'room_preferences', 'roomSettings'),
-  submenu('table', 'grid_on'),
+  submenu('table', 'table_restaurant'),
   submenu('gameResources', 'backpack'),
   submenu('media', 'perm_media'),
 ];
@@ -65,7 +65,7 @@ export const FAB_SUBMENUS: Readonly<Record<FabSubmenuName, readonly FabEntry[]>>
       ...panel('dungeonGenerator', 'map', 'dungeonGenerator', 'feature.tabletop.dungeonGenerator.title'),
       audience: 'gameMaster',
     },
-    panel('tabletopDisplay', 'table_restaurant', 'tabletopDisplay'),
+    panel('tabletopDisplay', 'tablet', 'tabletopDisplay'),
     { key: 'visualNovel', icon: 'auto_stories', labelKey: 'app.fab.visualNovel', action: { kind: 'visualNovel' } },
   ],
   gameResources: [

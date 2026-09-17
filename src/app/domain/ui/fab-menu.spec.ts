@@ -78,4 +78,9 @@ describe('the menu the room is reached through', () => {
   it('opens a menu only from the drawer itself, never from inside another menu', () => {
     for (const entry of Object.values(FAB_SUBMENUS).flat()) expect(entry.action.kind).not.toBe('submenu');
   });
+
+  it('shows the table entry as a table, and the tabletop display as a screen laid on it', () => {
+    expect(FAB_ENTRIES.find((entry) => entry.key === 'table')?.icon).toBe('table_restaurant');
+    expect(FAB_SUBMENUS.table.find((entry) => entry.key === 'tabletopDisplay')?.icon).toBe('tablet');
+  });
 });
