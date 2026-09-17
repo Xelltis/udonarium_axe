@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -46,6 +47,24 @@ describe('ChatInputComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('the characters on offer', () => {
+    it('leaves out a piece on the table this seat cannot see, but keeps the one it speaks as', () => {
+      const seen = speaker('勇者');
+      seen.setLocation('table');
+      const unseen = speaker('闇の魔物');
+      unseen.setLocation('table');
+      vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockImplementation((character) => character !== unseen);
+
+      expect(component.gameCharacters()).toContain(seen);
+      expect(component.gameCharacters()).not.toContain(unseen);
+
+      component.sendFrom = unseen.identifier;
+      expect(component.gameCharacters()).toContain(unseen);
+      seen.destroy();
+      unseen.destroy();
+    });
   });
 
   describe('showing who is typing', () => {

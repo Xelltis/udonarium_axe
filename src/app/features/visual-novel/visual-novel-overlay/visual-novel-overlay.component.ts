@@ -17,6 +17,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -155,6 +156,7 @@ export class VisualNovelOverlayComponent {
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectStore = inject(ObjectStore);
+  private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly imageService = inject(ImageService);
@@ -615,12 +617,20 @@ export class VisualNovelOverlayComponent {
     }
   });
 
+  /**
+   * The characters this seat may speak as. A piece on the table it cannot see is left out, as in
+   * the chat; the one already chosen stays.
+   */
   readonly gameCharacters = computed(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const character of all) this.objectChange.versionOf(character.identifier)();
     const myPeerId = PeerCursor.myCursor?.peerId ?? '';
-    return all.filter((character) => allowsChat(character, myPeerId));
+    const chosen = this.sendFrom;
+    return all.filter(
+      (character) =>
+        allowsChat(character, myPeerId) && (character.identifier === chosen || this.vision.mayBeListed(character))
+    );
   });
 
   /**

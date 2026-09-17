@@ -4,6 +4,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { NO_SYSTEM_AVATAR, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -1154,6 +1155,22 @@ describe('VisualNovelOverlayComponent', () => {
     expect(characters.length).toBeGreaterThan(0);
     expect(component.sendFrom).toBe(characters[0].identifier);
     expect(component.sendFrom).not.toBe(PeerCursor.myCursor.identifier);
+  });
+
+  it('offers no speaker standing unseen on the table, as the chat does', () => {
+    addMessage('こんにちは', 'アリス', addImage());
+    addMessage('……', '闇の魔物', addImage());
+    const lurker = characterFor('闇の魔物');
+    lurker.setLocation('table');
+    const listed = vi
+      .spyOn(TestBed.inject(VisionService), 'mayBeListed')
+      .mockImplementation((character) => character !== lurker);
+    createComponent();
+    fixture.detectChanges();
+
+    expect(component.gameCharacters()).not.toContain(lurker);
+    expect(component.gameCharacters()).toContain(characterFor('アリス'));
+    listed.mockRestore();
   });
 
   it('moves to another once the chosen character is gone', () => {
