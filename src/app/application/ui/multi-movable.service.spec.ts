@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MovableLike, MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { makeFakeTabletopObject } from '@axe/testing/factories/tabletop-object.factory';
 
 function makeMovable(opts: { id: string; x?: number; y?: number; isLock?: boolean }): MovableLike {
@@ -64,6 +65,23 @@ describe('MultiMovableService', () => {
     expect(locked.posY).toBe(100);
     expect(free.posX).toBe(230);
     expect(free.posY).toBe(240);
+  });
+
+  it('skips a locked terrain, which keeps its lock as isLocked', () => {
+    const wall = Terrain.create('wall', 1, 1, 1, '', '');
+    wall.isLocked = true;
+    const leader = makeMovable({ id: 'a', x: 0, y: 0 });
+    const locked: MovableLike = { identifier: wall.identifier, tabletopObject: wall, posX: 100, posY: 100 };
+    service.register(leader);
+    service.register(locked);
+    selection.replaceSelection(['a', wall.identifier]);
+
+    service.beginDrag(leader);
+    leader.posX = 30;
+    service.applyLeaderDelta(leader);
+
+    expect(locked.posX).toBe(100);
+    wall.destroy();
   });
 
   it('stops moving followers once the drag has ended', () => {

@@ -1,3 +1,5 @@
+import { ShadeStop } from '@axe/domain/tabletop/terrain-batch/batch-shade';
+
 /**
  * A texture darkened to the brightness asked for, without a filter.
  *
@@ -171,4 +173,23 @@ function assemble(layers: readonly ShadeLayer[], url: string, texture: TextureLa
       'background-repeat': [...layers.map(() => 'no-repeat'), texture.repeat].join(', '),
     },
   };
+}
+
+/**
+ * A face darkened by brightnesses given at points across it, as one gradient running left to
+ * right; null where it darkens nothing.
+ *
+ * Unlike {@link shadedBackgroundGrid}, the points are placed by the caller, in pixels, so two
+ * given at the same point change the shade there at once.
+ */
+export function shadeAlongGradient(stops: readonly ShadeStop[], shade: string = DEFAULT_SHADE_RGB): string | null {
+  if (stops.length === 0 || stops.every((stop) => !(1 - stop.value > 0.0005))) return null;
+  if (stops.length === 1) {
+    const flat = `rgba(${shade},${clampAlpha(1 - stops[0].value)})`;
+    return `linear-gradient(${flat}, ${flat})`;
+  }
+  const parts = stops.map(
+    (stop) => `rgba(${shade},${clampAlpha(1 - stop.value)}) ${Math.round(stop.at * 1000) / 1000}px`
+  );
+  return `linear-gradient(to right, ${parts.join(', ')})`;
 }

@@ -1,9 +1,11 @@
+import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
+import { hexSideStepsAt } from '@axe/domain/tabletop/cell-steps';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
   hexCellCenter,
   hexCircumradius,
+  hexCornerOffsets,
   hexSpacing,
-  hexStartAngle,
   isFlatTopGrid,
   isHexGrid,
 } from '@axe/domain/tabletop/hex-geometry';
@@ -62,23 +64,37 @@ function isCellVisible(
   return true;
 }
 
-function hexVertOffsets(s: number, isFlatTop: boolean): { x: number; y: number }[] {
-  const startAngle = hexStartAngle(isFlatTop);
-  const offsets: { x: number; y: number }[] = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = startAngle + (i * Math.PI) / 3;
-    offsets.push({ x: s * Math.cos(angle), y: s * Math.sin(angle) });
-  }
-  return offsets;
-}
-
 function buildHexSvgMask(polygons: string[], pixelW: number, pixelH: number): string {
   if (!polygons.length) return EMPTY_MASK;
+  perfCounters.bump(PERF_HEX_MASK_SVG);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pixelW}" height="${pixelH}"><g fill="#000">${polygons.join('')}</g></svg>`;
   return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}") 0px 0px / ${pixelW}px ${pixelH}px no-repeat`;
 }
 
 const EMPTY_MASK = 'radial-gradient(#000, #000) 0px 0px / 0px 0px no-repeat';
+
+const HEX_SHAPE_CACHE_LIMIT = 16;
+const outlineMasks = new Map<string, string>();
+const outerBorders = new Map<string, string>();
+
+/**
+ * The string built for a key, built once and kept among the most recently asked for.
+ *
+ * The key holds every argument the string is built from, so a kept string is always the one the
+ * builder would give.
+ */
+function remembered(kept: Map<string, string>, key: string, build: () => string): string {
+  const held = kept.get(key);
+  if (held !== undefined) {
+    kept.delete(key);
+    kept.set(key, held);
+    return held;
+  }
+  const built = build();
+  if (kept.size >= HEX_SHAPE_CACHE_LIMIT) kept.delete(kept.keys().next().value as string);
+  kept.set(key, built);
+  return built;
+}
 
 function visibilityOf(params: BuildMaskCssParams): (gridStr: string) => boolean {
   const scratchedSet = splitGridSet(params.scratchedGrids);
@@ -97,7 +113,7 @@ function hexCellPolygons(
   const maskS = s + 1;
   const { colSpacing, rowSpacing } = hexSpacing(params.gridSize, isFlatTop);
 
-  const verts = hexVertOffsets(maskS, isFlatTop);
+  const verts = hexCornerOffsets(maskS, isFlatTop);
 
   const polygons: string[] = [];
   for (let col = 0; col < params.width; col++) {
@@ -141,6 +157,12 @@ function buildHexMaskSvg(params: BuildMaskCssParams): string {
  * Empty on a square grid or when there are no cells.
  */
 export function buildHexOutlineMask(gridSize: number, gridType: GridType, width: number, height: number): string {
+  return remembered(outlineMasks, `${gridSize}|${gridType}|${width}|${height}`, () =>
+    buildHexOutlineMaskAfresh(gridSize, gridType, width, height)
+  );
+}
+
+function buildHexOutlineMaskAfresh(gridSize: number, gridType: GridType, width: number, height: number): string {
   const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
   if (!geo) return '';
   const isFlatTop = isFlatTopGrid(gridType);
@@ -148,7 +170,7 @@ export function buildHexOutlineMask(gridSize: number, gridType: GridType, width:
   const maskS = s + 1;
   const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
 
-  const verts = hexVertOffsets(maskS, isFlatTop);
+  const verts = hexCornerOffsets(maskS, isFlatTop);
 
   const polygons: string[] = [];
   for (let col = 0; col < width; col++) {
@@ -165,55 +187,6 @@ export function buildHexOutlineMask(gridSize: number, gridType: GridType, width:
   return buildHexSvgMask(polygons, geo.pixelW, geo.pixelH);
 }
 
-function hexNeighborOffset(col: number, row: number, edgeIdx: number, isFlatTop: boolean): readonly [number, number] {
-  if (isFlatTop) {
-    const even = col % 2 === 0;
-    return even
-      ? (
-          [
-            [1, 0],
-            [0, 1],
-            [-1, 0],
-            [-1, -1],
-            [0, -1],
-            [1, -1],
-          ] as const
-        )[edgeIdx]
-      : (
-          [
-            [1, 1],
-            [0, 1],
-            [-1, 1],
-            [-1, 0],
-            [0, -1],
-            [1, 0],
-          ] as const
-        )[edgeIdx];
-  }
-  const even = row % 2 === 0;
-  return even
-    ? (
-        [
-          [0, -1],
-          [1, 0],
-          [0, 1],
-          [-1, 1],
-          [-1, 0],
-          [-1, -1],
-        ] as const
-      )[edgeIdx]
-    : (
-        [
-          [1, -1],
-          [1, 0],
-          [1, 1],
-          [0, 1],
-          [-1, 0],
-          [0, -1],
-        ] as const
-      )[edgeIdx];
-}
-
 /**
  * A CSS background tracing a light line round the outer edge of a mask's hex cells, leaving the
  * inner edges out.
@@ -221,12 +194,18 @@ function hexNeighborOffset(col: number, row: number, edgeIdx: number, isFlatTop:
  * Empty on a square grid or when there are no cells.
  */
 export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, width: number, height: number): string {
+  return remembered(outerBorders, `${gridSize}|${gridType}|${width}|${height}`, () =>
+    buildHexOuterBorderSvgAfresh(gridSize, gridType, width, height)
+  );
+}
+
+function buildHexOuterBorderSvgAfresh(gridSize: number, gridType: GridType, width: number, height: number): string {
   const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
   if (!geo) return '';
   const isFlatTop = isFlatTopGrid(gridType);
   const s = hexCircumradius(gridSize);
   const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
-  const verts = hexVertOffsets(s, isFlatTop);
+  const verts = hexCornerOffsets(s, isFlatTop);
 
   const lines: string[] = [];
   for (let col = 0; col < width; col++) {
@@ -234,9 +213,12 @@ export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, wid
       const { x, y } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
       const cx = x + geo.offsetX;
       const cy = y + geo.offsetY;
+      // Which cell lies across a side turns on the column (flat-topped) or the row
+      // (pointy-topped), so the six of them are read once for the cell rather than once a side.
+      const sides = hexSideStepsAt(isFlatTop, col, row);
 
       for (let i = 0; i < 6; i++) {
-        const [dq, dr] = hexNeighborOffset(col, row, i, isFlatTop);
+        const [dq, dr] = sides[i];
         const nq = col + dq;
         const nr = row + dr;
         if (nq >= 0 && nq < width && nr >= 0 && nr < height) continue;
@@ -249,6 +231,7 @@ export function buildHexOuterBorderSvg(gridSize: number, gridType: GridType, wid
   }
 
   if (!lines.length) return '';
+  perfCounters.bump(PERF_HEX_MASK_SVG);
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${geo.pixelW}" height="${geo.pixelH}">` +
     `<g stroke="#ccc" stroke-width="2" stroke-linecap="round">${lines.join('')}</g></svg>`;
@@ -325,7 +308,7 @@ export function buildScratchingGridInfos(params: BuildScratchingGridInfosParams)
   if (hex) {
     const s = hexCircumradius(params.gridSize);
     const insetS = Math.max(s - 5, s * 0.7);
-    insetVertOffsets = hexVertOffsets(insetS, isFlatTop);
+    insetVertOffsets = hexCornerOffsets(insetS, isFlatTop);
   }
 
   const { colSpacing, rowSpacing } = hex ? hexSpacing(params.gridSize, isFlatTop) : { colSpacing: 0, rowSpacing: 0 };

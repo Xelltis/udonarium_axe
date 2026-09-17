@@ -1,3 +1,4 @@
+import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { hexCircumradius, hexStartAngle } from '@axe/domain/tabletop/hex-geometry';
 
 export interface HexFlowerParams {
@@ -170,6 +171,26 @@ export function buildHexRingClipPath(outline: Point[], bbox: BoundingBox, border
  * corner instead. `L` is the piece's width in pixels and `g` the grid size.
  */
 export function calcHexFlowerParams(size: number, gridSize: number, isFlatTop: boolean): HexFlowerParams {
+  const key = `${size}|${gridSize}|${isFlatTop}`;
+  const held = flowerParams.get(key);
+  if (held) return held;
+  const built = buildHexFlowerParams(size, gridSize, isFlatTop);
+  if (flowerParams.size >= FLOWER_CACHE_LIMIT) flowerParams.clear();
+  flowerParams.set(key, built);
+  return built;
+}
+
+/**
+ * The outlines already cut, by the size and grid they were cut for.
+ *
+ * A piece's pedestal is worked out again on every change to the piece, and a table carries hundreds
+ * of them at a handful of sizes.
+ */
+const FLOWER_CACHE_LIMIT = 32;
+const flowerParams = new Map<string, HexFlowerParams>();
+
+function buildHexFlowerParams(size: number, gridSize: number, isFlatTop: boolean): HexFlowerParams {
+  perfCounters.bump(PERF_HEX_PEDESTAL_OUTLINE);
   const L = size * gridSize;
   const outline =
     size % 1 !== 0

@@ -35,7 +35,7 @@ export class TableVisionOverlayComponent {
   private readonly renderLite = inject(RenderLiteService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly zTransform = translateZCss(Z_OFFSET_DARKNESS_PX);
-  private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('overlayCanvas');
+  private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('overlayCanvas');
 
   private plan: OverlayPlan | null = null;
   /** The size and placement the plan was last drawn at, so a scene that draws the same picture is let pass. */
@@ -45,6 +45,11 @@ export class TableVisionOverlayComponent {
   private surfaceOriginX = 0;
   private surfaceOriginY = 0;
   private surfaceCells: SurfacePoint[][] | undefined = undefined;
+  /**
+   * The board size and shape the surface cells were built for. A scene is rebuilt whenever anything
+   * on the table moves, and the cells depend on none of that.
+   */
+  private surfaceKey = '';
   private margin = 0;
   private scale = 1;
   private animated = false;
@@ -57,31 +62,17 @@ export class TableVisionOverlayComponent {
 
   constructor() {
     effect(() => {
-      const canvas = this.canvasRef().nativeElement;
       const scene = this.visionService.scene();
+      if (!scene) {
+        this.forgetScene();
+        return;
+      }
+      // The canvas is only on the table while there is a scene, so it arrives with the next render.
+      const canvas = this.canvasRef()?.nativeElement;
+      if (!canvas) return;
       const viewer = this.visionService.viewer();
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      if (!scene) {
-        this.plan = null;
-        this.drawnLayout = '';
-        this.animated = false;
-        this.bake = null;
-        this.scratch = null;
-        this.scratchSize = '';
-        this.dirty = [];
-        this.margin = 0;
-        this.scale = 1;
-        this.surfaceCells = undefined;
-        this.stopLoop();
-        if (canvas.width !== 0) canvas.width = 0;
-        if (canvas.height !== 0) canvas.height = 0;
-        canvas.style.left = '0px';
-        canvas.style.top = '0px';
-        canvas.style.width = '';
-        canvas.style.height = '';
-        return;
-      }
       const maxDim = scene.lights.reduce((m, l) => Math.max(m, l.dimPx), 0);
       this.margin = Math.min(SPILL_MARGIN_CAP_PX, Math.ceil(maxDim));
 
@@ -93,9 +84,13 @@ export class TableVisionOverlayComponent {
       this.surfaceOriginY = hex ? -hex.offsetY : 0;
       this.surfaceWidth = hex ? hex.pixelW : scene.widthPx;
       this.surfaceHeight = hex ? hex.pixelH : scene.heightPx;
-      this.surfaceCells = hex
-        ? hexSurfaceCells(cols, rows, scene.gridSize, gridType, HEX_SURFACE_INFLATE_PX)
-        : undefined;
+      const surfaceKey = hex ? `${cols}:${rows}:${scene.gridSize}:${gridType}` : '';
+      if (surfaceKey !== this.surfaceKey) {
+        this.surfaceCells = hex
+          ? hexSurfaceCells(cols, rows, scene.gridSize, gridType, HEX_SURFACE_INFLATE_PX)
+          : undefined;
+        this.surfaceKey = surfaceKey;
+      }
 
       const cw = this.surfaceWidth + 2 * this.margin;
       const ch = this.surfaceHeight + 2 * this.margin;
@@ -125,6 +120,27 @@ export class TableVisionOverlayComponent {
       this.syncLoop();
     });
     this.destroyRef.onDestroy(() => this.stopLoop());
+  }
+
+  /**
+   * Lets go of everything drawn for a scene, for the table that has none now.
+   *
+   * The canvas goes with the scene, so there is nothing left to clear; what is dropped here is what
+   * a scene coming back would otherwise be drawn against.
+   */
+  private forgetScene(): void {
+    this.plan = null;
+    this.drawnLayout = '';
+    this.animated = false;
+    this.bake = null;
+    this.scratch = null;
+    this.scratchSize = '';
+    this.dirty = [];
+    this.margin = 0;
+    this.scale = 1;
+    this.surfaceCells = undefined;
+    this.surfaceKey = '';
+    this.stopLoop();
   }
 
   /**
@@ -205,7 +221,7 @@ export class TableVisionOverlayComponent {
   }
 
   private drawNow(timeMs: number, dirty: DirtyRect | null): void {
-    const ctx = this.canvasRef().nativeElement.getContext('2d');
+    const ctx = this.canvasRef()?.nativeElement.getContext('2d');
     if (!ctx || !this.plan) return;
     drawOverlayPlan(
       ctx,

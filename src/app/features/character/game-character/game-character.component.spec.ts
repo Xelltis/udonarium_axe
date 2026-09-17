@@ -7,6 +7,7 @@ import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
@@ -14,6 +15,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
@@ -26,6 +28,16 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+
+/** What a facing writes at the turn the table has been given, which is what the frame writes out. */
+function at(facing: BillboardFacing): string {
+  return facing(TestBed.inject(UiSignalService).tableViewRotation());
+}
+
+/** The part of a label's transform the camera decides, after the stand that holds it out from the piece. */
+function orbitOf(facing: BillboardFacing): string {
+  return at(facing).replace(/^(translateX\(-50%\) )?translateX\(-?[\d.]+px\) /, '');
+}
 
 describe('GameCharacterComponent', () => {
   let component: GameCharacterComponent;
@@ -352,6 +364,58 @@ describe('GameCharacterComponent', () => {
       ]);
       table.gridType = GridType.SQUARE;
     });
+
+    it('keeps the ring it cut while the piece walks about', async () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      const character = GameCharacter.create('コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const pedestals = component as unknown as Pedestals;
+      const before = pedestals.pedestalStyleShown();
+
+      perfCounters.enabled = true;
+      perfCounters.clear();
+      character.location.x = 300;
+      character.update();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        expect(pedestals.pedestalStyleShown()).toBe(before);
+        expect(perfCounters.drain().get(PERF_HEX_PEDESTAL_OUTLINE) ?? 0).toBe(0);
+      } finally {
+        perfCounters.enabled = false;
+        perfCounters.clear();
+        character.destroy();
+        table.gridType = GridType.SQUARE;
+      }
+    });
+
+    it('cuts another ring for a piece of another size', async () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      const character = GameCharacter.create('コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const pedestals = component as unknown as Pedestals;
+      const atOne = pedestals.pedestalStyleShown();
+
+      character.size = 3;
+      character.update();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        expect(pedestals.pedestalStyleShown()).not.toBe(atOne);
+        expect(pedestals.pedestalStyleShown()['clipPath']).not.toBe(atOne['clipPath']);
+      } finally {
+        character.destroy();
+        table.gridType = GridType.SQUARE;
+      }
+    });
   });
 
   it('registers its effect in the constructor, so nothing is set up outside an injection context', () => {
@@ -659,7 +723,7 @@ describe('GameCharacterComponent', () => {
       // The shared frame stays compatible with the multi-angle renderer, and this picture alone
       // declines to cancel the turn supplied by the piece.
       expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(component.billboardTransformImage()).toContain('rotateZ(0deg)');
+      expect(at(component.imageFacing())).toContain('rotateZ(0deg)');
     });
 
     it('leaves the picture square to the reader where a mark shows the facing instead', () => {
@@ -668,7 +732,7 @@ describe('GameCharacterComponent', () => {
 
       expect(component.imageTurnsWithPiece()).toBe(false);
       expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(component.billboardTransformImage()).toContain('rotateZ(-90deg)');
+      expect(at(component.imageFacing())).toContain('rotateZ(-90deg)');
       expect(arrow()).not.toBeNull();
     });
 
@@ -678,7 +742,30 @@ describe('GameCharacterComponent', () => {
 
       // Each billboard cancels the piece turn, keeping everything above it on the same side.
       expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(component.billboardTransform()).toContain('rotateZ(-180deg)');
+      expect(at(component.nameFacing())).toContain('rotateZ(-180deg)');
+    });
+
+    it('is turned by the frame without the piece working its labels out again', async () => {
+      tableShowing('turn', true);
+      const character = place();
+      await fixture.whenStable();
+      const frame = TestBed.inject(BillboardFrameService);
+      const ui = TestBed.inject(UiSignalService);
+      const facing = component.nameStackFacing();
+      const plate = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="piece-name"]')!;
+
+      try {
+        for (let turn = 0; turn < 10; turn++) {
+          ui.notifyTableViewRotation(50, 0, turn * 12);
+          frame.apply({ x: 50, y: 0, z: turn * 12 });
+        }
+
+        // The same function as before: what the label is turned by does not depend on the camera.
+        expect(component.nameStackFacing()).toBe(facing);
+        expect(plate.style.transform).toBe(facing({ x: 50, y: 0, z: 108 }));
+      } finally {
+        character.destroy();
+      }
     });
 
     it('leaves a table seen from the side to turn its pieces as it always did', () => {
@@ -686,7 +773,7 @@ describe('GameCharacterComponent', () => {
       place(90);
 
       expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(component.billboardTransform()).toContain('rotateZ(-90deg)');
+      expect(at(component.nameFacing())).toContain('rotateZ(-90deg)');
     });
 
     it('shows the same mark on a table seen from the side', () => {
@@ -1432,7 +1519,7 @@ describe('GameCharacterComponent', () => {
         setTargeted(character, true);
 
         expect(axisValues(wrapperTransform(), 'X')[0]).toBe((component.size() * component.gridSize) / 2);
-        expect(component.targetStackTransform()).toContain('translateZ(0.00px)');
+        expect(at(component.targetStackFacing())).toContain('translateZ(0.00px)');
       } finally {
         character.destroy();
       }
@@ -1473,7 +1560,7 @@ describe('GameCharacterComponent', () => {
 
       try {
         setTargeted(character, true);
-        const buffDistance = -Number(/translateY\((-?[\d.]+)px\)/.exec(component.buffLabelOrbit())![1]);
+        const buffDistance = -Number(/translateY\((-?[\d.]+)px\)/.exec(orbitOf(component.buffOrbitFacing()))![1]);
 
         expect(markerLift()).toBeGreaterThan(buffDistance);
       } finally {
@@ -1702,7 +1789,7 @@ describe('GameCharacterComponent', () => {
 
     it('faces the picture at the camera without raising it', () => {
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-      expect(component.billboardTransformImage()).toContain('translateZ(0.00px)');
+      expect(at(component.imageFacing())).toContain('translateZ(0.00px)');
     });
 
     it('faces it anyway in the flat mode', async () => {
@@ -1745,10 +1832,8 @@ describe('GameCharacterComponent', () => {
           expect(image).not.toBeNull();
           expect(image?.style.transform).not.toBe('');
           expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-          expect(component.billboardTransformImage()).toContain(
-            facingMark === 'turn' ? 'rotateZ(0deg)' : 'rotateZ(-90deg)'
-          );
-          expect(component.imageView.pieceTransform()).toContain('rotateZ(var(--multi-angle-piece-angle, 0deg))');
+          expect(at(component.imageFacing())).toContain(facingMark === 'turn' ? 'rotateZ(0deg)' : 'rotateZ(-90deg)');
+          expect(at(component.imageView.pieceFacing())).toContain('rotateZ(var(--multi-angle-piece-angle, 0deg))');
         } finally {
           character.destroy();
           ImageStorage.instance.delete(imageUrl);
@@ -1761,14 +1846,14 @@ describe('GameCharacterComponent', () => {
     it('raises the name straight up in three dimensions', async () => {
       TestBed.inject(ViewModePreferenceService).choose('auto');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.nameLabelOrbit()).toBe('translateY(-30px)');
+      expect(orbitOf(component.nameOrbitFacing())).toBe('translateY(-30px)');
     });
 
     it('puts it up the screen in the flat mode', async () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const transform = component.nameLabelOrbit();
+      const transform = orbitOf(component.nameOrbitFacing());
       const x = Number(transform.match(/translateX\((-?[\d.]+)px\)/)?.[1] ?? NaN);
       expect(x).toBeCloseTo(0, 5);
       expect(transform).toContain('translateZ(-60.00px)');
@@ -1778,7 +1863,7 @@ describe('GameCharacterComponent', () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 90);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const transform = component.nameLabelOrbit();
+      const transform = orbitOf(component.nameOrbitFacing());
       expect(transform).toContain('translateX(-60.00px)');
       const z = Number(transform.match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? NaN);
       expect(z).toBeCloseTo(0, 5);
@@ -1788,8 +1873,8 @@ describe('GameCharacterComponent', () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.billboardTransform()).toContain('translateZ(0.00px)');
-      expect(component.billboardTransformBuff()).toContain('translateZ(0.00px)');
+      expect(at(component.nameFacing())).toContain('translateZ(0.00px)');
+      expect(at(component.buffFacing())).toContain('translateZ(0.00px)');
     });
 
     it('keeps the stationary name while the clockwise orbit is disabled', async () => {
@@ -1858,11 +1943,11 @@ describe('GameCharacterComponent', () => {
           'rotateZ(var(--multi-angle-piece-angle, 0deg))'
         );
         expect(component.multiAnglePieceImageRotation()).toBe('rotateZ(var(--multi-angle-piece-angle, 0deg))');
-        expect(component.imageView.pieceTransform()).toMatch(
+        expect(at(component.imageView.pieceFacing())).toMatch(
           /rotateY\(90deg\).*rotateZ\(var\(--multi-angle-piece-angle, 0deg\)\)$/
         );
-        expect(component.imageView.pieceTransform()).not.toContain('rotateX(var(--multi-angle-piece-angle');
-        expect(component.imageView.pieceTransform()).not.toContain('rotateY(var(--multi-angle-piece-angle');
+        expect(at(component.imageView.pieceFacing())).not.toContain('rotateX(var(--multi-angle-piece-angle');
+        expect(at(component.imageView.pieceFacing())).not.toContain('rotateY(var(--multi-angle-piece-angle');
         expect(root.querySelector<HTMLElement>('[data-testid="piece-gauge"]')?.style.transform ?? '').not.toContain(
           '--multi-angle-piece-angle'
         );

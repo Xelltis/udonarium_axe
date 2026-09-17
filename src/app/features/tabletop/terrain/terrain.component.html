@@ -24,7 +24,7 @@
     @if (!onWall() && hasFloor() && isVisibleFloor() && 0 < topFaceImage().url.length) {
       @if (isDropShadow() && (terreinAltitude() !== 0 || (isSlope() && !hasWall()))) {
         <div
-          class="chrome-smooth-image-trick absolute size-full transform-[translateZ(0.3px)_scale(0.98)] bg-size-[100%_100%] bg-no-repeat opacity-70 filter-[brightness(0)_blur(1px)] backface-visible transform-3d"
+          class="chrome-smooth-image-trick absolute size-full transform-[translateZ(0.3px)_scale(0.98)] bg-size-[100%_100%] bg-no-repeat opacity-70 filter-[brightness(0)_blur(1px)] backface-visible"
           [class.blinking-animation]="!isLocked()"
           [style.background-image]="'url(' + topFaceImage().url + ')' | safe: 'style'"
           [style.clip-path]="hexFloorClipPath()"
@@ -55,7 +55,7 @@
         @if (isHexSlope() && hexSlopeSteps().floors.length > 0) {
           @for (step of hexSlopeSteps().floors; track $index) {
             <div
-              class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+              class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden"
               [class.blinking-animation]="!isLocked()"
               [ngStyle]="{
                 'backface-visibility': 'visible',
@@ -70,7 +70,7 @@
           }
         } @else {
           <div
-            class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+            class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden"
             data-testid="terrain-top"
             [class.blinking-animation]="!isLocked()"
             [ngStyle]="{
@@ -87,7 +87,7 @@
       }
       @if (showsBottom() && isVisibleFloor() && 0 < bottomFaceImage().url.length) {
         <div
-          class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+          class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden"
           data-testid="terrain-bottom"
           [class.blinking-animation]="!isLocked()"
           [ngStyle]="{
@@ -130,7 +130,7 @@
         @if (isHexSlope() && hexSlopeSteps().walls.length > 0 && 0 < wallImage().url.length) {
           @for (wall of hexSlopeSteps().walls; track $index) {
             <div
-              class="chrome-smooth-image-trick absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+              class="chrome-smooth-image-trick absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden"
               [class.blinking-animation]="!isLocked()"
               [style.background-image]="shaded(wallImage().url, wallShade(wall.brightness)) | safe: 'style'"
               [style.width.px]="wall.edgeLength"
@@ -153,7 +153,7 @@
         } @else if (isHex() && 0 < wallImage().url.length) {
           @for (wall of hexWalls(); track $index) {
             <div
-              class="chrome-smooth-image-trick absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+              class="chrome-smooth-image-trick absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden"
               [class.blinking-animation]="!isLocked()"
               [style.background-image]="shaded(wallImage().url, wallShade(wall.brightness)) | safe: 'style'"
               [style.width.px]="wall.edgeLength"

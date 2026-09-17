@@ -8,7 +8,11 @@ import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import {
+  footprintOf,
+  TabletopOverlapRegistryEntry,
+  TabletopOverlapService,
+} from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
@@ -41,6 +45,7 @@ import {
   ContactRider,
   dropTargetSurface,
   findContactSupportZ,
+  MovableLayerItem,
   nextContactLevel,
   registerLayer,
   setLayerCollidable,
@@ -92,7 +97,20 @@ export class MovableDirective implements MovableInteractionContext {
   private climbBlocks: MoveBlock[] | null = null;
   private dragReachZ: number | null = null;
 
-  private static layerHash: { [layerName: string]: MovableDirective[] } = {};
+  private static layerHash: { [layerName: string]: MovableLayerItem[] } = {};
+
+  /**
+   * Puts something hit like a piece, but not moved as one, in a layer, so a piece being dragged
+   * lets the pointer through it or not along with the pieces of that layer.
+   */
+  static joinLayer(layerName: string, item: MovableLayerItem): void {
+    registerLayer(MovableDirective.layerHash, layerName, item);
+  }
+
+  /** Takes something out of a layer it joined. */
+  static leaveLayer(layerName: string, item: MovableLayerItem): void {
+    unregisterLayer(MovableDirective.layerHash, layerName, item);
+  }
 
   private tabletopObject!: TabletopObject;
   layerName: string = '';
@@ -293,7 +311,7 @@ export class MovableDirective implements MovableInteractionContext {
       return;
     }
     if (this.registeredOverlapId && this.registeredOverlapId !== obj.identifier) {
-      this.tabletopOverlap.unregister(this.registeredOverlapId);
+      this.tabletopOverlap.unregister(this.registeredOverlapId, this.nativeElement);
     }
     this.tabletopOverlap.register(obj, this.nativeElement);
     this.registeredOverlapId = obj.identifier;
@@ -301,7 +319,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private unregisterOverlap() {
     if (this.registeredOverlapId) {
-      this.tabletopOverlap.unregister(this.registeredOverlapId);
+      this.tabletopOverlap.unregister(this.registeredOverlapId, this.nativeElement);
       this.registeredOverlapId = null;
     }
   }
@@ -424,11 +442,12 @@ export class MovableDirective implements MovableInteractionContext {
       if (surfaceOf(entry.object) !== selfSurface) continue;
       const left = entry.object.location.x;
       const top = entry.object.location.y;
+      const footprint = footprintOf(entry, gridSize);
       footprints.push({
         left,
         top,
-        right: left + entry.element.offsetWidth,
-        bottom: top + entry.element.offsetHeight,
+        right: left + footprint.width,
+        bottom: top + footprint.height,
         bottomZ: GravityService.contactBottomZ(entry.object, selfSurface, gridSize),
         topZ: GravityService.contactTopZ(entry.object, selfSurface, gridSize),
         climbable: !(sheer && entry.object instanceof Terrain && entry.object.blocksClimb),
@@ -845,12 +864,13 @@ export class MovableDirective implements MovableInteractionContext {
       if (surface === 'floor') continue;
       const entry: TabletopOverlapRegistryEntry | undefined = this.tabletopOverlap.get(obj.identifier);
       if (!entry) continue;
+      const footprint = footprintOf(entry, gridSize);
       const box = surfaceWorldBox(
         surface,
         obj.location.x,
         obj.location.y,
-        entry.element.offsetWidth,
-        entry.element.offsetHeight,
+        footprint.width,
+        footprint.height,
         obj.altitude * gridSize + obj.posZ,
         obj.height * gridSize,
         dims

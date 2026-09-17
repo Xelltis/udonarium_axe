@@ -1,5 +1,13 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { hexCircumradius, hexStartAngle, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import {
+  fillHexPath,
+  hexCircumradius,
+  hexStartAngle,
+  isFlatTopGrid,
+  isHexGrid,
+  strokeHexPath,
+  traceHexPath,
+} from '@axe/domain/tabletop/hex-geometry';
 import { catmullRomSegments } from '@axe/features/map-editor/model/curve-geometry';
 import { FUNCTION_ROLE_INK } from '@axe/features/map-editor/model/function-layer';
 import { cellCenter, pointToCell } from '@axe/features/map-editor/model/grid-cells';
@@ -222,14 +230,7 @@ function clipCellPath(
       const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
       if (x < minX || x > maxX || y < minY || y > maxY) continue;
       if (hex) {
-        for (let i = 0; i < 6; i += 1) {
-          const angle = startAngle + (i * Math.PI) / 3;
-          const px = x + s * Math.cos(angle);
-          const py = y + s * Math.sin(angle);
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
+        traceHexPath(ctx, x, y, s, startAngle);
       } else {
         ctx.rect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
       }
@@ -267,32 +268,6 @@ function drawImageItem(
     ctx.drawImage(image, -item.w / 2, -item.h / 2, item.w, item.h);
   }
   ctx.restore();
-}
-
-function fillHexCell(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, startAngle: number): void {
-  ctx.beginPath();
-  for (let i = 0; i < 6; i += 1) {
-    const angle = startAngle + (i * Math.PI) / 3;
-    const x = cx + s * Math.cos(angle);
-    const y = cy + s * Math.sin(angle);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.fill();
-}
-
-function strokeHexCell(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, startAngle: number): void {
-  ctx.beginPath();
-  for (let i = 0; i < 6; i += 1) {
-    const angle = startAngle + (i * Math.PI) / 3;
-    const x = cx + s * Math.cos(angle);
-    const y = cy + s * Math.sin(angle);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.stroke();
 }
 
 function drawFreehandStroke(ctx: CanvasRenderingContext2D, stroke: FreehandStroke): void {
@@ -399,7 +374,7 @@ function drawHexGridLines(ctx: CanvasRenderingContext2D, scene: MapScene): void 
   for (let col = 0; col < scene.cols; col += 1) {
     for (let row = 0; row < scene.rows; row += 1) {
       const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
-      strokeHexCell(ctx, x, y, s, startAngle);
+      strokeHexPath(ctx, x, y, s, startAngle);
     }
   }
   ctx.restore();
@@ -469,7 +444,7 @@ export function renderScene(
           ctx.fillStyle = resolved;
           if (hex) {
             const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
-            fillHexCell(ctx, x, y, s, startAngle);
+            fillHexPath(ctx, x, y, s, startAngle);
           } else {
             ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
           }
@@ -504,7 +479,7 @@ export function renderScene(
           const { col, row } = parseCellKey(key);
           if (hex) {
             const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
-            fillHexCell(ctx, x, y, s, startAngle);
+            fillHexPath(ctx, x, y, s, startAngle);
           } else {
             ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
           }

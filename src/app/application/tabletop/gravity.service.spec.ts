@@ -8,6 +8,9 @@ import { TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-obje
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
+/** A registered piece drawn in an element of its own. */
+type DrawnEntry = TabletopOverlapRegistryEntry & { readonly element: HTMLElement };
+
 beforeEach(() => {
   TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
 });
@@ -22,7 +25,7 @@ function makeTerrain(opts: {
   posZ?: number;
   identifier?: string;
   surface?: TableSurface;
-}): TabletopOverlapRegistryEntry {
+}): DrawnEntry {
   const terrain = Terrain.create('t', opts.w, opts.d, opts.h, '', '', opts.identifier ?? `terrain_${opts.x}_${opts.y}`);
   terrain.location.x = opts.x;
   terrain.location.y = opts.y;
@@ -43,7 +46,7 @@ function makeCharacter(opts: {
   altitude?: number;
   posZ?: number;
   identifier?: string;
-}): TabletopOverlapRegistryEntry {
+}): DrawnEntry {
   const character = GameCharacter.create('c', opts.size ?? 1, '');
   if (opts.identifier) {
     (character as unknown as { identifier: string }).identifier = opts.identifier;
@@ -182,7 +185,7 @@ describe('GravityService.isAffectedByGravity', () => {
 });
 
 describe('applying gravity through the spatial index', () => {
-  function setup(entries: TabletopOverlapRegistryEntry[]): GravityService {
+  function setup(entries: DrawnEntry[]): GravityService {
     const overlap = TestBed.inject(TabletopOverlapService);
     for (const e of entries) overlap.register(e.object, e.element);
     return TestBed.inject(GravityService);
@@ -196,6 +199,17 @@ describe('applying gravity through the spatial index', () => {
     const base = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'base' });
     const char = makeCharacter({ x: 50, y: 50, posZ: 300 });
     const svc = setup([base, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBe(2 * 50);
+  });
+
+  it('drops a character onto terrain drawn together with others, in no element of its own', () => {
+    const base = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'base' });
+    const char = makeCharacter({ x: 50, y: 50, posZ: 300 });
+    const svc = setup([char]);
+    TestBed.inject(TabletopOverlapService).registerWithoutElement(base.object, () => undefined);
 
     applyNow(svc);
 
@@ -262,7 +276,7 @@ describe('applying gravity through the spatial index', () => {
   });
 
   it('forces no reflow under a crowd of objects', () => {
-    const entries: TabletopOverlapRegistryEntry[] = [];
+    const entries: DrawnEntry[] = [];
     const ROWS = 10;
     const COLS = 10;
     for (let i = 0; i < ROWS; i++) {

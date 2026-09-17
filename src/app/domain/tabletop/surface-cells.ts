@@ -1,3 +1,4 @@
+import { PERF_HEX_SURFACE_CELLS, perfCounters } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
   hexCellCenter,
@@ -30,6 +31,7 @@ export function hexSurfaceCells(
   inflatePx = 0
 ): SurfacePoint[][] {
   if (!isHexGrid(gridType) || cols <= 0 || rows <= 0 || gridSize <= 0) return [];
+  perfCounters.bump(PERF_HEX_SURFACE_CELLS);
 
   const isFlatTop = isFlatTopGrid(gridType);
   const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);

@@ -272,8 +272,18 @@ export class GameTableMaskComponent {
    * mode.
    */
   get masksCss(): string {
-    return buildMaskCss(this.maskCssParams());
+    return this.masksCssValue();
   }
+
+  private readonly masksCssValue = computed(() => {
+    this.readScratchState();
+    const params = this.maskCssParams();
+    // An untouched hex mask is cut to exactly its outline, which is already built for its size.
+    if (isHexGrid(params.gridType) && !params.isPreviewMode && params.isNonScratched && this.hexGeometry()) {
+      return this.hexOutlineMaskCss();
+    }
+    return buildMaskCss(params);
+  });
 
   readonly scratchedColor = computed(() => {
     const mask = this.gameTableMask();
@@ -298,9 +308,14 @@ export class GameTableMaskComponent {
    * drawn at all: the mask has neither an after-scratch colour nor picture, or no cell is open.
    */
   get scratchedLayerMask(): string {
-    if (this.scratchedColor().length < 1 && this.scratchedImageFile().url.length < 1) return '';
-    return buildScratchedMaskCss(this.maskCssParams());
+    return this.scratchedLayerMaskValue();
   }
+
+  private readonly scratchedLayerMaskValue = computed(() => {
+    if (this.scratchedColor().length < 1 && this.scratchedImageFile().url.length < 1) return '';
+    this.readScratchState();
+    return buildScratchedMaskCss(this.maskCssParams());
+  });
 
   private maskCssParams(): BuildMaskCssParams {
     return {
@@ -318,6 +333,11 @@ export class GameTableMaskComponent {
 
   /** The markers drawn over open and picked cells while the mask is being scratched. */
   get scratchingGridInfos(): ScratchGridInfo[] {
+    return this.scratchingGridInfosValue();
+  }
+
+  private readonly scratchingGridInfosValue = computed<ScratchGridInfo[]>(() => {
+    this.readScratchState();
     return buildScratchingGridInfos({
       currentScratchingSet: this._currentScratchingSet,
       gridSize: this.gridSize,
@@ -330,7 +350,7 @@ export class GameTableMaskComponent {
       scratchingGrids: this.scratchingGrids,
       width: this.width,
     });
-  }
+  });
 
   /**
    * The opacity the mask is drawn at: dimmed to 60% for the peer scratching it, and never under 0.4
@@ -423,30 +443,54 @@ export class GameTableMaskComponent {
     return hexCircumradius(this.gridSize) * 0.5;
   }
 
+  /**
+   * What the mask's hex shapes are built from, compared field by field so a change to anything else
+   * about the mask leaves them alone.
+   */
+  private readonly maskShape = computed(
+    () => {
+      this.maskVersion();
+      return { width: this.width, height: this.height, gridSize: this.gridSize, gridType: this.gridType() };
+    },
+    {
+      equal: (a, b) =>
+        a.width === b.width && a.height === b.height && a.gridSize === b.gridSize && a.gridType === b.gridType,
+    }
+  );
+
+  private readonly hexGeometry = computed(() => {
+    const { width, height, gridSize, gridType } = this.maskShape();
+    return computeHexMaskGeometry(width, height, gridSize, gridType);
+  });
+
+  private readonly hexOutlineMaskCss = computed(() => {
+    const { width, height, gridSize, gridType } = this.maskShape();
+    return buildHexOutlineMask(gridSize, gridType, width, height);
+  });
+
+  private readonly hexOuterBorderCss = computed(() => {
+    const { width, height, gridSize, gridType } = this.maskShape();
+    return buildHexOuterBorderSvg(gridSize, gridType, width, height);
+  });
+
   /** A CSS mask in the shape of the mask's hex cells, or empty on a square grid. */
   get hexOutlineMask(): string {
-    return buildHexOutlineMask(this.gridSize, this.gridType(), this.width, this.height);
+    return this.hexOutlineMaskCss();
   }
 
   /** A CSS background tracing the outer edge of the mask's hex cells, or empty on a square grid. */
   get hexOuterBorder(): string {
-    return buildHexOuterBorderSvg(this.gridSize, this.gridType(), this.width, this.height);
+    return this.hexOuterBorderCss();
   }
 
   /** The mask's width in pixels, measured by how its hexes lie on a hex grid. */
   get pixelWidth(): number {
-    return (
-      computeHexMaskGeometry(this.width, this.height, this.gridSize, this.gridType())?.pixelW ??
-      this.width * this.gridSize
-    );
+    return this.hexGeometry()?.pixelW ?? this.width * this.gridSize;
   }
 
   /** The mask's height in pixels, measured by how its hexes lie on a hex grid. */
   get pixelHeight(): number {
-    return (
-      computeHexMaskGeometry(this.width, this.height, this.gridSize, this.gridType())?.pixelH ??
-      this.height * this.gridSize
-    );
+    return this.hexGeometry()?.pixelH ?? this.height * this.gridSize;
   }
 
   readonly movableOption = signal<MovableOption>({});
@@ -520,8 +564,24 @@ export class GameTableMaskComponent {
     e.preventDefault();
   }
 
+  /**
+   * The picks of the scratch in progress not yet written to the mask. A plain set tells nobody it
+   * changed, so every change to it is followed by {@link touchScratching}.
+   */
   private _currentScratchingSet: Set<string> | null = null;
+  private readonly scratchingTick = signal(0);
   private _scratchingTimerId: ReturnType<typeof setTimeout> | undefined;
+
+  private touchScratching(): void {
+    this.scratchingTick.update((tick) => tick + 1);
+  }
+
+  /** Everything the mask's strings are drawn from that is not already a signal read on the way. */
+  private readScratchState(): void {
+    this.maskVersion();
+    this.scratchingTick();
+    this.objectChange.trackMyCursor();
+  }
   /**
    * Toggles the cell under the pointer in the scratch in progress; only the peer scratching the
    * mask can.
@@ -587,12 +647,14 @@ export class GameTableMaskComponent {
     } else {
       this._currentScratchingSet.add(tempScratching);
     }
+    this.touchScratching();
     clearTimeout(this._scratchingTimerId);
     this._scratchingTimerId = setTimeout(() => {
       if (this._currentScratchingSet) {
         this.scratchingGrids = this.buildScratchingGrids(this._currentScratchingSet);
       }
       this._currentScratchingSet = null;
+      this.touchScratching();
     }, 250);
   }
 
@@ -612,6 +674,7 @@ export class GameTableMaskComponent {
       clearTimeout(this._scratchingTimerId);
       this.scratchingGrids = this.buildScratchingGrids(this._currentScratchingSet);
       this._currentScratchingSet = null;
+      this.touchScratching();
     }
     const currentScratchingAry: string[] = this.scratchingGrids.split(/,/g);
     const aSet = new Set(currentScratchedAry);
@@ -655,6 +718,7 @@ export class GameTableMaskComponent {
           this.isPreview = false;
           clearTimeout(this._scratchingTimerId);
           this._currentScratchingSet = null;
+          this.touchScratching();
         }
         mask.owner = getPeerContext().userId;
         this._scratchingGridX = -1;

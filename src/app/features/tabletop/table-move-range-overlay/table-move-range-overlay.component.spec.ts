@@ -8,6 +8,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
   MOVE_RANGE_FILL,
   MOVE_RANGE_OTHERS_FILL,
@@ -77,6 +78,9 @@ describe('TableMoveRangeOverlayComponent', () => {
     table.height = 6;
     table.gridSize = 50;
     table.initialize();
+    // Chosen outright: a table first read for is adopted then and there, and the writing that
+    // takes would reach the overlay later as a change to the table.
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
     return table;
   }
 
@@ -140,6 +144,26 @@ describe('TableMoveRangeOverlayComponent', () => {
 
     expect(stroked).not.toContain(MOVE_WAY_OTHERS);
     expect(filled).not.toContain(MOVE_RANGE_OTHERS_FILL);
+  });
+
+  it('draws the way anew while the reach under it is left as it was', async () => {
+    const table = tableOf();
+    const piece = pieceAt(1, 1, 3);
+    const cursor = otherWalking(table.identifier, piece.identifier, [cellIndexOf(grid, 1, 1), cellIndexOf(grid, 2, 1)]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const overlay = fixture.componentInstance as unknown as { othersReach: () => unknown };
+    const before = overlay.othersReach();
+    stroked.length = 0;
+
+    cursor.movingWay = [cellIndexOf(grid, 1, 1), cellIndexOf(grid, 2, 1), cellIndexOf(grid, 3, 1)].join(',');
+    cursor.update();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(overlay.othersReach()).toBe(before);
+    expect(stroked).toContain(MOVE_WAY_OTHERS);
   });
 
   it('paints the ground an enemy holds under the reach', () => {

@@ -30,6 +30,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { downloadBlob } from '@axe/core/util/download-blob';
+import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -402,7 +403,15 @@ export class MapEditorPanelComponent implements AfterViewInit {
   /** The gesture under way, holding values only between press and release. */
   private readonly gesture = new MapEditorGesture();
 
-  protected readonly cursorCell = signal<{ col: number; row: number } | null>(null);
+  /**
+   * The cell the pointer is over, which the view draws a marker on.
+   *
+   * A pointer crossing one cell reports the same cell many times over, and each of those was a
+   * fresh answer that set the whole view to work again.
+   */
+  protected readonly cursorCell = signal<{ col: number; row: number } | null>(null, {
+    equal: (a, b) => a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row),
+  });
   protected readonly spacePan = signal(false);
   protected readonly panning = signal(false);
   protected readonly draftCount = signal(0);
@@ -634,6 +643,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     if (canvas.height !== h) canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    perfCounters.bump(PERF_MAP_EDITOR_DRAW);
     const helpers = this.buildHelpers(ctx);
     renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined, drawFunctionLayers: true });
     this.drawOverlay(ctx);

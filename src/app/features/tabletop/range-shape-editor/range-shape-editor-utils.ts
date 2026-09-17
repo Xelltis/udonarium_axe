@@ -1,5 +1,11 @@
 import { CellCoord, cellKey, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
-import { hexCellCenter, hexCircumradius, hexSpacing, hexStartAngle } from '@axe/domain/tabletop/hex-geometry';
+import {
+  hexCellCenter,
+  hexCircumradius,
+  hexSpacing,
+  hexStartAngle,
+  hexVertices,
+} from '@axe/domain/tabletop/hex-geometry';
 
 export type EditorGridType = 'square' | 'hex-vertical' | 'hex-horizontal';
 
@@ -60,13 +66,9 @@ function hexGeometry(radius: number, gridSize: number, isFlatTop: boolean): Edit
       const { x, y } = hexCellCenter(gx, gy, colSpacing, rowSpacing, isFlatTop);
       const cx = originX + x;
       const cy = originY + y;
-      const points: string[] = [];
-      for (let i = 0; i < 6; i++) {
-        const angle = startAngle + (i * Math.PI) / 3;
-        const vx = cx + s * Math.cos(angle);
-        const vy = cy + s * Math.sin(angle);
-        points.push(`${vx.toFixed(2)},${vy.toFixed(2)}`);
-      }
+      const points = hexVertices(cx, cy, s, startAngle).map(
+        (corner) => `${corner.x.toFixed(2)},${corner.y.toFixed(2)}`
+      );
       cells.push({ key: cellKey(gx, gy), gx, gy, cx, cy, hexPoints: points.join(' ') });
     }
   }
@@ -170,13 +172,7 @@ export function buildRangeShapeThumbnail(cellPattern: string, gridType: EditorGr
   const items: ThumbnailCell[] = [];
   for (const cell of cells) {
     const { x: cx, y: cy } = hexCellCenter(cell.gx, cell.gy, colSpacing, rowSpacing, isFlatTop);
-    const verts: string[] = [];
-    for (let i = 0; i < 6; i++) {
-      const a = startAngle + (i * Math.PI) / 3;
-      const vx = cx + s * Math.cos(a);
-      const vy = cy + s * Math.sin(a);
-      verts.push(`${vx.toFixed(2)},${vy.toFixed(2)}`);
-    }
+    const verts = hexVertices(cx, cy, s, startAngle).map((corner) => `${corner.x.toFixed(2)},${corner.y.toFixed(2)}`);
     items.push({ hexPoints: verts.join(' ') });
     if (cx - s < minX) minX = cx - s;
     if (cx + s > maxX) maxX = cx + s;

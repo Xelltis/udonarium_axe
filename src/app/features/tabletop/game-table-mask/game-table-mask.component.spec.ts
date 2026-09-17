@@ -3,12 +3,16 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { Network } from '@axe/core/index';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
-import { buildScratchedMaskCss } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
+import {
+  buildHexOutlineMask,
+  buildScratchedMaskCss,
+} from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GameTableMaskComponent', () => {
@@ -339,6 +343,74 @@ describe('GameTableMaskComponent', () => {
 
       selecter.viewTableIdentifier = '';
       table.destroy();
+    });
+  });
+
+  describe('the strings a hex mask is drawn from', () => {
+    let mask: GameTableMask;
+    let table: GameTable;
+    let selecter: TableSelecter;
+
+    beforeEach(async () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
+      selecter = TestBed.inject(TableSelecter);
+      table = new GameTable('mask-strings-hex-table');
+      table.gridType = GridType.HEX_VERTICAL;
+      table.gridSize = 50;
+      table.initialize();
+      selecter.viewTableIdentifier = table.identifier;
+      mask = GameTableMask.create('testMask', 4, 3, 1);
+      mask.scratchedGrids = '1:0';
+      fixture.componentRef.setInput('gameTableMask', mask);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      perfCounters.enabled = false;
+      perfCounters.clear();
+      vi.restoreAllMocks();
+      selecter.viewTableIdentifier = '';
+      mask.destroy();
+      table.destroy();
+    });
+
+    it('builds none of them again while the pointer only moves over the mask', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      perfCounters.enabled = true;
+      perfCounters.clear();
+      for (let i = 0; i < 10; i++) {
+        fixture.nativeElement.dispatchEvent(new PointerEvent('pointermove'));
+        fixture.detectChanges();
+      }
+      await fixture.whenStable();
+
+      expect(perfCounters.drain().get(PERF_HEX_MASK_SVG) ?? 0).toBe(0);
+    });
+
+    it('marks a pick at once, before it is written to the mask', async () => {
+      mask.owner = 'my-user';
+      await fixture.whenStable();
+      const before = component.scratchingGridInfos.length;
+
+      component.scratching(true, { offsetX: 30, offsetY: 26 });
+
+      expect(component.scratchingGridInfos).toHaveLength(before + 1);
+    });
+
+    it('builds the outline for the size the table has now, not one it was read at before', async () => {
+      table.gridSize = 0;
+      await Promise.resolve();
+      await fixture.whenStable();
+      const atNothing = component.hexOutlineMask;
+
+      table.gridSize = 50;
+      await Promise.resolve();
+      await fixture.whenStable();
+
+      expect(component.hexOutlineMask).toBe(buildHexOutlineMask(50, GridType.HEX_VERTICAL, 4, 3));
+      expect(component.hexOutlineMask).not.toBe(atNothing);
     });
   });
 });
