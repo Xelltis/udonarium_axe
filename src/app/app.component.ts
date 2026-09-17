@@ -204,8 +204,8 @@ export class AppComponent {
 
   /** The buttons at the foot of the drawer that open this seat's menus beside it. */
   protected readonly seatMenuOpeners: readonly { kind: SeatMenuKind; icon: string; labelKey: string }[] = [
-    { kind: 'display', icon: 'tune', labelKey: 'app.fab.display' },
     { kind: 'widgets', icon: 'widgets', labelKey: 'app.fab.widgets' },
+    { kind: 'display', icon: 'tune', labelKey: 'app.fab.display' },
   ];
 
   /** Which of this seat's menus is open beside the drawer, if either; opening one closes the other. */
