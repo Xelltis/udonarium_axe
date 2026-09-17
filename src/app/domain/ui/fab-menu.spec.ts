@@ -29,11 +29,12 @@ describe('the menu the room is reached through', () => {
     ]);
   });
 
-  it('gathers the images, the music and the cut-ins under media', () => {
+  it('gathers the images, the music, the cut-ins and the effects under media, the effects for those playing', () => {
     const media = FAB_ENTRIES.find((entry) => entry.key === 'media');
 
     expect(media?.action).toEqual({ kind: 'submenu', submenu: 'media' });
-    expect(FAB_SUBMENUS.media.map((entry) => entry.key)).toEqual(['images', 'jukebox', 'cutIn']);
+    expect(FAB_SUBMENUS.media.map((entry) => entry.key)).toEqual(['images', 'jukebox', 'cutIn', 'effectLibrary']);
+    expect(FAB_SUBMENUS.media.find((entry) => entry.key === 'effectLibrary')?.audience).toBe('playing');
   });
 
   it('gathers what builds and shows the table under one entry, its building tools for the game master alone', () => {

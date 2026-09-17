@@ -136,10 +136,6 @@ export class GmToolbarComponent {
     this.roomPanels.open('partyList', { left: 120, top: 60 });
   }
 
-  protected openEffectLibrary(): void {
-    this.roomPanels.open('effectLibrary', { left: 140, top: 80 });
-  }
-
   protected toggleNpcBar(): void {
     this.npcBar.toggle();
   }

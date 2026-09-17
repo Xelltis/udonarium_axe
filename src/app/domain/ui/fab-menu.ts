@@ -43,7 +43,7 @@ function submenu(key: FabSubmenuName, icon: string): FabEntry {
  *
  * Who is here and what is being said come first, then the room and the table, the table's own
  * tools gathered under one entry, then what the game is played with, and what is put in front of
- * the table, the images, music and cut-ins gathered under media. Saving and loading, the widgets
+ * the table, the images, music, cut-ins and effects gathered under media. Saving and loading, the widgets
  * and this seat's display, the skin among it, follow in the menu itself, each as one button that
  * opens a small menu of its own beside the drawer.
  */
@@ -79,5 +79,6 @@ export const FAB_SUBMENUS: Readonly<Record<FabSubmenuName, readonly FabEntry[]>>
     panel('images', 'photo_library', 'fileStorage'),
     panel('jukebox', 'queue_music', 'jukebox'),
     panel('cutIn', 'slideshow', 'cutInList'),
+    { ...panel('effectLibrary', 'auto_awesome', 'effectLibrary', 'feature.effect.title'), audience: 'playing' },
   ],
 };

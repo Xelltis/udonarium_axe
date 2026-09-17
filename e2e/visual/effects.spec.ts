@@ -4,7 +4,9 @@ import { createCharacter } from '../helpers';
 import { closePanels, freeze, prepare, settle, settleLazy, snap } from './fixtures';
 
 async function castOn(page: Page, preset: string) {
-  await page.locator('app-pl-toolbar button[title="エフェクト"]').click();
+  await page.locator('[data-testid="fab-entry-media"]').click();
+  await settle(page);
+  await page.locator('[data-testid="fab-submenu-media"] [data-testid="fab-entry-effectLibrary"]').click();
   await settleLazy(page);
   const panel = page.locator('app-effect-library-panel');
   await expect(panel).toBeVisible();

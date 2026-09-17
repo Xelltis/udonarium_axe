@@ -159,8 +159,4 @@ export class PlToolbarComponent {
   protected openOwnedCharacterList(): void {
     this.roomPanels.open('ownedCharacters', { left: 100, top: 40 });
   }
-
-  protected openEffectLibrary(): void {
-    this.roomPanels.open('effectLibrary', { left: 140, top: 80 });
-  }
 }
