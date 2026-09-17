@@ -67,6 +67,54 @@ describe('ChatInputComponent', () => {
     });
   });
 
+  describe('packed down for a panel', () => {
+    function find(selector: string): Element | null {
+      return (fixture.nativeElement as HTMLElement).querySelector(selector);
+    }
+
+    function textBox(): HTMLTextAreaElement {
+      return find('textarea[name="chat-input-text"]') as HTMLTextAreaElement;
+    }
+
+    it('shows the colours with the dice bot, and no button to fold them, by default', () => {
+      fixture.detectChanges();
+
+      expect(find('ng-select[name="game-type"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-colors"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-tools"]')).toBeNull();
+    });
+
+    it('folds the colours behind a button, keeping the dice bot in view', () => {
+      fixture.componentRef.setInput('dense', true);
+      fixture.detectChanges();
+
+      expect(find('ng-select[name="game-type"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-colors"]')).toBeNull();
+
+      (find('[data-testid="chat-input-tools"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(find('[data-testid="chat-input-colors"]')).not.toBeNull();
+    });
+
+    it('starts the box a line high, leaving it to grow with what is typed', () => {
+      fixture.detectChanges();
+      expect(textBox().getAttribute('rows')).toBeNull();
+
+      fixture.componentRef.setInput('dense', true);
+      fixture.detectChanges();
+
+      expect(textBox().getAttribute('rows')).toBe('1');
+    });
+
+    it('says what the panel asks for in the empty box, in place of its keys', () => {
+      fixture.componentRef.setInput('placeholder', '行をクリックで入力');
+      fixture.detectChanges();
+
+      expect(textBox().placeholder).toBe('行をクリックで入力');
+    });
+  });
+
   describe('showing who is typing', () => {
     it('keeps no fixed strip for it under the box', () => {
       fixture.detectChanges();

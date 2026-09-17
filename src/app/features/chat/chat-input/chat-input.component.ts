@@ -118,6 +118,13 @@ export class ChatInputComponent {
 
   readonly onlyCharacters = input(false);
   readonly disableQuote = input(false);
+  /**
+   * Packs the input down for a panel whose own list needs the room: a smaller portrait, and the
+   * colours and the ticker switch folded behind a button.
+   */
+  readonly dense = input(false);
+  /** What the empty box says in place of its keys, for a panel that fills the box its own way. */
+  readonly placeholder = input('');
   readonly canSpeak = input(true);
   readonly chatTabidentifier = input('');
   readonly autoCompleteIndex = input(-1);

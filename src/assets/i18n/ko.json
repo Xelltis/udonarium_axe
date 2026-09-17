@@ -2644,7 +2644,8 @@
         "cancelQuote": "인용 취소",
         "textareaPlaceholderShort": "메시지를 입력하세요",
         "sendToTicker": "티커",
-        "sendToTickerHint": "이 발언을 화면 외곽에도 흘려보냅니다"
+        "sendToTickerHint": "이 발언을 화면 외곽에도 흘려보냅니다",
+        "tools": "입력 설정"
       },
       "tab": {
         "unnamedCharacter": "이름 없는 캐릭터",

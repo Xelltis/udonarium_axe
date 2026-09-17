@@ -2644,7 +2644,8 @@
         "cancelQuote": "引用をキャンセル",
         "textareaPlaceholderShort": "メッセージを入力",
         "sendToTicker": "ティッカー",
-        "sendToTickerHint": "この発言を画面の外周にも流します"
+        "sendToTickerHint": "この発言を画面の外周にも流します",
+        "tools": "入力の設定"
       },
       "tab": {
         "unnamedCharacter": "無名のキャラクター",

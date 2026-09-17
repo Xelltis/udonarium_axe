@@ -2644,7 +2644,8 @@
         "cancelQuote": "Cancel quote",
         "textareaPlaceholderShort": "Type a message",
         "sendToTicker": "Ticker",
-        "sendToTickerHint": "Also run this line around the edge of the screen"
+        "sendToTickerHint": "Also run this line around the edge of the screen",
+        "tools": "Input settings"
       },
       "tab": {
         "unnamedCharacter": "Unnamed character",
