@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { openPanel, openSaveLoad, waitAppReady } from './helpers';
+import { openFabMenu, openPanel, openSaveLoad, waitAppReady } from './helpers';
 
 test.describe('左メニューからパネルを開く', () => {
   test.beforeEach(async ({ page }) => {
@@ -28,6 +28,20 @@ test.describe('左メニューからパネルを開く', () => {
   test('カットインパネルを開けること', async ({ page }) => {
     await openPanel(page, 'カットイン');
     await expect(page.locator('app-cut-in-list')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('画像・ジュークボックス・カットインは「メディア」の小窓にまとまり、選ぶと小窓が閉じること', async ({ page }) => {
+    await openFabMenu(page);
+    await expect(page.locator('[data-testid="fab-entry-jukebox"]')).toHaveCount(0);
+
+    await page.locator('[data-testid="fab-entry-media"]').click();
+    const media = page.locator('[data-testid="fab-submenu-media"]');
+    await expect(media.locator('[data-label]')).toHaveCount(3);
+    await expect(page.locator('[data-testid="fab-entry-media"]')).toHaveAttribute('aria-expanded', 'true');
+
+    await media.getByTestId('fab-entry-jukebox').click();
+    await expect(page.locator('app-jukebox')).toBeVisible({ timeout: 10000 });
+    await expect(media).toBeHidden();
   });
 
   test('インベントリパネルを開けること', async ({ page }) => {

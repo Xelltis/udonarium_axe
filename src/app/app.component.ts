@@ -41,7 +41,7 @@ import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
-import { FAB_ENTRIES, FabEntry } from '@axe/domain/ui/fab-menu';
+import { FAB_ENTRIES, FAB_SUBMENUS, FabEntry, FabSubmenuName } from '@axe/domain/ui/fab-menu';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
@@ -111,8 +111,8 @@ import { version as APP_VERSION } from '@pkg';
 /** How far from the corner the button starts, before anybody has put it anywhere. */
 const FAB_MARGIN_PX = 12;
 
-/** The small menus opened beside the drawer: saving and loading, the widgets, and this seat's display. */
-type FabSubmenuKind = 'saveLoad' | SeatMenuKind;
+/** The small menus opened beside the drawer: those of its entries, saving and loading, the widgets, and this seat's display. */
+type FabSubmenuKind = FabSubmenuName | 'saveLoad' | SeatMenuKind;
 
 interface FabSubmenuOpener {
   readonly kind: FabSubmenuKind;
@@ -297,7 +297,17 @@ export class AppComponent {
 
   protected readonly fabEntries = FAB_ENTRIES;
 
-  protected chooseFab(entry: FabEntry): void {
+  protected readonly fabSubmenus = FAB_SUBMENUS;
+
+  protected chooseFab(entry: FabEntry, event: MouseEvent): void {
+    if (entry.action.kind === 'panel') this.open(entry.action.panel);
+    else if (entry.action.kind === 'visualNovel') this.visualNovel.toggle();
+    else this.toggleFabSubmenu(entry.action.submenu, event);
+  }
+
+  /** Does what an entry of a small menu is for, and closes the menu behind it. */
+  protected chooseFromFabSubmenu(entry: FabEntry): void {
+    this.closeFabSubmenu();
     if (entry.action.kind === 'panel') this.open(entry.action.panel);
     else if (entry.action.kind === 'visualNovel') this.visualNovel.toggle();
   }

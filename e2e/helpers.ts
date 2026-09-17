@@ -69,8 +69,12 @@ async function openFabSubmenu(page: Page, openerTestId: string, menuTestId: stri
  */
 export async function openPanel(page: Page, dataLabel: string) {
   await openFabMenu(page);
+  if (MEDIA_LABELS.includes(dataLabel)) await openFabSubmenu(page, 'fab-entry-media', 'fab-submenu-media');
   await page.locator(`[data-label="${dataLabel}"]`).click();
 }
+
+/** 「メディア」の小窓の中にある項目。押す前に小窓を開く。 */
+const MEDIA_LABELS = ['画像', 'ジュークボックス', 'カットイン'];
 
 /**
  * チャットウィンドウ右上の歯車（details/summary）を開いて、

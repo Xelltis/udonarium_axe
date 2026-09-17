@@ -54,10 +54,16 @@
           @for (entry of fabEntries; track entry.key) {
             <li
               class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-              [class.text-ui-accent]="entry.action.kind === 'visualNovel' && visualNovel.active()"
+              [class.text-ui-accent]="
+                (entry.action.kind === 'visualNovel' && visualNovel.active()) ||
+                (entry.action.kind === 'submenu' && fabSubmenu() === entry.action.submenu)
+              "
+              [class.after:hidden]="entry.action.kind === 'submenu' && fabSubmenu() !== null"
               [attr.data-label]="'app.fab.' + entry.key | transloco"
               [attr.data-testid]="'fab-entry-' + entry.key"
-              (click)="chooseFab(entry)"
+              [attr.data-fab-submenu-toggle]="entry.action.kind === 'submenu' ? '' : null"
+              [attr.aria-expanded]="entry.action.kind === 'submenu' ? fabSubmenu() === entry.action.submenu : null"
+              (click)="chooseFab(entry, $event)"
             >
               <i class="material-icons">{{ entry.icon }}</i>
             </li>
@@ -128,6 +134,22 @@
                   testId="save-load-import-character"
                   (press)="importCharacterFromMenu()"
                 />
+              </ui-fab-submenu>
+            } @else if (submenu === 'media') {
+              <ui-fab-submenu
+                class="block"
+                [label]="'app.fab.media' | transloco"
+                testId="fab-submenu-media"
+                (closed)="closeFabSubmenu()"
+              >
+                @for (entry of fabSubmenus.media; track entry.key) {
+                  <ui-fab-submenu-button
+                    [icon]="entry.icon"
+                    [label]="'app.fab.' + entry.key | transloco"
+                    [testId]="'fab-entry-' + entry.key"
+                    (press)="chooseFromFabSubmenu(entry)"
+                  />
+                }
               </ui-fab-submenu>
             } @else {
               <app-seat-display-menu class="block" [kind]="submenu" (closed)="closeFabSubmenu()" />
