@@ -69,12 +69,16 @@ async function openFabSubmenu(page: Page, openerTestId: string, menuTestId: stri
  */
 export async function openPanel(page: Page, dataLabel: string) {
   await openFabMenu(page);
-  if (MEDIA_LABELS.includes(dataLabel)) await openFabSubmenu(page, 'fab-entry-media', 'fab-submenu-media');
+  const submenu = Object.entries(SUBMENU_LABELS).find(([, labels]) => labels.includes(dataLabel))?.[0];
+  if (submenu) await openFabSubmenu(page, `fab-entry-${submenu}`, `fab-submenu-${submenu}`);
   await page.locator(`[data-label="${dataLabel}"]`).click();
 }
 
-/** 「メディア」の小窓の中にある項目。押す前に小窓を開く。 */
-const MEDIA_LABELS = ['画像', 'ジュークボックス', 'カットイン'];
+/** FAB の項目が開く小窓と、その中にある項目。小窓の中の項目は、押す前に小窓を開く。 */
+const SUBMENU_LABELS: Readonly<Record<string, readonly string[]>> = {
+  table: ['テーブル設定', 'マップエディター', 'マップ生成', '卓上ディスプレイ', 'ノベルモード'],
+  media: ['画像', 'ジュークボックス', 'カットイン'],
+};
 
 /**
  * チャットウィンドウ右上の歯車（details/summary）を開いて、

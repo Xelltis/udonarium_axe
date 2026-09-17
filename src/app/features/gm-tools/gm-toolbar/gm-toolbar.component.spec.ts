@@ -11,7 +11,6 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameObjectListPanelComponent } from '@axe/features/gm-object-list/game-object-list-panel.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcBarService } from '@axe/features/gm-tools/npc-bar/npc-bar.service';
-import { MapEditorPanelComponent } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GmToolbarComponent', () => {
@@ -57,15 +56,6 @@ describe('GmToolbarComponent', () => {
       expect.objectContaining({ width: 460, height: 620 })
     );
     await expect(panelStub.openLazy.mock.calls[0][0]()).resolves.toBe(GameObjectListPanelComponent);
-  });
-
-  it('opens the map editor', async () => {
-    (component as unknown as { openMapEditor: () => void }).openMapEditor();
-    expect(panelStub.openLazy).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({ width: 1100, height: 740 })
-    );
-    await expect(panelStub.openLazy.mock.calls[0][0]()).resolves.toBe(MapEditorPanelComponent);
   });
 
   it('opens and closes the non-player bar', () => {

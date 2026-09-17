@@ -297,7 +297,12 @@ export class AppComponent {
 
   protected readonly fabEntries = FAB_ENTRIES;
 
-  protected readonly fabSubmenus = FAB_SUBMENUS;
+  /** What each small menu of the drawer offers this seat, the game master's tools to the game master alone. */
+  protected readonly fabSubmenuEntries = computed<Readonly<Record<FabSubmenuName, readonly FabEntry[]>>>(() => {
+    const gameMaster = this.isMyselfGameMaster();
+    const offered = (entries: readonly FabEntry[]) => entries.filter((entry) => gameMaster || !entry.gameMasterOnly);
+    return { table: offered(FAB_SUBMENUS.table), media: offered(FAB_SUBMENUS.media) };
+  });
 
   protected chooseFab(entry: FabEntry, event: MouseEvent): void {
     if (entry.action.kind === 'panel') this.open(entry.action.panel);

@@ -1,8 +1,10 @@
 import { ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { MapEditorPanelComponent } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { PanelWindowRequest, PanelWindowService } from '@axe/features/panels/panel-window.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { DungeonGeneratorComponent } from '@axe/features/tabletop/dungeon-generator/dungeon-generator.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('RoomPanelService', () => {
@@ -78,5 +80,15 @@ describe('RoomPanelService', () => {
     const [, back, given] = openLazy.mock.calls[1];
     expect(back).toEqual(expect.objectContaining({ width: 1200, title: 'カットイン' }));
     expect(given).toBe(setup);
+  });
+
+  it('loads the map editor and the map generator at the size each is drawn at', async () => {
+    service.open('mapEditor');
+    service.open('dungeonGenerator');
+
+    expect(option(0)).toEqual(expect.objectContaining({ width: 1100, height: 740 }));
+    expect(option(1)).toEqual(expect.objectContaining({ width: 460, height: 660 }));
+    await expect(openLazy.mock.calls[0][0]()).resolves.toBe(MapEditorPanelComponent);
+    await expect(openLazy.mock.calls[1][0]()).resolves.toBe(DungeonGeneratorComponent);
   });
 });

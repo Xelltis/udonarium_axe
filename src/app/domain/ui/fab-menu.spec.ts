@@ -23,11 +23,9 @@ describe('the menu the room is reached through', () => {
       'peerMenu',
       'chat',
       'roomSettings',
-      'tableSetting',
+      'table',
       'inventory',
       'media',
-      'visualNovel',
-      'tabletopDisplay',
       'skin',
     ]);
   });
@@ -37,6 +35,28 @@ describe('the menu the room is reached through', () => {
 
     expect(media?.action).toEqual({ kind: 'submenu', submenu: 'media' });
     expect(FAB_SUBMENUS.media.map((entry) => entry.key)).toEqual(['images', 'jukebox', 'cutIn']);
+  });
+
+  it('gathers what builds and shows the table under one entry, its building tools for the game master alone', () => {
+    const table = FAB_ENTRIES.find((entry) => entry.key === 'table');
+
+    expect(table?.action).toEqual({ kind: 'submenu', submenu: 'table' });
+    expect(FAB_SUBMENUS.table.map((entry) => entry.key)).toEqual([
+      'tableSetting',
+      'mapEditor',
+      'dungeonGenerator',
+      'tabletopDisplay',
+      'visualNovel',
+    ]);
+    expect(FAB_SUBMENUS.table.filter((entry) => entry.gameMasterOnly).map((entry) => entry.key)).toEqual([
+      'mapEditor',
+      'dungeonGenerator',
+    ]);
+  });
+
+  it('names each entry by a key of its own, borrowing the panel title where the drawer has none', () => {
+    expect(FAB_ENTRIES.find((entry) => entry.key === 'chat')?.labelKey).toBe('app.fab.chat');
+    expect(FAB_SUBMENUS.table.find((entry) => entry.key === 'mapEditor')?.labelKey).toBe('feature.mapEditor.title');
   });
 
   it('opens a menu only from the drawer itself, never from inside another menu', () => {

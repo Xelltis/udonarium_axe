@@ -150,14 +150,6 @@ export class GmToolbarComponent {
     this.roomPanels.open('effectLibrary', { left: 140, top: 80 });
   }
 
-  protected openMapEditor(): void {
-    this.roomPanels.open('mapEditor', { left: 80, top: 60 });
-  }
-
-  protected openDungeonGenerator(): void {
-    this.roomPanels.open('dungeonGenerator', { left: 100, top: 60 });
-  }
-
   protected toggleNpcBar(): void {
     this.npcBar.toggle();
   }
