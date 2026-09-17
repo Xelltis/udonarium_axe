@@ -102,6 +102,8 @@ import {
   fabDrawerSide,
   fabLabelSideClasses,
   fabPopoverSideClasses,
+  FabSubmenuAnchor,
+  fabSubmenuAnchor,
 } from '@axe/ui/fab-drawer';
 import { TranslocoModule } from '@jsverse/transloco';
 import { version as APP_VERSION } from '@pkg';
@@ -231,8 +233,24 @@ export class AppComponent {
 
   private readonly zipInput = viewChild<ElementRef<HTMLInputElement>>('zipInput');
 
-  protected toggleFabSubmenu(kind: FabSubmenuKind): void {
+  /** Where the open menu is pinned, level with the item it was opened from. */
+  protected readonly fabSubmenuPlace = signal<FabSubmenuAnchor>({ top: null, bottom: 0 });
+
+  protected toggleFabSubmenu(kind: FabSubmenuKind, event: MouseEvent): void {
     this.measureFabSides();
+    const opener = event.currentTarget;
+    if (opener instanceof HTMLElement && opener.offsetParent instanceof HTMLElement) {
+      const box = opener.getBoundingClientRect();
+      this.fabSubmenuPlace.set(
+        fabSubmenuAnchor({
+          offsetTop: opener.offsetTop,
+          height: opener.offsetHeight,
+          drawerHeight: opener.offsetParent.clientHeight,
+          centerInWindow: box.top + box.height / 2,
+          windowHeight: window.innerHeight,
+        })
+      );
+    }
     this.fabSubmenu.update((open) => (open === kind ? null : kind));
   }
 

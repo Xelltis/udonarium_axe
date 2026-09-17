@@ -76,7 +76,7 @@
               [attr.data-testid]="opener.testId"
               data-fab-submenu-toggle
               role="button"
-              (click)="toggleFabSubmenu(opener.kind)"
+              (click)="toggleFabSubmenu(opener.kind, $event)"
             >
               <i class="material-icons" [class.vibration-amine]="opener.kind === 'saveLoad' && isSaving()">{{
                 opener.icon
@@ -94,36 +94,37 @@
           accept="application/xml,text/xml,application/zip"
         />
         @if (fabSubmenu(); as submenu) {
-          @if (submenu === 'saveLoad') {
-            <ui-fab-submenu
-              class="absolute bottom-0 z-20 block"
-              [ngClass]="fabSubmenuSide()"
-              [label]="'app.fab.saveLoad' | transloco"
-              testId="save-load"
-              (closed)="closeFabSubmenu()"
-            >
-              <ui-fab-submenu-button
-                icon="save"
-                [label]="'app.fab.save' | transloco"
-                [disabled]="isSaving()"
-                testId="save-load-save"
-                (press)="saveFromMenu()"
-              />
-              <ui-fab-submenu-button
-                icon="open_in_browser"
-                [label]="'app.fab.zipLoad' | transloco"
-                testId="save-load-load"
-                (press)="chooseFilesToLoad()"
-              />
-            </ui-fab-submenu>
-          } @else {
-            <app-seat-display-menu
-              class="absolute bottom-0 z-20 block"
-              [ngClass]="fabSubmenuSide()"
-              [kind]="submenu"
-              (closed)="closeFabSubmenu()"
-            />
-          }
+          <div
+            class="absolute z-20"
+            [ngClass]="fabSubmenuSide()"
+            [style.top.px]="fabSubmenuPlace().top"
+            [style.bottom.px]="fabSubmenuPlace().bottom"
+          >
+            @if (submenu === 'saveLoad') {
+              <ui-fab-submenu
+                class="block"
+                [label]="'app.fab.saveLoad' | transloco"
+                testId="save-load"
+                (closed)="closeFabSubmenu()"
+              >
+                <ui-fab-submenu-button
+                  icon="save"
+                  [label]="'app.fab.save' | transloco"
+                  [disabled]="isSaving()"
+                  testId="save-load-save"
+                  (press)="saveFromMenu()"
+                />
+                <ui-fab-submenu-button
+                  icon="open_in_browser"
+                  [label]="'app.fab.zipLoad' | transloco"
+                  testId="save-load-load"
+                  (press)="chooseFilesToLoad()"
+                />
+              </ui-fab-submenu>
+            } @else {
+              <app-seat-display-menu class="block" [kind]="submenu" (closed)="closeFabSubmenu()" />
+            }
+          </div>
         }
       </nav>
       <button

@@ -5,6 +5,7 @@ import {
   fabDrawerSide,
   fabLabelSideClasses,
   fabPopoverSideClasses,
+  fabSubmenuAnchor,
 } from '@axe/ui/fab-drawer';
 
 const VIEW = { width: 1000, height: 800 };
@@ -103,5 +104,17 @@ describe('fabPopoverSideClasses()', () => {
   it('opens beside the drawer on the side its names are written on', () => {
     expect(fabPopoverSideClasses({ up: false, left: false })).toBe('left-[calc(100%+10px)]');
     expect(fabPopoverSideClasses({ up: true, left: true })).toBe('right-[calc(100%+10px)]');
+  });
+});
+
+describe('fabSubmenuAnchor()', () => {
+  const opener = { offsetTop: 500, height: 44, drawerHeight: 640, windowHeight: 800 };
+
+  it('hangs a menu down from the top of an item in the upper half of the window', () => {
+    expect(fabSubmenuAnchor({ ...opener, centerInWindow: 300 })).toEqual({ top: 500, bottom: null });
+  });
+
+  it('raises a menu from the bottom of an item in the lower half, so it stays on the screen', () => {
+    expect(fabSubmenuAnchor({ ...opener, centerInWindow: 600 })).toEqual({ top: null, bottom: 96 });
   });
 });
