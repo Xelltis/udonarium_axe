@@ -1,36 +1,16 @@
-<div class="flex h-full flex-col" #root>
+<div class="@container flex h-full flex-col" #root>
   <div class="grow-0">
-    <form name="chat-palette">
-      <div class="flex flex-wrap items-center gap-0.75 px-1.5 pt-1.5 pb-0.75 select-none">
-        @for (chatTab of chatTabsVersion(); track chatTab) {
-          <label class="relative inline-block flex-none overflow-visible">
-            <input
-              class="peer hidden"
-              name="chat-tab"
-              type="radio"
-              value="{{ chatTab.identifier }}"
-              ng-control="options"
-              [ngModel]="chatTabidentifier()"
-              (ngModelChange)="chatTabidentifier.set($event)"
-            />
-            <div
-              class="border-ui-border-panel text-ui-muted peer-checked:border-ui-accent peer-checked:bg-ui-accent-bg peer-checked:text-ui-accent hover:border-ui-accent hover:bg-ui-hover hover:text-ui-text relative inline-flex cursor-pointer items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 align-middle text-[11px] whitespace-nowrap outline-0 transition-colors peer-checked:font-medium peer-checked:shadow-[0_0_0_1px_var(--ui-accent-glow)]"
-            >
-              {{ chatTab.name }}
-              @if (chatTab.hasUnread) {
-                <badge
-                  class="pointer-events-none absolute -top-1.5 -right-1.5 z-2"
-                  [count]="chatTab.unreadLength"
-                ></badge>
-              }
-            </div>
-          </label>
-        }
-      </div>
-    </form>
+    <div class="-mt-1.5 flex min-w-0 items-center px-1.5" data-testid="palette-tabs">
+      <chat-tab-strip tone="panel" [tabs]="visibleChatTabs()" [(selected)]="chatTabidentifier" />
+    </div>
     <chat-input
       [onlyCharacters]="true"
       [disableQuote]="true"
+      [dense]="true"
+      [canSpeak]="canSpeakCurrentTab()"
+      [placeholder]="
+        (isCompact() ? 'feature.chat.palette.inputHintTouch' : 'feature.chat.palette.inputHint') | transloco
+      "
       [chatTabidentifier]="chatTabidentifier()"
       [(gameType)]="gameType"
       [(sendFrom)]="sendFrom"
@@ -61,11 +41,14 @@
     </div>
   </div>
 
-  <div class="bg-ui-panel border-ui-border-panel flex grow-0 items-center gap-1 border-y border-solid px-1 py-0.5">
+  <div
+    class="bg-ui-panel border-ui-border-panel flex min-w-0 grow-0 items-center gap-1 border-y border-solid px-1 py-0.75"
+    data-testid="palette-toolbar"
+  >
     @if (viewMode() === 'palette') {
       @if (windowed()) {
         <select
-          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text max-w-45 cursor-pointer border border-solid px-1 py-0.5 text-[0.78em] leading-normal disabled:cursor-default disabled:opacity-50"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text h-6.5 max-w-32 shrink-0 cursor-pointer border border-solid px-1 text-[0.78em] leading-normal disabled:cursor-default disabled:opacity-50"
           data-testid="palette-headings-list"
           [disabled]="paletteHeadings().length === 0"
           [title]="'feature.chat.palette.indexTooltip' | transloco"
@@ -78,53 +61,96 @@
         </select>
       } @else {
         <button
-          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 py-0.5 text-[0.78em] leading-normal select-none [&_.material-icons]:text-base!"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex h-6.5 shrink-0 cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 text-[0.78em] leading-normal whitespace-nowrap select-none @max-[520px]:px-1 [&_.material-icons]:text-base!"
+          type="button"
           data-testid="palette-headings-menu"
           (click)="indexBtn()"
           [title]="'feature.chat.palette.indexTooltip' | transloco"
+          [attr.aria-label]="'feature.chat.palette.indexLabel' | transloco"
         >
-          <i class="material-icons">bookmarks</i>{{ 'feature.chat.palette.indexLabel' | transloco }}
+          <i class="material-icons">bookmarks</i
+          ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.indexLabel' | transloco }}</span>
         </button>
       }
+      @if (isEdit()) {
+        <span class="flex-1"></span>
+        <span
+          class="text-ui-accent border-ui-accent bg-ui-accent-bg inline-flex shrink-0 items-center gap-0.5 rounded-[10px] border border-solid px-1.75 py-px text-[0.72em] select-none [&_.material-icons]:text-base!"
+        >
+          <i class="material-icons">edit</i>{{ 'feature.chat.palette.editing' | transloco }}
+        </span>
+      } @else {
+        <div
+          class="bg-ui-input border-ui-border-panel rounded-ui-sm focus-within:border-ui-accent flex h-6.5 min-w-0 flex-1 items-center gap-1 border border-solid px-1.5 transition-[border-color]"
+        >
+          <i class="material-icons text-ui-muted shrink-0 text-[15px]!">search</i>
+          <input
+            class="text-ui-text box-border h-full min-w-0 flex-1 border-none bg-transparent p-0 text-[12px] outline-none focus:shadow-none"
+            type="text"
+            name="palette-search"
+            autocomplete="off"
+            data-testid="palette-search"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+            (keydown)="onSearchKeydown($event)"
+            [placeholder]="'feature.chat.palette.searchPlaceholder' | transloco"
+            [attr.aria-label]="'feature.chat.palette.searchPlaceholder' | transloco"
+          />
+          @if (isSearching()) {
+            <span class="text-ui-dim shrink-0 text-[11px] whitespace-nowrap">{{
+              'feature.chat.palette.searchCount' | transloco: { count: searchResults().length }
+            }}</span>
+            <button
+              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 [&_.material-icons]:text-[15px]!"
+              type="button"
+              data-action="clear-palette-search"
+              (click)="clearSearch()"
+              [title]="'feature.chat.palette.searchClear' | transloco"
+              [attr.aria-label]="'feature.chat.palette.searchClear' | transloco"
+            >
+              <i class="material-icons">close</i>
+            </button>
+          }
+        </div>
+      }
       <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 py-0.5 text-[0.78em] leading-normal select-none [&_.material-icons]:text-base!"
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex h-6.5 shrink-0 cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 text-[0.78em] leading-normal whitespace-nowrap select-none @max-[520px]:px-1 [&_.material-icons]:text-base!"
+        type="button"
         (click)="toggleCharacterDataView()"
         [title]="'feature.chat.palette.characterDataTooltip' | transloco"
+        [attr.aria-label]="'feature.chat.palette.characterDataLabel' | transloco"
       >
-        <i class="material-icons">badge</i>{{ 'feature.chat.palette.characterDataLabel' | transloco }}
+        <i class="material-icons">badge</i
+        ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.characterDataLabel' | transloco }}</span>
+      </button>
+      <button
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex h-6.5 shrink-0 cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 text-[0.78em] leading-normal whitespace-nowrap select-none @max-[520px]:px-1 [&_.material-icons]:text-base!"
+        type="button"
+        [class.bg-ui-accent-bg!]="isEdit()"
+        [class.border-ui-accent!]="isEdit()"
+        [class.text-ui-accent!]="isEdit()"
+        [attr.aria-pressed]="isEdit()"
+        [attr.aria-label]="(isEdit() ? 'feature.chat.palette.confirm' : 'feature.chat.palette.edit') | transloco"
+        (click)="toggleEditMode()"
+      >
+        @if (!isEdit()) {
+          <i class="material-icons">edit</i
+          ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.edit' | transloco }}</span>
+        } @else {
+          <i class="material-icons">check</i
+          ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.confirm' | transloco }}</span>
+        }
       </button>
     } @else {
       <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 py-0.5 text-[0.78em] leading-normal select-none [&_.material-icons]:text-base!"
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex h-6.5 shrink-0 cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 text-[0.78em] leading-normal whitespace-nowrap select-none @max-[520px]:px-1 [&_.material-icons]:text-base!"
+        type="button"
         (click)="toggleCharacterDataView()"
         [title]="'feature.chat.palette.backToPaletteTooltip' | transloco"
       >
         <i class="material-icons">arrow_back</i>{{ 'feature.chat.palette.backToPaletteLabel' | transloco }}
       </button>
-    }
-    <span class="flex-1"></span>
-    @if (viewMode() === 'palette') {
-      @if (isEdit()) {
-        <span
-          class="text-ui-accent border-ui-accent bg-ui-accent-bg inline-flex items-center gap-0.5 rounded-[10px] border border-solid px-1.75 py-px text-[0.72em] select-none [&_.material-icons]:text-base!"
-        >
-          <i class="material-icons">edit</i>{{ 'feature.chat.palette.editing' | transloco }}
-        </span>
-      }
-      <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 py-0.5 text-[0.78em] leading-normal select-none [&_.material-icons]:text-base!"
-        [class.bg-ui-accent-bg!]="isEdit()"
-        [class.border-ui-accent!]="isEdit()"
-        [class.text-ui-accent!]="isEdit()"
-        (click)="toggleEditMode()"
-      >
-        @if (!isEdit()) {
-          <i class="material-icons">edit</i>{{ 'feature.chat.palette.edit' | transloco }}
-        } @else {
-          <i class="material-icons">check</i>{{ 'feature.chat.palette.confirm' | transloco }}
-        }
-      </button>
-    } @else {
+      <span class="flex-1"></span>
       <span
         class="text-ui-muted inline-flex items-center gap-0.5 rounded-[10px] px-1.75 py-px text-[0.72em] select-none [&_.material-icons]:text-base!"
       >
@@ -132,6 +158,45 @@
       </span>
     }
   </div>
+
+  @if (isSearching() && !isEdit() && viewMode() === 'palette') {
+    <div
+      class="border-ui-border-panel box-border max-h-[45%] min-h-0 shrink-0 overflow-y-auto border-b border-solid font-sans"
+      data-testid="palette-search-results"
+      role="listbox"
+      [attr.aria-label]="'feature.chat.palette.searchResults' | transloco"
+      #searchResultsList
+    >
+      @for (result of searchResults(); track result.row.lineIndex; let i = $index) {
+        <div
+          class="text-ui-text hover:bg-ui-hover box-border flex cursor-pointer items-baseline gap-2 overflow-hidden px-2 py-0.5 text-[0.88em] leading-[1.65]"
+          role="option"
+          [class.bg-ui-accent-bg!]="activeSearchResult() === i"
+          [attr.aria-selected]="activeSearchResult() === i"
+          [attr.data-result-line]="result.row.lineIndex"
+          (click)="pickSearchResult(result)"
+          (contextmenu)="onPaletteRowMenu(result.row, $event)"
+        >
+          <span class="min-w-0 flex-1 truncate">
+            @for (segment of result.segments; track $index) {
+              @if (segment.hit) {
+                <mark class="bg-ui-accent-bg text-ui-accent rounded-sm whitespace-pre">{{ segment.text }}</mark>
+              } @else {
+                <span class="whitespace-pre">{{ segment.text }}</span>
+              }
+            }
+          </span>
+          @if (result.heading) {
+            <span class="text-ui-dim max-w-[40%] shrink-0 truncate text-[0.8em]">{{ result.heading }}</span>
+          }
+        </div>
+      } @empty {
+        <div class="text-ui-dim p-2 text-center text-[0.8em] select-none" data-testid="palette-search-empty">
+          {{ 'feature.chat.palette.searchNoMatch' | transloco }}
+        </div>
+      }
+    </div>
+  }
 
   <div
     [hidden]="isEdit() || viewMode() !== 'palette'"
@@ -216,79 +281,4 @@
       [placeholder]="'feature.chat.palette.editPlaceholder' | transloco"
     ></textarea>
   </div>
-
-  @if (!isEdit() && viewMode() === 'palette') {
-    @if (isSearching()) {
-      <div
-        class="border-ui-border-panel box-border max-h-[40%] min-h-0 shrink-0 overflow-y-auto border-t border-solid font-sans"
-        data-testid="palette-search-results"
-        role="listbox"
-        [attr.aria-label]="'feature.chat.palette.searchResults' | transloco"
-        #searchResultsList
-      >
-        @for (result of searchResults(); track result.row.lineIndex; let i = $index) {
-          <div
-            class="text-ui-text hover:bg-ui-hover box-border flex cursor-pointer items-baseline gap-2 overflow-hidden px-2 py-0.5 text-[0.88em] leading-[1.65]"
-            role="option"
-            [class.bg-ui-accent-bg!]="activeSearchResult() === i"
-            [attr.aria-selected]="activeSearchResult() === i"
-            [attr.data-result-line]="result.row.lineIndex"
-            (click)="pickSearchResult(result)"
-            (contextmenu)="onPaletteRowMenu(result.row, $event)"
-          >
-            <span class="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-              @for (segment of result.segments; track $index) {
-                @if (segment.hit) {
-                  <mark class="bg-ui-accent-bg text-ui-accent rounded-sm whitespace-pre">{{ segment.text }}</mark>
-                } @else {
-                  <span class="whitespace-pre">{{ segment.text }}</span>
-                }
-              }
-            </span>
-            @if (result.heading) {
-              <span class="text-ui-dim max-w-[40%] shrink-0 truncate text-[0.8em]">{{ result.heading }}</span>
-            }
-          </div>
-        } @empty {
-          <div class="text-ui-dim p-2 text-center text-[0.8em] select-none" data-testid="palette-search-empty">
-            {{ 'feature.chat.palette.searchNoMatch' | transloco }}
-          </div>
-        }
-      </div>
-    }
-    <div class="border-ui-border-panel flex shrink-0 items-center gap-1.5 border-t border-solid px-1.5 py-1">
-      <i class="material-icons text-ui-muted text-[16px]!">search</i>
-      <input
-        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border min-w-0 flex-1 border border-solid px-1.75 py-1 text-[12px] transition-[border-color] outline-none"
-        type="text"
-        name="palette-search"
-        autocomplete="off"
-        data-testid="palette-search"
-        [ngModel]="searchQuery()"
-        (ngModelChange)="searchQuery.set($event)"
-        (keydown)="onSearchKeydown($event)"
-        [placeholder]="'feature.chat.palette.searchPlaceholder' | transloco"
-        [attr.aria-label]="'feature.chat.palette.searchPlaceholder' | transloco"
-      />
-      @if (isSearching()) {
-        <span class="text-ui-dim shrink-0 text-[11px] whitespace-nowrap">{{
-          'feature.chat.palette.searchCount' | transloco: { count: searchResults().length }
-        }}</span>
-        <button
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0.5 [&_.material-icons]:text-base!"
-          type="button"
-          data-action="clear-palette-search"
-          (click)="clearSearch()"
-          [title]="'feature.chat.palette.searchClear' | transloco"
-        >
-          <i class="material-icons">close</i>
-        </button>
-      }
-    </div>
-    <div
-      class="text-ui-dim border-ui-border-panel grow-0 border-t border-solid px-1.5 py-0.5 text-center text-[0.68em] select-none"
-    >
-      {{ (isCompact() ? 'feature.chat.palette.footerHintTouch' : 'feature.chat.palette.footerHint') | transloco }}
-    </div>
-  }
 </div>
