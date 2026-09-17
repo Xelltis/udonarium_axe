@@ -197,6 +197,29 @@ test.describe('ZIP読込', () => {
   });
 });
 
+test.describe('キャラ取り込み (FAB のセーブ&ロード)', () => {
+  test('セーブ&ロードの「キャラ取り込み」から取り込みパネルが開き、小窓は閉じること', async ({ page }) => {
+    await waitAppReady(page);
+    const menu = await openSaveLoad(page);
+
+    await menu.getByTestId('save-load-import-character').click();
+
+    await expect(page.locator('import-character')).toBeVisible({ timeout: 5000 });
+    await expect(menu).toBeHidden();
+  });
+
+  test('見学には読込とキャラ取り込みを押させないこと', async ({ page }) => {
+    await waitAppReady(page);
+    const peerPanel = page.locator('ui-panel').filter({ hasText: '接続情報' });
+    await peerPanel.getByRole('button', { name: /^\s*見学\s*$/ }).click();
+
+    const menu = await openSaveLoad(page);
+    await expect(menu.getByTestId('save-load-load')).toBeDisabled();
+    await expect(menu.getByTestId('save-load-import-character')).toBeDisabled();
+    await expect(menu.getByTestId('save-load-save')).toBeEnabled();
+  });
+});
+
 test.describe('保存機能', () => {
   test('保存ボタンをクリックするとダウンロードが開始されること', async ({ page }) => {
     await waitAppReady(page);

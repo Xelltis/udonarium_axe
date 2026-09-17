@@ -264,6 +264,18 @@ export class AppComponent {
     void this.save();
   }
 
+  /** Whether this seat may put things on the table, which loading a room or a character does. */
+  protected readonly canEditTabletop = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  });
+
+  /** Opens character import from the save and load menu, a shortcut to the one in the room settings. */
+  protected importCharacterFromMenu(): void {
+    this.closeFabSubmenu();
+    this.open('characterImport');
+  }
+
   /** Asks for the files to load from the save and load menu, which closes as the picker opens. */
   protected chooseFilesToLoad(): void {
     this.closeFabSubmenu();

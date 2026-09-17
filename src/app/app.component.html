@@ -117,8 +117,16 @@
                 <ui-fab-submenu-button
                   icon="open_in_browser"
                   [label]="'app.fab.zipLoad' | transloco"
+                  [disabled]="!canEditTabletop()"
                   testId="save-load-load"
                   (press)="chooseFilesToLoad()"
+                />
+                <ui-fab-submenu-button
+                  icon="person_add"
+                  [label]="'app.fab.importCharacter' | transloco"
+                  [disabled]="!canEditTabletop()"
+                  testId="save-load-import-character"
+                  (press)="importCharacterFromMenu()"
                 />
               </ui-fab-submenu>
             } @else {
