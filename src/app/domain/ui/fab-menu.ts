@@ -53,7 +53,7 @@ export const FAB_ENTRIES: readonly FabEntry[] = [
   panel('roomSettings', 'room_preferences', 'roomSettings'),
   submenu('table', 'table_restaurant'),
   submenu('gameResources', 'backpack'),
-  submenu('media', 'perm_media'),
+  submenu('media', 'movie'),
 ];
 
 /** What each small menu opened from the drawer holds, in the order it is shown. */

@@ -79,6 +79,12 @@ describe('the menu the room is reached through', () => {
     for (const entry of Object.values(FAB_SUBMENUS).flat()) expect(entry.action.kind).not.toBe('submenu');
   });
 
+  it('draws every entry of the drawer and of its menus with an icon of its own', () => {
+    const icons = everyEntry.map((entry) => entry.icon);
+
+    expect(new Set(icons).size).toBe(icons.length);
+  });
+
   it('shows the table entry as a table, and the tabletop display as a screen laid on it', () => {
     expect(FAB_ENTRIES.find((entry) => entry.key === 'table')?.icon).toBe('table_restaurant');
     expect(FAB_SUBMENUS.table.find((entry) => entry.key === 'tabletopDisplay')?.icon).toBe('tablet');
