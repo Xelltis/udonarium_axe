@@ -108,7 +108,7 @@
               [attr.data-label]="opener.labelKey | transloco"
               [attr.aria-expanded]="seatMenu() === opener.kind"
               [attr.data-testid]="'fab-' + opener.kind"
-              data-seat-display-toggle
+              data-fab-submenu-toggle
               role="button"
               (click)="toggleSeatMenu(opener.kind)"
             >

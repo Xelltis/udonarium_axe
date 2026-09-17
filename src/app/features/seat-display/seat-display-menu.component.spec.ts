@@ -177,31 +177,13 @@ describe('SeatDisplayMenuComponent', () => {
     expect(mobile.prefersDesktop()).toBe(false);
   });
 
-  it('asks to be closed on Escape and on a press outside it', () => {
-    const host = render();
+  it('asks to be closed when its menu asks, as on Escape', () => {
+    render();
     const closed = vi.fn();
     fixture.componentInstance.closed.subscribe(closed);
-    document.body.appendChild(host);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 
-    expect(closed).toHaveBeenCalledTimes(2);
-  });
-
-  it('stays open for a press inside it, and leaves a press on its opener to the opener', () => {
-    const host = render();
-    const closed = vi.fn();
-    fixture.componentInstance.closed.subscribe(closed);
-    document.body.appendChild(host);
-    const opener = document.createElement('button');
-    opener.setAttribute('data-seat-display-toggle', '');
-    document.body.appendChild(opener);
-
-    byTestId(host, 'seat-theme').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    opener.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-
-    expect(closed).not.toHaveBeenCalled();
-    opener.remove();
+    expect(closed).toHaveBeenCalledOnce();
   });
 });

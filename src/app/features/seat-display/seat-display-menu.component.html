@@ -1,26 +1,12 @@
-<div
-  class="border-ui-border-panel bg-ui-panel text-ui-text shadow-ui-md rounded-ui-lg flex w-max flex-col items-center gap-0.5 border border-solid p-1.5 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
-  role="dialog"
-  [attr.data-testid]="'seat-' + kind()"
-  [attr.aria-label]="labelKey() | transloco"
->
+<ui-fab-submenu [label]="labelKey() | transloco" [testId]="'seat-' + kind()" (closed)="closed.emit()">
   @for (button of buttons(); track button.testId) {
-    <button
-      type="button"
-      class="rounded-ui-sm text-ui-text hover:bg-ui-menu-hover hover:text-ui-accent after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-8 cursor-pointer items-center justify-center border-none bg-transparent transition-colors after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 focus-visible:after:opacity-100 [&_i]:text-[20px]!"
-      [class.text-ui-accent]="button.lit"
-      [class.bg-ui-accent-bg]="button.lit"
-      [attr.aria-pressed]="button.lit ?? null"
-      [attr.aria-label]="button.labelKey | transloco"
-      [attr.data-label]="button.labelKey | transloco"
-      [attr.data-testid]="button.testId"
-      (click)="button.press()"
-    >
-      @if (button.text) {
-        <span class="text-[11px] font-semibold tracking-wide">{{ button.text }}</span>
-      } @else {
-        <i class="material-icons" aria-hidden="true">{{ button.icon }}</i>
-      }
-    </button>
+    <ui-fab-submenu-button
+      [icon]="button.icon"
+      [text]="button.text ?? null"
+      [label]="button.labelKey | transloco"
+      [lit]="button.lit ?? null"
+      [testId]="button.testId"
+      (press)="button.press()"
+    />
   }
-</div>
+</ui-fab-submenu>

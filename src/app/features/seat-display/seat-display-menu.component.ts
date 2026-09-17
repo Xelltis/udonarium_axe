@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -12,6 +12,8 @@ import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.s
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
+import { UiFabSubmenuComponent } from '@axe/ui/components/fab-submenu/fab-submenu.component';
+import { UiFabSubmenuButtonComponent } from '@axe/ui/components/fab-submenu/fab-submenu-button.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const THEME_ICONS: Readonly<Record<Theme, string>> = {
@@ -33,7 +35,7 @@ const RENDER_LITE_ICONS: Readonly<Record<RenderLiteSetting, string>> = {
 /** One press in the panel: a setting that moves on to its next choice, or a widget shown or hidden. */
 interface SeatButton {
   readonly testId: string;
-  readonly icon: string;
+  readonly icon: string | null;
   /** Written in place of an icon, for the language, which has none. */
   readonly text?: string;
   readonly labelKey: string;
@@ -55,24 +57,17 @@ export type SeatMenuKind = 'display' | 'widgets';
  * view, the theme, the effects, how heavily the table is drawn and the language are each one icon
  * that moves on to the next choice when pressed, as they did on the menu itself; on the widget
  * menu each widget is an icon lit while it is out. What an icon stands for, and what it is set to,
- * is written beside it on hover the way the menu names its own items, so it shows at once and turns
- * to whichever side the menu does.
+ * is written in the bubble beside it.
  *
- * A press anywhere outside it, or Escape, asks for it to be closed. A press on whatever opens it
- * is left to that, which marks itself with `data-seat-display-toggle`.
+ * It closes the way every menu beside the drawer does: on a press outside it, or Escape.
  */
 @Component({
   selector: 'app-seat-display-menu',
   templateUrl: './seat-display-menu.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
-  host: {
-    '(document:keydown.escape)': 'closed.emit()',
-    '(document:pointerdown)': 'onDocumentPointerDown($event)',
-  },
+  imports: [TranslocoModule, UiFabSubmenuComponent, UiFabSubmenuButtonComponent],
 })
 export class SeatDisplayMenuComponent {
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly tabletop = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly viewMode = inject(ViewModePreferenceService);
@@ -133,7 +128,7 @@ export class SeatDisplayMenuComponent {
       },
       {
         testId: 'seat-lang',
-        icon: '',
+        icon: null,
         text: this.language.currentLang().toUpperCase(),
         labelKey: 'common.language.switchTooltip',
         press: () => void this.language.toggle(),
@@ -200,13 +195,5 @@ export class SeatDisplayMenuComponent {
 
   private cycleViewMode(): void {
     this.viewMode.choose(nextViewMode(this.viewMode.mode()));
-  }
-
-  protected onDocumentPointerDown(event: PointerEvent): void {
-    const target = event.target;
-    if (!(target instanceof Node)) return;
-    if (this.host.contains(target)) return;
-    if (target instanceof Element && target.closest('[data-seat-display-toggle]')) return;
-    this.closed.emit();
   }
 }
