@@ -36,6 +36,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -200,6 +201,7 @@ export class GameCharacterComponent {
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
+  private readonly overlay = inject(PieceOverlayPreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopService = inject(TabletopService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
@@ -345,9 +347,11 @@ export class GameCharacterComponent {
     this.objectChange.trackMyCursor();
     return char.hideName && !this.rolePermission.canSeeHidden;
   });
+  /** Buffs go unshown for a piece set to hide them, and for every piece while this seat has them switched off. */
   readonly hideBuff = computed(() => {
     const char = this.gameCharacter();
     if (!char) return false;
+    if (!this.overlay.buffs()) return true;
     this.objectChange.versionOf(char.identifier)();
     return char.hideBuff;
   });
@@ -619,8 +623,10 @@ export class GameCharacterComponent {
     return (rotation) => billboard(rotation) + drawnAt;
   }
 
+  /** The resource bars drawn over the piece, none while this seat has them switched off. */
   readonly pieceGauges = computed<PieceGauge[]>(
     () => {
+      if (!this.overlay.resourceBars()) return [];
       const detail = this.gameCharacter()?.detailDataElement ?? null;
       if (this.followedTree(detail) === null || !detail) return [];
       return selectPieceGauges(detail);

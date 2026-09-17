@@ -10,6 +10,7 @@ import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-displ
 import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -815,6 +816,32 @@ describe('GameCharacterComponent', () => {
         expect(component.pieceGauges().map((gauge) => gauge.name)).toEqual(['HP', 'MP']);
         expect(component.pieceGauges()[0]).toMatchObject({ initial: 'H', ratio: 1 });
       } finally {
+        character.destroy();
+      }
+    });
+
+    it('draws no bars and no buffs while this seat has them switched off from the toolbar', () => {
+      const character = GameCharacter.create('スイッチ', 1, '');
+      character.addExtendData();
+      character.buffs.addRound('加速', '', 2);
+      fixture.componentRef.setInput('gameCharacter', character);
+      const overlay = TestBed.inject(PieceOverlayPreferenceService);
+
+      try {
+        expect(component.pieceGauges()).toHaveLength(2);
+        expect(component.hideBuff()).toBe(false);
+
+        overlay.toggleResourceBars();
+        overlay.toggleBuffs();
+        expect(component.pieceGauges()).toEqual([]);
+        expect(component.hideBuff()).toBe(true);
+
+        overlay.toggleResourceBars();
+        overlay.toggleBuffs();
+        expect(component.pieceGauges()).toHaveLength(2);
+        expect(component.hideBuff()).toBe(false);
+      } finally {
+        localStorage.removeItem('ui-piece-overlay');
         character.destroy();
       }
     });

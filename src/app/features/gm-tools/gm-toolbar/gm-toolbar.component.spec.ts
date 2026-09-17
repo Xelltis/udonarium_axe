@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Card } from '@axe/domain/card/card';
@@ -27,6 +28,29 @@ describe('GmToolbarComponent', () => {
     TestBed.overrideProvider(PanelService, { useValue: panelStub });
     fixture = TestBed.createComponent(GmToolbarComponent);
     component = fixture.componentInstance;
+  });
+
+  it('switches the resource bars and the buffs over the pieces off and on again', async () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const overlay = TestBed.inject(PieceOverlayPreferenceService);
+    const press = (id: string) =>
+      (fixture.nativeElement.querySelector(`[data-testid="${id}"]`) as HTMLButtonElement).click();
+
+    try {
+      press('toolbar-resource-bars');
+      press('toolbar-buffs');
+      expect(overlay.resourceBars()).toBe(false);
+      expect(overlay.buffs()).toBe(false);
+
+      press('toolbar-resource-bars');
+      press('toolbar-buffs');
+      expect(overlay.resourceBars()).toBe(true);
+      expect(overlay.buffs()).toBe(true);
+    } finally {
+      localStorage.removeItem('ui-piece-overlay');
+    }
   });
 
   it('carries none of the widget switches, which belong to the display settings', () => {

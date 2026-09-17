@@ -15,6 +15,7 @@ import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-hel
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
@@ -70,6 +71,9 @@ export class PlToolbarComponent {
   protected readonly rangeOpen = signal(false);
 
   private readonly folds = inject(ToolbarFoldService);
+
+  /** Whether this seat draws the resource bars and the buffs over the pieces, switched from here. */
+  protected readonly overlay = inject(PieceOverlayPreferenceService);
 
   /** Whether the bar is folded down to its title. */
   protected readonly folded = computed(() => this.folds.isFolded('pl'));

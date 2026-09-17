@@ -52,6 +52,24 @@
       </div>
 
       <ui-icon-button
+        icon="align_horizontal_left"
+        [label]="(overlay.resourceBars() ? 'app.fab.resourceBarsShown' : 'app.fab.resourceBarsHidden') | transloco"
+        [active]="overlay.resourceBars()"
+        [dim]="!overlay.resourceBars()"
+        testId="toolbar-resource-bars"
+        (press)="overlay.toggleResourceBars()"
+      />
+
+      <ui-icon-button
+        [icon]="overlay.buffs() ? 'auto_fix_high' : 'auto_fix_off'"
+        [label]="(overlay.buffs() ? 'app.fab.buffsShown' : 'app.fab.buffsHidden') | transloco"
+        [active]="overlay.buffs()"
+        [dim]="!overlay.buffs()"
+        testId="toolbar-buffs"
+        (press)="overlay.toggleBuffs()"
+      />
+
+      <ui-icon-button
         [icon]="buffViewIcon()"
         [label]="('feature.plTools.buffView' | transloco) + ': ' + (buffViewLabelKey() | transloco)"
         testId="buff-view-cycle"

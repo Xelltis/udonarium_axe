@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -140,6 +141,29 @@ describe('PlToolbarComponent', () => {
     await fixture.whenStable();
     expect(bar()!.style.left).toBe('360px');
     localStorage.removeItem('ui-widgets');
+  });
+
+  it('switches the resource bars and the buffs over the pieces off and on again', async () => {
+    setRole(PeerRole.Player);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const overlay = TestBed.inject(PieceOverlayPreferenceService);
+    const press = (id: string) =>
+      (fixture.nativeElement.querySelector(`[data-testid="${id}"]`) as HTMLButtonElement).click();
+
+    try {
+      press('toolbar-resource-bars');
+      press('toolbar-buffs');
+      expect(overlay.resourceBars()).toBe(false);
+      expect(overlay.buffs()).toBe(false);
+
+      press('toolbar-resource-bars');
+      press('toolbar-buffs');
+      expect(overlay.resourceBars()).toBe(true);
+      expect(overlay.buffs()).toBe(true);
+    } finally {
+      localStorage.removeItem('ui-piece-overlay');
+    }
   });
 
   it('carries none of the widget switches, which belong to the display settings', async () => {
