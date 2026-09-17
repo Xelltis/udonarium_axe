@@ -1,6 +1,11 @@
 import { emitDiceBotUnreachable } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import {
+  describeBuffRemoval,
+  parseBuffRemovalCommand,
+  removeBuffsAcross,
+} from '@axe/domain/character/buff-bulk-removal';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
@@ -18,6 +23,8 @@ import {
   type ResourceEditOption,
 } from '@axe/domain/data/resource-edit-helpers';
 import type { DiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 interface DiceRollResult {
@@ -51,12 +58,14 @@ export class ResourceEditProcessor {
    * Picks the `:` resource and `&` buff commands out of a sent chat message and carries them out.
    *
    * A `t` prefix aims a command at the message's target character instead of the speaker, and an `s` prefix
-   * makes the report a secret. The work continues asynchronously and ends in a system message on the same
+   * makes the report a secret. A `&&` command sweeps buffs off every piece on the table instead; see
+   * {@link parseBuffRemovalCommand}. The work continues asynchronously and ends in a system message on the same
    * chat tab.
    */
   checkResourceEditCommand(originalMessage: ChatMessage, messageTargetContext: ChatMessageTargetContext[]) {
     const resourceByCharacter: ResourceByCharacter[] = [];
     const buffByCharacter: BuffByCharacter[] = [];
+    const buffSweeps: string[] = [];
 
     const sendFromObject = this.messageSendGameCharacter(originalMessage.sendFrom);
     let isSecret = false;
@@ -78,6 +87,10 @@ export class ResourceEditProcessor {
       const splitText = text7.split(/\s/);
 
       for (const chktxt of splitText) {
+        if (parseBuffRemovalCommand(chktxt)) {
+          buffSweeps.push(chktxt);
+          continue;
+        }
         if (chktxt.match(/^(t?[:&][^:：&＆])+/gi)) {
           //nothing to do
         } else {
@@ -105,7 +118,14 @@ export class ResourceEditProcessor {
         }
       }
     }
-    this.resourceEditProcess(sendFromObject, resourceByCharacter, buffByCharacter, originalMessage, isSecret);
+    this.resourceEditProcess(
+      sendFromObject,
+      resourceByCharacter,
+      buffByCharacter,
+      originalMessage,
+      isSecret,
+      buffSweeps
+    );
   }
 
   /** Reads the `L` and `Z` option letters at the end of a command's amount; see {@link parseResourceEditOption}. */
@@ -138,7 +158,8 @@ export class ResourceEditProcessor {
     resourceByCharacter: ResourceByCharacter[],
     buffByCharacter: BuffByCharacter[],
     originalMessage: ChatMessage,
-    isSecret: boolean
+    isSecret: boolean,
+    buffSweeps: readonly string[] = []
   ) {
     const allEditList: ResourceEdit[] = [];
     const unreadableCommands: string[] = [];
@@ -201,7 +222,14 @@ export class ResourceEditProcessor {
       }
     }
 
-    this.applyResourceBuffEdits(allEditList, repBuffCommandList, unreadableCommands, originalMessage, isSecret);
+    this.applyResourceBuffEdits(
+      allEditList,
+      repBuffCommandList,
+      unreadableCommands,
+      originalMessage,
+      isSecret,
+      buffSweeps
+    );
   }
 
   private async rollResourceEdit(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<boolean> {
@@ -269,7 +297,8 @@ export class ResourceEditProcessor {
     buffList: BuffEdit[],
     unreadableCommands: string[],
     originalMessage: ChatMessage,
-    isSecret: boolean
+    isSecret: boolean,
+    buffSweeps: readonly string[] = []
   ) {
     let text = '';
     let isDiceRoll = false;
@@ -294,6 +323,9 @@ export class ResourceEditProcessor {
     }
     for (const buff of buffList) {
       text += this.buffEdit(buff, buff.object);
+    }
+    for (const sweep of buffSweeps) {
+      text += this.sweepBuffs(sweep);
     }
     for (const unreadable of unreadableCommands) {
       text += unreadable;
@@ -326,6 +358,25 @@ export class ResourceEditProcessor {
     if (chatTab) {
       chatTab.addMessage(resourceMessage);
     }
+  }
+
+  /**
+   * Carries out one `&&` sweep across the pieces on the table and returns its report.
+   *
+   * Only the game master may sweep; anyone else is told so and nothing is taken. A sweep that finds
+   * nothing says so rather than reporting a removal.
+   */
+  sweepBuffs(command: string): string {
+    const rule = parseBuffRemovalCommand(command);
+    if (!rule) return '';
+    if (PeerCursor.myRole !== PeerRole.GameMaster) return `バフの一括解除はGMだけが使えます（${command}）    `;
+    const onTable = ObjectStore.instance
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((character) => character.location.name === 'table');
+    const removed = removeBuffsAcross(onTable, rule);
+    const what = describeBuffRemoval(rule);
+    if (removed.buffs < 1) return `卓全体に${what}はありません    `;
+    return `卓全体から${what}を解除（${removed.characters}体・${removed.buffs}件）    `;
   }
 
   private messageSendGameCharacter(from: string): GameCharacter | null {

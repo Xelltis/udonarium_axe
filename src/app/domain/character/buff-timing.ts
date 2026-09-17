@@ -33,6 +33,7 @@ const TIMING_TOKENS: Record<string, BuffTiming> = {
   なし: 'none',
   永続: 'none',
   解除まで: 'none',
+  消えない: 'none',
 };
 
 /**
