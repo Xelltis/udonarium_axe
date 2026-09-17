@@ -62,7 +62,7 @@ describe('SeatDisplayMenuComponent', () => {
 
     expect(iconOf(byTestId(host, 'seat-view'))).toBe('view_in_ar');
     expect(iconOf(byTestId(host, 'seat-theme'))).toBe('dark_mode');
-    expect(nameOf(byTestId(host, 'seat-theme'))).toBe('ダーク');
+    expect(nameOf(byTestId(host, 'seat-theme'))).toBe('テーマ: ダーク');
     expect(iconOf(byTestId(host, 'seat-motion'))).toBe('motion_photos_off');
     expect(nameOf(byTestId(host, 'seat-motion'))).toBe('エフェクト: 停止');
     expect(iconOf(byTestId(host, 'seat-render-lite'))).toBe('blur_off');

@@ -29,9 +29,9 @@
       "logClearedBy": "Log cleared at the request of {{user}}."
     },
     "theme": {
-      "auto": "Auto",
-      "dark": "Dark",
-      "light": "Light"
+      "auto": "Theme: Auto",
+      "dark": "Theme: Dark",
+      "light": "Theme: Light"
     },
     "motion": {
       "auto": "Effects: Auto",

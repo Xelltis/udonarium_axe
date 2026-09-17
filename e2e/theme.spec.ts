@@ -11,7 +11,7 @@ test.describe('テーマ切り替え', () => {
     const panel = await openSeatDisplay(page);
     // 起動時は theme='auto'。
     const theme = panel.getByTestId('seat-theme');
-    await expect(theme).toHaveAttribute('data-label', '自動');
+    await expect(theme).toHaveAttribute('data-label', 'テーマ: 自動');
     await expect(theme.locator('i.material-icons')).toHaveText('brightness_auto');
   });
 
@@ -20,16 +20,16 @@ test.describe('テーマ切り替え', () => {
     const theme = panel.getByTestId('seat-theme');
 
     await theme.click();
-    await expect(theme).toHaveAttribute('data-label', 'ダーク');
+    await expect(theme).toHaveAttribute('data-label', 'テーマ: ダーク');
     await expect(theme.locator('i.material-icons')).toHaveText('dark_mode');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
     await theme.click();
-    await expect(theme).toHaveAttribute('data-label', 'ライト');
+    await expect(theme).toHaveAttribute('data-label', 'テーマ: ライト');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
     await theme.click();
-    await expect(theme).toHaveAttribute('data-label', '自動');
+    await expect(theme).toHaveAttribute('data-label', 'テーマ: 自動');
   });
 
   test('アイコンに乗せると、名前が Fav の項目と同じ吹き出しですぐ出ること', async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe('テーマ切り替え', () => {
     await expect.poll(async () => (await bubble()).opacity).toBe('0');
     await theme.hover();
     await expect.poll(async () => (await bubble()).opacity, { timeout: 1000 }).toBe('1');
-    await expect.poll(async () => (await bubble()).content).toBe('"自動"');
+    await expect.poll(async () => (await bubble()).content).toBe('"テーマ: 自動"');
   });
 
   test('表示の小窓からスキンのパネルを開けること', async ({ page }) => {
@@ -66,7 +66,7 @@ test.describe('テーマ切り替え', () => {
     await waitAppReady(page);
 
     const reopened = await openSeatDisplay(page);
-    await expect(reopened.getByTestId('seat-theme')).toHaveAttribute('data-label', 'ダーク');
+    await expect(reopened.getByTestId('seat-theme')).toHaveAttribute('data-label', 'テーマ: ダーク');
   });
 
   test('小窓は Escape と外側のクリックで閉じること', async ({ page }) => {
