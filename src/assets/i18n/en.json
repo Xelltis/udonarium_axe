@@ -34,9 +34,9 @@
       "light": "Theme: Light"
     },
     "motion": {
-      "auto": "Effects: Auto",
-      "on": "Effects: Always play",
-      "off": "Effects: Off"
+      "auto": "Animation: Auto",
+      "on": "Animation: Always play",
+      "off": "Animation: Off"
     },
     "renderLite": {
       "auto": "Rendering: Auto",
