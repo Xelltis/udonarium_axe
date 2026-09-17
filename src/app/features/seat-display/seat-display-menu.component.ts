@@ -89,10 +89,13 @@ export class SeatDisplayMenuComponent {
     this.kind() === 'widgets' ? 'feature.seatDisplay.widgets.label' : 'feature.seatDisplay.title'
   );
 
-  /** The hotbar is not drawn for someone watching, so there is nothing for them to show or hide. */
-  private readonly canUseHotbar = computed(() => {
+  /**
+   * This seat's role, which settles which toolbar it has and whether it has a hotbar; someone
+   * watching has neither, so there is nothing for them to show or hide.
+   */
+  private readonly role = computed(() => {
     this.objectChange.trackMyCursor();
-    return PeerCursor.myRole !== PeerRole.Guest;
+    return PeerCursor.myRole;
   });
 
   private readonly settingButtons = computed<readonly SeatButton[]>(() => {
@@ -147,7 +150,27 @@ export class SeatDisplayMenuComponent {
 
   private readonly widgetButtons = computed<readonly SeatButton[]>(() => {
     const widgets = this.widgets;
-    const buttons: SeatButton[] = [
+    const role = this.role();
+    const buttons: SeatButton[] = [];
+    if (role === PeerRole.Player) {
+      buttons.push({
+        testId: 'seat-widget-plToolbar',
+        icon: 'person',
+        labelKey: 'app.fab.plTools',
+        lit: widgets.plToolbar(),
+        press: () => widgets.togglePlToolbar(),
+      });
+    }
+    if (role === PeerRole.GameMaster) {
+      buttons.push({
+        testId: 'seat-widget-gmToolbar',
+        icon: 'shield',
+        labelKey: 'app.fab.gmTools',
+        lit: widgets.gmToolbar(),
+        press: () => widgets.toggleGmToolbar(),
+      });
+    }
+    buttons.push(
       {
         testId: 'seat-widget-clock',
         icon: 'schedule',
@@ -175,9 +198,9 @@ export class SeatDisplayMenuComponent {
         labelKey: 'app.fab.miniPlayer',
         lit: widgets.miniPlayer(),
         press: () => widgets.toggleMiniPlayer(),
-      },
-    ];
-    if (this.canUseHotbar()) {
+      }
+    );
+    if (role !== PeerRole.Guest) {
       buttons.push({
         testId: 'seat-widget-hotbar',
         icon: 'apps',

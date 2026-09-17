@@ -17,6 +17,7 @@ import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-prefere
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -89,6 +90,11 @@ export class PlToolbarComponent {
     this.objectChange.trackMyCursor();
     return PeerCursor.myRole === PeerRole.Player;
   });
+
+  private readonly widgets = inject(WidgetVisibilityService);
+
+  /** Drawn for a player who has not hidden it from the widget menu. */
+  protected readonly shown = computed(() => this.isPlayer() && this.widgets.plToolbar());
 
   readonly activeCharacter = computed<GameCharacter | null>(() => {
     const identifier = this.active.identifier();

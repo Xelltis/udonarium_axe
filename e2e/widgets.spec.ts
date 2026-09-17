@@ -58,6 +58,23 @@ test.describe('ウィジェットと言語切替', () => {
     await expect(player).toBeVisible({ timeout: 5000 });
   });
 
+  test('PL ツールはウィジェットの小窓から出し入れでき、隠したことはリロードしても残ること', async ({ page }) => {
+    const toolbar = page.locator('app-pl-toolbar .pl-toolbar');
+    await expect(toolbar).toBeVisible();
+
+    await toggleWidget(page, 'plToolbar');
+    await expect(toolbar).toHaveCount(0);
+
+    await page.reload();
+    await waitAppReady(page);
+    const widgets = await openSeatWidgets(page);
+    await expect(widgets.getByTestId('seat-widget-plToolbar')).toHaveAttribute('aria-pressed', 'false');
+    await expect(toolbar).toHaveCount(0);
+
+    await widgets.getByTestId('seat-widget-plToolbar').click();
+    await expect(toolbar).toBeVisible();
+  });
+
   test('表示の小窓を開いたままウィジェットを押すと、ウィジェットの小窓に替わること', async ({ page }) => {
     const display = await openSeatDisplay(page);
     await page.locator('[data-testid="fab-widgets"]').click();

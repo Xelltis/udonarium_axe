@@ -163,6 +163,41 @@ describe('SeatDisplayMenuComponent', () => {
     expect(host.querySelector('[data-testid="seat-widget-clock"]')).not.toBeNull();
   });
 
+  it('offers each role the switch for its own toolbar, and someone watching neither', () => {
+    const host = render('widgets');
+    const setRole = (role: PeerRole) => {
+      PeerCursor.myCursor.role = role;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+    };
+    const offered = () =>
+      ['seat-widget-plToolbar', 'seat-widget-gmToolbar'].filter((id) => host.querySelector(`[data-testid="${id}"]`));
+
+    setRole(PeerRole.Player);
+    expect(offered()).toEqual(['seat-widget-plToolbar']);
+
+    setRole(PeerRole.GameMaster);
+    expect(offered()).toEqual(['seat-widget-gmToolbar']);
+
+    setRole(PeerRole.Guest);
+    expect(offered()).toEqual([]);
+  });
+
+  it('shows and hides the toolbar from its switch', () => {
+    const widgets = TestBed.inject(WidgetVisibilityService);
+    PeerCursor.myCursor.role = PeerRole.Player;
+    const host = render('widgets');
+    const toolbar = byTestId(host, 'seat-widget-plToolbar');
+    expect(toolbar.getAttribute('aria-pressed')).toBe('true');
+
+    toolbar.click();
+    fixture.detectChanges();
+
+    expect(widgets.plToolbar()).toBe(false);
+    expect(toolbar.getAttribute('aria-pressed')).toBe('false');
+    widgets.togglePlToolbar();
+  });
+
   it('offers the way back to the phone layout only on a narrow screen held on the desktop one', () => {
     vi.spyOn(TestBed.inject(ViewportService), 'isCompact').mockReturnValue(false);
     const mobile = TestBed.inject(MobileLayoutService);

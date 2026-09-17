@@ -4,6 +4,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
+import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Card } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -168,6 +169,24 @@ describe('GmToolbarComponent', () => {
       expect(restored).not.toBeNull();
       expect(restored!.style.left).toBe('480px');
       expect(restored!.style.top).toBe('320px');
+    });
+
+    it('hides from the game master who turns it off in the widget menu, and comes back where it was', async () => {
+      const widgets = TestBed.inject(WidgetVisibilityService);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      bar()!.style.left = '480px';
+
+      widgets.toggleGmToolbar();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(bar()).toBeNull();
+
+      widgets.toggleGmToolbar();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(bar()!.style.left).toBe('480px');
+      localStorage.removeItem('ui-widgets');
     });
   });
 

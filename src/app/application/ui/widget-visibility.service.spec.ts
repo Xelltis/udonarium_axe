@@ -11,6 +11,8 @@ describe('parseWidgetVisibility', () => {
       recording: true,
       renderStats: false,
       hotbar: false,
+      plToolbar: true,
+      gmToolbar: true,
     });
   });
 
@@ -24,6 +26,8 @@ describe('parseWidgetVisibility', () => {
       recording: false,
       renderStats: false,
       hotbar: false,
+      plToolbar: true,
+      gmToolbar: true,
     });
   });
 
@@ -35,6 +39,8 @@ describe('parseWidgetVisibility', () => {
       recording: true,
       renderStats: false,
       hotbar: false,
+      plToolbar: true,
+      gmToolbar: true,
     });
     expect(parseWidgetVisibility('null')).toEqual({
       clock: false,
@@ -43,6 +49,17 @@ describe('parseWidgetVisibility', () => {
       recording: true,
       renderStats: false,
       hotbar: false,
+      plToolbar: true,
+      gmToolbar: true,
+    });
+  });
+
+  it('shows both toolbars for a seat saved before they could be hidden, and keeps one it hid', () => {
+    const saved = '{"clock":true,"miniPlayer":false,"connectionQuality":true,"recording":false,"hotbar":true}';
+    expect(parseWidgetVisibility(saved)).toMatchObject({ plToolbar: true, gmToolbar: true });
+    expect(parseWidgetVisibility('{"plToolbar":false,"gmToolbar":"false"}')).toMatchObject({
+      plToolbar: false,
+      gmToolbar: true,
     });
   });
 
@@ -54,6 +71,8 @@ describe('parseWidgetVisibility', () => {
       recording: true,
       renderStats: false,
       hotbar: false,
+      plToolbar: true,
+      gmToolbar: true,
     });
   });
 });
@@ -74,6 +93,8 @@ describe('WidgetVisibilityService', () => {
     expect(service.recording()).toBe(true);
     expect(service.renderStats()).toBe(false);
     expect(service.hotbar()).toBe(false);
+    expect(service.plToolbar()).toBe(true);
+    expect(service.gmToolbar()).toBe(true);
   });
 
   it('toggles each one independently', () => {
@@ -93,5 +114,13 @@ describe('WidgetVisibilityService', () => {
     service.toggleHotbar();
     expect(service.hotbar()).toBe(true);
     expect(service.connectionQuality()).toBe(true);
+
+    service.togglePlToolbar();
+    expect(service.plToolbar()).toBe(false);
+    expect(service.gmToolbar()).toBe(true);
+
+    service.toggleGmToolbar();
+    expect(service.gmToolbar()).toBe(false);
+    expect(service.plToolbar()).toBe(false);
   });
 });

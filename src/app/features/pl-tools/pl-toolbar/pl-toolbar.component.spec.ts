@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
+import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
@@ -132,6 +133,25 @@ describe('PlToolbarComponent', () => {
     expect(restored).not.toBeNull();
     expect(restored!.style.left).toBe('360px');
     expect(restored!.style.top).toBe('240px');
+  });
+
+  it('hides from a player who turns it off in the widget menu, and comes back where it was', async () => {
+    const widgets = TestBed.inject(WidgetVisibilityService);
+    setRole(PeerRole.Player);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    bar()!.style.left = '360px';
+
+    widgets.togglePlToolbar();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(bar()).toBeNull();
+
+    widgets.togglePlToolbar();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(bar()!.style.left).toBe('360px');
+    localStorage.removeItem('ui-widgets');
   });
 
   it('carries none of the widget switches, which belong to the display settings', async () => {

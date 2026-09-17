@@ -17,6 +17,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { findOrphanedOwnership } from '@axe/domain/tabletop/ownership';
@@ -72,6 +73,11 @@ export class GmToolbarComponent {
     this.objectChange.trackMyCursor();
     return PeerCursor.isMyselfGameMaster;
   });
+
+  private readonly widgets = inject(WidgetVisibilityService);
+
+  /** Drawn for the game master unless they have hidden it from the widget menu. */
+  protected readonly shown = computed(() => this.isGameMaster() && this.widgets.gmToolbar());
 
   protected readonly personas = computed<PeerCursor[]>(() => {
     this.objectChange.collectionOf('PeerCursor')();

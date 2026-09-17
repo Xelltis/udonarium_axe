@@ -9,6 +9,8 @@ export interface WidgetVisibility {
   readonly recording: boolean;
   readonly renderStats: boolean;
   readonly hotbar: boolean;
+  readonly plToolbar: boolean;
+  readonly gmToolbar: boolean;
 }
 
 const DEFAULT_VISIBILITY: WidgetVisibility = {
@@ -18,6 +20,8 @@ const DEFAULT_VISIBILITY: WidgetVisibility = {
   recording: true,
   renderStats: false,
   hotbar: false,
+  plToolbar: true,
+  gmToolbar: true,
 };
 
 /**
@@ -36,6 +40,8 @@ export function parseWidgetVisibility(raw: string | null): WidgetVisibility {
       recording: typeof parsed.recording === 'boolean' ? parsed.recording : DEFAULT_VISIBILITY.recording,
       renderStats: typeof parsed.renderStats === 'boolean' ? parsed.renderStats : DEFAULT_VISIBILITY.renderStats,
       hotbar: typeof parsed.hotbar === 'boolean' ? parsed.hotbar : DEFAULT_VISIBILITY.hotbar,
+      plToolbar: typeof parsed.plToolbar === 'boolean' ? parsed.plToolbar : DEFAULT_VISIBILITY.plToolbar,
+      gmToolbar: typeof parsed.gmToolbar === 'boolean' ? parsed.gmToolbar : DEFAULT_VISIBILITY.gmToolbar,
     };
   } catch {
     return DEFAULT_VISIBILITY;
@@ -52,6 +58,8 @@ export class WidgetVisibilityService {
   readonly recording = signal(this.restored.recording);
   readonly renderStats = signal(this.restored.renderStats);
   readonly hotbar = signal(this.restored.hotbar);
+  readonly plToolbar = signal(this.restored.plToolbar);
+  readonly gmToolbar = signal(this.restored.gmToolbar);
 
   constructor() {
     effect(() => {
@@ -62,6 +70,8 @@ export class WidgetVisibilityService {
         recording: this.recording(),
         renderStats: this.renderStats(),
         hotbar: this.hotbar(),
+        plToolbar: this.plToolbar(),
+        gmToolbar: this.gmToolbar(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     });
@@ -95,5 +105,15 @@ export class WidgetVisibilityService {
   /** Shows or hides the hotbar. Remembered in this browser. */
   toggleHotbar(): void {
     this.hotbar.update((visible) => !visible);
+  }
+
+  /** Shows or hides the player's toolbar. Remembered in this browser. */
+  togglePlToolbar(): void {
+    this.plToolbar.update((visible) => !visible);
+  }
+
+  /** Shows or hides the game master's toolbar. Remembered in this browser. */
+  toggleGmToolbar(): void {
+    this.gmToolbar.update((visible) => !visible);
   }
 }
