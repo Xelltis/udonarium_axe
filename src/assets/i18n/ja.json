@@ -3683,7 +3683,21 @@
       "nowMarker": "今",
       "zoomIn": "広げる",
       "zoomOut": "縮める",
-      "backToNow": "今に戻る"
+      "backToNow": "今に戻る",
+      "sweepTitle": "バフの一括解除（GM）",
+      "sweepHeldWhat": "消えないバフ",
+      "sweepByRounds": "残りラウンドで選ぶ",
+      "sweepByName": "名前で選ぶ",
+      "sweepRoundsLabel": "残り",
+      "sweepNoBuffs": "卓にバフがありません",
+      "sweepCount": "{{characters}}体・{{buffs}}件が対象です",
+      "sweepNone": "該当するバフはありません",
+      "sweepRun": "卓全体から解除",
+      "sweepChatHint": "チャットでは &&none- ／ &&2R- ／ &&毒- のように書いても解除できます",
+      "sweepRoundsWhat": "残り{{n}}Rのバフ",
+      "sweepNameWhat": "「{{name}}」",
+      "sweepConfirm": "卓全体から{{what}}を解除します（{{characters}}体・{{buffs}}件）。よろしいですか？",
+      "sweepDone": "卓全体から{{what}}を解除しました（{{characters}}体・{{buffs}}件）"
     },
     "whiteBoard": {
       "defaultName": "ホワイトボード",

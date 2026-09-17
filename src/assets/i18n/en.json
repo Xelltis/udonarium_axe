@@ -3683,7 +3683,21 @@
       "nowMarker": "now",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
-      "backToNow": "Back to now"
+      "backToNow": "Back to now",
+      "sweepTitle": "Clear buffs in bulk (GM)",
+      "sweepHeldWhat": "Buffs that never expire",
+      "sweepByRounds": "By rounds left",
+      "sweepByName": "By name",
+      "sweepRoundsLabel": "Rounds left",
+      "sweepNoBuffs": "No buffs on the table",
+      "sweepCount": "{{buffs}} buffs on {{characters}} pieces",
+      "sweepNone": "No buffs match",
+      "sweepRun": "Clear from the table",
+      "sweepChatHint": "In chat, write &&none- / &&2R- / &&Poison- to clear them too",
+      "sweepRoundsWhat": "buffs with {{n}} rounds left",
+      "sweepNameWhat": "\"{{name}}\"",
+      "sweepConfirm": "Clear {{what}} from the whole table ({{buffs}} buffs on {{characters}} pieces)?",
+      "sweepDone": "Cleared {{what}} from the whole table ({{buffs}} buffs on {{characters}} pieces)"
     },
     "whiteBoard": {
       "defaultName": "Whiteboard",

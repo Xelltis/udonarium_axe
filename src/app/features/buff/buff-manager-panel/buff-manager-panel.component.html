@@ -257,6 +257,107 @@
     }
   </div>
 
+  @if (isGameMaster()) {
+    <details class="border-ui-border-panel border-t border-solid" data-testid="buff-sweep">
+      <summary
+        class="text-ui-muted hover:text-ui-text cursor-pointer list-none px-3 py-1.5 text-[11px] [&::-webkit-details-marker]:hidden"
+      >
+        {{ 'feature.buffManager.sweepTitle' | transloco }}
+      </summary>
+      <div class="flex flex-col gap-1.5 px-3 pb-2 text-[11px]">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1" role="radiogroup">
+          <label class="flex cursor-pointer items-center gap-1">
+            <input
+              type="radio"
+              name="sweepKind"
+              value="held"
+              data-testid="buff-sweep-held"
+              [checked]="sweepKind() === 'held'"
+              (change)="sweepKind.set('held')"
+            />
+            {{ 'feature.buffManager.sweepHeldWhat' | transloco }}
+          </label>
+          <label class="flex cursor-pointer items-center gap-1">
+            <input
+              type="radio"
+              name="sweepKind"
+              value="rounds"
+              data-testid="buff-sweep-rounds"
+              [checked]="sweepKind() === 'rounds'"
+              (change)="sweepKind.set('rounds')"
+            />
+            {{ 'feature.buffManager.sweepByRounds' | transloco }}
+          </label>
+          <label class="flex cursor-pointer items-center gap-1">
+            <input
+              type="radio"
+              name="sweepKind"
+              value="name"
+              data-testid="buff-sweep-name"
+              [checked]="sweepKind() === 'name'"
+              (change)="sweepKind.set('name')"
+            />
+            {{ 'feature.buffManager.sweepByName' | transloco }}
+          </label>
+        </div>
+
+        @if (sweepKind() === 'rounds') {
+          <label class="text-ui-muted flex items-center gap-1.5">
+            {{ 'feature.buffManager.sweepRoundsLabel' | transloco }}
+            <input
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-14 border border-solid px-1 py-0.5 text-right text-[11px] outline-none"
+              type="number"
+              min="0"
+              step="1"
+              name="sweepRounds"
+              data-testid="buff-sweep-rounds-value"
+              [ngModel]="sweepRounds()"
+              (ngModelChange)="sweepRounds.set($event)"
+            />
+            R
+          </label>
+        }
+        @if (sweepKind() === 'name') {
+          @if (sweepNames().length > 0) {
+            <select
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 cursor-pointer self-start border border-solid px-1 py-0.5 text-[11px]"
+              name="sweepName"
+              data-testid="buff-sweep-name-value"
+              [ngModel]="sweepNameChosen()"
+              (ngModelChange)="sweepName.set($event)"
+            >
+              @for (name of sweepNames(); track name) {
+                <option [ngValue]="name">{{ name }}</option>
+              }
+            </select>
+          } @else {
+            <p class="text-ui-dim m-0">{{ 'feature.buffManager.sweepNoBuffs' | transloco }}</p>
+          }
+        }
+
+        <div class="flex items-center gap-2">
+          <span class="text-ui-muted flex-1" data-testid="buff-sweep-count">
+            @if (sweepCount().buffs > 0) {
+              {{ 'feature.buffManager.sweepCount' | transloco: sweepCount() }}
+            } @else {
+              {{ 'feature.buffManager.sweepNone' | transloco }}
+            }
+          </span>
+          <button
+            type="button"
+            class="rounded-ui-sm border-ui-border-panel text-ui-text hover:border-ui-danger hover:text-ui-danger cursor-pointer border border-solid bg-transparent px-2 py-0.5 text-[11px] transition-colors disabled:cursor-default disabled:opacity-45"
+            data-testid="buff-sweep-run"
+            [disabled]="sweepCount().buffs < 1"
+            (click)="sweep()"
+          >
+            {{ 'feature.buffManager.sweepRun' | transloco }}
+          </button>
+        </div>
+        <p class="text-ui-dim m-0">{{ 'feature.buffManager.sweepChatHint' | transloco }}</p>
+      </div>
+    </details>
+  }
+
   <details class="border-ui-border-panel border-t border-solid">
     <summary
       class="text-ui-muted hover:text-ui-text cursor-pointer list-none px-3 py-1.5 text-[11px] [&::-webkit-details-marker]:hidden"
