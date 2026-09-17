@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { BUFF_COLORS, DEFAULT_BUFF_COLOR } from '@axe/domain/character/buff-appearance';
 import { buffColorOf, buffIconOf, buffIconUrlOf, parseBuffStrength } from '@axe/domain/character/buff-badge';
@@ -24,6 +25,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class GameDataElementBuffComponent {
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly vision = inject(VisionService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly inventory = inject(GameObjectInventoryService);
   private readonly modalService = inject(ModalService);
@@ -123,12 +125,12 @@ export class GameDataElementBuffComponent {
     return buffTriggerOf(element);
   });
 
+  /** The pieces a buff may be timed by, leaving out those on the table this reader cannot see. */
   private readonly candidates = computed(() => {
     this.objectChange.collectionOf('character')();
-    return (this.inventory.tableInventory.tabletopObjects as GameCharacter[]).map((character) => ({
-      identifier: character.identifier,
-      name: character.name,
-    }));
+    return (this.inventory.tableInventory.tabletopObjects as GameCharacter[])
+      .filter((character) => this.vision.mayBeListed(character))
+      .map((character) => ({ identifier: character.identifier, name: character.name }));
   });
 
   readonly triggerOptions = computed(() =>

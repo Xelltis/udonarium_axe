@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { BuffManagerPanelComponent } from '@axe/features/buff/buff-manager-panel/buff-manager-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -41,6 +42,17 @@ describe('BuffManagerPanelComponent', () => {
 
     expect(component.rows().map((row) => row.characterName)).toEqual(['バフ持ち']);
     expect(component.rows()[0].bars.map((bar) => bar.name)).toEqual(['猛攻撃']);
+  });
+
+  it('gives no row to a piece on the table this reader cannot see', () => {
+    const hero = makeCharacter('勇者');
+    hero.buffs.addRound('加護', '', 3);
+    const lurker = makeCharacter('闇の魔物');
+    lurker.buffs.addRound('潜伏', '', 3);
+    onTable([hero, lurker]);
+    vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockImplementation((character) => character !== lurker);
+
+    expect(component.rows().map((row) => row.characterName)).toEqual(['勇者']);
   });
 
   it('runs the chart from the round being played', () => {

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
@@ -40,6 +41,7 @@ const CHART_LABEL_WIDTH_PX = 176;
 })
 export class BuffManagerPanelComponent {
   private readonly objectStore = inject(ObjectStore);
+  private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly inventory = inject(GameObjectInventoryService);
   private readonly panelService = inject(PanelService);
@@ -63,6 +65,8 @@ export class BuffManagerPanelComponent {
     const rows: BuffTimelineRow[] = [];
     for (const character of this.inventory.tableInventory.tabletopObjects as GameCharacter[]) {
       this.objectChange.versionOf(character.identifier)();
+      // A piece this reader cannot see on the table has no row: its name and buffs would give it away.
+      if (!this.vision.mayBeListed(character)) continue;
       const bars = toTimelineBars(character.buffDataElement ?? null);
       if (bars.length < 1) continue;
       rows.push({
@@ -78,10 +82,9 @@ export class BuffManagerPanelComponent {
   private readonly candidates = computed(() => {
     this.objectChange.collectionOf('character')();
     this.bumped();
-    return (this.inventory.tableInventory.tabletopObjects as GameCharacter[]).map((character) => ({
-      identifier: character.identifier,
-      name: character.name,
-    }));
+    return (this.inventory.tableInventory.tabletopObjects as GameCharacter[])
+      .filter((character) => this.vision.mayBeListed(character))
+      .map((character) => ({ identifier: character.identifier, name: character.name }));
   });
 
   readonly span = computed(() => timelineSpan(this.rows()));
