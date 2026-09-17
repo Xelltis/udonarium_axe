@@ -29,7 +29,6 @@ describe('the menu the room is reached through', () => {
       'visualNovel',
       'tabletopDisplay',
       'skin',
-      'zipLoad',
     ]);
   });
 });

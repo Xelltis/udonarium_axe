@@ -64,8 +64,9 @@ test.describe('左 FAB 各メニュー項目の起動経路', () => {
       'ジュークボックス',
       'カットイン',
       'インベントリ',
-      'ZIP読込',
-      '保存',
+      'セーブ&ロード',
+      'ウィジェット',
+      '表示',
     ];
     for (const label of expected) {
       await expect(page.locator(`[data-label="${label}"]`)).toBeVisible();

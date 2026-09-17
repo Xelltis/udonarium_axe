@@ -4147,6 +4147,7 @@
       "releaseOwnershipConfirm": "오프라인 소유자가 가진 소유 {{count}}건을 해제할까요? (해제 후에는 각자 다시 가져갈 수 있습니다)",
       "zipLoad": "ZIP 불러오기",
       "save": "저장",
+      "saveLoad": "저장 & 불러오기",
       "importCharacter": "캐릭터 가져오기",
       "roomSnapshot": "자동 저장 / 복원",
       "createObject": "말 만들기",

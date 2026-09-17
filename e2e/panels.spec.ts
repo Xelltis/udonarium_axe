@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { openFabMenu, openPanel, waitAppReady } from './helpers';
+import { openPanel, openSaveLoad, waitAppReady } from './helpers';
 
 test.describe('左メニューからパネルを開く', () => {
   test.beforeEach(async ({ page }) => {
@@ -182,22 +182,27 @@ test.describe('パネル操作', () => {
 });
 
 test.describe('ZIP読込', () => {
-  test('ZIP読込のファイル入力が存在すること', async ({ page }) => {
+  test('セーブ&ロードの「ZIP読込」を押すとファイル選択が開き、小窓は閉じること', async ({ page }) => {
     await waitAppReady(page);
-    await openFabMenu(page);
-    const fileInput = page
-      .locator('[data-label="ZIP読込"]')
-      .locator('input[type="file"][accept="application/xml,text/xml,application/zip"]');
-    await expect(fileInput).toBeAttached();
+    const menu = await openSaveLoad(page);
+    await expect(page.locator('[data-testid="fab-zip-input"]')).toHaveAttribute(
+      'accept',
+      'application/xml,text/xml,application/zip'
+    );
+
+    const chooser = page.waitForEvent('filechooser');
+    await menu.getByTestId('save-load-load').click();
+    expect((await chooser).isMultiple()).toBe(true);
+    await expect(menu).toBeHidden();
   });
 });
 
 test.describe('保存機能', () => {
   test('保存ボタンをクリックするとダウンロードが開始されること', async ({ page }) => {
     await waitAppReady(page);
-    await openFabMenu(page);
+    const menu = await openSaveLoad(page);
     const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
-    await page.locator('[data-label="保存"]').click();
+    await menu.getByTestId('save-load-save').click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.zip$/);
   });

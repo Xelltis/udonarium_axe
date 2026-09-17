@@ -1,7 +1,7 @@
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 
-/** What choosing an entry does. Most open a panel; two do something of their own. */
-export type FabAction = { kind: 'panel'; panel: RoomPanelName } | { kind: 'zipLoad' } | { kind: 'visualNovel' };
+/** What choosing an entry does. Most open a panel; the novel mode is switched on and off instead. */
+export type FabAction = { kind: 'panel'; panel: RoomPanelName } | { kind: 'visualNovel' };
 
 export interface FabEntry {
   /** Names the label under app.fab. */
@@ -18,9 +18,8 @@ function panel(key: string, icon: string, name: RoomPanelName): FabEntry {
  * The menu, in the order its entries are reached for.
  *
  * Who is here and what is being said come first, then the room and the table, then what is
- * put in front of the table, then what is taken in and out of it. Saving, the theme, the
- * effects and the language follow in the menu itself: they belong to this seat rather than
- * to the room, and they carry a state of their own to show.
+ * put in front of the table. Saving and loading, the widgets and this seat's display follow in
+ * the menu itself, each as one button that opens a small menu of its own beside the drawer.
  */
 export const FAB_ENTRIES: readonly FabEntry[] = [
   panel('peerMenu', 'people', 'peerMenu'),
@@ -34,5 +33,4 @@ export const FAB_ENTRIES: readonly FabEntry[] = [
   { key: 'visualNovel', icon: 'auto_stories', action: { kind: 'visualNovel' } },
   panel('tabletopDisplay', 'table_restaurant', 'tabletopDisplay'),
   panel('skin', 'palette', 'skin'),
-  { key: 'zipLoad', icon: 'open_in_browser', action: { kind: 'zipLoad' } },
 ];

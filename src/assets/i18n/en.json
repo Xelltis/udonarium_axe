@@ -3900,6 +3900,7 @@
       "releaseOwnershipConfirm": "Release ownership held by {{count}} offline owner(s)? (anyone can re-claim afterwards)",
       "zipLoad": "Load ZIP",
       "save": "Save",
+      "saveLoad": "Save & load",
       "importCharacter": "Import Character",
       "roomSnapshot": "Auto save / restore",
       "createObject": "Create a piece",

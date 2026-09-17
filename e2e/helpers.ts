@@ -38,20 +38,27 @@ export async function closeFabMenu(page: Page) {
  * FAB を開き、最下段の「表示」からこの端末の表示設定の小窓を開く。開いた小窓を返す。
  */
 export function openSeatDisplay(page: Page): Promise<Locator> {
-  return openSeatMenu(page, 'display');
+  return openFabSubmenu(page, 'fab-display', 'seat-display');
 }
 
 /**
  * FAB を開き、最下段の「ウィジェット」からウィジェットの小窓を開く。開いた小窓を返す。
  */
 export function openSeatWidgets(page: Page): Promise<Locator> {
-  return openSeatMenu(page, 'widgets');
+  return openFabSubmenu(page, 'fab-widgets', 'seat-widgets');
 }
 
-async function openSeatMenu(page: Page, kind: 'display' | 'widgets'): Promise<Locator> {
+/**
+ * FAB を開き、最下段の「セーブ&ロード」から保存と読込の小窓を開く。開いた小窓を返す。
+ */
+export function openSaveLoad(page: Page): Promise<Locator> {
+  return openFabSubmenu(page, 'fab-save-load', 'save-load');
+}
+
+async function openFabSubmenu(page: Page, openerTestId: string, menuTestId: string): Promise<Locator> {
   await openFabMenu(page);
-  const panel = page.locator(`[data-testid="seat-${kind}"]`);
-  if (!(await panel.isVisible())) await page.locator(`[data-testid="fab-${kind}"]`).click();
+  const panel = page.locator(`[data-testid="${menuTestId}"]`);
+  if (!(await panel.isVisible())) await page.locator(`[data-testid="${openerTestId}"]`).click();
   await expect(panel).toBeVisible();
   return panel;
 }

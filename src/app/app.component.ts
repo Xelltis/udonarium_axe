@@ -87,6 +87,8 @@ import { DigitalClockComponent } from '@axe/features/widgets/digital-clock/digit
 import { RenderStatsComponent } from '@axe/features/widgets/render-stats/render-stats.component';
 import { ConfirmDialogComponent } from '@axe/ui/components/confirm-dialog/confirm-dialog.component';
 import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-menu.component';
+import { UiFabSubmenuComponent } from '@axe/ui/components/fab-submenu/fab-submenu.component';
+import { UiFabSubmenuButtonComponent } from '@axe/ui/components/fab-submenu/fab-submenu-button.component';
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -106,6 +108,16 @@ import { version as APP_VERSION } from '@pkg';
 
 /** How far from the corner the button starts, before anybody has put it anywhere. */
 const FAB_MARGIN_PX = 12;
+
+/** The small menus opened beside the drawer: saving and loading, the widgets, and this seat's display. */
+type FabSubmenuKind = 'saveLoad' | SeatMenuKind;
+
+interface FabSubmenuOpener {
+  readonly kind: FabSubmenuKind;
+  readonly icon: string;
+  readonly labelKey: string;
+  readonly testId: string;
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -134,6 +146,8 @@ const FAB_MARGIN_PX = 12;
     StreamingOverlayComponent,
     ChatTickerComponent,
     SeatDisplayMenuComponent,
+    UiFabSubmenuComponent,
+    UiFabSubmenuButtonComponent,
     VisualNovelOverlayComponent,
     NgClass,
     DraggableDirective,
@@ -199,28 +213,43 @@ export class AppComponent {
   protected toggleFab(): void {
     this.measureFabSides();
     this.fabOpen.set(!this.fabOpen());
-    if (!this.fabOpen()) this.seatMenu.set(null);
+    if (!this.fabOpen()) this.fabSubmenu.set(null);
   }
 
-  /** The buttons at the foot of the drawer that open this seat's menus beside it. */
-  protected readonly seatMenuOpeners: readonly { kind: SeatMenuKind; icon: string; labelKey: string }[] = [
-    { kind: 'widgets', icon: 'widgets', labelKey: 'app.fab.widgets' },
-    { kind: 'display', icon: 'tune', labelKey: 'app.fab.display' },
+  /** The buttons at the foot of the drawer, each opening a small menu of its own beside it. */
+  protected readonly fabSubmenuOpeners: readonly FabSubmenuOpener[] = [
+    { kind: 'saveLoad', icon: 'sd_storage', labelKey: 'app.fab.saveLoad', testId: 'fab-save-load' },
+    { kind: 'widgets', icon: 'widgets', labelKey: 'app.fab.widgets', testId: 'fab-widgets' },
+    { kind: 'display', icon: 'tune', labelKey: 'app.fab.display', testId: 'fab-display' },
   ];
 
-  /** Which of this seat's menus is open beside the drawer, if either; opening one closes the other. */
-  protected readonly seatMenu = signal<SeatMenuKind | null>(null);
+  /** Which of the drawer's menus is open beside it, if any; opening one closes the one before. */
+  protected readonly fabSubmenu = signal<FabSubmenuKind | null>(null);
 
   /** Which side of the drawer they open on, which is the side with room. */
-  protected readonly seatMenuSide = computed(() => fabPopoverSideClasses(this.fabSide()));
+  protected readonly fabSubmenuSide = computed(() => fabPopoverSideClasses(this.fabSide()));
 
-  protected toggleSeatMenu(kind: SeatMenuKind): void {
+  private readonly zipInput = viewChild<ElementRef<HTMLInputElement>>('zipInput');
+
+  protected toggleFabSubmenu(kind: FabSubmenuKind): void {
     this.measureFabSides();
-    this.seatMenu.update((open) => (open === kind ? null : kind));
+    this.fabSubmenu.update((open) => (open === kind ? null : kind));
   }
 
-  protected closeSeatMenu(): void {
-    this.seatMenu.set(null);
+  protected closeFabSubmenu(): void {
+    this.fabSubmenu.set(null);
+  }
+
+  /** Saves the room from the save and load menu, which gets out of the way while the save runs. */
+  protected saveFromMenu(): void {
+    this.closeFabSubmenu();
+    void this.save();
+  }
+
+  /** Asks for the files to load from the save and load menu, which closes as the picker opens. */
+  protected chooseFilesToLoad(): void {
+    this.closeFabSubmenu();
+    this.zipInput()?.nativeElement.click();
   }
 
   /** Reads where the button has been put, which is what settles the way the drawer opens. */

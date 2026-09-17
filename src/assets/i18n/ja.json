@@ -3900,6 +3900,7 @@
       "releaseOwnershipConfirm": "オフラインのオーナーが持つ所有 {{count}} 件を解放しますか？（解放後は各自で再取得できます）",
       "zipLoad": "ZIP読込",
       "save": "保存",
+      "saveLoad": "セーブ&ロード",
       "importCharacter": "キャラ取り込み",
       "roomSnapshot": "自動保存 / 復元",
       "createObject": "コマを作る",
