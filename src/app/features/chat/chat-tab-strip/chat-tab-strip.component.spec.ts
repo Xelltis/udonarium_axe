@@ -220,4 +220,35 @@ describe('ChatTabStripComponent', () => {
       expect(scrolledTo).toEqual([94]);
     });
   });
+
+  describe('the ground it is laid on', () => {
+    let tab: ChatTab;
+
+    function pill(): HTMLElement {
+      return fixture.nativeElement.querySelector('.chat-tab-pill') as HTMLElement;
+    }
+
+    beforeEach(() => {
+      tab = ChatTabList.instance.addChatTab('一枚目');
+      showTabs([tab]);
+    });
+
+    afterEach(() => {
+      tab.destroy();
+    });
+
+    it('reads in the title bar colours by default', () => {
+      expect(pill().classList).toContain('text-ui-titlebar-muted');
+      expect(pill().classList).not.toContain('text-ui-muted');
+    });
+
+    it('reads in the panel colours on a panel, keeping the shape of a tab', () => {
+      fixture.componentRef.setInput('tone', 'panel');
+      fixture.detectChanges();
+
+      expect(pill().classList).toContain('text-ui-muted');
+      expect(pill().classList).not.toContain('text-ui-titlebar-muted');
+      expect(pill().classList).toContain('rounded-full');
+    });
+  });
 });
