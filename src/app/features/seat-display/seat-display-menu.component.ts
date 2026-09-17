@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, output } from '@angular/core';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -42,21 +42,21 @@ interface SeatButton {
   readonly press: () => void;
 }
 
-/** The buttons of one kind, set apart from the kind before. */
-interface SeatButtonGroup {
-  readonly key: 'settings' | 'widgets';
-  readonly labelKey: string | null;
-  readonly buttons: readonly SeatButton[];
-}
+/**
+ * Which of this seat's menus is open beside the drawer: how the table is drawn, or what floats
+ * over it.
+ */
+export type SeatMenuKind = 'display' | 'widgets';
 
 /**
- * How this seat draws the table and what floats over it, opened from one button on the menu.
+ * How this seat draws the table, or what floats over it, opened from its own button on the menu.
  *
- * Every setting here belongs to this browser alone rather than to the room. The view, the theme,
- * the effects, how heavily the table is drawn and the language are each one icon that moves on to
- * the next choice when pressed, as they did on the menu itself; the widgets are icons lit while
- * they are out. What an icon stands for, and what it is set to, is written beside it on hover the
- * way the menu names its own items, so it shows at once and turns to whichever side the menu does.
+ * Everything here belongs to this browser alone rather than to the room. On the display menu the
+ * view, the theme, the effects, how heavily the table is drawn and the language are each one icon
+ * that moves on to the next choice when pressed, as they did on the menu itself; on the widget
+ * menu each widget is an icon lit while it is out. What an icon stands for, and what it is set to,
+ * is written beside it on hover the way the menu names its own items, so it shows at once and turns
+ * to whichever side the menu does.
  *
  * A press anywhere outside it, or Escape, asks for it to be closed. A press on whatever opens it
  * is left to that, which marks itself with `data-seat-display-toggle`.
@@ -84,8 +84,15 @@ export class SeatDisplayMenuComponent {
   private readonly viewport = inject(ViewportService);
   private readonly widgets = inject(WidgetVisibilityService);
 
+  /** Which of the two menus this is. */
+  readonly kind = input.required<SeatMenuKind>();
+
   /** Asks whoever opened it to close it. */
   readonly closed = output<void>();
+
+  protected readonly labelKey = computed(() =>
+    this.kind() === 'widgets' ? 'feature.seatDisplay.widgets.label' : 'feature.seatDisplay.title'
+  );
 
   /** The hotbar is not drawn for someone watching, so there is nothing for them to show or hide. */
   private readonly canUseHotbar = computed(() => {
@@ -187,10 +194,9 @@ export class SeatDisplayMenuComponent {
     return buttons;
   });
 
-  protected readonly groups = computed<readonly SeatButtonGroup[]>(() => [
-    { key: 'settings', labelKey: null, buttons: this.settingButtons() },
-    { key: 'widgets', labelKey: 'feature.seatDisplay.widgets.label', buttons: this.widgetButtons() },
-  ]);
+  protected readonly buttons = computed(() =>
+    this.kind() === 'widgets' ? this.widgetButtons() : this.settingButtons()
+  );
 
   private cycleViewMode(): void {
     this.viewMode.choose(nextViewMode(this.viewMode.mode()));

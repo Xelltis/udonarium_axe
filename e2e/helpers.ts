@@ -37,10 +37,21 @@ export async function closeFabMenu(page: Page) {
 /**
  * FAB を開き、最下段の「表示」からこの端末の表示設定の小窓を開く。開いた小窓を返す。
  */
-export async function openSeatDisplay(page: Page): Promise<Locator> {
+export function openSeatDisplay(page: Page): Promise<Locator> {
+  return openSeatMenu(page, 'display');
+}
+
+/**
+ * FAB を開き、最下段の「ウィジェット」からウィジェットの小窓を開く。開いた小窓を返す。
+ */
+export function openSeatWidgets(page: Page): Promise<Locator> {
+  return openSeatMenu(page, 'widgets');
+}
+
+async function openSeatMenu(page: Page, kind: 'display' | 'widgets'): Promise<Locator> {
   await openFabMenu(page);
-  const panel = page.locator('[data-testid="seat-display"]');
-  if (!(await panel.isVisible())) await page.locator('[data-testid="fab-display"]').click();
+  const panel = page.locator(`[data-testid="seat-${kind}"]`);
+  if (!(await panel.isVisible())) await page.locator(`[data-testid="fab-${kind}"]`).click();
   await expect(panel).toBeVisible();
   return panel;
 }

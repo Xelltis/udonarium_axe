@@ -71,7 +71,7 @@ import { ReplayIndicatorComponent } from '@axe/features/replay/replay-indicator/
 import { ReplayStagingBannerComponent } from '@axe/features/replay/replay-staging-banner/replay-staging-banner.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { RoomRestoreBannerComponent } from '@axe/features/room-archive/room-restore-banner/room-restore-banner.component';
-import { SeatDisplayMenuComponent } from '@axe/features/seat-display/seat-display-menu.component';
+import { SeatDisplayMenuComponent, SeatMenuKind } from '@axe/features/seat-display/seat-display-menu.component';
 import { StreamingOverlayComponent } from '@axe/features/streaming-overlay/streaming-overlay.component';
 import { CcfoliaRoomImportEventHandlerService } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import-event-handler.service';
 import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
@@ -199,22 +199,28 @@ export class AppComponent {
   protected toggleFab(): void {
     this.measureFabSides();
     this.fabOpen.set(!this.fabOpen());
-    if (!this.fabOpen()) this.seatDisplayOpen.set(false);
+    if (!this.fabOpen()) this.seatMenu.set(null);
   }
 
-  /** Whether this seat's display settings are open beside the drawer. */
-  protected readonly seatDisplayOpen = signal(false);
+  /** The buttons at the foot of the drawer that open this seat's menus beside it. */
+  protected readonly seatMenuOpeners: readonly { kind: SeatMenuKind; icon: string; labelKey: string }[] = [
+    { kind: 'display', icon: 'tune', labelKey: 'app.fab.display' },
+    { kind: 'widgets', icon: 'widgets', labelKey: 'app.fab.widgets' },
+  ];
+
+  /** Which of this seat's menus is open beside the drawer, if either; opening one closes the other. */
+  protected readonly seatMenu = signal<SeatMenuKind | null>(null);
 
   /** Which side of the drawer they open on, which is the side with room. */
-  protected readonly seatDisplaySide = computed(() => fabPopoverSideClasses(this.fabSide()));
+  protected readonly seatMenuSide = computed(() => fabPopoverSideClasses(this.fabSide()));
 
-  protected toggleSeatDisplay(): void {
+  protected toggleSeatMenu(kind: SeatMenuKind): void {
     this.measureFabSides();
-    this.seatDisplayOpen.update((open) => !open);
+    this.seatMenu.update((open) => (open === kind ? null : kind));
   }
 
-  protected closeSeatDisplay(): void {
-    this.seatDisplayOpen.set(false);
+  protected closeSeatMenu(): void {
+    this.seatMenu.set(null);
   }
 
   /** Reads where the button has been put, which is what settles the way the drawer opens. */

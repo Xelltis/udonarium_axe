@@ -1,21 +1,21 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openSeatDisplay, waitAppReady } from './helpers';
+import { openSeatDisplay, openSeatWidgets, waitAppReady } from './helpers';
 
 /**
  * The small always-on pieces — clock, link quality, mini player, language —
- * are toggled from this seat's display settings, opened from the FAB.
+ * are toggled from the FAB: the widgets from their own menu, the language from the display one.
  *
  * Their host elements stay in the DOM with no box of their own, so whether a
  * widget is showing is a question about its content, not about the host.
  */
 test.describe('ウィジェットと言語切替', () => {
-  /** Shows or hides a widget from the display settings, and closes them again so they cover nothing. */
+  /** Shows or hides a widget from the widget menu, and closes it again so it covers nothing. */
   async function toggleWidget(page: Page, key: string) {
-    const display = await openSeatDisplay(page);
-    await display.getByTestId(`seat-widget-${key}`).click();
+    const widgets = await openSeatWidgets(page);
+    await widgets.getByTestId(`seat-widget-${key}`).click();
     await page.keyboard.press('Escape');
-    await expect(display).toBeHidden();
+    await expect(widgets).toBeHidden();
   }
 
   test.beforeEach(async ({ page }) => {
@@ -23,7 +23,7 @@ test.describe('ウィジェットと言語切替', () => {
     await expect(page.locator('app-pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test('時計は表示の小窓から出し入れできること', async ({ page }) => {
+  test('時計はウィジェットの小窓から出し入れできること', async ({ page }) => {
     const clock = page.locator('app-digital-clock > *');
     await expect(clock).toHaveCount(0);
 
@@ -46,7 +46,7 @@ test.describe('ウィジェットと言語切替', () => {
     await expect(quality).toContainText('接続中の参加者はいません');
   });
 
-  test('ミニプレイヤーは表示の小窓から出し入れできること', async ({ page }) => {
+  test('ミニプレイヤーはウィジェットの小窓から出し入れできること', async ({ page }) => {
     // 時計と違い、こちらは要素を残したまま hidden で隠す。
     const player = page.locator('app-mini-jukebox > *');
     await expect(player).toBeVisible();
@@ -56,6 +56,19 @@ test.describe('ウィジェットと言語切替', () => {
 
     await toggleWidget(page, 'miniPlayer');
     await expect(player).toBeVisible({ timeout: 5000 });
+  });
+
+  test('表示の小窓を開いたままウィジェットを押すと、ウィジェットの小窓に替わること', async ({ page }) => {
+    const display = await openSeatDisplay(page);
+    await page.locator('[data-testid="fab-widgets"]').click();
+
+    await expect(display).toBeHidden();
+    await expect(page.locator('[data-testid="seat-widgets"]')).toBeVisible();
+    await expect(page.locator('[data-testid="fab-widgets"]')).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('[data-testid="fab-display"]')).toHaveAttribute('aria-expanded', 'false');
+
+    await page.locator('[data-testid="fab-widgets"]').click();
+    await expect(page.locator('[data-testid="seat-widgets"]')).toBeHidden();
   });
 
   test('言語を切り替えると画面の文言が入れ替わること', async ({ page }) => {

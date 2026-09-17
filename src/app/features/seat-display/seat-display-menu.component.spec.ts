@@ -10,7 +10,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { SeatDisplayMenuComponent } from '@axe/features/seat-display/seat-display-menu.component';
+import { SeatDisplayMenuComponent, SeatMenuKind } from '@axe/features/seat-display/seat-display-menu.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -31,8 +31,9 @@ describe('SeatDisplayMenuComponent', () => {
     vi.restoreAllMocks();
   });
 
-  function render(): HTMLElement {
+  function render(kind: SeatMenuKind = 'display'): HTMLElement {
     fixture = TestBed.createComponent(SeatDisplayMenuComponent);
+    fixture.componentRef.setInput('kind', kind);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
@@ -69,16 +70,32 @@ describe('SeatDisplayMenuComponent', () => {
     );
   });
 
-  it('names every button the way the menu names its items, and not with the slow browser tooltip', () => {
-    const host = render();
-    const buttons = [...host.querySelectorAll<HTMLButtonElement>('button')];
+  it.each<SeatMenuKind>(['display', 'widgets'])(
+    'names every button on the %s menu the way the drawer names its items, not with the slow browser tooltip',
+    (kind) => {
+      const host = render(kind);
+      const buttons = [...host.querySelectorAll<HTMLButtonElement>('button')];
 
-    expect(buttons.length).toBeGreaterThan(0);
-    for (const button of buttons) {
-      expect(nameOf(button)).toBeTruthy();
-      expect(button.getAttribute('aria-label')).toBe(nameOf(button));
-      expect(button.hasAttribute('title')).toBe(false);
+      expect(buttons.length).toBeGreaterThan(0);
+      for (const button of buttons) {
+        expect(nameOf(button)).toBeTruthy();
+        expect(button.getAttribute('aria-label')).toBe(nameOf(button));
+        expect(button.hasAttribute('title')).toBe(false);
+      }
     }
+  );
+
+  it('keeps the settings and the widgets each on their own menu', () => {
+    const display = render('display');
+    expect(display.querySelector('[data-testid="seat-display"]')).not.toBeNull();
+    expect(display.querySelector('[data-testid="seat-theme"]')).not.toBeNull();
+    expect(display.querySelector('[data-testid^="seat-widget-"]')).toBeNull();
+
+    fixture.componentRef.setInput('kind', 'widgets');
+    fixture.detectChanges();
+    expect(display.querySelector('[data-testid="seat-widgets"]')).not.toBeNull();
+    expect(display.querySelector('[data-testid="seat-widget-clock"]')).not.toBeNull();
+    expect(display.querySelector('[data-testid="seat-theme"]')).toBeNull();
   });
 
   it('moves each setting on to its next choice when pressed', () => {
@@ -123,7 +140,7 @@ describe('SeatDisplayMenuComponent', () => {
   it('shows and hides each widget, and shows which are out', () => {
     const widgets = TestBed.inject(WidgetVisibilityService);
     const wasShown = widgets.clock();
-    const host = render();
+    const host = render('widgets');
     const clock = byTestId(host, 'seat-widget-clock');
     expect(clock.getAttribute('aria-pressed')).toBe(String(wasShown));
 
@@ -135,7 +152,7 @@ describe('SeatDisplayMenuComponent', () => {
   });
 
   it('offers the hotbar to a player but not to someone watching', () => {
-    const host = render();
+    const host = render('widgets');
     expect(host.querySelector('[data-testid="seat-widget-hotbar"]')).not.toBeNull();
 
     PeerCursor.myCursor.role = PeerRole.Guest;
