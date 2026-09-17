@@ -2431,7 +2431,7 @@
         "menuPicked": "選択中",
         "menuOff": "押せない"
       },
-      "revert": "開いたときに戻す",
+      "revert": "リセット",
       "state": {
         "live": "この画面に反映中",
         "tryingOn": "試着中 — 押すと反映します",

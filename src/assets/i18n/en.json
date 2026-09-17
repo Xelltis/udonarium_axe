@@ -2431,7 +2431,7 @@
         "menuPicked": "Selected",
         "menuOff": "Unavailable"
       },
-      "revert": "Back to how it opened",
+      "revert": "Reset",
       "state": {
         "live": "Showing on this screen",
         "tryingOn": "Trying it on — click to keep",
