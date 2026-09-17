@@ -43,6 +43,7 @@ import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stre
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTabSettingComponent } from '@axe/features/chat/chat-tab-setting/chat-tab-setting.component';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -82,6 +83,7 @@ export class ChatWindowComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly panelService = inject(PanelService);
+  private readonly roomPanels = inject(RoomPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly chatStreamPanel = inject(ChatStreamPanelService);
@@ -423,20 +425,7 @@ export class ChatWindowComponent {
   /** Opens the dice table settings panel near the pointer, loading it on first use. */
   showDiceTableSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
-    const option: PanelOption = {
-      title: this.t('feature.chat.window.diceTableSetting'),
-      left: coordinate.x + 50,
-      top: coordinate.y - 450,
-      width: 650,
-      height: 400,
-    };
-    this.panelService.openLazy(
-      () =>
-        import('@axe/features/dice/dice-table-setting/dice-table-setting.component').then(
-          (m) => m.DiceTableSettingComponent
-        ),
-      option
-    );
+    this.roomPanels.open('diceTableSetting', { left: coordinate.x + 50, top: coordinate.y - 450 });
   }
 
   /** Opens the chat message settings panel near the pointer for the current tab. */

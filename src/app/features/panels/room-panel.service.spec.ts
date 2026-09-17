@@ -1,6 +1,7 @@
 import { ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { DiceTableSettingComponent } from '@axe/features/dice/dice-table-setting/dice-table-setting.component';
 import { MapEditorPanelComponent } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { PanelWindowRequest, PanelWindowService } from '@axe/features/panels/panel-window.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
@@ -90,5 +91,12 @@ describe('RoomPanelService', () => {
     expect(option(1)).toEqual(expect.objectContaining({ width: 460, height: 660 }));
     await expect(openLazy.mock.calls[0][0]()).resolves.toBe(MapEditorPanelComponent);
     await expect(openLazy.mock.calls[1][0]()).resolves.toBe(DungeonGeneratorComponent);
+  });
+
+  it('loads the dice table settings, so the menu and the chat window open the same panel', async () => {
+    service.open('diceTableSetting');
+
+    expect(option()).toEqual(expect.objectContaining({ width: 650, height: 400 }));
+    await expect(openLazy.mock.calls[0][0]()).resolves.toBe(DiceTableSettingComponent);
   });
 });

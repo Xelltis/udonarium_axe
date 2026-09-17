@@ -72,6 +72,7 @@ export const FAB_SUBMENUS: Readonly<Record<FabSubmenuName, readonly FabEntry[]>>
     panel('inventory', 'folder_shared', 'inventory'),
     { ...panel('buffManager', 'timeline', 'buffManager', 'feature.buffManager.title'), audience: 'playing' },
     panel('statusAilment', 'list_alt', 'statusAilment', 'feature.statusAilment.title'),
+    panel('diceTableSetting', 'casino', 'diceTableSetting', 'feature.dice.tableSetting.title'),
     { key: 'hand', icon: 'style', labelKey: 'app.fab.hand', action: { kind: 'handRail' }, audience: 'playing' },
   ],
   media: [

@@ -61,6 +61,7 @@ describe('the menu the room is reached through', () => {
       'inventory',
       'buffManager',
       'statusAilment',
+      'diceTableSetting',
       'hand',
     ]);
     expect(

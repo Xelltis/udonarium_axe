@@ -49,6 +49,11 @@ test.describe('左メニューからパネルを開く', () => {
     await expect(resources.getByTestId('fab-entry-hand')).toHaveCount(0);
   });
 
+  test('ゲームリソースの小窓からダイス表設定を開けること', async ({ page }) => {
+    await openPanel(page, 'ダイス表設定');
+    await expect(page.locator('dice-table-setting')).toBeVisible({ timeout: 10000 });
+  });
+
   test('画像・ジュークボックス・カットインは「メディア」の小窓にまとまり、選ぶと小窓が閉じること', async ({ page }) => {
     await openFabMenu(page);
     await expect(page.locator('[data-testid="fab-entry-jukebox"]')).toHaveCount(0);

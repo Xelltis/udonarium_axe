@@ -77,7 +77,7 @@ export async function openPanel(page: Page, dataLabel: string) {
 /** FAB の項目が開く小窓と、その中にある項目。小窓の中の項目は、押す前に小窓を開く。 */
 const SUBMENU_LABELS: Readonly<Record<string, readonly string[]>> = {
   table: ['テーブル設定', 'マップエディター', 'マップ生成', '卓上ディスプレイ', 'ノベルモード'],
-  gameResources: ['インベントリ', 'バフマネージャー', '状態異常', '手札'],
+  gameResources: ['インベントリ', 'バフマネージャー', '状態異常', 'ダイス表設定', '手札'],
   media: ['画像', 'ジュークボックス', 'カットイン'],
 };
 
