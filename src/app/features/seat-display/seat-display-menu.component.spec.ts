@@ -10,6 +10,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { SeatDisplayMenuComponent, SeatMenuKind } from '@axe/features/seat-display/seat-display-menu.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -116,6 +117,18 @@ describe('SeatDisplayMenuComponent', () => {
     expect(TestBed.inject(MotionService).setting()).toBe('on');
     expect(TestBed.inject(RenderLiteService).setting()).toBe('on');
     expect(iconOf(byTestId(host, 'seat-theme'))).toBe('dark_mode');
+  });
+
+  it('opens the skins from the display menu, and asks to be closed behind them', () => {
+    const open = vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(() => {});
+    const host = render('display');
+    const closed = vi.fn();
+    fixture.componentInstance.closed.subscribe(closed);
+
+    byTestId(host, 'seat-skin').click();
+
+    expect(open).toHaveBeenCalledWith('skin');
+    expect(closed).toHaveBeenCalledOnce();
   });
 
   it('moves on to the next language when pressed', () => {

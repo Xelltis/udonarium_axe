@@ -44,8 +44,8 @@ function submenu(key: FabSubmenuName, icon: string): FabEntry {
  * Who is here and what is being said come first, then the room and the table, the table's own
  * tools gathered under one entry, then what the game is played with, and what is put in front of
  * the table, the images, music and cut-ins gathered under media. Saving and loading, the widgets
- * and this seat's display follow in the menu itself, each as one button that opens a small menu
- * of its own beside the drawer.
+ * and this seat's display, the skin among it, follow in the menu itself, each as one button that
+ * opens a small menu of its own beside the drawer.
  */
 export const FAB_ENTRIES: readonly FabEntry[] = [
   panel('peerMenu', 'people', 'peerMenu'),
@@ -54,7 +54,6 @@ export const FAB_ENTRIES: readonly FabEntry[] = [
   submenu('table', 'grid_on'),
   submenu('gameResources', 'backpack'),
   submenu('media', 'perm_media'),
-  panel('skin', 'palette', 'skin'),
 ];
 
 /** What each small menu opened from the drawer holds, in the order it is shown. */

@@ -12,6 +12,7 @@ import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.s
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiFabSubmenuComponent } from '@axe/ui/components/fab-submenu/fab-submenu.component';
 import { UiFabSubmenuButtonComponent } from '@axe/ui/components/fab-submenu/fab-submenu-button.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -55,8 +56,8 @@ export type SeatMenuKind = 'display' | 'widgets';
  *
  * Everything here belongs to this browser alone rather than to the room. On the display menu the
  * view, the theme, the effects, how heavily the table is drawn and the language are each one icon
- * that moves on to the next choice when pressed, as they did on the menu itself; on the widget
- * menu each widget is an icon lit while it is out. What an icon stands for, and what it is set to,
+ * that moves on to the next choice when pressed, as they did on the menu itself, and the skin opens
+ * its own panel; on the widget menu each widget is an icon lit while it is out. What an icon stands for, and what it is set to,
  * is written in the bubble beside it.
  *
  * It closes the way every menu beside the drawer does: on a press outside it, or Escape.
@@ -78,6 +79,7 @@ export class SeatDisplayMenuComponent {
   private readonly mobile = inject(MobileLayoutService);
   private readonly viewport = inject(ViewportService);
   private readonly widgets = inject(WidgetVisibilityService);
+  private readonly roomPanels = inject(RoomPanelService);
 
   /** Which of the two menus this is. */
   readonly kind = input.required<SeatMenuKind>();
@@ -116,6 +118,12 @@ export class SeatDisplayMenuComponent {
         icon: THEME_ICONS[theme],
         labelKey: `common.theme.${theme}`,
         press: () => this.theme.cycle(),
+      },
+      {
+        testId: 'seat-skin',
+        icon: 'palette',
+        labelKey: 'app.fab.skin',
+        press: () => this.openSkins(),
       },
       {
         testId: 'seat-motion',
@@ -215,6 +223,12 @@ export class SeatDisplayMenuComponent {
   protected readonly buttons = computed(() =>
     this.kind() === 'widgets' ? this.widgetButtons() : this.settingButtons()
   );
+
+  /** Opens the skins, and closes the menu behind them. */
+  private openSkins(): void {
+    this.closed.emit();
+    this.roomPanels.open('skin');
+  }
 
   private cycleViewMode(): void {
     this.viewMode.choose(nextViewMode(this.viewMode.mode()));

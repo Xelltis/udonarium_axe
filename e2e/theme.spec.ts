@@ -47,6 +47,16 @@ test.describe('テーマ切り替え', () => {
     await expect.poll(async () => (await bubble()).content).toBe('"自動"');
   });
 
+  test('表示の小窓からスキンのパネルを開けること', async ({ page }) => {
+    const panel = await openSeatDisplay(page);
+    await expect(page.locator('[data-testid="fab-entry-skin"]')).toHaveCount(0);
+
+    await panel.getByTestId('seat-skin').click();
+
+    await expect(page.locator('app-skin-panel')).toBeVisible({ timeout: 10000 });
+    await expect(panel).toBeHidden();
+  });
+
   test('選んだテーマはリロードしても残ること', async ({ page }) => {
     const panel = await openSeatDisplay(page);
     await panel.getByTestId('seat-theme').click();

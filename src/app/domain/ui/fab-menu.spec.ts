@@ -26,7 +26,6 @@ describe('the menu the room is reached through', () => {
       'table',
       'gameResources',
       'media',
-      'skin',
     ]);
   });
 
