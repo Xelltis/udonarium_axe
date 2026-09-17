@@ -22,18 +22,6 @@ describe('UiIconButtonComponent', () => {
     expect(button().getAttribute('data-testid')).toBeNull();
   });
 
-  it('says whether it is the one chosen only when told', () => {
-    expect(button().hasAttribute('aria-pressed')).toBe(false);
-
-    fixture.componentRef.setInput('pressed', true);
-    fixture.detectChanges();
-    expect(button().getAttribute('aria-pressed')).toBe('true');
-
-    fixture.componentRef.setInput('pressed', false);
-    fixture.detectChanges();
-    expect(button().getAttribute('aria-pressed')).toBe('false');
-  });
-
   it('says it was pressed', () => {
     const pressed: MouseEvent[] = [];
     fixture.componentInstance.press.subscribe((event) => pressed.push(event));

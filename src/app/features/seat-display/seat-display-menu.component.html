@@ -4,65 +4,33 @@
   data-testid="seat-display"
   [attr.aria-label]="'feature.seatDisplay.title' | transloco"
 >
-  <div class="flex flex-col gap-0.5">
-    <ui-icon-button
-      [icon]="viewIcon()"
-      [label]="viewLabelKey() | transloco"
-      testId="seat-view"
-      (press)="cycleViewMode()"
-    />
-    <ui-icon-button
-      [icon]="themeIcons[theme.theme()]"
-      [label]="'common.theme.' + theme.theme() | transloco"
-      testId="seat-theme"
-      (press)="theme.cycle()"
-    />
-    <ui-icon-button
-      [icon]="motionIcons[motion.setting()]"
-      [label]="'common.motion.' + motion.setting() | transloco"
-      testId="seat-motion"
-      (press)="motion.cycle()"
-    />
-    <ui-icon-button
-      [icon]="renderLiteIcons[renderLite.setting()]"
-      [label]="'common.renderLite.' + renderLite.setting() | transloco"
-      testId="seat-render-lite"
-      (press)="renderLite.cycle()"
-    />
-    <button
-      type="button"
-      class="rounded-ui-sm text-ui-text hover:bg-ui-menu-hover hover:text-ui-accent flex size-8 cursor-pointer items-center justify-center border-none bg-transparent text-[11px] font-semibold tracking-wide transition-colors"
-      [attr.aria-label]="'common.language.switchTooltip' | transloco"
-      [title]="'common.language.switchTooltip' | transloco"
-      data-testid="seat-lang"
-      (click)="cycleLanguage()"
+  @for (group of groups(); track group.key; let first = $first) {
+    <div
+      class="border-ui-border-panel flex flex-col gap-0.5 border-solid"
+      [class.border-t]="!first"
+      [class.pt-1]="!first"
+      role="group"
+      [attr.aria-label]="group.labelKey ? (group.labelKey | transloco) : null"
     >
-      {{ language.currentLang().toUpperCase() }}
-    </button>
-    @if (viewport.isCompact() && mobile.prefersDesktop()) {
-      <ui-icon-button
-        icon="smartphone"
-        [label]="'feature.mobile.useMobile' | transloco"
-        testId="seat-use-mobile"
-        (press)="mobile.useMobileLayout()"
-      />
-    }
-  </div>
-
-  <div
-    class="border-ui-border-panel flex flex-col gap-0.5 border-t border-solid pt-1"
-    role="group"
-    [attr.aria-label]="'feature.seatDisplay.widgets.label' | transloco"
-  >
-    @for (widget of widgetSwitches(); track widget.key) {
-      <ui-icon-button
-        [icon]="widget.icon"
-        [label]="widget.labelKey | transloco"
-        [active]="widget.shown()"
-        [pressed]="widget.shown()"
-        [testId]="'seat-widget-' + widget.key"
-        (press)="widget.toggle()"
-      />
-    }
-  </div>
+      @for (button of group.buttons; track button.testId) {
+        <button
+          type="button"
+          class="rounded-ui-sm text-ui-text hover:bg-ui-menu-hover hover:text-ui-accent after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-8 cursor-pointer items-center justify-center border-none bg-transparent transition-colors after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 focus-visible:after:opacity-100 [&_i]:text-[20px]!"
+          [class.text-ui-accent]="button.lit"
+          [class.bg-ui-accent-bg]="button.lit"
+          [attr.aria-pressed]="button.lit ?? null"
+          [attr.aria-label]="button.labelKey | transloco"
+          [attr.data-label]="button.labelKey | transloco"
+          [attr.data-testid]="button.testId"
+          (click)="button.press()"
+        >
+          @if (button.text) {
+            <span class="text-[11px] font-semibold tracking-wide">{{ button.text }}</span>
+          } @else {
+            <i class="material-icons" aria-hidden="true">{{ button.icon }}</i>
+          }
+        </button>
+      }
+    </div>
+  }
 </div>

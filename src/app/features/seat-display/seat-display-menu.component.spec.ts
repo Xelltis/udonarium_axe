@@ -47,7 +47,11 @@ describe('SeatDisplayMenuComponent', () => {
     return button.querySelector('i')!.textContent!.trim();
   }
 
-  it('shows each setting as the icon of the choice in force, named in its tooltip', () => {
+  function nameOf(button: HTMLElement): string | null {
+    return button.getAttribute('data-label');
+  }
+
+  it('shows each setting as the icon of the choice in force, named beside it', () => {
     TestBed.inject(ViewModePreferenceService).choose('perspective');
     TestBed.inject(ThemeService).theme.set('dark');
     TestBed.inject(MotionService).set('off');
@@ -56,13 +60,25 @@ describe('SeatDisplayMenuComponent', () => {
 
     expect(iconOf(byTestId(host, 'seat-view'))).toBe('view_in_ar');
     expect(iconOf(byTestId(host, 'seat-theme'))).toBe('dark_mode');
-    expect(byTestId(host, 'seat-theme').title).toBe('ダーク');
+    expect(nameOf(byTestId(host, 'seat-theme'))).toBe('ダーク');
     expect(iconOf(byTestId(host, 'seat-motion'))).toBe('motion_photos_off');
-    expect(byTestId(host, 'seat-motion').title).toBe('エフェクト: 停止');
+    expect(nameOf(byTestId(host, 'seat-motion'))).toBe('エフェクト: 停止');
     expect(iconOf(byTestId(host, 'seat-render-lite'))).toBe('blur_off');
     expect(byTestId(host, 'seat-lang').textContent!.trim()).toBe(
       TestBed.inject(LanguageService).currentLang().toUpperCase()
     );
+  });
+
+  it('names every button the way the menu names its items, and not with the slow browser tooltip', () => {
+    const host = render();
+    const buttons = [...host.querySelectorAll<HTMLButtonElement>('button')];
+
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(nameOf(button)).toBeTruthy();
+      expect(button.getAttribute('aria-label')).toBe(nameOf(button));
+      expect(button.hasAttribute('title')).toBe(false);
+    }
   });
 
   it('moves each setting on to its next choice when pressed', () => {
@@ -97,11 +113,11 @@ describe('SeatDisplayMenuComponent', () => {
   it('names what auto has settled on while auto is chosen', () => {
     TestBed.inject(ViewModePreferenceService).choose('auto');
     const host = render();
-    expect(byTestId(host, 'seat-view').title).toMatch(/自動（(2D|3D)）/);
+    expect(nameOf(byTestId(host, 'seat-view'))).toMatch(/自動（(2D|3D)）/);
 
     TestBed.inject(ViewModePreferenceService).choose('flat');
     fixture.detectChanges();
-    expect(byTestId(host, 'seat-view').title).not.toMatch(/自動/);
+    expect(nameOf(byTestId(host, 'seat-view'))).not.toMatch(/自動/);
   });
 
   it('shows and hides each widget, and shows which are out', () => {

@@ -12,8 +12,6 @@ export class UiIconButtonComponent {
   readonly active = input(false);
   readonly dim = input(false);
   readonly faded = input(false);
-  /** Whether the button is the one chosen of a set, said to assistive technology; left unsaid when null. */
-  readonly pressed = input<boolean | null>(null);
   readonly testId = input<string | null>(null);
 
   readonly press = output<MouseEvent>();
