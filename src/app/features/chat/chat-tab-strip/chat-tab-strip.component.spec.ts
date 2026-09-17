@@ -237,9 +237,14 @@ describe('ChatTabStripComponent', () => {
       tab.destroy();
     });
 
+    function strip(): HTMLElement {
+      return pill().closest('label')!.parentElement!;
+    }
+
     it('reads in the title bar colours by default', () => {
       expect(pill().classList).toContain('text-ui-titlebar-muted');
       expect(pill().classList).not.toContain('text-ui-muted');
+      expect(strip().classList).toContain('pt-2');
     });
 
     it('reads in the panel colours on a panel, keeping the shape of a tab', () => {
@@ -249,6 +254,15 @@ describe('ChatTabStripComponent', () => {
       expect(pill().classList).toContain('text-ui-muted');
       expect(pill().classList).not.toContain('text-ui-titlebar-muted');
       expect(pill().classList).toContain('rounded-full');
+    });
+
+    it('keeps only the room an unread count needs above the tabs on a panel', () => {
+      fixture.componentRef.setInput('tone', 'panel');
+      fixture.detectChanges();
+
+      expect(strip().classList).toContain('pt-1.5');
+      expect(strip().classList).not.toContain('pt-2');
+      expect(strip().classList).toContain('overflow-x-auto');
     });
   });
 });

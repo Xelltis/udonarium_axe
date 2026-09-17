@@ -36,6 +36,15 @@ const ARROW_STEP_PX = 120;
 /** The ground a strip is laid on: a window's title bar, or the body of a panel. */
 export type ChatTabStripTone = 'titlebar' | 'panel';
 
+/**
+ * The room above the tabs on each ground. An unread count stands 6px proud of its tab, and the strip
+ * clips whatever leaves it, so that much is kept; a panel has no title bar to line up with.
+ */
+const STRIP_TONES: Record<ChatTabStripTone, string> = {
+  titlebar: 'pt-2',
+  panel: 'pt-1.5',
+};
+
 /** The colours of a tab on each ground, which the selected tab and the hover share otherwise. */
 const PILL_TONES: Record<ChatTabStripTone, string> = {
   titlebar:
@@ -62,6 +71,7 @@ export class ChatTabStripComponent {
   /** The ground the strip is laid on, which picks the colours its tabs read in. */
   readonly tone = input<ChatTabStripTone>('titlebar');
 
+  protected readonly stripTone = computed(() => STRIP_TONES[this.tone()]);
   protected readonly pillTone = computed(() => PILL_TONES[this.tone()]);
 
   private readonly container = viewChild<ElementRef<HTMLElement>>('tabPillsContainer');
