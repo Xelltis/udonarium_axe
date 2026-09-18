@@ -1,6 +1,6 @@
 <button
   type="button"
-  class="flex shrink-0 cursor-pointer items-center border-none bg-transparent p-0 leading-none text-white/75 transition-colors hover:text-white disabled:cursor-default disabled:text-white/25 [&_i]:text-[14px]"
+  class="m-0 flex shrink-0 cursor-pointer items-center border-none bg-transparent p-0 leading-none text-white/75 transition-colors hover:text-white disabled:cursor-default disabled:text-white/25 [&_i]:text-[14px]!"
   [disabled]="selectedIndex() <= 0"
   (click)="step(-1)"
   [attr.aria-label]="'ui.portraitPicker.previous' | transloco"
@@ -9,7 +9,7 @@
 </button>
 <button
   type="button"
-  class="min-w-0 flex-1 cursor-pointer truncate border-none bg-transparent p-0 text-center text-[10px] leading-none text-white/90 transition-colors hover:text-white"
+  class="m-0 min-w-0 flex-1 cursor-pointer truncate border-none bg-transparent p-0 text-center text-[10px] leading-none text-white/90 transition-colors hover:text-white"
   [class.text-ui-accent]="isOpen()"
   [title]="'ui.portraitPicker.open' | transloco: { name: label() }"
   aria-haspopup="listbox"
@@ -20,7 +20,7 @@
 </button>
 <button
   type="button"
-  class="flex shrink-0 cursor-pointer items-center border-none bg-transparent p-0 leading-none text-white/75 transition-colors hover:text-white disabled:cursor-default disabled:text-white/25 [&_i]:text-[14px]"
+  class="m-0 flex shrink-0 cursor-pointer items-center border-none bg-transparent p-0 leading-none text-white/75 transition-colors hover:text-white disabled:cursor-default disabled:text-white/25 [&_i]:text-[14px]!"
   [disabled]="selectedIndex() >= choices().length - 1"
   (click)="step(1)"
   [attr.aria-label]="'ui.portraitPicker.next' | transloco"

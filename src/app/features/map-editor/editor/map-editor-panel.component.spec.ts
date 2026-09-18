@@ -493,6 +493,31 @@ describe('MapEditorPanelComponent', () => {
     expect(c.editingText()!.itemId).toBeNull();
   });
 
+  it('names the same cell while the pointer crosses one, and another when it leaves', () => {
+    // The stamp tool is the shortest way through the move: it marks a draft and comes back.
+    component['state'].tool.set('stamp');
+    const c = component as unknown as {
+      onPointerMove: (e: PointerEvent) => void;
+      cursorCell: () => { col: number; row: number } | null;
+      board: () => { nativeElement: HTMLCanvasElement } | undefined;
+    };
+    (c as unknown as { board: () => { nativeElement: HTMLCanvasElement } }).board = () => ({
+      nativeElement: { getBoundingClientRect: () => ({ left: 0, top: 0 }) } as never,
+    });
+    const cellPx = component['state'].current.cellPx;
+
+    c.onPointerMove({ clientX: 2, clientY: 2 } as unknown as PointerEvent);
+    const first = c.cursorCell();
+    c.onPointerMove({ clientX: 5, clientY: 5 } as unknown as PointerEvent);
+
+    expect(first).not.toBeNull();
+    expect(c.cursorCell()).toBe(first);
+
+    c.onPointerMove({ clientX: cellPx * 2 + 2, clientY: cellPx * 2 + 2 } as unknown as PointerEvent);
+
+    expect(c.cursorCell()).not.toBe(first);
+  });
+
   it('adds a text item when there is text to add', () => {
     const c = component as unknown as {
       startTextEdit: (x: number, y: number, l: string | null, i: string | null, t: string) => void;

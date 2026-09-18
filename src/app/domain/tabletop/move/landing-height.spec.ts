@@ -1,4 +1,4 @@
-import { hopHeightAt, hopLiftFor, landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
+import { hopHeightAt, hopLiftFor, landingHeightAt, landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 
 function block(opts: { x: number; y: number; h: number; altitude?: number; identifier?: string }): Terrain {
@@ -46,6 +46,43 @@ describe('landingHeightAt', () => {
     shelf.location.surface = 'north-wall';
 
     expect(landingHeightAt([shelf], 50, 50, 50)).toBe(0);
+  });
+});
+
+describe('walking on a slope', () => {
+  function ramp(): Terrain {
+    const terrain = block({ x: 0, y: 0, h: 2, identifier: 'ramp' });
+    terrain.slopeSides = ['s'];
+    return terrain;
+  }
+
+  it('climbs along the slope rather than stepping onto its high end', () => {
+    const terrain = ramp();
+
+    expect(landingHeightAt([terrain], 50, 50, 100)).toBeCloseTo(0);
+    expect(landingHeightAt([terrain], 50, 50, 50)).toBeCloseTo(50);
+    expect(landingHeightAt([terrain], 50, 50, 0)).toBeCloseTo(100);
+  });
+
+  it('leans with the ground a piece is standing on', () => {
+    const terrain = ramp();
+
+    expect(landingLeanAt([terrain], 50, 50, 50)).toEqual({
+      eastward: expect.closeTo(0, 6),
+      southward: expect.closeTo(-1, 6),
+    });
+  });
+
+  it('leans nowhere on level ground, or where there is none', () => {
+    expect(landingLeanAt([block({ x: 0, y: 0, h: 2 })], 50, 50, 50)).toBeNull();
+    expect(landingLeanAt([], 50, 50, 50)).toBeNull();
+  });
+
+  it('takes the lean of the highest thing at the point', () => {
+    const under = ramp();
+    const over = block({ x: 0, y: 0, h: 1, altitude: 4, identifier: 'over' });
+
+    expect(landingLeanAt([under, over], 50, 50, 50)).toBeNull();
   });
 });
 

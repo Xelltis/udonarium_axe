@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -310,6 +312,23 @@ describe('RoomSettingsPanelComponent', () => {
       expect(opened).toEqual(['characterImport']);
     });
 
+    it('opens the replay from the utility part, for someone watching as well', async () => {
+      const opened: string[] = [];
+      vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(((name: string) => {
+        opened.push(name);
+      }) as never);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      component.tab.set('utility');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const button = fixture.nativeElement.querySelector('[data-testid="room-settings-replay"]') as HTMLButtonElement;
+      expect(button.closest('[inert]')).toBeNull();
+      button.click();
+
+      expect(opened).toEqual(['replay']);
+    });
+
     it('shows the boxes only once an enemy holds ground', async () => {
       function boxes(): string[] {
         return [...fixture.nativeElement.querySelectorAll('input[type="number"]')].map(
@@ -525,6 +544,79 @@ describe('RoomSettingsPanelComponent', () => {
 
       expect(root.querySelector('[data-testid="reset-calibration"]')).not.toBeNull();
       expect(root.querySelector('[data-testid="real-size-enabled"]')).toBeNull();
+    });
+  });
+
+  describe('the items the remotes show', () => {
+    function pieceCarrying(...items: string[]): GameCharacter {
+      const character = new GameCharacter();
+      character.initialize();
+      character.createDataElements();
+      for (const item of items) {
+        character.detailDataElement!.appendChild(
+          DataElement.create(item, 5, {
+            [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+            type: DataElementType.NUMBER_RESOURCE,
+            currentValue: 5,
+          })
+        );
+      }
+      return character;
+    }
+
+    function chips(): HTMLInputElement[] {
+      const section = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="room-settings-controller-resources"]'
+      );
+      return [...(section?.querySelectorAll<HTMLInputElement>('input[type="checkbox"]') ?? [])];
+    }
+
+    beforeEach(() => {
+      pieceCarrying('HP', 'MP');
+      pieceCarrying('HP', '信仰');
+    });
+
+    it('lists what every piece carries, each item once, all shown while nothing is picked', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(chips().map((chip) => chip.dataset['resource'])).toEqual(['HP', 'MP', '信仰']);
+      expect(chips().every((chip) => chip.checked)).toBe(true);
+      expect(Config.instance.controllerResources).toBeNull();
+    });
+
+    it('takes one item off the remotes and leaves the rest on', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const mp = chips().find((chip) => chip.dataset['resource'] === 'MP')!;
+      mp.checked = false;
+      mp.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      expect(Config.instance.controllerResources).toEqual(['HP', '信仰']);
+      expect(chips().find((chip) => chip.dataset['resource'] === 'MP')!.checked).toBe(false);
+    });
+
+    it('puts an item back, and shows every item again when asked', () => {
+      component.hideEveryControllerResource();
+      expect(Config.instance.controllerResources).toEqual([]);
+
+      component.setControllerResourceShown('信仰', true);
+      expect(Config.instance.controllerResources).toEqual(['信仰']);
+
+      component.showEveryControllerResource();
+      expect(Config.instance.controllerResources).toBeNull();
+    });
+
+    it('leaves the pick to the master', () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+
+      component.setControllerResourceShown('MP', false);
+      component.hideEveryControllerResource();
+
+      expect(component.isSharedReadOnly()).toBe(true);
+      expect(Config.instance.controllerResources).toBeNull();
     });
   });
 

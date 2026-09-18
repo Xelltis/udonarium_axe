@@ -9,8 +9,10 @@ import { childrenChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatPaletteComponent } from '@axe/features/chat/chat-palette/chat-palette.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -240,6 +242,63 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  describe('the tabs lines are sent to', () => {
+    let tabs: ChatTab[];
+
+    function tabNames(): string[] {
+      const pills = (fixture.nativeElement as HTMLElement).querySelectorAll('.chat-tab-pill');
+      return [...pills].map((pill) => pill.textContent!.trim());
+    }
+
+    beforeEach(() => {
+      tabs = [ChatTabList.instance.addChatTab('一枚目'), ChatTabList.instance.addChatTab('二枚目')];
+      fixture = TestBed.createComponent(ChatPaletteComponent);
+      component = fixture.componentInstance;
+      component.character.set(createChar('術者'));
+      fixture.detectChanges();
+    });
+
+    it('starts on the first tab', () => {
+      expect(component.chatTabidentifier()).toBe(tabs[0].identifier);
+    });
+
+    it('moves on to the next tab as the wheel turns over them, as the chat window does', () => {
+      const strip = (fixture.nativeElement as HTMLElement)
+        .querySelector('.chat-tab-pill')!
+        .closest('label')!.parentElement!;
+
+      strip.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, cancelable: true }));
+      fixture.detectChanges();
+
+      expect(component.chatTabidentifier()).toBe(tabs[1].identifier);
+    });
+
+    it('leaves out a tab this seat may not read, and moves off it', () => {
+      component.chatTabidentifier.set(tabs[1].identifier);
+      fixture.detectChanges();
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      tabs[1].plCanView = false;
+      TestBed.inject(ObjectChangeService).notifyChanged(tabs[1].identifier);
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+
+      expect(tabNames()).toEqual(['一枚目']);
+      expect(component.chatTabidentifier()).toBe(tabs[0].identifier);
+    });
+
+    it('shows the input as read only in a tab this seat may not speak in', () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      tabs[0].plCanSpeak = false;
+      TestBed.inject(ObjectChangeService).notifyChanged(tabs[0].identifier);
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+
+      const input = (fixture.nativeElement as HTMLElement).querySelector('chat-input')!;
+      expect(input.querySelector('textarea[name="chat-input-text"]')).toBeNull();
+    });
+  });
+
   describe('searching the palette', () => {
     function speaker(text: string): void {
       const char = createChar('術者');
@@ -286,14 +345,15 @@ describe('ChatPaletteComponent', () => {
       expect(resultsArea()).toBeNull();
     });
 
-    it('lists the lines holding what is searched for below the palette, those beginning with it first', () => {
+    it('lists the lines holding what is searched for right under the search box, those beginning with it first', () => {
       speaker('◆戦闘\n1d100<=50 回避\n2d6+3 攻撃\n回避ロール 1d100\n◆技能\nCCB<=60 目星');
 
       searchFor('回避');
 
       expect(results().map((row) => row.dataset['resultLine'])).toEqual(['3', '1']);
       const list = root().querySelector('[data-line="0"]')!.parentElement!;
-      expect(list.compareDocumentPosition(resultsArea()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(list.compareDocumentPosition(resultsArea()!) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+      expect(searchBox()!.compareDocumentPosition(resultsArea()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('puts a result clicked into the input and picks out its line in the palette, as a palette row does', () => {

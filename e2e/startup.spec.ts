@@ -18,7 +18,16 @@ test.describe('アプリケーション起動', () => {
     await waitAppReady(page);
     await openFabMenu(page);
     // ラベルは data-label 属性に入っており、テキストノードではない
-    for (const label of ['接続', 'チャット', 'テーブル設定', '画像', 'インベントリ', 'ZIP読込', '保存']) {
+    for (const label of [
+      '接続',
+      'チャット',
+      'テーブル関連',
+      'メディア',
+      'ゲームリソース',
+      'セーブ&ロード',
+      'ウィジェット',
+      '表示',
+    ]) {
       await expect(page.locator(`[data-label="${label}"]`)).toBeVisible();
     }
   });

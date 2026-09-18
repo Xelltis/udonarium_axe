@@ -16,6 +16,7 @@ import {
   overlayScale,
   overlayScratch,
 } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
 interface Op {
   name: string;
@@ -222,6 +223,125 @@ describe('vision-overlay-render', () => {
       drawOverlayPlan(ctx, fogPlan(off), 200, 200);
 
       expect(ops.some((o) => o.name === 'fill')).toBe(false);
+    });
+  });
+
+  describe('the paths kept between draws', () => {
+    class RecordingPath {
+      static made = 0;
+      readonly ops: unknown[][] = [];
+      constructor() {
+        RecordingPath.made++;
+      }
+      moveTo(x: number, y: number): void {
+        this.ops.push(['moveTo', x, y]);
+      }
+      lineTo(x: number, y: number): void {
+        this.ops.push(['lineTo', x, y]);
+      }
+      closePath(): void {
+        this.ops.push(['closePath']);
+      }
+      rect(x: number, y: number, w: number, h: number): void {
+        this.ops.push(['rect', x, y, w, h]);
+      }
+    }
+
+    let borrowed: BorrowedGlobals;
+
+    beforeEach(() => {
+      RecordingPath.made = 0;
+      borrowed = new BorrowedGlobals();
+      borrowed.lend('Path2D', RecordingPath);
+    });
+
+    afterEach(() => {
+      borrowed.giveBack();
+    });
+
+    const darkPlan = (vision?: OverlayVision): OverlayPlan => ({
+      darknessAlpha: 0.9,
+      darknessColor: '#05060a',
+      baseRevealAlpha: 0,
+      reveals: [],
+      glows: [],
+      shadows: [],
+      vision,
+    });
+
+    it('traces the board surface once and lays every darkness from that trace', () => {
+      const cells = [
+        [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 5, y: 10 },
+        ],
+        [
+          { x: 1, y: 1 },
+          { x: 2, y: 2 },
+        ],
+        [
+          { x: 20, y: 0 },
+          { x: 30, y: 0 },
+          { x: 25, y: 10 },
+          { x: 22, y: 12 },
+        ],
+      ];
+      const surface = { originX: 0, originY: 0, cells };
+      const first = fakeContext();
+      drawOverlayPlan(first.ctx, darkPlan(), 800, 600, 0, undefined, 0, surface);
+      const second = fakeContext();
+      drawOverlayPlan(second.ctx, darkPlan(), 800, 600, 0, undefined, 0, surface);
+
+      const firstFill = first.ops.find((o) => o.name === 'fill');
+      const secondFill = second.ops.find((o) => o.name === 'fill');
+      expect(firstFill?.args[0]).toBeInstanceOf(RecordingPath);
+      expect(secondFill?.args[0]).toBe(firstFill?.args[0]);
+      expect(RecordingPath.made).toBe(1);
+      expect((firstFill?.args[0] as RecordingPath).ops).toEqual([
+        ['moveTo', 0, 0],
+        ['lineTo', 10, 0],
+        ['lineTo', 5, 10],
+        ['closePath'],
+        ['moveTo', 20, 0],
+        ['lineTo', 30, 0],
+        ['lineTo', 25, 10],
+        ['lineTo', 22, 12],
+        ['closePath'],
+      ]);
+    });
+
+    it('traces the cleared, remembered and unwalked ground once for a scene', () => {
+      const grid = cellGridOf(4, 4, 50, GridType.HEX_VERTICAL);
+      const visible = new CellBits(16);
+      const explored = new CellBits(16);
+      for (const cell of [0, 1, 5]) visible.set(cell);
+      for (const cell of [0, 1, 2, 5, 6]) explored.set(cell);
+      const vision: OverlayVision = {
+        grid,
+        visible,
+        explored,
+        clipReveals: false,
+        fogEnabled: true,
+        fogColor: '#aeb9c4',
+        veilColor: '#000000',
+        veilAlpha: 0.3,
+        unexploredAlpha: 1,
+        blurPx: 0,
+        rememberSeen: true,
+        clearedStaysLit: true,
+      };
+
+      const first = fakeContext();
+      drawOverlayPlan(first.ctx, darkPlan(vision), 800, 600);
+      const madeForTheScene = RecordingPath.made;
+      const second = fakeContext();
+      drawOverlayPlan(second.ctx, darkPlan(vision), 800, 600);
+
+      const fills = [...first.ops, ...second.ops].filter((o) => o.name === 'fill');
+      expect(fills.length).toBeGreaterThanOrEqual(6);
+      expect(fills.every((o) => o.args[0] instanceof RecordingPath)).toBe(true);
+      expect(RecordingPath.made).toBe(madeForTheScene);
     });
   });
 

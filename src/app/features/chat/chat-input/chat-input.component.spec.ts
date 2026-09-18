@@ -1,7 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
@@ -46,6 +49,88 @@ describe('ChatInputComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('the characters on offer', () => {
+    it('leaves out a piece on the table this seat cannot see, but keeps the one it speaks as', () => {
+      const seen = speaker('勇者');
+      seen.setLocation('table');
+      const unseen = speaker('闇の魔物');
+      unseen.setLocation('table');
+      vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockImplementation((character) => character !== unseen);
+
+      expect(component.gameCharacters()).toContain(seen);
+      expect(component.gameCharacters()).not.toContain(unseen);
+
+      component.sendFrom = unseen.identifier;
+      expect(component.gameCharacters()).toContain(unseen);
+      seen.destroy();
+      unseen.destroy();
+    });
+  });
+
+  describe('packed down for a panel', () => {
+    function find(selector: string): Element | null {
+      return (fixture.nativeElement as HTMLElement).querySelector(selector);
+    }
+
+    function textBox(): HTMLTextAreaElement {
+      return find('textarea[name="chat-input-text"]') as HTMLTextAreaElement;
+    }
+
+    it('shows the colours with the dice bot, and no button to fold them, by default', () => {
+      fixture.detectChanges();
+
+      expect(find('ng-select[name="game-type"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-colors"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-tools"]')).toBeNull();
+    });
+
+    it('folds the colours behind a button, keeping the dice bot in view', () => {
+      fixture.componentRef.setInput('dense', true);
+      fixture.detectChanges();
+
+      expect(find('ng-select[name="game-type"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-colors"]')).toBeNull();
+
+      (find('[data-testid="chat-input-tools"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(find('[data-testid="chat-input-colors"]')).not.toBeNull();
+    });
+
+    it('starts the box a line high, leaving it to grow with what is typed', () => {
+      fixture.detectChanges();
+      expect(textBox().getAttribute('rows')).toBeNull();
+
+      fixture.componentRef.setInput('dense', true);
+      fixture.detectChanges();
+
+      expect(textBox().getAttribute('rows')).toBe('1');
+    });
+
+    it('says what the panel asks for in the empty box, in place of its keys', () => {
+      fixture.componentRef.setInput('placeholder', '行をクリックで入力');
+      fixture.detectChanges();
+
+      expect(textBox().placeholder).toBe('行をクリックで入力');
+    });
+  });
+
+  describe('an input with no box to write in', () => {
+    it('takes a reply asked of every input without reaching for its missing box', () => {
+      fixture.componentRef.setInput('canSpeak', false);
+      fixture.detectChanges();
+      const message = new ChatMessage();
+      message.initialize();
+
+      expect(() => {
+        TestBed.inject(UiSignalService).requestChatReply(message.identifier);
+        fixture.detectChanges();
+      }).not.toThrow();
+
+      message.destroy();
+    });
   });
 
   describe('showing who is typing', () => {

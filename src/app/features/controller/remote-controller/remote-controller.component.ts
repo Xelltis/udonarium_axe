@@ -27,8 +27,10 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
+import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { type ResourceCatalogEntry, resourceCatalogOf } from '@axe/domain/character/resource-catalog';
+import { isChangeableElementType } from '@axe/domain/character/status-accessor';
 import { ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -37,6 +39,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { RESOURCE_SLOTS, type ResourceSlot } from '@axe/domain/data/resource-slot';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { ControllerInputComponent } from '@axe/features/controller/controller-input/controller-input.component';
@@ -504,7 +507,19 @@ export class RemoteControllerComponent {
     for (const character of characters) this.objectChange.versionOf(character.identifier)();
     this.objectChange.versionOf(DataSummarySetting.instance.identifier)();
     this.objectChange.collectionOf('data')();
-    return resourceCatalogOf(characters, { listFirst: this.dataTags });
+    const pick = this.controllerResources();
+    return resourceCatalogOf(characters, { listFirst: this.dataTags }).filter((choice) =>
+      controllerShowsResource(pick, choice.name)
+    );
+  });
+
+  /**
+   * The items the room lets its remotes show, or null for every one, as picked in the room
+   * settings.
+   */
+  readonly controllerResources = computed<ControllerResourcePick>(() => {
+    this.objectChange.versionOf('Config')();
+    return (this.objectStore.get<Config>('Config') ?? Config.instance).controllerResources;
   });
 
   private resourceTargets(): GameCharacter[] {
@@ -538,10 +553,20 @@ export class RemoteControllerComponent {
 
   /**
    * The data elements the target list shows for a character, re-read when the character changes.
+   *
+   * They are the inventory's display items, less any value or resource the room has not picked for
+   * its remotes. A check box, or a line break between the items, stays where it is.
    */
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {
     this.objectChange.versionOf(gameObject.identifier)();
-    return getInventoryTags(gameObject, this.inventoryService);
+    const pick = this.controllerResources();
+    return getInventoryTags(gameObject, this.inventoryService).filter(
+      (element) =>
+        element === null ||
+        element.name === this.newLineString ||
+        !isChangeableElementType(element.type) ||
+        controllerShowsResource(pick, element.name)
+    );
   }
 
   /** Everything this panel says is already worked out, so none of it is evaluated again. */

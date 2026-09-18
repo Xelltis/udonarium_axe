@@ -1,6 +1,14 @@
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
-import { DOOR_STYLES, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { DOOR_STYLES, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import {
+  encodeSlopeSides,
+  FLAT_TOP_SLOPE_SIDES,
+  legacySlopeDirection,
+  parseSlopeSides,
+  SlopeDirection,
+  SlopeSide,
+} from '@axe/domain/tabletop/terrain-slope';
 import {
   buildTerrainContextMenu,
   buildTerrainContextMenuModel,
@@ -28,10 +36,12 @@ interface MutableTerrain {
   parent: null;
   clone: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
+  slopeSideNames: string;
+  slopeSides: SlopeSide[];
 }
 
 function makeTerrain(overrides: Partial<MutableTerrain> = {}): MutableTerrain {
-  return {
+  const terrain: MutableTerrain = {
     width: 1,
     depth: 1,
     altitude: 0,
@@ -50,8 +60,22 @@ function makeTerrain(overrides: Partial<MutableTerrain> = {}): MutableTerrain {
     parent: null,
     clone: vi.fn(() => ({ location: { x: 0, y: 0 }, isLocked: false })),
     destroy: vi.fn(),
+    slopeSideNames: '',
+    slopeSides: [],
     ...overrides,
   };
+  // The real block turns its slope on and off with the sides, which the menu writes.
+  Object.defineProperty(terrain, 'slopeSides', {
+    get(): SlopeSide[] {
+      return terrain.isSlope ? parseSlopeSides(terrain.slopeSideNames, terrain.slopeDirection) : [];
+    },
+    set(sides: readonly SlopeSide[]) {
+      terrain.slopeSideNames = encodeSlopeSides(sides);
+      terrain.slopeDirection = legacySlopeDirection(sides);
+      terrain.isSlope = sides.length > 0;
+    },
+  });
+  return terrain;
 }
 
 function makeService(): GameObjectInventoryService {
@@ -218,37 +242,107 @@ describe('buildTerrainContextMenu()', () => {
     expect(names(unlockedMenu)).toContain('固定する');
   });
 
-  it('offers no slope and four directions, after a separator', () => {
-    const menu = buildTerrainContextMenu(
-      makeTerrain() as unknown as Terrain,
-      50,
-      { x: 0, y: 0, z: 0 },
-      makeService(),
-      makeActionService(),
-      vi.fn(),
-      t
-    );
-    const slope = menu.find((m) => m.name === '傾斜');
-    expect(slope).toBeDefined();
-    expect(slope?.subActions?.length).toBe(6);
-  });
-
-  it('slopes the terrain north', () => {
-    const terrain = makeTerrain();
-    const menu = buildTerrainContextMenu(
+  function slopeMenu(terrain: MutableTerrain, sides?: readonly SlopeSide[]) {
+    const menu = buildTerrainContextMenuModel(
       terrain as unknown as Terrain,
       50,
       { x: 0, y: 0, z: 0 },
       makeService(),
       makeActionService(),
       vi.fn(),
-      t
-    );
-    const slope = menu.find((m) => m.name === '傾斜');
-    const top = slope?.subActions?.find((s) => s.name.includes('上（北）'));
-    top?.action?.();
+      t,
+      [],
+      [],
+      sides
+    ).actions;
+    return menu.find((entry) => entry.name === '傾斜');
+  }
+
+  function pick(terrain: MutableTerrain, label: string, sides?: readonly SlopeSide[]) {
+    const entry = slopeMenu(terrain, sides)?.subActions?.find((sub) => sub.name.includes(label));
+    expect(entry).toBeDefined();
+    entry?.action?.();
+  }
+
+  it('offers no slope, each of the four sides of a square block, and every side at once', () => {
+    const slope = slopeMenu(makeTerrain());
+
+    expect(slope).toBeDefined();
+    expect(slope?.subActions?.map((sub) => sub.name)).toEqual([
+      '◉  なし',
+      '',
+      '☐ 北',
+      '☐ 東',
+      '☐ 南',
+      '☐ 西',
+      '',
+      '☐ 全方向（角錐）',
+    ]);
+  });
+
+  it('slopes the block to the side picked, and leaves an older peer its one direction', () => {
+    const terrain = makeTerrain();
+
+    pick(terrain, '北');
+
     expect(terrain.isSlope).toBe(true);
+    expect(terrain.slopeSides).toEqual(['n']);
     expect(terrain.slopeDirection).toBe(SlopeDirection.TOP);
+  });
+
+  it('adds a second side, and takes one away again', () => {
+    const terrain = makeTerrain();
+
+    pick(terrain, '北');
+    pick(terrain, '西');
+    expect(terrain.slopeSides).toEqual(['n', 'w']);
+
+    pick(terrain, '北');
+    expect(terrain.slopeSides).toEqual(['w']);
+  });
+
+  it('raises a pyramid with every side, and flattens the block again', () => {
+    const terrain = makeTerrain();
+
+    pick(terrain, '全方向');
+    expect(terrain.slopeSides).toEqual(['n', 'e', 's', 'w']);
+
+    pick(terrain, '全方向');
+    expect(terrain.isSlope).toBe(false);
+    expect(terrain.slopeSides).toEqual([]);
+  });
+
+  it('marks the sides a block already slopes to', () => {
+    const terrain = makeTerrain();
+    pick(terrain, '南');
+
+    expect(slopeMenu(terrain)?.subActions?.map((sub) => sub.name)).toEqual(expect.arrayContaining(['☑ 南', '☐ 北']));
+  });
+
+  it('offers the six sides a hex block has', () => {
+    const terrain = makeTerrain();
+
+    const slope = slopeMenu(terrain, FLAT_TOP_SLOPE_SIDES);
+
+    expect(slope?.subActions?.map((sub) => sub.name).filter((name) => name.startsWith('☐'))).toEqual([
+      '☐ 北',
+      '☐ 北東',
+      '☐ 南東',
+      '☐ 南',
+      '☐ 南西',
+      '☐ 北西',
+      '☐ 全方向（角錐）',
+    ]);
+  });
+
+  it('turns a hex block down one of its own sides', () => {
+    const terrain = makeTerrain();
+
+    pick(terrain, '北東', FLAT_TOP_SLOPE_SIDES);
+
+    expect(terrain.slopeSides).toEqual(['ne']);
+    expect(terrain.slopeDirection).toBe(SlopeDirection.NONE);
+    expect(terrain.isSlope).toBe(true);
   });
 
   it('offers to hide the walls that are shown and to show the ones that are hidden', () => {

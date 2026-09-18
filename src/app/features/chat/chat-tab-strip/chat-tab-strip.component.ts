@@ -2,6 +2,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   ElementRef,
   inject,
@@ -32,6 +33,34 @@ const TAB_CLEARANCE_PX = 24;
 /** How far the arrows at either end move the strip. */
 const ARROW_STEP_PX = 120;
 
+/** The ground a strip is laid on: a window's title bar, or the body of a panel. */
+export type ChatTabStripTone = 'titlebar' | 'panel';
+
+/**
+ * The room above the tabs on each ground. An unread count stands 6px proud of its tab, and the strip
+ * clips whatever leaves it, so that much is kept; a panel has no title bar to line up with.
+ */
+const STRIP_TONES: Record<ChatTabStripTone, string> = {
+  titlebar: 'pt-2',
+  panel: 'pt-1.5',
+};
+
+/**
+ * How many strips have been drawn, which names each one's radio group apart from the rest.
+ *
+ * Radios of one name are one group, and two strips outside a form of their own would be the same
+ * group: choosing a tab in one would take the mark off the other's tab, where nothing would put
+ * it back.
+ */
+let stripsDrawn = 0;
+
+/** The colours of a tab on each ground, which the selected tab and the hover share otherwise. */
+const PILL_TONES: Record<ChatTabStripTone, string> = {
+  titlebar:
+    'border-ui-border-titlebar text-ui-titlebar-muted peer-checked:text-ui-titlebar-text hover:text-ui-titlebar-text',
+  panel: 'border-ui-border-panel text-ui-muted peer-checked:text-ui-accent hover:text-ui-text',
+};
+
 @Component({
   selector: 'chat-tab-strip',
   templateUrl: './chat-tab-strip.component.html',
@@ -48,6 +77,13 @@ export class ChatTabStripComponent {
 
   readonly tabs = input.required<readonly ChatTab[]>();
   readonly selected = model.required<string>();
+  /** The ground the strip is laid on, which picks the colours its tabs read in. */
+  readonly tone = input<ChatTabStripTone>('titlebar');
+
+  protected readonly stripTone = computed(() => STRIP_TONES[this.tone()]);
+  protected readonly pillTone = computed(() => PILL_TONES[this.tone()]);
+  /** This strip's own radio group, which no other strip on the page shares. */
+  protected readonly groupName = `chat-tab-${++stripsDrawn}`;
 
   private readonly container = viewChild<ElementRef<HTMLElement>>('tabPillsContainer');
   protected readonly canScrollLeft = signal(false);

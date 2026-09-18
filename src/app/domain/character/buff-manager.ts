@@ -43,6 +43,22 @@ export class BuffManager {
     return true;
   }
 
+  /**
+   * Takes away every buff the test picks, putting back whatever each moved on the sheet, and
+   * returns their names in the order they were listed.
+   */
+  removeWhere(test: (data: DataElement) => boolean): string[] {
+    const container = this.container;
+    if (!container) return [];
+    const removed: string[] = [];
+    for (const data of [...container.children]) {
+      if (!test(data)) continue;
+      removed.push(data.name);
+      this.remove(data);
+    }
+    return removed;
+  }
+
   /** Takes the buff away, putting back whatever it moved on the sheet. */
   remove(data: DataElement): void {
     this.revertModifier(data);

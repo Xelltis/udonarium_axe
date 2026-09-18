@@ -1,5 +1,7 @@
-<canvas
-  #overlayCanvas
-  class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"
-  [style.transform]="zTransform"
-></canvas>
+@if (visionService.scene()) {
+  <canvas
+    #overlayCanvas
+    class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"
+    [style.transform]="zTransform"
+  ></canvas>
+}

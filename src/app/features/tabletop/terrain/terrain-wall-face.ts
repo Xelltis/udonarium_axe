@@ -1,6 +1,7 @@
+import { BlockSide } from '@axe/domain/tabletop/terrain-shade';
 import { WallFace } from '@axe/domain/tabletop/vision-scene';
 
-export type WallSide = 'north' | 'south' | 'west' | 'east';
+export type WallSide = BlockSide;
 
 export interface TerrainFootprint {
   /** The top left on the board, in pixels, before any turn. */

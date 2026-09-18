@@ -60,4 +60,19 @@ describe('buildTurnIndicator', () => {
   it('carries the side through the start and end of a round', () => {
     expect(buildTurnIndicator('roundStart', 1, '', '味方')?.sideName).toBe('味方');
   });
+
+  it('names nobody up whom this reader cannot see, showing the side where there is one', () => {
+    expect(buildTurnIndicator('acting', 2, '闇の魔物', '', true)).toEqual({
+      round: 2,
+      statusKey: 'feature.turnOrder.unseenTurn',
+      name: '',
+      sideName: '',
+    });
+    expect(buildTurnIndicator('acting', 2, '闇の魔物', '敵', true)).toEqual({
+      round: 2,
+      statusKey: null,
+      name: '',
+      sideName: '敵',
+    });
+  });
 });

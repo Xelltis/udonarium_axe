@@ -14,7 +14,12 @@ test.describe('セッション進行まわり', () => {
   });
 
   test('リプレイは記録が無いことを伝えたうえで読み込み口を出すこと', async ({ page }) => {
-    await openPanel(page, 'リプレイ');
+    // リプレイは部屋設定の「ユーティリティ」タブから開く。
+    await openPanel(page, '部屋設定');
+    const settings = page.locator('room-settings-panel');
+    await expect(settings).toBeVisible({ timeout: 15000 });
+    await settings.locator('[data-testid="room-settings-tab-utility"]').click();
+    await settings.locator('[data-testid="room-settings-replay"]').click();
 
     const replay = page.locator('app-replay-workspace');
     await expect(replay).toBeVisible({ timeout: 15000 });

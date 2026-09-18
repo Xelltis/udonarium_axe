@@ -3,6 +3,11 @@ import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import {
+  ControllerResourcePick,
+  readControllerResourcePick,
+  writeControllerResourcePick,
+} from '@axe/domain/character/controller-resource-pick';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { allowsDiagonal, asDiagonalMove, DiagonalMove } from '@axe/domain/tabletop/move/diagonal-move';
 import {
@@ -29,6 +34,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_systemDiceAvatarIdentifier') private _systemDiceAvatarIdentifier: string = '';
   @SyncVar('_hideSystemAvatar') private _hideSystemAvatar: string = '';
   @SyncVar('_showSpeakerAvatar') private _showSpeakerAvatar: string = '';
+  @SyncVar('_controllerResources') private _controllerResources: string = '';
 
   // How the round is taken, which is the room's own decision rather than a table's.
   @SyncVar('_turnOrderMode') private _turnOrderMode: string = '';
@@ -68,6 +74,18 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set defaultDiceBot(dice: string) {
     this._defaultDiceBot = dice;
+  }
+
+  /**
+   * The items the remote controllers in this room show, or null to show every one.
+   *
+   * @see ControllerResourcePick
+   */
+  get controllerResources(): ControllerResourcePick {
+    return readControllerResourcePick(this._controllerResources);
+  }
+  set controllerResources(pick: ControllerResourcePick) {
+    this._controllerResources = writeControllerResourcePick(pick);
   }
 
   /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */

@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { marqueeApply, selectByRect } from '@axe/application/ui/rect-hit-test';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -22,6 +23,7 @@ export class GameTableGestureService {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
+  private readonly billboardFrame = inject(BillboardFrameService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly coordinateService = inject(CoordinateService);
@@ -168,7 +170,11 @@ export class GameTableGestureService {
 
     if (!this.turned) return;
     this.turned = false;
-    this.uiSignalService.notifyTableViewRotation(this.viewRotateX, this.viewRotateY, this.viewRotateZ);
+    const rotation = { x: this.viewRotateX, y: this.viewRotateY, z: this.viewRotateZ };
+    // Written here rather than through a signal, so what faces the camera turns in the frame the
+    // table turns in rather than in the one after it.
+    this.billboardFrame.apply(rotation);
+    this.uiSignalService.notifyTableViewRotation(rotation.x, rotation.y, rotation.z);
   }
 
   /**

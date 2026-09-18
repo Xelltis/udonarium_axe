@@ -30,6 +30,7 @@ import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatPalette, PaletteIndex } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
@@ -38,9 +39,9 @@ import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.com
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatPaletteRegistryService } from '@axe/features/chat/chat-palette/chat-palette-registry.service';
 import { PaletteSearchResult, searchPaletteRows } from '@axe/features/chat/chat-palette/chat-palette-search';
+import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
-import { BadgeComponent } from '@axe/ui/components/badge/badge.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -53,7 +54,7 @@ import { TranslocoModule } from '@jsverse/transloco';
     '(keydown.control.arrowleft)': 'switchTabByKey($event, -1)',
     '(keydown.control.arrowright)': 'switchTabByKey($event, 1)',
   },
-  imports: [FormsModule, BadgeComponent, ChatInputComponent, GameDataElementComponent, TranslocoModule],
+  imports: [FormsModule, ChatInputComponent, ChatTabStripComponent, GameDataElementComponent, TranslocoModule],
 })
 export class ChatPaletteComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
@@ -179,6 +180,21 @@ export class ChatPaletteComponent {
     return [...tabs];
   });
 
+  /** The tabs this seat's role may read, as the chat window lists them. */
+  readonly visibleChatTabs = computed(() => {
+    const tabs = this.chatTabsVersion();
+    this.objectChange.trackMyCursor();
+    const role = PeerCursor.myRole;
+    return tabs.filter((tab) => canRoleViewTab(tab, role));
+  });
+
+  /** Whether this seat's role may speak in the tab lines are sent to. */
+  readonly canSpeakCurrentTab = computed(() => {
+    const tab = this.visibleChatTabs().find((candidate) => candidate.identifier === this.chatTabidentifier());
+    if (!tab) return false;
+    return canRoleSpeakTab(tab, PeerCursor.myRole);
+  });
+
   private doubleClickTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
 
@@ -211,16 +227,18 @@ export class ChatPaletteComponent {
   constructor() {
     this.chatPaletteRegistry.register(this);
     queueMicrotask(() => this.updatePanelTitle());
-    this.chatTabidentifier.set(this.chatMessageService.chatTabs[0]?.identifier ?? '');
+    this.chatTabidentifier.set(this.visibleChatTabs()[0]?.identifier ?? '');
     this._timeId = Date.now() + '_chat-palette';
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.character() && this.character()!.identifier === e.identifier) {
         this.panelService.close();
       }
-      if (this.chatTabidentifier() === e.identifier) {
-        this.chatTabidentifier.set(this.chatMessageService.chatTabs[0]?.identifier ?? '');
-      }
     }, this.destroyRef);
+    effect(() => {
+      const visible = this.visibleChatTabs();
+      const current = this.chatTabidentifier();
+      if (!visible.some((tab) => tab.identifier === current)) this.chatTabidentifier.set(visible[0]?.identifier ?? '');
+    });
     effect(() => {
       const req = this.uiSignalService.jumpIndexRequest();
       if (!req || this._timeId != req.targetId) return;
@@ -280,7 +298,7 @@ export class ChatPaletteComponent {
    * Does nothing when the current tab is no longer in the list.
    */
   chatTabSwitchRelative(direction: number) {
-    const chatTabs = this.chatMessageService.chatTabs;
+    const chatTabs = this.visibleChatTabs();
     const index = chatTabs.findIndex((elm) => elm.identifier == this.chatTabidentifier());
     if (index < 0) {
       return;
@@ -457,7 +475,7 @@ export class ChatPaletteComponent {
       event.preventDefault();
       this.selectPalette(result.row.text);
       this.japmIndex(result.row.lineIndex);
-      this.chatInputComponent().textAreaElementRef().nativeElement.focus();
+      this.chatInputComponent().textAreaElementRef()?.nativeElement.focus();
     } else if (event.key === 'Escape') {
       if (this.searchQuery() === '') return;
       event.preventDefault();

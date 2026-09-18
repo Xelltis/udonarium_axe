@@ -1,0 +1,12 @@
+<ui-fab-submenu [label]="labelKey() | transloco" [testId]="'seat-' + kind()" (closed)="closed.emit()">
+  @for (button of buttons(); track button.testId) {
+    <ui-fab-submenu-button
+      [icon]="button.icon"
+      [text]="button.text ?? null"
+      [label]="button.labelKey | transloco"
+      [lit]="button.lit ?? null"
+      [testId]="button.testId"
+      (press)="button.press()"
+    />
+  }
+</ui-fab-submenu>

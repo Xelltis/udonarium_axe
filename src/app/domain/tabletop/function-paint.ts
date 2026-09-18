@@ -1,4 +1,5 @@
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
+import { encodeSlopeSides, parseSlopeSides } from '@axe/domain/tabletop/terrain-slope';
 import {
   asTriggerMoment,
   asTriggerTarget,
@@ -86,6 +87,8 @@ export interface TerrainPaintSpec {
   doorMirrored: boolean;
   slope: boolean;
   slopeDirection: number;
+  /** The sides the slope runs down to, written as their names; empty falls back to the direction. */
+  slopeSides: string;
   light: TerrainLightSpec;
   images: TerrainFaceImages;
   /** Null where the block sits square on its cells, which is where the brush put it. */
@@ -190,6 +193,7 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     doorMirrored: false,
     slope: false,
     slopeDirection: 0,
+    slopeSides: '',
     light: {
       enabled: false,
       preset: 'custom',
@@ -330,6 +334,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       doorMirrored: flagIn(terrain, 'doorMirrored', fallback.terrain.doorMirrored),
       slope: flagIn(terrain, 'slope', fallback.terrain.slope),
       slopeDirection: countIn(terrain, 'slopeDirection', fallback.terrain.slopeDirection, 0, 4),
+      slopeSides: encodeSlopeSides(parseSlopeSides(textIn(terrain, 'slopeSides', fallback.terrain.slopeSides))),
       light: sanitizeLight(terrain['light']),
       images: sanitizeFaceImages(terrain['images']),
       placement: sanitizePlacement(terrain['placement']),

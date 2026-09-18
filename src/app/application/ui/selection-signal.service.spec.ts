@@ -141,6 +141,37 @@ describe('SelectionSignalService', () => {
     });
   });
 
+  describe('a press on a piece', () => {
+    it('adds the piece or takes it out when toggling, and spends the press', () => {
+      expect(service.press('id-1', 'terrain', true)).toBe(true);
+      expect(service.isSelected('id-1')).toBe(true);
+      expect(service.selectedObject()).toEqual({ identifier: 'id-1', className: 'terrain' });
+
+      expect(service.press('id-1', 'terrain', true)).toBe(true);
+      expect(service.isSelected('id-1')).toBe(false);
+    });
+
+    it('narrows a selection to a piece outside it, and lets the press go on', () => {
+      service.replaceSelection(['id-1', 'id-2']);
+
+      expect(service.press('id-3', 'terrain', false)).toBe(false);
+      expect([...service.selectedObjects()]).toEqual(['id-3']);
+      expect(service.selectedObject()?.identifier).toBe('id-3');
+    });
+
+    it('leaves a selection alone for a press on a piece inside it, so the group can be dragged', () => {
+      service.replaceSelection(['id-1', 'id-2']);
+
+      expect(service.press('id-2', 'terrain', false)).toBe(false);
+      expect([...service.selectedObjects()]).toEqual(['id-1', 'id-2']);
+    });
+
+    it('selects nothing for a plain press with nothing selected', () => {
+      expect(service.press('id-1', 'terrain', false)).toBe(false);
+      expect(service.selectionSize()).toBe(0);
+    });
+  });
+
   describe('marqueeState', () => {
     it('starts as null', () => {
       expect(service.marqueeState()).toBeNull();

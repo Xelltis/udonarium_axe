@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -38,6 +39,7 @@ export class TurnOrderService {
   private readonly chat = inject(ChatMessageService);
   private readonly selection = inject(SelectionSignalService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly vision = inject(VisionService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -540,9 +542,17 @@ export class TurnOrderService {
     turnState.actedIdentifiers = [];
   }
 
+  /**
+   * Says in chat whose turn it is. A piece the players cannot see goes unnamed, since everyone
+   * reads the line and a name would give away what is standing in the dark.
+   */
   private announceCharacter(identifier: string): void {
     const character = this.objectStore.get<GameCharacter>(identifier);
     if (!character) return;
-    this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.announce', { name: character.name }));
+    this.chat.sendSystemMessageToMainTab(
+      this.vision.isSeenByParty(character)
+        ? this.t('feature.turnOrder.announce', { name: character.name })
+        : this.t('feature.turnOrder.announceUnseen')
+    );
   }
 }

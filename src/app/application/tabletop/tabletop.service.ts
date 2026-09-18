@@ -14,7 +14,7 @@ import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { clearOwnershipTree } from '@axe/domain/tabletop/ownership';
@@ -97,6 +97,8 @@ export class TabletopService {
   /** How wide one square is meant to measure on the glass. */
   readonly cellMm: Signal<number> = computed(() => this.display().cellMm);
   readonly gridSize: Signal<number> = computed(() => this.currentTableVersion().gridSize);
+  /** What shape the table's cells are, which anything cut to a cell is shaped by. */
+  readonly gridType: Signal<GridType> = computed(() => this.currentTableVersion().gridType);
 
   private locationMap: Map<ObjectIdentifier, LocationName> = new Map();
   private surfaceMap: Map<ObjectIdentifier, string> = new Map();

@@ -52,125 +52,111 @@
       >
         <ul class="m-0 list-none p-1.5" [ngClass]="fabColumns">
           @for (entry of fabEntries; track entry.key) {
-            @if (entry.action.kind === 'zipLoad') {
-              <li
-                class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px] [&>label]:flex [&>label]:size-full [&>label]:cursor-pointer [&>label]:items-center [&>label]:justify-center [&>label]:text-inherit"
-                [attr.data-label]="'app.fab.' + entry.key | transloco"
-                [attr.data-testid]="'fab-entry-' + entry.key"
-              >
-                <label>
-                  <i class="material-icons">{{ entry.icon }}</i>
-                  <input
-                    type="file"
-                    class="hidden"
-                    (change)="handleFileSelect($event)"
-                    multiple
-                    accept="application/xml,text/xml,application/zip"
-                  />
-                </label>
-              </li>
-            } @else {
-              <li
-                class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-                [class.text-ui-accent]="entry.action.kind === 'visualNovel' && visualNovel.active()"
-                [attr.data-label]="'app.fab.' + entry.key | transloco"
-                [attr.data-testid]="'fab-entry-' + entry.key"
-                (click)="chooseFab(entry)"
-              >
-                <i class="material-icons">{{ entry.icon }}</i>
-              </li>
-            }
+            <li
+              class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
+              [class.text-ui-accent]="
+                (entry.action.kind === 'visualNovel' && visualNovel.active()) ||
+                (entry.action.kind === 'submenu' && fabSubmenu() === entry.action.submenu)
+              "
+              [class.after:hidden]="entry.action.kind === 'submenu' && fabSubmenu() !== null"
+              [attr.data-label]="entry.labelKey | transloco"
+              [attr.data-testid]="'fab-entry-' + entry.key"
+              [attr.data-fab-submenu-toggle]="entry.action.kind === 'submenu' ? '' : null"
+              [attr.aria-expanded]="entry.action.kind === 'submenu' ? fabSubmenu() === entry.action.submenu : null"
+              (click)="chooseFab(entry, $event)"
+            >
+              <i class="material-icons">{{ entry.icon }}</i>
+            </li>
           }
         </ul>
         <div class="flex flex-col gap-0 px-1.5 pb-1.5 [@media(max-height:760px)]:block" [ngClass]="fabColumns">
-          @if (!isSaving()) {
+          @for (opener of fabSubmenuOpeners; track opener.kind) {
             <div
               class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-              [attr.data-label]="'app.fab.save' | transloco"
-              (click)="save()"
+              [class.text-ui-accent]="fabSubmenu() === opener.kind"
+              [class.after:hidden]="fabSubmenu() !== null"
+              [attr.data-label]="
+                opener.kind === 'saveLoad' && isSaving() ? progressPercent() + '%' : (opener.labelKey | transloco)
+              "
+              [attr.aria-expanded]="fabSubmenu() === opener.kind"
+              [attr.data-testid]="opener.testId"
+              data-fab-submenu-toggle
+              role="button"
+              (click)="toggleFabSubmenu(opener.kind, $event)"
             >
-              <i class="material-icons">sd_storage</i>
+              <i class="material-icons" [class.vibration-amine]="opener.kind === 'saveLoad' && isSaving()">{{
+                opener.icon
+              }}</i>
             </div>
           }
-          @if (isSaving()) {
-            <div
-              class="text-ui-dim rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm pointer-events-none relative flex size-11 items-center justify-center opacity-60 after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-              [attr.data-label]="progressPercent() + '%'"
-            >
-              <i class="material-icons vibration-amine">sd_storage</i>
-            </div>
-          }
-          <div
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="viewModeLabel() | transloco"
-            data-testid="fab-view-mode"
-            (click)="toggleViewMode()"
-          >
-            <i class="material-icons">{{ viewModeIcon() }}</i>
-          </div>
-          @if (viewport.isCompact() && mobile.prefersDesktop()) {
-            <div
-              class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] [&_i]:text-[22px]"
-              [attr.data-label]="'feature.mobile.useMobile' | transloco"
-              (click)="mobile.useMobileLayout()"
-            >
-              <i class="material-icons">smartphone</i>
-            </div>
-          }
-          <div
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="themeLabel()"
-            (click)="theme.cycle()"
-          >
-            @switch (theme.theme()) {
-              @case ('auto') {
-                <i class="material-icons">brightness_auto</i>
-              }
-              @case ('dark') {
-                <i class="material-icons">dark_mode</i>
-              }
-              @case ('light') {
-                <i class="material-icons">light_mode</i>
-              }
-            }
-          </div>
-          <div
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="motionLabel()"
-            (click)="motion.cycle()"
-          >
-            @switch (motion.setting()) {
-              @case ('auto') {
-                <i class="material-icons">motion_photos_auto</i>
-              }
-              @case ('on') {
-                <i class="material-icons">motion_photos_on</i>
-              }
-              @case ('off') {
-                <i class="material-icons">motion_photos_off</i>
-              }
-            }
-          </div>
-          <div
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
-            [attr.data-label]="'common.renderLite.' + renderLite.setting() | transloco"
-            data-testid="fab-render-lite"
-            (click)="renderLite.cycle()"
-          >
-            @switch (renderLite.setting()) {
-              @case ('auto') {
-                <i class="material-icons">blur_circular</i>
-              }
-              @case ('on') {
-                <i class="material-icons">blur_off</i>
-              }
-              @case ('off') {
-                <i class="material-icons">blur_on</i>
-              }
-            }
-          </div>
-          <app-language-selector />
         </div>
+        <input
+          #zipInput
+          type="file"
+          class="hidden"
+          data-testid="fab-zip-input"
+          (change)="handleFileSelect($event)"
+          multiple
+          accept="application/xml,text/xml,application/zip"
+        />
+        @if (fabSubmenu(); as submenu) {
+          <div
+            class="absolute z-20"
+            [ngClass]="fabSubmenuSide()"
+            [style.top.px]="fabSubmenuPlace().top"
+            [style.bottom.px]="fabSubmenuPlace().bottom"
+          >
+            @if (submenu === 'saveLoad') {
+              <ui-fab-submenu
+                class="block"
+                [label]="'app.fab.saveLoad' | transloco"
+                testId="save-load"
+                (closed)="closeFabSubmenu()"
+              >
+                <ui-fab-submenu-button
+                  icon="save"
+                  [label]="'app.fab.save' | transloco"
+                  [disabled]="isSaving()"
+                  testId="save-load-save"
+                  (press)="saveFromMenu()"
+                />
+                <ui-fab-submenu-button
+                  icon="open_in_browser"
+                  [label]="'app.fab.zipLoad' | transloco"
+                  [disabled]="!canEditTabletop()"
+                  testId="save-load-load"
+                  (press)="chooseFilesToLoad()"
+                />
+                <ui-fab-submenu-button
+                  icon="person_add"
+                  [label]="'app.fab.importCharacter' | transloco"
+                  [disabled]="!canEditTabletop()"
+                  testId="save-load-import-character"
+                  (press)="importCharacterFromMenu()"
+                />
+              </ui-fab-submenu>
+            } @else if (submenu === 'table' || submenu === 'gameResources' || submenu === 'media') {
+              <ui-fab-submenu
+                class="block"
+                [label]="'app.fab.' + submenu | transloco"
+                [testId]="'fab-submenu-' + submenu"
+                (closed)="closeFabSubmenu()"
+              >
+                @for (entry of fabSubmenuEntries()[submenu]; track entry.key) {
+                  <ui-fab-submenu-button
+                    [icon]="entry.icon"
+                    [label]="entry.labelKey | transloco"
+                    [lit]="fabEntryLit(entry)"
+                    [testId]="'fab-entry-' + entry.key"
+                    (press)="chooseFromFabSubmenu(entry)"
+                  />
+                }
+              </ui-fab-submenu>
+            } @else {
+              <app-seat-display-menu class="block" [kind]="submenu" (closed)="closeFabSubmenu()" />
+            }
+          </div>
+        }
       </nav>
       <button
         class="border-ui-border-panel bg-ui-panel shadow-ui-md text-ui-muted hover:text-ui-accent group-[.open]:bg-ui-elevated group-[.open]:text-ui-accent relative z-10 flex size-12 cursor-pointer items-center justify-center rounded-full border border-solid [backdrop-filter:blur(24px)_saturate(1.5)] transition-[color,background,box-shadow,transform] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:shadow-[0_0_0_2px_var(--ui-accent-glow),var(--ui-shadow-md)] hover:shadow-[0_0_0_2px_var(--ui-accent-glow),var(--ui-shadow-md)] [&_i]:text-[24px] [&_i]:leading-none [&_i]:transition-transform [&_i]:duration-220 [&_i]:ease-in-out group-[.open]:[&_i]:rotate-90"

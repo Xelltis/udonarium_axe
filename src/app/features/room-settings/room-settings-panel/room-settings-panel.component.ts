@@ -15,6 +15,14 @@ import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { triggerUpdateGameObject } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import {
+  ControllerResourcePick,
+  controllerShowsResource,
+  pickControllerResource,
+} from '@axe/domain/character/controller-resource-pick';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { type ResourceCatalogEntry, resourceCatalogOf } from '@axe/domain/character/resource-catalog';
+import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
@@ -122,6 +130,14 @@ export class RoomSettingsPanelComponent {
    */
   openCharacterImport(): void {
     this.roomPanels.open('characterImport');
+  }
+
+  /**
+   * Opens the replay, for reading back a session recorded in this browser. Anyone may open it,
+   * someone watching included: what may be recorded or edited is the replay's own to say.
+   */
+  openReplay(): void {
+    this.roomPanels.open('replay');
   }
 
   /**
@@ -594,6 +610,55 @@ export class RoomSettingsPanelComponent {
   }
   set defaultDiceBot(gameType: string) {
     if (!this.isSharedReadOnly()) this.config.defaultDiceBot = gameType;
+  }
+
+  /**
+   * Every value and resource the pieces in the room carry, by name, which is what a remote could
+   * offer to show.
+   *
+   * It is the list a remote builds its buttons from, taken over every piece rather than the ones
+   * being worked on, so an item only an enemy in the graveyard carries can be picked too.
+   */
+  readonly controllerResourceChoices = computed<ResourceCatalogEntry[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    this.objectChange.collectionOf('data')();
+    this.objectChange.versionOf(DataSummarySetting.instance.identifier)();
+    const characters = this.objectStore.getObjects(GameCharacter);
+    for (const character of characters) this.objectChange.versionOf(character.identifier)();
+    return resourceCatalogOf(characters, { listFirst: DataSummarySetting.instance.dataTags });
+  });
+
+  /** The items the room lets its remotes show, or null while it shows every one. */
+  readonly controllerResourcePick = computed<ControllerResourcePick>(() => {
+    this.objectChange.versionOf('Config')();
+    return this.config.controllerResources;
+  });
+
+  /** Whether the remotes show the item with this name. */
+  showsControllerResource(name: string): boolean {
+    return controllerShowsResource(this.controllerResourcePick(), name);
+  }
+
+  /**
+   * Shows or hides one item on every remote in the room; only a user allowed to change the shared
+   * settings can.
+   */
+  setControllerResourceShown(name: string, shown: boolean): void {
+    if (this.isSharedReadOnly()) return;
+    const offered = this.controllerResourceChoices().map((choice) => choice.name);
+    this.config.controllerResources = pickControllerResource(this.controllerResourcePick(), name, shown, offered);
+  }
+
+  /** Lets the remotes show every item again, one written onto a sheet later included. */
+  showEveryControllerResource(): void {
+    if (this.isSharedReadOnly()) return;
+    this.config.controllerResources = null;
+  }
+
+  /** Takes every item off the remotes until some are picked again. */
+  hideEveryControllerResource(): void {
+    if (this.isSharedReadOnly()) return;
+    this.config.controllerResources = [];
   }
 
   /**

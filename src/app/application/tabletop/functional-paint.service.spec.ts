@@ -291,6 +291,46 @@ describe('FunctionalPaintService', () => {
       expect(laid.lightBrightRadius).toBe(3);
     });
 
+    it('lays a block sloping to more than one side back with every side it had', () => {
+      const hill = Terrain.create('丘', 2, 2, 2, '', '');
+      hill.location = { name: 'table', x: 0, y: 0 };
+      hill.slopeSides = ['n', 'e', 's', 'w'];
+      table.appendChild(hill);
+      const read = service.snapshot()!.terrainBlocks[0];
+      hill.destroy();
+
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
+
+      expect(terrainOn()[0].slopeSides).toEqual(['n', 'e', 's', 'w']);
+    });
+
+    it('lays a ramp from a brush saved before a block could slope to more than one side', () => {
+      const ramp = Terrain.create('坂', 1, 1, 1, '', '');
+      ramp.location = { name: 'table', x: 0, y: 0 };
+      ramp.isSlope = true;
+      ramp.slopeDirection = 2;
+      table.appendChild(ramp);
+      const read = { ...service.snapshot()!.terrainBlocks[0], slopeSides: '' };
+      ramp.destroy();
+
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
+
+      expect(terrainOn()[0].slopeSides).toEqual(['s']);
+    });
+
+    it('keeps the slope on for a brush that names no side at all', () => {
+      const ramp = Terrain.create('坂', 1, 1, 1, '', '');
+      ramp.location = { name: 'table', x: 0, y: 0 };
+      ramp.isSlope = true;
+      table.appendChild(ramp);
+      const read = { ...service.snapshot()!.terrainBlocks[0], slopeSides: '', slopeDirection: 0 };
+      ramp.destroy();
+
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
+
+      expect(terrainOn()[0].isSlope).toBe(true);
+    });
+
     it('lays a mask across a whole block too', () => {
       service.apply(plan({ mask: { add: [cover({ col: 0, row: 0, width: 3, height: 2 })], remove: [] } }));
 

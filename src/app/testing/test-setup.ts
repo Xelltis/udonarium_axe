@@ -14,7 +14,10 @@ import { basename, join, resolve } from 'path';
 Logger.setLevel(LogLevel.NONE);
 
 import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
+import { PIECE_OVERLAY_STORAGE_KEY } from '@axe/application/ui/piece-overlay-preference.service';
 import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-display-preference.service';
+import { TOOLBAR_FOLD_STORAGE_KEY } from '@axe/application/ui/toolbar-fold.service';
+import { WIDGET_VISIBILITY_STORAGE_KEY } from '@axe/application/ui/widget-visibility.service';
 import { VIEW_MODE_STORAGE_KEY } from '@axe/application/ui/view-mode-preference.service';
 
 const srcAppDir = resolve(process.cwd(), 'src/app');
@@ -322,11 +325,17 @@ function forgetMyCursor(): void {
 }
 
 // How this seat looks at the table is intentionally persistent in the application, but a spec that
-// asks for a flat screen must not leave the next one's otherwise ordinary table lying down.
-function forgetTabletopDisplaySettings(): void {
+// asks for a flat screen must not leave the next one's otherwise ordinary table lying down. The
+// same goes for what a seat shows: a spec that puts a toolbar away, folds one or hides the bars
+// over the pieces writes that choice to the browser, and the file after it builds its services
+// from whatever is left there.
+function forgetSeatPreferences(): void {
   localStorage.removeItem(TABLETOP_DISPLAY_STORAGE_KEY);
   localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
   localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+  localStorage.removeItem(WIDGET_VISIBILITY_STORAGE_KEY);
+  localStorage.removeItem(TOOLBAR_FOLD_STORAGE_KEY);
+  localStorage.removeItem(PIECE_OVERLAY_STORAGE_KEY);
 }
 
 beforeAll(async () => {
@@ -340,7 +349,7 @@ beforeEach(async () => {
   Logger.setLevel(LogLevel.NONE);
   emptyObjectStore();
   forgetMyCursor();
-  forgetTabletopDisplaySettings();
+  forgetSeatPreferences();
   resetPeerContextProvider();
   await resolveComponentResources(resourceResolver as Parameters<typeof resolveComponentResources>[0]);
   applyConfigureTestingModuleWrapper();

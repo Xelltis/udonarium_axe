@@ -15,6 +15,8 @@ import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-hel
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
+import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -23,7 +25,6 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
@@ -55,8 +56,6 @@ export class PlToolbarComponent {
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly tabletopAction = inject(TabletopActionService);
-  protected readonly handRail = inject(HandRailService);
-  protected readonly widgets = inject(WidgetVisibilityService);
   protected readonly active = inject(ActiveCharacterService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
   private readonly t = inject(TRANSLATE_FN);
@@ -71,6 +70,20 @@ export class PlToolbarComponent {
   protected readonly rangeMenuItems = getRangeMenuItems();
   protected readonly rangeOpen = signal(false);
 
+  private readonly folds = inject(ToolbarFoldService);
+
+  /** Whether this seat draws the resource bars and the buffs over the pieces, switched from here. */
+  protected readonly overlay = inject(PieceOverlayPreferenceService);
+
+  /** Whether the bar is folded down to its title. */
+  protected readonly folded = computed(() => this.folds.isFolded('pl'));
+
+  /** Folds the bar down to its title, or opens it again; what was open in it closes with it. */
+  protected toggleFold(): void {
+    this.rangeOpen.set(false);
+    this.folds.toggle('pl');
+  }
+
   private readonly barRef = viewChild<ElementRef<HTMLElement>>('bar');
   private savedLeft: string | null = null;
   private savedTop: string | null = null;
@@ -79,6 +92,11 @@ export class PlToolbarComponent {
     this.objectChange.trackMyCursor();
     return PeerCursor.myRole === PeerRole.Player;
   });
+
+  private readonly widgets = inject(WidgetVisibilityService);
+
+  /** Drawn for a player who has not hidden it from the widget menu. */
+  protected readonly shown = computed(() => this.isPlayer() && this.widgets.plToolbar());
 
   readonly activeCharacter = computed<GameCharacter | null>(() => {
     const identifier = this.active.identifier();
@@ -100,10 +118,6 @@ export class PlToolbarComponent {
   protected openActiveChatPalette(): void {
     const character = this.activeCharacter();
     if (character) this.objectPanels.openChatPalette(character);
-  }
-
-  protected toggleHandRail(): void {
-    this.handRail.toggle();
   }
 
   protected toggleRangeMenu(): void {
@@ -148,13 +162,5 @@ export class PlToolbarComponent {
 
   protected openOwnedCharacterList(): void {
     this.roomPanels.open('ownedCharacters', { left: 100, top: 40 });
-  }
-
-  protected openBuffManager(): void {
-    this.roomPanels.open('buffManager', { left: 160, top: 100 });
-  }
-
-  protected openEffectLibrary(): void {
-    this.roomPanels.open('effectLibrary', { left: 140, top: 80 });
   }
 }

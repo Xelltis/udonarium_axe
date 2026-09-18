@@ -28,6 +28,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -152,6 +153,7 @@ export class GameObjectInventoryComponent {
   private readonly turnOrderService = inject(TurnOrderService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly vision = inject(VisionService);
   private readonly ailmentService = inject(StatusAilmentService);
   private readonly viewPreference = inject(InventoryViewPreferenceService);
   private readonly isCompact = inject(ViewportService).isCompact;
@@ -420,10 +422,13 @@ export class GameObjectInventoryComponent {
     if (wanted !== 'round') this.viewPreference.set(wanted);
   }
 
+  /** The round in order, leaving out the pieces this reader cannot see on the table. */
   readonly turnOrderList = computed<GameCharacter[]>(() => {
     this.inventoryService.inventoryVersion();
     this.objectChange.trackMyCursor();
-    return this.turnOrderService.orderedCharacters(this.rolePermission.canSeeHidden);
+    return this.turnOrderService
+      .orderedCharacters(this.rolePermission.canSeeHidden)
+      .filter((character) => this.vision.mayBeListed(character));
   });
 
   readonly currentTurnId = computed<string>(() => {
@@ -445,12 +450,17 @@ export class GameObjectInventoryComponent {
     // The same grouping the round itself walks. Banding a game master's strip by what only they
     // can see would offer a side the round cannot reach: handing it the turn would write a side
     // nothing can resolve afterwards, and the next press would give the turn to somebody else's piece.
-    return this.turnOrderService.orderedSides().map((group) => ({
-      side: group.side,
-      name: this.turnOrderService.sideName(group.side),
-      color: this.turnOrderService.sideColor(group.side),
-      members: group.members,
-    }));
+    // Only the pieces this reader can see are named, and a side with none of them is not shown:
+    // its name alone would say something stands in the dark.
+    return this.turnOrderService
+      .orderedSides()
+      .map((group) => ({
+        side: group.side,
+        name: this.turnOrderService.sideName(group.side),
+        color: this.turnOrderService.sideColor(group.side),
+        members: group.members.filter((member) => this.vision.mayBeListed(member)),
+      }))
+      .filter((group) => group.members.length > 0);
   });
 
   /**
@@ -653,9 +663,13 @@ export class GameObjectInventoryComponent {
   private baseObjectsOf(inventoryType: string): TabletopObject[] {
     switch (inventoryType) {
       case 'table': {
-        const all = this.inventoryService.tableInventory.tabletopObjects as GameCharacter[];
+        // What the table does not draw for this reader is not listed either, whatever mode the
+        // list is in: a row would name what the dark or the fog is keeping back.
+        const listed = (this.inventoryService.tableInventory.tabletopObjects as GameCharacter[]).filter((character) =>
+          this.vision.mayBeListed(character)
+        );
         const showHidden = this.isMultiMove() || this.isEdit() || this.rolePermission.canSeeHidden;
-        return showHidden ? [...all] : all.filter((character) => !character.hideInventory);
+        return showHidden ? listed : listed.filter((character) => !character.hideInventory);
       }
 
       default:

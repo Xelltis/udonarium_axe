@@ -3,6 +3,13 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { DataElement } from '@axe/domain/data/data-element';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
+  encodeSlopeSides,
+  legacySlopeDirection,
+  parseSlopeSides,
+  SlopeDirection,
+  SlopeSide,
+} from '@axe/domain/tabletop/terrain-slope';
+import {
   DEFAULT_LIGHT_COLOR,
   LightAnimation,
   LightCategory,
@@ -15,14 +22,6 @@ export enum TerrainViewState {
   FLOOR = 1,
   WALL = 2,
   ALL = 3,
-}
-
-export enum SlopeDirection {
-  NONE = 0,
-  TOP = 1,
-  BOTTOM = 2,
-  LEFT = 3,
-  RIGHT = 4,
 }
 
 export enum DoorStyle {
@@ -56,6 +55,30 @@ export class Terrain extends TabletopObject {
   @SyncVar() isSlope: boolean = false;
   @SyncVar() isSurfaceShading: boolean = true;
   @SyncVar() slopeDirection: number = SlopeDirection.NONE;
+  /**
+   * The sides the slope runs down to, as their names in one line, such as `n,e`.
+   *
+   * {@link slopeSides} reads and writes it. A room saved before a block could slope to more
+   * than one side carries nothing here and is read from {@link slopeDirection} instead.
+   */
+  @SyncVar() slopeSideNames: string = '';
+
+  /**
+   * The sides this block's top runs down to, as the block holds them.
+   *
+   * A block sloping to one side is a ramp up to the side across from it, the way a slope has
+   * always read; sloping to every side raises a pyramid over the middle. Setting them turns
+   * the slope on or off with them, and leaves an older peer the single direction it knows.
+   */
+  get slopeSides(): SlopeSide[] {
+    if (!this.isSlope) return [];
+    return parseSlopeSides(this.slopeSideNames, this.slopeDirection);
+  }
+  set slopeSides(sides: readonly SlopeSide[]) {
+    this.slopeSideNames = encodeSlopeSides(sides);
+    this.slopeDirection = legacySlopeDirection(sides);
+    this.isSlope = sides.length > 0;
+  }
 
   @SyncVar() isGrid: boolean = false;
   @SyncVar() isTiledTexture: boolean = false;

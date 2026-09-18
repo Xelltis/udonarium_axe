@@ -13,42 +13,42 @@ import {
   signal,
   viewChildren,
 } from '@angular/core';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
-import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TerrainFogCover, VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
-import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
-import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
-import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-counters';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
-import { DoorStyle, SlopeDirection, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
-import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
-import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
-import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
+import { DoorStyle, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
 import {
-  computeHexSlopeSteps,
-  HexSlopeStepData,
-  HexSlopeStepFloor,
-} from '@axe/features/tabletop/terrain/hex-slope-step-geometry';
-import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
+  faceShadeOf,
+  sideCellIndexes,
+  sideShadeLine,
+  slopeShadeOf,
+  topShadeGrid,
+} from '@axe/domain/tabletop/terrain-shade';
+import { drawnSlopeSides, gridSlopeKind, gridSlopeSides, SlopeSide } from '@axe/domain/tabletop/terrain-slope';
+import { buildSlopeRoof, SlopePoint, slopeProfileAlong, SlopeRoof } from '@axe/domain/tabletop/terrain-slope-roof';
+import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
+import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
+import { fogMaskOf, terrainTextureLayout } from '@axe/features/tabletop/terrain/terrain-face-look';
+import {
+  hexFloorClipPathOf,
+  hexWallsOf,
+  NO_HEX_WALLS,
+  TerrainHexWall,
+} from '@axe/features/tabletop/terrain/terrain-hex-shapes';
+import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { terrainWallFace, type WallSide } from '@axe/features/tabletop/terrain/terrain-wall-face';
 import {
   wallLightLayerStyle,
@@ -61,22 +61,15 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import {
-  cellGradient,
-  DEFAULT_SHADE_RGB,
   ShadedBackground,
   shadedBackgroundGrid,
   shadedBackgroundImage,
   shadeRgbOf,
-  STRETCHED_TEXTURE,
   TextureLayout,
 } from '@axe/ui/tabletop/shaded-background';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
-
-/** What is left of a face the fog covers end to end. */
-const HIDDEN_FACE: Record<string, string> = { display: 'none' };
 
 interface TerrainGridBounds {
   left: number;
@@ -93,8 +86,6 @@ interface TerrainGridViewport extends TerrainGridBounds {
   offsetLeft: number;
   offsetTop: number;
 }
-
-const NO_HEX_SLOPE: HexSlopeStepData = { floors: [], walls: [] };
 
 /** The same list, or two empty ones: an empty @for renders nothing either way. */
 function sameOrBothEmpty<T>(a: readonly T[], b: readonly T[]): boolean {
@@ -115,22 +106,15 @@ function sameOrBothEmpty<T>(a: readonly T[], b: readonly T[]): boolean {
 })
 export class TerrainComponent {
   private readonly imageService = inject(ImageService);
-  private readonly tabletopActionService = inject(TabletopActionService);
-  private readonly contextMenuService = inject(ContextMenuService);
-  private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly objectPanels = inject(ObjectPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly coordinateService = inject(CoordinateService);
   protected readonly tabletopService = inject(TabletopService);
   protected readonly visionService = inject(VisionService);
-  private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly terrainMenu = inject(TerrainMenuService);
 
   constructor() {
     effect(() => {
@@ -227,7 +211,7 @@ export class TerrainComponent {
       slide.offsetTop,
       slide.grow,
       bbox ? `${bbox.minX}:${bbox.minY}:${bbox.maxX}:${bbox.maxY}` : '',
-      this.hexSlopeSteps().floors.length,
+      this.slopeFaces().length,
     ].join('|');
   });
 
@@ -407,11 +391,9 @@ export class TerrainComponent {
     this.terrainVersion();
     return this.terrain().isTiledTexture;
   });
-  private readonly textureLayout = computed<TextureLayout>(() => {
-    if (!this.isTiledTexture()) return STRETCHED_TEXTURE;
-    const side = `${this.gridSize}px`;
-    return { size: `${side} ${side}`, repeat: 'repeat' };
-  });
+  private readonly textureLayout = computed<TextureLayout>(() =>
+    terrainTextureLayout(this.isTiledTexture(), this.gridSize)
+  );
   readonly tileStyle = computed((): Record<string, string> => {
     if (!this.isTiledTexture()) return {};
     const texture = this.textureLayout();
@@ -422,14 +404,6 @@ export class TerrainComponent {
     this.terrainVersion();
     return this.terrain().isSlope;
   });
-  readonly slopeDirection = computed(() => {
-    this.terrainVersion();
-    const terrain = this.terrain();
-    if (!terrain.isSlope) return SlopeDirection.NONE;
-    if (terrain.slopeDirection === SlopeDirection.NONE) return SlopeDirection.BOTTOM;
-    return terrain.slopeDirection;
-  });
-
   readonly isAltitudeIndicate = computed(() => {
     this.terrainVersion();
     return this.terrain().isAltitudeIndicate;
@@ -489,22 +463,51 @@ export class TerrainComponent {
 
   readonly isHex = computed(() => this.pedestalHexParams() !== null);
 
-  readonly isHexSlope = computed(() => this.isHex() && this.isSlope() && this.slopeDirection() !== SlopeDirection.NONE);
+  /**
+   * The sides this block's slope runs down to, among the sides the grid under it has.
+   *
+   * A block sloping nowhere in particular runs down to the south, which is the way a slope
+   * with no direction has always been drawn.
+   */
+  readonly slopeSides = computed<SlopeSide[]>(() => {
+    const terrain = this.terrain();
+    this.objectChange.versionOf(terrain.identifier)();
+    return drawnSlopeSides(terrain, gridSlopeSides(this.gridType()));
+  });
 
-  readonly hexSlopeSteps = computed<HexSlopeStepData>(() => {
+  /** The outline of this block's top, in pixels from the corner the block is drawn from. */
+  readonly topOutline = computed<SlopePoint[]>(() => {
+    const width = this.width() * this.gridSize;
+    const depth = this.depth() * this.gridSize;
     const params = this.pedestalHexParams();
-    if (!params || !this.isHexSlope()) return NO_HEX_SLOPE;
-    return computeHexSlopeSteps(
-      Math.min(this.width(), this.depth()),
-      this.gridSize,
-      isFlatTopGrid(this.currentTable.gridType),
-      this.slopeDirection(),
-      this.height(),
-      this.isSurfaceShading(),
-      this.width() * this.gridSize,
-      this.depth() * this.gridSize,
-      params.bbox
-    );
+    if (!params) {
+      return [
+        { x: 0, y: 0 },
+        { x: width, y: 0 },
+        { x: width, y: depth },
+        { x: 0, y: depth },
+      ];
+    }
+    return params.outline.map((corner) => ({ x: width / 2 + corner.x, y: depth / 2 + corner.y }));
+  });
+
+  /** The slope of this block, as the flat pieces its top is made of. */
+  readonly slopeRoof = computed<SlopeRoof | null>(() =>
+    buildSlopeRoof(this.topOutline(), this.slopeSides(), this.height() * this.gridSize, gridSlopeKind(this.gridType()))
+  );
+
+  /** Each flat piece of the slope, ready to be drawn: where it is cut, how it leans, how lit. */
+  readonly slopeFaces = computed<TerrainSlopeFace[]>(() => {
+    const roof = this.slopeRoof();
+    if (!roof) return [];
+    const bounds = this.getFloorBounds();
+    const lighting = this.centerBrightness();
+    const shading = this.isSurfaceShading();
+    return roof.faces.map((face) => ({
+      clipPath: clipPathOf(face.polygon, bounds.left, bounds.top),
+      transform: leanCss(face.plane, bounds.left, bounds.top),
+      brightness: slopeShadeOf(face.azimuth, shading) * lighting,
+    }));
   });
 
   // Computed, so neither the record nor the clip path is rebuilt on every change-detection pass.
@@ -546,17 +549,7 @@ export class TerrainComponent {
   readonly hexFloorClipPath = computed<string | null>(() => {
     const params = this.pedestalHexParams();
     if (!params) return null;
-    const { outline, bbox } = params;
-    const W = bbox.maxX - bbox.minX;
-    const H = bbox.maxY - bbox.minY;
-    const points = outline
-      .map((v) => {
-        const px = v.x - bbox.minX;
-        const py = v.y - bbox.minY;
-        return `${((px / W) * 100).toFixed(2)}% ${((py / H) * 100).toFixed(2)}%`;
-      })
-      .join(', ');
-    return `polygon(${points})`;
+    return hexFloorClipPathOf(params);
   });
 
   readonly hexFloorDimStyle = computed<Record<string, string>>(() => {
@@ -575,32 +568,27 @@ export class TerrainComponent {
   /**
    * The style that lays the grid over one step of a stepped hex slope, masked to that step's hexes.
    */
-  terrainGridClipStepStyle(step: HexSlopeStepFloor): Record<string, string> {
-    return this.makeTerrainGridClipStyle(step);
+  terrainGridFaceStyle(face: TerrainSlopeFace): Record<string, string> {
+    return this.makeTerrainGridClipStyle(face);
   }
 
-  private makeTerrainGridClipStyle(step?: HexSlopeStepFloor): Record<string, string> {
+  private makeTerrainGridClipStyle(face?: TerrainSlopeFace): Record<string, string> {
     const bounds = this.getFloorBounds();
     const clipPath = this.hexFloorClipPath();
-    const transform =
-      step != null
-        ? 'translateZ(' + step.heightPx + 'px)'
-        : 'translateZ(' + (this.height() / (this.isSlope() ? 2 : 1)) * this.gridSize + 'px)' + this.floorModCss();
     const style: Record<string, string> = {
       width: `${bounds.width}px`,
       height: `${bounds.height}px`,
       left: `${bounds.left}px`,
       top: `${bounds.top}px`,
       'backface-visibility': this.isSlope() ? 'visible' : 'hidden',
-      transform,
-      filter: 'brightness(' + this.floorBrightness() + ')',
+      'transform-origin': face != null ? '0 0' : '',
+      transform: face != null ? face.transform : 'translateZ(' + this.height() * this.gridSize + 'px)',
     };
-    if (step != null) {
-      style['-webkit-mask'] = step.mask;
-      style.mask = step.mask;
-    } else {
-      style['clip-path'] = clipPath ?? 'none';
-    }
+    // A filter of its own makes a layer and flattens what is under it; at full brightness it
+    // darkens nothing, so the grid is left without one.
+    const brightness = face != null ? face.brightness : this.floorBrightness();
+    if (brightness !== 1) style.filter = 'brightness(' + brightness + ')';
+    style['clip-path'] = face != null ? face.clipPath : (clipPath ?? 'none');
     return style;
   }
 
@@ -617,39 +605,13 @@ export class TerrainComponent {
     };
   });
 
-  readonly hexWalls = computed<{ edgeLength: number; px: number; py: number; angle: number; brightness: number }[]>(
-    () => {
-      const params = this.pedestalHexParams();
-      if (!params) return [];
-      const { outline } = params;
-      const containerW = this.width() * this.gridSize;
-      const containerH = this.depth() * this.gridSize;
-      const useSurfaceShading = this.isSurfaceShading();
-
-      return outline.map((v1, i) => {
-        const v2 = outline[(i + 1) % outline.length];
-        const dx = v2.x - v1.x;
-        const dy = v2.y - v1.y;
-        const edgeLength = Math.sqrt(dx * dx + dy * dy);
-        const edgeAngle = Math.atan2(dy, dx);
-
-        const brightness = useSurfaceShading
-          ? Math.max(0.3, Math.min(1.0, 0.65 - 0.35 * Math.cos(edgeAngle) + 0.15 * Math.sin(edgeAngle)))
-          : 1.0;
-
-        return {
-          edgeLength: edgeLength + 1,
-          px: containerW / 2 + v2.x,
-          py: containerH / 2 + v2.y,
-          angle: edgeAngle + Math.PI,
-          brightness,
-        };
-      });
-    }
-  );
+  readonly hexWalls = computed<readonly TerrainHexWall[]>(() => {
+    const params = this.pedestalHexParams();
+    if (!params) return NO_HEX_WALLS;
+    return hexWallsOf(params, this.width() * this.gridSize, this.depth() * this.gridSize, this.isSurfaceShading());
+  });
 
   math = Math;
-  slopeDirectionState = SlopeDirection;
 
   private _initialized = false;
   readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
@@ -668,51 +630,11 @@ export class TerrainComponent {
   /**
    * Opens the terrain's right-click menu, or the menu for the whole selection when the terrain is
    * part of one.
-   *
-   * In the flat view with a radial menu style chosen, it opens as a radial menu.
    */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
-
-    if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
-
-    const menuPosition = this.pointerDeviceService.pointers[0];
-    if (this.pieceContextMenu.openForSelection(this.terrain(), this.gridSize, menuPosition)) return;
-    const objectPosition = this.coordinateService.calcTabletopLocalCoordinate();
-    const overlapEntries = buildOverlapContextMenu(
-      this.tabletopOverlap,
-      this.terrain(),
-      menuPosition.x,
-      menuPosition.y,
-      this.translateFn
-    );
-    const surfaceEntries = buildSurfaceSwitchContextMenu(this.terrain()!, this.currentTable, this.translateFn);
-    const menu = buildTerrainContextMenuModel(
-      this.terrain()!,
-      this.gridSize,
-      objectPosition,
-      this.inventoryService,
-      this.tabletopActionService,
-      (terrain) => this.showDetail(terrain),
-      this.translateFn,
-      overlapEntries,
-      surfaceEntries
-    );
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        menuPosition,
-        menu.actions,
-        menu.radialGroups,
-        this.name(),
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(menuPosition, menu.actions, this.name());
+    this.terrainMenu.open(this.terrain());
   }
 
   /** Plays the block pick-up sound when a drag or turn of the terrain starts. */
@@ -725,44 +647,48 @@ export class TerrainComponent {
     SoundEffect.play(PresetSound.blockPut);
   }
 
-  readonly floorModCss = computed(() => {
-    if (this.isHex()) return '';
-    let ret = '';
-    let tmp: number;
-    switch (this.slopeDirection()) {
-      case SlopeDirection.TOP:
-        tmp = Math.atan(this.height() / this.depth());
-        ret = ' rotateX(' + tmp + 'rad) scaleY(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.BOTTOM:
-        tmp = Math.atan(this.height() / this.depth());
-        ret = ' rotateX(' + -tmp + 'rad) scaleY(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.LEFT:
-        tmp = Math.atan(this.height() / this.width());
-        ret = ' rotateY(' + -tmp + 'rad) scaleX(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.RIGHT:
-        tmp = Math.atan(this.height() / this.width());
-        ret = ' rotateY(' + tmp + 'rad) scaleX(' + 1 / Math.cos(tmp) + ')';
-        break;
+  /**
+   * What the slope leaves of the wall along one side of a square block: whether it stands at
+   * all, and the cut that takes its top down to the slope over it.
+   */
+  private wallCut(side: WallSide): TerrainWallCut {
+    const width = this.width() * this.gridSize;
+    const depth = this.depth() * this.gridSize;
+    // Each wall is drawn from one end of its side: the west end along the north and south
+    // sides, the south end along the west and east ones.
+    switch (side) {
+      case 'north':
+        return this.cutAlong({ x: 0, y: 0 }, { x: width, y: 0 });
+      case 'south':
+        return this.cutAlong({ x: 0, y: depth }, { x: width, y: depth });
+      case 'west':
+        return this.cutAlong({ x: 0, y: depth }, { x: 0, y: 0 });
+      default:
+        return this.cutAlong({ x: width, y: depth }, { x: width, y: 0 });
     }
-    return ret;
+  }
+
+  readonly northWallCut = computed<TerrainWallCut>(() => this.wallCut('north'));
+  readonly southWallCut = computed<TerrainWallCut>(() => this.wallCut('south'));
+  readonly westWallCut = computed<TerrainWallCut>(() => this.wallCut('west'));
+  readonly eastWallCut = computed<TerrainWallCut>(() => this.wallCut('east'));
+
+  /** The same for one side of a hex block, which is drawn from the far end of its edge. */
+  readonly hexWallCuts = computed<TerrainWallCut[]>(() => {
+    const outline = this.topOutline();
+    return outline.map((corner, index) => this.cutAlong(outline[(index + 1) % outline.length], corner));
   });
 
-  private readonly floorShade = computed(() => {
-    if (!this.isSurfaceShading()) return 1.0;
-    switch (this.slopeDirection()) {
-      case SlopeDirection.TOP:
-        return 0.4;
-      case SlopeDirection.LEFT:
-        return 0.6;
-      case SlopeDirection.RIGHT:
-        return 0.9;
-      default:
-        return 1.0;
-    }
-  });
+  private cutAlong(from: SlopePoint, to: SlopePoint): TerrainWallCut {
+    const roof = this.slopeRoof();
+    if (!roof) return WHOLE_WALL;
+    const profile = slopeProfileAlong(roof, from, to);
+    if (profile.every((stop) => stop.heightPx <= CUT_AWAY_PX)) return { shown: false, clipPath: null };
+    const top = profile.map(
+      (stop) => `${(stop.at * 100).toFixed(2)}% ${((1 - stop.heightPx / roof.heightPx) * 100).toFixed(2)}%`
+    );
+    return { shown: true, clipPath: `polygon(${top.join(', ')}, 100% 100%, 0% 100%)` };
+  }
 
   private readonly fogCover = computed(() => {
     const terrain = this.terrain();
@@ -785,67 +711,17 @@ export class TerrainComponent {
   /**
    * What the fog leaves of a face, as a mask over it.
    *
-   * A block standing in ground nobody has walked to is not there to be seen. Painted over in
-   * the colour of the fog it would stand up out of the mist as a solid slab of it, and the shape
-   * of the slab would tell the party the wall is there. Taken away instead, the face thins out
-   * across the cell at the edge of what has been reached, the way the mist on the floor does,
-   * and the rest of the block is simply gone.
-   *
    * A hex board and a slope carry a clip of their own and are shown or hidden whole.
    */
   private fogMaskStyle(cleared: readonly boolean[], cols: number, rows: number): Record<string, string> | null {
-    if (this.isHex() || this.isSlope() || cleared.every((cell) => cell)) return null;
-    // A face standing wholly in ground nobody has reached is not drawn at all. A mask made of
-    // one reading cannot say this: a gradient with nothing kept anywhere is no gradient, and a
-    // face left without a mask is a face shown whole.
-    if (!cleared.some((cell) => cell)) return HIDDEN_FACE;
-    const mask = cellGradient(
-      cleared.map((cell) => (cell ? 1 : 0)),
-      cols,
-      rows,
-      DEFAULT_SHADE_RGB
-    );
-    if (!mask) return null;
-    return {
-      'mask-image': mask.image,
-      '-webkit-mask-image': mask.image,
-      'mask-size': mask.size,
-      '-webkit-mask-size': mask.size,
-      'mask-position': mask.position,
-      '-webkit-mask-position': mask.position,
-      'mask-repeat': 'no-repeat',
-      '-webkit-mask-repeat': 'no-repeat',
-      'mask-composite': 'add',
-      '-webkit-mask-composite': 'source-over',
-    };
-  }
-
-  /** The cells along one face, its left end first: the west and east faces stand up from the south end. */
-  private edgeIndexes(cover: TerrainFogCover, side: WallSide): number[] {
-    const { cols, rows } = cover;
-    switch (side) {
-      case 'north':
-        return Array.from({ length: cols }, (_, col) => col);
-      case 'south':
-        return Array.from({ length: cols }, (_, col) => (rows - 1) * cols + col);
-      case 'west':
-        return Array.from({ length: rows }, (_, i) => (rows - 1 - i) * cols);
-      default:
-        return Array.from({ length: rows }, (_, i) => (rows - 1 - i) * cols + cols - 1);
-    }
+    if (this.isHex() || this.isSlope()) return null;
+    return fogMaskOf(cleared, cols, rows);
   }
 
   private edgeCells(cover: TerrainFogCover, side: WallSide): boolean[] {
-    return this.edgeIndexes(cover, side).map((i) => cover.cleared[i]);
+    return sideCellIndexes(cover.cols, cover.rows, side).map((i) => cover.cleared[i]);
   }
 
-  /**
-   * The top of a block, shaded a cell at a time.
-   *
-   * The camera looks down on a table, so the top is the face most seen, and one figure for
-   * the whole of it lights the far end of a wall whose near end alone stands in a torch's
-   * reach.
-   */
   /**
    * The shading and the veils, worked out once for the scene rather than once a frame.
    *
@@ -854,16 +730,10 @@ export class TerrainComponent {
    * times a second, and every terrain on the board would be rebuilding all of it each time.
    */
   protected readonly topShade = computed(() => this.shadedTop(this.topFaceImage().url));
-  protected readonly northShade = computed(() =>
-    this.shadedFace(this.northFaceImage().url, this.isSurfaceShading() ? 0.3 : 1, 'north')
-  );
-  protected readonly southShade = computed(() => this.shadedFace(this.southFaceImage().url, 1, 'south'));
-  protected readonly westShade = computed(() =>
-    this.shadedFace(this.westFaceImage().url, this.isSurfaceShading() ? 0.5 : 1, 'west')
-  );
-  protected readonly eastShade = computed(() =>
-    this.shadedFace(this.eastFaceImage().url, this.isSurfaceShading() ? 0.8 : 1, 'east')
-  );
+  protected readonly northShade = computed(() => this.shadedSide(this.northFaceImage().url, 'north'));
+  protected readonly southShade = computed(() => this.shadedSide(this.southFaceImage().url, 'south'));
+  protected readonly westShade = computed(() => this.shadedSide(this.westFaceImage().url, 'west'));
+  protected readonly eastShade = computed(() => this.shadedSide(this.eastFaceImage().url, 'east'));
 
   /**
    * The underside of a block, which is only ever looked at on one hung off the ground.
@@ -872,7 +742,7 @@ export class TerrainComponent {
    * face turned away from every lamp on the table is the darkest side a block has.
    */
   protected readonly bottomShade = computed(() =>
-    this.shadedFace(this.bottomFaceImage().url, this.isSurfaceShading() ? 0.25 : 1, 'south')
+    this.shadedFace(this.bottomFaceImage().url, faceShadeOf('bottom', this.isSurfaceShading()), 'south')
   );
 
   /**
@@ -891,46 +761,24 @@ export class TerrainComponent {
   protected readonly westFog = computed(() => this.faceFogStyle('west'));
   protected readonly eastFog = computed(() => this.faceFogStyle('east'));
 
+  /** The top of a block, shaded a cell at a time where it can be. */
   private shadedTop(url: string): ShadedBackground {
-    const cover = this.fogCover();
-    const texture = this.textureLayout();
-    // A roof standing above the floor is a surface of its own, lit cell by cell by whatever is
-    // up there with it rather than by what reaches the ground below.
-    const roof = this.topIsRaised() ? this.topCover() : null;
-    if (roof && !this.isHex() && !this.isSlope()) {
-      const shade = this.floorShade();
-      return shadedBackgroundGrid(
-        url,
-        roof.brightness.map((brightness) => shade * brightness),
-        roof.cols,
-        roof.rows,
-        texture,
-        this.shadeRgb()
-      );
-    }
-    if (this.topIsRaised()) {
-      return shadedBackgroundGrid(url, [this.floorShade() * this.topBrightness()], 1, 1, texture, this.shadeRgb());
-    }
-    if (!cover || this.isHex() || this.isSlope()) {
-      return shadedBackgroundGrid(url, [this.floorBrightness()], 1, 1, texture, this.shadeRgb());
-    }
-    const shade = this.floorShade();
-    return shadedBackgroundGrid(
-      url,
-      cover.brightness.map((brightness) => shade * brightness),
-      cover.cols,
-      cover.rows,
-      texture,
-      this.shadeRgb()
-    );
+    const grid = topShadeGrid(this.topIsRaised(), !this.isHex() && !this.isSlope(), 1, {
+      roof: () => this.topCover(),
+      floor: () => this.fogCover(),
+      top: () => this.topBrightness(),
+      whole: () => this.centerBrightness(),
+    });
+    return shadedBackgroundGrid(url, grid.brightness, grid.cols, grid.rows, this.textureLayout(), this.shadeRgb());
+  }
+
+  private shadedSide(url: string, side: WallSide): ShadedBackground {
+    return this.shadedFace(url, faceShadeOf(side, this.isSurfaceShading()), side);
   }
 
   private shadedFace(url: string, base: number, side: WallSide): ShadedBackground {
-    const cover = this.fogCover();
-    const texture = this.textureLayout();
-    if (!cover) return shadedBackgroundGrid(url, [base * this.ambientBrightness()], 1, 1, texture, this.shadeRgb());
-    const along = this.edgeIndexes(cover, side).map((i) => base * cover.brightness[i]);
-    return shadedBackgroundGrid(url, along, along.length, 1, texture, this.shadeRgb());
+    const line = sideShadeLine(base, side, this.fogCover(), () => this.ambientBrightness());
+    return shadedBackgroundGrid(url, line.brightness, line.cols, line.rows, this.textureLayout(), this.shadeRgb());
   }
 
   private faceFogStyle(side: WallSide): Record<string, string> | null {
@@ -959,7 +807,7 @@ export class TerrainComponent {
     );
   });
 
-  readonly floorBrightness = computed(() => this.floorShade() * this.centerBrightness());
+  readonly floorBrightness = computed(() => this.centerBrightness());
 
   /** Whether this block's top stands above the floor, and so is lit as its own surface. */
   private readonly topIsRaised = computed(() => this.altitude() + this.height() > 0);
@@ -1112,11 +960,6 @@ export class TerrainComponent {
     };
   }
 
-  private showDetail(gameObject: Terrain) {
-    const title = sheetPanelTitle(this.translateFn('feature.tabletop.panel.terrain'), gameObject.name);
-    this.objectPanels.openSheet(gameObject, title, { width: 600, height: 300 });
-  }
-
   private setGameTableGrid(
     gridType: GridType = GridType.SQUARE,
     gridColor: string = '#000000e6',
@@ -1126,8 +969,18 @@ export class TerrainComponent {
     const slide = this.gridSlide();
 
     perfCounters.bump(PERF_TERRAIN_GRID_RASTER);
+    if (slide.grow === 0) perfCounters.bump(`${PERF_TERRAIN_GRID_RASTER}:unslid`);
+    let drawn: HTMLCanvasElement | null = null;
     for (const gridCanvas of this.gridCanvases()) {
-      const render = new GridLineRender(gridCanvas.nativeElement);
+      const canvas = gridCanvas.nativeElement;
+      // Every step of a slope shows the same stretch of grid, so the rest are copies of the first.
+      if (drawn) {
+        canvas.width = drawn.width;
+        canvas.height = drawn.height;
+        canvas.getContext('2d')?.drawImage(drawn, 0, 0);
+        continue;
+      }
+      const render = new GridLineRender(canvas);
       render.renderViewport(
         slide.viewport.canvasWidth + slide.grow,
         slide.viewport.canvasHeight + slide.grow,
@@ -1138,6 +991,7 @@ export class TerrainComponent {
         slide.offsetTop,
         slide.offsetLeft
       );
+      drawn = canvas;
     }
     let opacity: number = 0.0;
     setTimeout(() => {
@@ -1155,4 +1009,42 @@ export class TerrainComponent {
       gridCanvas.nativeElement.style.opacity = opacity + '';
     }
   }
+}
+
+/** One flat piece of a block's slope, ready to be drawn. */
+export interface TerrainSlopeFace {
+  /** Where the piece is cut out of the top, in the top's own pixels. */
+  clipPath: string;
+  /** How it leans, as a transform over the top laid flat. */
+  transform: string;
+  /** How lit it is, the way it leans taken together with the light on the block. */
+  brightness: number;
+}
+
+/** What a slope leaves of one wall. */
+export interface TerrainWallCut {
+  shown: boolean;
+  clipPath: string | null;
+}
+
+const WHOLE_WALL: TerrainWallCut = { shown: true, clipPath: null };
+
+/** Under this much of a wall is left standing, the slope has taken the whole of it. */
+const CUT_AWAY_PX = 0.01;
+
+function clipPathOf(polygon: readonly SlopePoint[], left: number, top: number): string {
+  const points = polygon.map((corner) => `${(corner.x - left).toFixed(2)}px ${(corner.y - top).toFixed(2)}px`);
+  return `polygon(${points.join(', ')})`;
+}
+
+/**
+ * How a flat piece of a slope leans, as a transform over the top laid flat.
+ *
+ * It lifts each point of the piece to the height the slope stands at there and leaves it
+ * where it is otherwise, so the picture over it is stretched up the slope rather than slid
+ * across it, and the piece is cut where it was drawn.
+ */
+function leanCss(plane: { a: number; b: number; c: number }, left: number, top: number): string {
+  const lift = plane.c + plane.a * left + plane.b * top;
+  return `matrix3d(1,0,${plane.a.toFixed(6)},0,0,1,${plane.b.toFixed(6)},0,0,0,1,0,0,0,${lift.toFixed(3)},1)`;
 }

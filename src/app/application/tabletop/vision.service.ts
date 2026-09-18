@@ -8,6 +8,7 @@ import {
 } from '@axe/application/tabletop/vision-scene-assembly';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
+  PERF_TERRAIN_COVER_MISS,
   PERF_VISION_CELLS_MISS,
   PERF_VISION_MEMO_MISS,
   PERF_VISION_SCENE,
@@ -26,6 +27,7 @@ import {
   cellIndexAt,
   forEachCellInBox,
   forEachNeighbourCell,
+  sameCellGrid,
 } from '@axe/domain/tabletop/fog/cell-grid';
 import { fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import {
@@ -58,6 +60,7 @@ import {
   type LightGlow,
   objectBrightnessFor,
   type OverlayVision,
+  ownedSources,
   type SceneLight,
   type SceneViewer,
   type SceneVisionSource,
@@ -70,6 +73,52 @@ import {
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 
 const GEOMETRY_THROTTLE_MS = 40;
+
+/**
+ * Everything a terrain's fog cover is read against.
+ *
+ * A scene is built again whenever anything on the table moves, and most of what moves changes none
+ * of this: the lights a cover is lit by, the walls in the way of them, the eyes it is read for and
+ * the record of where the party has been.
+ */
+interface CoverScope {
+  readonly active: boolean;
+  readonly lights: string;
+  readonly lightIds: string;
+  readonly darknessLevel: number;
+  readonly fogEnabled: boolean;
+  readonly gridSize: number;
+  /** Which walls stand where, which moves only when a terrain or the table does. */
+  readonly walls: number;
+  readonly eyes: string;
+  readonly viewer: SceneViewer;
+  readonly grid: CellGrid | null;
+  readonly visible: CellBits | null;
+  readonly explored: CellBits | null;
+  readonly clearedStaysLit: boolean;
+}
+
+function sameCoverGrid(a: CellGrid | null, b: CellGrid | null): boolean {
+  return a === b || (!!a && !!b && sameCellGrid(a, b) && a.sizePx === b.sizePx);
+}
+
+function sameCoverScope(a: CoverScope, b: CoverScope): boolean {
+  return (
+    a.active === b.active &&
+    a.lights === b.lights &&
+    a.lightIds === b.lightIds &&
+    a.darknessLevel === b.darknessLevel &&
+    a.fogEnabled === b.fogEnabled &&
+    a.gridSize === b.gridSize &&
+    a.walls === b.walls &&
+    a.eyes === b.eyes &&
+    a.viewer === b.viewer &&
+    a.clearedStaysLit === b.clearedStaysLit &&
+    sameCoverGrid(a.grid, b.grid) &&
+    sameCells(a.visible, b.visible) &&
+    sameCells(a.explored, b.explored)
+  );
+}
 const RELEVANT_ALIASES = new Set(['character', 'light-source', 'terrain', 'game-table']);
 /** How many table cells one bucket of the sight index spans. */
 const SIGHT_INDEX_BUCKET_CELLS = 2;
@@ -606,6 +655,7 @@ export class VisionService {
     const key = `${terrain.identifier}:${terrain.location.x}:${terrain.location.y}:${terrain.rotate}:${cols}x${rows}:${planeZ}`;
     const held = byTerrain.get(key);
     if (held) return held;
+    perfCounters.bump(PERF_TERRAIN_COVER_MISS);
     const built = this.coverOf(terrain, grid, explored, cols, rows, planeZ);
     byTerrain.set(key, built);
     return built;
@@ -620,12 +670,29 @@ export class VisionService {
    * the cells alone, which stay the same object while nobody's sight has changed: the light on a
    * terrain also turns on whose eyes it is read for, and on the lights of the scene.
    */
-  private readonly coverScope = computed(() => ({
-    scene: this.scene(),
-    viewer: this.viewer(),
-    cells: this.visionCells(),
-    explored: this.exploredCells(),
-  }));
+  private readonly coverScope = computed<CoverScope>(
+    () => {
+      const scene = this.scene();
+      const viewer = this.viewer();
+      const fog = this.overlayVision();
+      return {
+        active: this.active(),
+        lights: scene ? visibleCellsLightKey(scene) : '',
+        lightIds: scene ? scene.lights.map((light) => `${light.sourceId}:${light.revealToAll}`).join('|') : '',
+        darknessLevel: scene?.darknessLevel ?? 0,
+        fogEnabled: scene?.fogEnabled ?? false,
+        gridSize: scene?.gridSize ?? 0,
+        walls: this.standingEpoch(),
+        eyes: scene && !viewer.isGameMaster ? ownedSources(scene, viewer).map(visionSourceKey).join('|') : '',
+        viewer,
+        grid: this.visionCells()?.grid ?? null,
+        visible: fog?.visible ?? null,
+        explored: this.exploredCells(),
+        clearedStaysLit: fog?.clearedStaysLit ?? false,
+      };
+    },
+    { equal: sameCoverScope }
+  );
 
   private coverOf(
     terrain: Terrain,
@@ -1005,5 +1072,40 @@ export class VisionService {
     }
     const z = eyeHeightPx(character.altitude, character.posZ, scene.gridSize);
     return this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene, x, y, viewer, z));
+  }
+
+  /**
+   * Whether a character may be named in a list this reader reads: the inventory, the round, the
+   * speakers in the chat.
+   *
+   * A list would otherwise name what the table keeps in the dark or under the fog, so a piece on
+   * the table is listed only where it is drawn. Anything off the table, in a tab of its own or in
+   * the graveyard, is not the table's to hide.
+   */
+  mayBeListed(character: GameCharacter): boolean {
+    return character.location.name !== 'table' || this.isTokenVisible(character);
+  }
+
+  /**
+   * Whether the players, between them, can see a character on the table, whoever is asking.
+   *
+   * For what one seat says to everyone, such as whose turn it is: the game master who says it sees
+   * the whole board, so their own view cannot answer. The party sees what its eyes reach now, the
+   * ground it has cleared on a table that keeps it, and the pieces it has met on one that follows
+   * them.
+   */
+  isSeenByParty(character: GameCharacter): boolean {
+    const scene = this.scene();
+    if (!scene || !(scene.darknessEnabled || scene.fogEnabled)) return true;
+    if (character.location.name !== 'table' || surfaceOf(character) !== 'floor') return true;
+    if (this.foundPieces().has(character.identifier)) return true;
+    const cells = this.visionCells();
+    if (!cells) return true;
+    const half = (scene.gridSize * (character.size || 1)) / 2;
+    const cell = cellIndexAt(cells.grid, character.location.x + half, character.location.y + half);
+    if (cell < 0 || cells.shared.get(cell)) return true;
+    const table = this.currentTable();
+    if (!table?.fogEnabled || !fogRules(table.fogMode).remembersGround) return false;
+    return this.exploredCells()?.get(cell) ?? false;
   }
 }

@@ -1,11 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
@@ -19,8 +15,11 @@ import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
-import { DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { SlopeDirection } from '@axe/domain/tabletop/terrain-slope';
+import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
+import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 
@@ -428,67 +427,163 @@ describe('TerrainComponent', () => {
     });
   });
 
-  describe('context menu display', () => {
-    function openMenu(mode2d: boolean, menuStyle: 'four-way' | 'radial' | 'standard'): Terrain {
+  describe('its right-click menu', () => {
+    it('hands a right-click to the terrain menu, and keeps it from the browser and the table', () => {
       const terrain = Terrain.create('地形メニュー', 2, 3, 1, '', '');
       fixture.componentRef.setInput('terrain', terrain);
-      const table = TestBed.inject(TabletopService).currentTable;
-      table.mode2d = mode2d;
-      table.tabletopMenuStyle = menuStyle;
-      table.radialMenuRotationSpeed = 9;
       fixture.detectChanges();
-      vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
-      vi.spyOn(TestBed.inject(TabletopOverlapService), 'findAt').mockReturnValue([]);
-      TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);
+      const open = vi.spyOn(TestBed.inject(TerrainMenuService), 'open').mockImplementation(() => undefined);
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      const stop = vi.spyOn(event, 'stopPropagation');
 
-      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
-      return terrain;
+      fixture.nativeElement.dispatchEvent(event);
+
+      expect(open).toHaveBeenCalledWith(terrain);
+      expect(event.defaultPrevented).toBe(true);
+      expect(stop).toHaveBeenCalled();
+      terrain.destroy();
+    });
+  });
+  describe('the slope of a block', () => {
+    let terrain: Terrain;
+    let wasGridType: GridType;
+
+    beforeEach(() => {
+      wasGridType = component.currentTable.gridType;
+      terrain = Terrain.create('sloping block', 2, 2, 2, 'W', 'F');
+      fixture.componentRef.setInput('terrain', terrain);
+    });
+
+    afterEach(() => {
+      component.currentTable.gridType = wasGridType;
+      terrain.destroy();
+    });
+
+    function faceAt(x: number, y: number): number {
+      const face = component
+        .slopeFaces()
+        .map((_, index) => component.slopeRoof()!.faces[index])
+        .find((candidate) =>
+          candidate.polygon.length > 2 ? candidate.plane.a * x + candidate.plane.b * y + candidate.plane.c >= 0 : false
+        );
+      return face ? face.plane.a * x + face.plane.b * y + face.plane.c : 0;
     }
 
-    it.each(['four-way', 'radial'] as const)('opens the four-way menu when the style is %s', (style) => {
-      const menus = TestBed.inject(ContextMenuService);
-      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
-      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
-      const terrain = openMenu(true, style);
+    it('draws nothing of a slope while the block is flat', () => {
+      expect(component.slopeFaces()).toEqual([]);
+      expect(component.slopeRoof()).toBeNull();
+      expect(component.northWallCut()).toEqual({ shown: true, clipPath: null });
+    });
 
-      try {
-        expect(openRadial).toHaveBeenCalledWith(
-          expect.objectContaining({ x: 240, y: 180 }),
-          expect.any(Array),
-          expect.any(Array),
-          '地形メニュー',
-          style === 'radial',
-          9,
-          1
-        );
-        expect(openRadial.mock.calls[0]?.[2].map((group) => group.name)).toEqual([
-          '地形・扉',
-          '見た目・照明',
-          '移動・作成',
-          'オブジェクト操作',
-        ]);
-        expect(openOrdinary).not.toHaveBeenCalled();
-      } finally {
-        terrain.destroy();
+    it('draws one leaning piece for a block sloping to one side', () => {
+      terrain.slopeSides = ['s'];
+      fixture.detectChanges();
+
+      const faces = component.slopeFaces();
+      expect(faces).toHaveLength(1);
+      expect(faces[0].transform).toContain('matrix3d(');
+      // The slope stands the block's full height where it is highest, along the north edge.
+      expect(faceAt(50, 0)).toBeCloseTo(terrain.height * component.gridSize);
+    });
+
+    it('draws a piece for every side of a pyramid', () => {
+      terrain.slopeSides = ['n', 'e', 's', 'w'];
+      fixture.detectChanges();
+
+      expect(component.slopeFaces()).toHaveLength(4);
+      for (const face of component.slopeFaces()) {
+        expect(face.clipPath).toMatch(/^polygon\(/);
+        expect(face.transform).toMatch(/^matrix3d\(/);
       }
     });
 
-    it('keeps the ordinary menu outside 2D mode', () => {
-      const menus = TestBed.inject(ContextMenuService);
-      const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
-      const openOrdinary = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
-      const terrain = openMenu(false, 'radial');
+    it('takes away the wall on a side the slope runs down to, and cuts the ones beside it', () => {
+      terrain.slopeSides = ['s'];
+      fixture.detectChanges();
 
-      try {
-        expect(openOrdinary).toHaveBeenCalledWith(
-          expect.objectContaining({ x: 240, y: 180 }),
-          expect.any(Array),
-          '地形メニュー'
-        );
-        expect(openRadial).not.toHaveBeenCalled();
-      } finally {
-        terrain.destroy();
+      expect(component.southWallCut().shown).toBe(false);
+      expect(component.northWallCut()).toEqual({ shown: true, clipPath: expect.stringContaining('polygon(') });
+      expect(component.westWallCut().clipPath).toContain('0.00%');
+    });
+
+    it('leaves no wall at all on a pyramid', () => {
+      terrain.slopeSides = ['n', 'e', 's', 'w'];
+      fixture.detectChanges();
+
+      for (const cut of [
+        component.northWallCut(),
+        component.southWallCut(),
+        component.westWallCut(),
+        component.eastWallCut(),
+      ]) {
+        expect(cut.shown).toBe(false);
       }
+    });
+
+    it('shades each piece by the way it runs down, as a slope has always been shaded', () => {
+      terrain.isSurfaceShading = true;
+      terrain.slopeSides = ['n', 's'];
+      fixture.detectChanges();
+
+      const faces = component.slopeFaces();
+      const northward = faces.find((_, index) => component.slopeRoof()!.faces[index].side === 'n')!;
+      const southward = faces.find((_, index) => component.slopeRoof()!.faces[index].side === 's')!;
+      expect(northward.brightness).toBeLessThan(southward.brightness);
+    });
+
+    it('slopes a hex block to its own six sides', () => {
+      component.currentTable.gridType = GridType.HEX_VERTICAL;
+      terrain.slopeSides = ['n', 'ne', 'se', 's', 'sw', 'nw'];
+      fixture.detectChanges();
+
+      expect(component.slopeSides()).toEqual(['n', 'ne', 'se', 's', 'sw', 'nw']);
+      expect(component.slopeFaces()).toHaveLength(6);
+      // The hexagon of cells is notched, and the slope only reaches the ground at the six
+      // sides themselves, so the walls in the notches are all that is left standing.
+      expect(component.hexWallCuts().some((cut) => !cut.shown)).toBe(true);
+    });
+
+    it('leaves a single hex cell no walls at all when it slopes to every side', () => {
+      component.currentTable.gridType = GridType.HEX_VERTICAL;
+      const cell = Terrain.create('one cell', 1, 1, 2, 'W', 'F');
+      cell.slopeSides = ['n', 'ne', 'se', 's', 'sw', 'nw'];
+      fixture.componentRef.setInput('terrain', cell);
+      fixture.detectChanges();
+
+      expect(component.slopeFaces()).toHaveLength(6);
+      expect(component.hexWallCuts().every((cut) => !cut.shown)).toBe(true);
+      cell.destroy();
+    });
+
+    it('reads a room saved before a block could slope to more than one side', () => {
+      terrain.isSlope = true;
+      terrain.slopeDirection = SlopeDirection.LEFT;
+      fixture.detectChanges();
+
+      expect(component.slopeSides()).toEqual(['w']);
+      expect(component.slopeFaces()).toHaveLength(1);
+    });
+
+    it('runs a slope with no direction at all down to the south, as it always has', () => {
+      terrain.isSlope = true;
+      fixture.detectChanges();
+
+      expect(component.slopeSides()).toEqual(['s']);
+    });
+
+    it('reads its sides again once the grid under it changes shape', async () => {
+      terrain.slopeSides = ['e'];
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(component.slopeSides()).toEqual(['e']);
+
+      component.currentTable.gridType = GridType.HEX_VERTICAL;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      // A hex block of flat-topped cells has no side facing due east, so the slope takes the
+      // one it points nearest to.
+      expect(component.slopeSides()).toEqual(['ne']);
     });
   });
 
@@ -511,6 +606,38 @@ describe('TerrainComponent', () => {
 
       expect(fixture.nativeElement.querySelectorAll('canvas')).toHaveLength(1);
 
+      terrain.destroy();
+    });
+
+    it('cuts the grid once for a slope and copies it onto the other pieces of it', async () => {
+      let copied = 0;
+      const context = new Proxy({} as Record<string | symbol, unknown>, {
+        get: (target, key) => {
+          if (key === 'drawImage') return () => copied++;
+          return key in target ? target[key] : () => undefined;
+        },
+        set: (target, key, value) => {
+          target[key] = value;
+          return true;
+        },
+      });
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as null);
+      const cut = vi.spyOn(GridLineRender.prototype, 'renderViewport');
+      const table = component.currentTable;
+      const wasGridType = table.gridType;
+      table.gridType = GridType.HEX_VERTICAL;
+      const terrain = Terrain.create('hex slope terrain', 3, 3, 1, '', '');
+      terrain.isGrid = true;
+      terrain.slopeSides = ['n', 'ne', 'se', 's', 'sw', 'nw'];
+      fixture.componentRef.setInput('terrain', terrain);
+      await fixture.whenStable();
+
+      const canvases = fixture.nativeElement.querySelectorAll('canvas').length;
+      expect(canvases).toBeGreaterThan(1);
+      expect(cut).toHaveBeenCalledTimes(1);
+      expect(copied).toBe(canvases - 1);
+
+      table.gridType = wasGridType;
       terrain.destroy();
     });
 
@@ -783,23 +910,21 @@ describe('TerrainComponent', () => {
       terrain.destroy();
     });
 
-    it('splits the grid along the floor steps of a hex slope, mask and all', () => {
+    it('lays the grid on each piece of a hex slope, leaning and cut with the piece', () => {
       const terrain = Terrain.create('hex slope terrain', 3, 3, 1, '', '');
       const table = component.currentTable;
       const originalGridType = table.gridType;
       table.gridType = GridType.HEX_VERTICAL;
-      terrain.isSlope = true;
-      terrain.slopeDirection = SlopeDirection.BOTTOM;
+      terrain.slopeSides = ['n', 'ne', 'se', 's', 'sw', 'nw'];
       fixture.componentRef.setInput('terrain', terrain);
 
-      const step = component.hexSlopeSteps().floors[0];
-      const style = component.terrainGridClipStepStyle(step);
+      const faces = component.slopeFaces();
+      const style = component.terrainGridFaceStyle(faces[0]);
 
-      expect(component.hexSlopeSteps().floors.length).toBeGreaterThan(1);
-      expect(style.transform).toBe(`translateZ(${step.heightPx}px)`);
-      expect(style.mask).toBe(step.mask);
-      expect(style['-webkit-mask']).toBe(step.mask);
-      expect(style['clip-path']).toBeUndefined();
+      expect(faces).toHaveLength(6);
+      expect(style.transform).toBe(faces[0].transform);
+      expect(style['clip-path']).toBe(faces[0].clipPath);
+      expect(style['transform-origin']).toBe('0 0');
 
       table.gridType = originalGridType;
       terrain.destroy();

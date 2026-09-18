@@ -1,6 +1,13 @@
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { hexCellCenter, hexCircumradius, hexSpacing, hexStartAngle } from '@axe/domain/tabletop/hex-geometry';
+import {
+  hexCellCenter,
+  hexCornerOffsets,
+  hexLayoutOf,
+  hexSpacing,
+  hexStartAngle,
+  pixelToHexCell,
+} from '@axe/domain/tabletop/hex-geometry';
 import { WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -17,6 +24,15 @@ export interface ContactFootprint {
   topZ: number;
   /** Whether a piece may come to rest on top of this. A sheer face may be stood beside, not on. */
   climbable?: boolean;
+  /**
+   * How high the top stands over one point, for something whose top is not level.
+   *
+   * A sloping block answers with the height of its surface there, so a piece dragged across it
+   * follows the slope instead of riding along at the height of its highest corner.
+   */
+  topAt?: (x: number, y: number) => number;
+  /** What this footprint belongs to, so a piece can keep to the surface it is already on. */
+  identifier?: string;
 }
 
 export interface ContactRider {
@@ -24,6 +40,14 @@ export interface ContactRider {
   thicknessPx: number;
   ridesUp: boolean;
   restingZ: number;
+  /** What the piece is resting on, whose surface it keeps to while that surface is under it. */
+  restingOn?: string;
+}
+
+/** Where a dragged piece rests, and what it is resting on. */
+export interface ContactSupport {
+  z: number;
+  on?: string;
 }
 
 const CONTACT_EPSILON_PX = 0.5;
@@ -73,10 +97,10 @@ export function nextContactLevel(levels: readonly number[], from: number, isUp: 
 /**
  * The height a piece dragged to the given point stands on.
  *
- * The piece takes the highest level no higher than where it stands now, so one dragged over
- * a block stays on the ground beside it rather than climbing it, and one dragged off a block
- * drops. With nothing at or below it, it takes the lowest level that fits, and failing that
- * the highest climbable top under its centre.
+ * The piece takes the level nearest the height it is already at, so a low step is risen onto
+ * while the ground stays the ground beside a wall, and one dragged off a block drops to what
+ * is under it. Two levels equally near leave it on the lower one. With nothing under its
+ * centre it takes the floor, and failing that the highest climbable top there.
  */
 export function findContactSupportZ(
   footprints: readonly ContactFootprint[],
@@ -84,20 +108,63 @@ export function findContactSupportZ(
   centerY: number,
   rider: ContactRider = FLAT_ON_THE_FLOOR
 ): number {
+  return findContactSupport(footprints, centerX, centerY, rider).z;
+}
+
+/**
+ * The same, together with what the piece came to rest on.
+ *
+ * A piece already resting on something keeps to that thing's surface while it is still under
+ * it, rising as well as falling, so one dragged along a ramp walks up and down the ramp rather
+ * than stepping off it into the air or onto the floor.
+ */
+export function findContactSupport(
+  footprints: readonly ContactFootprint[],
+  centerX: number,
+  centerY: number,
+  rider: ContactRider = FLAT_ON_THE_FLOOR
+): ContactSupport {
+  const under = footprintsUnder(footprints, centerX, centerY);
+  const stayingOn = under.find(
+    (footprint) =>
+      footprint.climbable !== false &&
+      rider.restingOn !== undefined &&
+      footprint.identifier === rider.restingOn &&
+      riderFits(under, rider, footprint.topZ)
+  );
+  if (stayingOn) return { z: stayingOn.topZ, on: stayingOn.identifier };
+
   const levels = contactRestLevels(footprints, centerX, centerY, rider);
-  let held = -Infinity;
+  const standingAt = contactBottomAt(rider, rider.restingZ);
+  // A piece held above the ground reads that height as clearance rather than as a step it has
+  // taken, so what it flies over is not something to come to rest on top of.
+  const keepsClearance = rider.altitudePx > CONTACT_EPSILON_PX;
+  let nearest: number | null = null;
   for (const level of levels) {
-    if (level <= contactBottomAt(rider, rider.restingZ) + CONTACT_EPSILON_PX && level > held) held = level;
+    if (keepsClearance && level > standingAt + CONTACT_EPSILON_PX) continue;
+    // Levels come lowest first, so only a level nearer by more than a rounding takes over,
+    // which leaves the lower of two equally near ones.
+    if (nearest === null || Math.abs(level - standingAt) < Math.abs(nearest - standingAt) - CONTACT_EPSILON_PX) {
+      nearest = level;
+    }
   }
-  if (held > -Infinity) return held;
-  if (levels.length > 0) return levels[0];
+  if (nearest !== null) return { z: nearest, on: restingOnAt(under, nearest) };
 
   let highest = 0;
-  for (const footprint of footprintsUnder(footprints, centerX, centerY)) {
+  for (const footprint of under) {
     if (footprint.climbable === false) continue;
     if (footprint.topZ > highest) highest = footprint.topZ;
   }
-  return highest;
+  return { z: highest, on: restingOnAt(under, highest) };
+}
+
+/** What holds a piece up at this height, of the things under it. */
+function restingOnAt(under: readonly ContactFootprint[], level: number): string | undefined {
+  for (const footprint of under) {
+    if (footprint.climbable === false) continue;
+    if (Math.abs(footprint.topZ - level) <= CONTACT_EPSILON_PX) return footprint.identifier;
+  }
+  return undefined;
 }
 
 function footprintsUnder(
@@ -109,7 +176,7 @@ function footprintsUnder(
   for (const footprint of footprints) {
     if (centerX < footprint.left || centerX > footprint.right) continue;
     if (centerY < footprint.top || centerY > footprint.bottom) continue;
-    under.push(footprint);
+    under.push(footprint.topAt ? { ...footprint, topZ: footprint.topAt(centerX, centerY) } : footprint);
   }
   return under;
 }
@@ -192,31 +259,11 @@ export function calcHexSnapPosition(
   halfHeight: number = gridSize / 2
 ): { x: number; y: number } {
   const isFlatTop = gridType === GridType.HEX_VERTICAL;
-  const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
+  const { colSpacing, rowSpacing } = hexLayoutOf(gridSize, isFlatTop);
+  const { col, row } = pixelToHexCell(posX, posY, gridSize, isFlatTop);
+  const { x, y } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
 
-  const colEst = posX / colSpacing;
-  const rowEst = posY / rowSpacing;
-
-  let bestX = 0;
-  let bestY = 0;
-  let bestDist = Infinity;
-
-  for (let col = Math.floor(colEst) - 1; col <= Math.ceil(colEst) + 1; col++) {
-    for (let row = Math.floor(rowEst) - 1; row <= Math.ceil(rowEst) + 1; row++) {
-      const { x: hx, y: hy } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
-
-      const dx = posX - hx;
-      const dy = posY - hy;
-      const dist = dx * dx + dy * dy;
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestX = hx;
-        bestY = hy;
-      }
-    }
-  }
-
-  return { x: bestX - halfWidth, y: bestY - halfHeight };
+  return { x: x - halfWidth, y: y - halfHeight };
 }
 
 /** The top-left corner that puts a piece's anchor on the nearest corner of a hex cell. */
@@ -229,9 +276,8 @@ export function calcHexVertexSnapPosition(
   halfHeight: number = gridSize / 2
 ): { x: number; y: number } {
   const isFlatTop = gridType === GridType.HEX_VERTICAL;
-  const s = hexCircumradius(gridSize);
-  const startAngle = hexStartAngle(isFlatTop);
-  const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
+  const { circumradius, colSpacing, rowSpacing } = hexLayoutOf(gridSize, isFlatTop);
+  const corners = hexCornerOffsets(circumradius, isFlatTop);
 
   const colEst = posX / colSpacing;
   const rowEst = posY / rowSpacing;
@@ -243,10 +289,9 @@ export function calcHexVertexSnapPosition(
   for (let col = Math.floor(colEst) - 1; col <= Math.ceil(colEst) + 1; col++) {
     for (let row = Math.floor(rowEst) - 1; row <= Math.ceil(rowEst) + 1; row++) {
       const { x: cx, y: cy } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
-      for (let k = 0; k < 6; k++) {
-        const angle = startAngle + (k * Math.PI) / 3;
-        const vx = cx + s * Math.cos(angle);
-        const vy = cy + s * Math.sin(angle);
+      for (const corner of corners) {
+        const vx = cx + corner.x;
+        const vy = cy + corner.y;
         const dx = posX - vx;
         const dy = posY - vy;
         const dist = dx * dx + dy * dy;

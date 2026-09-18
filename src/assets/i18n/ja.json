@@ -29,14 +29,14 @@
       "logClearedBy": "{{user}}さんからの依頼でログをクリアしました。"
     },
     "theme": {
-      "auto": "自動",
-      "dark": "ダーク",
-      "light": "ライト"
+      "auto": "テーマ: 自動",
+      "dark": "テーマ: ダーク",
+      "light": "テーマ: ライト"
     },
     "motion": {
-      "auto": "エフェクト: 自動",
-      "on": "エフェクト: 常に再生",
-      "off": "エフェクト: 停止"
+      "auto": "アニメーション: 自動",
+      "on": "アニメーション: 常に再生",
+      "off": "アニメーション: 停止"
     },
     "renderLite": {
       "auto": "描画: 自動",
@@ -1151,7 +1151,9 @@
       "beforeRound": "ラウンド開始前",
       "afterRound": "ラウンド終了",
       "noTurn": "手番未設定",
+      "unseenTurn": "見えない相手の手番",
       "announce": "{{name}} の行動です。",
+      "announceUnseen": "見えない相手の行動です。",
       "next": "次へ",
       "prev": "前へ",
       "round": "ラウンド {{n}}",
@@ -1839,10 +1841,15 @@
         "terrainGlow": "発光する",
         "slope": "傾斜",
         "slopeNone": "なし",
-        "slopeTop": "上（北）",
-        "slopeBottom": "下（南）",
-        "slopeLeft": "左（西）",
-        "slopeRight": "右（東）",
+        "slopeSide_n": "北",
+        "slopeSide_ne": "北東",
+        "slopeSide_e": "東",
+        "slopeSide_se": "南東",
+        "slopeSide_s": "南",
+        "slopeSide_sw": "南西",
+        "slopeSide_w": "西",
+        "slopeSide_nw": "北西",
+        "slopeEverySide": "全方向（角錐）",
         "wallShow": "壁を表示",
         "wallHide": "壁を非表示",
         "surfaceShadingOn": "壁に陰影を付ける",
@@ -2288,6 +2295,12 @@
       "engagementCountsSizeHint": "大きいコマほど重く数える（切ると 1 体 1 として数える）",
       "zocHint": "NPC かどうかが違うコマを敵とみなし、その周りのマスが移動を妨げる。自分に見えていないコマは ZOC を張らない。",
       "diceBotHint": "部屋に入ったときに選ばれるダイスボットです",
+      "sectionControllerResources": "リモコンに出す数値とリソース",
+      "controllerResourcesShowAll": "すべて出す",
+      "controllerResourcesHideAll": "すべて外す",
+      "controllerResourcesHintAll": "部屋のコマが持つ数値とリソースを、名前ごとに並べています。いまは全部出しています。外した項目は、リモコンのリソース操作にもコマの欄にも出ません。",
+      "controllerResourcesHintPicked": "選んだ項目だけをリモコンに出しています。あとからシートに足した項目は、ここで選ぶまで出ません。",
+      "controllerResourcesEmpty": "数値やリソースを持つコマが部屋にありません。",
       "facingMark": "キャラクターの向き",
       "facingMark_none": "示さない",
       "facingMark_turn": "コマごと回す",
@@ -2367,7 +2380,8 @@
       "panelRotationHint": "共通ウィンドウのタイトルバーに回転ボタンが出ます。卓を囲む席それぞれの向きへ回して置けます。",
       "tickerEnabled": "外周ティッカーを表示",
       "tickerSpeed": "速度",
-      "tickerSpeedUnit": "px/秒"
+      "tickerSpeedUnit": "px/秒",
+      "replayHint": "記録したセッションを読み返したり、盤面ごと再生したりします。記録はこの端末の中だけに残ります。"
     },
     "skin": {
       "title": "スキン",
@@ -2430,7 +2444,7 @@
         "menuPicked": "選択中",
         "menuOff": "押せない"
       },
-      "revert": "開いたときに戻す",
+      "revert": "リセット",
       "state": {
         "live": "この画面に反映中",
         "tryingOn": "試着中 — 押すと反映します",
@@ -2641,7 +2655,8 @@
         "cancelQuote": "引用をキャンセル",
         "textareaPlaceholderShort": "メッセージを入力",
         "sendToTicker": "ティッカー",
-        "sendToTickerHint": "この発言を画面の外周にも流します"
+        "sendToTickerHint": "この発言を画面の外周にも流します",
+        "tools": "入力の設定"
       },
       "tab": {
         "unnamedCharacter": "無名のキャラクター",
@@ -2696,11 +2711,11 @@
         "editPlaceholder": "チャットパレット",
         "noDisplayInfo": "表示できる情報がありません",
         "noCharacterSelected": "キャラクターが選択されていません",
-        "footerHint": "クリック: 入力 ／ 2回クリック: 送信",
+        "inputHint": "行をクリックで入力、2回で送信",
         "indexTitle": "インデックス",
         "noTarget": "対象が未選択です",
         "headingBullet": "◆",
-        "footerHintTouch": "タップ: 入力 ／ 2回タップ: 送信",
+        "inputHintTouch": "行をタップで入力、2回で送信",
         "searchPlaceholder": "パレットの行を検索",
         "searchResults": "検索結果",
         "searchCount": "{{count}} 件",
@@ -3680,7 +3695,21 @@
       "nowMarker": "今",
       "zoomIn": "広げる",
       "zoomOut": "縮める",
-      "backToNow": "今に戻る"
+      "backToNow": "今に戻る",
+      "sweepTitle": "バフの一括解除（GM）",
+      "sweepHeldWhat": "消えないバフ",
+      "sweepByRounds": "残りラウンドで選ぶ",
+      "sweepByName": "名前で選ぶ",
+      "sweepRoundsLabel": "残り",
+      "sweepNoBuffs": "卓にバフがありません",
+      "sweepCount": "{{characters}}体・{{buffs}}件が対象です",
+      "sweepNone": "該当するバフはありません",
+      "sweepRun": "卓全体から解除",
+      "sweepChatHint": "チャットでは &&none- ／ &&2R- ／ &&毒- のように書いても解除できます",
+      "sweepRoundsWhat": "残り{{n}}Rのバフ",
+      "sweepNameWhat": "「{{name}}」",
+      "sweepConfirm": "卓全体から{{what}}を解除します（{{characters}}体・{{buffs}}件）。よろしいですか？",
+      "sweepDone": "卓全体から{{what}}を解除しました（{{characters}}体・{{buffs}}件）"
     },
     "whiteBoard": {
       "defaultName": "ホワイトボード",
@@ -3863,6 +3892,12 @@
       "effectPlaceholder": "バフに添える一行（例: 毎ラウンド HP-1）",
       "iconImage": "画像",
       "pickIconImage": "画像から選ぶ"
+    },
+    "seatDisplay": {
+      "title": "この端末の表示",
+      "widgets": {
+        "label": "ウィジェット"
+      }
     }
   },
   "app": {
@@ -3877,6 +3912,9 @@
       "jukebox": "ジュークボックス",
       "cutIn": "カットイン",
       "inventory": "インベントリ",
+      "table": "テーブル関連",
+      "gameResources": "ゲームリソース",
+      "media": "メディア",
       "clock": "時計",
       "connectionQuality": "通信品質",
       "miniPlayer": "ミニプレイヤー",
@@ -3885,6 +3923,7 @@
       "plTools": "PLツール",
       "ownedCharacters": "所有キャラクター一覧",
       "handCards": "手札を開閉",
+      "hand": "手札",
       "objectList": "オブジェクト一覧（GM）",
       "npcBar": "NPCバー",
       "darknessOn": "暗闇: オン（クリックでオフ）",
@@ -3893,6 +3932,7 @@
       "releaseOwnershipConfirm": "オフラインのオーナーが持つ所有 {{count}} 件を解放しますか？（解放後は各自で再取得できます）",
       "zipLoad": "ZIP読込",
       "save": "保存",
+      "saveLoad": "セーブ&ロード",
       "importCharacter": "キャラ取り込み",
       "roomSnapshot": "自動保存 / 復元",
       "createObject": "コマを作る",
@@ -3900,12 +3940,20 @@
       "recording": "録画",
       "fogOn": "戦場の霧: オン（クリックでオフ）",
       "fogOff": "戦場の霧: オフ（クリックでオン）",
+      "resourceBarsShown": "リソースバー: 表示中（クリックで隠す）",
+      "resourceBarsHidden": "リソースバー: 非表示（クリックで表示）",
+      "buffsShown": "バフ: 表示中（クリックで隠す）",
+      "buffsHidden": "バフ: 非表示（クリックで表示）",
       "viewFlat": "2D 表示（クリックで 3D）",
       "viewPerspective": "3D 表示（クリックで 2D）",
       "viewAutoFlat": "視点: 自動（2D）",
       "viewAutoPerspective": "視点: 自動（3D）",
       "tabletopDisplay": "卓上ディスプレイ",
-      "skin": "スキン"
+      "skin": "スキン",
+      "display": "表示",
+      "widgets": "ウィジェット",
+      "foldToolbar": "ツールバーを畳む",
+      "unfoldToolbar": "ツールバーを開く"
     },
     "roomDataDefault": "ルームデータ"
   },

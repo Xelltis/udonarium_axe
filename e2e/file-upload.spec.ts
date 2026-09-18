@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openFabMenu, openPanel, waitAppReady } from './helpers';
+import { openPanel, waitAppReady } from './helpers';
 
 /**
  * 1x1 PNG (transparent) — base64 から Buffer 化して setInputFiles に渡す。
@@ -90,13 +90,10 @@ test.describe('音楽アップロード (jukebox)', () => {
   });
 });
 
-test.describe('ZIP / XML 読込 (FAB の ZIP読込)', () => {
+test.describe('ZIP / XML 読込 (FAB のセーブ&ロード)', () => {
   test('空 ZIP をセットしてもアプリがクラッシュしないこと', async ({ page }) => {
     await waitAppReady(page);
-    await openFabMenu(page);
-    const fileInput = page
-      .locator('[data-label="ZIP読込"]')
-      .locator('input[type="file"][accept="application/xml,text/xml,application/zip"]');
+    const fileInput = page.locator('[data-testid="fab-zip-input"]');
     await fileInput.setInputFiles({
       name: 'empty.zip',
       mimeType: 'application/zip',

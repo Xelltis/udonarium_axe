@@ -29,14 +29,14 @@
       "logClearedBy": "{{user}}님의 요청으로 로그를 지웠습니다."
     },
     "theme": {
-      "auto": "자동",
-      "dark": "다크",
-      "light": "라이트"
+      "auto": "테마: 자동",
+      "dark": "테마: 다크",
+      "light": "테마: 라이트"
     },
     "motion": {
-      "auto": "이펙트: 자동",
-      "on": "이펙트: 항상 재생",
-      "off": "이펙트: 끄기"
+      "auto": "애니메이션: 자동",
+      "on": "애니메이션: 항상 재생",
+      "off": "애니메이션: 끄기"
     },
     "renderLite": {
       "auto": "렌더링: 자동",
@@ -1151,7 +1151,9 @@
       "beforeRound": "라운드 시작 전",
       "afterRound": "라운드 종료",
       "noTurn": "차례 미지정",
+      "unseenTurn": "보이지 않는 상대의 차례",
       "announce": "{{name}}의 차례입니다.",
+      "announceUnseen": "보이지 않는 상대가 행동합니다.",
       "next": "다음으로",
       "prev": "이전으로",
       "round": "라운드 {{n}}",
@@ -1839,10 +1841,15 @@
         "terrainGlow": "빛을 냄",
         "slope": "경사",
         "slopeNone": "없음",
-        "slopeTop": "위(북)",
-        "slopeBottom": "아래(남)",
-        "slopeLeft": "왼쪽(서)",
-        "slopeRight": "오른쪽(동)",
+        "slopeSide_n": "북",
+        "slopeSide_ne": "북동",
+        "slopeSide_e": "동",
+        "slopeSide_se": "남동",
+        "slopeSide_s": "남",
+        "slopeSide_sw": "남서",
+        "slopeSide_w": "서",
+        "slopeSide_nw": "북서",
+        "slopeEverySide": "모든 방향(각뿔)",
         "wallShow": "벽 표시",
         "wallHide": "벽 숨기기",
         "surfaceShadingOn": "벽에 음영 넣기",
@@ -2288,6 +2295,12 @@
       "engagementCountsSizeHint": "큰 말일수록 무겁게 계산 (끄면 한 명을 하나로 계산)",
       "zocHint": "NPC 여부가 다른 말을 적으로 보고, 그 주위 칸이 이동을 방해합니다. 자신에게 보이지 않는 말은 ZOC를 만들지 않습니다.",
       "diceBotHint": "방에 들어올 때 선택되는 다이스봇입니다",
+      "sectionControllerResources": "리모컨에 표시할 수치와 리소스",
+      "controllerResourcesShowAll": "모두 표시",
+      "controllerResourcesHideAll": "모두 끄기",
+      "controllerResourcesHintAll": "방의 말이 가진 수치와 리소스를 이름별로 나열했습니다. 지금은 모두 표시합니다. 끈 항목은 리모컨의 리소스 조작에도 말 카드에도 나오지 않습니다.",
+      "controllerResourcesHintPicked": "고른 항목만 리모컨에 표시합니다. 나중에 시트에 추가한 항목은 여기서 고를 때까지 나오지 않습니다.",
+      "controllerResourcesEmpty": "수치나 리소스를 가진 말이 방에 없습니다.",
       "facingMark": "캐릭터의 방향",
       "facingMark_none": "표시하지 않음",
       "facingMark_turn": "말째로 회전",
@@ -2367,7 +2380,8 @@
       "panelRotationHint": "공통 창의 제목 표시줄에 회전 버튼이 나타납니다. 테이블을 둘러싼 각자의 방향으로 돌려 놓을 수 있습니다.",
       "tickerEnabled": "가장자리 티커 표시",
       "tickerSpeed": "속도",
-      "tickerSpeedUnit": "px/초"
+      "tickerSpeedUnit": "px/초",
+      "replayHint": "기록한 세션을 다시 읽거나 탁자째로 재생합니다. 기록은 이 기기에만 남습니다."
     },
     "skin": {
       "title": "화면 색(스킨)",
@@ -2430,7 +2444,7 @@
         "menuPicked": "선택 중",
         "menuOff": "누를 수 없음"
       },
-      "revert": "열었을 때로 되돌리기",
+      "revert": "초기화",
       "state": {
         "live": "이 화면에 적용 중",
         "tryingOn": "입어보는 중 — 누르면 적용",
@@ -2641,7 +2655,8 @@
         "cancelQuote": "인용 취소",
         "textareaPlaceholderShort": "메시지를 입력하세요",
         "sendToTicker": "티커",
-        "sendToTickerHint": "이 발언을 화면 외곽에도 흘려보냅니다"
+        "sendToTickerHint": "이 발언을 화면 외곽에도 흘려보냅니다",
+        "tools": "입력 설정"
       },
       "tab": {
         "unnamedCharacter": "이름 없는 캐릭터",
@@ -2696,11 +2711,11 @@
         "editPlaceholder": "채팅 팔레트",
         "noDisplayInfo": "표시할 정보가 없습니다",
         "noCharacterSelected": "캐릭터가 선택되지 않았습니다",
-        "footerHint": "클릭: 입력 ／ 두 번 클릭: 전송",
+        "inputHint": "줄을 클릭하면 입력, 두 번이면 전송",
         "indexTitle": "인덱스",
         "noTarget": "대상이 선택되지 않았습니다",
         "headingBullet": "◆",
-        "footerHintTouch": "탭: 입력 ／ 두 번 탭: 전송",
+        "inputHintTouch": "줄을 탭하면 입력, 두 번이면 전송",
         "searchPlaceholder": "팔레트 줄 검색",
         "searchResults": "검색 결과",
         "searchCount": "{{count}}개",
@@ -3682,7 +3697,21 @@
       "nowMarker": "지금",
       "zoomIn": "넓히기",
       "zoomOut": "좁히기",
-      "backToNow": "지금으로 돌아가기"
+      "backToNow": "지금으로 돌아가기",
+      "sweepTitle": "버프 일괄 해제 (GM)",
+      "sweepHeldWhat": "사라지지 않는 버프",
+      "sweepByRounds": "남은 라운드로 선택",
+      "sweepByName": "이름으로 선택",
+      "sweepRoundsLabel": "남은",
+      "sweepNoBuffs": "테이블에 버프가 없습니다",
+      "sweepCount": "{{characters}}명·{{buffs}}건이 대상입니다",
+      "sweepNone": "해당하는 버프가 없습니다",
+      "sweepRun": "테이블 전체에서 해제",
+      "sweepChatHint": "채팅에서 &&none- / &&2R- / &&독- 처럼 써도 해제할 수 있습니다",
+      "sweepRoundsWhat": "남은 {{n}}R 버프",
+      "sweepNameWhat": "「{{name}}」",
+      "sweepConfirm": "테이블 전체에서 {{what}}을(를) 해제합니다({{characters}}명·{{buffs}}건). 계속할까요?",
+      "sweepDone": "테이블 전체에서 {{what}}을(를) 해제했습니다({{characters}}명·{{buffs}}건)"
     },
     "controller": {
       "input": {
@@ -4110,6 +4139,12 @@
       "effectPlaceholder": "버프에 붙는 한 줄(예: 매 라운드 HP-1)",
       "iconImage": "이미지",
       "pickIconImage": "이미지에서 고르기"
+    },
+    "seatDisplay": {
+      "title": "이 기기의 표시",
+      "widgets": {
+        "label": "위젯"
+      }
     }
   },
   "app": {
@@ -4124,6 +4159,9 @@
       "jukebox": "주크박스",
       "cutIn": "컷인",
       "inventory": "인벤토리",
+      "table": "테이블",
+      "gameResources": "게임 리소스",
+      "media": "미디어",
       "clock": "시계",
       "connectionQuality": "통신 품질",
       "miniPlayer": "미니 플레이어",
@@ -4132,6 +4170,7 @@
       "plTools": "PL 도구",
       "ownedCharacters": "내 캐릭터 목록",
       "handCards": "패 열고 닫기",
+      "hand": "패",
       "objectList": "오브젝트 목록(GM)",
       "npcBar": "NPC 바",
       "darknessOn": "어둠: 켬(클릭하면 끔)",
@@ -4140,6 +4179,7 @@
       "releaseOwnershipConfirm": "오프라인 소유자가 가진 소유 {{count}}건을 해제할까요? (해제 후에는 각자 다시 가져갈 수 있습니다)",
       "zipLoad": "ZIP 불러오기",
       "save": "저장",
+      "saveLoad": "저장 & 불러오기",
       "importCharacter": "캐릭터 가져오기",
       "roomSnapshot": "자동 저장 / 복원",
       "createObject": "말 만들기",
@@ -4147,12 +4187,20 @@
       "recording": "녹화",
       "fogOn": "전장의 안개: 켬(클릭하면 끔)",
       "fogOff": "전장의 안개: 끔(클릭하면 켬)",
+      "resourceBarsShown": "리소스 바: 표시 중 (클릭하면 숨김)",
+      "resourceBarsHidden": "리소스 바: 숨김 (클릭하면 표시)",
+      "buffsShown": "버프: 표시 중 (클릭하면 숨김)",
+      "buffsHidden": "버프: 숨김 (클릭하면 표시)",
       "viewFlat": "2D 표시(클릭하면 3D)",
       "viewPerspective": "3D 표시(클릭하면 2D)",
       "viewAutoFlat": "시점: 자동 (2D)",
       "viewAutoPerspective": "시점: 자동 (3D)",
       "tabletopDisplay": "탁상 디스플레이",
-      "skin": "스킨"
+      "skin": "스킨",
+      "display": "표시",
+      "widgets": "위젯",
+      "foldToolbar": "도구 모음 접기",
+      "unfoldToolbar": "도구 모음 펼치기"
     },
     "roomDataDefault": "룸 데이터"
   },

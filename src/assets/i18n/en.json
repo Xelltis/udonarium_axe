@@ -29,14 +29,14 @@
       "logClearedBy": "Log cleared at the request of {{user}}."
     },
     "theme": {
-      "auto": "Auto",
-      "dark": "Dark",
-      "light": "Light"
+      "auto": "Theme: Auto",
+      "dark": "Theme: Dark",
+      "light": "Theme: Light"
     },
     "motion": {
-      "auto": "Effects: Auto",
-      "on": "Effects: Always play",
-      "off": "Effects: Off"
+      "auto": "Animation: Auto",
+      "on": "Animation: Always play",
+      "off": "Animation: Off"
     },
     "renderLite": {
       "auto": "Rendering: Auto",
@@ -1151,7 +1151,9 @@
       "beforeRound": "Before the round",
       "afterRound": "Round over",
       "noTurn": "No active turn",
+      "unseenTurn": "Someone unseen is up",
       "announce": "It's {{name}}'s turn.",
+      "announceUnseen": "Someone unseen is acting.",
       "next": "Next",
       "prev": "Prev",
       "round": "Round {{n}}",
@@ -1839,10 +1841,15 @@
         "terrainGlow": "Emit light",
         "slope": "Slope",
         "slopeNone": "None",
-        "slopeTop": "Up (north)",
-        "slopeBottom": "Down (south)",
-        "slopeLeft": "Left (west)",
-        "slopeRight": "Right (east)",
+        "slopeSide_n": "North",
+        "slopeSide_ne": "North-east",
+        "slopeSide_e": "East",
+        "slopeSide_se": "South-east",
+        "slopeSide_s": "South",
+        "slopeSide_sw": "South-west",
+        "slopeSide_w": "West",
+        "slopeSide_nw": "North-west",
+        "slopeEverySide": "Every side (pyramid)",
         "wallShow": "Show walls",
         "wallHide": "Hide walls",
         "surfaceShadingOn": "Shade walls",
@@ -2288,6 +2295,12 @@
       "engagementCountsSizeHint": "Weigh a piece by the ground it covers (off, one apiece)",
       "zocHint": "A piece is an enemy where the NPC mark differs from the one being moved, and the cells around it get in the way. A piece you cannot see holds no ground.",
       "diceBotHint": "The dice bot everyone joining the room starts on",
+      "sectionControllerResources": "Values and resources on the remote",
+      "controllerResourcesShowAll": "Show all",
+      "controllerResourcesHideAll": "Hide all",
+      "controllerResourcesHintAll": "Every value and resource the pieces in this room carry, by name. All of them are shown now. One you turn off leaves both the resource buttons and the piece cards of the remote.",
+      "controllerResourcesHintPicked": "The remote shows only the items picked here. An item added to a sheet later stays off until it is picked.",
+      "controllerResourcesEmpty": "No piece in the room carries a value or a resource.",
       "facingMark": "Which way a piece faces",
       "facingMark_none": "Do not show",
       "facingMark_turn": "Turn the picture",
@@ -2367,7 +2380,8 @@
       "panelRotationHint": "Puts a turn button on the title bar of every common window, so one can be set facing whichever side of the table is reading it.",
       "tickerEnabled": "Show edge ticker",
       "tickerSpeed": "Speed",
-      "tickerSpeedUnit": "px/s"
+      "tickerSpeedUnit": "px/s",
+      "replayHint": "Read back a recorded session, or play it back with the table. Recordings stay on this device."
     },
     "skin": {
       "title": "Skin",
@@ -2430,7 +2444,7 @@
         "menuPicked": "Selected",
         "menuOff": "Unavailable"
       },
-      "revert": "Back to how it opened",
+      "revert": "Reset",
       "state": {
         "live": "Showing on this screen",
         "tryingOn": "Trying it on — click to keep",
@@ -2641,7 +2655,8 @@
         "cancelQuote": "Cancel quote",
         "textareaPlaceholderShort": "Type a message",
         "sendToTicker": "Ticker",
-        "sendToTickerHint": "Also run this line around the edge of the screen"
+        "sendToTickerHint": "Also run this line around the edge of the screen",
+        "tools": "Input settings"
       },
       "tab": {
         "unnamedCharacter": "Unnamed character",
@@ -2696,11 +2711,11 @@
         "editPlaceholder": "Chat palette",
         "noDisplayInfo": "Nothing to display",
         "noCharacterSelected": "No character selected",
-        "footerHint": "Click: input / Double-click: send",
+        "inputHint": "Click a line to fill in, twice to send",
         "indexTitle": "Index",
         "noTarget": "No target selected",
         "headingBullet": "◆",
-        "footerHintTouch": "Tap: insert / Double tap: send",
+        "inputHintTouch": "Tap a line to fill in, twice to send",
         "searchPlaceholder": "Search palette lines",
         "searchResults": "Search results",
         "searchCount": "{{count}} found",
@@ -3680,7 +3695,21 @@
       "nowMarker": "now",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
-      "backToNow": "Back to now"
+      "backToNow": "Back to now",
+      "sweepTitle": "Clear buffs in bulk (GM)",
+      "sweepHeldWhat": "Buffs that never expire",
+      "sweepByRounds": "By rounds left",
+      "sweepByName": "By name",
+      "sweepRoundsLabel": "Rounds left",
+      "sweepNoBuffs": "No buffs on the table",
+      "sweepCount": "{{buffs}} buffs on {{characters}} pieces",
+      "sweepNone": "No buffs match",
+      "sweepRun": "Clear from the table",
+      "sweepChatHint": "In chat, write &&none- / &&2R- / &&Poison- to clear them too",
+      "sweepRoundsWhat": "buffs with {{n}} rounds left",
+      "sweepNameWhat": "\"{{name}}\"",
+      "sweepConfirm": "Clear {{what}} from the whole table ({{buffs}} buffs on {{characters}} pieces)?",
+      "sweepDone": "Cleared {{what}} from the whole table ({{buffs}} buffs on {{characters}} pieces)"
     },
     "whiteBoard": {
       "defaultName": "Whiteboard",
@@ -3863,6 +3892,12 @@
       "effectPlaceholder": "A line to carry on the buff (e.g. HP-1 each round)",
       "iconImage": "Picture",
       "pickIconImage": "Pick a picture"
+    },
+    "seatDisplay": {
+      "title": "Display on this device",
+      "widgets": {
+        "label": "Widgets"
+      }
     }
   },
   "app": {
@@ -3877,6 +3912,9 @@
       "jukebox": "Jukebox",
       "cutIn": "Cut-in",
       "inventory": "Inventory",
+      "table": "Table",
+      "gameResources": "Game resources",
+      "media": "Media",
       "clock": "Clock",
       "connectionQuality": "Connection quality",
       "miniPlayer": "Mini player",
@@ -3885,6 +3923,7 @@
       "plTools": "PL tools",
       "ownedCharacters": "My characters",
       "handCards": "Toggle my hand",
+      "hand": "Hand",
       "objectList": "Object list (GM)",
       "npcBar": "NPC bar",
       "darknessOn": "Darkness: on (click to turn off)",
@@ -3893,6 +3932,7 @@
       "releaseOwnershipConfirm": "Release ownership held by {{count}} offline owner(s)? (anyone can re-claim afterwards)",
       "zipLoad": "Load ZIP",
       "save": "Save",
+      "saveLoad": "Save & load",
       "importCharacter": "Import Character",
       "roomSnapshot": "Auto save / restore",
       "createObject": "Create a piece",
@@ -3900,12 +3940,20 @@
       "recording": "Recording",
       "fogOn": "Fog of war: on (click to turn off)",
       "fogOff": "Fog of war: off (click to turn on)",
+      "resourceBarsShown": "Resource bars: shown (click to hide)",
+      "resourceBarsHidden": "Resource bars: hidden (click to show)",
+      "buffsShown": "Buffs: shown (click to hide)",
+      "buffsHidden": "Buffs: hidden (click to show)",
       "viewFlat": "Flat view (click for depth)",
       "viewPerspective": "Table in depth (click to flatten)",
       "viewAutoFlat": "View: auto (2D)",
       "viewAutoPerspective": "View: auto (3D)",
       "tabletopDisplay": "Tabletop display",
-      "skin": "Skin"
+      "skin": "Skin",
+      "display": "Display",
+      "widgets": "Widgets",
+      "foldToolbar": "Fold the toolbar",
+      "unfoldToolbar": "Open the toolbar"
     },
     "roomDataDefault": "Room data"
   },

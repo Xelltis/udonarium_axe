@@ -488,6 +488,56 @@ describe('VisionService', () => {
     expect(service.isTokenVisible(enemy)).toBe(false);
   });
 
+  it('lists a piece on the table only where it is drawn, and anything off the table always', () => {
+    makeMyCursor('p1', PeerRole.Player);
+    makeDarkTable();
+
+    const enemy = GameCharacter.create('Enemy', 1, '');
+    enemy.owner = 'enemy';
+    enemy.location.name = 'table';
+    enemy.location.x = 800;
+    enemy.location.y = 800;
+    expect(service.mayBeListed(enemy)).toBe(false);
+
+    enemy.location.name = 'graveyard';
+    expect(service.mayBeListed(enemy)).toBe(true);
+  });
+
+  it('lists every piece to the game master, even in the dark', () => {
+    makeMyCursor('gm', PeerRole.GameMaster);
+    makeDarkTable();
+    const enemy = GameCharacter.create('Enemy', 1, '');
+    enemy.owner = 'enemy';
+    enemy.location.name = 'table';
+    enemy.location.x = 800;
+    enemy.location.y = 800;
+    expect(service.mayBeListed(enemy)).toBe(true);
+  });
+
+  it('tells the game master which pieces the players can see, not what the game master sees', () => {
+    makeMyCursor('gm', PeerRole.GameMaster);
+    makeDarkTable();
+
+    const hero = GameCharacter.create('Hero', 1, '');
+    hero.owner = 'p1';
+    hero.visionType = VisionType.NORMAL;
+    hero.location.name = 'table';
+    hero.location.x = 100;
+    hero.location.y = 100;
+
+    const lurker = GameCharacter.create('Lurker', 1, '');
+    lurker.owner = '';
+    lurker.location.name = 'table';
+    lurker.location.x = 800;
+    lurker.location.y = 800;
+
+    expect(service.isTokenVisible(lurker)).toBe(true);
+    expect(service.isSeenByParty(lurker)).toBe(false);
+
+    lurker.location.name = 'graveyard';
+    expect(service.isSeenByParty(lurker)).toBe(true);
+  });
+
   it('counts glowing terrain as a light and never lets it shadow itself', () => {
     makeMyCursor('p1', PeerRole.Player);
     const table = makeDarkTable();

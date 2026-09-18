@@ -30,11 +30,13 @@ import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-i
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -72,7 +74,9 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
+import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import {
   DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
   multiAngleNameMotionMode,
@@ -84,11 +88,14 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
+import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -100,7 +107,6 @@ import {
   makeLabelOrbitTransform,
   makeScreenLiftTransform,
 } from '@axe/ui/tabletop/billboard-transform';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { makeMultiAngleCurvedName } from '@axe/ui/tabletop/multi-angle-curved-name';
 import {
   makeMultiAngleBuffOrbit,
@@ -167,6 +173,7 @@ interface PieceRightDrag {
   templateUrl: './game-character.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BillboardDirective,
     MovableDirective,
     RotableDirective,
     SelectableDirective,
@@ -197,6 +204,7 @@ export class GameCharacterComponent {
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
+  private readonly overlay = inject(PieceOverlayPreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopService = inject(TabletopService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
@@ -342,9 +350,11 @@ export class GameCharacterComponent {
     this.objectChange.trackMyCursor();
     return char.hideName && !this.rolePermission.canSeeHidden;
   });
+  /** Buffs go unshown for a piece set to hide them, and for every piece while this seat has them switched off. */
   readonly hideBuff = computed(() => {
     const char = this.gameCharacter();
     if (!char) return false;
+    if (!this.overlay.buffs()) return true;
     this.objectChange.versionOf(char.identifier)();
     return char.hideBuff;
   });
@@ -357,6 +367,34 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     this.objectChange.versionOf(char?.identifier ?? '')();
     return char?.altitude ?? 0;
+  });
+
+  /**
+   * How the ground under the piece leans, which its pedestal and the picture lying on it take.
+   *
+   * The piece itself stands upright on it, as a figure does on a hillside; only what is lying
+   * on the ground follows the ground. Nothing leans on a table looked at from straight above,
+   * where a lean would only squash what it turned. The blocks it could be standing on are the
+   * ones it is over, so a change to one of those leans it again.
+   */
+  readonly groundLean = computed(() => {
+    const char = this.gameCharacter();
+    if (!char || this.tabletopService.mode2d()) return '';
+    this.objectChange.versionOf(char.identifier)();
+    this.objectChange.collectionOf(Terrain.aliasName)();
+    const table = this.tabletopService.currentTable;
+    const grid = table.gridSize;
+    const middle = (char.size * grid) / 2;
+    const x = char.location.x + middle;
+    const y = char.location.y + middle;
+    const standingOn = table.terrains.filter((terrain) => {
+      const box = terrainBoxOf(terrain, grid);
+      return box.minX <= x && x <= box.maxX && box.minY <= y && y <= box.maxY;
+    });
+    for (const terrain of standingOn) this.objectChange.versionOf(terrain.identifier)();
+    const lean = landingLeanAt(standingOn, grid, x, y, table.gridType);
+    if (!lean) return '';
+    return `rotateY(${-Math.atan(lean.eastward).toFixed(4)}rad) rotateX(${Math.atan(lean.southward).toFixed(4)}rad)`;
   });
   /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
   setAltitude(altitude: number) {
@@ -469,14 +507,14 @@ export class GameCharacterComponent {
     return char.rotate;
   });
 
-  readonly billboardTransform = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(30)));
+  readonly nameFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(30)));
 
-  readonly billboardTransformBuff = computed(() =>
-    this.isPoster() ? '' : this.makeBillboardTransform(BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate())
+  readonly buffFacing = computed<BillboardFacing>(() =>
+    this.isPoster() ? NOT_TURNED : this.billboardFacing(BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate())
   );
 
-  readonly billboardTransformImage = computed(() =>
-    this.isPoster() ? '' : this.makeBillboardTransform(0, this.imageTurnsWithPiece())
+  readonly imageFacing = computed<BillboardFacing>(() =>
+    this.isPoster() ? NOT_TURNED : this.billboardFacing(0, this.imageTurnsWithPiece())
   );
 
   readonly imageBillboardEnabled = computed(() => {
@@ -484,17 +522,21 @@ export class GameCharacterComponent {
     return this.tabletopService.imageBillboard() || this.tabletopService.mode2d();
   });
 
-  readonly multiAnglePiecePedestalRotation = computed(() =>
-    this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
-  );
+  readonly multiAnglePiecePedestalRotation = computed(() => {
+    const orbit = this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : '';
+    const lean = this.groundLean();
+    return lean.length > 0 ? `${lean} ${orbit}`.trimEnd() : orbit;
+  });
 
   readonly multiAnglePieceImageRotation = computed(() =>
     this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
   );
 
-  private readonly pieceImageBillboardTransform = computed(() =>
-    [this.billboardTransformImage(), this.multiAnglePieceImageRotation()].filter((part) => part.length > 0).join(' ')
-  );
+  private readonly pieceImageFacing = computed<BillboardFacing>(() => {
+    const billboard = this.imageFacing();
+    const spin = this.multiAnglePieceImageRotation();
+    return (rotation) => [billboard(rotation), spin].filter((part) => part.length > 0).join(' ');
+  });
 
   /**
    * Whether a piece is kept inside its cell, which the room answers for everyone.
@@ -519,7 +561,7 @@ export class GameCharacterComponent {
       this.specifyKomaImageFlag() && !this.fitsImageInCell() ? this.komaImageHeightSignal() : null
     ),
     billboardEnabled: this.imageBillboardEnabled,
-    billboardTransform: this.pieceImageBillboardTransform,
+    billboardFacing: this.pieceImageFacing,
     squarePoster: true,
     fitInCell: this.fitsImageInCell,
   });
@@ -592,17 +634,32 @@ export class GameCharacterComponent {
     return gauge.segments.length > 0 ? baseOffset + gauge.strokeWidth : baseOffset;
   });
 
-  private labelOrbitTransform(distance3d: number, distance2d: number): string {
-    return makeLabelOrbitTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      distance3d,
-      distance2d,
-      mode2d: this.mode2dEnabled(),
-    });
+  private labelOrbitFacing(distance3d: number, distance2d: number): BillboardFacing {
+    const mode2d = this.mode2dEnabled();
+    return (rotation) => makeLabelOrbitTransform({ rotation, distance3d, distance2d, mode2d });
   }
 
+  /**
+   * Where a label hangs from, counted from the middle of the piece's ground.
+   *
+   * The part that moves the label out from the piece is bound to the element itself rather than
+   * added in the template, so the whole of its transform is written by the frame.
+   */
+  private labelStandFacing(orbit: BillboardFacing): BillboardFacing {
+    const stand = `translateX(-50%) translateX(${(this.size() * this.gridSize) / 2}px) `;
+    return (rotation) => stand + orbit(rotation);
+  }
+
+  /** What a stack of labels above a piece is turned by, the billboard and the scale it is drawn at. */
+  private labelStackFacing(billboard: BillboardFacing): BillboardFacing {
+    const drawnAt = ` ${this.decorScale} translateX(-50%)`;
+    return (rotation) => billboard(rotation) + drawnAt;
+  }
+
+  /** The resource bars drawn over the piece, none while this seat has them switched off. */
   readonly pieceGauges = computed<PieceGauge[]>(
     () => {
+      if (!this.overlay.resourceBars()) return [];
       const detail = this.gameCharacter()?.detailDataElement ?? null;
       if (this.followedTree(detail) === null || !detail) return [];
       return selectPieceGauges(detail);
@@ -704,43 +761,48 @@ export class GameCharacterComponent {
   private floatingKey = 0;
   private readonly floatingTimers = new Set<ReturnType<typeof setTimeout>>();
 
-  readonly gaugeStackTransform = computed(
-    () => `${this.billboardTransformGauge()} ${this.decorScale} translateX(-50%)`
+  readonly gaugeStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.gaugeFacing()));
+
+  readonly buffStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.buffFacing()));
+
+  readonly nameStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.nameFacing()));
+
+  readonly floatStackFacing = computed<BillboardFacing>(() =>
+    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(56))
   );
 
-  readonly buffStackTransform = computed(() => `${this.billboardTransformBuff()} ${this.decorScale} translateX(-50%)`);
+  readonly floatOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.floatOrbit()));
 
-  readonly nameStackTransform = computed(() => `${this.billboardTransform()} ${this.decorScale} translateX(-50%)`);
-
-  readonly floatStackTransform = computed(
-    () => `${this.isPoster() ? '' : this.makeBillboardTransform(56)} ${this.decorScale} translateX(-50%)`
-  );
-
-  readonly floatLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 20)}px)`;
-    return this.labelOrbitTransform(56, 96);
-  });
+  private floatOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20)}px)`);
+    return this.labelOrbitFacing(56, 96);
+  }
 
   private readonly gaugePanelHeightEstimate = computed(() =>
     this.multiAngleResourceBuffOrbitEnabled() ? 0 : this.pieceGauges().length * GAUGE_ROW_HEIGHT_PX
   );
 
-  readonly billboardTransformGauge = computed(() =>
-    this.isPoster() ? '' : this.makeBillboardTransform(GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate() / 2)
+  readonly gaugeFacing = computed<BillboardFacing>(() =>
+    this.isPoster() ? NOT_TURNED : this.billboardFacing(GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate() / 2)
   );
 
-  readonly gaugeLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 8 + this.gaugePanelHeightEstimate())}px)`;
-    return this.labelOrbitTransform(
+  readonly gaugeOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.gaugeOrbit()));
+
+  private gaugeOrbit(): BillboardFacing {
+    if (this.isPoster())
+      return facesAlways(`translateY(${-(this.size() * this.gridSize + 8 + this.gaugePanelHeightEstimate())}px)`);
+    return this.labelOrbitFacing(
       GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate(),
       64 + this.gaugePanelHeightEstimate()
     );
-  });
+  }
 
-  readonly nameLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 5)}px)`;
-    return this.labelOrbitTransform(30, 60);
-  });
+  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.nameOrbit()));
+
+  private nameOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 5)}px)`);
+    return this.labelOrbitFacing(30, 60);
+  }
 
   readonly multiAngleNameOrbitEnabled = computed(() => {
     return !this.isPoster() && this.tabletopService.mode2d() && this.tabletopService.display().multiAngleEnabled;
@@ -845,14 +907,16 @@ export class GameCharacterComponent {
     () => -this.multiAnglePiecePhase() * this.multiAnglePieceRotationAnimation().durationSeconds
   );
 
-  readonly buffLabelOrbit = computed(() => {
+  readonly buffOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.buffOrbit()));
+
+  private buffOrbit(): BillboardFacing {
     if (this.isPoster())
-      return `translateY(${-(this.size() * this.gridSize + 12 + this.gaugePanelHeightEstimate())}px)`;
-    return this.labelOrbitTransform(
+      return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + this.gaugePanelHeightEstimate())}px)`);
+    return this.labelOrbitFacing(
       BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate(),
       68 + this.gaugePanelHeightEstimate()
     );
-  });
+  }
 
   private readonly buffPanelHeightEstimate = computed(() => {
     if (this.multiAngleResourceBuffOrbitEnabled() || this.hideBuff() || this.buffNum() < 1) return 0;
@@ -873,26 +937,37 @@ export class GameCharacterComponent {
     return (this.size() * this.gridSize * natural.height) / natural.width;
   });
 
-  readonly targetLabelOrbit = computed(() => {
-    const stack = this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 20 + stack)}px)`;
-    return this.screenLiftOrbit(TARGET_STACK_GAP_PX + stack, 84 + stack);
+  readonly targetOrbitFacing = computed<BillboardFacing>(() => {
+    const stand = `translateX(${(this.size() * this.gridSize) / 2}px) `;
+    const orbit = this.targetOrbit();
+    return (rotation) => stand + orbit(rotation);
   });
 
-  readonly targetStackTransform = computed(
-    () => `${this.isPoster() ? '' : this.makeBillboardTransform(0)} ${this.decorScale} translateX(-50%)`
+  private targetOrbit(): BillboardFacing {
+    const stack = this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20 + stack)}px)`);
+    return this.screenLiftFacing(TARGET_STACK_GAP_PX + stack, 84 + stack);
+  }
+
+  readonly targetStackFacing = computed<BillboardFacing>(() =>
+    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(0))
   );
 
-  private screenLiftOrbit(screenLift3d: number, distance2d: number): string {
-    return makeScreenLiftTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      pieceRotate: this.rotateSignal(),
-      pieceRoll: this.rollSignal(),
-      worldHeight3d: this.pieceImageHeightEstimate(),
-      screenLift3d,
-      distance2d,
-      mode2d: this.mode2dEnabled(),
-    });
+  private screenLiftFacing(screenLift3d: number, distance2d: number): BillboardFacing {
+    const pieceRotate = this.rotateSignal();
+    const pieceRoll = this.rollSignal();
+    const worldHeight3d = this.pieceImageHeightEstimate();
+    const mode2d = this.mode2dEnabled();
+    return (rotation) =>
+      makeScreenLiftTransform({
+        rotation,
+        pieceRotate,
+        pieceRoll,
+        worldHeight3d,
+        screenLift3d,
+        distance2d,
+        mode2d,
+      });
   }
 
   /**
@@ -910,18 +985,21 @@ export class GameCharacterComponent {
     );
   });
 
-  private makeBillboardTransform(verticalOffset3D: number, turnsWithPiece = false): string {
+  private billboardFacing(verticalOffset3D: number, turnsWithPiece = false): BillboardFacing {
     // In 2D every billboard cancels the piece's turn, except the picture when the table asks it
     // to turn with the piece. This also composes with the multi-angle image rotation.
     const pieceRotate = this.mode2dEnabled() && turnsWithPiece ? 0 : this.rotateSignal();
-    return makeBillboardTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      pieceRotate,
-      pieceRoll: this.rollSignal(),
-      parentInverseRotation: 'rotateY(90deg) rotateZ(90deg) rotateY(-90deg)',
-      verticalOffset3D,
-      mode2d: this.mode2dEnabled(),
-    });
+    const pieceRoll = this.rollSignal();
+    const mode2d = this.mode2dEnabled();
+    return (rotation) =>
+      makeBillboardTransform({
+        rotation,
+        pieceRotate,
+        pieceRoll,
+        parentInverseRotation: 'rotateY(90deg) rotateZ(90deg) rotateY(-90deg)',
+        verticalOffset3D,
+        mode2d,
+      });
   }
 
   readonly movableOption = signal<MovableOption>({});
@@ -929,14 +1007,11 @@ export class GameCharacterComponent {
   readonly rotableOption = signal<RotableOption>({});
 
   readonly pedestalHexParams = computed<HexFlowerParams | null>(() => {
-    this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    this.objectChange.versionOf(this.tabletopService.currentTable.identifier)();
-    const char = this.gameCharacter();
-    if (!char) return null;
-    this.objectChange.versionOf(char.identifier)();
-    const gridType = this.tabletopService.currentTable.gridType;
+    const gridType = this.tabletopService.gridType();
+    const size = this.size();
+    if (!this.gameCharacter()) return null;
     if (!isHexGrid(gridType)) return null;
-    return calcHexFlowerParams(this.size(), this.gridSize, isFlatTopGrid(gridType));
+    return calcHexFlowerParams(size, this.gridSize, isFlatTopGrid(gridType));
   });
 
   private readonly pedestalRing = computed<Record<string, string> | null>(() => {

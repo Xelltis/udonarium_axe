@@ -67,3 +67,43 @@ export function fabLabelSideClasses(side: FabDrawerSide): string {
  */
 export const FAB_COLUMN_CLASSES =
   '[&>*]:break-inside-avoid [&>*]:[direction:ltr] [@media(max-height:760px)]:[column-count:2] [@media(max-height:760px)]:[direction:rtl]';
+
+/**
+ * Where something opened from an item in the drawer is hung: beside the drawer, on the same side
+ * the names of its items are written on, so it opens onto the screen rather than off it.
+ */
+export function fabPopoverSideClasses(side: FabDrawerSide): string {
+  return side.left ? 'right-[calc(100%+10px)]' : 'left-[calc(100%+10px)]';
+}
+
+/** Where a menu opened beside the drawer is pinned, in px from the drawer's top or bottom edge. */
+export interface FabSubmenuAnchor {
+  readonly top: number | null;
+  readonly bottom: number | null;
+}
+
+/** Where the item that opened a menu sits: within the drawer, and on the screen. */
+export interface FabSubmenuOpenerBox {
+  /** From the top of the drawer to the top of the item. */
+  readonly offsetTop: number;
+  readonly height: number;
+  /** The height of the drawer the item is in. */
+  readonly drawerHeight: number;
+  /** From the top of the window to the middle of the item. */
+  readonly centerInWindow: number;
+  readonly windowHeight: number;
+}
+
+/**
+ * Where a menu is pinned so that it opens level with the item it was opened from.
+ *
+ * An item in the upper half of the window has its menu hang down from the item's top edge; one in
+ * the lower half has it rise from the item's bottom edge, so the menu grows into the half with room
+ * and its first or last button sits beside the item.
+ */
+export function fabSubmenuAnchor(opener: FabSubmenuOpenerBox): FabSubmenuAnchor {
+  if (opener.centerInWindow > opener.windowHeight / 2) {
+    return { top: null, bottom: opener.drawerHeight - (opener.offsetTop + opener.height) };
+  }
+  return { top: opener.offsetTop, bottom: null };
+}

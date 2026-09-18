@@ -885,6 +885,10 @@ chat-message > div > div {
   .ng-select.ud-select.chat-select.chat-select--game-type {
     flex-basis: 100%;
   }
+  /* A packed input keeps the help and settings buttons beside the dice bot, giving that row to the list below. */
+  .ng-select.ud-select.chat-select.chat-select--game-type.chat-select--shares-row {
+    flex-basis: 6rem;
+  }
 }
 
 @container (max-width: 320px) {

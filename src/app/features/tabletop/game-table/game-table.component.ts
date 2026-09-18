@@ -26,6 +26,7 @@ import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
+import { TerrainBatchService } from '@axe/application/tabletop/terrain-batch.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import {
   ContextMenuAction,
@@ -38,6 +39,7 @@ import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { buildToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -105,8 +107,14 @@ import { TableMoveRangeOverlayComponent } from '@axe/features/tabletop/table-mov
 import { TableTargetOverlayComponent } from '@axe/features/tabletop/table-target-overlay/table-target-overlay.component';
 import { TableTriggerOverlayComponent } from '@axe/features/tabletop/table-trigger-overlay/table-trigger-overlay.component';
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
+import {
+  LIGHT_MIN_OVERLAY_SCALE,
+  LIGHT_OVERLAY_PIXEL_BUDGET,
+  overlayScale,
+} from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
+import { TerrainBatchLayerComponent } from '@axe/features/tabletop/terrain-batch/terrain-batch-layer.component';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TableVisionVolumeOverlayComponent } from '@axe/features/tabletop/vision-volume/table-vision-volume-overlay.component';
 import {
@@ -179,6 +187,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     NgClass,
     NgTemplateOutlet,
     TerrainComponent,
+    TerrainBatchLayerComponent,
     WhiteBoardComponent,
     GameTableMaskComponent,
     TextNoteComponent,
@@ -228,6 +237,7 @@ export class GameTableComponent {
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly terrainBatch = inject(TerrainBatchService);
   private readonly tabletopActionService = inject(TabletopActionService);
   protected readonly visionService = inject(VisionService);
   private readonly modalService = inject(ModalService);
@@ -255,6 +265,9 @@ export class GameTableComponent {
   private _resizeFrame: number | null = null;
   private _lastTableId: string | null = null;
   private _lastMode2dTableId: string | null = null;
+  /** What the grid on the canvas was drawn from, so it is only drawn again when one of them changes. */
+  private _gridDrawnFrom: string | null = null;
+  private readonly renderLite = inject(RenderLiteService);
   readonly gestureService = inject(GameTableGestureService);
 
   constructor() {
@@ -314,14 +327,7 @@ export class GameTableComponent {
           this.selectionSignalService.clearSelection();
         }
         this._lastTableId = id;
-        this.setGameTableGrid(
-          this.currentTable.width,
-          this.currentTable.height,
-          this.currentTable.gridSize,
-          this.currentTable.gridType,
-          this.currentTable.gridColor,
-          this.currentTable.gridFontColor
-        );
+        this.redrawTableGrid();
         this.syncMode2d();
       },
       this.destroyRef
@@ -344,6 +350,13 @@ export class GameTableComponent {
         this.snapToRealSize();
       });
     });
+    // How much drawing the machine is asked for decides how large the grid's canvas is, and the
+    // reader can turn that over at any time.
+    effect(() => {
+      this.renderLite.active();
+      if (!this._initialized) return;
+      untracked(() => this.redrawTableGrid());
+    });
     this.tabletopActionService.makeDefaultTable();
     this.tabletopActionService.makeDefaultTabletopObjects();
 
@@ -358,14 +371,7 @@ export class GameTableComponent {
       );
       this.gestureService.cancelInput();
 
-      this.setGameTableGrid(
-        this.currentTable.width,
-        this.currentTable.height,
-        this.currentTable.gridSize,
-        this.currentTable.gridType,
-        this.currentTable.gridColor,
-        this.currentTable.gridFontColor
-      );
+      this.redrawTableGrid();
       this.gestureService.setTransform(0, 0, 0, 0, 0, 0);
       this.coordinateService.tabletopOriginElement = this.gameObjects().nativeElement;
       this.syncMode2d();
@@ -581,11 +587,26 @@ export class GameTableComponent {
    * The same measure the run's wrapper wears, so a tile held to it is held to what can be seen.
    */
   private readonly boardPixelSize = computed<{ width: number; height: number }>(() => {
-    const table = this.watchCurrentTable();
-    const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
+    const { width, height, gridSize, gridType } = this.surfaceShape();
+    const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
     if (geo) return { width: geo.pixelW, height: geo.pixelH };
-    return { width: table.width * table.gridSize, height: table.height * table.gridSize };
+    return { width: width * gridSize, height: height * gridSize };
   });
+
+  /**
+   * What the board's outline is built from, compared field by field, so that a change to something
+   * standing on the table does not build the outline again.
+   */
+  private readonly surfaceShape = computed(
+    () => {
+      const table = this.watchCurrentTable();
+      return { width: table.width, height: table.height, gridSize: table.gridSize, gridType: table.gridType };
+    },
+    {
+      equal: (a, b) =>
+        a.width === b.width && a.height === b.height && a.gridSize === b.gridSize && a.gridType === b.gridType,
+    }
+  );
 
   readonly underLayers = computed(() => this.laidLayers().filter((layer) => !layer.placedOver));
   readonly overLayers = computed(() => this.laidLayers().filter((layer) => layer.placedOver));
@@ -667,8 +688,8 @@ export class GameTableComponent {
   readonly showsTableSurfaceVeil = computed(() => this.underLayers().length === 0);
 
   readonly tableSurfaceStyle = computed<Record<string, string>>(() => {
-    const table = this.watchCurrentTable();
-    const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
+    const { width, height, gridSize, gridType } = this.surfaceShape();
+    const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
     if (!geo) {
       return {
         width: '100%',
@@ -679,7 +700,7 @@ export class GameTableComponent {
         mask: 'none',
       };
     }
-    const mask = buildHexOutlineMask(table.gridSize, table.gridType, table.width, table.height);
+    const mask = buildHexOutlineMask(gridSize, gridType, width, height);
     return {
       width: `${geo.pixelW}px`,
       height: `${geo.pixelH}px`,
@@ -691,8 +712,8 @@ export class GameTableComponent {
   });
 
   readonly tableSurfaceBorderStyle = computed<Record<string, string>>(() => {
-    const table = this.watchCurrentTable();
-    const background = buildHexOuterBorderSvg(table.gridSize, table.gridType, table.width, table.height);
+    const { width, height, gridSize, gridType } = this.surfaceShape();
+    const background = buildHexOuterBorderSvg(gridSize, gridType, width, height);
     return { background: background || 'none' };
   });
 
@@ -791,6 +812,13 @@ export class GameTableComponent {
   readonly diceSymbolsBySurface = computed(() => bucketBySurface(this.diceSymbols(), this.drawnSurfaces()));
   readonly coinsBySurface = computed(() => bucketBySurface(this.coins(), this.drawnSurfaces()));
   readonly terrainsBySurface = computed(() => bucketBySurface(this.terrains(), this.drawnSurfaces()));
+
+  /** The terrain on the floor that is not drawn together with the blocks that do not move. */
+  readonly floorTerrainsDrawnAlone = computed(() => {
+    const merged = this.terrainBatch.mergedTerrains();
+    const floor = this.terrainsBySurface().floor;
+    return merged.size === 0 ? floor : floor.filter((terrain) => !merged.has(terrain.identifier));
+  });
 
   readonly beamTopGrids = computed<readonly BeamTopGrid[]>(() => {
     const table = this.currentTable;
@@ -1209,6 +1237,25 @@ export class GameTableComponent {
     };
   }
 
+  /** Draws the grid from the table as it stands now. */
+  private redrawTableGrid(): void {
+    this.setGameTableGrid(
+      this.currentTable.width,
+      this.currentTable.height,
+      this.currentTable.gridSize,
+      this.currentTable.gridType,
+      this.currentTable.gridColor,
+      this.currentTable.gridFontColor
+    );
+  }
+
+  /**
+   * Sizes the board and draws its grid, and shows or hides the grid as the table asks.
+   *
+   * A table announces every change to itself and to what stands on it, and drawing the grid over a
+   * whole board is the dearest thing on that path, so the drawing is left as it stands unless one
+   * of the things it is drawn from has changed.
+   */
   private setGameTableGrid(
     width: number,
     height: number,
@@ -1217,24 +1264,38 @@ export class GameTableComponent {
     gridColor: string = '#000000e6',
     gridFontColor: string = gridColor
   ) {
-    this.gameTable().nativeElement.style.width = width * gridSize + 'px';
-    this.gameTable().nativeElement.style.height = height * gridSize + 'px';
-
-    const render = new GridLineRender(this.gridCanvas().nativeElement);
     const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
-    if (geo) {
-      render.renderViewport(
-        geo.pixelW,
-        geo.pixelH,
-        gridSize,
-        gridType,
-        gridColor,
-        gridFontColor,
-        -geo.offsetY,
-        -geo.offsetX
-      );
-    } else {
-      render.render(width, height, gridSize, gridType, gridColor, gridFontColor);
+    const boardWidthPx = geo ? geo.pixelW : width * gridSize;
+    const boardHeightPx = geo ? geo.pixelH : height * gridSize;
+    // Drawn the lighter way, the grid is held to a canvas the machine can carry; drawn the usual
+    // way it covers the board pixel for pixel, as it always has.
+    const scale = this.renderLite.active()
+      ? overlayScale(boardWidthPx, boardHeightPx, LIGHT_OVERLAY_PIXEL_BUDGET, LIGHT_MIN_OVERLAY_SCALE)
+      : 1;
+    const drawnFrom = `${width}|${height}|${gridSize}|${gridType}|${gridColor}|${gridFontColor}|${scale}`;
+    if (drawnFrom !== this._gridDrawnFrom) {
+      this._gridDrawnFrom = drawnFrom;
+      const canvas = this.gridCanvas().nativeElement;
+      this.gameTable().nativeElement.style.width = width * gridSize + 'px';
+      this.gameTable().nativeElement.style.height = height * gridSize + 'px';
+      canvas.style.width = scale === 1 ? '' : `${boardWidthPx}px`;
+      canvas.style.height = scale === 1 ? '' : `${boardHeightPx}px`;
+
+      const render = new GridLineRender(canvas, scale);
+      if (geo) {
+        render.renderViewport(
+          geo.pixelW,
+          geo.pixelH,
+          gridSize,
+          gridType,
+          gridColor,
+          gridFontColor,
+          -geo.offsetY,
+          -geo.offsetX
+        );
+      } else {
+        render.render(width, height, gridSize, gridType, gridColor, gridFontColor);
+      }
     }
 
     setTimeout(() => {

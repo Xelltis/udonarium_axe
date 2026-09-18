@@ -115,6 +115,34 @@ describe('MovableDirective', () => {
   });
 });
 
+describe('MovableDirective layers', () => {
+  @Component({
+    selector: 'layer-host',
+    template: `<div appMovable [movable.option]="{ layerName: 'character', colideLayers: ['terrain'] }"></div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MovableDirective],
+  })
+  class LayerHostComponent {}
+
+  it('lets something that is not a piece join a layer, and leave it', () => {
+    TestBed.configureTestingModule({ imports: [LayerHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(LayerHostComponent);
+    fixture.detectChanges();
+    const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+    const joined = { layerName: 'terrain', input: null, setPointerEvents: vi.fn() };
+    const left = { layerName: 'wall', input: null, setPointerEvents: vi.fn() };
+    MovableDirective.joinLayer('terrain', joined);
+    MovableDirective.joinLayer('wall', left);
+    MovableDirective.leaveLayer('wall', left);
+
+    directive.setCollidableLayer(true);
+
+    expect(joined.setPointerEvents).toHaveBeenCalledWith(true);
+    expect(left.setPointerEvents).not.toHaveBeenCalled();
+    MovableDirective.leaveLayer('terrain', joined);
+  });
+});
+
 describe('MovableDirective drop preview', () => {
   interface Internals {
     input: {
@@ -261,6 +289,15 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     const directive = mount(walker, [{ object: canopy, w: 2, d: 2 }]);
 
     expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+  });
+
+  it('climbs a block drawn together with others, in no element of its own', () => {
+    const box = block({ identifier: 'box', h: 1 });
+    const directive = mount(block({ identifier: 'dragged', h: 1, x: 500, y: 500 }), []);
+    TestBed.inject(TabletopOverlapService).registerWithoutElement(box, () => undefined);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
+    expect(directive.contactSupportZ(150, 50)).toBe(0);
   });
 
   it('rests a canopy on a tower by the gap under it, not by its own height again', () => {
@@ -528,6 +565,20 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       directive['holdAtBlocks'](0, 50);
 
       // A pixel short of the face at 200, which is what keeps whole pixels on the outside.
+      expect(directive.posX).toBe(199);
+    });
+
+    it('holds a character at the near face of one drawn in no element of its own', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      TestBed.inject(TabletopOverlapService).registerWithoutElement(cliff({ x: 200, y: 0 }), () => undefined);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 50;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](0, 50);
+
       expect(directive.posX).toBe(199);
     });
 

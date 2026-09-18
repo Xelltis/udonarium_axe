@@ -3,6 +3,8 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
+import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Card } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -10,7 +12,6 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameObjectListPanelComponent } from '@axe/features/gm-object-list/game-object-list-panel.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcBarService } from '@axe/features/gm-tools/npc-bar/npc-bar.service';
-import { MapEditorPanelComponent } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GmToolbarComponent', () => {
@@ -25,23 +26,56 @@ describe('GmToolbarComponent', () => {
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
     TestBed.overrideProvider(PanelService, { useValue: panelStub });
+    // The bar is a widget this seat can put away, and the choice is kept in the browser, so it is
+    // said here rather than inherited from whatever ran before.
+    TestBed.inject(WidgetVisibilityService).gmToolbar.set(true);
     fixture = TestBed.createComponent(GmToolbarComponent);
     component = fixture.componentInstance;
   });
 
-  it('brings a hidden recording widget back', () => {
+  it('switches the resource bars and the buffs over the pieces off and on again', async () => {
     PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
-    const widgets = TestBed.inject(WidgetVisibilityService);
-    widgets.recording.set(false);
     fixture.detectChanges();
+    await fixture.whenStable();
+    const overlay = TestBed.inject(PieceOverlayPreferenceService);
+    const press = (id: string) =>
+      (fixture.nativeElement.querySelector(`[data-testid="${id}"]`) as HTMLButtonElement).click();
 
-    const button = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('button')).find((candidate) =>
-      candidate.textContent?.includes('radio_button_checked')
-    )!;
-    expect(button).toBeDefined();
+    try {
+      press('toolbar-resource-bars');
+      press('toolbar-buffs');
+      expect(overlay.resourceBars()).toBe(false);
+      expect(overlay.buffs()).toBe(false);
 
-    button.click();
-    expect(widgets.recording()).toBe(true);
+      press('toolbar-resource-bars');
+      press('toolbar-buffs');
+      expect(overlay.resourceBars()).toBe(true);
+      expect(overlay.buffs()).toBe(true);
+    } finally {
+      localStorage.removeItem('ui-piece-overlay');
+    }
+  });
+
+  it('carries none of the widget switches, which belong to the display settings', () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+    fixture.detectChanges();
+    const icons = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('ui-icon-button i')).map((icon) =>
+      icon.textContent?.trim()
+    );
+
+    for (const widget of ['apps', 'schedule', 'radio_button_checked', 'network_check', 'play_circle']) {
+      expect(icons).not.toContain(widget);
+    }
+  });
+
+  it('leads with the object list and the non-player bar, then the party', () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+    fixture.detectChanges();
+    const icons = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('ui-icon-button i')).map((icon) =>
+      icon.textContent?.trim()
+    );
+
+    expect(icons.slice(1, 4)).toEqual(['category', 'groups', 'group_work']);
   });
 
   it('offers no brush of its own, the painting having moved to the map editor', () => {
@@ -59,15 +93,6 @@ describe('GmToolbarComponent', () => {
       expect.objectContaining({ width: 460, height: 620 })
     );
     await expect(panelStub.openLazy.mock.calls[0][0]()).resolves.toBe(GameObjectListPanelComponent);
-  });
-
-  it('opens the map editor', async () => {
-    (component as unknown as { openMapEditor: () => void }).openMapEditor();
-    expect(panelStub.openLazy).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({ width: 1100, height: 740 })
-    );
-    await expect(panelStub.openLazy.mock.calls[0][0]()).resolves.toBe(MapEditorPanelComponent);
   });
 
   it('opens and closes the non-player bar', () => {
@@ -171,6 +196,64 @@ describe('GmToolbarComponent', () => {
       expect(restored).not.toBeNull();
       expect(restored!.style.left).toBe('480px');
       expect(restored!.style.top).toBe('320px');
+    });
+
+    it('hides from the game master who turns it off in the widget menu, and comes back where it was', async () => {
+      const widgets = TestBed.inject(WidgetVisibilityService);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      bar()!.style.left = '480px';
+
+      widgets.toggleGmToolbar();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(bar()).toBeNull();
+
+      widgets.toggleGmToolbar();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(bar()!.style.left).toBe('480px');
+      localStorage.removeItem('ui-widgets');
+    });
+  });
+
+  describe('folding', () => {
+    afterEach(() => localStorage.removeItem('ui-toolbars'));
+
+    function tool(testId: string): HTMLElement | null {
+      return fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+    }
+
+    it('folds down to its title, keeping the player toolbar as it was, and opens again', () => {
+      PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+      fixture.detectChanges();
+      const tools = () => fixture.nativeElement.querySelectorAll('ui-icon-button').length;
+      const open = tools();
+
+      tool('gm-toolbar-fold')!.click();
+      fixture.detectChanges();
+
+      expect(tools()).toBe(1);
+      expect(fixture.nativeElement.textContent).toContain('GMツール');
+      expect(fixture.nativeElement.querySelector('app-npc-bar')).toBeNull();
+      expect(TestBed.inject(ToolbarFoldService).isFolded('gm')).toBe(true);
+      expect(TestBed.inject(ToolbarFoldService).isFolded('pl')).toBe(false);
+
+      tool('gm-toolbar-fold')!.click();
+      fixture.detectChanges();
+
+      expect(tools()).toBe(open);
+    });
+
+    it('closes the persona list along with the bar', () => {
+      PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+      fixture.detectChanges();
+      const persona = component as unknown as { togglePersona: () => void; personaOpen: () => boolean };
+      persona.togglePersona();
+
+      tool('gm-toolbar-fold')!.click();
+
+      expect(persona.personaOpen()).toBe(false);
     });
   });
 });

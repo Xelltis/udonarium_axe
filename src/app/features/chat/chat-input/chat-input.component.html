@@ -1,6 +1,9 @@
 <div
   class="bg-ui-elevated border-ui-border-panel rounded-b-ui @container box-border grid w-full min-w-0 grid-cols-[minmax(72px,108px)_minmax(0,1fr)] items-stretch gap-2 border-t border-solid p-2 @max-[420px]:grid-cols-[64px_minmax(0,1fr)] @max-[420px]:gap-1.5 @max-[420px]:p-1.5 @max-[320px]:grid-cols-[56px_minmax(0,1fr)]"
   [ngClass]="{ 'border-ui-accent bg-ui-accent-bg text-ui-text border-t border-solid': isDirect }"
+  [class.grid-cols-[80px_minmax(0,1fr)]!]="dense()"
+  [class.gap-1.5!]="dense()"
+  [class.p-1.5!]="dense()"
 >
   <div
     class="rounded-ui-sm border-ui-border-panel bg-ui-input relative flex aspect-square min-h-0 w-full min-w-0 items-center justify-center self-start overflow-hidden border border-solid"
@@ -51,6 +54,7 @@
         <ng-select
           name="game-type"
           class="ud-select chat-select chat-select--game-type"
+          [class.chat-select--shares-row]="dense()"
           (change)="loadDiceBot($event)"
           [(ngModel)]="gameType"
           [clearable]="false"
@@ -68,54 +72,59 @@
           }}</span>
         }
 
-        <div class="ml-auto flex min-w-0 items-center gap-1 @max-[420px]:ml-0">
-          <div class="flex shrink-0 items-center gap-1 px-0.5">
-            @for (i of [0, 1, 2]; track i) {
-              <div
-                class="size-3.5 shrink-0 cursor-pointer rounded-full transition-[transform,box-shadow] hover:scale-[1.35] hover:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
-                [class.shadow-[0_0_0_2px_var(--ui-accent)]]="colorSelectNo() === i"
-                [class.scale-[1.15]]="colorSelectNo() === i"
-                (click)="setColorNum(i)"
-                [ngStyle]="{ 'background-color': chatColor(i) }"
-              ></div>
+        @if (!dense() || isToolsOpen()) {
+          <div class="ml-auto flex min-w-0 items-center gap-1 @max-[420px]:ml-0" data-testid="chat-input-colors">
+            <div class="flex shrink-0 items-center gap-1 px-0.5">
+              @for (i of [0, 1, 2]; track i) {
+                <div
+                  class="size-3.5 shrink-0 cursor-pointer rounded-full transition-[transform,box-shadow] hover:scale-[1.35] hover:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
+                  [class.shadow-[0_0_0_2px_var(--ui-accent)]]="colorSelectNo() === i"
+                  [class.scale-[1.15]]="colorSelectNo() === i"
+                  (click)="setColorNum(i)"
+                  [ngStyle]="{ 'background-color': chatColor(i) }"
+                ></div>
+              }
+            </div>
+            <button
+              class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none @max-[320px]:h-6 @max-[320px]:w-6.5 @max-[320px]:p-0 @max-[320px]:text-[0px]"
+              type="button"
+              (click)="showColorSetting()"
+            >
+              <i class="material-icons align-middle text-[13px]! @max-[320px]:m-0 @max-[320px]:text-[14px]!">settings</i
+              >{{ 'feature.chat.input.colorSetting' | transloco }}
+            </button>
+            @if (showsTickerSwitch()) {
+              <button
+                data-testid="chat-send-to-ticker"
+                class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none @max-[320px]:h-6 @max-[320px]:w-6.5 @max-[320px]:p-0 @max-[320px]:text-[0px]"
+                [class.border-ui-accent]="sendsToTicker()"
+                [class.bg-ui-accent]="sendsToTicker()"
+                [class.text-white]="sendsToTicker()"
+                [class.hover:text-white]="sendsToTicker()"
+                [class.hover:bg-ui-accent]="sendsToTicker()"
+                [class.hover:brightness-110]="sendsToTicker()"
+                type="button"
+                [attr.aria-pressed]="sendsToTicker()"
+                [title]="'feature.chat.input.sendToTickerHint' | transloco"
+                (click)="toggleTickerSend()"
+              >
+                <i class="material-icons align-middle text-[13px]! @max-[320px]:m-0 @max-[320px]:text-[14px]!">{{
+                  sendsToTicker() ? 'check' : 'animation'
+                }}</i
+                >{{ 'feature.chat.input.sendToTicker' | transloco }}
+              </button>
             }
           </div>
-          <button
-            class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none @max-[320px]:h-6 @max-[320px]:w-6.5 @max-[320px]:p-0 @max-[320px]:text-[0px]"
-            type="button"
-            (click)="showColorSetting()"
-          >
-            <i class="material-icons align-middle text-[13px]! @max-[320px]:m-0 @max-[320px]:text-[14px]!">settings</i
-            >{{ 'feature.chat.input.colorSetting' | transloco }}
-          </button>
-          @if (showsTickerSwitch()) {
-            <button
-              data-testid="chat-send-to-ticker"
-              class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none @max-[320px]:h-6 @max-[320px]:w-6.5 @max-[320px]:p-0 @max-[320px]:text-[0px]"
-              [class.border-ui-accent]="sendsToTicker()"
-              [class.bg-ui-accent]="sendsToTicker()"
-              [class.text-white]="sendsToTicker()"
-              [class.hover:text-white]="sendsToTicker()"
-              [class.hover:bg-ui-accent]="sendsToTicker()"
-              [class.hover:brightness-110]="sendsToTicker()"
-              type="button"
-              [attr.aria-pressed]="sendsToTicker()"
-              [title]="'feature.chat.input.sendToTickerHint' | transloco"
-              (click)="toggleTickerSend()"
-            >
-              <i class="material-icons align-middle text-[13px]! @max-[320px]:m-0 @max-[320px]:text-[14px]!">{{
-                sendsToTicker() ? 'check' : 'animation'
-              }}</i
-              >{{ 'feature.chat.input.sendToTicker' | transloco }}
-            </button>
-          }
-        </div>
+        }
       }
-      @if (isCompact()) {
+      @if (isCompact() || dense()) {
         <button
           class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 ml-auto shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 transition-colors hover:shadow-none"
           type="button"
+          data-testid="chat-input-tools"
           [attr.aria-expanded]="isToolsOpen()"
+          [attr.aria-label]="'feature.chat.input.tools' | transloco"
+          [title]="'feature.chat.input.tools' | transloco"
           (click)="toggleTools()"
         >
           <i class="material-icons align-middle text-[15px]!">{{ isToolsOpen() ? 'expand_less' : 'tune' }}</i>
@@ -177,10 +186,12 @@
       <form name="chat-input" class="m-0 flex min-w-0 items-center gap-2">
         <textarea
           name="chat-input-text"
+          [attr.rows]="dense() ? 1 : null"
           class="chat-input border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus:border-ui-accent box-border max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y border border-solid px-2 py-1.5 align-bottom font-[inherit] text-[13px] leading-[1.4] transition-colors focus:shadow-[0_0_0_2px_var(--ui-accent-glow)] focus:outline-none"
           [placeholder]="
-            (isCompact() ? 'feature.chat.input.textareaPlaceholderShort' : 'feature.chat.input.textareaPlaceholder')
-              | transloco
+            placeholder() ||
+            ((isCompact() ? 'feature.chat.input.textareaPlaceholderShort' : 'feature.chat.input.textareaPlaceholder')
+              | transloco)
           "
           [(ngModel)]="text"
           [ngModelOptions]="{ standalone: true }"

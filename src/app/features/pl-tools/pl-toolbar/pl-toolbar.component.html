@@ -1,4 +1,4 @@
-@if (isPlayer()) {
+@if (shown()) {
   <div
     #bar
     class="pl-toolbar rounded-ui-lg border-ui-border-panel bg-ui-panel text-ui-text shadow-ui-md fixed top-0 left-0 z-150 flex cursor-grab items-center gap-1 border border-solid px-2 py-1.5 [backdrop-filter:blur(24px)_saturate(1.5)] select-none [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] active:cursor-grabbing"
@@ -12,123 +12,107 @@
       {{ 'app.fab.plTools' | transloco }}
     </span>
 
-    <ui-icon-button icon="groups" [label]="'app.fab.ownedCharacters' | transloco" (press)="openOwnedCharacterList()" />
-
     <ui-icon-button
-      icon="style"
-      [label]="'app.fab.handCards' | transloco"
-      [active]="handRail.isOpen()"
-      (press)="toggleHandRail()"
+      [icon]="folded() ? 'expand_more' : 'expand_less'"
+      [label]="(folded() ? 'app.fab.unfoldToolbar' : 'app.fab.foldToolbar') | transloco"
+      testId="pl-toolbar-fold"
+      (press)="toggleFold()"
     />
 
-    <div class="relative flex">
+    @if (!folded()) {
       <ui-icon-button
-        icon="radar"
-        [label]="(activeCharacter() ? 'feature.plTools.range.title' : 'feature.plTools.range.noActive') | transloco"
-        [active]="rangeOpen()"
-        [faded]="!activeCharacter()"
-        (press)="toggleRangeMenu()"
+        icon="groups"
+        [label]="'app.fab.ownedCharacters' | transloco"
+        (press)="openOwnedCharacterList()"
       />
 
-      @if (rangeOpen()) {
-        <ul
-          class="pl-range-dropdown border-ui-border-panel bg-ui-panel text-ui-text shadow-ui-md rounded-ui absolute top-[calc(100%+6px)] left-0 z-10 m-0 flex w-48 list-none flex-col gap-0.5 border border-solid p-1 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
-        >
-          @for (item of rangeMenuItems; track item.typeName) {
-            <li
-              class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent flex cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px]"
-              (click)="createRange(item.typeName)"
-            >
-              <span class="truncate">{{ item.menuName | transloco }}</span>
-            </li>
-          }
-        </ul>
-      }
-    </div>
+      <div class="relative flex">
+        <ui-icon-button
+          icon="radar"
+          [label]="(activeCharacter() ? 'feature.plTools.range.title' : 'feature.plTools.range.noActive') | transloco"
+          [active]="rangeOpen()"
+          [faded]="!activeCharacter()"
+          (press)="toggleRangeMenu()"
+        />
 
-    <ui-icon-button icon="timeline" [label]="'feature.buffManager.title' | transloco" (press)="openBuffManager()" />
-
-    <ui-icon-button
-      [icon]="buffViewIcon()"
-      [label]="('feature.plTools.buffView' | transloco) + ': ' + (buffViewLabelKey() | transloco)"
-      testId="buff-view-cycle"
-      (press)="cycleBuffView()"
-    />
-
-    <ui-icon-button icon="auto_awesome" [label]="'feature.effect.title' | transloco" (press)="openEffectLibrary()" />
-
-    <ui-icon-button
-      icon="apps"
-      [label]="'feature.hotbar.toggle' | transloco"
-      [active]="widgets.hotbar()"
-      testId="hotbar-toggle"
-      (press)="widgets.toggleHotbar()"
-    />
-
-    <ui-icon-button
-      icon="schedule"
-      [label]="'app.fab.clock' | transloco"
-      [active]="widgets.clock()"
-      (press)="widgets.toggleClock()"
-    />
-
-    <ui-icon-button
-      icon="radio_button_checked"
-      [label]="'app.fab.recording' | transloco"
-      [active]="widgets.recording()"
-      (press)="widgets.toggleRecording()"
-    />
-
-    <ui-icon-button
-      icon="network_check"
-      [label]="'app.fab.connectionQuality' | transloco"
-      [active]="widgets.connectionQuality()"
-      (press)="widgets.toggleConnectionQuality()"
-    />
-
-    <ui-icon-button
-      icon="play_circle"
-      [label]="'app.fab.miniPlayer' | transloco"
-      [active]="widgets.miniPlayer()"
-      (press)="widgets.toggleMiniPlayer()"
-    />
-
-    @if (turnIndicator(); as turn) {
-      <span
-        class="border-ui-border-panel text-ui-muted flex h-8 max-w-52 items-center gap-1.5 border-l border-solid pl-2 text-[12px]"
-        [title]="'feature.turnOrder.title' | transloco"
-      >
-        <span class="text-ui-accent shrink-0 font-semibold">{{
-          'feature.turnOrder.roundShort' | transloco: { n: turn.round }
-        }}</span>
-        @if (turn.sideName) {
-          <span
-            class="rounded-ui-sm bg-ui-accent-bg text-ui-accent shrink-0 truncate px-1.5 py-0.5 text-[11px] font-semibold"
-            >{{ turn.sideName }}</span
+        @if (rangeOpen()) {
+          <ul
+            class="pl-range-dropdown border-ui-border-panel bg-ui-panel text-ui-text shadow-ui-md rounded-ui absolute top-[calc(100%+6px)] left-0 z-10 m-0 flex w-48 list-none flex-col gap-0.5 border border-solid p-1 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
           >
+            @for (item of rangeMenuItems; track item.typeName) {
+              <li
+                class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent flex cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px]"
+                (click)="createRange(item.typeName)"
+              >
+                <span class="truncate">{{ item.menuName | transloco }}</span>
+              </li>
+            }
+          </ul>
         }
-        @if (turn.statusKey) {
-          <span class="truncate">{{ turn.statusKey | transloco }}</span>
-        } @else {
-          <span class="text-ui-text truncate font-semibold">{{ turn.name }}</span>
-        }
-      </span>
-    }
+      </div>
 
-    @if (activeCharacter(); as character) {
-      <button
-        type="button"
-        class="rounded-ui-sm bg-ui-accent-bg text-ui-accent hover:bg-ui-menu-hover flex h-8 max-w-44 cursor-pointer items-center gap-1.5 border-none px-1.5 transition-colors"
-        [title]="'feature.plTools.active.openChatPalette' | transloco: { name: character.name }"
-        (click)="openActiveChatPalette()"
-      >
-        <span class="bg-ui-elevated size-6 shrink-0 overflow-hidden rounded-sm">
-          @if (activeImageUrl()) {
-            <img class="size-full object-contain" [src]="activeImageUrl() | safe: 'resourceUrl'" alt="" />
+      <ui-icon-button
+        icon="align_horizontal_left"
+        [label]="(overlay.resourceBars() ? 'app.fab.resourceBarsShown' : 'app.fab.resourceBarsHidden') | transloco"
+        [active]="overlay.resourceBars()"
+        [dim]="!overlay.resourceBars()"
+        testId="toolbar-resource-bars"
+        (press)="overlay.toggleResourceBars()"
+      />
+
+      <ui-icon-button
+        [icon]="overlay.buffs() ? 'auto_fix_high' : 'auto_fix_off'"
+        [label]="(overlay.buffs() ? 'app.fab.buffsShown' : 'app.fab.buffsHidden') | transloco"
+        [active]="overlay.buffs()"
+        [dim]="!overlay.buffs()"
+        testId="toolbar-buffs"
+        (press)="overlay.toggleBuffs()"
+      />
+
+      <ui-icon-button
+        [icon]="buffViewIcon()"
+        [label]="('feature.plTools.buffView' | transloco) + ': ' + (buffViewLabelKey() | transloco)"
+        testId="buff-view-cycle"
+        (press)="cycleBuffView()"
+      />
+
+      @if (turnIndicator(); as turn) {
+        <span
+          class="border-ui-border-panel text-ui-muted flex h-8 max-w-52 items-center gap-1.5 border-l border-solid pl-2 text-[12px]"
+          [title]="'feature.turnOrder.title' | transloco"
+        >
+          <span class="text-ui-accent shrink-0 font-semibold">{{
+            'feature.turnOrder.roundShort' | transloco: { n: turn.round }
+          }}</span>
+          @if (turn.sideName) {
+            <span
+              class="rounded-ui-sm bg-ui-accent-bg text-ui-accent shrink-0 truncate px-1.5 py-0.5 text-[11px] font-semibold"
+              >{{ turn.sideName }}</span
+            >
+          }
+          @if (turn.statusKey) {
+            <span class="truncate">{{ turn.statusKey | transloco }}</span>
+          } @else {
+            <span class="text-ui-text truncate font-semibold">{{ turn.name }}</span>
           }
         </span>
-        <span class="truncate text-[12px] font-semibold">{{ character.name }}</span>
-      </button>
+      }
+
+      @if (activeCharacter(); as character) {
+        <button
+          type="button"
+          class="rounded-ui-sm bg-ui-accent-bg text-ui-accent hover:bg-ui-menu-hover flex h-8 max-w-44 cursor-pointer items-center gap-1.5 border-none px-1.5 transition-colors"
+          [title]="'feature.plTools.active.openChatPalette' | transloco: { name: character.name }"
+          (click)="openActiveChatPalette()"
+        >
+          <span class="bg-ui-elevated size-6 shrink-0 overflow-hidden rounded-sm">
+            @if (activeImageUrl()) {
+              <img class="size-full object-contain" [src]="activeImageUrl() | safe: 'resourceUrl'" alt="" />
+            }
+          </span>
+          <span class="truncate text-[12px] font-semibold">{{ character.name }}</span>
+        </button>
+      }
     }
   </div>
 }

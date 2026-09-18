@@ -1,4 +1,5 @@
 import {
+  shadeAlongGradient,
   shadedBackgroundGrid,
   shadedBackgroundImage,
   shadeRgbOf,
@@ -106,5 +107,31 @@ describe('the colour a face is darkened with', () => {
 
     expect(shaded.image).toContain('rgba(5,6,10,0.800)');
     expect(shaded.image).toContain('rgba(5,6,10,0.200)');
+  });
+});
+
+describe('shadeAlongGradient', () => {
+  it('darkens nothing where every point is fully lit', () => {
+    expect(shadeAlongGradient([{ at: 0, value: 1 }], '0,0,0')).toBeNull();
+    expect(shadeAlongGradient([], '0,0,0')).toBeNull();
+  });
+
+  it('lays one flat shade for a single reading', () => {
+    expect(shadeAlongGradient([{ at: 0, value: 0.25 }], '1,2,3')).toBe(
+      'linear-gradient(rgba(1,2,3,0.750), rgba(1,2,3,0.750))'
+    );
+  });
+
+  it('places each reading at its own pixel, so two at one point change the shade there at once', () => {
+    expect(
+      shadeAlongGradient(
+        [
+          { at: 1, value: 1 },
+          { at: 51, value: 1 },
+          { at: 51, value: 0.5 },
+        ],
+        '0,0,0'
+      )
+    ).toBe('linear-gradient(to right, rgba(0,0,0,0.000) 1px, rgba(0,0,0,0.000) 51px, rgba(0,0,0,0.500) 51px)');
   });
 });

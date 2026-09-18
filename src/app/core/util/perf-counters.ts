@@ -13,6 +13,16 @@ export const PERF_DESERIALIZE_SCENE = 'deserializeScene';
 export const PERF_EFFECT_RENDERABLES = 'effectRenderables';
 export const PERF_INBOUND_DRAIN = 'inboundDrain';
 export const PERF_SE_DECODE = 'seDecode';
+export const PERF_HEX_MASK_SVG = 'hexMaskSvg';
+export const PERF_HEX_SURFACE_CELLS = 'hexSurfaceCells';
+export const PERF_HEX_PEDESTAL_OUTLINE = 'hexPedestalOutline';
+export const PERF_MOVE_REACH_BUILD = 'moveReachBuild';
+export const PERF_MOVE_RANGE_PAINT = 'moveRangePaint';
+export const PERF_TERRAIN_COVER_MISS = 'terrainCoverMiss';
+export const PERF_VISION_VOLUME_PAINT = 'visionVolumePaint';
+export const PERF_RANGE_RENDER = 'rangeRender';
+export const PERF_MAP_EDITOR_DRAW = 'mapEditorDraw';
+export const PERF_HEX_CELL_SCAN = 'hexCellScan';
 
 class PerfCounters {
   enabled = false;

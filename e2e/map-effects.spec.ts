@@ -1,9 +1,9 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCharacter, waitAppReady } from './helpers';
+import { createCharacter, openPanel, waitAppReady } from './helpers';
 
 async function openEffectLibrary(page: Page) {
-  await page.locator('app-pl-toolbar button[title="エフェクト"]').click();
+  await openPanel(page, 'エフェクト');
   await expect(page.locator('app-effect-library-panel')).toBeVisible({ timeout: 5000 });
 }
 

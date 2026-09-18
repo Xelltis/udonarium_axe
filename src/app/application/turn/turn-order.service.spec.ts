@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -350,6 +351,23 @@ describe('TurnOrderService', () => {
     vi.spyOn(inventory.tableInventory, 'tabletopObjects', 'get').mockReturnValue([acting, watching]);
 
     expect(service.orderedCharacters()).toEqual([acting]);
+  });
+
+  describe('saying whose turn it is', () => {
+    it('names the piece the players can see, and leaves one they cannot unnamed', () => {
+      const seen = vi
+        .spyOn(TestBed.inject(VisionService), 'isSeenByParty')
+        .mockImplementation((character) => character !== chars[1]);
+      service.next(); // round 1 begins
+      sendSpy.mockClear();
+
+      service.next(); // chars[0] is up
+      service.next(); // chars[1] is up
+
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[0]));
+      expect(announced).toEqual(['feature.turnOrder.announce', 'feature.turnOrder.announceUnseen']);
+      seen.mockRestore();
+    });
   });
 
   describe('advancing the round itself', () => {

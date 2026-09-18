@@ -22,6 +22,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -106,16 +107,25 @@ export class ChatInputComponent {
   private readonly panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly vision = inject(VisionService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly uiSignalService = inject(UiSignalService);
 
   private chatHistory = new ChatInputHistory();
   private dicebotHelper = new ChatInputDiceBotHelper();
 
-  readonly textAreaElementRef = viewChild.required<ElementRef>('textArea');
+  /** The box lines are written in, which a reader who may not speak in the tab is not given. */
+  readonly textAreaElementRef = viewChild<ElementRef<HTMLTextAreaElement>>('textArea');
 
   readonly onlyCharacters = input(false);
   readonly disableQuote = input(false);
+  /**
+   * Packs the input down for a panel whose own list needs the room: a smaller portrait, and the
+   * colours and the ticker switch folded behind a button.
+   */
+  readonly dense = input(false);
+  /** What the empty box says in place of its keys, for a panel that fills the box its own way. */
+  readonly placeholder = input('');
   readonly canSpeak = input(true);
   readonly chatTabidentifier = input('');
   readonly autoCompleteIndex = input(-1);
@@ -275,7 +285,7 @@ export class ChatInputComponent {
         const target = this.objectStore.get<ChatMessage>(req.messageIdentifier);
         this.replyTarget.set(target instanceof ChatMessage ? target : null);
         if (target instanceof ChatMessage) {
-          this.textAreaElementRef().nativeElement.focus();
+          this.textAreaElementRef()?.nativeElement.focus();
         }
       });
     });
@@ -293,7 +303,7 @@ export class ChatInputComponent {
         const target = this.objectStore.get<ChatMessage>(req.messageIdentifier);
         this.quoteTarget.set(target instanceof ChatMessage ? target : null);
         if (target instanceof ChatMessage) {
-          this.textAreaElementRef().nativeElement.focus();
+          this.textAreaElementRef()?.nativeElement.focus();
         }
       });
     });
@@ -438,12 +448,21 @@ export class ChatInputComponent {
     return image ? image : ImageFile.Empty;
   }
 
+  /**
+   * The characters this seat may speak as. A piece on the table it cannot see is left out, so the
+   * list does not name what the dark or the fog is keeping back; the one already chosen stays.
+   */
   readonly gameCharacters = computed(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const c of all) this.objectChange.versionOf(c.identifier)();
     const ignoreNonTalk = this.onlyCharacters();
-    return all.filter((character) => allowsChat(character, this.myPeer.peerId, ignoreNonTalk));
+    const chosen = this.sendFrom;
+    return all.filter(
+      (character) =>
+        allowsChat(character, this.myPeer.peerId, ignoreNonTalk) &&
+        (character.identifier === chosen || this.vision.mayBeListed(character))
+    );
   });
 
   private writingEventInterval: ReturnType<typeof setTimeout> | null = null;
@@ -576,8 +595,8 @@ export class ChatInputComponent {
 
   /** Grows or shrinks the text area to its content, unless the user has resized it by hand. */
   calcFitHeight() {
-    const textArea: HTMLTextAreaElement = this.textAreaElementRef().nativeElement;
-    if (this.userResized) return;
+    const textArea = this.textAreaElementRef()?.nativeElement;
+    if (!textArea || this.userResized) return;
     textArea.style.height = '';
     if (textArea.scrollHeight >= textArea.offsetHeight) {
       textArea.style.height = textArea.scrollHeight + 'px';

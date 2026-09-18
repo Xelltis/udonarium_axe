@@ -325,6 +325,17 @@ describe('DungeonBuildService', () => {
     });
   });
 
+  it('runs a stair down to one side, so it reads as the ramp it always did', async () => {
+    const { plan, result } = await build();
+
+    plan.blocks.blocks.forEach((block, index) => {
+      const terrain = result.table.terrains[index];
+      if (block.kind === 'stairUp') expect(terrain.slopeSides).toEqual(['n']);
+      if (block.kind === 'stairDown') expect(terrain.slopeSides).toEqual(['s']);
+      if (block.kind === 'wall') expect(terrain.slopeSides).toEqual([]);
+    });
+  });
+
   it('locks every piece and tiles its texture', async () => {
     const { result } = await build();
 

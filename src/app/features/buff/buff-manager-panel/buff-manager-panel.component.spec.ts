@@ -1,6 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BuffManagerPanelComponent } from '@axe/features/buff/buff-manager-panel/buff-manager-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -41,6 +47,17 @@ describe('BuffManagerPanelComponent', () => {
 
     expect(component.rows().map((row) => row.characterName)).toEqual(['バフ持ち']);
     expect(component.rows()[0].bars.map((bar) => bar.name)).toEqual(['猛攻撃']);
+  });
+
+  it('gives no row to a piece on the table this reader cannot see', () => {
+    const hero = makeCharacter('勇者');
+    hero.buffs.addRound('加護', '', 3);
+    const lurker = makeCharacter('闇の魔物');
+    lurker.buffs.addRound('潜伏', '', 3);
+    onTable([hero, lurker]);
+    vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockImplementation((character) => character !== lurker);
+
+    expect(component.rows().map((row) => row.characterName)).toEqual(['勇者']);
   });
 
   it('runs the chart from the round being played', () => {
@@ -252,6 +269,85 @@ describe('BuffManagerPanelComponent', () => {
       component.builderAmount.set('たくさん');
 
       expect(component.builderPreview()).toBe('');
+    });
+  });
+
+  describe('sweeping buffs off the table', () => {
+    let knight: GameCharacter;
+    let archer: GameCharacter;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      knight = makeCharacter('騎士');
+      knight.buffs.addRound('毒', '', 3, { timing: 'none' });
+      knight.buffs.addRound('加速', '', 2);
+      archer = makeCharacter('弓兵');
+      archer.buffs.addRound('毒', '', 2);
+      onTable([knight, archer]);
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    function beRole(role: PeerRole): void {
+      PeerCursor.myCursor.role = role;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    }
+
+    function names(piece: GameCharacter): string[] {
+      return (piece.buffDataElement?.children[0]?.children ?? []).map((data) => data.name);
+    }
+
+    it('is offered to the game master alone', () => {
+      beRole(PeerRole.Player);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="buff-sweep"]')).toBeNull();
+
+      beRole(PeerRole.GameMaster);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="buff-sweep"]')).not.toBeNull();
+    });
+
+    it('counts what each kind of sweep would reach', () => {
+      beRole(PeerRole.GameMaster);
+      expect(component.sweepCount()).toEqual({ characters: 1, buffs: 1 });
+
+      component.sweepKind.set('rounds');
+      component.sweepRounds.set(2);
+      expect(component.sweepCount()).toEqual({ characters: 2, buffs: 2 });
+
+      component.sweepKind.set('name');
+      expect(component.sweepNames()).toEqual(['毒', '加速']);
+      expect(component.sweepCount()).toEqual({ characters: 2, buffs: 2 });
+    });
+
+    it('takes the chosen buffs off every piece once confirmed, and says so in chat', async () => {
+      beRole(PeerRole.GameMaster);
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+      const said = vi
+        .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageToMainTab')
+        .mockReturnValue(undefined as never);
+      component.sweepKind.set('name');
+      component.sweepName.set('毒');
+
+      await component.sweep();
+
+      expect(names(knight)).toEqual(['加速']);
+      expect(names(archer)).toEqual([]);
+      expect(said).toHaveBeenCalledOnce();
+    });
+
+    it('takes nothing when the game master thinks better of it, or for anyone else', async () => {
+      const asked = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      beRole(PeerRole.GameMaster);
+      await component.sweep();
+      expect(names(knight)).toEqual(['毒', '加速']);
+
+      asked.mockResolvedValue(true);
+      beRole(PeerRole.Player);
+      await component.sweep();
+      expect(names(knight)).toEqual(['毒', '加速']);
     });
   });
 });

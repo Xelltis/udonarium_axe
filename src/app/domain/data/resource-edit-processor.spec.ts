@@ -4,6 +4,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ResourceEdit, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 
 describe('ResourceEditProcessor', () => {
   let processor: ResourceEditProcessor;
@@ -274,6 +275,58 @@ describe('ResourceEditProcessor', () => {
       tab.initialize();
       character = GameCharacter.create('キャラクターB', 1, '');
       mockLoadGameSystemAsync.mockResolvedValue({ ID: 'DiceBot' });
+    });
+
+    describe('sweeping buffs off the table', () => {
+      let archer: GameCharacter;
+
+      beforeEach(() => {
+        character.setLocation('table');
+        character.addExtendData();
+        character.buffs.addRound('毒', '', 3, { timing: 'none' });
+        character.buffs.addRound('加速', '', 2);
+        archer = GameCharacter.create('弓兵', 1, '');
+        archer.setLocation('table');
+        archer.addExtendData();
+        archer.buffs.addRound('毒', '', 2);
+      });
+
+      afterEach(() => {
+        archer.destroy();
+        character.destroy();
+      });
+
+      function names(piece: GameCharacter): string[] {
+        return (piece.buffDataElement?.children[0]?.children ?? []).map((data) => data.name);
+      }
+
+      it('takes a buff of that name off every piece on the table for the game master, and says how many', async () => {
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+        processor.checkResourceEditCommand(speak('&&毒-'), [{ text: '&&毒-', object: character }]);
+
+        await vi.waitFor(() => expect(systemText()).toContain('卓全体から「毒」を解除（2体・2件）'));
+        expect(names(character)).toEqual(['加速']);
+        expect(names(archer)).toEqual([]);
+      });
+
+      it('takes nothing for anyone but the game master, and says the sweep is theirs', async () => {
+        PeerCursor.myCursor.role = PeerRole.Player;
+
+        processor.checkResourceEditCommand(speak('&&2R-'), [{ text: '&&2R-', object: character }]);
+
+        await vi.waitFor(() => expect(systemText()).toContain('バフの一括解除はGMだけが使えます（&&2R-）'));
+        expect(names(character)).toEqual(['毒', '加速']);
+        expect(names(archer)).toEqual(['毒']);
+      });
+
+      it('says so when nothing on the table matches', async () => {
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+        processor.checkResourceEditCommand(speak('&&9R-'), [{ text: '&&9R-', object: character }]);
+
+        await vi.waitFor(() => expect(systemText()).toContain('卓全体に残り9Rのバフはありません'));
+      });
     });
 
     it('says which command it could not work out', async () => {

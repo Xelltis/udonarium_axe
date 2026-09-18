@@ -113,6 +113,26 @@ export class SelectionSignalService {
     if (lastTouched) this.selectObject(lastTouched.identifier, lastTouched.className);
   }
 
+  /**
+   * What a left press on a piece does to the multi-selection.
+   *
+   * With Ctrl or ⌘ held it adds the piece or takes it out. Without, a press on a piece outside a
+   * selection narrows the selection to that piece; with nothing selected, or on a piece already
+   * in the selection, it leaves the selection, and whatever the press goes on to do, alone.
+   *
+   * @returns whether the press was spent on the selection, and so should go no further.
+   */
+  press(identifier: string, className: string, toggling: boolean): boolean {
+    if (toggling) {
+      this.toggleSelection(identifier, className);
+      return true;
+    }
+    const selected = this._selectedObjects();
+    if (selected.size === 0 || selected.has(identifier)) return false;
+    this.replaceSelection([identifier], { identifier, className });
+    return false;
+  }
+
   /** Empties the multi-selection. The piece last selected is left as it was. */
   clearSelection(): void {
     if (this._selectedObjects().size === 0) return;

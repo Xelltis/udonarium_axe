@@ -35,13 +35,51 @@ export async function closeFabMenu(page: Page) {
 }
 
 /**
+ * FAB を開き、最下段の「表示」からこの端末の表示設定の小窓を開く。開いた小窓を返す。
+ */
+export function openSeatDisplay(page: Page): Promise<Locator> {
+  return openFabSubmenu(page, 'fab-display', 'seat-display');
+}
+
+/**
+ * FAB を開き、最下段の「ウィジェット」からウィジェットの小窓を開く。開いた小窓を返す。
+ */
+export function openSeatWidgets(page: Page): Promise<Locator> {
+  return openFabSubmenu(page, 'fab-widgets', 'seat-widgets');
+}
+
+/**
+ * FAB を開き、最下段の「セーブ&ロード」から保存と読込の小窓を開く。開いた小窓を返す。
+ */
+export function openSaveLoad(page: Page): Promise<Locator> {
+  return openFabSubmenu(page, 'fab-save-load', 'save-load');
+}
+
+async function openFabSubmenu(page: Page, openerTestId: string, menuTestId: string): Promise<Locator> {
+  await openFabMenu(page);
+  const panel = page.locator(`[data-testid="${menuTestId}"]`);
+  if (!(await panel.isVisible())) await page.locator(`[data-testid="${openerTestId}"]`).click();
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
+/**
  * FAB を開いた上で data-label のメニュー項目をクリックする。
  * 既存テストで `getByText('インベントリ')` などを呼んでいた箇所の置換用。
  */
 export async function openPanel(page: Page, dataLabel: string) {
   await openFabMenu(page);
+  const submenu = Object.entries(SUBMENU_LABELS).find(([, labels]) => labels.includes(dataLabel))?.[0];
+  if (submenu) await openFabSubmenu(page, `fab-entry-${submenu}`, `fab-submenu-${submenu}`);
   await page.locator(`[data-label="${dataLabel}"]`).click();
 }
+
+/** FAB の項目が開く小窓と、その中にある項目。小窓の中の項目は、押す前に小窓を開く。 */
+const SUBMENU_LABELS: Readonly<Record<string, readonly string[]>> = {
+  table: ['テーブル設定', 'マップエディター', 'マップ生成', '卓上ディスプレイ', 'ノベルモード'],
+  gameResources: ['インベントリ', 'バフマネージャー', '状態異常', 'ダイス表設定', '手札'],
+  media: ['画像', 'ジュークボックス', 'カットイン', 'エフェクト'],
+};
 
 /**
  * チャットウィンドウ右上の歯車（details/summary）を開いて、

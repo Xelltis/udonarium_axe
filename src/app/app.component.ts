@@ -33,7 +33,6 @@ import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
-import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WIDGET_FAB } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
@@ -41,14 +40,15 @@ import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
-import { FAB_ENTRIES, FabEntry } from '@axe/domain/ui/fab-menu';
+import { FAB_ENTRIES, FAB_SUBMENUS, FabEntry, FabSubmenuName } from '@axe/domain/ui/fab-menu';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
-import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
+import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { ChatPortraitImageComponent } from '@axe/features/chat/chat-portrait-img/chat-portrait-img.component';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
@@ -59,7 +59,6 @@ import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
-import { LanguageSelectorComponent } from '@axe/features/language-selector/language-selector.component';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
@@ -74,6 +73,7 @@ import { ReplayIndicatorComponent } from '@axe/features/replay/replay-indicator/
 import { ReplayStagingBannerComponent } from '@axe/features/replay/replay-staging-banner/replay-staging-banner.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { RoomRestoreBannerComponent } from '@axe/features/room-archive/room-restore-banner/room-restore-banner.component';
+import { SeatDisplayMenuComponent, SeatMenuKind } from '@axe/features/seat-display/seat-display-menu.component';
 import { StreamingOverlayComponent } from '@axe/features/streaming-overlay/streaming-overlay.component';
 import { CcfoliaRoomImportEventHandlerService } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import-event-handler.service';
 import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
@@ -89,6 +89,8 @@ import { DigitalClockComponent } from '@axe/features/widgets/digital-clock/digit
 import { RenderStatsComponent } from '@axe/features/widgets/render-stats/render-stats.component';
 import { ConfirmDialogComponent } from '@axe/ui/components/confirm-dialog/confirm-dialog.component';
 import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-menu.component';
+import { UiFabSubmenuComponent } from '@axe/ui/components/fab-submenu/fab-submenu.component';
+import { UiFabSubmenuButtonComponent } from '@axe/ui/components/fab-submenu/fab-submenu-button.component';
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -101,12 +103,25 @@ import {
   FabDrawerSide,
   fabDrawerSide,
   fabLabelSideClasses,
+  fabPopoverSideClasses,
+  FabSubmenuAnchor,
+  fabSubmenuAnchor,
 } from '@axe/ui/fab-drawer';
 import { TranslocoModule } from '@jsverse/transloco';
 import { version as APP_VERSION } from '@pkg';
 
 /** How far from the corner the button starts, before anybody has put it anywhere. */
 const FAB_MARGIN_PX = 12;
+
+/** The small menus opened beside the drawer: those of its entries, saving and loading, the widgets, and this seat's display. */
+type FabSubmenuKind = FabSubmenuName | 'saveLoad' | SeatMenuKind;
+
+interface FabSubmenuOpener {
+  readonly kind: FabSubmenuKind;
+  readonly icon: string;
+  readonly labelKey: string;
+  readonly testId: string;
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -134,7 +149,9 @@ const FAB_MARGIN_PX = 12;
     InviteJoinComponent,
     StreamingOverlayComponent,
     ChatTickerComponent,
-    LanguageSelectorComponent,
+    SeatDisplayMenuComponent,
+    UiFabSubmenuComponent,
+    UiFabSubmenuButtonComponent,
     VisualNovelOverlayComponent,
     NgClass,
     DraggableDirective,
@@ -147,11 +164,14 @@ const FAB_MARGIN_PX = 12;
   host: { '(window:resize)': 'measureFabSides()' },
 })
 export class AppComponent {
-  readonly theme = inject(ThemeService);
-  readonly motion = inject(MotionService);
-  readonly renderLite = inject(RenderLiteService);
-  readonly language = inject(LanguageService);
+  // Built with the shell, whether or not anything shows them: each dresses the page in this
+  // seat's setting as it starts, before the first screen is drawn.
+  private readonly theme = inject(ThemeService);
+  private readonly motion = inject(MotionService);
+  private readonly renderLite = inject(RenderLiteService);
+  private readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);
+  private readonly handRail = inject(HandRailService);
   readonly widgets = inject(WidgetVisibilityService);
   readonly viewport = inject(ViewportService);
   readonly mobile = inject(MobileLayoutService);
@@ -198,6 +218,71 @@ export class AppComponent {
   protected toggleFab(): void {
     this.measureFabSides();
     this.fabOpen.set(!this.fabOpen());
+    if (!this.fabOpen()) this.fabSubmenu.set(null);
+  }
+
+  /** The buttons at the foot of the drawer, each opening a small menu of its own beside it. */
+  protected readonly fabSubmenuOpeners: readonly FabSubmenuOpener[] = [
+    { kind: 'saveLoad', icon: 'sd_storage', labelKey: 'app.fab.saveLoad', testId: 'fab-save-load' },
+    { kind: 'widgets', icon: 'widgets', labelKey: 'app.fab.widgets', testId: 'fab-widgets' },
+    { kind: 'display', icon: 'display_settings', labelKey: 'app.fab.display', testId: 'fab-display' },
+  ];
+
+  /** Which of the drawer's menus is open beside it, if any; opening one closes the one before. */
+  protected readonly fabSubmenu = signal<FabSubmenuKind | null>(null);
+
+  /** Which side of the drawer they open on, which is the side with room. */
+  protected readonly fabSubmenuSide = computed(() => fabPopoverSideClasses(this.fabSide()));
+
+  private readonly zipInput = viewChild<ElementRef<HTMLInputElement>>('zipInput');
+
+  /** Where the open menu is pinned, level with the item it was opened from. */
+  protected readonly fabSubmenuPlace = signal<FabSubmenuAnchor>({ top: null, bottom: 0 });
+
+  protected toggleFabSubmenu(kind: FabSubmenuKind, event: MouseEvent): void {
+    this.measureFabSides();
+    const opener = event.currentTarget;
+    if (opener instanceof HTMLElement && opener.offsetParent instanceof HTMLElement) {
+      const box = opener.getBoundingClientRect();
+      this.fabSubmenuPlace.set(
+        fabSubmenuAnchor({
+          offsetTop: opener.offsetTop,
+          height: opener.offsetHeight,
+          drawerHeight: opener.offsetParent.clientHeight,
+          centerInWindow: box.top + box.height / 2,
+          windowHeight: window.innerHeight,
+        })
+      );
+    }
+    this.fabSubmenu.update((open) => (open === kind ? null : kind));
+  }
+
+  protected closeFabSubmenu(): void {
+    this.fabSubmenu.set(null);
+  }
+
+  /** Saves the room from the save and load menu, which gets out of the way while the save runs. */
+  protected saveFromMenu(): void {
+    this.closeFabSubmenu();
+    void this.save();
+  }
+
+  /** Whether this seat may put things on the table, which loading a room or a character does. */
+  protected readonly canEditTabletop = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  });
+
+  /** Opens character import from the save and load menu, a shortcut to the one in the room settings. */
+  protected importCharacterFromMenu(): void {
+    this.closeFabSubmenu();
+    this.open('characterImport');
+  }
+
+  /** Asks for the files to load from the save and load menu, which closes as the picker opens. */
+  protected chooseFilesToLoad(): void {
+    this.closeFabSubmenu();
+    this.zipInput()?.nativeElement.click();
   }
 
   /** Reads where the button has been put, which is what settles the way the drawer opens. */
@@ -210,47 +295,52 @@ export class AppComponent {
   }
 
   protected readonly tabletop = inject(TabletopService);
-  private readonly viewMode = inject(ViewModePreferenceService);
-
-  /** Auto, then each of the two a reader may hold the table to. */
-  protected viewModeLabel(): string {
-    return viewModeLabelKey(this.viewMode.mode(), this.tabletop.mode2d());
-  }
-
-  protected viewModeIcon(): string {
-    return viewModeIcon(this.viewMode.mode(), this.tabletop.mode2d());
-  }
-
   /** The ticker is drawn for the screens that asked for it, and not fetched for the rest. */
   protected readonly tickerWanted = computed(() => this.tabletop.display().multiAngleTickerEnabled);
 
-  protected toggleViewMode(): void {
-    this.viewMode.choose(nextViewMode(this.viewMode.mode()));
-  }
-
   protected readonly fabEntries = FAB_ENTRIES;
 
-  protected chooseFab(entry: FabEntry): void {
+  private readonly myRole = computed(() => {
+    this.objectChange.trackMyCursor();
+    return PeerCursor.myRole;
+  });
+
+  /** What each small menu of the drawer offers this seat, by who each entry is for. */
+  protected readonly fabSubmenuEntries = computed<Readonly<Record<FabSubmenuName, readonly FabEntry[]>>>(() => {
+    const role = this.myRole();
+    const offered = (entries: readonly FabEntry[]) =>
+      entries.filter(
+        (entry) =>
+          !entry.audience || (entry.audience === 'gameMaster' ? role === PeerRole.GameMaster : role !== PeerRole.Guest)
+      );
+    return {
+      table: offered(FAB_SUBMENUS.table),
+      gameResources: offered(FAB_SUBMENUS.gameResources),
+      media: offered(FAB_SUBMENUS.media),
+    };
+  });
+
+  /** Whether an entry of a small menu is on, for those switched on and off rather than opened. */
+  protected fabEntryLit(entry: FabEntry): boolean | null {
+    if (entry.action.kind === 'visualNovel') return this.visualNovel.active();
+    if (entry.action.kind === 'handRail') return this.handRail.isOpen();
+    return null;
+  }
+
+  protected chooseFab(entry: FabEntry, event: MouseEvent): void {
+    if (entry.action.kind === 'submenu') this.toggleFabSubmenu(entry.action.submenu, event);
+    else this.chooseFromFabSubmenu(entry);
+  }
+
+  /** Does what an entry of a small menu is for, and closes the menu behind it. */
+  protected chooseFromFabSubmenu(entry: FabEntry): void {
+    this.closeFabSubmenu();
     if (entry.action.kind === 'panel') this.open(entry.action.panel);
     else if (entry.action.kind === 'visualNovel') this.visualNovel.toggle();
+    else if (entry.action.kind === 'handRail') this.handRail.toggle();
   }
   isSaving = signal(false);
   progressPercent = signal(0);
-  readonly themeLabel = computed(() => {
-    this.language.currentLang();
-    const t = this.theme.theme();
-    if (t === 'dark') return this.t('common.theme.dark');
-    if (t === 'light') return this.t('common.theme.light');
-    return this.t('common.theme.auto');
-  });
-  readonly motionLabel = computed(() => {
-    this.language.currentLang();
-    const setting = this.motion.setting();
-    if (setting === 'on') return this.t('common.motion.on');
-    if (setting === 'off') return this.t('common.motion.off');
-    return this.t('common.motion.auto');
-  });
-
   constructor() {
     inject(Title).setTitle(`Udonarium Axe ${APP_VERSION}`);
 

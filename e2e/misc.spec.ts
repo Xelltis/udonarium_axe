@@ -59,13 +59,12 @@ test.describe('左 FAB 各メニュー項目の起動経路', () => {
     const expected = [
       '接続',
       'チャット',
-      'テーブル設定',
-      '画像',
-      'ジュークボックス',
-      'カットイン',
-      'インベントリ',
-      'ZIP読込',
-      '保存',
+      'テーブル関連',
+      'メディア',
+      'ゲームリソース',
+      'セーブ&ロード',
+      'ウィジェット',
+      '表示',
     ];
     for (const label of expected) {
       await expect(page.locator(`[data-label="${label}"]`)).toBeVisible();
