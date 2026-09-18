@@ -9,9 +9,11 @@ import {
 } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { GridType } from '@axe/domain/tabletop/game-table';
 import { SurfaceDims, surfaceWorldBox } from '@axe/domain/tabletop/surface-space';
 import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainSlopeRoofOf, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 
 const POSZ_EPSILON = 0.5;
 const DEBOUNCE_MS = 80;
@@ -36,6 +38,10 @@ interface CachedEntry {
   posZ: number;
   surface: TableSurface;
   isGravity: boolean;
+  /** A sloping block, whose top is read where it is stood on rather than at its highest. */
+  sloping: Terrain | null;
+  gridSizePx: number;
+  gridType: GridType;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -87,7 +93,12 @@ export class GravityService {
 
       // Read each footprint and height once into a cache, so the inner loop never triggers a reflow
       const gridSize = this.tabletopService.gridSize();
-      const cached = GravityService.buildCache(entries, this.surfaceDims(gridSize), gridSize);
+      const cached = GravityService.buildCache(
+        entries,
+        this.surfaceDims(gridSize),
+        gridSize,
+        this.tabletopService.currentTable.gridType
+      );
       const targets = cached.filter((c) => c.isGravity);
       if (targets.length === 0) return;
 
@@ -212,7 +223,8 @@ export class GravityService {
   private static buildCache(
     entries: TabletopOverlapRegistryEntry[],
     dims: SurfaceDims,
-    gridSizePx: number
+    gridSizePx: number,
+    gridType: GridType
   ): CachedEntry[] {
     const cached: CachedEntry[] = [];
     for (const entry of entries) {
@@ -238,6 +250,9 @@ export class GravityService {
         posZ,
         surface,
         isGravity: surface === 'floor' && GravityService.isAffectedByGravity(obj),
+        sloping: obj instanceof Terrain && terrainSlopeRoofOf(obj, gridSizePx, gridType) != null ? obj : null,
+        gridSizePx,
+        gridType,
       });
     }
     return cached;
@@ -281,9 +296,22 @@ export class GravityService {
       if (c.entry.object.identifier === targetId) continue;
       if (cx < c.minX || cx > c.maxX) continue;
       if (cy < c.minY || cy > c.maxY) continue;
-      if (c.topZ > targetBottom + POSZ_EPSILON) continue;
-      if (c.topZ > maxZ) maxZ = c.topZ;
+      const topZ = GravityService.topOfEntry(c, cx, cy);
+      if (topZ > targetBottom + POSZ_EPSILON) continue;
+      if (topZ > maxZ) maxZ = topZ;
     }
     return maxZ;
+  }
+
+  /**
+   * How high one thing reaches under a point.
+   *
+   * A sloping block is read where it is stood on, so something set down on a ramp rests on the
+   * ramp rather than level with its high end.
+   */
+  private static topOfEntry(cached: CachedEntry, x: number, y: number): number {
+    const sloping = cached.sloping;
+    if (!sloping) return cached.topZ;
+    return terrainTopPxAt(sloping, cached.gridSizePx, cached.gridType, x, y);
   }
 }

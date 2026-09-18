@@ -30,6 +30,7 @@ import {
 } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { terrainSlopeRoofOf, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 import {
   applyPointerEvents,
@@ -44,6 +45,7 @@ import {
   contactRestLevels,
   ContactRider,
   dropTargetSurface,
+  findContactSupport,
   findContactSupportZ,
   MovableLayerItem,
   nextContactLevel,
@@ -96,6 +98,7 @@ export class MovableDirective implements MovableInteractionContext {
   private contactProbe: ContactFootprint[] | null = null;
   private climbBlocks: MoveBlock[] | null = null;
   private dragReachZ: number | null = null;
+  private dragRestingOn: string | undefined = undefined;
 
   private static layerHash: { [layerName: string]: MovableLayerItem[] } = {};
 
@@ -335,9 +338,10 @@ export class MovableDirective implements MovableInteractionContext {
     const self = this.tabletopObject;
     if (!self) return findContactSupportZ(this.contactProbe, centerX, centerY);
     const rider = this.contactRider(self);
-    const supportZ = findContactSupportZ(this.contactProbe, centerX, centerY, rider);
-    this.dragReachZ = supportZ;
-    return GravityService.restingPosZ(self, supportZ, rider.altitudePx);
+    const support = findContactSupport(this.contactProbe, centerX, centerY, rider);
+    this.dragReachZ = support.z;
+    this.dragRestingOn = support.on;
+    return GravityService.restingPosZ(self, support.z, rider.altitudePx);
   }
 
   private contactRider(self: TabletopObject): ContactRider {
@@ -349,6 +353,7 @@ export class MovableDirective implements MovableInteractionContext {
       thicknessPx: self instanceof Terrain ? self.height * gridSize : 0,
       ridesUp,
       restingZ: this.dragReachZ ?? (ridesUp ? this.posZ : altitudePx + this.posZ),
+      restingOn: this.dragRestingOn,
     };
   }
 
@@ -371,7 +376,9 @@ export class MovableDirective implements MovableInteractionContext {
     const next = nextContactLevel(levels, rider.restingZ, spin < 0);
     if (next === null) return;
 
+    // Lifted off by hand, so it is no longer following the surface it was resting on.
     this.dragReachZ = next;
+    this.dragRestingOn = undefined;
     this.onInputMoveNow(e);
   }
 
@@ -430,6 +437,21 @@ export class MovableDirective implements MovableInteractionContext {
     this.showHeldPiece(self.altitude);
   }
 
+  /**
+   * How high a sloping block's surface stands over a point, for the probe to ask as the piece
+   * moves, or nothing for anything with a level top.
+   */
+  private slopeTopReader(
+    object: TabletopObject,
+    selfSurface: TableSurface,
+    gridSize: number
+  ): ((x: number, y: number) => number) | undefined {
+    if (!(object instanceof Terrain) || selfSurface !== 'floor' || surfaceOf(object) !== 'floor') return undefined;
+    const gridType = this.tableSelecter.viewTable?.gridType ?? GridType.SQUARE;
+    if (!terrainSlopeRoofOf(object, gridSize, gridType)) return undefined;
+    return (x, y) => terrainTopPxAt(object, gridSize, gridType, x, y);
+  }
+
   private buildContactProbe(): ContactFootprint[] {
     const self = this.tabletopObject;
     if (!self) return [];
@@ -451,6 +473,8 @@ export class MovableDirective implements MovableInteractionContext {
         bottomZ: GravityService.contactBottomZ(entry.object, selfSurface, gridSize),
         topZ: GravityService.contactTopZ(entry.object, selfSurface, gridSize),
         climbable: !(sheer && entry.object instanceof Terrain && entry.object.blocksClimb),
+        topAt: this.slopeTopReader(entry.object, selfSurface, gridSize),
+        identifier: entry.object.identifier,
       });
     }
     return footprints;
@@ -460,6 +484,7 @@ export class MovableDirective implements MovableInteractionContext {
     this.contactProbe = null;
     this.climbBlocks = null;
     this.dragReachZ = null;
+    this.dragRestingOn = undefined;
   }
 
   /**

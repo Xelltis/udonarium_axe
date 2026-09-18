@@ -76,6 +76,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import {
   DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
   multiAngleNameMotionMode,
@@ -87,6 +88,8 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
@@ -365,6 +368,34 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char?.identifier ?? '')();
     return char?.altitude ?? 0;
   });
+
+  /**
+   * How the ground under the piece leans, which its pedestal and the picture lying on it take.
+   *
+   * The piece itself stands upright on it, as a figure does on a hillside; only what is lying
+   * on the ground follows the ground. Nothing leans on a table looked at from straight above,
+   * where a lean would only squash what it turned. The blocks it could be standing on are the
+   * ones it is over, so a change to one of those leans it again.
+   */
+  readonly groundLean = computed(() => {
+    const char = this.gameCharacter();
+    if (!char || this.tabletopService.mode2d()) return '';
+    this.objectChange.versionOf(char.identifier)();
+    this.objectChange.collectionOf(Terrain.aliasName)();
+    const table = this.tabletopService.currentTable;
+    const grid = table.gridSize;
+    const middle = (char.size * grid) / 2;
+    const x = char.location.x + middle;
+    const y = char.location.y + middle;
+    const standingOn = table.terrains.filter((terrain) => {
+      const box = terrainBoxOf(terrain, grid);
+      return box.minX <= x && x <= box.maxX && box.minY <= y && y <= box.maxY;
+    });
+    for (const terrain of standingOn) this.objectChange.versionOf(terrain.identifier)();
+    const lean = landingLeanAt(standingOn, grid, x, y, table.gridType);
+    if (!lean) return '';
+    return `rotateY(${-Math.atan(lean.eastward).toFixed(4)}rad) rotateX(${Math.atan(lean.southward).toFixed(4)}rad)`;
+  });
   /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
   setAltitude(altitude: number) {
     const char = this.gameCharacter();
@@ -491,9 +522,11 @@ export class GameCharacterComponent {
     return this.tabletopService.imageBillboard() || this.tabletopService.mode2d();
   });
 
-  readonly multiAnglePiecePedestalRotation = computed(() =>
-    this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
-  );
+  readonly multiAnglePiecePedestalRotation = computed(() => {
+    const orbit = this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : '';
+    const lean = this.groundLean();
+    return lean.length > 0 ? `${lean} ${orbit}`.trimEnd() : orbit;
+  });
 
   readonly multiAnglePieceImageRotation = computed(() =>
     this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''

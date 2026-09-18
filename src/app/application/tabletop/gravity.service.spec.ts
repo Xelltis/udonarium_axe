@@ -216,6 +216,29 @@ describe('applying gravity through the spatial index', () => {
     expect(char.object.posZ).toBe(2 * 50);
   });
 
+  it('rests a character on a ramp where it stands, not level with the high end', () => {
+    const ramp = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'ramp' });
+    (ramp.object as Terrain).slopeSides = ['s'];
+    // The middle of the ramp, half way up it: a piece one cell across stands at 75 + 25.
+    const char = makeCharacter({ x: 75, y: 75, posZ: 300 });
+    const svc = setup([ramp, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBeCloseTo(50);
+  });
+
+  it('rests a character at the foot of a ramp on the floor', () => {
+    const ramp = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'ramp' });
+    (ramp.object as Terrain).slopeSides = ['s'];
+    const char = makeCharacter({ x: 75, y: 175, posZ: 300 });
+    const svc = setup([ramp, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBeCloseTo(0);
+  });
+
   it('leaves distant terrain out, since the index never offers it', () => {
     const base = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, identifier: 'base' });
     const char = makeCharacter({ x: 2000, y: 2000, posZ: 300 });

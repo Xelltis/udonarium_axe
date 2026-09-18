@@ -177,7 +177,7 @@
                 height: imageView.supersamplePercent(),
                 maxWidth: 'none',
                 margin: imageView.supersampleInset(),
-                transform: imageView.posterTransform(),
+                transform: groundLean() + ' ' + imageView.posterTransform(),
               }"
               (load)="imageView.onImageLoad($event)"
               [src]="imageFile().url | safe: 'resourceUrl'"

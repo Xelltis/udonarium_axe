@@ -291,7 +291,7 @@ export class MovePlanService {
       let standingZ = character.posZ;
       for (const [index, cell] of steps.entries()) {
         const centre = cellCenterOf(plan.grid, cell);
-        const landing = landingHeightAt(table.terrains, table.gridSize, centre.x, centre.y);
+        const landing = landingHeightAt(table.terrains, table.gridSize, centre.x, centre.y, table.gridType);
         const from = { x: character.location.x, y: character.location.y, z: standingZ };
         const to = { x: centre.x - corner, y: centre.y - corner, z: landing };
         // Where the piece is going is written once, at the end of the step. Written before

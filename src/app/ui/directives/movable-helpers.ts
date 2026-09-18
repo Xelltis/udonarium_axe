@@ -24,6 +24,15 @@ export interface ContactFootprint {
   topZ: number;
   /** Whether a piece may come to rest on top of this. A sheer face may be stood beside, not on. */
   climbable?: boolean;
+  /**
+   * How high the top stands over one point, for something whose top is not level.
+   *
+   * A sloping block answers with the height of its surface there, so a piece dragged across it
+   * follows the slope instead of riding along at the height of its highest corner.
+   */
+  topAt?: (x: number, y: number) => number;
+  /** What this footprint belongs to, so a piece can keep to the surface it is already on. */
+  identifier?: string;
 }
 
 export interface ContactRider {
@@ -31,6 +40,14 @@ export interface ContactRider {
   thicknessPx: number;
   ridesUp: boolean;
   restingZ: number;
+  /** What the piece is resting on, whose surface it keeps to while that surface is under it. */
+  restingOn?: string;
+}
+
+/** Where a dragged piece rests, and what it is resting on. */
+export interface ContactSupport {
+  z: number;
+  on?: string;
 }
 
 const CONTACT_EPSILON_PX = 0.5;
@@ -91,20 +108,55 @@ export function findContactSupportZ(
   centerY: number,
   rider: ContactRider = FLAT_ON_THE_FLOOR
 ): number {
+  return findContactSupport(footprints, centerX, centerY, rider).z;
+}
+
+/**
+ * The same, together with what the piece came to rest on.
+ *
+ * A piece already resting on something keeps to that thing's surface while it is still under
+ * it, rising as well as falling, so one dragged along a ramp walks up and down the ramp rather
+ * than stepping off it into the air or onto the floor.
+ */
+export function findContactSupport(
+  footprints: readonly ContactFootprint[],
+  centerX: number,
+  centerY: number,
+  rider: ContactRider = FLAT_ON_THE_FLOOR
+): ContactSupport {
+  const under = footprintsUnder(footprints, centerX, centerY);
+  const stayingOn = under.find(
+    (footprint) =>
+      footprint.climbable !== false &&
+      rider.restingOn !== undefined &&
+      footprint.identifier === rider.restingOn &&
+      riderFits(under, rider, footprint.topZ)
+  );
+  if (stayingOn) return { z: stayingOn.topZ, on: stayingOn.identifier };
+
   const levels = contactRestLevels(footprints, centerX, centerY, rider);
   let held = -Infinity;
   for (const level of levels) {
     if (level <= contactBottomAt(rider, rider.restingZ) + CONTACT_EPSILON_PX && level > held) held = level;
   }
-  if (held > -Infinity) return held;
-  if (levels.length > 0) return levels[0];
+  if (held > -Infinity) return { z: held, on: restingOnAt(under, held) };
+  if (levels.length > 0) return { z: levels[0], on: restingOnAt(under, levels[0]) };
 
   let highest = 0;
-  for (const footprint of footprintsUnder(footprints, centerX, centerY)) {
+  for (const footprint of under) {
     if (footprint.climbable === false) continue;
     if (footprint.topZ > highest) highest = footprint.topZ;
   }
-  return highest;
+  return { z: highest, on: restingOnAt(under, highest) };
+}
+
+/** What holds a piece up at this height, of the things under it. */
+function restingOnAt(under: readonly ContactFootprint[], level: number): string | undefined {
+  for (const footprint of under) {
+    if (footprint.climbable === false) continue;
+    if (Math.abs(footprint.topZ - level) <= CONTACT_EPSILON_PX) return footprint.identifier;
+  }
+  return undefined;
 }
 
 function footprintsUnder(
@@ -116,7 +168,7 @@ function footprintsUnder(
   for (const footprint of footprints) {
     if (centerX < footprint.left || centerX > footprint.right) continue;
     if (centerY < footprint.top || centerY > footprint.bottom) continue;
-    under.push(footprint);
+    under.push(footprint.topAt ? { ...footprint, topZ: footprint.topAt(centerX, centerY) } : footprint);
   }
   return under;
 }

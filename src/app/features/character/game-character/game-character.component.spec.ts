@@ -26,6 +26,8 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import { SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
@@ -90,6 +92,90 @@ describe('GameCharacterComponent', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).style.zIndex).toBe('4');
+  });
+
+  describe('standing on a slope', () => {
+    let table: GameTable;
+    const blocks: Terrain[] = [];
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.gridSize = 50;
+      table.initialize();
+    });
+
+    afterEach(() => {
+      for (const terrain of blocks) ObjectStore.instance.remove(terrain);
+      blocks.length = 0;
+      ObjectStore.instance.remove(table);
+    });
+
+    function ramp(sides: SlopeSide[]): Terrain {
+      const terrain = Terrain.create('ramp', 4, 4, 2, '', '');
+      terrain.location.x = 0;
+      terrain.location.y = 0;
+      terrain.slopeSides = sides;
+      table.appendChild(terrain);
+      blocks.push(terrain);
+      return terrain;
+    }
+
+    function standOn(at: { x: number; y: number }): void {
+      const character = GameCharacter.create('コマ', 1, '');
+      character.location.x = at.x;
+      character.location.y = at.y;
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+    }
+
+    it('lies level on level ground', () => {
+      ramp([]);
+      standOn({ x: 75, y: 75 });
+
+      expect(component.groundLean()).toBe('');
+    });
+
+    it('leans the ground under it with the ramp', () => {
+      ramp(['s']);
+
+      standOn({ x: 75, y: 75 });
+
+      // Two cells tall over four cells: the ground drops half a pixel for each pixel south.
+      expect(component.groundLean()).toBe(`rotateY(0rad) rotateX(${(-Math.atan(0.5)).toFixed(4)}rad)`);
+    });
+
+    it('leans nothing on the table seen from straight above, where a lean would only squash it', () => {
+      ramp(['s']);
+      table.mode2d = true;
+
+      standOn({ x: 75, y: 75 });
+
+      expect(component.groundLean()).toBe('');
+    });
+
+    it('leans each way on the sides of a pyramid', () => {
+      ramp(['n', 'e', 's', 'w']);
+
+      standOn({ x: 75, y: 25 });
+      const northSide = component.groundLean();
+      standOn({ x: 75, y: 125 });
+      const southSide = component.groundLean();
+
+      // A pyramid over four cells rises a cell for each cell in, which is a lean of 45°.
+      expect(northSide).toContain(`rotateX(${Math.atan(1).toFixed(4)}rad)`);
+      expect(southSide).toContain(`rotateX(${(-Math.atan(1)).toFixed(4)}rad)`);
+    });
+
+    it('takes the lean into the pedestal and leaves the piece itself standing upright', () => {
+      ramp(['s']);
+
+      standOn({ x: 75, y: 75 });
+
+      expect(component.multiAnglePiecePedestalRotation()).toBe(component.groundLean());
+      expect(component.standTransform()).not.toContain('rotateX(-0.4');
+    });
   });
 
   describe('showing where the piece could walk', () => {
