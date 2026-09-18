@@ -465,6 +465,20 @@ describe('movable-helpers', () => {
       expect(findContactSupportZ(box, 50, 50, token(0))).toBe(50);
     });
 
+    it('takes the level nearest the height the piece is already at', () => {
+      const canopy = [cell(0, 0, 150, 200)];
+
+      // Held just under the canopy, it steps up onto it; down near the floor, it stays down.
+      expect(findContactSupportZ(canopy, 50, 50, token(160))).toBe(200);
+      expect(findContactSupportZ(canopy, 50, 50, token(40))).toBe(0);
+    });
+
+    it('leaves a piece on the lower level where two are equally near', () => {
+      const canopy = [cell(0, 0, 150, 200)];
+
+      expect(findContactSupportZ(canopy, 50, 50, token(100))).toBe(0);
+    });
+
     it('keeps what is already up on a canopy up there', () => {
       const canopy = [cell(0, 0, 150, 200)];
 

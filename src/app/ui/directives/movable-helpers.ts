@@ -97,10 +97,10 @@ export function nextContactLevel(levels: readonly number[], from: number, isUp: 
 /**
  * The height a piece dragged to the given point stands on.
  *
- * The piece takes the highest level no higher than where it stands now, so one dragged over
- * a block stays on the ground beside it rather than climbing it, and one dragged off a block
- * drops. With nothing at or below it, it takes the lowest level that fits, and failing that
- * the highest climbable top under its centre.
+ * The piece takes the level nearest the height it is already at, so a low step is risen onto
+ * while the ground stays the ground beside a wall, and one dragged off a block drops to what
+ * is under it. Two levels equally near leave it on the lower one. With nothing under its
+ * centre it takes the floor, and failing that the highest climbable top there.
  */
 export function findContactSupportZ(
   footprints: readonly ContactFootprint[],
@@ -135,12 +135,16 @@ export function findContactSupport(
   if (stayingOn) return { z: stayingOn.topZ, on: stayingOn.identifier };
 
   const levels = contactRestLevels(footprints, centerX, centerY, rider);
-  let held = -Infinity;
+  const standingAt = contactBottomAt(rider, rider.restingZ);
+  let nearest: number | null = null;
   for (const level of levels) {
-    if (level <= contactBottomAt(rider, rider.restingZ) + CONTACT_EPSILON_PX && level > held) held = level;
+    // Levels come lowest first, so only a level nearer by more than a rounding takes over,
+    // which leaves the lower of two equally near ones.
+    if (nearest === null || Math.abs(level - standingAt) < Math.abs(nearest - standingAt) - CONTACT_EPSILON_PX) {
+      nearest = level;
+    }
   }
-  if (held > -Infinity) return { z: held, on: restingOnAt(under, held) };
-  if (levels.length > 0) return { z: levels[0], on: restingOnAt(under, levels[0]) };
+  if (nearest !== null) return { z: nearest, on: restingOnAt(under, nearest) };
 
   let highest = 0;
   for (const footprint of under) {
