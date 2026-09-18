@@ -114,10 +114,18 @@ export function createReplayEntry(draft: ReplayEntryDraft, seq: number, at: numb
   };
 }
 
-/** Works each event's offset out afresh from the time of the first event, never below 0. */
+/**
+ * Works each event's offset out afresh from the time of the first event, never below 0.
+ *
+ * An event whose offset comes out the same is handed back as it was, so an edit to one event of
+ * a long recording copies that one rather than every event.
+ */
 export function restampReplayTimes(events: readonly ReplayEvent[]): ReplayEvent[] {
   const origin = events[0]?.at ?? 0;
-  return events.map((event) => ({ ...event, t: Math.max(0, event.at - origin) }));
+  return events.map((event) => {
+    const t = Math.max(0, event.at - origin);
+    return t === event.t ? event : { ...event, t };
+  });
 }
 
 /** Inserts one event at a position, keeping its own sequence number and time, and restamps the offsets. */

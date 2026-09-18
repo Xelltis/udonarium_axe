@@ -45,7 +45,10 @@ export class ReplayWorkspaceComponent {
   protected readonly isDigestOpen = signal(false);
 
   constructor() {
-    this.destroyRef.onDestroy(() => void this.playback.close());
+    this.destroyRef.onDestroy(() => {
+      this.editor.cancel();
+      void this.playback.close();
+    });
     // Closing a recording returns to the playback view, so the next one does not open on the summary.
     effect(() => {
       if (!this.isOpen()) this.isDigestOpen.set(false);

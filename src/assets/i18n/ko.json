@@ -3504,7 +3504,8 @@
         "rewrite": "고쳐 쓰기",
         "undo": "취소하기",
         "undoHint": "Ctrl+Z",
-        "drag": "잡아서 순서 바꾸기"
+        "drag": "잡아서 순서 바꾸기",
+        "discardConfirm": "편집 중인 변경을 버리고 다른 기록을 열까요?"
       },
       "surface": {
         "floor": "바닥",

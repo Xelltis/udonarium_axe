@@ -3502,7 +3502,8 @@
         "rewrite": "書き直す",
         "undo": "取り消す",
         "undoHint": "Ctrl+Z",
-        "drag": "つまんで並べ替え"
+        "drag": "つまんで並べ替え",
+        "discardConfirm": "編集中の変更を捨てて、別の記録を開きますか？"
       },
       "surface": {
         "floor": "床",

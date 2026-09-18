@@ -3502,7 +3502,8 @@
         "rewrite": "Reword",
         "undo": "Undo",
         "undoHint": "Ctrl+Z",
-        "drag": "Drag to reorder"
+        "drag": "Drag to reorder",
+        "discardConfirm": "Discard the edits in progress and open another recording?"
       },
       "surface": {
         "floor": "floor",
