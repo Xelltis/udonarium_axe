@@ -570,6 +570,21 @@ describe('TerrainComponent', () => {
 
       expect(component.slopeSides()).toEqual(['s']);
     });
+
+    it('reads its sides again once the grid under it changes shape', async () => {
+      terrain.slopeSides = ['e'];
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(component.slopeSides()).toEqual(['e']);
+
+      component.currentTable.gridType = GridType.HEX_VERTICAL;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      // A hex block of flat-topped cells has no side facing due east, so the slope takes the
+      // one it points nearest to.
+      expect(component.slopeSides()).toEqual(['ne']);
+    });
   });
 
   describe('the grid it carries', () => {

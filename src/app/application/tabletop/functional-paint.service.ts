@@ -72,6 +72,9 @@ function layTerrainBlock(
   // way it knew.
   const slopeSides = parseSlopeSides(spec.slopeSides, spec.slopeDirection);
   terrain.slopeSides = spec.slope ? slopeSides : [];
+  // A brush that names no side the block still has keeps its slope on all the same, which is
+  // read as running down to the south wherever the block is drawn.
+  terrain.isSlope = spec.slope;
   terrain.rotate = placed ? placed.rotate : 0;
   terrain.lightEnabled = spec.light.enabled;
   terrain.lightPreset = spec.light.preset;

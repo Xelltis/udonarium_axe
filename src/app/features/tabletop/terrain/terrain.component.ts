@@ -472,7 +472,7 @@ export class TerrainComponent {
   readonly slopeSides = computed<SlopeSide[]>(() => {
     const terrain = this.terrain();
     this.objectChange.versionOf(terrain.identifier)();
-    return drawnSlopeSides(terrain, gridSlopeSides(this.currentTable.gridType));
+    return drawnSlopeSides(terrain, gridSlopeSides(this.gridType()));
   });
 
   /** The outline of this block's top, in pixels from the corner the block is drawn from. */
@@ -493,12 +493,7 @@ export class TerrainComponent {
 
   /** The slope of this block, as the flat pieces its top is made of. */
   readonly slopeRoof = computed<SlopeRoof | null>(() =>
-    buildSlopeRoof(
-      this.topOutline(),
-      this.slopeSides(),
-      this.height() * this.gridSize,
-      gridSlopeKind(this.currentTable.gridType)
-    )
+    buildSlopeRoof(this.topOutline(), this.slopeSides(), this.height() * this.gridSize, gridSlopeKind(this.gridType()))
   );
 
   /** Each flat piece of the slope, ready to be drawn: where it is cut, how it leans, how lit. */

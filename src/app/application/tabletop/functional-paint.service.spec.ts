@@ -318,6 +318,19 @@ describe('FunctionalPaintService', () => {
       expect(terrainOn()[0].slopeSides).toEqual(['s']);
     });
 
+    it('keeps the slope on for a brush that names no side at all', () => {
+      const ramp = Terrain.create('坂', 1, 1, 1, '', '');
+      ramp.location = { name: 'table', x: 0, y: 0 };
+      ramp.isSlope = true;
+      table.appendChild(ramp);
+      const read = { ...service.snapshot()!.terrainBlocks[0], slopeSides: '', slopeDirection: 0 };
+      ramp.destroy();
+
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
+
+      expect(terrainOn()[0].isSlope).toBe(true);
+    });
+
     it('lays a mask across a whole block too', () => {
       service.apply(plan({ mask: { add: [cover({ col: 0, row: 0, width: 3, height: 2 })], remove: [] } }));
 
