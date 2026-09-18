@@ -239,6 +239,19 @@ describe('applying gravity through the spatial index', () => {
     expect(char.object.posZ).toBeCloseTo(0);
   });
 
+  it('lifts a piece that came down inside a ramp back onto its surface', () => {
+    const ramp = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'ramp' });
+    (ramp.object as Terrain).slopeSides = ['s'];
+    // Let go a little under the surface, which is what snapping to the grid can leave behind
+    // when the piece lands further up the slope than it was dragged to.
+    const char = makeCharacter({ x: 75, y: 75, posZ: 40 });
+    const svc = setup([ramp, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBeCloseTo(50);
+  });
+
   it('leaves distant terrain out, since the index never offers it', () => {
     const base = makeTerrain({ x: 0, y: 0, w: 1, d: 1, h: 2, identifier: 'base' });
     const char = makeCharacter({ x: 2000, y: 2000, posZ: 300 });

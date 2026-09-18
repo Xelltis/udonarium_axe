@@ -167,7 +167,8 @@ export class GravityService {
       if (entry.object.identifier === target.object.identifier) continue;
       if (!GravityService.containsPoint(entry, center.x, center.y, gridSize)) continue;
       const topZ = GravityService.topZ(entry.object, gridSize);
-      if (topZ > targetBottom + POSZ_EPSILON) continue;
+      const bottomZ = entry.object.altitude * gridSize + entry.object.posZ;
+      if (topZ > targetBottom + POSZ_EPSILON && bottomZ >= targetBottom - POSZ_EPSILON) continue;
       if (topZ > maxZ) maxZ = topZ;
     }
     return maxZ;
@@ -297,7 +298,11 @@ export class GravityService {
       if (cx < c.minX || cx > c.maxX) continue;
       if (cy < c.minY || cy > c.maxY) continue;
       const topZ = GravityService.topOfEntry(c, cx, cy);
-      if (topZ > targetBottom + POSZ_EPSILON) continue;
+      // Something wholly overhead does not lift what walks beneath it, but something the
+      // object has come down inside does: a piece let go part way into a ramp stands on the
+      // ramp rather than sinking through it. Standing level with the foot of a thing is not
+      // inside it, so two blocks filling the same space still leave each other where they are.
+      if (topZ > targetBottom + POSZ_EPSILON && c.bottomZ >= targetBottom - POSZ_EPSILON) continue;
       if (topZ > maxZ) maxZ = topZ;
     }
     return maxZ;
