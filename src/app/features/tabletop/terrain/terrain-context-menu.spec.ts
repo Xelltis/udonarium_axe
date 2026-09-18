@@ -41,7 +41,7 @@ interface MutableTerrain {
 }
 
 function makeTerrain(overrides: Partial<MutableTerrain> = {}): MutableTerrain {
-  const terrain = {
+  const terrain: MutableTerrain = {
     width: 1,
     depth: 1,
     altitude: 0,
@@ -61,6 +61,7 @@ function makeTerrain(overrides: Partial<MutableTerrain> = {}): MutableTerrain {
     clone: vi.fn(() => ({ location: { x: 0, y: 0 }, isLocked: false })),
     destroy: vi.fn(),
     slopeSideNames: '',
+    slopeSides: [],
     ...overrides,
   };
   // The real block turns its slope on and off with the sides, which the menu writes.
