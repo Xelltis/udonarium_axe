@@ -61,7 +61,10 @@
     >
       <div
         class="elm-value-content grid min-h-[calc(var(--gde-row-min)-8px)] min-w-0 items-center gap-1 self-center [&.gde-editing]:col-start-1 [&.gde-editing]:row-start-1 [&.gde-editing]:max-h-12 [&.gde-editing]:overflow-hidden [&.gde-editing>input:not([type=range]):not([type=checkbox])]:h-6! [&.gde-editing>input:not([type=range]):not([type=checkbox])]:max-h-6 [&.gde-editing>input:not([type=range]):not([type=checkbox])]:min-h-6 [&.gde-editing>input:not([type=range]):not([type=checkbox])]:leading-4.5 [&.gde-editing>input[type=checkbox]]:m-0 [&.gde-editing>input[type=checkbox]]:size-3.5 [&.gde-editing>select]:h-6! [&.gde-editing>select]:max-h-6 [&.gde-editing>select]:min-h-6 [&.gde-editing>select]:leading-4.5 [&.gde-editing>textarea]:h-6! [&.gde-editing>textarea]:max-h-6 [&.gde-editing>textarea]:min-h-6 [&.gde-editing>textarea]:resize-none [&.gde-editing>textarea]:overflow-hidden [&.gde-editing>textarea]:leading-4.5 [&.gde-editing>textarea]:whitespace-nowrap"
-        [class.gde-editing]="isEdit() && !isImage()"
+        [class.gde-editing]="isEdit() && !isImage() && !isLongTextEditing"
+        [class.col-span-full]="isLongTextEditing"
+        [class.row-start-2]="isLongTextEditing"
+        [class.mt-0.5]="isLongTextEditing"
       >
         @switch (gameDataElement().fieldType) {
           @case ('resource') {
@@ -144,8 +147,24 @@
               />
             </span>
             <textarea
-              class="textarea-url h-[5em] w-full min-w-12.5 resize-none text-[0.8em]"
-              name="data-value"
+              class="textarea-url w-full min-w-12.5"
+              [class.h-[5em]]="!isLongTextEditing"
+              [class.resize-none]="!isLongTextEditing"
+              [class.text-[0.8em]]="!isLongTextEditing"
+              [class.elm-long-text-input]="isLongTextEditing"
+              [class.bg-ui-input!]="isLongTextEditing"
+              [class.border!]="isLongTextEditing"
+              [class.border-(--gde-row-border)!]="isLongTextEditing"
+              [class.focus:border-ui-accent!]="isLongTextEditing"
+              [class.focus:shadow-[0_0_0_2px_var(--ui-accent-glow)]]="isLongTextEditing"
+              [class.min-h-[5.5em]]="isLongTextEditing"
+              [class.max-h-[24em]]="isLongTextEditing"
+              [class.resize-y]="isLongTextEditing"
+              [class.field-sizing-content]="isLongTextEditing"
+              [class.px-1.5!]="isLongTextEditing"
+              [class.py-1!]="isLongTextEditing"
+              [class.leading-normal]="isLongTextEditing"
+              [class.whitespace-pre-wrap]="isLongTextEditing"
               name="data-value"
               [(ngModel)]="value"
               [readonly]="isValueLocked()"
