@@ -7,6 +7,7 @@ import {
   ReplayEventKind,
   type ReplayViewer,
 } from '@axe/domain/replay/replay-event';
+import { ReplayEventCategory, replayEventCategory } from '@axe/domain/replay/replay-event-category';
 import { buildReplayRoute, type ReplayRoutePoint, toRoutePoint } from '@axe/domain/replay/replay-route';
 
 export const ReplayShotPacing = {
@@ -125,6 +126,8 @@ export function buildReplayStoryboard(
     const event = events[index];
     if (options.viewer && !canViewReplayEvent(event, options.viewer)) continue;
     timeOfSeq.set(event.seq, startMs);
+    const category = replayEventCategory(event);
+    if (category === ReplayEventCategory.Hidden || category === ReplayEventCategory.System) continue;
 
     if (event.kind === ReplayEventKind.VnScene) {
       background = event.targetId ?? '';

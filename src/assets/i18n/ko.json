@@ -3406,7 +3406,8 @@
         "withAssets": "이미지도 포함",
         "noRecordings": "저장된 기록이 없습니다",
         "soloRoom": "혼자인 탁상",
-        "showIncidental": "딸린 소리도 내기"
+        "showIncidental": "딸린 소리도 내기",
+        "showSystem": "입퇴장과 설정 변경도 표시"
       },
       "line": {
         "chat": "{{speaker}}: \"{{text}}\"",

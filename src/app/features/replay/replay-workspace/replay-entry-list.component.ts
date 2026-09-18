@@ -139,6 +139,11 @@ export class ReplayEntryListComponent {
     this.filter.update((filter) => ({ ...filter, showIncidental: !filter.showIncidental }));
   }
 
+  /** Lists the running of the room as well — joins, roles, owners, locks — or leaves it out again. */
+  protected toggleSystem(): void {
+    this.filter.update((filter) => ({ ...filter, showSystem: !filter.showSystem }));
+  }
+
   protected async activate(row: ReplayEntryRow): Promise<void> {
     if (this.editing()) return;
     await this.playback.seekTo(row.index);

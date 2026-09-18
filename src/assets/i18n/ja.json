@@ -3406,7 +3406,8 @@
         "withAssets": "画像も含める",
         "noRecordings": "保存された記録はありません",
         "soloRoom": "ひとりの卓",
-        "showIncidental": "付随する音も出す"
+        "showIncidental": "付随する音も出す",
+        "showSystem": "入退室や設定の変更も出す"
       },
       "line": {
         "chat": "{{speaker}}「{{text}}」",

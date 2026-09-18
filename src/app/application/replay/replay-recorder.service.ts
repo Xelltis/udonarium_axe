@@ -28,6 +28,7 @@ import {
   type ReplayTargetSnapshot,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
+import { REPLAY_PART_FLAG } from '@axe/domain/replay/replay-event-category';
 import {
   interpretObjectChange,
   interpretObjectRemove,
@@ -101,6 +102,10 @@ export class ReplayRecorderService {
   private boardDirty = false;
   /** Who could see each object when it was last recorded, for judging its removal once it is gone. */
   private readonly lastVisibility = new Map<string, ReplayVisibility>();
+  /** The objects that are parts of a piece, whose arrival and removal are not told on their own. */
+  private readonly partOwners = new Set<string>();
+  /** The names of the pieces on the table when recording began, for naming one removed untouched. */
+  private readonly namesAtStart = new Map<string, string>();
   private recent: ReplayEvent[] = [];
   private recentDirty = false;
   private lastPublishAt = 0;
@@ -211,6 +216,8 @@ export class ReplayRecorderService {
     this.actors.clear();
     this.targets.clear();
     this.lastVisibility.clear();
+    this.partOwners.clear();
+    this.namesAtStart.clear();
     this.keyframes.length = 0;
     this.chunks.length = 0;
     this._eventCount.set(0);
@@ -276,7 +283,10 @@ export class ReplayRecorderService {
     if (eventName === 'DELETE_GAME_OBJECT') {
       const context = data as { identifier: string; aliasName: string };
       this.shadows.delete(context.identifier);
-      this.push(interpretObjectRemove(context.identifier, context.aliasName), sendFrom, at);
+      const draft = interpretObjectRemove(context.identifier, context.aliasName);
+      if (this.partOwners.delete(context.identifier)) draft.detail[REPLAY_PART_FLAG] = true;
+      else this.rememberRemovedTarget(context.identifier, context.aliasName);
+      this.push(draft, sendFrom, at);
       return;
     }
 
@@ -299,7 +309,34 @@ export class ReplayRecorderService {
       before,
       after,
     });
-    if (draft) this.push(draft, sendFrom, at);
+    if (!draft) return;
+    if (!before) this.notePart(context.identifier, after, draft);
+    this.push(draft, sendFrom, at);
+  }
+
+  /**
+   * Flags a newly arrived object that belongs to a piece, so it is not told as an arrival of its own.
+   *
+   * A part sent by someone else can arrive before the piece it belongs to, when its owner cannot be
+   * found yet; a parent not seen at all yet marks it as a part all the same.
+   */
+  private notePart(identifier: string, after: SyncData, draft: ReplayDraft): void {
+    const parent = after['parentIdentifier'];
+    const awaitsParent = typeof parent === 'string' && parent.length > 0 && !this.shadows.has(parent);
+    if (!ownerOf(this.objectStore.get(identifier)) && !awaitsParent) return;
+    this.partOwners.add(identifier);
+    draft.detail[REPLAY_PART_FLAG] = true;
+  }
+
+  /**
+   * Names a piece taken away that no event had named yet, from what was seen when recording
+   * began. The store has let it go by the time the removal arrives.
+   */
+  private rememberRemovedTarget(identifier: string, aliasName: string): void {
+    if (this.targets.has(identifier)) return;
+    const name = this.namesAtStart.get(identifier);
+    if (name == null) return;
+    this.targets.set(identifier, [{ identifier, aliasName, name, sinceSeq: this.seq + 1 }]);
   }
 
   private push(draft: ReplayDraft, sendFrom: string, at: number): void {
@@ -468,6 +505,10 @@ export class ReplayRecorderService {
   }
 
   private seedShadows(): void {
+    for (const object of this.objectStore.getObjects()) {
+      if (ownerOf(object)) this.partOwners.add(object.identifier);
+      else if (object instanceof TabletopObject) this.namesAtStart.set(object.identifier, nameOf(object));
+    }
     for (const snapshot of this.snapshotStore()) {
       this.shadows.set(snapshot.identifier, cloneSyncData(snapshot.syncData));
     }

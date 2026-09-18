@@ -32,6 +32,32 @@ const events: ReplayEvent[] = [
 ];
 
 describe('filterReplayEvents()', () => {
+  it('never lists the parts that arrive with a piece, nor the cue of a change of value', () => {
+    const filtered = filterReplayEvents(
+      [
+        event(1, ReplayEventKind.ObjectCreate, { targetId: 'hero' }),
+        event(2, ReplayEventKind.ObjectCreate, { targetId: 'hero-hp', detail: { part: true } }),
+        event(3, ReplayEventKind.ObjectValue, { targetId: 'hero', detail: { changes: [] } }),
+      ],
+      { ...DEFAULT_REPLAY_LOG_FILTER, showSystem: true, showIncidental: true },
+      gm
+    );
+    expect(filtered.map((e) => e.seq)).toEqual([1]);
+  });
+
+  it('leaves the running of the room out until it is asked for', () => {
+    const running = [
+      event(1, ReplayEventKind.PeerJoin),
+      event(2, ReplayEventKind.ObjectLock),
+      event(3, ReplayEventKind.ChatMessage),
+    ];
+
+    expect(filterReplayEvents(running, DEFAULT_REPLAY_LOG_FILTER, viewer).map((e) => e.seq)).toEqual([3]);
+    expect(
+      filterReplayEvents(running, { ...DEFAULT_REPLAY_LOG_FILTER, showSystem: true }, viewer).map((e) => e.seq)
+    ).toEqual([1, 2, 3]);
+  });
+
   it('returns everything that can be seen', () => {
     const filtered = filterReplayEvents(events, DEFAULT_REPLAY_LOG_FILTER, viewer);
     expect(filtered.map((e) => e.seq)).toEqual([1, 2, 3, 4]);

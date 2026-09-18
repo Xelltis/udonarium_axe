@@ -21,7 +21,8 @@ import {
   encodeReplayEvents,
   encodeReplayManifest,
 } from '@axe/domain/replay/replay-codec';
-import type { ReplayEvent, ReplayManifest, ReplayVisibility } from '@axe/domain/replay/replay-event';
+import type { ReplayEvent, ReplayManifest } from '@axe/domain/replay/replay-event';
+import { flagReplayParts, replayPartIdentifiers } from '@axe/domain/replay/replay-event-category';
 import { decodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { applyReplayEvents, indexOfSeq } from '@axe/domain/replay/replay-patch';
 import { hiddenPiecesIn, inheritOwnerVisibility } from '@axe/domain/replay/replay-visibility';
@@ -42,8 +43,9 @@ export class ReplayLibraryService {
   /**
    * Every event of a stored recording in order, with its manifest, or a null manifest where none was written.
    *
-   * A change to part of a hidden piece, such as its HP, comes back as hidden as its piece; older
-   * recordings wrote such changes down as public.
+   * The events come back read the way the current recorder writes them. A change to part of a hidden
+   * piece, such as its HP, is as hidden as its piece, and the parts arriving or leaving with a piece
+   * are flagged so they are not told as events of their own. Older recordings did neither.
    */
   async load(id: number): Promise<{ manifest: ReplayManifest | null; events: ReplayEvent[] }> {
     const chunks = await this.store.listChunks(id);
@@ -51,21 +53,18 @@ export class ReplayLibraryService {
     const manifestBytes = await this.store.getManifest(id);
     const manifest = manifestBytes ? decodeReplayManifest(manifestBytes) : null;
     if (!manifest) return { manifest, events };
-    const hidden = await this.hiddenPiecesAtStart(id, events);
-    return { manifest, events: inheritOwnerVisibility(events, manifest.targets, hidden) };
+    const board = await this.boardAtStart(id, events);
+    const visible = inheritOwnerVisibility(events, manifest.targets, hiddenPiecesIn(board));
+    return { manifest, events: flagReplayParts(visible, replayPartIdentifiers(manifest.targets, board)) };
   }
 
-  private async hiddenPiecesAtStart(
-    id: number,
-    events: readonly ReplayEvent[]
-  ): Promise<Map<string, ReplayVisibility>> {
+  private async boardAtStart(id: number, events: readonly ReplayEvent[]): Promise<ReplayObjectSnapshot[]> {
     try {
       const keyframe = await this.keyframeBefore(id, events[0]?.seq ?? 0);
-      if (!keyframe) return new Map();
-      return hiddenPiecesIn(decodeReplayKeyframe(await readKeyframeBytes(keyframe.blob)));
+      return keyframe ? decodeReplayKeyframe(await readKeyframeBytes(keyframe.blob)) : [];
     } catch (reason) {
-      Logger.warn('[ReplayLibrary] 最初の盤面を読めないため、隠れていたコマは各出来事の記録どおりに扱います', reason);
-      return new Map();
+      Logger.warn('[ReplayLibrary] 最初の盤面を読めないため、記録のとおりに読みます', reason);
+      return [];
     }
   }
 

@@ -28,6 +28,10 @@
       <input type="checkbox" [checked]="filter().showIncidental" (change)="toggleIncidental()" />
       {{ 'feature.replay.panel.showIncidental' | transloco }}
     </label>
+    <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[0.7rem]">
+      <input type="checkbox" [checked]="filter().showSystem" (change)="toggleSystem()" />
+      {{ 'feature.replay.panel.showSystem' | transloco }}
+    </label>
   </div>
 
   <ul class="m-0 flex min-h-0 flex-1 list-none flex-col overflow-y-auto p-0">

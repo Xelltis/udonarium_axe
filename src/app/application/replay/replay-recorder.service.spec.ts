@@ -369,6 +369,44 @@ describe('ReplayRecorderService', () => {
     });
   });
 
+  describe('a piece and its parts', () => {
+    function dispatchUpdateOf(object: { toContext(): ObjectContext }): void {
+      localDispatch('UPDATE_GAME_OBJECT', object.toContext(), 'peer-a');
+    }
+
+    it('tells a piece brought out as one arrival, its parts flagged as parts', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+
+      dispatchUpdateOf(piece);
+      dispatchUpdateOf(part);
+
+      const arrivals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectCreate);
+      expect(arrivals.find((event) => event.targetId === piece.identifier)?.detail['part']).toBeUndefined();
+      expect(arrivals.find((event) => event.targetId === part.identifier)?.detail['part']).toBe(true);
+    });
+
+    it('names a piece taken away untouched, and flags its parts going with it', async () => {
+      const piece = GameCharacter.create('ボス', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch('DELETE_GAME_OBJECT', { identifier: part.identifier, aliasName: 'data' }, 'peer-a');
+      objectStore.remove(piece);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
+      await service.stop();
+
+      const removals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removals.find((event) => event.targetId === part.identifier)?.detail['part']).toBe(true);
+      expect(removals.find((event) => event.targetId === piece.identifier)?.detail['part']).toBeUndefined();
+      const manifest = decodeReplayManifest([...store.recordings.values()][0].manifest!);
+      expect(manifest?.targets.find((target) => target.identifier === piece.identifier)?.name).toBe('ボス');
+    });
+  });
+
   it('carries the chosen detail level to the next session', () => {
     service.setDetailLevel(ReplayDetailLevel.Full);
     expect(localStorage.getItem('axe-replay-preference')).toContain('full');

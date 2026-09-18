@@ -3406,7 +3406,8 @@
         "withAssets": "Include images",
         "noRecordings": "No saved recordings",
         "soloRoom": "Solo table",
-        "showIncidental": "Show incidental sounds"
+        "showIncidental": "Show incidental sounds",
+        "showSystem": "Show joins and setting changes"
       },
       "line": {
         "chat": "{{speaker}}: {{text}}",
