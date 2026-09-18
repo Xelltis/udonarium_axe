@@ -660,7 +660,8 @@
                   name="previewAsUserId"
                 >
                   <option value="">{{ 'feature.tabletop.tableSetting.previewSelf' | transloco }}</option>
-                  @for (cursor of getNonGmCursors(); track cursor.identifier) {
+                  <option [value]="guestPersona">{{ 'feature.role.guest' | transloco }}</option>
+                  @for (cursor of getPreviewPlayers(); track cursor.identifier) {
                     <option [value]="cursor.userId">{{ cursor.name }}</option>
                   }
                 </select>

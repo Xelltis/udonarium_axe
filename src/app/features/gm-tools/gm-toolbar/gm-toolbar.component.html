@@ -118,14 +118,16 @@
         <button
           type="button"
           class="rounded-ui-sm text-ui-text hover:bg-ui-menu-hover hover:text-ui-accent flex h-8 cursor-pointer items-center gap-1 border-none bg-transparent px-1.5 transition-colors [&_i]:text-[20px]!"
-          [class.bg-amber-400/20]="currentPersona()"
-          [class.text-amber-500]="currentPersona()"
+          [class.bg-amber-400/20]="currentPersona() || previewingGuest()"
+          [class.text-amber-500]="currentPersona() || previewingGuest()"
           [title]="'feature.gmTools.persona.title' | transloco"
           (click)="togglePersona()"
         >
-          <i class="material-icons">{{ currentPersona() ? 'visibility' : 'visibility_off' }}</i>
+          <i class="material-icons">{{ currentPersona() || previewingGuest() ? 'visibility' : 'visibility_off' }}</i>
           @if (currentPersona(); as persona) {
             <span class="max-w-24 truncate text-[12px] font-semibold">{{ persona.name }}</span>
+          } @else if (previewingGuest()) {
+            <span class="max-w-24 truncate text-[12px] font-semibold">{{ 'feature.role.guest' | transloco }}</span>
           }
         </button>
 
@@ -141,6 +143,17 @@
             >
               <i class="material-icons">shield</i>
               <span>{{ 'feature.gmTools.persona.self' | transloco }}</span>
+            </li>
+            <li
+              class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent flex cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px] [&_i]:text-[16px]"
+              data-testid="persona-guest"
+              [class.text-amber-500]="previewingGuest()"
+              [class.bg-amber-400/20]="previewingGuest()"
+              [title]="'feature.gmTools.persona.guestHint' | transloco"
+              (click)="selectPersona(guestPersona)"
+            >
+              <i class="material-icons">groups</i>
+              <span class="truncate">{{ 'feature.role.guest' | transloco }}</span>
             </li>
             @for (persona of personas(); track persona.identifier) {
               <li

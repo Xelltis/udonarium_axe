@@ -152,7 +152,8 @@
       "persona": {
         "title": "Persona (review as a player)",
         "self": "GM view (myself)",
-        "empty": "No players connected"
+        "empty": "No players connected",
+        "guestHint": "See the table as a guest would, even with no guest connected"
       },
       "party": {
         "title": "Party",

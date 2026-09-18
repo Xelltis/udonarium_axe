@@ -1,11 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { VisionService } from '@axe/application/tabletop/vision.service';
+import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -115,6 +116,59 @@ describe('GmToolbarComponent', () => {
 
     persona.selectPersona(null);
     expect(vision.previewAsUserId()).toBeNull();
+  });
+
+  describe('looking as a guest', () => {
+    afterEach(() => {
+      for (const cursor of TestBed.inject(ObjectStore).getObjects<PeerCursor>(PeerCursor)) cursor.destroy();
+      PeerCursor.myCursor = null!;
+      TestBed.inject(VisionService).previewAsUserId.set(null);
+    });
+
+    function openPersonaMenu(): void {
+      PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+      fixture.detectChanges();
+      (component as unknown as { togglePersona: () => void }).togglePersona();
+      fixture.detectChanges();
+    }
+
+    function peer(userId: string, role: PeerRole): void {
+      const cursor = new PeerCursor(`cursor-${userId}`);
+      cursor.userId = userId;
+      cursor.name = userId;
+      cursor.role = role;
+      cursor.initialize();
+    }
+
+    it('is offered with nobody else in the room, as offline', () => {
+      openPersonaMenu();
+      const guest = fixture.nativeElement.querySelector('[data-testid="persona-guest"]') as HTMLElement;
+
+      guest.click();
+
+      const vision = TestBed.inject(VisionService);
+      expect(vision.previewAsUserId()).toBe(GUEST_PERSONA);
+      expect(vision.viewer().isGameMaster).toBe(false);
+    });
+
+    it('names itself on the bar while it is on', () => {
+      openPersonaMenu();
+      (fixture.nativeElement.querySelector('[data-testid="persona-guest"]') as HTMLElement).click();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('.persona-dropdown')).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain('見学');
+    });
+
+    it('stands for every guest, so none of them is listed on their own', () => {
+      peer('a-player', PeerRole.Player);
+      peer('a-guest', PeerRole.Guest);
+      openPersonaMenu();
+
+      const listed = (fixture.nativeElement.querySelector('.persona-dropdown') as HTMLElement).textContent;
+      expect(listed).toContain('a-player');
+      expect(listed).not.toContain('a-guest');
+    });
   });
 
   it('opens and closes that menu', () => {

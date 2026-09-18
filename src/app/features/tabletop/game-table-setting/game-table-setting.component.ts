@@ -7,7 +7,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { VisionService } from '@axe/application/tabletop/vision.service';
+import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -352,11 +352,20 @@ export class GameTableSettingComponent {
     this.visionService.previewAsUserId.set(value ? value : null);
   }
 
-  /** The cursors of everyone in the room who is not a game master, offered as views to preview. */
-  getNonGmCursors(): PeerCursor[] {
+  /**
+   * The players in the room, offered as views to preview.
+   *
+   * Guests are left out: every one of them sees the same, and the guest preview stands for them all.
+   */
+  getPreviewPlayers(): PeerCursor[] {
     this.objectChange.collectionOf('PeerCursor')();
-    return this.objectStore.getObjects<PeerCursor>(PeerCursor).filter((cursor) => !cursor.isGameMaster);
+    return this.objectStore
+      .getObjects<PeerCursor>(PeerCursor)
+      .filter((cursor) => !cursor.isGameMaster && !cursor.isGuest);
   }
+
+  /** The preview that looks as a guest would, offered whether or not one is connected. */
+  readonly guestPersona = GUEST_PERSONA;
 
   minWallHeight: number = 1;
   maxWallHeight: number = 20;

@@ -175,6 +175,14 @@ function sameCells(a: CellBits | null, b: CellBits | null): boolean {
   return a === b || (!!a && !!b && a.equals(b));
 }
 
+/**
+ * The preview that looks at the table as a guest would, whether or not one is connected.
+ *
+ * Every guest sees the same thing, the players' combined sight, so one preview stands for them
+ * all. It needs nobody else in the room, which lets the master check it offline too.
+ */
+export const GUEST_PERSONA = '@guest';
+
 @Injectable({ providedIn: 'root' })
 export class VisionService {
   private readonly objectChange = inject(ObjectChangeService);
@@ -280,8 +288,8 @@ export class VisionService {
       this.geometryEpoch();
       const preview = this.previewAsUserId();
       if (preview) {
-        const cursor = PeerCursor.findByUserId(preview);
-        return cursor?.isGuest
+        const asGuest = preview === GUEST_PERSONA || PeerCursor.findByUserId(preview)?.isGuest;
+        return asGuest
           ? { userId: preview, isGameMaster: false, visionOwnerIds: this.playerVisionOwnerIds() }
           : { userId: preview, isGameMaster: false, partyIds: this.partyIdsOf(preview) };
       }
