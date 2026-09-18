@@ -479,6 +479,15 @@ describe('movable-helpers', () => {
       expect(findContactSupportZ(canopy, 50, 50, token(100))).toBe(0);
     });
 
+    it('flies a piece kept above the ground under a deck rather than onto it', () => {
+      const deck = [cell(0, 0, 140, 150)];
+      const flier: ContactRider = { altitudePx: 100, thicknessPx: 0, ridesUp: true, restingZ: 0 };
+
+      // Its feet are at 100 and the deck's top at 150, which is the nearer of the two, but the
+      // height it is kept at is clearance: it passes under the deck and stays on the floor.
+      expect(findContactSupportZ(deck, 50, 50, flier)).toBe(0);
+    });
+
     it('keeps what is already up on a canopy up there', () => {
       const canopy = [cell(0, 0, 150, 200)];
 

@@ -5,7 +5,7 @@ import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/appli
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** A registered piece drawn in an element of its own. */
@@ -250,6 +250,43 @@ describe('applying gravity through the spatial index', () => {
     applyNow(svc);
 
     expect(char.object.posZ).toBeCloseTo(50);
+  });
+
+  it('leaves a piece kept above the ground inside a doorway where it is', () => {
+    const door = makeTerrain({ x: 0, y: 0, w: 2, d: 2, h: 3, identifier: 'door' });
+    (door.object as Terrain).doorStyle = DoorStyle.SWING;
+    (door.object as Terrain).isDoorOpen = true;
+    const char = makeCharacter({ x: 25, y: 25, posZ: 0 });
+    char.object.altitude = 1;
+    const svc = setup([door, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBe(0);
+  });
+
+  it('leaves a piece kept above the ground inside a sheer face where it is', () => {
+    const cliff = makeTerrain({ x: 0, y: 0, w: 2, d: 2, h: 6, identifier: 'cliff' });
+    (cliff.object as Terrain).blocksClimb = true;
+    (cliff.object as Terrain).slopeSides = ['s'];
+    const char = makeCharacter({ x: 25, y: 25, posZ: 0 });
+    char.object.altitude = 1;
+    const svc = setup([cliff, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBe(0);
+  });
+
+  it('leaves a piece kept above the ground inside a block with a level top where it is', () => {
+    const wall = makeTerrain({ x: 0, y: 0, w: 2, d: 2, h: 4, identifier: 'wall' });
+    const char = makeCharacter({ x: 25, y: 25, posZ: 0 });
+    char.object.altitude = 1;
+    const svc = setup([wall, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBe(0);
   });
 
   it('leaves distant terrain out, since the index never offers it', () => {

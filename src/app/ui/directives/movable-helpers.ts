@@ -136,8 +136,12 @@ export function findContactSupport(
 
   const levels = contactRestLevels(footprints, centerX, centerY, rider);
   const standingAt = contactBottomAt(rider, rider.restingZ);
+  // A piece held above the ground reads that height as clearance rather than as a step it has
+  // taken, so what it flies over is not something to come to rest on top of.
+  const keepsClearance = rider.altitudePx > CONTACT_EPSILON_PX;
   let nearest: number | null = null;
   for (const level of levels) {
+    if (keepsClearance && level > standingAt + CONTACT_EPSILON_PX) continue;
     // Levels come lowest first, so only a level nearer by more than a rounding takes over,
     // which leaves the lower of two equally near ones.
     if (nearest === null || Math.abs(level - standingAt) < Math.abs(nearest - standingAt) - CONTACT_EPSILON_PX) {

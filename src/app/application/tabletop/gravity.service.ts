@@ -40,6 +40,8 @@ interface CachedEntry {
   isGravity: boolean;
   /** A sloping block, whose top is read where it is stood on rather than at its highest. */
   sloping: Terrain | null;
+  /** Whether something that has come down inside this is stood on top of it instead. */
+  liftsOut: boolean;
   gridSizePx: number;
   gridType: GridType;
 }
@@ -167,11 +169,24 @@ export class GravityService {
       if (entry.object.identifier === target.object.identifier) continue;
       if (!GravityService.containsPoint(entry, center.x, center.y, gridSize)) continue;
       const topZ = GravityService.topZ(entry.object, gridSize);
-      const bottomZ = entry.object.altitude * gridSize + entry.object.posZ;
-      if (topZ > targetBottom + POSZ_EPSILON && bottomZ >= targetBottom - POSZ_EPSILON) continue;
+      if (topZ > targetBottom + POSZ_EPSILON) continue;
       if (topZ > maxZ) maxZ = topZ;
     }
     return maxZ;
+  }
+
+  /**
+   * Whether a block stands what has come down inside it on top of itself.
+   *
+   * Only a slope does: its surface rises across it, so a piece let go part way up ends with
+   * the surface over its feet. A face too sheer to climb and a door standing open are things a
+   * piece is never put on top of, and a block with a level top is either stood on or walked
+   * beneath, never climbed out of.
+   */
+  private static liftsWhatIsInside(terrain: Terrain, gridSizePx: number, gridType: GridType): boolean {
+    if (terrain.blocksClimb) return false;
+    if (terrain.isDoor && terrain.isDoorOpen) return false;
+    return terrainSlopeRoofOf(terrain, gridSizePx, gridType) != null;
   }
 
   /** How high an object's top stands above the floor, in pixels, counting a terrain's own height. */
@@ -252,6 +267,7 @@ export class GravityService {
         surface,
         isGravity: surface === 'floor' && GravityService.isAffectedByGravity(obj),
         sloping: obj instanceof Terrain && terrainSlopeRoofOf(obj, gridSizePx, gridType) != null ? obj : null,
+        liftsOut: obj instanceof Terrain && GravityService.liftsWhatIsInside(obj, gridSizePx, gridType),
         gridSizePx,
         gridType,
       });
@@ -298,11 +314,14 @@ export class GravityService {
       if (cx < c.minX || cx > c.maxX) continue;
       if (cy < c.minY || cy > c.maxY) continue;
       const topZ = GravityService.topOfEntry(c, cx, cy);
-      // Something wholly overhead does not lift what walks beneath it, but something the
-      // object has come down inside does: a piece let go part way into a ramp stands on the
-      // ramp rather than sinking through it. Standing level with the foot of a thing is not
-      // inside it, so two blocks filling the same space still leave each other where they are.
-      if (topZ > targetBottom + POSZ_EPSILON && c.bottomZ >= targetBottom - POSZ_EPSILON) continue;
+      // Something wholly overhead does not lift what walks beneath it. A slope is the one
+      // thing that lifts what has come down inside it: let go on a ramp, a piece lands where
+      // the grid puts it, which can be further up the slope than the surface it was dragged
+      // along, and it stands on the ramp rather than sinking through it. Standing level with
+      // the foot of a thing is not inside it, so two blocks filling the same space still
+      // leave each other where they are.
+      const inside = c.liftsOut && c.bottomZ < targetBottom - POSZ_EPSILON;
+      if (topZ > targetBottom + POSZ_EPSILON && !inside) continue;
       if (topZ > maxZ) maxZ = topZ;
     }
     return maxZ;
