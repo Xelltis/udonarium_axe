@@ -4220,7 +4220,11 @@
       "tagUnset": "미설정",
       "tagAll": "전체",
       "imageEmpty": "이미지 없음",
-      "noImagesInTag": "이 분류에 이미지가 없습니다"
+      "noImagesInTag": "이 분류에 이미지가 없습니다",
+      "upload": "업로드",
+      "uploading": "불러오는 중…",
+      "uploadLimit": "파일당 2MB까지",
+      "oversized": "2MB를 넘어 추가하지 못했습니다: {{names}}"
     },
     "contextMenu": {
       "index": "인덱스",

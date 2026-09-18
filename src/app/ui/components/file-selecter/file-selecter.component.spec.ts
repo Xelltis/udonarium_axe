@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -24,6 +26,124 @@ describe('FileSelecterComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('uploading pictures', () => {
+    function playing(role: PeerRole): void {
+      PeerCursor.createMyCursor().role = role;
+    }
+
+    function chose(...files: File[]): Event {
+      return { target: { files, value: 'C:\\fakepath\\x.png' } } as unknown as Event;
+    }
+
+    function picture(name: string): File {
+      return new File([new Uint8Array([1, 2, 3])], name, { type: 'image/png' });
+    }
+
+    function stored(...identifiers: string[]): ImageFile[] {
+      return identifiers.map((identifier) => ImageFile.createEmpty(identifier));
+    }
+
+    let loadImages: ReturnType<typeof vi.spyOn>;
+    let resolve: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      loadImages = vi.spyOn(TestBed.inject(FileArchiver), 'loadImages');
+      resolve = vi.spyOn(component['modalService'], 'resolve').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+      vi.restoreAllMocks();
+    });
+
+    function uploadTile(): HTMLInputElement | null {
+      fixture.detectChanges();
+      return fixture.nativeElement.querySelector('input[type="file"]');
+    }
+
+    it('offers a way to upload to a player', () => {
+      playing(PeerRole.Player);
+
+      expect(uploadTile()).not.toBeNull();
+    });
+
+    it('offers none to a guest', () => {
+      playing(PeerRole.Guest);
+
+      expect(uploadTile()).toBeNull();
+    });
+
+    it('takes in nothing for a guest', async () => {
+      playing(PeerRole.Guest);
+
+      await component.handleFileSelect(chose(picture('a.png')));
+
+      expect(loadImages).not.toHaveBeenCalled();
+    });
+
+    it('picks a single picture as soon as it is in', async () => {
+      playing(PeerRole.Player);
+      loadImages.mockResolvedValue({ images: stored('image-a'), oversized: [] });
+
+      await component.handleFileSelect(chose(picture('a.png')));
+
+      expect(resolve).toHaveBeenCalledWith('image-a');
+    });
+
+    it('leaves several in the list, showing the untagged ones where they land', async () => {
+      playing(PeerRole.Player);
+      component.selectTag.set('コマ');
+      loadImages.mockResolvedValue({ images: stored('image-a', 'image-b'), oversized: [] });
+
+      await component.handleFileSelect(chose(picture('a.png'), picture('b.png')));
+
+      expect(resolve).not.toHaveBeenCalled();
+      expect(component.selectTag()).toBe('');
+    });
+
+    it('stays on every picture when every picture is on show', async () => {
+      playing(PeerRole.Player);
+      const everyPicture = component['allTag'];
+      component.selectTag.set(everyPicture);
+      loadImages.mockResolvedValue({ images: stored('image-a', 'image-b'), oversized: [] });
+
+      await component.handleFileSelect(chose(picture('a.png'), picture('b.png')));
+
+      expect(component.selectTag()).toBe(everyPicture);
+    });
+
+    it('names a picture too large to take, and picks nothing', async () => {
+      playing(PeerRole.Player);
+      loadImages.mockResolvedValue({ images: [], oversized: ['huge.png'] });
+
+      await component.handleFileSelect(chose(picture('huge.png')));
+
+      expect(resolve).not.toHaveBeenCalled();
+      expect(component.oversized()).toEqual(['huge.png']);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('huge.png');
+    });
+
+    it('does not close on the one that went in when another was too large', async () => {
+      playing(PeerRole.Player);
+      loadImages.mockResolvedValue({ images: stored('image-a'), oversized: ['huge.png'] });
+
+      await component.handleFileSelect(chose(picture('a.png'), picture('huge.png')));
+
+      expect(resolve).not.toHaveBeenCalled();
+    });
+
+    it('clears the chooser so the same file can be chosen again', async () => {
+      playing(PeerRole.Player);
+      loadImages.mockResolvedValue({ images: [], oversized: [] });
+      const event = chose(picture('a.png'));
+
+      await component.handleFileSelect(event);
+
+      expect((event.target as HTMLInputElement).value).toBe('');
+    });
   });
 
   describe('the pictures it offers', () => {

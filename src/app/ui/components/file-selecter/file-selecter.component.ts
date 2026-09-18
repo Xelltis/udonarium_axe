@@ -6,6 +6,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
@@ -23,6 +24,7 @@ export class FileSelecterComponent {
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly fileArchiver = inject(FileArchiver);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
@@ -136,6 +138,44 @@ export class FileSelecterComponent {
       if (index >= 0) {
         this.identifierList.splice(index, 1);
       }
+    }
+  }
+
+  /** Only a seat that may edit the table may bring in new pictures, as in the media library. */
+  get canUpload(): boolean {
+    return this.rolePermission.canEditTabletop;
+  }
+
+  /** True while the pictures just chosen are being read into storage. */
+  readonly uploading = signal(false);
+
+  /** The names of the pictures last chosen that were too large to take in. */
+  readonly oversized = signal<string[]>([]);
+
+  /**
+   * Takes the pictures chosen in the upload dialog into storage.
+   *
+   * A single picture that went in is picked straight away, closing the modal. Several are left
+   * in the list to choose from, shown by switching to the untagged pictures where new ones land
+   * unless every picture is already on show. Files that are not pictures are ignored.
+   */
+  async handleFileSelect(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!this.canUpload || files.length === 0 || this.uploading()) return;
+
+    this.uploading.set(true);
+    try {
+      const { images, oversized } = await this.fileArchiver.loadImages(files);
+      this.oversized.set(oversized);
+      if (images.length === 1 && oversized.length === 0) {
+        this.onSelectedFile(images[0]);
+        return;
+      }
+      if (images.length > 0 && this.selectTag() !== this.allTag) this.selectTag.set('');
+    } finally {
+      this.uploading.set(false);
     }
   }
 

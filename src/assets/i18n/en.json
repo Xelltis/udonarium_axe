@@ -4218,7 +4218,11 @@
       "tagUnset": "Untagged",
       "tagAll": "All",
       "imageEmpty": "No image",
-      "noImagesInTag": "No images in this category"
+      "noImagesInTag": "No images in this category",
+      "upload": "Upload",
+      "uploading": "Loading…",
+      "uploadLimit": "Up to 2 MB each",
+      "oversized": "Not added, over 2 MB: {{names}}"
     },
     "contextMenu": {
       "index": "Index",
