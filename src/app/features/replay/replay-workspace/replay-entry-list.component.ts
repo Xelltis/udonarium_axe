@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
@@ -17,7 +18,12 @@ import {
   type ReplayLogFilter,
   ReplayLogScope,
 } from '@axe/features/replay/replay-log-filter';
-import { formatReplayElapsed, type ReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
+import {
+  formatReplayElapsed,
+  replayLineParams,
+  type ReplayLogLine,
+  toReplayLogLine,
+} from '@axe/features/replay/replay-log-line';
 import { EMPTY_REPLAY_DICTIONARY, replayActorsOf, replayNamesAt } from '@axe/features/replay/replay-names';
 import { landingIndex, RowReorder } from '@axe/ui/dragging/row-reorder';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -46,6 +52,7 @@ export class ReplayEntryListComponent {
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
 
   readonly editing = input(false);
 
@@ -117,10 +124,7 @@ export class ReplayEntryListComponent {
   }
 
   protected lineParams(line: ReplayLogLine): Record<string, string | number> {
-    if (!line.paramKeys) return line.params;
-    const resolved: Record<string, string | number> = { ...line.params };
-    for (const [name, key] of Object.entries(line.paramKeys)) resolved[name] = this.t(key);
-    return resolved;
+    return replayLineParams(line, this.t, this.language.currentLang());
   }
 
   protected setScope(scope: ReplayLogScope): void {

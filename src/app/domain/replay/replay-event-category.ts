@@ -47,12 +47,24 @@ const BOARD_KINDS: ReadonlySet<ReplayEventKind> = new Set([
 /** The detail flag that marks an event as happening to a part of a piece rather than the piece. */
 export const REPLAY_PART_FLAG = 'part';
 
-/** Where an event belongs when the session is read back or turned into a video. Unknown kinds count as `system`. */
+/**
+ * Where an event belongs when the session is read back or turned into a video.
+ *
+ * A notice the tool wrote into the chat — a lost connection, a cleared log, the tutorial — is the
+ * running of the room, not the story. Unknown kinds count as `system`.
+ */
 export function replayEventCategory(event: ReplayEvent): ReplayEventCategory {
   if (isPartArrivalOrRemoval(event) || isValueCue(event)) return ReplayEventCategory.Hidden;
+  if (isSystemReplayChat(event)) return ReplayEventCategory.System;
   if (STORY_KINDS.has(event.kind)) return ReplayEventCategory.Story;
   if (BOARD_KINDS.has(event.kind)) return ReplayEventCategory.Board;
   return ReplayEventCategory.System;
+}
+
+/** Whether a chat line was written by the tool rather than by anyone at the table, as the chat itself tells them apart. */
+export function isSystemReplayChat(event: ReplayEvent): boolean {
+  if (event.kind !== ReplayEventKind.ChatMessage) return false;
+  return event.detail['from'] === 'System' || String(event.detail['tag'] ?? '').includes('system-message');
 }
 
 function isPartArrivalOrRemoval(event: ReplayEvent): boolean {

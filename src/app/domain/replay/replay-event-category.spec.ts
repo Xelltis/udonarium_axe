@@ -33,6 +33,14 @@ describe('replay event categories', () => {
     expect(replayEventCategory(event('unknown.kind' as ReplayEventKind))).toBe('system');
   });
 
+  it('counts a notice the tool wrote into the chat as system', () => {
+    expect(replayEventCategory(event(ReplayEventKind.ChatMessage, { from: 'System' }))).toBe('system');
+    expect(replayEventCategory(event(ReplayEventKind.ChatMessage, { from: 'alice', tag: 'system-message' }))).toBe(
+      'system'
+    );
+    expect(replayEventCategory(event(ReplayEventKind.ChatMessage, { from: 'alice' }))).toBe('story');
+  });
+
   it('hides the parts that arrive and leave with their piece', () => {
     expect(replayEventCategory(event(ReplayEventKind.ObjectCreate, { [REPLAY_PART_FLAG]: true }))).toBe('hidden');
     expect(replayEventCategory(event(ReplayEventKind.ObjectRemove, { [REPLAY_PART_FLAG]: true }))).toBe('hidden');

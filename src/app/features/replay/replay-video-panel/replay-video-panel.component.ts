@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
@@ -17,7 +18,7 @@ import { REPLAY_BOARD_TABLE_VIEW, REPLAY_BOARD_TOP_DOWN } from '@axe/domain/repl
 import type { ReplayEvent } from '@axe/domain/replay/replay-event';
 import { REPLAY_FRAME_PRESETS } from '@axe/domain/replay/replay-frame-layout';
 import { buildReplayStoryboard, ReplayShotPacing, ReplayShotScope } from '@axe/domain/replay/replay-storyboard';
-import { formatReplayElapsed, toReplayLogLine } from '@axe/features/replay/replay-log-line';
+import { formatReplayElapsed, renderReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
 import { EMPTY_REPLAY_DICTIONARY, replayNamesAt } from '@axe/features/replay/replay-names';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -38,6 +39,7 @@ export class ReplayVideoPanelComponent {
   private readonly recorder = inject(ReplayRecorderService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
 
   protected readonly sizes = REPLAY_VIDEO_SIZES;
   protected readonly fpsChoices = REPLAY_VIDEO_FPS_CHOICES;
@@ -78,9 +80,7 @@ export class ReplayVideoPanelComponent {
   private captionOf(event: ReplayEvent): string {
     const dictionary = this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY;
     const line = toReplayLogLine(event, replayNamesAt(dictionary, event.seq));
-    const params: Record<string, string | number> = { ...line.params };
-    for (const [name, key] of Object.entries(line.paramKeys ?? {})) params[name] = this.t(key);
-    return this.t(line.key, params);
+    return renderReplayLogLine(line, this.t, this.language.currentLang());
   }
 
   protected get canEdit(): boolean {

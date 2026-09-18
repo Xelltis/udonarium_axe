@@ -19,6 +19,7 @@ import {
   type ReplayManifest,
   type ReplayViewer,
 } from '@axe/domain/replay/replay-event';
+import { isSystemReplayChat } from '@axe/domain/replay/replay-event-category';
 
 export interface ReplayDigestNumbers {
   readonly elapsedMs: number;
@@ -140,6 +141,7 @@ export function buildReplayDigest(
   for (const event of visible) {
     switch (event.kind) {
       case ReplayEventKind.ChatMessage:
+        if (isSystemReplayChat(event)) break;
         messages++;
         countSpeech(speakers, event, manifest, 'messages');
         break;

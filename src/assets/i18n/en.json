@@ -3409,6 +3409,10 @@
         "showIncidental": "Show incidental sounds",
         "showSystem": "Show joins and setting changes"
       },
+      "face": {
+        "front": "face up",
+        "back": "face down"
+      },
       "line": {
         "chat": "{{speaker}}: {{text}}",
         "dice": "{{text}}",

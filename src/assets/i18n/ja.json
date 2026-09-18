@@ -3409,6 +3409,10 @@
         "showIncidental": "付随する音も出す",
         "showSystem": "入退室や設定の変更も出す"
       },
+      "face": {
+        "front": "表",
+        "back": "裏"
+      },
       "line": {
         "chat": "{{speaker}}「{{text}}」",
         "dice": "{{text}}",
