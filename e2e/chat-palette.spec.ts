@@ -41,7 +41,7 @@ test.describe('チャットパレット', () => {
     const pills = palette.locator('.chat-tab-pill');
     await expect(pills.nth(1)).toBeVisible();
     const checkedName = () =>
-      palette.locator('input[name="chat-tab"]:checked').evaluate((input) => input.parentElement!.textContent!.trim());
+      palette.locator('input[name^="chat-tab"]:checked').evaluate((input) => input.parentElement!.textContent!.trim());
     const first = await checkedName();
 
     // パレットは右クリックした位置に開き、ツールバーの下に重なることがあるので、帯へ直接回す。

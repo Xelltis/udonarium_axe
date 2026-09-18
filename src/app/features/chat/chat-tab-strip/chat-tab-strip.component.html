@@ -24,7 +24,7 @@
     >
       <input
         class="peer hidden"
-        name="chat-tab"
+        [name]="groupName"
         type="radio"
         [value]="chatTab.identifier"
         [checked]="selected() === chatTab.identifier"

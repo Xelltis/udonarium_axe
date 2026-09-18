@@ -45,6 +45,15 @@ const STRIP_TONES: Record<ChatTabStripTone, string> = {
   panel: 'pt-1.5',
 };
 
+/**
+ * How many strips have been drawn, which names each one's radio group apart from the rest.
+ *
+ * Radios of one name are one group, and two strips outside a form of their own would be the same
+ * group: choosing a tab in one would take the mark off the other's tab, where nothing would put
+ * it back.
+ */
+let stripsDrawn = 0;
+
 /** The colours of a tab on each ground, which the selected tab and the hover share otherwise. */
 const PILL_TONES: Record<ChatTabStripTone, string> = {
   titlebar:
@@ -73,6 +82,8 @@ export class ChatTabStripComponent {
 
   protected readonly stripTone = computed(() => STRIP_TONES[this.tone()]);
   protected readonly pillTone = computed(() => PILL_TONES[this.tone()]);
+  /** This strip's own radio group, which no other strip on the page shares. */
+  protected readonly groupName = `chat-tab-${++stripsDrawn}`;
 
   private readonly container = viewChild<ElementRef<HTMLElement>>('tabPillsContainer');
   protected readonly canScrollLeft = signal(false);

@@ -30,14 +30,14 @@ test.describe('チャット入力のキーボードショートカット', () =>
     const textarea = page.locator('textarea.chat-input');
     await textarea.focus();
     await textarea.press('Control+ArrowRight');
-    const subTabRadio = page.locator('chat-window input[name="chat-tab"]').nth(1);
+    const subTabRadio = page.locator('chat-window input[name^="chat-tab"]').nth(1);
     await expect(subTabRadio).toBeChecked();
   });
 
   test('Ctrl+← でメインタブに戻ること', async ({ page }) => {
     // サブタブピル経由でまずサブに切り替えてから ← で戻る。
     await chatTabPill(page, 'サブタブ').click();
-    const subTabRadio = page.locator('chat-window input[name="chat-tab"]').nth(1);
+    const subTabRadio = page.locator('chat-window input[name^="chat-tab"]').nth(1);
     await expect(subTabRadio).toBeChecked();
 
     // ピルを押した直後はフォーカスがラジオ側にある。focus() だけだと入力欄に
@@ -47,7 +47,7 @@ test.describe('チャット入力のキーボードショートカット', () =>
     await expect(textarea).toBeFocused();
     await textarea.press('Control+ArrowLeft');
 
-    const mainTabRadio = page.locator('chat-window input[name="chat-tab"]').nth(0);
+    const mainTabRadio = page.locator('chat-window input[name^="chat-tab"]').nth(0);
     await expect(mainTabRadio).toBeChecked();
   });
 });

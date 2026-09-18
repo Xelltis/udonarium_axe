@@ -138,7 +138,7 @@ describe('ChatTabStripComponent', () => {
 
     /** happy-dom lays nothing out, so the strip is given a shape: three pills of 50 every 60. */
     function layOutStrip(stripWidth: number): { pills: HTMLElement; scrolledTo: number[] } {
-      const inputs = [...fixture.nativeElement.querySelectorAll('input[name="chat-tab"]')] as HTMLInputElement[];
+      const inputs = [...fixture.nativeElement.querySelectorAll('input[name^="chat-tab"]')] as HTMLInputElement[];
       const pills = inputs.map((input) => input.closest('label') as HTMLElement);
       const container = pills[0].parentElement as HTMLElement;
       const scrolledTo: number[] = [];
@@ -240,6 +240,20 @@ describe('ChatTabStripComponent', () => {
     function strip(): HTMLElement {
       return pill().closest('label')!.parentElement!;
     }
+
+    it('groups its own tabs apart from another strip on the page', () => {
+      const radio = fixture.nativeElement.querySelector('input[type="radio"]') as HTMLInputElement;
+
+      const second = TestBed.createComponent(ChatTabStripComponent);
+      second.componentRef.setInput('tabs', [tab]);
+      second.componentRef.setInput('selected', tab.identifier);
+      second.detectChanges();
+      const other = second.nativeElement.querySelector('input[type="radio"]') as HTMLInputElement;
+
+      expect(radio.name.length).toBeGreaterThan(0);
+      expect(other.name).not.toBe(radio.name);
+      second.destroy();
+    });
 
     it('reads in the title bar colours by default', () => {
       expect(pill().classList).toContain('text-ui-titlebar-muted');

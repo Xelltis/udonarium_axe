@@ -16,7 +16,7 @@ test.describe('チャットウィンドウ', () => {
     // ラジオ自体は class="peer hidden" で display:none、ラベル内のピル div を
     // クリックすると関連するラジオが checked になる。
     await chatTabPill(page, 'サブタブ').click();
-    const subTabRadio = page.locator('chat-window input[name="chat-tab"]').nth(1);
+    const subTabRadio = page.locator('chat-window input[name^="chat-tab"]').nth(1);
     await expect(subTabRadio).toBeChecked();
   });
 
@@ -139,9 +139,9 @@ test.describe('チャットタブ設定パネル', () => {
   test('新しいタブを追加できること', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'タブ設定');
     await expect(page.locator('app-chat-tab-setting')).toBeVisible({ timeout: 5000 });
-    const initialTabCount = await page.locator('chat-window input[name="chat-tab"]').count();
+    const initialTabCount = await page.locator('chat-window input[name^="chat-tab"]').count();
     await page.locator('app-chat-tab-setting button[title="タブを追加"]').click();
-    await expect(page.locator('chat-window input[name="chat-tab"]')).toHaveCount(initialTabCount + 1, {
+    await expect(page.locator('chat-window input[name^="chat-tab"]')).toHaveCount(initialTabCount + 1, {
       timeout: 5000,
     });
   });
