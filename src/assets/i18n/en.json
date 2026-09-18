@@ -3407,7 +3407,8 @@
         "noRecordings": "No saved recordings",
         "soloRoom": "Solo table",
         "showIncidental": "Show incidental sounds",
-        "showSystem": "Show joins and setting changes"
+        "showSystem": "Show joins and setting changes",
+        "boardGroup": "Board moves ×{{count}}"
       },
       "face": {
         "front": "face up",
@@ -3438,6 +3439,7 @@
         "marker": "— {{label}} —",
         "moveHeight": "{{actor}} moved {{target}} from ({{fromX}}, {{fromY}}) at height {{fromZ}} to ({{toX}}, {{toY}}) at height {{toZ}}",
         "moveSurface": "{{actor}} moved {{target}} from ({{fromX}}, {{fromY}}) on the {{fromSurface}} to ({{toX}}, {{toY}}) on the {{toSurface}}",
+        "moveBrief": "{{actor}} moved {{target}}",
         "movePlace": "{{actor}} moved {{target}} from {{fromPlace}} to {{toPlace}}",
         "effectOn": "{{actor}} cast {{effect}} on {{targets}}",
         "effectFrom": "{{actor}} cast {{effect}} from {{caster}} at {{targets}}",
@@ -3503,7 +3505,13 @@
         "undo": "Undo",
         "undoHint": "Ctrl+Z",
         "drag": "Drag to reorder",
-        "discardConfirm": "Discard the edits in progress and open another recording?"
+        "discardConfirm": "Discard the edits in progress and open another recording?",
+        "writeAfter": "Write after this",
+        "stageAfter": "Record after this",
+        "removeCount": "Remove ({{count}})",
+        "insertAfter": "Goes after the row at {{time}}",
+        "insertAtEnd": "Goes at the end",
+        "keysHint": "Delete to remove · Alt+↑↓ to move · Enter to rewrite"
       },
       "surface": {
         "floor": "floor",

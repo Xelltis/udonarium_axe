@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
@@ -231,5 +232,128 @@ describe('a long recording in the list', () => {
     expect(drawn).toBeLessThan(100);
     expect(fixture.nativeElement.textContent).toContain('発言 1');
     expect(fixture.nativeElement.textContent).not.toContain('発言 2000');
+  });
+});
+
+describe('editing the list by choosing rows', () => {
+  let fixture: ComponentFixture<ReplayEntryListComponent>;
+  let removeMany: ReturnType<typeof vi.fn>;
+  let stepMany: ReturnType<typeof vi.fn>;
+  let openMenu: ReturnType<typeof vi.spyOn>;
+
+  const moveEvent = (seq: number): ReplayEvent => ({
+    ...event(seq, ''),
+    kind: ReplayEventKind.ObjectMove,
+    detail: { from: { name: 'table', x: 0, y: 0, z: 0 }, to: { name: 'table', x: 50, y: 0, z: 0 } },
+  });
+  const story: readonly ReplayEvent[] = [
+    event(1, 'はじめ'),
+    moveEvent(2),
+    moveEvent(3),
+    event(4, 'つぎ'),
+    event(5, 'おわり'),
+  ];
+
+  function rowElements(): HTMLElement[] {
+    return Array.from(fixture.nativeElement.querySelectorAll('[aria-selected]'));
+  }
+
+  function press(row: HTMLElement, init: MouseEventInit = {}): void {
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true, ...init }));
+    fixture.detectChanges();
+  }
+
+  function key(init: KeyboardEventInit): void {
+    fixture.nativeElement
+      .querySelector('ui-virtual-list')
+      .dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+    fixture.detectChanges();
+  }
+
+  beforeEach(async () => {
+    removeMany = vi.fn();
+    stepMany = vi.fn();
+    PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
+    await TestBed.configureTestingModule({
+      imports: [ReplayEntryListComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: ReplayPlaybackService,
+          useValue: {
+            events: signal(story).asReadonly(),
+            cursor: signal(0).asReadonly(),
+            manifest: signal(null).asReadonly(),
+            cast: signal([]).asReadonly(),
+            isBoardMode: signal(false).asReadonly(),
+            seekTo: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: ReplayEditorService,
+          useValue: { edited: signal(story).asReadonly(), isInserted: () => false, removeMany, stepMany },
+        },
+      ],
+    }).compileComponents();
+
+    openMenu = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    fixture = TestBed.createComponent(ReplayEntryListComponent);
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null as unknown as PeerCursor;
+    vi.restoreAllMocks();
+  });
+
+  it('folds the board events between the lines until they are opened', () => {
+    expect(rowElements()).toHaveLength(3);
+
+    (fixture.nativeElement.querySelector('button[aria-expanded="false"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(rowElements()).toHaveLength(5);
+  });
+
+  it('chooses a run of rows with the shift key', () => {
+    press(rowElements()[0]);
+    press(rowElements()[2], { shiftKey: true });
+
+    expect(rowElements().map((row) => row.getAttribute('aria-selected'))).toEqual(['true', 'true', 'true']);
+  });
+
+  it('removes every row chosen on Delete, as one change', () => {
+    press(rowElements()[1]);
+    press(rowElements()[2], { ctrlKey: true });
+
+    key({ key: 'Delete' });
+
+    expect(removeMany).toHaveBeenCalledTimes(1);
+    expect([...removeMany.mock.calls[0][0]].sort()).toEqual([4, 5]);
+  });
+
+  it('moves the chosen rows a step with Alt and an arrow', () => {
+    press(rowElements()[2]);
+
+    key({ key: 'ArrowUp', altKey: true });
+
+    expect(stepMany).toHaveBeenCalledWith(new Set([5]), -1);
+  });
+
+  it('lets the choice go on Escape', () => {
+    press(rowElements()[0]);
+
+    key({ key: 'Escape' });
+
+    expect(rowElements().every((row) => row.getAttribute('aria-selected') === 'false')).toBe(true);
+  });
+
+  it('opens the menu of the row pressed with the other button, choosing it', () => {
+    rowElements()[1].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+
+    expect(openMenu).toHaveBeenCalledTimes(1);
+    expect(rowElements()[1].getAttribute('aria-selected')).toBe('true');
   });
 });

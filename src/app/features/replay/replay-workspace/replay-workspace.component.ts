@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
@@ -11,6 +21,7 @@ import { ReplayVideoPanelComponent } from '@axe/features/replay/replay-video-pan
 import { ReplayEntryListComponent } from '@axe/features/replay/replay-workspace/replay-entry-list.component';
 import { ReplayRecordingListComponent } from '@axe/features/replay/replay-workspace/replay-recording-list.component';
 import { ReplayStageComponent } from '@axe/features/replay/replay-workspace/replay-stage.component';
+import { formatSnapshotSavedAt } from '@axe/features/room-archive/snapshot-format';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -35,6 +46,7 @@ export class ReplayWorkspaceComponent {
   private readonly library = inject(ReplayLibraryService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly t = inject(TRANSLATE_FN);
 
   protected readonly isOpen = this.playback.isOpen;
   protected readonly isRecording = this.recorder.isRecording;
@@ -43,6 +55,17 @@ export class ReplayWorkspaceComponent {
   protected readonly isSaving = this.editor.isSaving;
   protected readonly canUndo = this.editor.canUndo;
   protected readonly isDigestOpen = signal(false);
+  /** Whether the list of recordings is open over the workspace, for choosing another. */
+  protected readonly isChooserOpen = signal(false);
+
+  /** The recording open, named by when it began and where. */
+  protected readonly openedLabel = computed(() => {
+    const id = this.playback.recordingId();
+    const meta = this.recorder.recordings().find((recording) => recording.id === id);
+    if (!meta) return this.t('feature.replay.player.choose');
+    const room = meta.roomName || this.t('feature.replay.panel.soloRoom');
+    return `${formatSnapshotSavedAt(meta.startedAt)} ・ ${room}`;
+  });
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -53,6 +76,15 @@ export class ReplayWorkspaceComponent {
     effect(() => {
       if (!this.isOpen()) this.isDigestOpen.set(false);
     });
+    // Choosing a recording from the list is what closes it.
+    effect(() => {
+      this.playback.recordingId();
+      untracked(() => this.isChooserOpen.set(false));
+    });
+  }
+
+  protected toggleChooser(): void {
+    this.isChooserOpen.update((open) => !open);
   }
 
   protected toggleDigest(): void {

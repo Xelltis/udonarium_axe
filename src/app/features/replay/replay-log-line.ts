@@ -50,6 +50,22 @@ export function replayLineParams(line: ReplayLogLine, t: TranslateFn, lang: stri
   return resolved;
 }
 
+const BRIEF_KEYS: Readonly<Record<string, string>> = {
+  'feature.replay.line.move': 'feature.replay.line.moveBrief',
+  'feature.replay.line.moveHeight': 'feature.replay.line.moveBrief',
+  'feature.replay.line.moveSurface': 'feature.replay.line.moveBrief',
+};
+
+/**
+ * A line cut short for a list where the board is only glanced at: a move says what moved and by
+ * whose hand, not the squares either side. A move to another place, such as an inventory, keeps its
+ * places, which say something the board does not.
+ */
+export function briefReplayLogLine(line: ReplayLogLine): ReplayLogLine {
+  const key = BRIEF_KEYS[line.key];
+  return key ? { ...line, key } : line;
+}
+
 /** A line as the reader reads it, in their language. */
 export function renderReplayLogLine(line: ReplayLogLine, t: TranslateFn, lang: string): string {
   return t(line.key, replayLineParams(line, t, lang));

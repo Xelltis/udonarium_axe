@@ -232,7 +232,7 @@ export class RoomPanelService {
             import('@axe/features/replay/replay-workspace/replay-workspace.component').then(
               (m) => m.ReplayWorkspaceComponent
             ),
-          option: { width: 900, height: 640, minWidth: 600, minHeight: 420 },
+          option: { width: 1180, height: 760, minWidth: 720, minHeight: 480 },
         };
       case 'diceTableSetting':
         return {

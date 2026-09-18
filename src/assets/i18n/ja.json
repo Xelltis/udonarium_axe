@@ -3407,7 +3407,8 @@
         "noRecordings": "保存された記録はありません",
         "soloRoom": "ひとりの卓",
         "showIncidental": "付随する音も出す",
-        "showSystem": "入退室や設定の変更も出す"
+        "showSystem": "入退室や設定の変更も出す",
+        "boardGroup": "盤面の動き ×{{count}}"
       },
       "face": {
         "front": "表",
@@ -3438,6 +3439,7 @@
         "marker": "― {{label}} ―",
         "moveHeight": "{{actor}} が {{target}} を ({{fromX}}, {{fromY}}) 高さ {{fromZ}} から ({{toX}}, {{toY}}) 高さ {{toZ}} へ動かした",
         "moveSurface": "{{actor}} が {{target}} を{{fromSurface}}の ({{fromX}}, {{fromY}}) から{{toSurface}}の ({{toX}}, {{toY}}) へ動かした",
+        "moveBrief": "{{actor}} が {{target}} を動かした",
         "movePlace": "{{actor}} が {{target}} を{{fromPlace}}から{{toPlace}}へ移した",
         "effectOn": "{{actor}} が {{targets}} に〈{{effect}}〉をかけた",
         "effectFrom": "{{actor}} が {{caster}} から {{targets}} へ〈{{effect}}〉を放った",
@@ -3503,7 +3505,13 @@
         "undo": "取り消す",
         "undoHint": "Ctrl+Z",
         "drag": "つまんで並べ替え",
-        "discardConfirm": "編集中の変更を捨てて、別の記録を開きますか？"
+        "discardConfirm": "編集中の変更を捨てて、別の記録を開きますか？",
+        "writeAfter": "この後ろに書く",
+        "stageAfter": "この後ろから収録",
+        "removeCount": "{{count}} 行を消す",
+        "insertAfter": "{{time}} の行の後ろに入ります",
+        "insertAtEnd": "末尾に入ります",
+        "keysHint": "Delete で消す・Alt+↑↓ で動かす・Enter で書き直す"
       },
       "surface": {
         "floor": "床",

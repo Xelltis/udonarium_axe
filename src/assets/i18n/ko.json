@@ -3407,7 +3407,8 @@
         "noRecordings": "저장된 기록이 없습니다",
         "soloRoom": "혼자인 탁상",
         "showIncidental": "딸린 소리도 내기",
-        "showSystem": "입퇴장과 설정 변경도 표시"
+        "showSystem": "입퇴장과 설정 변경도 표시",
+        "boardGroup": "보드 움직임 ×{{count}}"
       },
       "face": {
         "front": "앞면",
@@ -3438,6 +3439,7 @@
         "marker": "― {{label}} ―",
         "moveHeight": "{{actor}}이(가) {{target}}을(를) ({{fromX}}, {{fromY}}) 높이 {{fromZ}}에서 ({{toX}}, {{toY}}) 높이 {{toZ}}로 옮겼습니다",
         "moveSurface": "{{actor}}이(가) {{target}}을(를) {{fromSurface}}의 ({{fromX}}, {{fromY}})에서 {{toSurface}}의 ({{toX}}, {{toY}})로 옮겼습니다",
+        "moveBrief": "{{actor}}이(가) {{target}}을(를) 옮겼습니다",
         "movePlace": "{{actor}}이(가) {{target}}을(를) {{fromPlace}}에서 {{toPlace}}(으)로 옮겼습니다",
         "effectOn": "{{actor}}이(가) {{targets}}에게 〈{{effect}}〉을(를) 걸었습니다",
         "effectFrom": "{{actor}}이(가) {{caster}}에게서 {{targets}}(으)로 〈{{effect}}〉을(를) 날렸습니다",
@@ -3505,7 +3507,13 @@
         "undo": "취소하기",
         "undoHint": "Ctrl+Z",
         "drag": "잡아서 순서 바꾸기",
-        "discardConfirm": "편집 중인 변경을 버리고 다른 기록을 열까요?"
+        "discardConfirm": "편집 중인 변경을 버리고 다른 기록을 열까요?",
+        "writeAfter": "이 뒤에 쓰기",
+        "stageAfter": "이 뒤부터 녹화",
+        "removeCount": "{{count}}행 지우기",
+        "insertAfter": "{{time}} 행 뒤에 들어갑니다",
+        "insertAtEnd": "맨 끝에 들어갑니다",
+        "keysHint": "Delete로 지우기 · Alt+↑↓로 옮기기 · Enter로 다시 쓰기"
       },
       "surface": {
         "floor": "바닥",
