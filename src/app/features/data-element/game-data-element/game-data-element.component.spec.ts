@@ -65,13 +65,14 @@ describe('GameDataElementComponent', () => {
       return fixture.nativeElement as HTMLElement;
     }
 
-    it('gets several lines of its own under the row, which it can be stretched from', () => {
+    it('gets ten lines of its own under the row, which it can be stretched from', () => {
       const host = edit(DataElementFieldType.LONG_TEXT);
       const content = host.querySelector('.elm-value-content')!;
       const textarea = host.querySelector('textarea[name="data-value"]')!;
 
       expect(content.classList.contains('gde-editing')).toBe(false);
       expect(content.classList).toContain('row-start-2');
+      expect(textarea.classList).toContain('min-h-[calc(10lh+0.5rem+2px)]');
       expect(textarea.classList).toContain('resize-y');
       expect(textarea.classList).toContain('whitespace-pre-wrap');
     });

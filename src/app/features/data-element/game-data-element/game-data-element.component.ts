@@ -136,7 +136,8 @@ export class GameDataElementComponent {
    * Whether this row is a long text being edited.
    *
    * Squeezed into one line beside the row's buttons it could hardly be written in, so it is given
-   * the width of the value cell under them instead, several lines tall and growing with its text.
+   * the width of the value cell under them instead, ten lines tall from the start and growing with
+   * its text.
    */
   protected get isLongTextEditing(): boolean {
     return this.isEdit() && !this.isImage() && this.gameDataElement().fieldType === DataElementFieldType.LONG_TEXT;

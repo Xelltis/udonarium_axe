@@ -64,7 +64,7 @@
         [class.gde-editing]="isEdit() && !isImage() && !isLongTextEditing"
         [class.col-span-full]="isLongTextEditing"
         [class.row-start-2]="isLongTextEditing"
-        [class.mt-0.5]="isLongTextEditing"
+        [class.mt-1]="isLongTextEditing"
       >
         @switch (gameDataElement().fieldType) {
           @case ('resource') {
@@ -148,23 +148,11 @@
             </span>
             <textarea
               class="textarea-url w-full min-w-12.5"
-              [class.h-[5em]]="!isLongTextEditing"
-              [class.resize-none]="!isLongTextEditing"
-              [class.text-[0.8em]]="!isLongTextEditing"
-              [class.elm-long-text-input]="isLongTextEditing"
-              [class.bg-ui-input!]="isLongTextEditing"
-              [class.border!]="isLongTextEditing"
-              [class.border-(--gde-row-border)!]="isLongTextEditing"
-              [class.focus:border-ui-accent!]="isLongTextEditing"
-              [class.focus:shadow-[0_0_0_2px_var(--ui-accent-glow)]]="isLongTextEditing"
-              [class.min-h-[5.5em]]="isLongTextEditing"
-              [class.max-h-[24em]]="isLongTextEditing"
-              [class.resize-y]="isLongTextEditing"
-              [class.field-sizing-content]="isLongTextEditing"
-              [class.px-1.5!]="isLongTextEditing"
-              [class.py-1!]="isLongTextEditing"
-              [class.leading-normal]="isLongTextEditing"
-              [class.whitespace-pre-wrap]="isLongTextEditing"
+              [class]="
+                isLongTextEditing
+                  ? 'elm-long-text-input bg-ui-input! focus:border-ui-accent! field-sizing-content max-h-[calc(30lh+0.5rem+2px)] min-h-[calc(10lh+0.5rem+2px)] resize-y border! border-(--gde-row-border)! px-1.5! py-1! leading-normal whitespace-pre-wrap focus:shadow-[0_0_0_2px_var(--ui-accent-glow)]'
+                  : 'h-[5em] resize-none text-[0.8em]'
+              "
               name="data-value"
               [(ngModel)]="value"
               [readonly]="isValueLocked()"
