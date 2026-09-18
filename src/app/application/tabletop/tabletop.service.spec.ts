@@ -6,6 +6,7 @@ import { emitXmlLoaded } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { xml2element } from '@axe/core/util/xml-util';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
@@ -26,6 +27,7 @@ describe('TabletopService', () => {
   describe('a character brought in from a file', () => {
     afterEach(() => {
       for (const character of ObjectStore.instance.getObjects(GameCharacter)) character.destroy();
+      for (const party of ObjectStore.instance.getObjects(Party)) party.destroy();
       PeerCursor.myCursor = null!;
     });
 
@@ -37,6 +39,16 @@ describe('TabletopService', () => {
 
       const [character] = ObjectStore.instance.getObjects(GameCharacter);
       expect(character.owner).toBe('the-dropper');
+    });
+
+    it('joins no party, even one in this room under the name it was saved with', () => {
+      TestBed.inject(TabletopService);
+      new Party('party-1').initialize();
+
+      emitXmlLoaded({ xmlElement: xml2element('<character partyIdentifier="party-1"></character>')! });
+
+      const [character] = ObjectStore.instance.getObjects(GameCharacter);
+      expect(character.partyIdentifier).toBe('');
     });
   });
 

@@ -254,6 +254,7 @@ export class TabletopService {
         gameObject.location.y = pointer.y - 25;
         gameObject.posZ = pointer.z;
         claimBroughtInPiece(gameObject, PeerCursor.myCursor?.userId ?? '');
+        if (gameObject instanceof GameCharacter) gameObject.partyIdentifier = '';
         this.placeToTabletop(gameObject);
         SoundEffect.play(PresetSound.piecePut);
       } else if (gameObject instanceof ChatTab) {
