@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { RemoteControllerComponent } from '@axe/features/controller/remote-controller/remote-controller.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -173,6 +176,64 @@ describe('RemoteControllerComponent', () => {
       component.dropChosenIfGone();
 
       expect(component.remoteControllerSelect().name).toBe('HP');
+    });
+  });
+
+  describe('the items the room picks for its remotes', () => {
+    function addItem(character: GameCharacter, name: string, type: string): DataElement {
+      const element = DataElement.create(name, 3, {
+        [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+        type,
+        ...(type === DataElementType.NUMBER_RESOURCE ? { currentValue: 3 } : {}),
+      });
+      character.detailDataElement!.appendChild(element);
+      return element;
+    }
+
+    afterEach(() => {
+      Config.instance.controllerResources = null;
+    });
+
+    it('offers every item while the room has picked none', () => {
+      const char = createChar('コマ');
+      addItem(char, '正気度', DataElementType.NUMBER_RESOURCE);
+      addItem(char, '信仰', DataElementType.TEXT);
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([char]);
+
+      expect(component.counterChoices().map((choice) => choice.name)).toEqual(
+        expect.arrayContaining(['正気度', '信仰'])
+      );
+    });
+
+    it('offers only the items picked, as soon as the pick changes', () => {
+      const char = createChar('コマ');
+      addItem(char, '正気度', DataElementType.NUMBER_RESOURCE);
+      addItem(char, '信仰', DataElementType.TEXT);
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([char]);
+      component.counterChoices();
+
+      Config.instance.controllerResources = ['信仰'];
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+
+      expect(component.counterChoices().map((choice) => choice.name)).toEqual(['信仰']);
+    });
+
+    it('leaves an item not picked off the cards, keeping a check box and the line breaks', () => {
+      const char = createChar('コマ');
+      const sanity = addItem(char, '正気度', DataElementType.NUMBER_RESOURCE);
+      const faith = addItem(char, '信仰', DataElementType.TEXT);
+      const poisoned = addItem(char, '毒', DataElementType.CHECK);
+      const lineBreak = DataElement.create(component.newLineString);
+      const inventory = TestBed.inject(GameObjectInventoryService);
+      vi.spyOn(inventory.tableInventory, 'dataElementMap', 'get').mockReturnValue(
+        new Map([[char.identifier, [sanity, lineBreak, faith, null, poisoned]]])
+      );
+      char.setLocation('table');
+
+      Config.instance.controllerResources = ['信仰'];
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+
+      expect(component.getInventoryTags(char)).toEqual([lineBreak, faith, null, poisoned]);
     });
   });
 
