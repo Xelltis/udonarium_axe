@@ -13,7 +13,8 @@ import {
   buildToggleAction,
 } from '@axe/application/ui/tabletop-context-menu-actions';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { DOOR_STYLES, DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { DOOR_STYLES, DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { drawnSlopeSides, SlopeSide, SQUARE_SLOPE_SIDES } from '@axe/domain/tabletop/terrain-slope';
 import { applyLightPreset, LightPreset } from '@axe/domain/tabletop/vision-types';
 
 export interface TerrainContextMenuModel {
@@ -61,15 +62,12 @@ export function buildTerrainContextMenuModel(
   onEdit: (t: Terrain) => void,
   t: TranslateFn,
   overlapEntries: ContextMenuAction[] = [],
-  surfaceEntries: ContextMenuAction[] = []
+  surfaceEntries: ContextMenuAction[] = [],
+  slopeSides: readonly SlopeSide[] = SQUARE_SLOPE_SIDES
 ): TerrainContextMenuModel {
   const adjustedWidth = Math.max(0, terrain.width);
   const adjustedDepth = Math.max(0, terrain.depth);
-  const slopeDirection = !terrain.isSlope
-    ? SlopeDirection.NONE
-    : terrain.slopeDirection === SlopeDirection.NONE
-      ? SlopeDirection.BOTTOM
-      : terrain.slopeDirection;
+  const slopesTo = drawnSlopeSides(terrain, slopeSides);
 
   const altitudeAction = buildAltitudeAction(terrain, t, {
     onChanged: () => inventoryService.notifyInventoryUpdate(),
@@ -91,39 +89,21 @@ export function buildTerrainContextMenuModel(
     action: undefined,
     subActions: [
       {
-        name: `${slopeDirection == SlopeDirection.NONE ? '◉' : '○'}  ${t('feature.tabletop.contextMenu.slopeNone')}`,
-        action: () => {
-          terrain.isSlope = false;
-          terrain.slopeDirection = SlopeDirection.NONE;
-        },
+        name: `${slopesTo.length < 1 ? '◉' : '○'}  ${t('feature.tabletop.contextMenu.slopeNone')}`,
+        action: () => (terrain.slopeSides = []),
       },
       ContextMenuSeparator,
-      {
-        name: `${slopeDirection == SlopeDirection.TOP ? '◉' : '○'} ${t('feature.tabletop.contextMenu.slopeTop')}`,
+      ...slopeSides.map((side) => ({
+        name: `${slopesTo.includes(side) ? '☑' : '☐'} ${t(`feature.tabletop.contextMenu.slopeSide_${side}`)}`,
         action: () => {
-          terrain.isSlope = true;
-          terrain.slopeDirection = SlopeDirection.TOP;
+          terrain.slopeSides = slopesTo.includes(side) ? slopesTo.filter((held) => held !== side) : [...slopesTo, side];
         },
-      },
+      })),
+      ContextMenuSeparator,
       {
-        name: `${slopeDirection == SlopeDirection.BOTTOM ? '◉' : '○'} ${t('feature.tabletop.contextMenu.slopeBottom')}`,
+        name: `${slopesTo.length === slopeSides.length ? '☑' : '☐'} ${t('feature.tabletop.contextMenu.slopeEverySide')}`,
         action: () => {
-          terrain.isSlope = true;
-          terrain.slopeDirection = SlopeDirection.BOTTOM;
-        },
-      },
-      {
-        name: `${slopeDirection == SlopeDirection.LEFT ? '◉' : '○'}  ${t('feature.tabletop.contextMenu.slopeLeft')}`,
-        action: () => {
-          terrain.isSlope = true;
-          terrain.slopeDirection = SlopeDirection.LEFT;
-        },
-      },
-      {
-        name: `${slopeDirection == SlopeDirection.RIGHT ? '◉' : '○'} ${t('feature.tabletop.contextMenu.slopeRight')}`,
-        action: () => {
-          terrain.isSlope = true;
-          terrain.slopeDirection = SlopeDirection.RIGHT;
+          terrain.slopeSides = slopesTo.length === slopeSides.length ? [] : [...slopeSides];
         },
       },
     ],

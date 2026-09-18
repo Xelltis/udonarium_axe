@@ -13,6 +13,7 @@ import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switc
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { gridSlopeSides } from '@axe/domain/tabletop/terrain-slope';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
 
@@ -65,7 +66,8 @@ export class TerrainMenuService {
       (target) => this.showDetail(target),
       this.t,
       overlapEntries,
-      surfaceEntries
+      surfaceEntries,
+      gridSlopeSides(this.tabletopService.currentTable.gridType)
     );
     const display = this.tabletopService.display();
     if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {

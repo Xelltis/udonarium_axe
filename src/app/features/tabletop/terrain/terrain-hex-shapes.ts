@@ -1,5 +1,5 @@
+import { HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { hexWallShadeOf } from '@axe/domain/tabletop/terrain-shade';
-import { HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 
 /** One wall of a hex terrain: the face standing on an edge of its outline. */
 export interface TerrainHexWall {

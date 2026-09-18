@@ -52,20 +52,20 @@
         ></div>
       }
       @if (hasFloor() && isVisibleFloor() && 0 < topFaceImage().url.length) {
-        @if (isHexSlope() && hexSlopeSteps().floors.length > 0) {
-          @for (step of hexSlopeSteps().floors; track $index) {
+        @if (slopeFaces().length > 0) {
+          @for (face of slopeFaces(); track $index) {
             <div
-              class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden"
+              class="chrome-smooth-image-trick absolute size-full origin-top-left bg-size-[100%_100%] bg-no-repeat"
+              data-testid="terrain-slope-face"
               [class.blinking-animation]="!isLocked()"
               [ngStyle]="{
                 'backface-visibility': 'visible',
-                transform: 'translateZ(' + step.heightPx + 'px)',
-                '-webkit-mask': step.mask,
-                mask: step.mask,
+                transform: face.transform,
+                'clip-path': face.clipPath,
                 ...hexFloorDimStyle(),
                 ...tileStyle(),
               }"
-              [style.background-image]="shaded(topFaceImage().url, floorBrightness()) | safe: 'style'"
+              [style.background-image]="shaded(topFaceImage().url, face.brightness) | safe: 'style'"
             ></div>
           }
         } @else {
@@ -74,8 +74,7 @@
             data-testid="terrain-top"
             [class.blinking-animation]="!isLocked()"
             [ngStyle]="{
-              'backface-visibility': isSlope() ? 'visible' : 'hidden',
-              transform: 'translateZ(' + (height() / (isSlope() ? 2 : 1)) * gridSize + 'px)' + floorModCss(),
+              transform: 'translateZ(' + height() * gridSize + 'px)',
               ...hexFloorDimStyle(),
               ...topShade().style,
               ...(topFog() ?? {}),
@@ -100,11 +99,11 @@
         ></div>
       }
       @if (showsGrid()) {
-        @if (isHexSlope() && hexSlopeSteps().floors.length > 0) {
-          @for (step of hexSlopeSteps().floors; track $index) {
+        @if (slopeFaces().length > 0) {
+          @for (face of slopeFaces(); track $index) {
             <div
-              class="pointer-events-none absolute origin-center overflow-hidden transform-3d"
-              [ngStyle]="terrainGridClipStepStyle(step)"
+              class="pointer-events-none absolute overflow-hidden transform-3d"
+              [ngStyle]="terrainGridFaceStyle(face)"
             >
               <canvas
                 class="pointer-events-none absolute origin-center opacity-0 transition-[0.3s_ease-out] backface-hidden"
@@ -127,58 +126,39 @@
         }
       }
       @if (hasWall()) {
-        @if (isHexSlope() && hexSlopeSteps().walls.length > 0 && 0 < wallImage().url.length) {
-          @for (wall of hexSlopeSteps().walls; track $index) {
-            <div
-              class="chrome-smooth-image-trick absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden"
-              [class.blinking-animation]="!isLocked()"
-              [style.background-image]="shaded(wallImage().url, wallShade(wall.brightness)) | safe: 'style'"
-              [style.width.px]="wall.edgeLength"
-              [style.height.px]="wall.wallHeightPx"
-              [ngStyle]="{
-                transform:
-                  'translate3d(' +
-                  wall.px +
-                  'px, ' +
-                  wall.py +
-                  'px, ' +
-                  wall.basePx +
-                  'px) rotateZ(' +
-                  wall.angle +
-                  'rad) rotateX(-90deg) translateY(-100%)',
-                ...tileStyle(),
-              }"
-            ></div>
-          }
-        } @else if (isHex() && 0 < wallImage().url.length) {
-          @for (wall of hexWalls(); track $index) {
-            <div
-              class="chrome-smooth-image-trick absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden"
-              [class.blinking-animation]="!isLocked()"
-              [style.background-image]="shaded(wallImage().url, wallShade(wall.brightness)) | safe: 'style'"
-              [style.width.px]="wall.edgeLength"
-              [style.height.px]="height() * gridSize"
-              [ngStyle]="{
-                transform:
-                  'translate(' +
-                  wall.px +
-                  'px, ' +
-                  wall.py +
-                  'px) rotateZ(' +
-                  wall.angle +
-                  'rad) rotateX(-90deg) translateY(-100%)',
-                ...tileStyle(),
-              }"
-            ></div>
+        @if (isHex() && 0 < wallImage().url.length) {
+          @for (wall of hexWalls(); track $index; let wallIndex = $index) {
+            @let cut = hexWallCuts()[wallIndex];
+            @if (cut.shown) {
+              <div
+                class="chrome-smooth-image-trick absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden"
+                [class.blinking-animation]="!isLocked()"
+                [style.background-image]="shaded(wallImage().url, wallShade(wall.brightness)) | safe: 'style'"
+                [style.width.px]="wall.edgeLength"
+                [style.height.px]="height() * gridSize"
+                [style.clip-path]="cut.clipPath"
+                [ngStyle]="{
+                  transform:
+                    'translate(' +
+                    wall.px +
+                    'px, ' +
+                    wall.py +
+                    'px) rotateZ(' +
+                    wall.angle +
+                    'rad) rotateX(-90deg) translateY(-100%)',
+                  ...tileStyle(),
+                }"
+              ></div>
+            }
           }
         }
         @if (!isHex()) {
-          @if (slopeDirection() !== slopeDirectionState.TOP) {
+          @let northCut = northWallCut();
+          @if (northCut.shown) {
             @if (isVisibleWallTopBottom() && 0 < northFaceImage().url.length) {
               <div
                 [class.blinking-animation]="!isLocked()"
-                [class.[clip-path:polygon(100%_0%,0%_100%,100%_100%)]]="slopeDirection() === slopeDirectionState.LEFT"
-                [class.[clip-path:polygon(0%_0%,100%_100%,0%_100%)]]="slopeDirection() === slopeDirectionState.RIGHT"
+                [style.clip-path]="northCut.clipPath"
                 class="absolute top-0 left-0 size-full origin-[50%_100%] transform-[translateY(-100%)_rotateX(90deg)_rotateZ(180deg)_scaleX(-1)] backface-hidden transform-3d"
                 [style.width.px]="width() * gridSize"
                 [style.height.px]="height() * gridSize"
@@ -210,12 +190,12 @@
               </div>
             }
           }
-          @if (slopeDirection() !== slopeDirectionState.BOTTOM) {
+          @let southCut = southWallCut();
+          @if (southCut.shown) {
             @if (isVisibleWallTopBottom() && 0 < southFaceImage().url.length) {
               <div
                 [class.blinking-animation]="!isLocked()"
-                [class.[clip-path:polygon(100%_0%,0%_100%,100%_100%)]]="slopeDirection() === slopeDirectionState.LEFT"
-                [class.[clip-path:polygon(0%_0%,100%_100%,0%_100%)]]="slopeDirection() === slopeDirectionState.RIGHT"
+                [style.clip-path]="southCut.clipPath"
                 class="absolute bottom-0 left-0 size-full origin-[50%_100%] transform-[rotateX(-90deg)] backface-hidden transform-3d"
                 [style.width.px]="width() * gridSize"
                 [style.height.px]="height() * gridSize"
@@ -247,12 +227,12 @@
               </div>
             }
           }
-          @if (slopeDirection() !== slopeDirectionState.LEFT) {
+          @let westCut = westWallCut();
+          @if (westCut.shown) {
             @if (isVisibleWallLeftRight() && 0 < westFaceImage().url.length) {
               <div
                 [class.blinking-animation]="!isLocked()"
-                [class.[clip-path:polygon(100%_0%,0%_100%,100%_100%)]]="slopeDirection() === slopeDirectionState.BOTTOM"
-                [class.[clip-path:polygon(0%_0%,100%_100%,0%_100%)]]="slopeDirection() === slopeDirectionState.TOP"
+                [style.clip-path]="westCut.clipPath"
                 class="absolute top-0 left-0 size-full origin-[0%_0%] transform-[rotateZ(90deg)_rotateX(-90deg)_scaleX(-1)_translateX(-100%)_translateY(-100%)] backface-hidden transform-3d"
                 [style.width.px]="depth() * gridSize"
                 [style.height.px]="height() * gridSize"
@@ -284,12 +264,12 @@
               </div>
             }
           }
-          @if (slopeDirection() !== slopeDirectionState.RIGHT) {
+          @let eastCut = eastWallCut();
+          @if (eastCut.shown) {
             @if (isVisibleWallLeftRight() && 0 < eastFaceImage().url.length) {
               <div
                 [class.blinking-animation]="!isLocked()"
-                [class.[clip-path:polygon(100%_0%,0%_100%,100%_100%)]]="slopeDirection() === slopeDirectionState.BOTTOM"
-                [class.[clip-path:polygon(0%_0%,100%_100%,0%_100%)]]="slopeDirection() === slopeDirectionState.TOP"
+                [style.clip-path]="eastCut.clipPath"
                 class="absolute top-0 right-0 size-full origin-[100%_0%] transform-[rotateZ(-90deg)_rotateX(-90deg)_translateY(-100%)] backface-hidden transform-3d"
                 [style.width.px]="depth() * gridSize"
                 [style.height.px]="height() * gridSize"

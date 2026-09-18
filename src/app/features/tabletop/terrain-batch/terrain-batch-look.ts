@@ -1,8 +1,8 @@
+import { HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { ShadeStop } from '@axe/domain/tabletop/terrain-batch/batch-shade';
 import { CAP_BLEED, SquareCap } from '@axe/domain/tabletop/terrain-batch/square-caps';
 import { SquareWall } from '@axe/domain/tabletop/terrain-batch/square-walls';
 import { hexFaceMidpointOf } from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
-import { HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { shadeAlongGradient } from '@axe/ui/tabletop/shaded-background';
 
 /** A surface's background, layer by layer: the shade over the picture. */

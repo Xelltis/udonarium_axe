@@ -2,7 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { SlopeDirection } from '@axe/domain/tabletop/terrain-slope';
 
 describe('Terrain', () => {
   let store: ObjectStore;
@@ -348,12 +349,77 @@ describe('Terrain', () => {
       expect(terrain.eastImage?.identifier).toBe('E2');
     });
 
+    it('starts sloping to no side', () => {
+      const terrain = Terrain.create('t', 1, 1, 1, '', '');
+      expect(terrain.slopeSides).toEqual([]);
+    });
+
     it('agrees with each of the getters', () => {
       const terrain = Terrain.create('t', 1, 1, 1, 'W', 'F');
       terrain.setFaceImage('east', 'E');
       expect(terrain.faceImage('east')?.identifier).toBe('E');
       expect(terrain.faceImage('top')?.identifier).toBe('F');
       expect(terrain.faceImage('north')?.identifier).toBe('W');
+    });
+  });
+
+  describe('the sides it slopes to', () => {
+    function block(): Terrain {
+      return Terrain.create('t', 2, 2, 1, '', '');
+    }
+
+    it('turns the slope on with the sides it is given', () => {
+      const terrain = block();
+
+      terrain.slopeSides = ['n', 'e'];
+
+      expect(terrain.isSlope).toBe(true);
+      expect(terrain.slopeSides).toEqual(['n', 'e']);
+    });
+
+    it('turns the slope off again when it is given none', () => {
+      const terrain = block();
+      terrain.slopeSides = ['n'];
+
+      terrain.slopeSides = [];
+
+      expect(terrain.isSlope).toBe(false);
+      expect(terrain.slopeSides).toEqual([]);
+    });
+
+    it('leaves an older peer the one direction it knows', () => {
+      const terrain = block();
+
+      terrain.slopeSides = ['s', 'w'];
+
+      expect(terrain.slopeDirection).toBe(SlopeDirection.BOTTOM);
+    });
+
+    it('reads a room saved before a block could slope to more than one side', () => {
+      const terrain = block();
+      terrain.isSlope = true;
+      terrain.slopeDirection = SlopeDirection.LEFT;
+
+      expect(terrain.slopeSides).toEqual(['w']);
+    });
+
+    it('reads a block whose slope is off as sloping to nothing, whatever it holds', () => {
+      const terrain = block();
+      terrain.slopeSides = ['n', 'e'];
+
+      terrain.isSlope = false;
+
+      expect(terrain.slopeSides).toEqual([]);
+    });
+
+    it('keeps the sides of a hex block an older peer has no direction for', () => {
+      const terrain = block();
+
+      terrain.slopeSides = ['ne', 'sw'];
+
+      expect(terrain.slopeSides).toEqual(['ne', 'sw']);
+      expect(terrain.slopeDirection).toBe(SlopeDirection.NONE);
+      expect(terrain.isSlope).toBe(true);
     });
   });
 });

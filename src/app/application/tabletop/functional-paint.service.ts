@@ -25,6 +25,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
 import { Terrain, TERRAIN_FACES } from '@axe/domain/tabletop/terrain';
+import { encodeSlopeSides, parseSlopeSides } from '@axe/domain/tabletop/terrain-slope';
 
 function terrainsOn(table: GameTable): Terrain[] {
   return table.children.filter((child): child is Terrain => child instanceof Terrain);
@@ -67,8 +68,10 @@ function layTerrainBlock(
   terrain.doorStyle = spec.doorStyle;
   terrain.isDoorOpen = spec.doorOpen;
   terrain.doorMirrored = spec.doorMirrored;
-  terrain.isSlope = spec.slope;
-  terrain.slopeDirection = spec.slopeDirection;
+  // The sides come first, so a brush saved before there were any still tips the block the one
+  // way it knew.
+  const slopeSides = parseSlopeSides(spec.slopeSides, spec.slopeDirection);
+  terrain.slopeSides = spec.slope ? slopeSides : [];
   terrain.rotate = placed ? placed.rotate : 0;
   terrain.lightEnabled = spec.light.enabled;
   terrain.lightPreset = spec.light.preset;
@@ -170,6 +173,7 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
     doorMirrored: terrain.doorMirrored,
     slope: terrain.isSlope,
     slopeDirection: terrain.slopeDirection,
+    slopeSides: encodeSlopeSides(terrain.slopeSides),
     light: {
       enabled: terrain.lightEnabled,
       preset: terrain.lightPreset,

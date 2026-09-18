@@ -29,7 +29,7 @@ import {
 import { blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
 import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
-import { DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { EYE_HEIGHT_CELLS } from '@axe/domain/tabletop/vision-scene';
 import { applyLightPreset, LightPreset } from '@axe/domain/tabletop/vision-types';
 
@@ -329,8 +329,7 @@ export class DungeonBuildService {
         const image = this.registerAsset(DUNGEON_PROP_ASSET_URLS[block.prop ?? 'stair_up']);
         const terrain = Terrain.create(name, rect.w, rect.h, STAIR_HEIGHT, image, image);
         terrain.mode = TerrainViewState.FLOOR;
-        terrain.isSlope = true;
-        terrain.slopeDirection = block.kind === 'stairUp' ? SlopeDirection.TOP : SlopeDirection.BOTTOM;
+        terrain.slopeSides = [block.kind === 'stairUp' ? 'n' : 's'];
         terrain.isDropShadow = false;
         return terrain;
       }

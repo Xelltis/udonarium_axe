@@ -1,5 +1,6 @@
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { calcHexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { blockOrigin } from '@axe/domain/tabletop/map-grid';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { squareCapsOf } from '@axe/domain/tabletop/terrain-batch/square-caps';
@@ -13,7 +14,6 @@ import {
   wallBackground,
   wallPlacement,
 } from '@axe/features/tabletop/terrain-batch/terrain-batch-look';
-import { calcHexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const GRID = 50;

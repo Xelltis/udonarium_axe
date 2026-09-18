@@ -5,9 +5,9 @@ import {
   buildVertexClusterOutline,
   calcHexFlowerParams,
   insetPolygon,
-} from '@axe/ui/tabletop/hex-pedestal-geometry';
+} from '@axe/domain/tabletop/hex-flower-geometry';
 
-describe('hex-pedestal-geometry', () => {
+describe('hex-flower-geometry', () => {
   describe('buildHexFlowerOutline', () => {
     it('returns the six vertices of a single hex at size one', () => {
       const outline = buildHexFlowerOutline(1, 50, true);

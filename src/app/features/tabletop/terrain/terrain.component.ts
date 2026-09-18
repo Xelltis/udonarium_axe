@@ -25,24 +25,22 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-counters';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
-import { DoorStyle, SlopeDirection, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
 import {
   faceShadeOf,
   sideCellIndexes,
   sideShadeLine,
+  slopeShadeOf,
   topShadeGrid,
-  topShadeOf,
 } from '@axe/domain/tabletop/terrain-shade';
+import { drawnSlopeSides, gridSlopeKind, gridSlopeSides, SlopeSide } from '@axe/domain/tabletop/terrain-slope';
+import { buildSlopeRoof, SlopePoint, slopeProfileAlong, SlopeRoof } from '@axe/domain/tabletop/terrain-slope-roof';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
-import {
-  computeHexSlopeSteps,
-  HexSlopeStepData,
-  HexSlopeStepFloor,
-} from '@axe/features/tabletop/terrain/hex-slope-step-geometry';
 import { fogMaskOf, terrainTextureLayout } from '@axe/features/tabletop/terrain/terrain-face-look';
 import {
   hexFloorClipPathOf,
@@ -63,7 +61,6 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import {
   ShadedBackground,
@@ -89,8 +86,6 @@ interface TerrainGridViewport extends TerrainGridBounds {
   offsetLeft: number;
   offsetTop: number;
 }
-
-const NO_HEX_SLOPE: HexSlopeStepData = { floors: [], walls: [] };
 
 /** The same list, or two empty ones: an empty @for renders nothing either way. */
 function sameOrBothEmpty<T>(a: readonly T[], b: readonly T[]): boolean {
@@ -216,7 +211,7 @@ export class TerrainComponent {
       slide.offsetTop,
       slide.grow,
       bbox ? `${bbox.minX}:${bbox.minY}:${bbox.maxX}:${bbox.maxY}` : '',
-      this.hexSlopeSteps().floors.length,
+      this.slopeFaces().length,
     ].join('|');
   });
 
@@ -409,14 +404,6 @@ export class TerrainComponent {
     this.terrainVersion();
     return this.terrain().isSlope;
   });
-  readonly slopeDirection = computed(() => {
-    this.terrainVersion();
-    const terrain = this.terrain();
-    if (!terrain.isSlope) return SlopeDirection.NONE;
-    if (terrain.slopeDirection === SlopeDirection.NONE) return SlopeDirection.BOTTOM;
-    return terrain.slopeDirection;
-  });
-
   readonly isAltitudeIndicate = computed(() => {
     this.terrainVersion();
     return this.terrain().isAltitudeIndicate;
@@ -476,22 +463,56 @@ export class TerrainComponent {
 
   readonly isHex = computed(() => this.pedestalHexParams() !== null);
 
-  readonly isHexSlope = computed(() => this.isHex() && this.isSlope() && this.slopeDirection() !== SlopeDirection.NONE);
+  /**
+   * The sides this block's slope runs down to, among the sides the grid under it has.
+   *
+   * A block sloping nowhere in particular runs down to the south, which is the way a slope
+   * with no direction has always been drawn.
+   */
+  readonly slopeSides = computed<SlopeSide[]>(() => {
+    const terrain = this.terrain();
+    this.objectChange.versionOf(terrain.identifier)();
+    return drawnSlopeSides(terrain, gridSlopeSides(this.currentTable.gridType));
+  });
 
-  readonly hexSlopeSteps = computed<HexSlopeStepData>(() => {
+  /** The outline of this block's top, in pixels from the corner the block is drawn from. */
+  readonly topOutline = computed<SlopePoint[]>(() => {
+    const width = this.width() * this.gridSize;
+    const depth = this.depth() * this.gridSize;
     const params = this.pedestalHexParams();
-    if (!params || !this.isHexSlope()) return NO_HEX_SLOPE;
-    return computeHexSlopeSteps(
-      Math.min(this.width(), this.depth()),
-      this.gridSize,
-      isFlatTopGrid(this.currentTable.gridType),
-      this.slopeDirection(),
-      this.height(),
-      this.isSurfaceShading(),
-      this.width() * this.gridSize,
-      this.depth() * this.gridSize,
-      params.bbox
-    );
+    if (!params) {
+      return [
+        { x: 0, y: 0 },
+        { x: width, y: 0 },
+        { x: width, y: depth },
+        { x: 0, y: depth },
+      ];
+    }
+    return params.outline.map((corner) => ({ x: width / 2 + corner.x, y: depth / 2 + corner.y }));
+  });
+
+  /** The slope of this block, as the flat pieces its top is made of. */
+  readonly slopeRoof = computed<SlopeRoof | null>(() =>
+    buildSlopeRoof(
+      this.topOutline(),
+      this.slopeSides(),
+      this.height() * this.gridSize,
+      gridSlopeKind(this.currentTable.gridType)
+    )
+  );
+
+  /** Each flat piece of the slope, ready to be drawn: where it is cut, how it leans, how lit. */
+  readonly slopeFaces = computed<TerrainSlopeFace[]>(() => {
+    const roof = this.slopeRoof();
+    if (!roof) return [];
+    const bounds = this.getFloorBounds();
+    const lighting = this.centerBrightness();
+    const shading = this.isSurfaceShading();
+    return roof.faces.map((face) => ({
+      clipPath: clipPathOf(face.polygon, bounds.left, bounds.top),
+      transform: leanCss(face.plane, bounds.left, bounds.top),
+      brightness: slopeShadeOf(face.azimuth, shading) * lighting,
+    }));
   });
 
   // Computed, so neither the record nor the clip path is rebuilt on every change-detection pass.
@@ -552,35 +573,27 @@ export class TerrainComponent {
   /**
    * The style that lays the grid over one step of a stepped hex slope, masked to that step's hexes.
    */
-  terrainGridClipStepStyle(step: HexSlopeStepFloor): Record<string, string> {
-    return this.makeTerrainGridClipStyle(step);
+  terrainGridFaceStyle(face: TerrainSlopeFace): Record<string, string> {
+    return this.makeTerrainGridClipStyle(face);
   }
 
-  private makeTerrainGridClipStyle(step?: HexSlopeStepFloor): Record<string, string> {
+  private makeTerrainGridClipStyle(face?: TerrainSlopeFace): Record<string, string> {
     const bounds = this.getFloorBounds();
     const clipPath = this.hexFloorClipPath();
-    const transform =
-      step != null
-        ? 'translateZ(' + step.heightPx + 'px)'
-        : 'translateZ(' + (this.height() / (this.isSlope() ? 2 : 1)) * this.gridSize + 'px)' + this.floorModCss();
     const style: Record<string, string> = {
       width: `${bounds.width}px`,
       height: `${bounds.height}px`,
       left: `${bounds.left}px`,
       top: `${bounds.top}px`,
       'backface-visibility': this.isSlope() ? 'visible' : 'hidden',
-      transform,
+      'transform-origin': face != null ? '0 0' : '',
+      transform: face != null ? face.transform : 'translateZ(' + this.height() * this.gridSize + 'px)',
     };
     // A filter of its own makes a layer and flattens what is under it; at full brightness it
     // darkens nothing, so the grid is left without one.
-    const brightness = this.floorBrightness();
+    const brightness = face != null ? face.brightness : this.floorBrightness();
     if (brightness !== 1) style.filter = 'brightness(' + brightness + ')';
-    if (step != null) {
-      style['-webkit-mask'] = step.mask;
-      style.mask = step.mask;
-    } else {
-      style['clip-path'] = clipPath ?? 'none';
-    }
+    style['clip-path'] = face != null ? face.clipPath : (clipPath ?? 'none');
     return style;
   }
 
@@ -604,7 +617,6 @@ export class TerrainComponent {
   });
 
   math = Math;
-  slopeDirectionState = SlopeDirection;
 
   private _initialized = false;
   readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
@@ -640,32 +652,48 @@ export class TerrainComponent {
     SoundEffect.play(PresetSound.blockPut);
   }
 
-  readonly floorModCss = computed(() => {
-    if (this.isHex()) return '';
-    let ret = '';
-    let tmp: number;
-    switch (this.slopeDirection()) {
-      case SlopeDirection.TOP:
-        tmp = Math.atan(this.height() / this.depth());
-        ret = ' rotateX(' + tmp + 'rad) scaleY(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.BOTTOM:
-        tmp = Math.atan(this.height() / this.depth());
-        ret = ' rotateX(' + -tmp + 'rad) scaleY(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.LEFT:
-        tmp = Math.atan(this.height() / this.width());
-        ret = ' rotateY(' + -tmp + 'rad) scaleX(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.RIGHT:
-        tmp = Math.atan(this.height() / this.width());
-        ret = ' rotateY(' + tmp + 'rad) scaleX(' + 1 / Math.cos(tmp) + ')';
-        break;
+  /**
+   * What the slope leaves of the wall along one side of a square block: whether it stands at
+   * all, and the cut that takes its top down to the slope over it.
+   */
+  private wallCut(side: WallSide): TerrainWallCut {
+    const width = this.width() * this.gridSize;
+    const depth = this.depth() * this.gridSize;
+    // Each wall is drawn from one end of its side: the west end along the north and south
+    // sides, the south end along the west and east ones.
+    switch (side) {
+      case 'north':
+        return this.cutAlong({ x: 0, y: 0 }, { x: width, y: 0 });
+      case 'south':
+        return this.cutAlong({ x: 0, y: depth }, { x: width, y: depth });
+      case 'west':
+        return this.cutAlong({ x: 0, y: depth }, { x: 0, y: 0 });
+      default:
+        return this.cutAlong({ x: width, y: depth }, { x: width, y: 0 });
     }
-    return ret;
+  }
+
+  readonly northWallCut = computed<TerrainWallCut>(() => this.wallCut('north'));
+  readonly southWallCut = computed<TerrainWallCut>(() => this.wallCut('south'));
+  readonly westWallCut = computed<TerrainWallCut>(() => this.wallCut('west'));
+  readonly eastWallCut = computed<TerrainWallCut>(() => this.wallCut('east'));
+
+  /** The same for one side of a hex block, which is drawn from the far end of its edge. */
+  readonly hexWallCuts = computed<TerrainWallCut[]>(() => {
+    const outline = this.topOutline();
+    return outline.map((corner, index) => this.cutAlong(outline[(index + 1) % outline.length], corner));
   });
 
-  private readonly floorShade = computed(() => topShadeOf(this.slopeDirection(), this.isSurfaceShading()));
+  private cutAlong(from: SlopePoint, to: SlopePoint): TerrainWallCut {
+    const roof = this.slopeRoof();
+    if (!roof) return WHOLE_WALL;
+    const profile = slopeProfileAlong(roof, from, to);
+    if (profile.every((stop) => stop.heightPx <= CUT_AWAY_PX)) return { shown: false, clipPath: null };
+    const top = profile.map(
+      (stop) => `${(stop.at * 100).toFixed(2)}% ${((1 - stop.heightPx / roof.heightPx) * 100).toFixed(2)}%`
+    );
+    return { shown: true, clipPath: `polygon(${top.join(', ')}, 100% 100%, 0% 100%)` };
+  }
 
   private readonly fogCover = computed(() => {
     const terrain = this.terrain();
@@ -740,7 +768,7 @@ export class TerrainComponent {
 
   /** The top of a block, shaded a cell at a time where it can be. */
   private shadedTop(url: string): ShadedBackground {
-    const grid = topShadeGrid(this.topIsRaised(), !this.isHex() && !this.isSlope(), this.floorShade(), {
+    const grid = topShadeGrid(this.topIsRaised(), !this.isHex() && !this.isSlope(), 1, {
       roof: () => this.topCover(),
       floor: () => this.fogCover(),
       top: () => this.topBrightness(),
@@ -784,7 +812,7 @@ export class TerrainComponent {
     );
   });
 
-  readonly floorBrightness = computed(() => this.floorShade() * this.centerBrightness());
+  readonly floorBrightness = computed(() => this.centerBrightness());
 
   /** Whether this block's top stands above the floor, and so is lit as its own surface. */
   private readonly topIsRaised = computed(() => this.altitude() + this.height() > 0);
@@ -986,4 +1014,42 @@ export class TerrainComponent {
       gridCanvas.nativeElement.style.opacity = opacity + '';
     }
   }
+}
+
+/** One flat piece of a block's slope, ready to be drawn. */
+export interface TerrainSlopeFace {
+  /** Where the piece is cut out of the top, in the top's own pixels. */
+  clipPath: string;
+  /** How it leans, as a transform over the top laid flat. */
+  transform: string;
+  /** How lit it is, the way it leans taken together with the light on the block. */
+  brightness: number;
+}
+
+/** What a slope leaves of one wall. */
+export interface TerrainWallCut {
+  shown: boolean;
+  clipPath: string | null;
+}
+
+const WHOLE_WALL: TerrainWallCut = { shown: true, clipPath: null };
+
+/** Under this much of a wall is left standing, the slope has taken the whole of it. */
+const CUT_AWAY_PX = 0.01;
+
+function clipPathOf(polygon: readonly SlopePoint[], left: number, top: number): string {
+  const points = polygon.map((corner) => `${(corner.x - left).toFixed(2)}px ${(corner.y - top).toFixed(2)}px`);
+  return `polygon(${points.join(', ')})`;
+}
+
+/**
+ * How a flat piece of a slope leans, as a transform over the top laid flat.
+ *
+ * It lifts each point of the piece to the height the slope stands at there and leaves it
+ * where it is otherwise, so the picture over it is stretched up the slope rather than slid
+ * across it, and the piece is cut where it was drawn.
+ */
+function leanCss(plane: { a: number; b: number; c: number }, left: number, top: number): string {
+  const lift = plane.c + plane.a * left + plane.b * top;
+  return `matrix3d(1,0,${plane.a.toFixed(6)},0,0,1,${plane.b.toFixed(6)},0,0,0,1,0,0,0,${lift.toFixed(3)},1)`;
 }

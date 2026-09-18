@@ -1,4 +1,3 @@
-import { SlopeDirection } from '@axe/domain/tabletop/terrain';
 import {
   faceShadeOf,
   hexWallShadeOf,
@@ -8,6 +7,7 @@ import {
   topShadeGrid,
   topShadeOf,
 } from '@axe/domain/tabletop/terrain-shade';
+import { SlopeDirection } from '@axe/domain/tabletop/terrain-slope';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('how much light each face of a block keeps', () => {

@@ -1,4 +1,4 @@
-import { SlopeDirection } from '@axe/domain/tabletop/terrain';
+import { SlopeDirection } from '@axe/domain/tabletop/terrain-slope';
 
 /** The four upright sides of a square block. */
 export type BlockSide = 'north' | 'south' | 'west' | 'east';
@@ -29,20 +29,39 @@ export function faceShadeOf(face: BlockSide | 'bottom', surfaceShading: boolean)
   return surfaceShading ? FACE_SHADE[face] : 1;
 }
 
+/** How much of the light a top leaning each way keeps, from the north round to the west. */
+const SLOPE_SHADE: readonly number[] = [0.4, 0.9, 1, 0.6];
+
+/**
+ * How much of the light a leaning top keeps for the way it runs down, with the same light.
+ *
+ * The four ways a square block can lean are what a slope has always been shaded by; a hex
+ * block leans between them, and is shaded between them in turn.
+ */
+export function slopeShadeOf(azimuth: number, surfaceShading: boolean): number {
+  if (!surfaceShading) return 1;
+  const quarter = Math.PI / 2;
+  const turn = ((azimuth % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const step = Math.floor(turn / quarter);
+  const along = turn / quarter - step;
+  const from = SLOPE_SHADE[step % SLOPE_SHADE.length];
+  const to = SLOPE_SHADE[(step + 1) % SLOPE_SHADE.length];
+  return from + (to - from) * along;
+}
+
 /** How much of the light the top of a block keeps for the way it leans, with the same light. */
 export function topShadeOf(slope: SlopeDirection, surfaceShading: boolean): number {
-  if (!surfaceShading) return 1;
-  switch (slope) {
-    case SlopeDirection.TOP:
-      return 0.4;
-    case SlopeDirection.LEFT:
-      return 0.6;
-    case SlopeDirection.RIGHT:
-      return 0.9;
-    default:
-      return 1;
-  }
+  if (!surfaceShading || slope === SlopeDirection.NONE) return 1;
+  return slopeShadeOf(LEANS[slope] ?? 0, surfaceShading);
 }
+
+/** Which way each of the four directions an older room holds runs down. */
+const LEANS: Record<number, number> = {
+  [SlopeDirection.TOP]: 0,
+  [SlopeDirection.RIGHT]: Math.PI / 2,
+  [SlopeDirection.BOTTOM]: Math.PI,
+  [SlopeDirection.LEFT]: (3 * Math.PI) / 2,
+};
 
 /** How much of the light a wall of a hex block keeps for the way the edge it stands on runs. */
 export function hexWallShadeOf(edgeAngle: number, surfaceShading: boolean): number {

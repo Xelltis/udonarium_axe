@@ -1,5 +1,5 @@
+import { calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { hexFloorClipPathOf, hexWallsOf, TerrainHexWall } from '@axe/features/tabletop/terrain/terrain-hex-shapes';
-import { calcHexFlowerParams, HexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { describe, expect, it } from 'vitest';
 
 /** The clip path exactly as the terrain component cut it for itself. */

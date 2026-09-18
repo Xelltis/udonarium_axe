@@ -16,6 +16,7 @@ import { TerrainBatchService } from '@axe/application/tabletop/terrain-batch.ser
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { OverlapHitSource, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { calcHexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid } from '@axe/domain/tabletop/hex-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { capCellAt } from '@axe/domain/tabletop/terrain-batch/square-caps';
@@ -27,7 +28,6 @@ import { TerrainHexSheetComponent } from '@axe/features/tabletop/terrain-batch/t
 import { TerrainWallComponent } from '@axe/features/tabletop/terrain-batch/terrain-wall.component';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { MovableLayerItem } from '@axe/ui/directives/movable-helpers';
-import { calcHexFlowerParams } from '@axe/ui/tabletop/hex-pedestal-geometry';
 import { shadedBackgroundImage, shadeRgbOf } from '@axe/ui/tabletop/shaded-background';
 
 /** One wall of a hex block drawn together with others, placed on the table. */
