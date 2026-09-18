@@ -1,5 +1,6 @@
 import { getPeerContexts } from '@axe/core/network/peer-context-source';
 import { ObjectNode } from '@axe/core/sync/object-node';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
 
@@ -39,6 +40,18 @@ export function clearOwnershipTree(root: ObjectNode): number {
   let count = clearOwnership([root]);
   for (const child of root.children) count += clearOwnershipTree(child);
   return count;
+}
+
+/**
+ * Hands a piece brought in from a file to whoever brought it in.
+ *
+ * A character becomes theirs, as one they made on the table would. Everything else, and all that
+ * is nested under the piece, is left with no owner: for a card, a stack or a die the owner is the
+ * one holding it, and holding it keeps its face from everyone else.
+ */
+export function claimBroughtInPiece(root: ObjectNode, userId: string): void {
+  clearOwnershipTree(root);
+  if (root instanceof GameCharacter) root.owner = userId;
 }
 
 /**

@@ -17,7 +17,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
-import { clearOwnershipTree } from '@axe/domain/tabletop/ownership';
+import { claimBroughtInPiece } from '@axe/domain/tabletop/ownership';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
@@ -253,7 +253,7 @@ export class TabletopService {
         gameObject.location.x = pointer.x - 25;
         gameObject.location.y = pointer.y - 25;
         gameObject.posZ = pointer.z;
-        clearOwnershipTree(gameObject);
+        claimBroughtInPiece(gameObject, PeerCursor.myCursor?.userId ?? '');
         this.placeToTabletop(gameObject);
         SoundEffect.play(PresetSound.piecePut);
       } else if (gameObject instanceof ChatTab) {
