@@ -26,6 +26,9 @@ import {
 import type { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isCompressed } from '@axe/core/util/compress';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement } from '@axe/domain/data/data-element';
+import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { decodeReplayEvents, decodeReplayManifest } from '@axe/domain/replay/replay-codec';
@@ -326,6 +329,44 @@ describe('ReplayRecorderService', () => {
     );
 
     expect(service.recentEvents()[0].visibility).toEqual({ kind: 'direct', to: ['bob'] });
+  });
+
+  describe('a piece kept to the game master', () => {
+    function hiddenPieceWithPart(): { piece: GameCharacter; part: DataElement } {
+      const piece = GameCharacter.create('ボス', 1, '');
+      piece.disclosureMode = DisclosureMode.GameMaster;
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      return { piece, part };
+    }
+
+    it('has a change to one of its parts kept hidden as well', async () => {
+      const { part } = hiddenPieceWithPart();
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch(
+        'UPDATE_GAME_OBJECT',
+        context(part.identifier, 'data', { ...(part.toContext().syncData as object), value: 'あらたな値' }),
+        'peer-a'
+      );
+
+      const [event] = service.recentEvents();
+      expect(event.targetId).toBe(part.identifier);
+      expect(event.visibility).toEqual({ kind: 'gm-only' });
+    });
+
+    it('is still hidden when it is taken away', async () => {
+      const { piece } = hiddenPieceWithPart();
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      sendUpdate(piece.identifier, 'character', { location: { name: 'table', x: 300, y: 0 } });
+
+      objectStore.remove(piece);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
+
+      const removal = service.recentEvents().find((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removal?.visibility).toEqual({ kind: 'gm-only' });
+    });
   });
 
   it('carries the chosen detail level to the next session', () => {

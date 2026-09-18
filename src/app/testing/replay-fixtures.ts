@@ -126,7 +126,10 @@ export function buildLongReplayFixture(options: LongReplayFixtureOptions): LongR
       root.identifier,
       made.filter((snapshot) => snapshot.aliasName === 'data' && isNumeric(snapshot.syncData['value']))
     );
-    if (index < options.hiddenCharacters) hidden.add(root.identifier);
+    if (index < options.hiddenCharacters) {
+      hidden.add(root.identifier);
+      attributesOf(root.syncData)['disclosureMode'] = 'gm';
+    }
     return made;
   };
 

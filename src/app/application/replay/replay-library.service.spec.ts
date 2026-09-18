@@ -24,6 +24,7 @@ import {
   type ReplayManifest,
 } from '@axe/domain/replay/replay-event';
 import { decodeReplayKeyframe, encodeReplayKeyframe } from '@axe/domain/replay/replay-keyframe';
+import { buildLongReplayFixture, SHORT_SESSION } from '@axe/testing/replay-fixtures';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const manifest: ReplayManifest = {
@@ -191,6 +192,30 @@ describe('ReplayLibraryService', () => {
     const loaded = await service.load(meta.id);
     expect(loaded.events.map((e) => e.seq)).toEqual([1, 2, 4]);
     expect(loaded.manifest?.roomName).toBe('第一夜');
+  });
+
+  it('hides the values of a hidden piece in a recording written before parts followed their piece', async () => {
+    const fixture = buildLongReplayFixture(SHORT_SESSION);
+    const id = (await store.createRecording({ roomName: 'fixture', startedAt: fixture.manifest.startedAt }))!;
+    await store.appendChunk({
+      recordingId: id,
+      index: 0,
+      seqStart: 1,
+      seqEnd: fixture.events.length,
+      eventCount: fixture.events.length,
+      bytes: encodeReplayEvents(fixture.events),
+    });
+    for (const keyframe of fixture.keyframes) {
+      const blob = new Blob([encodeReplayKeyframe(keyframe.objects) as BlobPart]);
+      await store.putKeyframe({ recordingId: id, seq: keyframe.seq, at: keyframe.at, blob });
+    }
+    await store.updateRecording(id, { manifest: encodeReplayManifest(fixture.manifest) });
+
+    const { events } = await service.load(id);
+
+    const hiddenValues = events.filter((e) => e.targetId?.startsWith('pc-0-'));
+    expect(hiddenValues.length).toBeGreaterThan(0);
+    expect(hiddenValues.every((e) => e.visibility.kind === 'gm-only')).toBe(true);
   });
 
   it('returns the nearest keyframe at or before a point', async () => {

@@ -21,9 +21,10 @@ import {
   encodeReplayEvents,
   encodeReplayManifest,
 } from '@axe/domain/replay/replay-codec';
-import type { ReplayEvent, ReplayManifest } from '@axe/domain/replay/replay-event';
+import type { ReplayEvent, ReplayManifest, ReplayVisibility } from '@axe/domain/replay/replay-event';
 import { decodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { applyReplayEvents, indexOfSeq } from '@axe/domain/replay/replay-patch';
+import { hiddenPiecesIn, inheritOwnerVisibility } from '@axe/domain/replay/replay-visibility';
 
 export const REPLAY_IMPORT_CHUNK_SIZE = 500;
 
@@ -38,12 +39,34 @@ export class ReplayLibraryService {
   private readonly _isBusy = signal(false);
   readonly isBusy = this._isBusy.asReadonly();
 
-  /** Every event of a stored recording in order, with its manifest, or a null manifest where none was written. */
+  /**
+   * Every event of a stored recording in order, with its manifest, or a null manifest where none was written.
+   *
+   * A change to part of a hidden piece, such as its HP, comes back as hidden as its piece; older
+   * recordings wrote such changes down as public.
+   */
   async load(id: number): Promise<{ manifest: ReplayManifest | null; events: ReplayEvent[] }> {
     const chunks = await this.store.listChunks(id);
     const events = chunks.flatMap((chunk) => decodeReplayEvents(chunk.bytes)).sort((a, b) => a.seq - b.seq);
     const manifestBytes = await this.store.getManifest(id);
-    return { manifest: manifestBytes ? decodeReplayManifest(manifestBytes) : null, events };
+    const manifest = manifestBytes ? decodeReplayManifest(manifestBytes) : null;
+    if (!manifest) return { manifest, events };
+    const hidden = await this.hiddenPiecesAtStart(id, events);
+    return { manifest, events: inheritOwnerVisibility(events, manifest.targets, hidden) };
+  }
+
+  private async hiddenPiecesAtStart(
+    id: number,
+    events: readonly ReplayEvent[]
+  ): Promise<Map<string, ReplayVisibility>> {
+    try {
+      const keyframe = await this.keyframeBefore(id, events[0]?.seq ?? 0);
+      if (!keyframe) return new Map();
+      return hiddenPiecesIn(decodeReplayKeyframe(await readKeyframeBytes(keyframe.blob)));
+    } catch (reason) {
+      Logger.warn('[ReplayLibrary] 最初の盤面を読めないため、隠れていたコマは各出来事の記録どおりに扱います', reason);
+      return new Map();
+    }
   }
 
   /**

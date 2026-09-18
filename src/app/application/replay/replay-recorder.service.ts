@@ -12,7 +12,6 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { compressAsync } from '@axe/core/util/compress';
 import { DataElement } from '@axe/domain/data/data-element';
-import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { encodeReplayEvents, encodeReplayManifest } from '@axe/domain/replay/replay-codec';
@@ -39,6 +38,7 @@ import {
   shouldDiffObjectChange,
 } from '@axe/domain/replay/replay-interpreter';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
+import { visibilityOfDisclosure } from '@axe/domain/replay/replay-visibility';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const REPLAY_CHUNK_EVENT_LIMIT = 500;
@@ -99,6 +99,8 @@ export class ReplayRecorderService {
   private lastManifestAt = 0;
   /** Whether the board was touched. It moves even for changes no recording keeps. */
   private boardDirty = false;
+  /** Who could see each object when it was last recorded, for judging its removal once it is gone. */
+  private readonly lastVisibility = new Map<string, ReplayVisibility>();
   private recent: ReplayEvent[] = [];
   private recentDirty = false;
   private lastPublishAt = 0;
@@ -208,6 +210,7 @@ export class ReplayRecorderService {
     this.shadows.clear();
     this.actors.clear();
     this.targets.clear();
+    this.lastVisibility.clear();
     this.keyframes.length = 0;
     this.chunks.length = 0;
     this._eventCount.set(0);
@@ -554,12 +557,15 @@ export class ReplayRecorderService {
       return PUBLIC_VISIBILITY;
     }
 
-    const object = draft.targetIdentifier ? this.objectStore.get(draft.targetIdentifier) : null;
-    const disclosable = object as { disclosureMode?: unknown; disclosureUserIds?: unknown } | null;
-    if (disclosable?.disclosureMode === DisclosureMode.GameMaster) return GM_ONLY_VISIBILITY;
-    if (disclosable?.disclosureMode === DisclosureMode.Selected && Array.isArray(disclosable.disclosureUserIds))
-      return { kind: 'direct', to: [...(disclosable.disclosureUserIds as string[])] };
-    return PUBLIC_VISIBILITY;
+    const target = draft.targetIdentifier;
+    const object = target ? this.objectStore.get(target) : null;
+    // Taken out of the room before the word arrived, it is judged as it was last seen.
+    if (!object) return (target && this.lastVisibility.get(target)) || PUBLIC_VISIBILITY;
+    // A part such as a piece's HP has no disclosure of its own and is kept as its piece is.
+    const holder = (isDisclosable(object) ? object : ownerOf(object)) as Disclosing | null;
+    const visibility = visibilityOfDisclosure(holder?.disclosureMode, holder?.disclosureUserIds);
+    if (target) this.lastVisibility.set(target, visibility);
+    return visibility;
   }
 
   private manifest(): ReplayManifest {
@@ -605,6 +611,15 @@ export class ReplayRecorderService {
 
 function currentRoomName(): string {
   return Network.peerContext?.roomName ?? '';
+}
+
+interface Disclosing {
+  disclosureMode?: unknown;
+  disclosureUserIds?: unknown;
+}
+
+function isDisclosable(object: unknown): boolean {
+  return typeof object === 'object' && object !== null && 'disclosureMode' in object;
 }
 
 function ownerOf(object: unknown): ObjectNode | null {
