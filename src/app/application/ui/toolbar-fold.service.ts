@@ -1,6 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 
-const STORAGE_KEY = 'ui-toolbars';
+/** Where this seat's own choice is kept in the browser. */
+export const TOOLBAR_FOLD_STORAGE_KEY = 'ui-toolbars';
+
+const STORAGE_KEY = TOOLBAR_FOLD_STORAGE_KEY;
 
 /** The toolbars a seat can fold away: the player's and the game master's. */
 export type FoldableToolbar = 'pl' | 'gm';

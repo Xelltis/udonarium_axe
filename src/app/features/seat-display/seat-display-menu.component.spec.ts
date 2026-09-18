@@ -208,7 +208,10 @@ describe('SeatDisplayMenuComponent', () => {
 
     expect(widgets.plToolbar()).toBe(false);
     expect(toolbar.getAttribute('aria-pressed')).toBe('false');
+
+    // Turning it back on writes the choice to the browser only once the effect behind it runs.
     widgets.togglePlToolbar();
+    fixture.detectChanges();
   });
 
   it('offers the way back to the phone layout only on a narrow screen held on the desktop one', () => {

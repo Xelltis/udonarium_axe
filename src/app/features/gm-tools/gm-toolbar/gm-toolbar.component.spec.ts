@@ -26,6 +26,9 @@ describe('GmToolbarComponent', () => {
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
     TestBed.overrideProvider(PanelService, { useValue: panelStub });
+    // The bar is a widget this seat can put away, and the choice is kept in the browser, so it is
+    // said here rather than inherited from whatever ran before.
+    TestBed.inject(WidgetVisibilityService).gmToolbar.set(true);
     fixture = TestBed.createComponent(GmToolbarComponent);
     component = fixture.componentInstance;
   });

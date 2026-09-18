@@ -1,6 +1,9 @@
 import { effect, Injectable, signal } from '@angular/core';
 
-const STORAGE_KEY = 'ui-widgets';
+/** Where this seat's own choice is kept in the browser. */
+export const WIDGET_VISIBILITY_STORAGE_KEY = 'ui-widgets';
+
+const STORAGE_KEY = WIDGET_VISIBILITY_STORAGE_KEY;
 
 export interface WidgetVisibility {
   readonly clock: boolean;

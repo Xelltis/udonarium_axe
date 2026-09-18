@@ -1,6 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 
-const STORAGE_KEY = 'ui-piece-overlay';
+/** Where this seat's own choice is kept in the browser. */
+export const PIECE_OVERLAY_STORAGE_KEY = 'ui-piece-overlay';
+
+const STORAGE_KEY = PIECE_OVERLAY_STORAGE_KEY;
 
 /** What this seat draws over the pieces on the table. */
 interface PieceOverlay {

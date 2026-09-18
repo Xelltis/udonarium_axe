@@ -25,6 +25,9 @@ describe('PlToolbarComponent', () => {
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
     TestBed.overrideProvider(PanelService, { useValue: panelStub });
+    // The bar is a widget this seat can put away, and the choice is kept in the browser, so it is
+    // said here rather than inherited from whatever ran before.
+    TestBed.inject(WidgetVisibilityService).plToolbar.set(true);
     fixture = TestBed.createComponent(PlToolbarComponent);
     component = fixture.componentInstance;
     objectChange = TestBed.inject(ObjectChangeService);
