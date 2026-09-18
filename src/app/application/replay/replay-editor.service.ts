@@ -13,10 +13,12 @@ import {
   moveReplayEvent,
   nextInsertSeq,
   removeReplayEvent,
+  removeReplayEvents,
   type ReplayEntryDraft,
   replaySeqRemap,
   resequenceReplayEvents,
   retextReplayEvent,
+  stepReplayEvents,
 } from '@axe/domain/replay/replay-edit';
 import { REPLAY_FORMAT_VERSION, type ReplayEvent, type ReplayManifest } from '@axe/domain/replay/replay-event';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
@@ -116,6 +118,18 @@ export class ReplayEditorService {
   /** Moves the event with this sequence number up or down by `offset` rows. */
   move(seq: number, offset: number): void {
     this.change((events) => moveReplayEvent(events, seq, offset));
+  }
+
+  /** Removes every event with one of these sequence numbers, as one change to undo. Nothing chosen changes nothing. */
+  removeMany(seqs: ReadonlySet<number>): void {
+    if (seqs.size < 1) return;
+    this.change((events) => removeReplayEvents(events, seqs));
+  }
+
+  /** Moves each chosen event one row up or down, keeping them apart as they were, as one change to undo. */
+  stepMany(seqs: ReadonlySet<number>, direction: -1 | 1): void {
+    if (seqs.size < 1) return;
+    this.change((events) => stepReplayEvents(events, seqs, direction));
   }
 
   /** Rewrites the text of the event with this sequence number. */

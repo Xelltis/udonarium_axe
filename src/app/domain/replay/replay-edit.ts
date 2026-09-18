@@ -204,6 +204,36 @@ export function removeReplayEvent(events: readonly ReplayEvent[], seq: number): 
   return restampReplayTimes(events.filter((event) => event.seq !== seq));
 }
 
+/** Takes every event with one of these sequence numbers out of the list and restamps the offsets once. */
+export function removeReplayEvents(events: readonly ReplayEvent[], seqs: ReadonlySet<number>): ReplayEvent[] {
+  if (seqs.size < 1) return [...events];
+  return restampReplayTimes(events.filter((event) => !seqs.has(event.seq)));
+}
+
+/**
+ * Moves each chosen event one place up (`-1`) or down (`1`), keeping the chosen events in the same
+ * order and the same distance apart, and restamps the offsets once.
+ *
+ * An event that would pass the end of the list, or run into a chosen event that cannot move, stays
+ * where it is. Each event that moves takes a time between its new neighbours.
+ */
+export function stepReplayEvents(
+  events: readonly ReplayEvent[],
+  seqs: ReadonlySet<number>,
+  direction: -1 | 1
+): ReplayEvent[] {
+  const next = [...events];
+  const order = next.map((_, index) => index).filter((index) => seqs.has(next[index].seq));
+  if (direction === 1) order.reverse();
+  for (const index of order) {
+    const target = index + direction;
+    if (target < 0 || target >= next.length || seqs.has(next[target].seq)) continue;
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, { ...moved, at: insertTimeAt(next, target) });
+  }
+  return restampReplayTimes(next);
+}
+
 /**
  * Moves an event up or down the list by a number of places, giving it a time between its new
  * neighbours, and restamps the offsets.

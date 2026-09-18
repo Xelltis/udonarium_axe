@@ -10,8 +10,10 @@ import {
   moveReplayEvent,
   nextInsertSeq,
   removeReplayEvent,
+  removeReplayEvents,
   resequenceReplayEvents,
   retextReplayEvent,
+  stepReplayEvents,
   textOf,
 } from '@axe/domain/replay/replay-edit';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
@@ -277,6 +279,44 @@ describe('restampReplayTimes()', () => {
 
   it('measures the rest again once the first is dropped', () => {
     expect(removeReplayEvent(events, 1).map((e) => e.t)).toEqual([0, 1000]);
+  });
+});
+
+describe('removeReplayEvents()', () => {
+  it('takes every chosen event out and keeps the rest in order', () => {
+    const five = [1, 2, 3, 4, 5].map((seq) => event(seq));
+
+    expect(removeReplayEvents(five, new Set([2, 4])).map((e) => e.seq)).toEqual([1, 3, 5]);
+  });
+
+  it('counts the offsets from the new first event', () => {
+    const removed = removeReplayEvents(events, new Set([1]));
+
+    expect(removed.map((e) => e.t)).toEqual([0, 1000]);
+  });
+});
+
+describe('stepReplayEvents()', () => {
+  const five = [1, 2, 3, 4, 5].map((seq) => event(seq));
+  const order = (list: readonly ReplayEvent[]) => list.map((e) => e.seq);
+
+  it('moves each chosen event up one place, keeping them apart', () => {
+    expect(order(stepReplayEvents(five, new Set([3, 5]), -1))).toEqual([1, 3, 2, 5, 4]);
+  });
+
+  it('moves a run of chosen events down together', () => {
+    expect(order(stepReplayEvents(five, new Set([1, 2]), 1))).toEqual([3, 1, 2, 4, 5]);
+  });
+
+  it('leaves a run at the top of the list where it is', () => {
+    expect(order(stepReplayEvents(five, new Set([1, 2]), -1))).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('gives an event that moves a time between its new neighbours', () => {
+    const moved = stepReplayEvents(five, new Set([3]), -1);
+
+    expect(moved[1].at).toBeGreaterThan(moved[0].at);
+    expect(moved[1].at).toBeLessThan(moved[2].at);
   });
 });
 

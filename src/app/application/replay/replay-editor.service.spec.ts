@@ -317,6 +317,22 @@ describe('ReplayEditorService', () => {
     expect(saved?.derivedFrom).toEqual({ roomName: '第一夜', startedAt: 1_000_000 });
   });
 
+  it('takes away several rows as one change to undo', () => {
+    service.removeMany(new Set([1, 3]));
+    expect(service.edited().map((e) => e.seq)).toEqual([2, 4]);
+
+    service.undo();
+    expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('moves several rows a step as one change to undo', () => {
+    service.stepMany(new Set([2, 4]), -1);
+    expect(service.edited().map((e) => e.seq)).toEqual([2, 1, 4, 3]);
+
+    service.undo();
+    expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+  });
+
   it('writes a keyframe matching the edited order', async () => {
     service.remove(2);
     const id = await service.saveAsDerived(manifest, base);
