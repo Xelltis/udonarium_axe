@@ -12,7 +12,7 @@ import {
   VN_STAGE_MIN_GAP,
   VN_STAGE_SLOT_COUNT,
   VnStageSource,
-} from '@axe/features/visual-novel/visual-novel-stage';
+} from '@axe/domain/visual-novel/vn-stage-cast';
 
 function emote(overrides: Partial<VnEmote> = {}): VnEmote {
   return { ...VN_EMOTE_DEFAULT, ...overrides };

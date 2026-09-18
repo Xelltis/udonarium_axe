@@ -19,6 +19,7 @@ import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { leftOfSlot, VN_STAGE_SLOT_COUNT } from '@axe/domain/visual-novel/vn-stage-cast';
 import { ChatPaletteRegistryService } from '@axe/features/chat/chat-palette/chat-palette-registry.service';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
@@ -27,7 +28,6 @@ import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-no
 import { VisualNovelSceneService } from '@axe/features/visual-novel/visual-novel-scene.service';
 import { VisualNovelSettingsService } from '@axe/features/visual-novel/visual-novel-settings.service';
 import { VisualNovelSoundBoardComponent } from '@axe/features/visual-novel/visual-novel-sound-board/visual-novel-sound-board.component';
-import { leftOfSlot, VN_STAGE_SLOT_COUNT } from '@axe/features/visual-novel/visual-novel-stage';
 import { installPanelLayer } from '@axe/testing/panel-layer';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import GameSystemClass from 'bcdice/lib/game_system';
