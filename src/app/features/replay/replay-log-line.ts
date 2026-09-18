@@ -3,6 +3,8 @@ import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-eve
 export interface ReplayNameLookup {
   actorName(userId: string): string;
   targetName(identifier: string): string;
+  /** The name of the piece an object is part of, or empty when it belongs to none. */
+  ownerName?(identifier: string): string;
 }
 
 export interface ReplayLogLine {
@@ -102,6 +104,7 @@ export function toReplayLogLine(event: ReplayEvent, names: ReplayNameLookup): Re
       return line('shuffle');
     case ReplayEventKind.ObjectValue:
       return line('value', {
+        target: (event.targetId && names.ownerName?.(event.targetId)) || target,
         name: text(detail['name']),
         from: text(pick(detail['current'] ?? detail['value'], 'from')),
         to: text(pick(detail['current'] ?? detail['value'], 'to')),

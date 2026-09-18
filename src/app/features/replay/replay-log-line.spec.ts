@@ -143,6 +143,14 @@ describe('toReplayLogLine()', () => {
     expect(line.params).toEqual({ actor: 'アリス', target: '盗賊', name: 'HP', from: '12', to: '7' });
   });
 
+  it('writes a change to a piece’s value under the piece’s name', () => {
+    const line = toReplayLogLine(
+      event(ReplayEventKind.ObjectValue, { name: 'HP', current: { from: 12, to: 7 } }, { targetId: 'c1-hp' }),
+      { ...names, targetName: (id) => (id === 'c1-hp' ? 'HP' : id), ownerName: (id) => (id === 'c1-hp' ? '盗賊' : '') }
+    );
+    expect(line.params).toMatchObject({ target: '盗賊', name: 'HP', from: '12', to: '7' });
+  });
+
   it('writes a turn as an angle', () => {
     const line = toReplayLogLine(event(ReplayEventKind.ObjectRotate, { rotate: { from: 0, to: 90.2 } }), names);
     expect(line.params['angle']).toBe(90);
