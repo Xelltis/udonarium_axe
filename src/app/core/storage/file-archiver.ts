@@ -3,6 +3,7 @@ import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
+import type { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { isCcfoliaRoomArchive } from '@axe/core/storage/room-archive';
@@ -28,6 +29,14 @@ const MEGA_BYTE = 1024 * 1024;
 const DROP_STACK_OFFSET = 20;
 const XML_MIME_TYPE = 'text/xml';
 const INTERNAL_DRAG_TYPE = 'application/x-axe-internal-drag';
+
+/** What {@link FileArchiver.loadImages} took in and what it had to leave out. */
+export interface ImageLoadResult {
+  /** The entry the image store keeps for each image taken, in the order the files came. */
+  readonly images: ImageFile[];
+  /** The names of the images left out for being over the size limit. */
+  readonly oversized: string[];
+}
 
 /**
  * Whether a dropped file may be room or object XML: typed as plain text or XML, and not
@@ -179,17 +188,41 @@ export class FileArchiver {
     return { x: dropPoint.x + offset, y: dropPoint.y + offset };
   }
 
+  /**
+   * Stores only the images among the files, for a picker that wants pictures and nothing else.
+   *
+   * Other kinds of file are ignored rather than read, so no room data or zip is opened and
+   * nothing is placed on the table. Images over 2 MB are left out and named in the result.
+   */
+  async loadImages(files: File[] | FileList): Promise<ImageLoadResult> {
+    const images: ImageFile[] = [];
+    const oversized: string[] = [];
+    for (const file of files instanceof FileList ? toArrayOfFileList(files) : files) {
+      if (!file.type.startsWith('image/')) continue;
+      const image = await this.storeImage(file);
+      if (image) images.push(image);
+      else oversized.push(file.name);
+    }
+    if (images.length) emitFileLoaded();
+    return { images, oversized };
+  }
+
   private async handleImage(file: File, dropPoint?: { x: number; y: number }): Promise<boolean> {
     if (!file.type.startsWith('image/')) return false;
     // With no guard there is nothing to stop it.
     if (!(this.reloadCheck?.isLoadOk() ?? true)) return false;
-    if (file.size > this.maxImageSize) {
-      Logger.warn(`[FileArchiver] ファイルサイズ制限超過: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-      return false;
-    }
-    const image = await ImageStorage.instance.addAsync(file);
+    const image = await this.storeImage(file);
+    if (!image) return false;
     if (dropPoint) emitImageDropped({ identifier: image.identifier, fileName: file.name, dropPoint });
     return dropPoint != null;
+  }
+
+  private async storeImage(file: File): Promise<ImageFile | null> {
+    if (file.size > this.maxImageSize) {
+      Logger.warn(`[FileArchiver] ファイルサイズ制限超過: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      return null;
+    }
+    return ImageStorage.instance.addAsync(file);
   }
 
   private async handleAudio(file: File) {
