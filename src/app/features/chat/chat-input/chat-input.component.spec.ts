@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
@@ -112,6 +114,22 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
 
       expect(textBox().placeholder).toBe('行をクリックで入力');
+    });
+  });
+
+  describe('an input with no box to write in', () => {
+    it('takes a reply asked of every input without reaching for its missing box', () => {
+      fixture.componentRef.setInput('canSpeak', false);
+      fixture.detectChanges();
+      const message = new ChatMessage();
+      message.initialize();
+
+      expect(() => {
+        TestBed.inject(UiSignalService).requestChatReply(message.identifier);
+        fixture.detectChanges();
+      }).not.toThrow();
+
+      message.destroy();
     });
   });
 

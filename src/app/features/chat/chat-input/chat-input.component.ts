@@ -114,7 +114,8 @@ export class ChatInputComponent {
   private chatHistory = new ChatInputHistory();
   private dicebotHelper = new ChatInputDiceBotHelper();
 
-  readonly textAreaElementRef = viewChild.required<ElementRef>('textArea');
+  /** The box lines are written in, which a reader who may not speak in the tab is not given. */
+  readonly textAreaElementRef = viewChild<ElementRef<HTMLTextAreaElement>>('textArea');
 
   readonly onlyCharacters = input(false);
   readonly disableQuote = input(false);
@@ -284,7 +285,7 @@ export class ChatInputComponent {
         const target = this.objectStore.get<ChatMessage>(req.messageIdentifier);
         this.replyTarget.set(target instanceof ChatMessage ? target : null);
         if (target instanceof ChatMessage) {
-          this.textAreaElementRef().nativeElement.focus();
+          this.textAreaElementRef()?.nativeElement.focus();
         }
       });
     });
@@ -302,7 +303,7 @@ export class ChatInputComponent {
         const target = this.objectStore.get<ChatMessage>(req.messageIdentifier);
         this.quoteTarget.set(target instanceof ChatMessage ? target : null);
         if (target instanceof ChatMessage) {
-          this.textAreaElementRef().nativeElement.focus();
+          this.textAreaElementRef()?.nativeElement.focus();
         }
       });
     });
@@ -594,8 +595,8 @@ export class ChatInputComponent {
 
   /** Grows or shrinks the text area to its content, unless the user has resized it by hand. */
   calcFitHeight() {
-    const textArea: HTMLTextAreaElement = this.textAreaElementRef().nativeElement;
-    if (this.userResized) return;
+    const textArea = this.textAreaElementRef()?.nativeElement;
+    if (!textArea || this.userResized) return;
     textArea.style.height = '';
     if (textArea.scrollHeight >= textArea.offsetHeight) {
       textArea.style.height = textArea.scrollHeight + 'px';
