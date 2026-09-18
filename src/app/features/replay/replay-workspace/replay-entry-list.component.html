@@ -34,104 +34,111 @@
     </label>
   </div>
 
-  <ul class="m-0 flex min-h-0 flex-1 list-none flex-col overflow-y-auto p-0">
-    <ng-container
-      *ngTemplateOutlet="gap; context: { $implicit: 0, label: 'feature.replay.editor.atStart' }"
-    ></ng-container>
-
-    @for (row of rows(); track row.seq) {
-      @if (editingSeq() === row.seq) {
-        <li class="px-1.5 py-1">
-          <input
-            class="border-ui-accent bg-ui-panel rounded-ui-sm w-full border border-solid px-1.5 py-1 text-[0.74rem]"
-            type="text"
-            autofocus
-            [value]="row.text"
-            (keydown.enter)="commitRowEdit(row.seq, $any($event.target).value)"
-            (blur)="commitRowEdit(row.seq, $any($event.target).value)"
-          />
-        </li>
-      } @else {
-        <li
-          class="hover:bg-ui-accent-bg rounded-ui-sm group flex cursor-pointer items-start gap-1.5 px-1.5 py-1 text-[0.74rem]"
-          [class.bg-ui-accent-bg]="!editing() && row.index === cursor()"
-          [class.text-ui-dim]="!editing() && row.index > cursor()"
-          [class.font-semibold]="row.isChapter"
-          [class.cursor-grab]="editing()"
-          [class.opacity-40]="rowDrag.isHeld(row.seq)"
-          [style.boxShadow]="dropHint(row)"
-          [attr.draggable]="editing() ? 'true' : null"
-          (click)="activate(row)"
-          (dblclick)="beginRowEdit(row)"
-          (dragstart)="dragStart(row, $event)"
-          (dragover)="dragOver(row, $event)"
-          (drop)="dropHere($event)"
-          (dragend)="dragEnd()"
-        >
-          <span class="text-ui-dim shrink-0 text-[0.66rem] tabular-nums">{{ row.elapsed }}</span>
-          @if (row.inserted) {
-            <i class="material-icons shrink-0 text-[13px] leading-[1.4] text-emerald-400">edit_note</i>
-          }
-          <i class="material-icons text-ui-dim shrink-0 text-[13px] leading-[1.4]">{{ row.line.icon }}</i>
-          <span class="min-w-0 flex-1 wrap-break-word">{{ row.line.key | transloco: lineParams(row.line) }}</span>
-          @if (row.line.isSecret) {
-            <i class="material-icons text-ui-dim shrink-0 text-[13px] leading-[1.4]">visibility_off</i>
-          }
-          @if (editing()) {
-            <span class="flex shrink-0 gap-0 opacity-0 transition-opacity group-hover:opacity-100">
-              <i
-                class="material-icons text-ui-dim cursor-grab px-0.5 text-[14px]"
-                [title]="'feature.replay.editor.drag' | transloco"
-                >drag_indicator</i
-              >
-              @if (row.editable) {
+  @if (rows().length > 0) {
+    <ui-virtual-list class="flex-1" [items]="rows()" [trackBy]="rowKey" [estimate]="26">
+      <ng-container
+        *ngTemplateOutlet="gap; context: { $implicit: 0, label: 'feature.replay.editor.atStart' }"
+      ></ng-container>
+      <ng-template #row let-row>
+        @if (editingSeq() === row.seq) {
+          <div class="px-1.5 py-1">
+            <input
+              class="border-ui-accent bg-ui-panel rounded-ui-sm w-full border border-solid px-1.5 py-1 text-[0.74rem]"
+              type="text"
+              autofocus
+              [value]="rawText(row)"
+              (keydown.enter)="commitRowEdit(row.seq, $any($event.target).value)"
+              (blur)="commitRowEdit(row.seq, $any($event.target).value)"
+            />
+          </div>
+        } @else {
+          @let shown = view(row);
+          <div
+            class="hover:bg-ui-accent-bg rounded-ui-sm group flex cursor-pointer items-start gap-1.5 px-1.5 py-1 text-[0.74rem]"
+            [class.bg-ui-accent-bg]="!editing() && row.index === cursor()"
+            [class.text-ui-dim]="!editing() && row.index > cursor()"
+            [class.font-semibold]="row.isChapter"
+            [class.cursor-grab]="editing()"
+            [class.opacity-40]="rowDrag.isHeld(row.seq)"
+            [style.boxShadow]="dropHint(row)"
+            [attr.draggable]="editing() ? 'true' : null"
+            (click)="activate(row)"
+            (dblclick)="beginRowEdit(row)"
+            (dragstart)="dragStart(row, $event)"
+            (dragover)="dragOver(row, $event)"
+            (drop)="dropHere($event)"
+            (dragend)="dragEnd()"
+          >
+            <span class="text-ui-dim shrink-0 text-[0.66rem] tabular-nums">{{ shown.elapsed }}</span>
+            @if (isInserted(row)) {
+              <i class="material-icons shrink-0 text-[13px] leading-[1.4] text-emerald-400">edit_note</i>
+            }
+            <i class="material-icons text-ui-dim shrink-0 text-[13px] leading-[1.4]">{{ shown.icon }}</i>
+            <span class="min-w-0 flex-1 wrap-break-word">{{ shown.text }}</span>
+            @if (shown.isSecret) {
+              <i class="material-icons text-ui-dim shrink-0 text-[13px] leading-[1.4]">visibility_off</i>
+            }
+            @if (editing()) {
+              <span class="flex shrink-0 gap-0 opacity-0 transition-opacity group-hover:opacity-100">
+                <i
+                  class="material-icons text-ui-dim cursor-grab px-0.5 text-[14px]"
+                  [title]="'feature.replay.editor.drag' | transloco"
+                  >drag_indicator</i
+                >
+                @if (row.editable) {
+                  <button
+                    class="text-ui-dim hover:text-ui-accent cursor-pointer px-0.5"
+                    [attr.aria-label]="'feature.replay.editor.rewrite' | transloco"
+                    (click)="beginRowEdit(row); $event.stopPropagation()"
+                  >
+                    <i class="material-icons text-[14px]">edit</i>
+                  </button>
+                }
                 <button
                   class="text-ui-dim hover:text-ui-accent cursor-pointer px-0.5"
-                  [attr.aria-label]="'feature.replay.editor.rewrite' | transloco"
-                  (click)="beginRowEdit(row); $event.stopPropagation()"
+                  [attr.aria-label]="'feature.replay.editor.up' | transloco"
+                  (click)="move(row.seq, -1); $event.stopPropagation()"
                 >
-                  <i class="material-icons text-[14px]">edit</i>
+                  <i class="material-icons text-[14px]">arrow_upward</i>
                 </button>
-              }
-              <button
-                class="text-ui-dim hover:text-ui-accent cursor-pointer px-0.5"
-                [attr.aria-label]="'feature.replay.editor.up' | transloco"
-                (click)="move(row.seq, -1); $event.stopPropagation()"
-              >
-                <i class="material-icons text-[14px]">arrow_upward</i>
-              </button>
-              <button
-                class="text-ui-dim hover:text-ui-accent cursor-pointer px-0.5"
-                [attr.aria-label]="'feature.replay.editor.down' | transloco"
-                (click)="move(row.seq, 1); $event.stopPropagation()"
-              >
-                <i class="material-icons text-[14px]">arrow_downward</i>
-              </button>
-              <button
-                class="text-ui-dim cursor-pointer px-0.5 hover:text-red-400"
-                [attr.aria-label]="'feature.replay.editor.remove' | transloco"
-                (click)="remove(row.seq); $event.stopPropagation()"
-              >
-                <i class="material-icons text-[14px]">close</i>
-              </button>
-            </span>
-          }
-        </li>
-      }
+                <button
+                  class="text-ui-dim hover:text-ui-accent cursor-pointer px-0.5"
+                  [attr.aria-label]="'feature.replay.editor.down' | transloco"
+                  (click)="move(row.seq, 1); $event.stopPropagation()"
+                >
+                  <i class="material-icons text-[14px]">arrow_downward</i>
+                </button>
+                <button
+                  class="text-ui-dim cursor-pointer px-0.5 hover:text-red-400"
+                  [attr.aria-label]="'feature.replay.editor.remove' | transloco"
+                  (click)="remove(row.seq); $event.stopPropagation()"
+                >
+                  <i class="material-icons text-[14px]">close</i>
+                </button>
+              </span>
+            }
+          </div>
+        }
 
+        <ng-container
+          *ngTemplateOutlet="gap; context: { $implicit: row.index + 1, label: 'feature.replay.editor.insertHere' }"
+        ></ng-container>
+      </ng-template>
+    </ui-virtual-list>
+  } @else {
+    <div class="flex min-h-0 flex-1 flex-col">
       <ng-container
-        *ngTemplateOutlet="gap; context: { $implicit: row.index + 1, label: 'feature.replay.editor.insertHere' }"
+        *ngTemplateOutlet="gap; context: { $implicit: 0, label: 'feature.replay.editor.atStart' }"
       ></ng-container>
-    } @empty {
-      <li class="text-ui-muted px-1.5 py-2 text-[0.76rem]">{{ 'feature.replay.panel.empty' | transloco }}</li>
-    }
-  </ul>
+      <p class="text-ui-muted m-0 px-1.5 py-2 text-[0.76rem]">{{ 'feature.replay.panel.empty' | transloco }}</p>
+    </div>
+  }
 </div>
 
 <ng-template #gap let-index let-label="label">
   @if (editing()) {
     @if (composeAt() === index) {
-      <li class="border-ui-accent rounded-ui my-1 flex flex-col gap-1.5 border border-solid p-2">
+      <div class="border-ui-accent rounded-ui my-1 flex flex-col gap-1.5 border border-solid p-2">
         <div class="flex flex-wrap items-center gap-1">
           <select
             class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5 text-[0.7rem]"
@@ -194,9 +201,9 @@
             {{ 'feature.replay.editor.insert' | transloco }}
           </button>
         </div>
-      </li>
+      </div>
     } @else {
-      <li class="group/gap flex h-1.5 items-center justify-center hover:h-6 pointer-coarse:h-6">
+      <div class="group/gap flex h-1.5 items-center justify-center hover:h-6 pointer-coarse:h-6">
         <span class="flex gap-1 opacity-0 transition-opacity group-hover/gap:opacity-100 pointer-coarse:opacity-100">
           <button
             class="border-ui-border bg-ui-panel rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer border border-solid px-1.5 py-0 text-[0.66rem]"
@@ -216,7 +223,7 @@
             {{ 'feature.replay.editor.record' | transloco }}
           </button>
         </span>
-      </li>
+      </div>
     }
   }
 </ng-template>

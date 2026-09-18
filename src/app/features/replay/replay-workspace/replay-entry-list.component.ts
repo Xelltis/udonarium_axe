@@ -10,40 +10,41 @@ import { ReplayStagingService } from '@axe/application/replay/replay-staging.ser
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type { ReplayCastMember } from '@axe/domain/replay/replay-cast';
 import { chatTabIdentifierNear, INSERTABLE_KINDS, isTextEditable, textOf } from '@axe/domain/replay/replay-edit';
-import { ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import {
   collectReplayActorIds,
   DEFAULT_REPLAY_LOG_FILTER,
-  filterReplayEvents,
+  matchesReplayLogFilter,
   type ReplayLogFilter,
   ReplayLogScope,
 } from '@axe/features/replay/replay-log-filter';
-import {
-  formatReplayElapsed,
-  replayLineParams,
-  type ReplayLogLine,
-  toReplayLogLine,
-} from '@axe/features/replay/replay-log-line';
+import { formatReplayElapsed, renderReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
 import { EMPTY_REPLAY_DICTIONARY, replayActorsOf, replayNamesAt } from '@axe/features/replay/replay-names';
+import { VirtualListComponent } from '@axe/ui/components/virtual-list/virtual-list.component';
 import { landingIndex, RowReorder } from '@axe/ui/dragging/row-reorder';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface ReplayEntryRow {
   index: number;
   seq: number;
-  elapsed: string;
+  event: ReplayEvent;
   isChapter: boolean;
-  inserted: boolean;
   editable: boolean;
+}
+
+/** What a row shows, worked out only for the rows drawn. */
+interface ReplayEntryView {
+  elapsed: string;
+  icon: string;
+  isSecret: boolean;
   text: string;
-  line: ReplayLogLine;
 }
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'replay-entry-list',
   templateUrl: './replay-entry-list.component.html',
-  imports: [TranslocoModule, NgTemplateOutlet],
+  imports: [TranslocoModule, NgTemplateOutlet, VirtualListComponent],
 })
 export class ReplayEntryListComponent {
   private readonly playback = inject(ReplayPlaybackService);
@@ -95,25 +96,65 @@ export class ReplayEntryListComponent {
       .sort((a, b) => a.name.localeCompare(b.name))
   );
 
+  /**
+   * The rows the filter lets through, holding no more than where each stands.
+   *
+   * What a row shows is worked out as it is drawn (`view`), since a long recording has tens of
+   * thousands of rows and only a screenful is ever on show.
+   */
   protected readonly rows = computed<ReplayEntryRow[]>(() => {
-    const dictionary = this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY;
-    const events = this.source();
-    const visible = new Set(filterReplayEvents(events, this.filter(), this.viewer()).map((event) => event.seq));
-
-    return events
-      .map((event, index) => ({ event, index }))
-      .filter(({ event }) => visible.has(event.seq))
-      .map(({ event, index }) => ({
+    const filter = this.filter();
+    const viewer = this.viewer();
+    const rows: ReplayEntryRow[] = [];
+    this.source().forEach((event, index) => {
+      if (!matchesReplayLogFilter(event, filter, viewer)) return;
+      rows.push({
         index,
         seq: event.seq,
-        elapsed: formatReplayElapsed(event.t),
+        event,
         isChapter: event.kind === ReplayEventKind.Marker,
-        inserted: this.editing() && this.editor.isInserted(event.seq),
         editable: isTextEditable(event),
-        text: textOf(event),
-        line: toReplayLogLine(event, replayNamesAt(dictionary, event.seq)),
-      }));
+      });
+    });
+    return rows;
   });
+
+  protected readonly rowKey = (row: ReplayEntryRow): number => row.seq;
+
+  private readonly views = new WeakMap<ReplayEvent, { lang: string; dictionary: object; view: ReplayEntryView }>();
+
+  /**
+   * What a row shows, in the reader's language.
+   *
+   * Kept per event, which an edit hands on unchanged, and worked out again only when the language
+   * or the recording's names change.
+   */
+  protected view(row: ReplayEntryRow): ReplayEntryView {
+    const lang = this.language.currentLang();
+    const dictionary = this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY;
+    const cached = this.views.get(row.event);
+    if (cached && cached.lang === lang && cached.dictionary === dictionary) return cached.view;
+
+    const line = toReplayLogLine(row.event, replayNamesAt(dictionary, row.event.seq));
+    const view: ReplayEntryView = {
+      elapsed: formatReplayElapsed(row.event.t),
+      icon: line.icon,
+      isSecret: line.isSecret,
+      text: renderReplayLogLine(line, this.t, lang),
+    };
+    this.views.set(row.event, { lang, dictionary, view });
+    return view;
+  }
+
+  /** Whether a row was put in while editing rather than recorded. */
+  protected isInserted(row: ReplayEntryRow): boolean {
+    return this.editing() && this.editor.isInserted(row.seq);
+  }
+
+  /** The words a row can be rewritten to begin from. */
+  protected rawText(row: ReplayEntryRow): string {
+    return textOf(row.event);
+  }
 
   protected get canEdit(): boolean {
     return this.rolePermission.canEditTabletop;
@@ -121,10 +162,6 @@ export class ReplayEntryListComponent {
 
   protected actorLabel(userId: string): string {
     return replayNamesAt(this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY, 0).actorName(userId);
-  }
-
-  protected lineParams(line: ReplayLogLine): Record<string, string | number> {
-    return replayLineParams(line, this.t, this.language.currentLang());
   }
 
   protected setScope(scope: ReplayLogScope): void {

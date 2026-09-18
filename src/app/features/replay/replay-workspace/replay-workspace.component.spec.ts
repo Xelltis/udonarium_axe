@@ -154,10 +154,10 @@ describe('ReplayWorkspaceComponent', () => {
   }
 
   function entryRows(): HTMLElement[] {
-    const list = fixture.nativeElement.querySelector('replay-entry-list ul') as HTMLElement | null;
+    const list = fixture.nativeElement.querySelector('replay-entry-list ui-virtual-list') as HTMLElement | null;
     if (!list) return [];
-    return [...list.querySelectorAll(':scope > li')].filter((li) =>
-      (li as HTMLElement).className.includes('rounded-ui-sm')
+    return [...list.querySelectorAll('[role="listitem"] > div')].filter((row) =>
+      (row as HTMLElement).className.includes('rounded-ui-sm')
     ) as HTMLElement[];
   }
 

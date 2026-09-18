@@ -41,7 +41,7 @@ describe('rearranging the entries', () => {
   let move: ReturnType<typeof vi.fn>;
 
   function rows(): HTMLElement[] {
-    return Array.from(fixture.nativeElement.querySelectorAll('li[draggable="true"]'));
+    return Array.from(fixture.nativeElement.querySelectorAll('[draggable="true"]'));
   }
 
   function dragTo(from: number, to: number, clientY: number): void {
@@ -190,5 +190,46 @@ describe('rearranging the entries', () => {
 
     expect(rows()[2].style.boxShadow).toBe('');
     expect(move).not.toHaveBeenCalled();
+  });
+});
+
+describe('a long recording in the list', () => {
+  const many: readonly ReplayEvent[] = Array.from({ length: 2_000 }, (_, i) => event(i + 1, `発言 ${i + 1}`));
+
+  beforeEach(async () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
+    await TestBed.configureTestingModule({
+      imports: [ReplayEntryListComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: ReplayPlaybackService,
+          useValue: {
+            events: signal(many).asReadonly(),
+            cursor: signal(0).asReadonly(),
+            manifest: signal(null).asReadonly(),
+            cast: signal([]).asReadonly(),
+            isBoardMode: signal(false).asReadonly(),
+            seekTo: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        { provide: ReplayEditorService, useValue: { edited: signal(many).asReadonly(), isInserted: () => false } },
+      ],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  it('draws only the rows near the screen, not every row', () => {
+    const fixture = TestBed.createComponent(ReplayEntryListComponent);
+    fixture.detectChanges();
+
+    const drawn = fixture.nativeElement.querySelectorAll('[role="listitem"]').length;
+    expect(drawn).toBeGreaterThan(0);
+    expect(drawn).toBeLessThan(100);
+    expect(fixture.nativeElement.textContent).toContain('発言 1');
+    expect(fixture.nativeElement.textContent).not.toContain('発言 2000');
   });
 });
