@@ -14,6 +14,7 @@ import {
   MAX_MERGE_SPAN,
 } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import { clampCorridorWidth, DungeonLayout } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { furnishRooms } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { assignRoomRoles } from '@axe/domain/tabletop/dungeon/room-roles';
 import { fitBoardTo, generateRoomsAndMazes } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
 import { openTunnelMouth } from '@axe/domain/tabletop/dungeon/tunnel-mouth';
@@ -110,9 +111,11 @@ export function boardSizeFor(
 
 /**
  * Lays out a whole dungeon floor for a request: rooms and mazes or a cave as the atmosphere says, then the
- * tunnel mouth when asked for, the room roles, and the doors.
+ * tunnel mouth when asked for, the room roles, the doors, and the furniture of a furnished place.
  *
  * Everything comes from the request's seed, so the same request gives the same dungeon on every peer.
+ * Furniture is put in last, and only where the place is furnished, so that a place with none comes out
+ * of its seed exactly as it always has.
  */
 export function generateDungeon(request: DungeonRequest): DungeonLayout {
   const atmosphere = atmosphereById(request.atmosphere);
@@ -165,6 +168,7 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   assignRoomRoles(layout);
   // Hung last, so that widening an opening cannot leave the room a key opens standing ajar.
   hangDoors(layout, { widths: request.doorWidth, doublePercent: request.doubleDoorPercent }, rng);
+  if (atmosphere.furnishings) layout.furnishings = furnishRooms(layout, atmosphere.furnishings, rng);
   return layout;
 }
 

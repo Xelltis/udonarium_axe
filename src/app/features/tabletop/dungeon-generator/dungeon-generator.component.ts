@@ -381,7 +381,13 @@ export class DungeonGeneratorComponent {
       const blocks = plan.blocks;
       const summary = this.field()
         ? describeField(plan as FieldPlan, name, this.seed(), this.t)
-        : describeDungeon((plan as DungeonPlan).layout, blocks, name, this.t);
+        : describeDungeon(
+            (plan as DungeonPlan).layout,
+            blocks,
+            name,
+            this.t,
+            (plan as DungeonPlan).atmosphere.roleNames
+          );
       const result = await this.dungeonBuild.build(
         plan.layout,
         plan.atmosphere,

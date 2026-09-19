@@ -1,5 +1,7 @@
-import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
+import { DungeonPropId, TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
+import { FurnishingPlan } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { RoomShape } from '@axe/domain/tabletop/dungeon/room-shapes';
+import { MapLighting } from '@axe/domain/tabletop/map-blocks';
 
 export const DUNGEON_ATMOSPHERE_IDS = [
   'stoneDungeon',
@@ -9,6 +11,8 @@ export const DUNGEON_ATMOSPHERE_IDS = [
   'lavaCavern',
   'iceCave',
   'sandTomb',
+  'cyberBar',
+  'abandonedBuilding',
 ] as const;
 
 export type DungeonAtmosphereId = (typeof DUNGEON_ATMOSPHERE_IDS)[number];
@@ -19,7 +23,7 @@ export const DUNGEON_ENTRANCE_STYLES = ['stair', 'tunnel'] as const;
 export type DungeonEntranceStyle = (typeof DUNGEON_ENTRANCE_STYLES)[number];
 
 /** How the doors of a place open, which is as much a part of its character as its stone. */
-export const DUNGEON_DOOR_STYLES = ['swing', 'lift', 'sink'] as const;
+export const DUNGEON_DOOR_STYLES = ['swing', 'slide', 'lift', 'sink'] as const;
 
 export type DungeonDoorStyle = (typeof DUNGEON_DOOR_STYLES)[number];
 
@@ -53,6 +57,16 @@ export function clampWallHeight(height: number): number {
   return Math.min(MAX_WALL_HEIGHT, Math.max(MIN_WALL_HEIGHT, Math.round(height * 2) / 2));
 }
 
+/**
+ * What the rooms of a place are called, where the names a dungeon gives them would be wrong.
+ *
+ * Nobody keeps a treasury in a bar. The rooms play the same parts - the one the party walks
+ * into, the biggest, the one hardest to get to - but they are a floor, a VIP room and an office.
+ */
+export const DUNGEON_ROLE_NAMINGS = ['bar', 'building'] as const;
+
+export type DungeonRoleNaming = (typeof DUNGEON_ROLE_NAMINGS)[number];
+
 export interface DungeonAtmosphere {
   id: DungeonAtmosphereId;
   algorithm: 'rooms' | 'cave';
@@ -70,6 +84,14 @@ export interface DungeonAtmosphere {
   doorStyle: DungeonDoorStyle;
   rooms?: RoomPlan;
   cave?: CaveShape;
+  /** What its doors are made of. Left out, stone in a cave, bars in a crypt and wood anywhere else. */
+  door?: DungeonPropId;
+  /** What it is lit by. Left out, brackets on the walls and fires where there is room for one. */
+  lighting?: MapLighting;
+  /** What stands in its rooms. Left out, they are bare. */
+  furnishings?: readonly FurnishingPlan[];
+  /** What its rooms are called. Left out, they are called what the rooms of a dungeon are. */
+  roleNames?: DungeonRoleNaming;
 }
 
 export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere> = {
@@ -220,6 +242,88 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
       wallBreakChance: 0,
       shapes: ['rect', 'cross'],
     },
+  },
+  /**
+   * A bar in the lower floors of a city that never switches its signs off.
+   *
+   * The party comes in off the street, the biggest room is the floor with the counter along
+   * its wall, and the rooms off it are booths, a back office and a store room. It is lit by
+   * tubes rather than fire, and the doors run aside by themselves.
+   */
+  cyberBar: {
+    id: 'cyberBar',
+    algorithm: 'rooms',
+    defaultWall: 'wall_neon',
+    defaultFloor: 'neon_floor',
+    wallHeight: 2,
+    darkness: 0.8,
+    ambientColor: '#12061c',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 6,
+    entrance: 'tunnel',
+    doorStyle: 'slide',
+    door: 'door_steel',
+    lighting: { wall: ['neon'], open: [], colors: ['#ff2bd6', '#00e5ff', '#9d4dff'] },
+    roleNames: 'bar',
+    rooms: {
+      minRoom: 5,
+      maxRoom: 9,
+      windingPercent: 5,
+      extraConnectorChance: 0.08,
+      wallBreakChance: 0,
+      shapes: ['rect'],
+    },
+    furnishings: [
+      { piece: 'counter', arrangement: 'counter', roles: ['hall'], every: 0, seat: 'stool' },
+      { piece: 'table', arrangement: 'scatter', roles: ['entrance', 'hall', 'chamber', 'treasure', 'boss'], every: 9 },
+      { piece: 'crate', arrangement: 'scatter', roles: ['deadEnd'], every: 5 },
+    ],
+  },
+  /**
+   * A floor of an office block left to rot.
+   *
+   * Straight corridors between square rooms, the columns still holding the ceiling up in the
+   * big ones, steel desks shoved about, and walls fallen through where nobody mended them.
+   * Whoever lives here now burns what they find in drums.
+   */
+  abandonedBuilding: {
+    id: 'abandonedBuilding',
+    algorithm: 'rooms',
+    defaultWall: 'wall_concrete',
+    defaultFloor: 'concrete_floor',
+    wallHeight: 2.5,
+    darkness: 0.75,
+    ambientColor: '#0a0c0f',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 3,
+    entrance: 'stair',
+    doorStyle: 'swing',
+    door: 'door_steel',
+    lighting: { wall: ['lantern'], open: ['brazier'] },
+    roleNames: 'building',
+    rooms: {
+      minRoom: 5,
+      maxRoom: 11,
+      windingPercent: 5,
+      extraConnectorChance: 0.15,
+      wallBreakChance: 0.1,
+      shapes: ['rect', 'overlap'],
+    },
+    furnishings: [
+      { piece: 'pillar', arrangement: 'grid', roles: ['entrance', 'hall', 'boss'], every: 4 },
+      { piece: 'desk', arrangement: 'scatter', roles: ['chamber', 'treasure', 'boss'], every: 9 },
+      { piece: 'crate', arrangement: 'scatter', roles: ['deadEnd'], every: 6 },
+      {
+        piece: 'rubble',
+        arrangement: 'scatter',
+        roles: ['entrance', 'hall', 'treasure', 'boss', 'deadEnd', 'chamber'],
+        every: 14,
+      },
+    ],
   },
 };
 

@@ -2097,7 +2097,9 @@
           "cavern": "Cavern",
           "lavaCavern": "Lava cavern",
           "iceCave": "Ice cave",
-          "sandTomb": "Sand tomb"
+          "sandTomb": "Sand tomb",
+          "cyberBar": "Cyberpunk bar",
+          "abandonedBuilding": "Abandoned building"
         },
         "role": {
           "entrance": "Entrance hall",
@@ -2106,6 +2108,24 @@
           "boss": "Innermost room",
           "deadEnd": "Dead end",
           "chamber": "Chamber"
+        },
+        "roleIn": {
+          "bar": {
+            "entrance": "Entrance",
+            "hall": "Bar floor",
+            "treasure": "VIP room",
+            "boss": "Owner's office",
+            "deadEnd": "Storeroom",
+            "chamber": "Booth"
+          },
+          "building": {
+            "entrance": "Lobby",
+            "hall": "Open-plan office",
+            "treasure": "Vault",
+            "boss": "Executive suite",
+            "deadEnd": "Storeroom",
+            "chamber": "Office"
+          }
         },
         "piece": {
           "wall": "Wall",
@@ -2118,7 +2138,14 @@
           "boulder": "Boulder",
           "outcrop": "Outcrop",
           "hill": "Hill",
-          "cactus": "Cactus"
+          "cactus": "Cactus",
+          "counter": "Counter",
+          "stool": "Stool",
+          "table": "Table",
+          "pillar": "Pillar",
+          "desk": "Desk",
+          "crate": "Crate",
+          "rubble": "Rubble"
         },
         "summary": {
           "title": "Dungeon notes",

@@ -12,8 +12,12 @@ import { CUT_IN_LAYER_PRESETS } from '@axe/domain/media/cut-in-layer-presets';
 import { CUT_IN_WIPES } from '@axe/domain/media/cut-in-wipe';
 import { LIGHT_SKIN_IDS } from '@axe/domain/media/light-skins';
 import { DUNGEON_PROP_IDS, TEXTURE_IDS, WALL_TEXTURE_IDS } from '@axe/domain/media/texture-catalog';
-import { DUNGEON_ATMOSPHERE_IDS, DUNGEON_ENTRANCE_STYLES } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
-import { DUNGEON_ROOM_ROLES } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import {
+  DUNGEON_ATMOSPHERE_IDS,
+  DUNGEON_ENTRANCE_STYLES,
+  DUNGEON_ROLE_NAMINGS,
+} from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
+import { DUNGEON_ROOM_ROLES, FURNISHING_IDS } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { FIELD_ATMOSPHERE_IDS, FIELD_PROP_IDS } from '@axe/domain/tabletop/field/field-atmosphere';
 import { MAP_FUNCTION_ROLES } from '@axe/domain/tabletop/function-paint';
 import { ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
@@ -42,7 +46,10 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.tabletop.dungeonGenerator.role.': DUNGEON_ROOM_ROLES,
   'feature.tabletop.dungeonGenerator.field.': FIELD_ATMOSPHERE_IDS,
   'feature.tabletop.dungeonGenerator.prop.': FIELD_PROP_IDS,
-  'feature.tabletop.dungeonGenerator.piece.': FIELD_PROP_IDS,
+  'feature.tabletop.dungeonGenerator.piece.': [...FIELD_PROP_IDS, ...FURNISHING_IDS],
+  ...Object.fromEntries(
+    DUNGEON_ROLE_NAMINGS.map((naming) => [`feature.tabletop.dungeonGenerator.roleIn.${naming}.`, DUNGEON_ROOM_ROLES])
+  ),
   'feature.tabletop.dungeonGenerator.kind.': MAP_KINDS,
   'feature.chat.messageSetting.soundType_': CHAT_SOUND_TYPES,
   'feature.roomSettings.facingMark_': TABLE_FACING_MARKS,

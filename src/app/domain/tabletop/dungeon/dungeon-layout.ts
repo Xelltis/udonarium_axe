@@ -83,6 +83,17 @@ export interface DungeonDoorLeaf extends DungeonRect {
   mirrored: boolean;
 }
 
+export const FURNISHING_IDS = ['counter', 'stool', 'table', 'pillar', 'desk', 'crate', 'rubble'] as const;
+
+export type FurnishingId = (typeof FURNISHING_IDS)[number];
+
+/** A piece of furniture standing in a room, and the cells it takes. */
+export interface DungeonFurnishing extends DungeonRect {
+  piece: FurnishingId;
+  /** How far it is turned off square, in degrees. */
+  spin: number;
+}
+
 export interface DungeonLayout {
   width: number;
   height: number;
@@ -104,6 +115,8 @@ export interface DungeonLayout {
   mouth: DungeonPoint | null;
   /** Where the key to the locked door lies, or -1 when nothing is locked. */
   keyRoomIndex: number;
+  /** What stands in the rooms, where the place is furnished at all. */
+  furnishings?: DungeonFurnishing[];
   seed: number;
 }
 

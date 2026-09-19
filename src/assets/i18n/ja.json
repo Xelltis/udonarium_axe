@@ -2097,7 +2097,9 @@
           "cavern": "洞窟",
           "lavaCavern": "溶岩洞",
           "iceCave": "氷窟",
-          "sandTomb": "砂の墳墓"
+          "sandTomb": "砂の墳墓",
+          "cyberBar": "サイバーパンクなバー",
+          "abandonedBuilding": "廃ビル"
         },
         "role": {
           "entrance": "入口の間",
@@ -2106,6 +2108,24 @@
           "boss": "最奥",
           "deadEnd": "行き止まり",
           "chamber": "小部屋"
+        },
+        "roleIn": {
+          "bar": {
+            "entrance": "入口",
+            "hall": "フロア",
+            "treasure": "VIPルーム",
+            "boss": "オーナー室",
+            "deadEnd": "倉庫",
+            "chamber": "個室"
+          },
+          "building": {
+            "entrance": "エントランス",
+            "hall": "オフィスフロア",
+            "treasure": "金庫室",
+            "boss": "役員室",
+            "deadEnd": "物置",
+            "chamber": "事務室"
+          }
         },
         "piece": {
           "wall": "壁",
@@ -2118,7 +2138,14 @@
           "boulder": "岩",
           "outcrop": "岩場",
           "hill": "丘",
-          "cactus": "サボテン"
+          "cactus": "サボテン",
+          "counter": "カウンター",
+          "stool": "スツール",
+          "table": "テーブル",
+          "pillar": "柱",
+          "desk": "事務机",
+          "crate": "木箱",
+          "rubble": "瓦礫"
         },
         "summary": {
           "title": "ダンジョン概要",

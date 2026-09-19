@@ -2097,7 +2097,9 @@
           "cavern": "동굴",
           "lavaCavern": "용암굴",
           "iceCave": "얼음굴",
-          "sandTomb": "모래 무덤"
+          "sandTomb": "모래 무덤",
+          "cyberBar": "사이버펑크 바",
+          "abandonedBuilding": "폐건물"
         },
         "role": {
           "entrance": "입구의 방",
@@ -2106,6 +2108,24 @@
           "boss": "최심부",
           "deadEnd": "막다른 길",
           "chamber": "작은 방"
+        },
+        "roleIn": {
+          "bar": {
+            "entrance": "입구",
+            "hall": "홀",
+            "treasure": "VIP룸",
+            "boss": "사장실",
+            "deadEnd": "창고",
+            "chamber": "룸"
+          },
+          "building": {
+            "entrance": "로비",
+            "hall": "사무실 층",
+            "treasure": "금고실",
+            "boss": "임원실",
+            "deadEnd": "창고",
+            "chamber": "사무실"
+          }
         },
         "piece": {
           "wall": "벽",
@@ -2118,7 +2138,14 @@
           "boulder": "바위",
           "outcrop": "암반",
           "hill": "언덕",
-          "cactus": "선인장"
+          "cactus": "선인장",
+          "counter": "카운터",
+          "stool": "스툴",
+          "table": "테이블",
+          "pillar": "기둥",
+          "desk": "사무용 책상",
+          "crate": "나무 상자",
+          "rubble": "잔해"
         },
         "summary": {
           "title": "던전 개요",

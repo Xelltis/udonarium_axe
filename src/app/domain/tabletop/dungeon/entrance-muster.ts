@@ -5,6 +5,7 @@ import {
   DungeonPoint,
   inBounds,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { furnishedCells } from '@axe/domain/tabletop/dungeon/room-furnishing';
 
 const STEPS: readonly [number, number][] = [
   [1, 0],
@@ -21,12 +22,13 @@ const STEPS: readonly [number, number][] = [
  * standing in one bars the door it stands in, which is nobody's idea of arriving.
  *
  * Ground is counted by the walk rather than by the crow, so a party never lands on the far side
- * of a wall from the door it came through.
+ * of a wall from the door it came through. Nobody is stood on the furniture.
  */
 export function musterCells(layout: DungeonLayout, at: DungeonPoint, count: number): DungeonPoint[] {
   if (count < 1) return [];
+  const furnished = furnishedCells(layout);
   const standable = (x: number, y: number) => {
-    if (!inBounds(layout, x, y)) return false;
+    if (!inBounds(layout, x, y) || furnished.has(y * layout.width + x)) return false;
     const cell = cellAt(layout, x, y);
     return cell === DungeonCell.Room || cell === DungeonCell.Corridor;
   };
