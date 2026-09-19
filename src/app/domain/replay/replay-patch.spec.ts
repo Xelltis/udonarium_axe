@@ -105,6 +105,49 @@ describe('applyReplayEvents()', () => {
     });
   });
 
+  it('lays the parts that arrived with a piece', () => {
+    const arrival: ReplayEvent = {
+      ...patchEvent(
+        1,
+        { identifier: 'c3', aliasName: 'character', before: {}, after: { 'attributes.name': 'ゴブリン' } },
+        ReplayEventKind.ObjectCreate
+      ),
+      parts: [
+        { identifier: 'hp', aliasName: 'data', before: {}, after: { parentIdentifier: 'c3', value: 8 } },
+        { identifier: 'mp', aliasName: 'data', before: {}, after: { parentIdentifier: 'c3', value: 2 } },
+      ],
+    };
+
+    const result = applyReplayEvents(start, [arrival]);
+
+    expect(result.map((o) => o.identifier)).toEqual(['c1', 'c2', 'c3', 'hp', 'mp']);
+    expect(result.find((o) => o.identifier === 'hp')).toEqual({
+      identifier: 'hp',
+      aliasName: 'data',
+      syncData: { parentIdentifier: 'c3', value: 8 },
+    });
+  });
+
+  it('takes the parts away with the piece they went with', () => {
+    const board: ReplayObjectSnapshot[] = [
+      ...start,
+      { identifier: 'hp', aliasName: 'data', syncData: { parentIdentifier: 'c2' } },
+    ];
+    const removal: ReplayEvent = {
+      seq: 1,
+      at: 1000,
+      t: 1000,
+      kind: ReplayEventKind.ObjectRemove,
+      actorId: 'alice',
+      targetId: 'c2',
+      detail: {},
+      removedParts: ['hp'],
+      visibility: PUBLIC_VISIBILITY,
+    };
+
+    expect(applyReplayEvents(board, [removal]).map((o) => o.identifier)).toEqual(['c1']);
+  });
+
   it('takes away one that is put away', () => {
     const removal: ReplayEvent = {
       seq: 1,

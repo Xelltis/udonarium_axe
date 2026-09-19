@@ -49,6 +49,12 @@ describe('isSupportedReplayFormat()', () => {
     expect(isSupportedReplayFormat(REPLAY_FORMAT_VERSION)).toBe(true);
   });
 
+  it('takes every earlier format', () => {
+    expect(REPLAY_FORMAT_VERSION).toBe(3);
+    expect(isSupportedReplayFormat(1)).toBe(true);
+    expect(isSupportedReplayFormat(2)).toBe(true);
+  });
+
   it('turns away a later format and a broken value', () => {
     expect(isSupportedReplayFormat(REPLAY_FORMAT_VERSION + 1)).toBe(false);
     expect(isSupportedReplayFormat(0)).toBe(false);
@@ -68,6 +74,19 @@ describe('encodeReplayEvents() / decodeReplayEvents()', () => {
     expect('targetId' in decoded[0]).toBe(false);
     expect('patch' in decoded[0]).toBe(false);
     expect('merged' in decoded[0]).toBe(false);
+    expect('parts' in decoded[0]).toBe(false);
+    expect('removedParts' in decoded[0]).toBe(false);
+  });
+
+  it('carries the parts that came and went with a piece', () => {
+    const arrival: ReplayEvent = {
+      ...moveEvent,
+      kind: ReplayEventKind.ObjectCreate,
+      parts: [{ identifier: 'hp', aliasName: 'data', before: {}, after: { value: 10 } }],
+    };
+    const removal: ReplayEvent = { ...moveEvent, seq: 9, kind: ReplayEventKind.ObjectRemove, removedParts: ['hp'] };
+
+    expect(decodeReplayEvents(encodeReplayEvents([arrival, removal]))).toEqual([arrival, removal]);
   });
 
   it('makes it with an empty run', () => {
@@ -116,7 +135,55 @@ describe('encodeReplayManifest() / decodeReplayManifest()', () => {
   });
 });
 
+describe('reading a recording written in format 2', () => {
+  it('reads the parts of a piece told as events of their own', () => {
+    const arrival = { ...moveEvent, seq: 1, kind: ReplayEventKind.ObjectCreate, targetId: 'c1' };
+    const part = {
+      ...moveEvent,
+      seq: 2,
+      kind: ReplayEventKind.ObjectCreate,
+      targetId: 'hp',
+      detail: { part: true },
+      patch: { identifier: 'hp', aliasName: 'data', before: {}, after: { parentIdentifier: 'c1' } },
+    };
+
+    const decoded = decodeReplayEvents(encode({ v: 2, events: [arrival, part] }));
+
+    expect(decoded.map((event) => event.targetId)).toEqual(['c1', 'hp']);
+    expect(decoded[1].detail['part']).toBe(true);
+    expect('parts' in decoded[0]).toBe(false);
+  });
+});
+
 describe('reading a broken recording', () => {
+  it('drops folded parts of the wrong shape and keeps the rest', () => {
+    const bytes = encode({
+      v: REPLAY_FORMAT_VERSION,
+      events: [
+        {
+          ...moveEvent,
+          kind: ReplayEventKind.ObjectCreate,
+          parts: [{ identifier: 'hp', aliasName: 'data', before: {}, after: { value: 1 } }, { identifier: 3 }, 'x'],
+          removedParts: ['hp', 7, ''],
+        },
+      ],
+    });
+
+    const [event] = decodeReplayEvents(bytes);
+
+    expect(event.parts?.map((part) => part.identifier)).toEqual(['hp']);
+    expect(event.removedParts).toEqual(['hp']);
+  });
+
+  it('keeps no list of folded parts that is not a list', () => {
+    const bytes = encode({ v: REPLAY_FORMAT_VERSION, events: [{ ...chatEvent, parts: 'hp', removedParts: {} }] });
+
+    const [event] = decodeReplayEvents(bytes);
+
+    expect('parts' in event).toBe(false);
+    expect('removedParts' in event).toBe(false);
+  });
+
   it('drops an event of the wrong shape', () => {
     const bytes = encode({ v: REPLAY_FORMAT_VERSION, events: [{ seq: 1 }, null, 'x', { kind: 'chat.message' }] });
     expect(decodeReplayEvents(bytes)).toEqual([]);

@@ -396,18 +396,79 @@ describe('ReplayRecorderService', () => {
       localDispatch('UPDATE_GAME_OBJECT', object.toContext(), 'peer-a');
     }
 
-    it('tells a piece brought out as one arrival, its parts flagged as parts', async () => {
+    it('tells a piece brought out as one arrival, carrying the parts that came with it', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const parts = piece.commonDataElement!.children as DataElement[];
+
+      dispatchUpdateOf(piece);
+      for (const part of parts) dispatchUpdateOf(part);
+
+      const arrivals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectCreate);
+      expect(arrivals.map((event) => event.targetId)).toEqual([piece.identifier]);
+      expect(arrivals[0].detail['part']).toBeUndefined();
+      expect(arrivals[0].parts?.map((patch) => patch.identifier)).toEqual(parts.map((part) => part.identifier));
+    });
+
+    it('writes the parts out with their piece, and reads them back', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      dispatchUpdateOf(piece);
+      dispatchUpdateOf(part);
+      await service.stop();
+
+      const arrival = store.allEvents().find((event) => event.targetId === piece.identifier);
+      expect(arrival?.parts?.[0]).toMatchObject({ identifier: part.identifier, aliasName: 'data' });
+    });
+
+    it('tells on its own, as a part, one that arrives before its piece', async () => {
       await service.start();
       vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
       const piece = GameCharacter.create('ゴブリン', 1, '');
       const part = piece.commonDataElement!.children[0] as DataElement;
 
-      dispatchUpdateOf(piece);
       dispatchUpdateOf(part);
+      dispatchUpdateOf(piece);
 
       const arrivals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectCreate);
-      expect(arrivals.find((event) => event.targetId === piece.identifier)?.detail['part']).toBeUndefined();
       expect(arrivals.find((event) => event.targetId === part.identifier)?.detail['part']).toBe(true);
+      expect(arrivals.find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+    });
+
+    it('tells on its own a part that arrives once its piece has been written out', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      dispatchUpdateOf(piece);
+      sendUpdate('bystander', 'character', { name: '見物人' });
+      await vi.advanceTimersByTimeAsync(REPLAY_CHUNK_INTERVAL_MS);
+
+      dispatchUpdateOf(part);
+
+      const arrival = service.recentEvents().find((event) => event.targetId === part.identifier);
+      expect(arrival?.detail['part']).toBe(true);
+      expect(store.allEvents().find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+    });
+
+    it('takes a piece away as one removal, carrying the parts that went with it', async () => {
+      const piece = GameCharacter.create('ボス', 1, '');
+      const parts = piece.commonDataElement!.children as DataElement[];
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      objectStore.remove(piece);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
+      for (const part of parts) {
+        localDispatch('DELETE_GAME_OBJECT', { identifier: part.identifier, aliasName: 'data' }, 'peer-a');
+      }
+
+      const removals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removals.map((event) => event.targetId)).toEqual([piece.identifier]);
+      expect(removals[0].removedParts).toEqual(parts.map((part) => part.identifier));
     });
 
     it('names a piece taken away untouched, and flags its parts going with it', async () => {

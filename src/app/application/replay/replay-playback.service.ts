@@ -16,7 +16,12 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { collectReplayCast, type ReplayCastMember } from '@axe/domain/replay/replay-cast';
 import { cloneSyncValue, isSameSyncValue, mergeSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
-import { type ReplayEvent, ReplayEventKind, type ReplayManifest } from '@axe/domain/replay/replay-event';
+import {
+  type ReplayEvent,
+  ReplayEventKind,
+  type ReplayManifest,
+  type ReplayPatch,
+} from '@axe/domain/replay/replay-event';
 import {
   decodeReplayKeyframe,
   encodeReplayKeyframe,
@@ -371,21 +376,30 @@ export class ReplayPlaybackService {
       return;
     }
     if (event.kind === ReplayEventKind.ObjectRemove) {
-      const object = event.targetId ? this.objectStore.get(event.targetId) : null;
-      if (object) this.objectStore.remove(object);
-    } else if (event.patch) {
-      const existing = this.objectStore.get(event.patch.identifier);
-      if (existing) {
-        this.reviveObject(existing, applyReplayPatch(existing.toContext().syncData as SyncData, event.patch));
-      } else {
-        this.createObject({
-          identifier: event.patch.identifier,
-          aliasName: event.patch.aliasName,
-          syncData: applyReplayPatch(null, event.patch),
-        });
+      for (const identifier of [event.targetId, ...(event.removedParts ?? [])]) {
+        const object = identifier ? this.objectStore.get(identifier) : null;
+        if (object) this.objectStore.remove(object);
+      }
+    } else {
+      for (const patch of [event.patch, ...(event.parts ?? [])]) {
+        if (patch) this.layPatch(patch);
       }
     }
     if (event.signal) localDispatch(event.signal.name, event.signal.data);
+  }
+
+  /** Lays a recorded change onto the board: onto the object where it is showing, or as a new one. */
+  private layPatch(patch: ReplayPatch): void {
+    const existing = this.objectStore.get(patch.identifier);
+    if (existing) {
+      this.reviveObject(existing, applyReplayPatch(existing.toContext().syncData as SyncData, patch));
+      return;
+    }
+    this.createObject({
+      identifier: patch.identifier,
+      aliasName: patch.aliasName,
+      syncData: applyReplayPatch(null, patch),
+    });
   }
 
   private startSlide(event: ReplayEvent): boolean {

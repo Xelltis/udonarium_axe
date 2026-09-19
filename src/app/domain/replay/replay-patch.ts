@@ -30,8 +30,9 @@ export interface ApplyReplayOptions {
 /**
  * The room's objects after playing events onto a snapshot, in order.
  *
- * A removal takes its object away and a patch makes or changes one; events with neither are
- * passed over. The snapshot is copied first unless `shareInput` is set.
+ * A removal takes its object away, with the parts removed along with it, and a patch makes or
+ * changes one, followed by the parts that arrived with it; events with neither are passed over.
+ * The snapshot is copied first unless `shareInput` is set.
  */
 export function applyReplayEvents(
   objects: readonly ReplayObjectSnapshot[],
@@ -44,20 +45,23 @@ export function applyReplayEvents(
     byIdentifier.set(object.identifier, share ? object : { ...object, syncData: cloneSyncValue(object.syncData) });
   }
 
-  for (const event of events) {
-    if (event.kind === ReplayEventKind.ObjectRemove) {
-      if (event.targetId) byIdentifier.delete(event.targetId);
-      continue;
-    }
-    const patch = event.patch;
-    if (!patch) continue;
-
+  const lay = (patch: ReplayPatch): void => {
     const current = byIdentifier.get(patch.identifier);
     byIdentifier.set(patch.identifier, {
       identifier: patch.identifier,
       aliasName: patch.aliasName || current?.aliasName || '',
       syncData: applyReplayPatch(current?.syncData ?? null, patch),
     });
+  };
+
+  for (const event of events) {
+    if (event.kind === ReplayEventKind.ObjectRemove) {
+      if (event.targetId) byIdentifier.delete(event.targetId);
+      for (const part of event.removedParts ?? []) byIdentifier.delete(part);
+      continue;
+    }
+    if (event.patch) lay(event.patch);
+    for (const part of event.parts ?? []) lay(part);
   }
 
   return [...byIdentifier.values()];

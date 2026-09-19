@@ -105,8 +105,16 @@ export class ReplayRecorderService {
   private boardDirty = false;
   /** Who could see each object when it was last recorded, for judging its removal once it is gone. */
   private readonly lastVisibility = new Map<string, ReplayVisibility>();
-  /** The objects that are parts of a piece, whose arrival and removal are not told on their own. */
-  private readonly partOwners = new Set<string>();
+  /**
+   * The objects that are parts of a piece, whose arrival and removal are not told on their own,
+   * each with the piece it belongs to, or empty where that piece has not been seen yet.
+   */
+  private readonly partOwners = new Map<string, string>();
+  /**
+   * The arrivals and removals of pieces not yet written out, by piece. The parts that come and go
+   * with a piece are folded into its event while it is still open.
+   */
+  private readonly openPieceEvents = new Map<string, ReplayEvent>();
   /** The names of the pieces on the table when recording began, for naming one removed untouched. */
   private readonly namesAtStart = new Map<string, string>();
   private recent: ReplayEvent[] = [];
@@ -220,6 +228,7 @@ export class ReplayRecorderService {
     this.targets.clear();
     this.lastVisibility.clear();
     this.partOwners.clear();
+    this.openPieceEvents.clear();
     this.namesAtStart.clear();
     this.keyframes.length = 0;
     this.chunks.length = 0;
@@ -286,9 +295,15 @@ export class ReplayRecorderService {
     if (eventName === 'DELETE_GAME_OBJECT') {
       const context = data as { identifier: string; aliasName: string };
       this.shadows.delete(context.identifier);
+      const owner = this.partOwners.get(context.identifier);
+      if (owner !== undefined) {
+        this.partOwners.delete(context.identifier);
+        if (this.foldPartRemoval(owner, context.identifier)) return;
+      } else {
+        this.rememberRemovedTarget(context.identifier, context.aliasName);
+      }
       const draft = interpretObjectRemove(context.identifier, context.aliasName);
-      if (this.partOwners.delete(context.identifier)) draft.detail[REPLAY_PART_FLAG] = true;
-      else this.rememberRemovedTarget(context.identifier, context.aliasName);
+      if (owner !== undefined) draft.detail[REPLAY_PART_FLAG] = true;
       this.push(draft, sendFrom, at);
       return;
     }
@@ -313,8 +328,33 @@ export class ReplayRecorderService {
       after,
     });
     if (!draft) return;
-    if (!before) this.notePart(context.identifier, after, draft);
+    if (!before && this.notePart(context.identifier, after, draft) && this.foldPartArrival(context.identifier, draft)) {
+      return;
+    }
     this.push(draft, sendFrom, at);
+  }
+
+  /**
+   * Folds a part that has just arrived into the arrival of its piece, when that is still open, so
+   * a piece brought out with its many parts is one event. Answers whether it was folded.
+   */
+  private foldPartArrival(identifier: string, draft: ReplayDraft): boolean {
+    const owner = this.partOwners.get(identifier);
+    const arrival = owner ? this.openPieceEvents.get(owner) : undefined;
+    if (!arrival || arrival.kind !== ReplayEventKind.ObjectCreate || !draft.patch) return false;
+    arrival.parts = [...(arrival.parts ?? []), draft.patch];
+    return true;
+  }
+
+  /**
+   * Folds the removal of a part into the removal of its piece, when that is still open, so a piece
+   * taken away with its many parts is one event. Answers whether it was folded.
+   */
+  private foldPartRemoval(owner: string, identifier: string): boolean {
+    const removal = owner ? this.openPieceEvents.get(owner) : undefined;
+    if (!removal || removal.kind !== ReplayEventKind.ObjectRemove) return false;
+    removal.removedParts = [...(removal.removedParts ?? []), identifier];
+    return true;
   }
 
   /**
@@ -338,12 +378,14 @@ export class ReplayRecorderService {
    * A part sent by someone else can arrive before the piece it belongs to, when its owner cannot be
    * found yet; a parent not seen at all yet marks it as a part all the same.
    */
-  private notePart(identifier: string, after: SyncData, draft: ReplayDraft): void {
+  private notePart(identifier: string, after: SyncData, draft: ReplayDraft): boolean {
     const parent = after['parentIdentifier'];
     const awaitsParent = typeof parent === 'string' && parent.length > 0 && !this.shadows.has(parent);
-    if (!ownerOf(this.objectStore.get(identifier)) && !awaitsParent) return;
-    this.partOwners.add(identifier);
+    const owner = ownerOf(this.objectStore.get(identifier));
+    if (!owner && !awaitsParent) return false;
+    this.partOwners.set(identifier, owner?.identifier ?? '');
     draft.detail[REPLAY_PART_FLAG] = true;
+    return true;
   }
 
   /**
@@ -386,9 +428,17 @@ export class ReplayRecorderService {
 
     this.flushPending();
     this.pending = event;
+    this.openIfPiece(event);
     this.trackRecent(event, false);
     if (this.buffer.length + 1 >= REPLAY_CHUNK_EVENT_LIMIT) this.flushPending();
     this.scheduleChunkFlush();
+  }
+
+  /** Keeps the arrival or removal of a piece open for its parts until it is written out. */
+  private openIfPiece(event: ReplayEvent): void {
+    if (event.kind !== ReplayEventKind.ObjectCreate && event.kind !== ReplayEventKind.ObjectRemove) return;
+    if (!event.targetId || event.detail[REPLAY_PART_FLAG] === true) return;
+    this.openPieceEvents.set(event.targetId, event);
   }
 
   private flushPending(): void {
@@ -415,6 +465,10 @@ export class ReplayRecorderService {
 
     const events = this.buffer;
     this.buffer = [];
+    for (const event of events) {
+      if (event.targetId && this.openPieceEvents.get(event.targetId) === event)
+        this.openPieceEvents.delete(event.targetId);
+    }
     const bytes = encodeReplayEvents(events);
     const chunk = {
       index: this.chunkIndex++,
@@ -524,7 +578,8 @@ export class ReplayRecorderService {
 
   private seedShadows(): void {
     for (const object of this.objectStore.getObjects()) {
-      if (ownerOf(object)) this.partOwners.add(object.identifier);
+      const owner = ownerOf(object);
+      if (owner) this.partOwners.set(object.identifier, owner.identifier);
       else if (object instanceof TabletopObject) this.namesAtStart.set(object.identifier, nameOf(object));
     }
     for (const snapshot of this.snapshotStore()) {

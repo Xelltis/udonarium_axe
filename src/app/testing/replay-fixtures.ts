@@ -7,7 +7,6 @@ import type { SyncData } from '@axe/domain/replay/replay-diff';
 import {
   GM_ONLY_VISIBILITY,
   PUBLIC_VISIBILITY,
-  REPLAY_FORMAT_VERSION,
   type ReplayActorSnapshot,
   ReplayDetailLevel,
   type ReplayEvent,
@@ -18,6 +17,12 @@ import {
 } from '@axe/domain/replay/replay-event';
 import { interpretObjectChange, type ReplayDraft } from '@axe/domain/replay/replay-interpreter';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
+
+/**
+ * The format the long recording is written in: the one before parts were folded into their piece,
+ * so the old way of telling them is what gets measured and read.
+ */
+export const LONG_REPLAY_FORMAT_VERSION = 2;
 
 /** How big a made-up session is, and how it is spread over its hours. */
 export interface LongReplayFixtureOptions {
@@ -248,7 +253,7 @@ export function buildLongReplayFixture(options: LongReplayFixtureOptions): LongR
 
   return {
     manifest: {
-      formatVersion: REPLAY_FORMAT_VERSION,
+      formatVersion: LONG_REPLAY_FORMAT_VERSION,
       roomName: 'fixture',
       startedAt: STARTED_AT,
       endedAt: STARTED_AT + durationMs,
