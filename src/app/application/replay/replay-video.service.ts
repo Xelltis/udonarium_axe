@@ -172,6 +172,7 @@ export class ReplayVideoService {
         if (!this.cancelled) this._failure.set('encode');
         return false;
       }
+      if (this.cancelled) return false;
 
       const name = replayArchiveName({ roomName: job.recording.roomName, startedAt: job.recording.startedAt });
       this.encoder.save(encoded.blob, `${name}.${encoded.extension}`);

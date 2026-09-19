@@ -261,6 +261,10 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
     await encoder.flush();
     if (failure) throw failure;
     if (audio) await audio.finish();
+    if (request.isCancelled?.()) {
+      if (writable) await writable.abort().catch(() => undefined);
+      return null;
+    }
     muxer.finalize();
     if (writable) {
       await writable.close();

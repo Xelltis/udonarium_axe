@@ -248,6 +248,19 @@ describe('video encoding', () => {
     expect(writable.close).not.toHaveBeenCalled();
   });
 
+  it('saves nothing when cancelled while the last frames are being finished', async () => {
+    let finishing = false;
+    const flush = FakeVideoEncoder.prototype.flush;
+    vi.spyOn(FakeVideoEncoder.prototype, 'flush').mockImplementation(async function (this: FakeVideoEncoder) {
+      finishing = true;
+      return flush.call(this);
+    });
+
+    const result = await encodeVideo(request({ frameCount: 3, isCancelled: () => finishing }));
+
+    expect(result).toBeNull();
+  });
+
   it('finishes without throwing when the encoder falls over', async () => {
     failOn = 1;
     expect(await encodeVideo(request({ frameCount: 5 }))).toBeNull();

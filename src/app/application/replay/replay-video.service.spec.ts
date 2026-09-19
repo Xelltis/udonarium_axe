@@ -285,6 +285,17 @@ describe('ReplayVideoService', () => {
     expect(encode).not.toHaveBeenCalled();
   });
 
+  it('saves nothing when cancelled once the frames are all drawn, and calls it no failure', async () => {
+    encode.mockImplementation(async () => {
+      service.cancel();
+      return { blob: new Blob(['mp4']), extension: 'mp4' };
+    });
+
+    expect(await service.render(job([say(1, 'やあ')]))).toBe(false);
+    expect(saved).toHaveLength(0);
+    expect(service.failure()).toBeNull();
+  });
+
   it('says the encoding failed when the encoder gives up', async () => {
     encode.mockResolvedValue(null);
 
