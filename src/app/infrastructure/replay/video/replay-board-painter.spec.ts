@@ -118,6 +118,27 @@ describe('drawing the board of a replay video', () => {
     expect(drawn).toMatchObject({ x: 0, y: 0, width: 1000, height: 1000 });
   });
 
+  it('sizes the shadow under a figure with the figure, closer in or further out', () => {
+    const shadowAt = (width: number) =>
+      paint({
+        scene: scene([piece('a', { imageIdentifier: 'fig' })]),
+        camera: { x: 0, y: 0, width, height: width },
+      }).images.find((one) => one.image === figure)!.shadowBlur;
+
+    expect(shadowAt(250)).toBeCloseTo(shadowAt(1000) * 4);
+  });
+
+  it('lifts the top of a raised block straight up the screen, however it is turned on the table', () => {
+    const topAt = (rotate: number) =>
+      paint({
+        scene: scene([piece('t', { shape: 'terrain', width: 2, height: 2, elevation: 2, view: 3, rotate })]),
+      }).fills.find((one) => one.color === '#5d6270')!;
+    const square = topAt(0);
+    const turned = topAt(90);
+
+    expect(turned.y).toBeCloseTo(square.y);
+  });
+
   it('writes the name of a figure under it', () => {
     const texts = paint({ scene: scene([piece('a', { name: '勇者' })]) }).texts.map((text) => text.text);
 

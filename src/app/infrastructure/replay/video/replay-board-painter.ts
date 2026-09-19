@@ -213,7 +213,7 @@ function paintTable(
 
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
-  ctx.shadowBlur = 40 / scale;
+  ctx.shadowBlur = onScreen(ctx, 40);
   ctx.fillStyle = TABLE_FALLBACK;
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
@@ -403,8 +403,8 @@ function paintFigure(
   const drawnWidth = (drawnHeight * picture.width) / picture.height;
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 12 / scale;
-  ctx.shadowOffsetY = 4 / scale;
+  ctx.shadowBlur = onScreen(ctx, 12);
+  ctx.shadowOffsetY = onScreen(ctx, 4);
   ctx.drawImage(picture, -drawnWidth / 2, top + height - drawnHeight, drawnWidth, drawnHeight);
   ctx.restore();
 }
@@ -433,8 +433,8 @@ function paintCard(
   }
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = grid * 0.2;
-  ctx.shadowOffsetY = grid * 0.05;
+  ctx.shadowBlur = onScreen(ctx, grid * 0.2);
+  ctx.shadowOffsetY = onScreen(ctx, grid * 0.05);
   ctx.fillStyle = picture ? '#ffffff' : '#2f3e6e';
   if (roundedRectPath(ctx, left, top, width, height, radius)) ctx.fill();
   else ctx.fillRect(left, top, width, height);
@@ -480,8 +480,8 @@ function paintDie(
 ): void {
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = width * 0.15;
-  ctx.shadowOffsetY = width * 0.04;
+  ctx.shadowBlur = onScreen(ctx, width * 0.15);
+  ctx.shadowOffsetY = onScreen(ctx, width * 0.04);
   if (picture && !piece.isConcealed) {
     ctx.drawImage(picture, left, top, width, height);
     ctx.restore();
@@ -509,7 +509,7 @@ function paintCoin(
   const radius = Math.min(width, height) / 2;
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = radius * 0.3;
+  ctx.shadowBlur = onScreen(ctx, radius * 0.3);
   ctx.fillStyle = '#d9b44a';
   ctx.beginPath();
   ctx.arc(0, 0, radius, 0, Math.PI * 2);
@@ -557,43 +557,58 @@ function paintTerrain(
 
   const outline = outlineOf(piece, left, upper, width, height, grid, gridType);
   const lift = piece.view === 1 ? 0 : Math.min(LIFT_MAX_CELLS, piece.elevation) * grid * LIFT_PER_CELL;
+  const raise = upTheScreen(ctx, lift);
 
   ctx.save();
   if (lift > 0) {
     ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
-    ctx.shadowBlur = grid * 0.25;
-    ctx.shadowOffsetX = lift * 0.2;
-    ctx.shadowOffsetY = lift * 0.35;
+    ctx.shadowBlur = onScreen(ctx, grid * 0.25);
+    ctx.shadowOffsetX = onScreen(ctx, lift * 0.2);
+    ctx.shadowOffsetY = onScreen(ctx, lift * 0.35);
   }
   ctx.fillStyle = '#2d3038';
-  tracePolygon(ctx, outline, 0);
+  tracePolygon(ctx, outline, { x: 0, y: 0 });
   ctx.fill();
   ctx.restore();
 
-  if (lift > 0) paintSides(ctx, outline, lift, side ?? top, piece.tiled ? grid : 0);
+  if (lift > 0) paintSides(ctx, outline, raise, side ?? top, piece.tiled ? grid : 0);
   if (piece.view === 2) {
     ctx.strokeStyle = 'rgba(20, 22, 28, 0.9)';
     ctx.lineWidth = grid * 0.08;
-    tracePolygon(ctx, outline, -lift);
+    tracePolygon(ctx, outline, raise);
     ctx.stroke();
     ctx.restore();
     return;
   }
 
   ctx.save();
-  tracePolygon(ctx, outline, -lift);
+  tracePolygon(ctx, outline, raise);
   ctx.clip();
   const bounds = boundsOf(outline);
   ctx.fillStyle = '#5d6270';
-  ctx.fillRect(bounds.x, bounds.y - lift, bounds.width, bounds.height);
-  if (top) paintSurface(ctx, top, bounds.x, bounds.y - lift, bounds.width, bounds.height, piece.tiled ? grid : 0);
+  ctx.fillRect(bounds.x + raise.x, bounds.y + raise.y, bounds.width, bounds.height);
+  if (top) {
+    paintSurface(ctx, top, bounds.x + raise.x, bounds.y + raise.y, bounds.width, bounds.height, piece.tiled ? grid : 0);
+  }
   ctx.restore();
 
   ctx.strokeStyle = lift > 0 ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.35)';
   ctx.lineWidth = Math.max(1 / scale, grid * 0.025);
-  tracePolygon(ctx, outline, -lift);
+  tracePolygon(ctx, outline, raise);
   ctx.stroke();
   ctx.restore();
+}
+
+/**
+ * How far a length on the table reaches on the screen, where the drawing now stands.
+ *
+ * A canvas measures its shadows on the screen whatever it has been scaled by, so a shadow sized
+ * in table units has to be carried out to the screen by hand. Left in table units it would
+ * shrink as the camera closes in and swell as it pulls away.
+ */
+function onScreen(ctx: ReplayFrameCanvas, units: number): number {
+  const { a, b } = ctx.getTransform();
+  return units * Math.hypot(a, b);
 }
 
 /** The outline of a block on the table, round its middle: its rectangle, or on a hex table its patch of hexes. */
@@ -621,50 +636,77 @@ function outlineOf(
   ];
 }
 
-/** The faces of a block that turn towards the viewer, each standing on an edge of its outline up to its lifted top. */
+/**
+ * The faces of a block that turn towards the viewer, each standing on an edge of its outline up
+ * to its lifted top.
+ *
+ * Which faces those are is judged on the screen rather than in the block's own frame: a block
+ * turned a quarter round still shows the faces that look down the screen, whichever edges of its
+ * own they happen to be.
+ */
 function paintSides(
   ctx: ReplayFrameCanvas,
   outline: readonly Point[],
-  lift: number,
+  raise: Point,
   picture: (CanvasImageSource & { width: number; height: number }) | null,
   cell: number
 ): void {
-  const turn = signedArea(outline) >= 0 ? 1 : -1;
+  const { a: ma, b: mb, c: mc, d: md } = ctx.getTransform();
+  const shown = outline.map((point) => ({ x: ma * point.x + mc * point.y, y: mb * point.x + md * point.y }));
+  const turn = signedArea(shown) >= 0 ? 1 : -1;
   for (let index = 0; index < outline.length; index += 1) {
     const a = outline[index];
     const b = outline[(index + 1) % outline.length];
-    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    const from = shown[index];
+    const to = shown[(index + 1) % outline.length];
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
     if (length < 0.001) continue;
-    const southward = (-(b.x - a.x) / length) * turn;
+    const southward = (-(to.x - from.x) / length) * turn;
     if (southward <= 0.05) continue;
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
-    ctx.lineTo(b.x, b.y - lift);
-    ctx.lineTo(a.x, a.y - lift);
+    ctx.lineTo(b.x + raise.x, b.y + raise.y);
+    ctx.lineTo(a.x + raise.x, a.y + raise.y);
     ctx.closePath();
     ctx.clip();
-    const x = Math.min(a.x, b.x);
-    const y = Math.min(a.y, b.y) - lift;
-    const w = Math.abs(b.x - a.x) || 1;
-    const h = Math.abs(b.y - a.y) + lift;
+    const bounds = boundsOf([a, b, { x: a.x + raise.x, y: a.y + raise.y }, { x: b.x + raise.x, y: b.y + raise.y }]);
+    const w = bounds.width || 1;
+    const h = bounds.height || 1;
     ctx.fillStyle = '#4a4d57';
-    ctx.fillRect(x, y, w, h);
-    if (picture) paintSurface(ctx, picture, x, y, w, h, cell);
+    ctx.fillRect(bounds.x, bounds.y, w, h);
+    if (picture) paintSurface(ctx, picture, bounds.x, bounds.y, w, h, cell);
     ctx.fillStyle = `rgba(0, 0, 0, ${(0.5 - 0.3 * southward).toFixed(3)})`;
-    ctx.fillRect(x, y, w, h);
+    ctx.fillRect(bounds.x, bounds.y, w, h);
     ctx.restore();
   }
 }
 
-function tracePolygon(ctx: ReplayFrameCanvas, points: readonly Point[], shiftY: number): void {
+function tracePolygon(ctx: ReplayFrameCanvas, points: readonly Point[], shift: Point): void {
   ctx.beginPath();
   points.forEach((point, index) => {
-    if (index === 0) ctx.moveTo(point.x, point.y + shiftY);
-    else ctx.lineTo(point.x, point.y + shiftY);
+    if (index === 0) ctx.moveTo(point.x + shift.x, point.y + shift.y);
+    else ctx.lineTo(point.x + shift.x, point.y + shift.y);
   });
   ctx.closePath();
+}
+
+/**
+ * A step of the given length straight up the screen, in the frame the drawing now stands in.
+ *
+ * A block is lifted towards the top of the screen whichever way it is turned on the table; lifted
+ * along its own frame instead, a block turned a quarter round would rise sideways.
+ */
+function upTheScreen(ctx: ReplayFrameCanvas, length: number): Point {
+  if (length === 0) return { x: 0, y: 0 };
+  const { a, b, c, d } = ctx.getTransform();
+  const determinant = a * d - b * c;
+  if (Math.abs(determinant) < 1e-9) return { x: 0, y: -length };
+  const x = c / determinant;
+  const y = -a / determinant;
+  const reach = Math.hypot(x, y) || 1;
+  return { x: (x / reach) * length, y: (y / reach) * length };
 }
 
 function boundsOf(points: readonly Point[]): { x: number; y: number; width: number; height: number } {
@@ -837,8 +879,8 @@ function paintNote(
 ): void {
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-  ctx.shadowBlur = grid * 0.2;
-  ctx.shadowOffsetY = grid * 0.05;
+  ctx.shadowBlur = onScreen(ctx, grid * 0.2);
+  ctx.shadowOffsetY = onScreen(ctx, grid * 0.05);
   ctx.fillStyle = '#fbf3d5';
   ctx.fillRect(left, top, width, height);
   ctx.restore();
@@ -880,7 +922,7 @@ function paintHighlight(
   ctx.strokeStyle = highlight.color || '#ffffff';
   ctx.lineWidth = grid * 0.08;
   ctx.shadowColor = highlight.color || '#ffffff';
-  ctx.shadowBlur = grid * 0.4;
+  ctx.shadowBlur = onScreen(ctx, grid * 0.4);
   ctx.beginPath();
   ctx.ellipse(
     at.x + size.width / 2,

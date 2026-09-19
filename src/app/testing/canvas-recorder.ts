@@ -6,6 +6,8 @@ export interface DrawnImage {
   y: number;
   width: number;
   height: number;
+  /** How soft the shadow under it is, as the canvas was set when it was drawn. */
+  shadowBlur: number;
 }
 
 export interface GradientLine {
@@ -43,6 +45,10 @@ export function recorder(): {
   const ctx = {
     globalAlpha: 1,
     filter: 'none',
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    shadowColor: '',
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 0,
@@ -57,6 +63,10 @@ export function recorder(): {
     },
     setTransform(a: number, b: number, c: number, d: number, e: number, f: number) {
       matrix = [a, b, c, d, e, f];
+    },
+    getTransform() {
+      const [a, b, c, d, e, f] = matrix;
+      return { a, b, c, d, e, f };
     },
     fillRect(x: number, y: number, width: number, height: number) {
       fills.push({
@@ -109,7 +119,14 @@ export function recorder(): {
       return { width: [...text].length * 20 };
     },
     drawImage(image: ReplayFrameImage, x: number, y: number, width: number, height: number) {
-      images.push({ image, x: atX(x, y), y: atY(x, y), width: width * matrix[0], height: height * matrix[3] });
+      images.push({
+        image,
+        x: atX(x, y),
+        y: atY(x, y),
+        width: width * matrix[0],
+        height: height * matrix[3],
+        shadowBlur: ctx.shadowBlur,
+      });
     },
   } as unknown as ReplayFrameCanvas;
 
