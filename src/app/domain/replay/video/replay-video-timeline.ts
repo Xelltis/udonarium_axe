@@ -242,8 +242,8 @@ export const REPLAY_BANNER_MS = 1_800;
 export const REPLAY_DICE_MS = 2_800;
 export const REPLAY_CUT_IN_MS = 3_500;
 export const REPLAY_BEAT_MIN_MS = 900;
-export const REPLAY_BEAT_MAX_MS = 6_000;
-export const REPLAY_BEAT_STAGGER_MS = 240;
+export const REPLAY_BEAT_MAX_MS = 4_500;
+export const REPLAY_BEAT_STAGGER_MS = 180;
 export const REPLAY_BEAT_MAX_EVENTS = 16;
 export const REPLAY_POP_MS = 1_400;
 export const REPLAY_QUIET_CAP_MS = 8_000;
@@ -729,7 +729,7 @@ function motionOf(event: ReplayEvent): Omit<ReplayMotion, 'startMs'> | null {
       const path = Array.isArray(event.detail['path']) ? event.detail['path'].map(toRoutePoint) : [];
       const route = buildReplayRoute(from, path, to);
       if (route.length < 2 || distanceBetween(from, to) < 1) return null;
-      const durationMs = clamp(500 + routeLength(route) * 1.2, 600, 1_600);
+      const durationMs = clamp(450 + routeLength(route) * 0.9, 500, 1_300);
       return { ...still, kind: 'path', route, durationMs };
     }
     case ReplayEventKind.ObjectCreate:
