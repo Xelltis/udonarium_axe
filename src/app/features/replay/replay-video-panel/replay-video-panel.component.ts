@@ -9,7 +9,7 @@ import {
   type ReplayVideoRecording,
   ReplayVideoStudioService,
 } from '@axe/application/replay/replay-video-studio.service';
-import { askVideoFile, isVideoFileSinkSupported } from '@axe/core/media/video-file-sink';
+import { askVideoFile, isVideoFileSinkSupported, VIDEO_FILE_DECLINED } from '@axe/core/media/video-file-sink';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { replayArchiveName } from '@axe/domain/replay/replay-archive';
 import { ReplayVideoPacing, ReplayVideoStyle } from '@axe/domain/replay/video/replay-video-timeline';
@@ -148,6 +148,7 @@ export class ReplayVideoPanelComponent {
     // browser unconvinced it followed an action, and it shows no dialogue.
     const name = replayArchiveName({ roomName: recording.roomName, startedAt: recording.startedAt });
     const file = isVideoFileSinkSupported() ? await askVideoFile(`${name}.mp4`) : null;
+    if (file === VIDEO_FILE_DECLINED) return;
 
     this.isOpen.set(false);
     await this.video.render(

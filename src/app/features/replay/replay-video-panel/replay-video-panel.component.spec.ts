@@ -8,6 +8,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { ReplayVideoPanelComponent } from '@axe/features/replay/replay-video-panel/replay-video-panel.component';
 import { ReplayVideoSettingsService } from '@axe/features/replay/replay-video-settings.service';
+import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function say(seq: number, text: string): ReplayEvent {
@@ -33,6 +34,7 @@ describe('ReplayVideoPanelComponent', () => {
   let events: readonly ReplayEvent[];
   let isEditing: WritableSignal<boolean>;
   let edited: WritableSignal<readonly ReplayEvent[]>;
+  const borrowed = new BorrowedGlobals();
 
   function buttonByText(text: string): HTMLButtonElement | undefined {
     return [...fixture.nativeElement.querySelectorAll('button')].find((button) =>
@@ -108,6 +110,7 @@ describe('ReplayVideoPanelComponent', () => {
 
   afterEach(() => {
     PeerCursor.myCursor = null as unknown as PeerCursor;
+    borrowed.giveBack();
   });
 
   it('says how many moments and how long before it writes, the opening card among them', async () => {
@@ -205,5 +208,27 @@ describe('ReplayVideoPanelComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('42');
     buttonByText('やめる')?.click();
     expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes to the file chosen in the save dialogue', async () => {
+    const handle = { name: 'replay.mp4' };
+    borrowed.lend('showSaveFilePicker', vi.fn().mockResolvedValue(handle));
+    await setup();
+    await open();
+    buttonByText('書き出す')?.click();
+    await fixture.whenStable();
+
+    expect(render.mock.calls[0][1]).toBe(handle);
+  });
+
+  it('calls the export off when the save dialogue is closed without choosing', async () => {
+    borrowed.lend('showSaveFilePicker', vi.fn().mockRejectedValue(new DOMException('closed', 'AbortError')));
+    await setup();
+    await open();
+    buttonByText('書き出す')?.click();
+    await fixture.whenStable();
+
+    expect(render).not.toHaveBeenCalled();
+    expect(buttonByText('書き出す')).toBeDefined();
   });
 });
