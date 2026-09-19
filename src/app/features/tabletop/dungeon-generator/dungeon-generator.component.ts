@@ -244,7 +244,7 @@ export class DungeonGeneratorComponent {
 
   protected readonly fieldPlan = computed<FieldPlan>(() => {
     const plan = this.fieldShape();
-    return { ...plan, blocks: withFieldMaterials(plan.blocks, plan.atmosphere, this.floor(), this.wall()) };
+    return { ...plan, blocks: withFieldMaterials(plan.blocks, plan.atmosphere, this.floor(), this.wallOverride()) };
   });
 
   protected readonly blocks = computed(() => (this.field() ? this.fieldPlan().blocks : this.plan().blocks));

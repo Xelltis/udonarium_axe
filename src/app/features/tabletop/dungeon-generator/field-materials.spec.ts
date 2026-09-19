@@ -61,6 +61,18 @@ describe('withFieldMaterials', () => {
     expect(result.paint[1].material).toEqual({ kind: 'texture', id: 'rubble_floor' });
   });
 
+  it('leaves every piece in the skin the preset gave it until a material is chosen', () => {
+    const slum = FIELD_ATMOSPHERES.slum;
+    const plan = planField({ atmosphere: 'slum', size: 48, density: 100, seed: 42 });
+    const result = withFieldMaterials(plan.blocks, slum, ground, null);
+
+    expect(result.blocks).toBe(plan.blocks.blocks);
+    const facades = new Set(
+      result.blocks.filter((each) => each.thing === 'building').map((each) => (each.skin!.side as { id: string }).id)
+    );
+    expect(facades).toEqual(new Set(slum.town!.skins.map((skin) => skin.side)));
+  });
+
   it('dresses the buildings of a town in the material asked for, and leaves what stands on their roofs in steel', () => {
     const city = FIELD_ATMOSPHERES.city;
     const plan = planField({ atmosphere: 'city', size: 40, density: 100, seed: 42 });
