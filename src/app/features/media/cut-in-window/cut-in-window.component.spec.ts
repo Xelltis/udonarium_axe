@@ -1,3 +1,4 @@
+import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CutInSoundService } from '@axe/application/media/cut-in-sound.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -9,6 +10,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
+import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function makeReadyAudio(identifier: string): AudioFile {
@@ -42,6 +44,57 @@ describe('CutInWindowComponent', () => {
 
   it('should be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('the size of the video player', () => {
+    const borrowed = new BorrowedGlobals();
+    let resized: ((entries: { contentRect: { width: number; height: number } }[]) => void) | null;
+
+    beforeEach(() => {
+      resized = null;
+      borrowed.lend(
+        'ResizeObserver',
+        class {
+          constructor(callback: typeof resized) {
+            resized = callback;
+          }
+          observe(): void {}
+          disconnect(): void {}
+        }
+      );
+    });
+
+    afterEach(() => borrowed.giveBack());
+
+    function showing(): void {
+      const cutIn = new CutIn('size-test');
+      cutIn.initialize();
+      component.cutIn = cutIn;
+      fixture.detectChanges();
+    }
+
+    it('follows the cut-in area as it is resized', () => {
+      showing();
+      resized!([{ contentRect: { width: 800, height: 450 } }]);
+
+      expect(component.youTubeWidth).toBe(800);
+      expect(component.youTubeHeight).toBe(450);
+    });
+
+    it('lays nothing out to find it when the window is checked again', () => {
+      showing();
+      const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get');
+      const height = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get');
+
+      const view = fixture.debugElement.injector.get(ChangeDetectorRef);
+      for (let check = 0; check < 5; check++) {
+        view.markForCheck();
+        fixture.detectChanges();
+      }
+
+      expect(width).not.toHaveBeenCalled();
+      expect(height).not.toHaveBeenCalled();
+    });
   });
 
   describe('videoVolume', () => {
