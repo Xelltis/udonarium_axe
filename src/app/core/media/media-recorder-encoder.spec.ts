@@ -3,8 +3,11 @@ import {
   isMediaRecordingSupported,
   mediaRecordingType,
   recordVideo,
+  SOUND_START_LEAD_SECONDS,
+  SOUND_STRETCH_SECONDS,
+  soundTrackOf,
 } from '@axe/core/media/media-recorder-encoder';
-import type { VideoEncodeRequest } from '@axe/core/media/video-encoder';
+import type { VideoEncodeRequest, VideoSoundSource } from '@axe/core/media/video-encoder';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
 class FakeMediaRecorder {
@@ -112,5 +115,102 @@ describe('exporting through the media recorder', () => {
     await recordVideo(request({ onProgress: (done) => void progress.push(done) }));
 
     expect(progress.at(-1)).toBe(3);
+  });
+});
+
+describe('the sound of a recording made in real time', () => {
+  const borrowed = new BorrowedGlobals();
+  const RATE = 1000;
+  let started: { when: number; offset: number | undefined; frames: number }[];
+
+  class FakeAudioContext {
+    static latest: FakeAudioContext | null = null;
+    currentTime = 0;
+    constructor() {
+      FakeAudioContext.latest = this;
+    }
+    createMediaStreamDestination() {
+      return { stream: fakeStream() };
+    }
+    createBuffer(_channels: number, frames: number, rate: number) {
+      return { length: frames, duration: frames / rate, copyToChannel: () => undefined };
+    }
+    createBufferSource() {
+      const source = {
+        buffer: null as { length: number } | null,
+        connect: () => undefined,
+        start: (when: number, offset?: number) => started.push({ when, offset, frames: source.buffer?.length ?? 0 }),
+        stop: () => undefined,
+      };
+      return source;
+    }
+    close() {
+      return Promise.resolve();
+    }
+  }
+
+  beforeEach(() => {
+    started = [];
+    borrowed.lend('AudioContext', FakeAudioContext);
+  });
+
+  afterEach(() => borrowed.giveBack());
+
+  function slowSound(seconds: number, readMs: number): VideoSoundSource {
+    return {
+      sampleRate: RATE,
+      numberOfChannels: 1,
+      length: seconds * RATE,
+      read: (start, count) =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve([new Float32Array(Math.min(count, seconds * RATE - start))]), readMs)
+        ),
+    };
+  }
+
+  it('reads the first seconds before its clock starts, so the start is on time however long mixing takes', async () => {
+    vi.useFakeTimers();
+    try {
+      const track = soundTrackOf(slowSound(20, 500))!;
+      const primed = track.prime();
+      await vi.advanceTimersByTimeAsync(2000);
+      await primed;
+      FakeAudioContext.latest!.currentTime = 4;
+
+      track.start();
+
+      expect(started[0]).toEqual({
+        when: 4 + SOUND_START_LEAD_SECONDS,
+        offset: undefined,
+        frames: SOUND_STRETCH_SECONDS * RATE,
+      });
+      expect(started[1].when).toBeCloseTo(4 + SOUND_START_LEAD_SECONDS + SOUND_STRETCH_SECONDS);
+      track.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('starts a stretch that comes late part way in, rather than late and over the next', async () => {
+    vi.useFakeTimers();
+    try {
+      const track = soundTrackOf(slowSound(20, 10))!;
+      const primed = track.prime();
+      await vi.advanceTimersByTimeAsync(100);
+      await primed;
+      track.start();
+      const scheduled = started.length;
+      const due = SOUND_START_LEAD_SECONDS + scheduled * SOUND_STRETCH_SECONDS;
+      FakeAudioContext.latest!.currentTime = due + 1;
+
+      await vi.advanceTimersByTimeAsync(1100);
+
+      const late = started[scheduled];
+      expect(late.when).toBe(due + 1);
+      expect(late.offset).toBeCloseTo(1);
+      track.stop();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

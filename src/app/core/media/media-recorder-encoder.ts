@@ -37,22 +37,32 @@ export function extensionOfMediaType(type: string): string {
   return type.startsWith('video/mp4') ? 'mp4' : 'webm';
 }
 
-interface SoundTrack {
+/** The sound of a recording made in real time, played into it as it runs. */
+export interface SoundTrack {
   stream: MediaStream;
+  /** Reads the first seconds of the sound, so it can start on time; the recording waits for it. */
+  prime(): Promise<void>;
+  /** Starts the sound's clock and plays it from the start. */
   start(): void;
   stop(): void;
 }
 
 /** How far ahead of the clock the sound is kept queued, in seconds. */
-const SOUND_AHEAD_SECONDS = 6;
+export const SOUND_AHEAD_SECONDS = 6;
 /** How much sound is queued at a time, in seconds. */
-const SOUND_STRETCH_SECONDS = 3;
+export const SOUND_STRETCH_SECONDS = 3;
+/** How long after the clock starts the sound begins, to give the first stretch time to be queued. */
+export const SOUND_START_LEAD_SECONDS = 0.05;
 
 /**
  * The sound played into the recording as it runs, a few seconds at a time and a few seconds ahead,
  * so a long one is never held whole in memory.
+ *
+ * The first seconds are read before the clock starts, since mixing a stretch can take longer than
+ * the moment the clock gives it. A stretch that is late all the same starts part way in, where the
+ * clock has got to, rather than late and over the one after it.
  */
-function soundTrackOf(audio: VideoSoundSource | null | undefined): SoundTrack | null {
+export function soundTrackOf(audio: VideoSoundSource | null | undefined): SoundTrack | null {
   if (!audio || audio.numberOfChannels < 1 || audio.length < 1 || typeof AudioContext === 'undefined') return null;
 
   try {
@@ -60,30 +70,44 @@ function soundTrackOf(audio: VideoSoundSource | null | undefined): SoundTrack | 
     const destination = context.createMediaStreamDestination();
     const stretch = Math.round(SOUND_STRETCH_SECONDS * audio.sampleRate);
     const sources: AudioBufferSourceNode[] = [];
+    const early: { buffer: AudioBuffer; at: number }[] = [];
     let queued = 0;
     let startedAt = 0;
+    let started = false;
     let timer: ReturnType<typeof setInterval> | null = null;
     let topping = false;
 
-    const topUp = async (): Promise<void> => {
+    const schedule = (buffer: AudioBuffer, at: number): void => {
+      const when = startedAt + at / audio.sampleRate;
+      const late = context.currentTime - when;
+      if (late >= buffer.duration) return;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(destination);
+      if (late > 0) source.start(context.currentTime, late);
+      else source.start(when);
+      sources.push(source);
+    };
+
+    const readNext = async (): Promise<boolean> => {
+      const channels = await audio.read(queued, stretch);
+      const frames = channels[0]?.length ?? 0;
+      if (frames < 1) return false;
+      const buffer = context.createBuffer(audio.numberOfChannels, frames, audio.sampleRate);
+      channels.forEach((samples, index) => buffer.copyToChannel(new Float32Array(samples), index));
+      const at = queued;
+      queued += frames;
+      if (started) schedule(buffer, at);
+      else early.push({ buffer, at });
+      return true;
+    };
+
+    const fill = async (until: () => number): Promise<void> => {
       if (topping) return;
       topping = true;
       try {
-        while (
-          queued < audio.length &&
-          queued / audio.sampleRate < context.currentTime - startedAt + SOUND_AHEAD_SECONDS
-        ) {
-          const channels = await audio.read(queued, stretch);
-          const frames = channels[0]?.length ?? 0;
-          if (frames < 1) break;
-          const buffer = context.createBuffer(audio.numberOfChannels, frames, audio.sampleRate);
-          channels.forEach((samples, index) => buffer.copyToChannel(new Float32Array(samples), index));
-          const source = context.createBufferSource();
-          source.buffer = buffer;
-          source.connect(destination);
-          source.start(startedAt + queued / audio.sampleRate);
-          sources.push(source);
-          queued += frames;
+        while (queued < audio.length && queued / audio.sampleRate < until()) {
+          if (!(await readNext())) break;
         }
       } catch (reason) {
         Logger.warn('[MediaRecorder] 音を読めませんでした', reason);
@@ -94,10 +118,14 @@ function soundTrackOf(audio: VideoSoundSource | null | undefined): SoundTrack | 
 
     return {
       stream: destination.stream,
+      prime: () => fill(() => SOUND_AHEAD_SECONDS),
       start: () => {
-        startedAt = context.currentTime + 0.1;
-        void topUp();
-        timer = setInterval(() => void topUp(), 1000);
+        started = true;
+        startedAt = context.currentTime + SOUND_START_LEAD_SECONDS;
+        for (const { buffer, at } of early.splice(0)) schedule(buffer, at);
+        const ahead = () => context.currentTime - startedAt + SOUND_AHEAD_SECONDS;
+        void fill(ahead);
+        timer = setInterval(() => void fill(ahead), 1000);
       },
       stop: () => {
         if (timer) clearInterval(timer);
@@ -143,6 +171,7 @@ export async function recordVideo(request: VideoEncodeRequest): Promise<EncodedV
   const msPerFrame = 1000 / request.fps;
 
   try {
+    await sound?.prime();
     recorder.start();
     sound?.start();
 
