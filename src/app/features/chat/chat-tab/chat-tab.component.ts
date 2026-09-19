@@ -34,6 +34,7 @@ import {
   findDisplayableTopIndex,
   getBoundedScrollPosition,
   MAX_RESTING_RENDERED_ROWS,
+  restsAtBottom,
   ScrollPosition,
   shouldTrimRenderedRange,
 } from '@axe/features/chat/chat-tab/chat-tab-scroll-helpers';
@@ -107,7 +108,9 @@ export class ChatTabComponent {
       const newLastIndex = this.chatTab.chatMessages.length - 1;
       if (this.bottomIndex >= newLastIndex - 1) {
         this.bottomIndex = newLastIndex;
-        this.topIndex = Math.max(this.topIndex, newLastIndex - MAX_RESTING_RENDERED_ROWS + 1);
+        if (this.isRestingAtBottom()) {
+          this.topIndex = Math.max(this.topIndex, newLastIndex - MAX_RESTING_RENDERED_ROWS + 1);
+        }
       }
       this.renderVersion.update((v) => v + 1);
       this.needUpdate = true;
@@ -312,6 +315,18 @@ export class ChatTabComponent {
    * line that arrives in the document. Once the reader rests at the bottom the lines are cut back
    * to what fills the panel, the way a jump to the bottom does.
    */
+  /**
+   * Whether the reader is at the very bottom of the log, where the lines far above can go without
+   * anything on the screen moving. On iOS the lines drawn only ever grow, so reaching the last one
+   * says nothing of where the reader is.
+   */
+  private isRestingAtBottom(): boolean {
+    const panel = this.panelService.scrollablePanel;
+    if (!panel) return false;
+    const position = getBoundedScrollPosition(panel);
+    return restsAtBottom(position.scrollHeight - position.bottom);
+  }
+
   private trimRenderedRangeOnIOS() {
     const panel = this.panelService.scrollablePanel;
     if (!this.isIOS || !this.chatTab || !panel) return;

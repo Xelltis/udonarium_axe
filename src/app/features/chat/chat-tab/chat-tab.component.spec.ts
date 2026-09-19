@@ -281,6 +281,19 @@ describe('ChatTabComponent', () => {
         expect(ios().bottomIndex - ios().topIndex + 1).toBeLessThanOrEqual(150);
       });
 
+      it('keeps the lines a reader scrolled far up is reading when a new one arrives', () => {
+        renderEveryLineOf(300);
+        Object.defineProperty(panelService.scrollablePanel!, 'scrollHeight', { value: 20000 });
+        const message = new ChatMessage();
+        message.initialize();
+        chatTab.appendChild(message);
+
+        emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: message.identifier });
+
+        expect(ios().topIndex).toBe(0);
+        expect(ios().bottomIndex).toBe(300);
+      });
+
       it('keeps them for a reader scrolled away from the bottom', () => {
         renderEveryLineOf(300);
         Object.defineProperty(panelService.scrollablePanel!, 'scrollHeight', { value: 20000 });
