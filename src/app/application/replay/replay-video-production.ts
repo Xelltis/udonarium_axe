@@ -69,6 +69,11 @@ export interface ReplayVideoProductionInput {
   onImageLoaded?: () => void;
   /** The timeline already laid out, as a worker is handed it; laid out afresh when absent. */
   timeline?: ReplayVideoTimeline;
+  /**
+   * Whether the bundled fonts were loaded when the text was laid out, so whatever draws it later
+   * sets it in the same fonts. Taken as loaded when not said.
+   */
+  bundledFonts?: boolean;
 }
 
 /**
@@ -89,6 +94,8 @@ export interface ReplayVideoShared {
   readingSpeed: number;
   opening: { title: string; subtitle: string } | null;
   timeline: ReplayVideoTimeline;
+  /** Whether the text was laid out in the bundled fonts, which a worker then has to draw it in too. */
+  bundledFonts: boolean;
 }
 
 const CHECKPOINT_EVERY = 400;
@@ -169,6 +176,7 @@ export class ReplayVideoProduction {
   share(): ReplayVideoShared {
     const { events, manifest, base, viewer, text, width, height, style, pacing, readingSpeed, opening } = this.input;
     return {
+      bundledFonts: this.input.bundledFonts ?? true,
       events,
       manifest,
       base,

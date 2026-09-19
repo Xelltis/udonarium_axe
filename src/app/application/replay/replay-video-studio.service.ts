@@ -78,12 +78,15 @@ export class ReplayVideoStudioService {
     settings: ReplayVideoSettings,
     onImageLoaded?: () => void
   ): Promise<ReplayVideoProduction> {
-    const [base, text] = await Promise.all([
+    const [base, text, bundledFonts] = await Promise.all([
       this.baseBoardOf(recording.id, recording.events),
       this.textFor(settings.lang),
       loadReplayFonts(),
     ]);
-    return new ReplayVideoProduction(this.inputOf(recording, settings, base, text, onImageLoaded));
+    return new ReplayVideoProduction({
+      ...this.inputOf(recording, settings, base, text, onImageLoaded),
+      bundledFonts,
+    });
   }
 
   /**

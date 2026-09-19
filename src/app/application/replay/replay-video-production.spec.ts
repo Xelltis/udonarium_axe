@@ -55,7 +55,10 @@ function said(seq: number, text: string): ReplayEvent {
   };
 }
 
-function productionOf(events: readonly ReplayEvent[]): ReplayVideoProduction {
+function productionOf(
+  events: readonly ReplayEvent[],
+  overrides: Partial<ConstructorParameters<typeof ReplayVideoProduction>[0]> = {}
+): ReplayVideoProduction {
   return new ReplayVideoProduction({
     events,
     manifest: null,
@@ -71,6 +74,7 @@ function productionOf(events: readonly ReplayEvent[]): ReplayVideoProduction {
     opening: null,
     images: { get: () => null },
     measureWith: () => (text) => [...text].length * 30,
+    ...overrides,
   });
 }
 
@@ -125,6 +129,12 @@ describe('ReplayVideoProduction', () => {
       copy.paint(b.ctx, at);
       expect(b.texts).toEqual(a.texts);
     }
+  });
+
+  it('tells a worker whether the text was laid out in the bundled fonts', () => {
+    expect(productionOf(events.slice(0, 3)).share().bundledFonts).toBe(true);
+
+    expect(productionOf(events.slice(0, 3), { bundledFonts: false }).share().bundledFonts).toBe(false);
   });
 
   it('is ready at once for a moment with no pictures to wait for', async () => {

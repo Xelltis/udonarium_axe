@@ -23,7 +23,8 @@ const loaded = new WeakMap<object, Promise<boolean>>();
  * Loads the faces replay videos are set in, once for each place they are added to, so a video reads
  * the same whatever fonts the device has. They are not part of the app's first load; they are
  * fetched the first time a video is previewed or made. Answers false where fonts cannot be added or
- * a face fails to load, and the video falls back to the device's own fonts.
+ * a face fails to load, and the video falls back to the device's own fonts; a load that failed is
+ * tried again the next time, rather than leaving the rest of the session on the device's fonts.
  */
 export function loadReplayFonts(host: ReplayFontHost = pageFontHost(), baseUrl = pageBaseUrl()): Promise<boolean> {
   const { fonts, FontFace: Face } = host;
@@ -41,7 +42,10 @@ export function loadReplayFonts(host: ReplayFontHost = pageFontHost(), baseUrl =
     })
   ).then(
     () => true,
-    () => false
+    () => {
+      loaded.delete(fonts);
+      return false;
+    }
   );
   loaded.set(fonts, loading);
   return loading;

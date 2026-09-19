@@ -53,6 +53,28 @@ describe('loading the fonts of replay videos', () => {
     expect(await loadReplayFonts(host(true).host, 'https://example.test/')).toBe(false);
   });
 
+  it('tries again after a face failed to load, rather than keeping to the device fonts from then on', async () => {
+    let failing = true;
+    const added: string[] = [];
+    class FlakyFontFace {
+      constructor(readonly family: string) {}
+      async load() {
+        if (failing) throw new Error('offline');
+        return this;
+      }
+    }
+    const page = {
+      fonts: { add: (face: FlakyFontFace) => added.push(face.family) },
+      FontFace: FlakyFontFace,
+    } as unknown as ReplayFontHost;
+
+    expect(await loadReplayFonts(page, 'https://example.test/')).toBe(false);
+    failing = false;
+
+    expect(await loadReplayFonts(page, 'https://example.test/')).toBe(true);
+    expect(added).toHaveLength(REPLAY_FONT_FACES.length);
+  });
+
   it('answers false where fonts cannot be added at all', async () => {
     expect(await loadReplayFonts({ fonts: undefined, FontFace: undefined })).toBe(false);
   });

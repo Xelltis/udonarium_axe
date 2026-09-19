@@ -50,13 +50,17 @@ function ask(
  * background does not slow the export down. The pictures and the sound are asked of the page as
  * they are wanted.
  *
- * The subtitles were laid out on the page in the bundled fonts. A worker that cannot load them
- * would draw in others that run wider or narrower, so it fails before its first frame and the page
- * makes the video instead.
+ * The worker sets the text in the fonts the page laid it out in. Where the page had the bundled
+ * fonts, a worker that cannot load them would draw in others that run wider or narrower, so it
+ * fails before its first frame and the page makes the video instead. Where the page was left with
+ * the device's fonts, the worker keeps to them as well.
  */
 async function run(job: ReplayVideoWorkerJob): Promise<void> {
   try {
-    if (!(await loadReplayFonts({ fonts: scope.fonts, FontFace: scope.FontFace }, job.baseUrl))) {
+    if (
+      job.shared.bundledFonts &&
+      !(await loadReplayFonts({ fonts: scope.fonts, FontFace: scope.FontFace }, job.baseUrl))
+    ) {
       throw new Error('the bundled fonts could not be loaded in the worker');
     }
     const production = ReplayVideoProduction.fromShared(job.shared, {
