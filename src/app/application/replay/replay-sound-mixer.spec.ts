@@ -21,16 +21,21 @@ let started: StartedSource[];
 let limiter: { threshold: number; ratio: number; into: unknown; fed: number } | null;
 let decoded: string[];
 let decodeFails: string[];
+/** Ten seconds at 48 kHz, as every stand-in sound decodes to. */
+const DECODED_FRAMES = 480_000;
+const ONE_SOUND_BYTES = DECODED_FRAMES * 2 * 4;
 
 class FakeOfflineAudioContext {
   readonly destination = {};
   constructor(readonly options: { numberOfChannels: number; sampleRate: number; length: number }) {}
 
-  async decodeAudioData(data: ArrayBuffer): Promise<{ duration: number; name: string }> {
+  async decodeAudioData(
+    data: ArrayBuffer
+  ): Promise<{ duration: number; name: string; length: number; numberOfChannels: number }> {
     const name = new TextDecoder().decode(data);
     if (decodeFails.includes(name)) throw new Error('壊れている');
     decoded.push(name);
-    return { duration: 10, name };
+    return { duration: 10, name, length: DECODED_FRAMES, numberOfChannels: 2 };
   }
 
   createBufferSource() {
@@ -229,6 +234,52 @@ describe('mixReplaySoundtrack()', () => {
     await mixed!.read(4 * 48_000, 48_000);
 
     expect(started[0]).toMatchObject({ buffer: 'bgm-1', startedAt: 0, offset: 3, duration: 2, loop: true });
+  });
+
+  describe('holding decoded sound', () => {
+    const music = (identifier: string, startMs: number, endMs: number) => ({
+      ...abgm(startMs, endMs, 0),
+      audioIdentifier: identifier,
+    });
+    const soundtrack = track({
+      totalMs: 30_000,
+      music: [music('bgm-a', 0, 10_000), music('bgm-b', 10_000, 20_000), music('bgm-a', 20_000, 30_000)],
+    });
+
+    async function readInStretches(mixed: Awaited<ReturnType<typeof mixReplaySoundtrack>>): Promise<void> {
+      for (let start = 0; start < mixed!.length; start += 5 * 48_000) await mixed!.read(start, 5 * 48_000);
+    }
+
+    it('decodes each sound once where there is room for them all', async () => {
+      await readInStretches(await mixReplaySoundtrack(soundtrack, read));
+
+      expect(decoded).toEqual(['bgm-a', 'bgm-b']);
+    });
+
+    it('lets go of music it has moved past, and decodes it again when it returns', async () => {
+      const mixed = await mixReplaySoundtrack(soundtrack, read, ONE_SOUND_BYTES);
+      decoded = [];
+      await readInStretches(mixed);
+
+      expect(decoded).toEqual(['bgm-a', 'bgm-b', 'bgm-a']);
+    });
+
+    it('keeps every sound a stretch needs, whatever the budget', async () => {
+      const mixed = await mixReplaySoundtrack(soundtrack, read, 1);
+      started = [];
+      await mixed!.read(9 * 48_000, 2 * 48_000);
+
+      expect(started.map((one) => one.buffer)).toEqual(['bgm-a', 'bgm-b']);
+    });
+
+    it('holds on to what the next stretch still needs rather than decoding it again', async () => {
+      const together = track({ totalMs: 20_000, music: [music('bgm-a', 0, 20_000), music('bgm-b', 0, 20_000)] });
+      const mixed = await mixReplaySoundtrack(together, read, 1);
+      decoded = [];
+      await readInStretches(mixed);
+
+      expect(decoded).toEqual(['bgm-a']);
+    });
   });
 
   it('leaves out of a stretch the sounds that have finished before it', async () => {
