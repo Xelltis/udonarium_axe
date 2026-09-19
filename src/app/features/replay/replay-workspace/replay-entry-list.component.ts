@@ -152,6 +152,11 @@ export class ReplayEntryListComponent {
   /** The rows with the board events between the lines of the story folded, as the list shows them. */
   protected readonly items = computed<ReplayListItem[]>(() => foldReplayRows(this.rows(), this.openGroups()));
 
+  /** The rows on show, leaving out those inside a run that is folded, which a range must not reach into. */
+  private readonly shownRows = computed<ReplayEntryRow[]>(() =>
+    this.items().flatMap((item) => (item.kind === 'row' ? [item.row] : []))
+  );
+
   protected readonly itemKey = (item: ReplayListItem): string => item.key;
 
   /** Where written or recorded entries go: after the last row chosen, or at the end. */
@@ -262,7 +267,7 @@ export class ReplayEntryListComponent {
       await this.playback.seekTo(row.index);
       return;
     }
-    const picked = pickReplayRows(this.chosen(), this.anchor, this.rows(), row.seq, {
+    const picked = pickReplayRows(this.chosen(), this.anchor, this.shownRows(), row.seq, {
       toggle: event.ctrlKey || event.metaKey,
       range: event.shiftKey,
     });

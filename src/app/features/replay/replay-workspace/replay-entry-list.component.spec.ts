@@ -323,6 +323,26 @@ describe('editing the list by choosing rows', () => {
     expect(rowElements().map((row) => row.getAttribute('aria-selected'))).toEqual(['true', 'true', 'true']);
   });
 
+  it('leaves the rows of a folded run out of a range, so they are not removed unseen', () => {
+    press(rowElements()[0]);
+    press(rowElements()[2], { shiftKey: true });
+
+    key({ key: 'Delete' });
+
+    expect([...removeMany.mock.calls[0][0]].sort()).toEqual([1, 4, 5]);
+  });
+
+  it('reaches into a run that is open', () => {
+    (fixture.nativeElement.querySelector('button[aria-expanded="false"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    press(rowElements()[0]);
+    press(rowElements()[4], { shiftKey: true });
+
+    key({ key: 'Delete' });
+
+    expect([...removeMany.mock.calls[0][0]].sort()).toEqual([1, 2, 3, 4, 5]);
+  });
+
   it('removes every row chosen on Delete, as one change', () => {
     press(rowElements()[1]);
     press(rowElements()[2], { ctrlKey: true });
