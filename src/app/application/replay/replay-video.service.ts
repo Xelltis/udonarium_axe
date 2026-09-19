@@ -7,7 +7,7 @@ import {
   ReplayVideoStudioService,
 } from '@axe/application/replay/replay-video-studio.service';
 import { Logger } from '@axe/core/logging/logger';
-import { type EncodedAudio, VideoEncoderGateway } from '@axe/core/media/video-encoder';
+import { VideoEncoderGateway, type VideoSoundSource } from '@axe/core/media/video-encoder';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { replayArchiveName } from '@axe/domain/replay/replay-archive';
 import type { ReplayEvent } from '@axe/domain/replay/replay-event';
@@ -151,7 +151,7 @@ export class ReplayVideoService {
     events: readonly ReplayEvent[],
     timeline: ReplayVideoTimeline,
     choice: ReplaySoundChoice = DEFAULT_REPLAY_SOUND_CHOICE
-  ): Promise<EncodedAudio | null | false> {
+  ): Promise<VideoSoundSource | null | false> {
     const soundtrack = clipReplaySoundtrack(buildReplaySoundtrack(events, timeline, choice), timeline.totalMs);
     if (!hasReplaySound(soundtrack)) return null;
     try {

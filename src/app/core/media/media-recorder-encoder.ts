@@ -1,5 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
-import type { EncodedAudio, EncodedVideo, VideoEncodeRequest } from '@axe/core/media/video-encoder';
+import type { EncodedVideo, VideoEncodeRequest, VideoSoundSource } from '@axe/core/media/video-encoder';
 
 /**
  * Exporting for a browser without WebCodecs.
@@ -43,24 +43,65 @@ interface SoundTrack {
   stop(): void;
 }
 
-function soundTrackOf(audio: EncodedAudio | null | undefined): SoundTrack | null {
-  if (!audio || audio.channels.length < 1 || typeof AudioContext === 'undefined') return null;
+/** How far ahead of the clock the sound is kept queued, in seconds. */
+const SOUND_AHEAD_SECONDS = 6;
+/** How much sound is queued at a time, in seconds. */
+const SOUND_STRETCH_SECONDS = 3;
+
+/**
+ * The sound played into the recording as it runs, a few seconds at a time and a few seconds ahead,
+ * so a long one is never held whole in memory.
+ */
+function soundTrackOf(audio: VideoSoundSource | null | undefined): SoundTrack | null {
+  if (!audio || audio.numberOfChannels < 1 || audio.length < 1 || typeof AudioContext === 'undefined') return null;
 
   try {
     const context = new AudioContext({ sampleRate: audio.sampleRate });
-    const buffer = context.createBuffer(audio.channels.length, audio.channels[0].length, audio.sampleRate);
-    for (const [index, samples] of audio.channels.entries()) buffer.copyToChannel(new Float32Array(samples), index);
-
     const destination = context.createMediaStreamDestination();
-    const source = context.createBufferSource();
-    source.buffer = buffer;
-    source.connect(destination);
+    const stretch = Math.round(SOUND_STRETCH_SECONDS * audio.sampleRate);
+    const sources: AudioBufferSourceNode[] = [];
+    let queued = 0;
+    let startedAt = 0;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let topping = false;
+
+    const topUp = async (): Promise<void> => {
+      if (topping) return;
+      topping = true;
+      try {
+        while (
+          queued < audio.length &&
+          queued / audio.sampleRate < context.currentTime - startedAt + SOUND_AHEAD_SECONDS
+        ) {
+          const channels = await audio.read(queued, stretch);
+          const frames = channels[0]?.length ?? 0;
+          if (frames < 1) break;
+          const buffer = context.createBuffer(audio.numberOfChannels, frames, audio.sampleRate);
+          channels.forEach((samples, index) => buffer.copyToChannel(new Float32Array(samples), index));
+          const source = context.createBufferSource();
+          source.buffer = buffer;
+          source.connect(destination);
+          source.start(startedAt + queued / audio.sampleRate);
+          sources.push(source);
+          queued += frames;
+        }
+      } catch (reason) {
+        Logger.warn('[MediaRecorder] 音を読めませんでした', reason);
+      } finally {
+        topping = false;
+      }
+    };
 
     return {
       stream: destination.stream,
-      start: () => source.start(),
+      start: () => {
+        startedAt = context.currentTime + 0.1;
+        void topUp();
+        timer = setInterval(() => void topUp(), 1000);
+      },
       stop: () => {
-        source.stop();
+        if (timer) clearInterval(timer);
+        for (const source of sources) source.stop();
         void context.close();
       },
     };

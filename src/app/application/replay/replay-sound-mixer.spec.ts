@@ -113,6 +113,13 @@ const read = async (identifier: string): Promise<ArrayBuffer | null> => {
   return new TextEncoder().encode(identifier).buffer as ArrayBuffer;
 };
 
+/** Mixes a soundtrack and reads the whole of it, the way a short video does. */
+async function mixAll(soundtrack: ReplaySoundtrack) {
+  const mixed = await mixReplaySoundtrack(soundtrack, read);
+  if (mixed) await mixed.read(0, mixed.length);
+  return mixed;
+}
+
 describe('mixReplaySoundtrack()', () => {
   const borrowed = new BorrowedGlobals();
 
@@ -141,7 +148,7 @@ describe('mixReplaySoundtrack()', () => {
   });
 
   it('places each sound at its own moment', async () => {
-    await mixReplaySoundtrack(track({ effects: [ase(2500)] }), read);
+    await mixAll(track({ effects: [ase(2500)] }));
 
     expect(started).toEqual([
       { buffer: 'se-1', startedAt: 2.5, offset: 0, duration: undefined, loop: false, gain: 0.9 },
@@ -149,26 +156,25 @@ describe('mixReplaySoundtrack()', () => {
   });
 
   it('loops the music for as long as its stretch lasts', async () => {
-    await mixReplaySoundtrack(track({ music: [abgm(1000, 6000, 12_000)] }), read);
+    await mixAll(track({ music: [abgm(1000, 6000, 12_000)] }));
 
     expect(started[0]).toMatchObject({ buffer: 'bgm-1', startedAt: 1, duration: 5, loop: true });
   });
 
   it('wraps a start point past the end of the track', async () => {
-    await mixReplaySoundtrack(track({ music: [abgm(0, 5000, 12_000)] }), read);
+    await mixAll(track({ music: [abgm(0, 5000, 12_000)] }));
     expect(started[0].offset).toBe(2);
   });
 
   it('loads the same sound once', async () => {
-    await mixReplaySoundtrack(track({ effects: [ase(0), ase(1000), ase(2000)] }), read);
+    await mixAll(track({ effects: [ase(0), ase(1000), ase(2000)] }));
     expect(decoded).toEqual(['se-1']);
   });
 
   it('mixes the rest past a sound it cannot read', async () => {
     decodeFails = ['bgm-1'];
-    const mixed = await mixReplaySoundtrack(
-      track({ effects: [ase(0)], music: [{ ...abgm(0, 5000, 0), audioIdentifier: 'bgm-1' }] }),
-      read
+    const mixed = await mixAll(
+      track({ effects: [ase(0)], music: [{ ...abgm(0, 5000, 0), audioIdentifier: 'bgm-1' }] })
     );
 
     expect(started.map((one) => one.buffer)).toEqual(['se-1']);
@@ -180,12 +186,11 @@ describe('mixReplaySoundtrack()', () => {
   });
 
   it('holds the whole mix under full scale so nothing clips', async () => {
-    await mixReplaySoundtrack(
+    await mixAll(
       track({
         effects: [{ audioIdentifier: 'se', startMs: 0, offsetMs: 0, gain: 0.9 }],
         music: [{ audioIdentifier: 'bgm', startMs: 0, offsetMs: 0, gain: 0.45, endMs: 5000, fadeMs: 0 }],
-      }),
-      read
+      })
     );
 
     expect(limiter).toMatchObject({ threshold: REPLAY_LIMIT_DB, ratio: 20, fed: 2 });
@@ -193,12 +198,44 @@ describe('mixReplaySoundtrack()', () => {
     expect(REPLAY_LIMIT_DB).toBeLessThan(0);
   });
 
-  it('returns a waveform as long as the video', async () => {
+  it('hands over a track as long as the video, a stretch at a time', async () => {
     const mixed = await mixReplaySoundtrack(track({ effects: [ase(0)], totalMs: 2000 }), read);
 
-    expect(mixed?.sampleRate).toBe(48_000);
-    expect(mixed?.channels).toHaveLength(2);
-    expect(mixed?.channels[0].length).toBe(96_000);
+    expect(mixed).toMatchObject({ sampleRate: 48_000, numberOfChannels: 2, length: 96_000 });
+    const stretch = await mixed!.read(48_000, 30_000);
+    expect(stretch).toHaveLength(2);
+    expect(stretch[0].length).toBe(30_000);
+    expect((await mixed!.read(90_000, 30_000))[0].length).toBe(6_000);
+  });
+
+  it('places a sound within the stretch it falls in', async () => {
+    const mixed = await mixReplaySoundtrack(track({ effects: [ase(2500)] }), read);
+    await mixed!.read(2 * 48_000, 48_000);
+
+    expect(started).toEqual([
+      { buffer: 'se-1', startedAt: 1.5, offset: 0, duration: undefined, loop: false, gain: 0.9 },
+    ]);
+  });
+
+  it('picks up a sound already playing from where it had got to', async () => {
+    const mixed = await mixReplaySoundtrack(track({ effects: [ase(500)] }), read);
+    await mixed!.read(3 * 48_000, 48_000);
+
+    expect(started[0]).toMatchObject({ startedAt: 0, offset: 1.5 });
+  });
+
+  it('picks the music up mid-loop in a later stretch', async () => {
+    const mixed = await mixReplaySoundtrack(track({ music: [abgm(0, 9000, 0)] }), read);
+    await mixed!.read(4 * 48_000, 48_000);
+
+    expect(started[0]).toMatchObject({ buffer: 'bgm-1', startedAt: 0, offset: 3, duration: 2, loop: true });
+  });
+
+  it('leaves out of a stretch the sounds that have finished before it', async () => {
+    const mixed = await mixReplaySoundtrack(track({ effects: [ase(0)], totalMs: 60_000 }), read);
+    await mixed!.read(30 * 48_000, 48_000);
+
+    expect(started).toEqual([]);
   });
 });
 

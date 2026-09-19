@@ -4,9 +4,28 @@ import { downloadBlob } from '@axe/core/util/download-blob';
 
 export type VideoPaintTarget = OffscreenCanvasRenderingContext2D;
 
-export interface EncodedAudio {
+/**
+ * The sound of a video, handed over a stretch at a time, so a long one is never held whole in
+ * memory.
+ */
+export interface VideoSoundSource {
   sampleRate: number;
-  channels: readonly Float32Array[];
+  numberOfChannels: number;
+  /** How many frames of sound there are in all. */
+  length: number;
+  /** The frames from `start`, `count` of them or as many as are left, one array to each channel. */
+  read(start: number, count: number): Promise<Float32Array[]>;
+}
+
+/** A sound already whole in memory, handed over a stretch at a time like any other. */
+export function soundOfChannels(sampleRate: number, channels: readonly Float32Array[]): VideoSoundSource {
+  const length = channels[0]?.length ?? 0;
+  return {
+    sampleRate,
+    numberOfChannels: channels.length,
+    length,
+    read: async (start, count) => channels.map((samples) => samples.subarray(start, Math.min(length, start + count))),
+  };
 }
 
 export interface VideoEncodeRequest {
@@ -15,7 +34,7 @@ export interface VideoEncodeRequest {
   fps: number;
   frameCount: number;
   bitrate?: number;
-  audio?: EncodedAudio | null;
+  audio?: VideoSoundSource | null;
   /** Where to write. Given one, the bytes go straight there rather than through memory. */
   file?: FileSystemFileHandle | null;
   paint(ctx: VideoPaintTarget, frameIndex: number): void | Promise<void>;
@@ -53,7 +72,9 @@ export function isAudioEncodingSupported(): boolean {
 }
 
 /** Whichever of aac and opus this browser can encode, or null for neither. */
-export async function audioCodecFor(sound: EncodedAudio): Promise<{ codec: 'aac' | 'opus'; webCodec: string } | null> {
+export async function audioCodecFor(
+  sound: VideoSoundSource
+): Promise<{ codec: 'aac' | 'opus'; webCodec: string } | null> {
   if (!isAudioEncodingSupported()) return null;
   // With nothing to ask, there is no way to find out, so aac is tried as before.
   if (typeof AudioEncoder.isConfigSupported !== 'function') return { codec: 'aac', webCodec: 'mp4a.40.2' };
@@ -66,7 +87,7 @@ export async function audioCodecFor(sound: EncodedAudio): Promise<{ codec: 'aac'
     try {
       const support = await AudioEncoder.isConfigSupported({
         codec: candidate.webCodec,
-        numberOfChannels: sound.channels.length,
+        numberOfChannels: sound.numberOfChannels,
         sampleRate: sound.sampleRate,
         bitrate: AUDIO_BITRATE,
       });
@@ -176,7 +197,7 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
   if (!ctx) return null;
 
   const { ArrayBufferTarget, FileSystemWritableFileStreamTarget, Muxer, StreamTarget } = await import('mp4-muxer');
-  const sound = request.audio && request.audio.channels.length > 0 ? request.audio : null;
+  const sound = request.audio && request.audio.numberOfChannels > 0 && request.audio.length > 0 ? request.audio : null;
   const soundCodec = sound ? await audioCodecFor(sound) : null;
   const bitrate = request.bitrate ?? defaultVideoBitrate(request.width, request.height, request.fps);
 
@@ -198,7 +219,7 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
     video: { codec: 'avc', width: request.width, height: request.height, frameRate: request.fps },
     audio:
       sound && soundCodec
-        ? { codec: soundCodec.codec, numberOfChannels: sound.channels.length, sampleRate: sound.sampleRate }
+        ? { codec: soundCodec.codec, numberOfChannels: sound.numberOfChannels, sampleRate: sound.sampleRate }
         : undefined,
     fastStart: streaming ? 'fragmented' : 'in-memory',
   });
@@ -295,14 +316,18 @@ async function drain(encoder: VideoEncoder): Promise<void> {
   }
 }
 
+/** How much sound is read from the source at a time: five seconds at 48 kHz. */
+export const SOUND_READ_FRAMES = 240_000;
+
 /**
  * Encodes the sound a stretch at a time as the picture goes, so the two travel through the file
- * together and neither waits in memory for the other. Only whole frames of sound are encoded
- * along the way; the last, shorter one goes when the picture is done.
+ * together and neither waits in memory for the other. The sound is read from its source a few
+ * seconds at a time as it is needed. Only whole frames of sound are encoded along the way; the last,
+ * shorter one goes when the picture is done.
  */
 function soundPump(
   muxer: { addAudioChunk(chunk: EncodedAudioChunk, meta?: EncodedAudioChunkMetadata): void },
-  sound: EncodedAudio,
+  sound: VideoSoundSource,
   webCodec: string
 ) {
   let failure: unknown = null;
@@ -314,26 +339,41 @@ function soundPump(
   });
   encoder.configure({
     codec: webCodec,
-    numberOfChannels: sound.channels.length,
+    numberOfChannels: sound.numberOfChannels,
     sampleRate: sound.sampleRate,
     bitrate: AUDIO_BITRATE,
   });
 
-  const total = sound.channels[0].length;
-  const planar = new Float32Array(AUDIO_FRAME_SAMPLES * sound.channels.length);
+  const total = sound.length;
+  const channels = sound.numberOfChannels;
+  const planar = new Float32Array(AUDIO_FRAME_SAMPLES * channels);
   let offset = 0;
+  let held: { start: number; samples: Float32Array[] } = { start: 0, samples: [] };
 
-  const encodeNext = (count: number): void => {
-    for (const [channel, samples] of sound.channels.entries()) {
-      planar.set(samples.subarray(offset, offset + count), channel * count);
+  const heldLength = () => held.samples[0]?.length ?? 0;
+  const ensure = async (upto: number): Promise<void> => {
+    if (upto <= held.start + heldLength()) return;
+    const start = offset;
+    const samples = await sound.read(start, Math.max(SOUND_READ_FRAMES, upto - start));
+    held = { start, samples };
+  };
+
+  const encodeNext = async (count: number): Promise<void> => {
+    await ensure(offset + count);
+    const from = offset - held.start;
+    for (let channel = 0; channel < channels; channel += 1) {
+      const samples = held.samples[channel] ?? new Float32Array(0);
+      const part = samples.subarray(from, from + count);
+      planar.fill(0, channel * count, (channel + 1) * count);
+      planar.set(part, channel * count);
     }
     const data = new AudioData({
       format: 'f32-planar',
       sampleRate: sound.sampleRate,
       numberOfFrames: count,
-      numberOfChannels: sound.channels.length,
+      numberOfChannels: channels,
       timestamp: Math.round((offset / sound.sampleRate) * 1_000_000),
-      data: planar.subarray(0, count * sound.channels.length),
+      data: planar.subarray(0, count * channels),
     });
     encoder.encode(data);
     data.close();
@@ -346,7 +386,7 @@ function soundPump(
       const upto = Math.min(total, Math.floor((micros / 1_000_000) * sound.sampleRate));
       while (offset + AUDIO_FRAME_SAMPLES <= upto) {
         if (failure) throw failure;
-        encodeNext(AUDIO_FRAME_SAMPLES);
+        await encodeNext(AUDIO_FRAME_SAMPLES);
         if (encoder.encodeQueueSize > VIDEO_ENCODE_QUEUE_LIMIT) await drainAudio(encoder);
       }
     },
@@ -354,7 +394,7 @@ function soundPump(
     async finish(): Promise<void> {
       while (offset < total) {
         if (failure) throw failure;
-        encodeNext(Math.min(AUDIO_FRAME_SAMPLES, total - offset));
+        await encodeNext(Math.min(AUDIO_FRAME_SAMPLES, total - offset));
         if (encoder.encodeQueueSize > VIDEO_ENCODE_QUEUE_LIMIT) await drainAudio(encoder);
       }
       await encoder.flush();

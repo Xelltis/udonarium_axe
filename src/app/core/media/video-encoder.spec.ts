@@ -5,6 +5,8 @@ import {
   encodeVideo,
   isVideoEncodingSupported,
   keyframeIntervalFor,
+  SOUND_READ_FRAMES,
+  soundOfChannels,
 } from '@axe/core/media/video-encoder';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
@@ -294,20 +296,39 @@ describe('video encoding', () => {
     expect(await encodeVideo(request())).toBeNull();
   });
 
+  it('reads the sound from its source a few seconds at a time', async () => {
+    const reads: [number, number][] = [];
+    const length = SOUND_READ_FRAMES * 2 + 5000;
+    const source = {
+      sampleRate: 48_000,
+      numberOfChannels: 1,
+      length,
+      read: async (start: number, count: number) => {
+        reads.push([start, count]);
+        return [new Float32Array(Math.min(count, length - start))];
+      },
+    };
+    await encodeVideo(request({ frameCount: 3, audio: source }));
+
+    expect(reads.length).toBeGreaterThanOrEqual(3);
+    expect(reads.every(([, count]) => count <= SOUND_READ_FRAMES + 1024)).toBe(true);
+    expect(audioFrames.reduce((sum, frames) => sum + frames, 0)).toBe(length);
+  });
+
   it('encodes the sound alongside the picture rather than after it', async () => {
     const order: string[] = [];
     const paint = vi.fn(() => {
       order.push(`frame ${audioFrames.length}`);
     });
     const channels = [new Float32Array(48_000)];
-    await encodeVideo(request({ paint, frameCount: 30, audio: { sampleRate: 48_000, channels } }));
+    await encodeVideo(request({ paint, frameCount: 30, audio: soundOfChannels(48_000, channels) }));
 
     expect(order[order.length - 1]).not.toBe('frame 0');
   });
 
   it('takes the aac path when given sound as well', async () => {
     const channels = [new Float32Array(2048), new Float32Array(2048)];
-    const result = await encodeVideo(request({ audio: { sampleRate: 48_000, channels } }));
+    const result = await encodeVideo(request({ audio: soundOfChannels(48_000, channels) }));
 
     expect(audioConfigured).toMatchObject({ codec: 'mp4a.40.2', numberOfChannels: 2, sampleRate: 48_000 });
     expect(audioFrames).toEqual([AUDIO_FRAME_SAMPLES, AUDIO_FRAME_SAMPLES]);
@@ -315,13 +336,13 @@ describe('video encoding', () => {
   });
 
   it('loses no frame at the end', async () => {
-    await encodeVideo(request({ audio: { sampleRate: 48_000, channels: [new Float32Array(1500)] } }));
+    await encodeVideo(request({ audio: soundOfChannels(48_000, [new Float32Array(1500)]) }));
     expect(audioFrames).toEqual([AUDIO_FRAME_SAMPLES, 1500 - AUDIO_FRAME_SAMPLES]);
   });
 
   it('exports the picture alone without the audio encoder', async () => {
     delete globals['AudioEncoder'];
-    const result = await encodeVideo(request({ audio: { sampleRate: 48_000, channels: [new Float32Array(2048)] } }));
+    const result = await encodeVideo(request({ audio: soundOfChannels(48_000, [new Float32Array(2048)]) }));
 
     expect(audioFrames).toEqual([]);
     expect(result?.extension).toBe('mp4');
