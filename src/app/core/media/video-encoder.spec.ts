@@ -229,6 +229,25 @@ describe('video encoding', () => {
     expect(closed).toBe(true);
   });
 
+  it('lets go of the file it was writing when cancelled, leaving it unfinished', async () => {
+    class FakeWritable {
+      write = vi.fn().mockResolvedValue(undefined);
+      seek = vi.fn().mockResolvedValue(undefined);
+      truncate = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+      abort = vi.fn().mockResolvedValue(undefined);
+    }
+    borrowed.lend('FileSystemWritableFileStream', FakeWritable);
+    const writable = new FakeWritable();
+    const file = { createWritable: vi.fn().mockResolvedValue(writable) } as unknown as FileSystemFileHandle;
+
+    const result = await encodeVideo(request({ file, frameCount: 10, isCancelled: () => calls.length >= 2 }));
+
+    expect(result).toBeNull();
+    expect(writable.abort).toHaveBeenCalledTimes(1);
+    expect(writable.close).not.toHaveBeenCalled();
+  });
+
   it('finishes without throwing when the encoder falls over', async () => {
     failOn = 1;
     expect(await encodeVideo(request({ frameCount: 5 }))).toBeNull();

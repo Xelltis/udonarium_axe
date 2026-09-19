@@ -351,6 +351,17 @@ describe('ReplayVideoService', () => {
       expect(encode).toHaveBeenCalledTimes(1);
     });
 
+    it('does not start over on the page once the export was cancelled', async () => {
+      useReplayVideoWorkerFactory(() => {
+        service.cancel();
+        return new ExportingWorker('failed') as unknown as Worker;
+      });
+
+      expect(await service.render(job([say(1, 'やあ')]))).toBe(false);
+      expect(encode).not.toHaveBeenCalled();
+      expect(service.failure()).toBeNull();
+    });
+
     it('keeps to the page where the video can only be recorded as it plays', async () => {
       isRealtimeOnly = true;
       const worker = new ExportingWorker('done');

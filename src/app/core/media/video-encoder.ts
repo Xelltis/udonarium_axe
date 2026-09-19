@@ -239,7 +239,10 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
     if (!(await configureVideo(encoder, request, bitrate))) throw new Error('この形式では書き出せません');
 
     for (let index = 0; index < request.frameCount; index += 1) {
-      if (request.isCancelled?.()) return null;
+      if (request.isCancelled?.()) {
+        if (writable) await writable.abort().catch(() => undefined);
+        return null;
+      }
       if (failure) throw failure;
 
       await request.paint(ctx, index);

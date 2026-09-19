@@ -142,21 +142,23 @@ export class ReplayVideoService {
       const encoded =
         inWorker !== 'unavailable'
           ? inWorker
-          : await this.encoder.encode({
-              width: job.settings.width,
-              height: job.settings.height,
-              fps: job.fps,
-              frameCount,
-              audio,
-              file,
-              isCancelled: () => this.cancelled,
-              onProgress,
-              paint: async (ctx, index) => {
-                const atMs = index * msPerFrame;
-                if (!made.isReady(atMs)) await made.prepare(atMs);
-                made.paint(ctx, atMs);
-              },
-            });
+          : this.cancelled
+            ? null
+            : await this.encoder.encode({
+                width: job.settings.width,
+                height: job.settings.height,
+                fps: job.fps,
+                frameCount,
+                audio,
+                file,
+                isCancelled: () => this.cancelled,
+                onProgress,
+                paint: async (ctx, index) => {
+                  const atMs = index * msPerFrame;
+                  if (!made.isReady(atMs)) await made.prepare(atMs);
+                  made.paint(ctx, atMs);
+                },
+              });
       if (!encoded) {
         if (!this.cancelled) this._failure.set('encode');
         return false;
