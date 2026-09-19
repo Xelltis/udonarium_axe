@@ -79,8 +79,9 @@ export class ReplayVideoService {
    * loaded, in a worker where the browser allows so the page stays free and a tab left in the
    * background does not slow it down, and on the page otherwise. The sound is mixed on the video's
    * own clock. A sound that cannot be mixed stops the export rather than leaving a silent video.
-   * The file goes to the handle given, or is handed to the browser to download. Answers false when a video is already being made, the browser cannot
-   * encode, there is nothing to show, it was cancelled, or it failed.
+   * The file goes to the handle given, or is handed to the browser to download. Answers false when
+   * a video is already being made, the browser cannot encode, there is nothing to show, it was
+   * cancelled, or it failed.
    */
   async render(job: ReplayVideoJob, file: FileSystemFileHandle | null = null): Promise<boolean> {
     if (this._isRendering() || !this.isSupported || job.recording.events.length < 1) return false;
