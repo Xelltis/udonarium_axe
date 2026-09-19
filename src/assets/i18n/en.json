@@ -113,7 +113,18 @@
       "stair_down": "Stairs down",
       "stair_spiral": "Spiral stairs",
       "poison_pool": "Poisoned pool",
-      "cactus_skin": "Cactus skin"
+      "cactus_skin": "Cactus skin",
+      "asphalt": "Asphalt",
+      "sidewalk": "Paving slabs",
+      "concrete_floor": "Concrete floor",
+      "neon_floor": "Neon tiles",
+      "rooftop": "Rooftop",
+      "slum_ground": "Littered mud",
+      "wall_concrete": "Concrete wall",
+      "wall_neon": "Neon wall",
+      "wall_corrugated": "Corrugated iron",
+      "wall_facade": "Office facade",
+      "door_steel": "Steel door"
     },
     "reorder": {
       "toTop": "Move to the top",
@@ -1647,7 +1658,9 @@
         "light_brazier": "Brazier",
         "light_lantern": "Lantern",
         "light_candle": "Candle",
-        "light_chandelier": "Chandelier"
+        "light_chandelier": "Chandelier",
+        "light_neon": "Neon sign",
+        "light_streetlamp": "Street lamp"
       }
     },
     "vision": {

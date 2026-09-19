@@ -113,7 +113,18 @@
       "stair_down": "내려가는 계단",
       "stair_spiral": "나선 계단",
       "poison_pool": "독 늪",
-      "cactus_skin": "선인장 껍질"
+      "cactus_skin": "선인장 껍질",
+      "asphalt": "아스팔트",
+      "sidewalk": "보도블록",
+      "concrete_floor": "콘크리트 바닥",
+      "neon_floor": "네온 타일 바닥",
+      "rooftop": "옥상",
+      "slum_ground": "쓰레기 진흙길",
+      "wall_concrete": "콘크리트 벽",
+      "wall_neon": "네온관 벽",
+      "wall_corrugated": "함석판",
+      "wall_facade": "빌딩 외벽",
+      "door_steel": "철문"
     },
     "reorder": {
       "toTop": "맨 위로",
@@ -1647,7 +1658,9 @@
         "light_brazier": "화로",
         "light_lantern": "랜턴",
         "light_candle": "양초",
-        "light_chandelier": "샹들리에"
+        "light_chandelier": "샹들리에",
+        "light_neon": "네온사인",
+        "light_streetlamp": "가로등"
       }
     },
     "vision": {

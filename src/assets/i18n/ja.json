@@ -113,7 +113,18 @@
       "stair_down": "下り階段",
       "stair_spiral": "螺旋階段",
       "poison_pool": "毒の沼",
-      "cactus_skin": "サボテンの肌"
+      "cactus_skin": "サボテンの肌",
+      "asphalt": "アスファルト",
+      "sidewalk": "歩道の敷石",
+      "concrete_floor": "コンクリートの床",
+      "neon_floor": "ネオンのタイル床",
+      "rooftop": "屋上",
+      "slum_ground": "ゴミの散る泥道",
+      "wall_concrete": "コンクリート壁",
+      "wall_neon": "ネオン管の壁",
+      "wall_corrugated": "トタン",
+      "wall_facade": "ビルの外壁",
+      "door_steel": "鉄扉"
     },
     "reorder": {
       "toTop": "いちばん上へ",
@@ -1647,7 +1658,9 @@
         "light_brazier": "火鉢",
         "light_lantern": "ランタン",
         "light_candle": "ろうそく",
-        "light_chandelier": "シャンデリア"
+        "light_chandelier": "シャンデリア",
+        "light_neon": "ネオンサイン",
+        "light_streetlamp": "街灯"
       }
     },
     "vision": {
