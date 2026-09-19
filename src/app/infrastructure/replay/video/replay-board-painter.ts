@@ -11,6 +11,16 @@ import type { ReplayCameraFrame } from '@axe/domain/replay/video/replay-video-ca
 import type { ReplayVideoRect } from '@axe/domain/replay/video/replay-video-layout';
 import type { ReplayBoardSegment, ReplayMotion } from '@axe/domain/replay/video/replay-video-timeline';
 import {
+  hexCellCenter,
+  hexCircumradius,
+  hexSpacing,
+  hexStartAngle,
+  isFlatTopGrid,
+  isHexGrid,
+  traceHexPath,
+} from '@axe/domain/tabletop/hex-geometry';
+import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
+import {
   type ReplayFrameAssets,
   type ReplayFrameCanvas,
   roundedRectPath,
@@ -87,7 +97,7 @@ export function paintReplayBoard(ctx: ReplayFrameCanvas, paint: ReplayBoardPaint
   ctx.save();
   ctx.translate(area.x - camera.x * scale, area.y - camera.y * scale);
   ctx.scale(scale, scale);
-  paintTable(ctx, scene, assets, scale);
+  paintTable(ctx, scene, assets, scale, camera);
   if (scene.overlay) {
     const width = scene.width * scene.gridSize;
     const height = scene.height * scene.gridSize;
@@ -102,7 +112,7 @@ export function paintReplayBoard(ctx: ReplayFrameCanvas, paint: ReplayBoardPaint
 
   const placed = placePieces(paint);
   if (paint.highlight) paintHighlight(ctx, placed, scene.gridSize, paint.highlight);
-  for (const one of placed) paintPiece(ctx, one, scene.gridSize, assets, scale);
+  for (const one of placed) paintPiece(ctx, one, scene.gridSize, scene.gridType, assets, scale);
   ctx.restore();
 
   const labelFont = `700 ${paint.labelSize}px ${paint.fontFamily}`;
@@ -176,7 +186,13 @@ function ambientOf(picture: CanvasImageSource & { width: number; height: number 
   return canvas;
 }
 
-function paintTable(ctx: ReplayFrameCanvas, scene: ReplayBoardScene, assets: ReplayFrameAssets, scale: number) {
+function paintTable(
+  ctx: ReplayFrameCanvas,
+  scene: ReplayBoardScene,
+  assets: ReplayFrameAssets,
+  scale: number,
+  camera: ReplayCameraFrame
+) {
   const width = scene.width * scene.gridSize;
   const height = scene.height * scene.gridSize;
   const surface = assets.imageOf(scene.imageIdentifier);
@@ -188,12 +204,22 @@ function paintTable(ctx: ReplayFrameCanvas, scene: ReplayBoardScene, assets: Rep
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
   if (surface) ctx.drawImage(surface, 0, 0, width, height);
+  if (!scene.gridShow) return;
 
-  if (!scene.gridShow || scene.gridType !== 0) return;
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, width, height);
+  ctx.clip();
   ctx.strokeStyle = scene.gridColor;
   ctx.lineWidth = 1 / scale;
   ctx.beginPath();
+  if (isHexGrid(scene.gridType)) traceHexGrid(ctx, scene, camera);
+  else if (scene.gridType === 0) traceSquareGrid(ctx, scene, width, height);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function traceSquareGrid(ctx: ReplayFrameCanvas, scene: ReplayBoardScene, width: number, height: number): void {
   for (let column = 1; column < scene.width; column += 1) {
     ctx.moveTo(column * scene.gridSize, 0);
     ctx.lineTo(column * scene.gridSize, height);
@@ -202,8 +228,30 @@ function paintTable(ctx: ReplayFrameCanvas, scene: ReplayBoardScene, assets: Rep
     ctx.moveTo(0, row * scene.gridSize);
     ctx.lineTo(width, row * scene.gridSize);
   }
-  ctx.stroke();
-  ctx.restore();
+}
+
+/** The hex cells the camera can see, traced as the table draws them. */
+function traceHexGrid(ctx: ReplayFrameCanvas, scene: ReplayBoardScene, camera: ReplayCameraFrame): void {
+  const isFlatTop = isFlatTopGrid(scene.gridType);
+  const radius = hexCircumradius(scene.gridSize);
+  const { colSpacing, rowSpacing } = hexSpacing(scene.gridSize, isFlatTop);
+  const start = hexStartAngle(isFlatTop);
+  const firstColumn = Math.max(0, Math.floor(camera.x / colSpacing) - 1);
+  const lastColumn = Math.min(
+    Math.ceil((scene.width * scene.gridSize) / colSpacing) + 1,
+    Math.ceil((camera.x + camera.width) / colSpacing) + 1
+  );
+  const firstRow = Math.max(0, Math.floor(camera.y / rowSpacing) - 1);
+  const lastRow = Math.min(
+    Math.ceil((scene.height * scene.gridSize) / rowSpacing) + 1,
+    Math.ceil((camera.y + camera.height) / rowSpacing) + 1
+  );
+  for (let row = firstRow; row <= lastRow; row += 1) {
+    for (let column = firstColumn; column <= lastColumn; column += 1) {
+      const centre = hexCellCenter(column, row, colSpacing, rowSpacing, isFlatTop);
+      traceHexPath(ctx, centre.x, centre.y, radius, start);
+    }
+  }
 }
 
 /** Every piece to draw, in the order to draw them: those on the board now, and those leaving it. */
@@ -248,6 +296,7 @@ function paintPiece(
   ctx: ReplayFrameCanvas,
   one: PlacedPiece,
   grid: number,
+  gridType: number,
   assets: ReplayFrameAssets,
   scale: number
 ): void {
@@ -285,7 +334,7 @@ function paintPiece(
       paintTerrain(ctx, picture, left, top, size.width, size.height, scale);
       break;
     case ReplayPieceShape.Mask:
-      paintMask(ctx, piece, picture, left, top, size.width, size.height, grid);
+      paintMask(ctx, piece, picture, left, top, size.width, size.height, grid, gridType);
       break;
     case ReplayPieceShape.Note:
       paintNote(ctx, piece, left, top, size.width, size.height, grid);
@@ -468,6 +517,10 @@ function paintTerrain(
   ctx.strokeRect(left, top, width, height);
 }
 
+/**
+ * A mask filled with its colour, with the cells scratched open left clear. On a hex table the mask is
+ * made of hex cells, as the table shapes it, and the open ones are hexes too.
+ */
 function paintMask(
   ctx: ReplayFrameCanvas,
   piece: ReplayBoardPiece,
@@ -476,19 +529,37 @@ function paintMask(
   top: number,
   width: number,
   height: number,
-  grid: number
+  grid: number,
+  gridType: number
 ): void {
   ctx.save();
   ctx.beginPath();
-  ctx.rect(left, top, width, height);
-  for (const cell of piece.openCells) {
-    const [column, row] = cell.split(':').map(Number);
-    ctx.rect(left + column * grid, top + row * grid, grid, grid);
+  const hex = computeHexMaskGeometry(piece.width, piece.height, grid, gridType);
+  if (hex) {
+    const isFlatTop = isFlatTopGrid(gridType);
+    const radius = hexCircumradius(grid) + 0.5;
+    const { colSpacing, rowSpacing } = hexSpacing(grid, isFlatTop);
+    const start = hexStartAngle(isFlatTop);
+    const open = new Set(piece.openCells);
+    for (let column = 0; column < piece.width; column += 1) {
+      for (let row = 0; row < piece.height; row += 1) {
+        if (open.has(`${column}:${row}`)) continue;
+        const centre = hexCellCenter(column, row, colSpacing, rowSpacing, isFlatTop);
+        traceHexPath(ctx, left + centre.x + hex.offsetX, top + centre.y + hex.offsetY, radius, start);
+      }
+    }
+    ctx.clip();
+  } else {
+    ctx.rect(left, top, width, height);
+    for (const cell of piece.openCells) {
+      const [column, row] = cell.split(':').map(Number);
+      ctx.rect(left + column * grid, top + row * grid, grid, grid);
+    }
+    ctx.clip('evenodd');
   }
-  ctx.clip('evenodd');
   ctx.fillStyle = piece.color;
-  ctx.fillRect(left, top, width, height);
-  if (picture) ctx.drawImage(picture, left, top, width, height);
+  ctx.fillRect(left, top, hex?.pixelW ?? width, hex?.pixelH ?? height);
+  if (picture) ctx.drawImage(picture, left, top, hex?.pixelW ?? width, hex?.pixelH ?? height);
   ctx.restore();
 }
 

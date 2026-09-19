@@ -174,6 +174,48 @@ describe('drawing the board of a replay video', () => {
     expect(texts(1900)).not.toContain('-3');
   });
 
+  function tracedWith(board: ReplayBoardScene): { moves: number; lines: number } {
+    const canvas = recorder();
+    const moveTo = vi.spyOn(canvas.ctx, 'moveTo');
+    const lineTo = vi.spyOn(canvas.ctx, 'lineTo');
+    paintReplayBoard(
+      canvas.ctx,
+      {
+        scene: board,
+        before: null,
+        camera: { x: 0, y: 0, width: 1000, height: 1000 },
+        area: { x: 0, y: 0, width: 1000, height: 1000 },
+        beat: null,
+        highlight: null,
+        dim: 0,
+        labelSize: 20,
+        popSize: 40,
+        fontFamily: 'sans-serif',
+      },
+      assets
+    );
+    return { moves: moveTo.mock.calls.length, lines: lineTo.mock.calls.length };
+  }
+
+  it('rules the grid of a square table in straight lines when it is shown', () => {
+    expect(tracedWith({ ...scene([]), gridShow: true })).toEqual({ moves: 38, lines: 38 });
+    expect(tracedWith(scene([]))).toEqual({ moves: 0, lines: 0 });
+  });
+
+  it('draws the grid of a hex table as hexes', () => {
+    const traced = tracedWith({ ...scene([]), gridShow: true, gridType: 1 });
+
+    expect(traced.moves).toBeGreaterThan(100);
+    expect(traced.lines).toBe(traced.moves * 5);
+  });
+
+  it('shapes a mask on a hex table out of hexes, leaving the scratched ones out', () => {
+    const mask = piece('m', { shape: 'mask', width: 3, height: 2, color: '#000000', openCells: ['1:1'] });
+    const traced = tracedWith({ ...scene([mask]), gridType: 2 });
+
+    expect(traced.moves).toBe(5);
+  });
+
   it('frames only what the camera sees, at the scale it sees it', () => {
     const drawn = paint({ camera: { x: 500, y: 500, width: 500, height: 500 } }).images.find(
       (one) => one.image === surface
