@@ -6,10 +6,11 @@ import {
 import { cutInScenesOf, replaySceneDurationOf } from '@axe/domain/replay/replay-cut-in-scene';
 import { syncValueOf } from '@axe/domain/replay/replay-diff';
 import {
-  findTargetAt,
   type ReplayEvent,
   type ReplayManifest,
+  type ReplayTargetSnapshot,
   type ReplayViewer,
+  resolveSnapshotAt,
 } from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { applyReplayEvents } from '@axe/domain/replay/replay-patch';
@@ -225,7 +226,11 @@ function keepRecent<K, V>(map: Map<K, V>, key: K, value: V, limit: number): void
   if (map.size > limit) map.delete(map.keys().next().value as K);
 }
 
-/** How the timeline looks up what the recording knew of its pieces, cut-ins and characters. */
+/**
+ * How the timeline looks up what the recording knew of its pieces, cut-ins and characters. The
+ * manifest's history of each piece is gathered once, since a long recording asks after thousands of
+ * them.
+ */
 function lookupsOf(manifest: ReplayManifest | null, base: readonly ReplayObjectSnapshot[]) {
   const byIdentifier = new Map(base.map((snapshot) => [snapshot.identifier, snapshot]));
   const characters = new Set(base.filter((one) => one.aliasName === CHARACTER_ALIAS).map((one) => one.identifier));
@@ -233,6 +238,13 @@ function lookupsOf(manifest: ReplayManifest | null, base: readonly ReplayObjectS
     if (target.aliasName === CHARACTER_ALIAS) characters.add(target.identifier);
   }
   const scenes = cutInScenesOf(base);
+  const histories = new Map<string, ReplayTargetSnapshot[]>();
+  for (const target of manifest?.targets ?? []) {
+    const history = histories.get(target.identifier);
+    if (history) history.push(target);
+    else histories.set(target.identifier, [target]);
+  }
+  const targetAt = (identifier: string, seq: number) => resolveSnapshotAt(histories.get(identifier) ?? [], seq);
 
   return {
     isCharacter: (identifier: string) => characters.has(identifier),
@@ -240,10 +252,9 @@ function lookupsOf(manifest: ReplayManifest | null, base: readonly ReplayObjectS
       const character = byIdentifier.get(identifier);
       return character ? toPortraitSlot(syncValueOf(character.syncData, 'vnPortraitPos')) : null;
     },
-    ownerOf: (identifier: string, seq: number) =>
-      (manifest ? findTargetAt(manifest, identifier, seq)?.ownerIdentifier : undefined) ?? '',
+    ownerOf: (identifier: string, seq: number) => targetAt(identifier, seq)?.ownerIdentifier ?? '',
     nameOf: (identifier: string, seq: number) => {
-      const known = manifest ? findTargetAt(manifest, identifier, seq)?.name : undefined;
+      const known = targetAt(identifier, seq)?.name;
       if (known) return known;
       const snapshot = byIdentifier.get(identifier);
       return snapshot ? String(syncValueOf(snapshot.syncData, 'name') ?? '') : '';
