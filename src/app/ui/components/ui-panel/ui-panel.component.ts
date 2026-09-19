@@ -721,12 +721,13 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    */
   setShrunk(shrunk: boolean): void {
     if (shrunk === this.isShrunk() || this.isFullScreen()) return;
-    if (shrunk && this.isMinimized()) this.toggleMinimize();
+    const unfolded = shrunk && this.isMinimized();
+    if (unfolded) this.toggleMinimize();
 
     const panel = this.draggablePanel().nativeElement;
     if (shrunk) {
       this.preWidth = panel.offsetWidth;
-      this.preHeight = panel.offsetHeight;
+      this.preHeight = unfolded ? this.height : panel.offsetHeight;
       this.width = 128;
     } else {
       this.width = this.preWidth;

@@ -122,6 +122,20 @@ describe('UIPanelComponent', () => {
       expect(component.width).toBe(width);
     });
 
+    it('lets a panel shrunk while folded out to the height it had before it was folded', () => {
+      fixture.detectChanges();
+      const panel = fixture.nativeElement.querySelector('.draggable-panel') as HTMLElement;
+      let drawnHeight = 400;
+      Object.defineProperty(panel, 'offsetHeight', { configurable: true, get: () => drawnHeight });
+      component.toggleMinimize();
+      drawnHeight = 28;
+
+      component.panelService.shrinkRequest$.emit(true);
+      component.panelService.shrinkRequest$.emit(false);
+
+      expect(component.height).toBe(400);
+    });
+
     it('unfolds a panel folded to its bar before shrinking it', () => {
       fixture.detectChanges();
       component.toggleMinimize();
