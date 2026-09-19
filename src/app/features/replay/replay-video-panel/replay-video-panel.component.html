@@ -19,6 +19,9 @@
       <div class="bg-ui-elevated rounded-ui-sm h-1.5 overflow-hidden">
         <div class="bg-ui-accent h-full transition-[width]" [style.width.%]="progress() * 100"></div>
       </div>
+      <span class="text-ui-muted text-[0.68rem] leading-normal">
+        {{ (wasPaused() ? 'feature.replay.video.paused' : 'feature.replay.video.keepInView') | transloco }}
+      </span>
       <button class="danger rounded-ui-sm cursor-pointer px-[0.7em] py-[0.2em] text-[0.72rem]" (click)="cancel()">
         {{ 'feature.replay.video.cancel' | transloco }}
       </button>

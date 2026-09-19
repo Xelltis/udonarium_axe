@@ -70,6 +70,7 @@ export class ReplayVideoPanelComponent {
   protected readonly isRendering = this.video.isRendering;
   protected readonly progress = this.video.progress;
   protected readonly failure = this.video.failure;
+  protected readonly wasPaused = this.video.wasPaused;
   protected readonly isOpen = signal(false);
 
   protected readonly isSupported = this.video.isSupported;

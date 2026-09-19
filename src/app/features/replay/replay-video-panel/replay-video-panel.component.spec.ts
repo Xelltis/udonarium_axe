@@ -30,6 +30,7 @@ describe('ReplayVideoPanelComponent', () => {
   let isRendering: WritableSignal<boolean>;
   let progress: WritableSignal<number>;
   let failure: WritableSignal<ReplayVideoFailure | null>;
+  let wasPaused: WritableSignal<boolean>;
   let isSupported = true;
   let events: readonly ReplayEvent[];
   let isEditing: WritableSignal<boolean>;
@@ -62,6 +63,7 @@ describe('ReplayVideoPanelComponent', () => {
             isRendering: isRendering.asReadonly(),
             progress: progress.asReadonly(),
             failure: failure.asReadonly(),
+            wasPaused: wasPaused.asReadonly(),
             get isSupported() {
               return isSupported;
             },
@@ -101,6 +103,7 @@ describe('ReplayVideoPanelComponent', () => {
     isRendering = signal(false);
     progress = signal(0);
     failure = signal<ReplayVideoFailure | null>(null);
+    wasPaused = signal(false);
     isSupported = true;
     events = [say(1, 'やあ'), say(2, 'こんばんは')];
     isEditing = signal(false);
@@ -198,6 +201,22 @@ describe('ReplayVideoPanelComponent', () => {
     await setup();
 
     expect(buttonByText('動画にする')?.disabled).toBe(true);
+  });
+
+  it('asks for the tab to stay in view while it writes', async () => {
+    isRendering = signal(true);
+    await setup();
+
+    expect(fixture.nativeElement.textContent).toContain('表示したままに');
+  });
+
+  it('says so when the browser paused it in the background', async () => {
+    isRendering = signal(true);
+    await setup();
+    wasPaused.set(true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('ブラウザーが書き出しを止めていました');
   });
 
   it('shows how far it has got and how to stop while it writes', async () => {

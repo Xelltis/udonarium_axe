@@ -47,11 +47,17 @@ export class ReplayVideoService {
   private readonly _failure = signal<ReplayVideoFailure | null>(null);
   private readonly _done = signal(0);
   private readonly _total = signal(0);
+  private readonly _wasPaused = signal(false);
   private cancelled = false;
 
   readonly isRendering = this._isRendering.asReadonly();
   readonly failure = this._failure.asReadonly();
   readonly failed = computed(() => this._failure() !== null);
+  /**
+   * Whether the browser paused the video being made while its tab was in the background, as one
+   * saving energy does. It carries on from where it stopped once the tab is back in view.
+   */
+  readonly wasPaused = this._wasPaused.asReadonly();
   readonly progress = computed(() => {
     const total = this._total();
     return total > 0 ? this._done() / total : 0;
@@ -88,9 +94,12 @@ export class ReplayVideoService {
 
     this._isRendering.set(true);
     this._failure.set(null);
+    this._wasPaused.set(false);
     this.cancelled = false;
     this._done.set(0);
     this._total.set(0);
+    const onFreeze = (): void => this._wasPaused.set(true);
+    if (typeof document !== 'undefined') document.addEventListener('freeze', onFreeze);
 
     let production: ReplayVideoProduction | null = null;
     try {
@@ -173,6 +182,7 @@ export class ReplayVideoService {
       return false;
     } finally {
       production?.dispose();
+      if (typeof document !== 'undefined') document.removeEventListener('freeze', onFreeze);
       this._isRendering.set(false);
     }
   }

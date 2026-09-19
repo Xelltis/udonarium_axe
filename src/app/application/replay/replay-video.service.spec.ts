@@ -238,6 +238,22 @@ describe('ReplayVideoService', () => {
     expect(encode).not.toHaveBeenCalled();
   });
 
+  it('says when the browser paused it with its tab in the background, and forgets it next time', async () => {
+    encode.mockImplementation(async () => {
+      document.dispatchEvent(new Event('freeze'));
+      return { blob: new Blob(['mp4']), extension: 'mp4' };
+    });
+    await service.render(job([say(1, 'やあ')]));
+    expect(service.wasPaused()).toBe(true);
+
+    encode.mockResolvedValue({ blob: new Blob(['mp4']), extension: 'mp4' });
+    await service.render(job([say(1, 'やあ')]));
+    expect(service.wasPaused()).toBe(false);
+
+    document.dispatchEvent(new Event('freeze'));
+    expect(service.wasPaused()).toBe(false);
+  });
+
   it('reports its progress', async () => {
     let seen = 0;
     encode.mockImplementation(async (request) => {

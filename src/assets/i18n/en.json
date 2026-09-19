@@ -3571,6 +3571,8 @@
         "start": "Write it out",
         "rendering": "Writing it out ({{percent}}%)",
         "cancel": "Stop",
+        "keepInView": "Keep this tab in view. In the background, a browser saving energy may pause the export.",
+        "paused": "The browser paused the export while this tab was in the background. It carries on while the tab is in view.",
         "realtime": "On this browser the export runs in real time — keep this tab open until it finishes",
         "withEffects": "Include sound effects",
         "withMusic": "Include music",
