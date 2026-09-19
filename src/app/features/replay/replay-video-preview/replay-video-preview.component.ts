@@ -98,6 +98,7 @@ export class ReplayVideoPreviewComponent {
     inject(DestroyRef).onDestroy(() => {
       cancelAnimationFrame(this.frame);
       if (this.rebuildTimer) clearTimeout(this.rebuildTimer);
+      this.generation++;
       this.production()?.dispose();
     });
   }

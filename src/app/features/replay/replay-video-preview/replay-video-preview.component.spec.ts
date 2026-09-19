@@ -151,4 +151,25 @@ describe('ReplayVideoPreviewComponent', () => {
 
     expect(made[0].dispose).toHaveBeenCalled();
   });
+
+  it('lets go of a video still being laid out when it closes, once that is done', async () => {
+    let finish: (() => void) | null = null;
+    produce.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          const production = fakeProduction();
+          made.push(production);
+          finish = () => resolve(production as unknown as ReplayVideoProduction);
+        })
+    );
+    await settle();
+    expect(finish).not.toBeNull();
+
+    fixture.destroy();
+    finish!();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(made[0].dispose).toHaveBeenCalled();
+    expect(made[0].paint).not.toHaveBeenCalled();
+  });
 });
