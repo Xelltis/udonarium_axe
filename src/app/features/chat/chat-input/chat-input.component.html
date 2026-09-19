@@ -75,12 +75,12 @@
         @if (!dense() || isToolsOpen()) {
           <div
             class="ml-auto flex min-w-0 items-center gap-1 @max-[420px]:ml-0"
-            [class.basis-full]="hasPortraitStrip()"
+            [class.basis-full]="hasPortraitSlider()"
             data-testid="chat-input-colors"
           >
-            @if (hasPortraitStrip()) {
-              <portrait-strip
-                class="mr-1 min-w-0 flex-1"
+            @if (hasPortraitSlider()) {
+              <portrait-slider
+                class="mr-2 min-w-0 flex-1"
                 data-testid="chat-input-portraits"
                 [choices]="portraitChoices()"
                 [selectedIndex]="portraitIndex"

@@ -52,7 +52,7 @@ describe('ChatInputComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('the row of portraits', () => {
+  describe('the portrait slider', () => {
     function withPortraits(count: number): GameCharacter {
       const character = speaker('役者');
       for (let index = character.imageDataElement!.children.length; index < count; index++) {
@@ -63,7 +63,10 @@ describe('ChatInputComponent', () => {
       return character;
     }
 
-    const row = () => fixture.nativeElement.querySelector('[data-testid="chat-input-portraits"]') as HTMLElement | null;
+    const slider = () =>
+      fixture.nativeElement.querySelector(
+        '[data-testid="chat-input-portraits"] input[type="range"]'
+      ) as HTMLInputElement | null;
 
     async function speakAs(character: GameCharacter): Promise<void> {
       component.sendFrom = character.identifier;
@@ -72,18 +75,19 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
     }
 
-    it('lays out every portrait of a speaker with several beside the colours', async () => {
+    it('runs through the portraits of a speaker with several, beside the colours', async () => {
       await speakAs(withPortraits(3));
 
-      expect(row()?.querySelectorAll('button')).toHaveLength(3);
-      expect(row()?.closest('[data-testid="chat-input-colors"]')).not.toBeNull();
+      expect(slider()?.max).toBe('2');
+      expect(slider()?.closest('[data-testid="chat-input-colors"]')).not.toBeNull();
     });
 
-    it('speaks with the portrait pressed in it', async () => {
+    it('speaks with the portrait the knob is moved to', async () => {
       const character = withPortraits(3);
       await speakAs(character);
 
-      (row()!.querySelectorAll('button')[2] as HTMLButtonElement).click();
+      slider()!.value = '2';
+      slider()!.dispatchEvent(new Event('input'));
 
       expect(component.portraitIndex).toBe(2);
       expect(character.selectedPortraitIndex).toBe(2);
@@ -92,7 +96,7 @@ describe('ChatInputComponent', () => {
     it('is left out for a speaker with only one portrait to show', async () => {
       await speakAs(withPortraits(1));
 
-      expect(row()).toBeNull();
+      expect(slider()).toBeNull();
     });
   });
 
