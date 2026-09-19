@@ -71,6 +71,7 @@ type Backdrop = { kind: 'board' } | { kind: 'image'; identifier: string } | { ki
  */
 export class ReplayVideoRenderer {
   private readonly cameras = new Map<number, ReplayCameraFrame>();
+  private readonly cameraEnds = new Map<number, ReplayCameraFrame>();
   private readonly scenes = new Map<number, ReplayBoardScene | null>();
   private layer: OffscreenCanvas | null = null;
 
@@ -230,11 +231,26 @@ export class ReplayVideoRenderer {
     return blendReplayCamera(from, target, easeInOutCubic(localMs / CAMERA_MS));
   }
 
+  /**
+   * Where the camera stands on the last frame of a segment.
+   *
+   * A segment long enough for the camera to arrive ends on its target. A shorter one ends partway,
+   * and partway from wherever the segment before it ended, which is the same frame the video
+   * actually showed; blending from the earlier target instead would jump whenever two short
+   * segments came together.
+   */
   private cameraAtEndOf(index: number): ReplayCameraFrame {
-    const segment = this.source.timeline.segments[index];
-    const target = this.cameraTarget(index);
-    if (index < 1 || segment.durationMs >= CAMERA_MS) return target;
-    return blendReplayCamera(this.cameraTarget(index - 1), target, easeInOutCubic(segment.durationMs / CAMERA_MS));
+    const segments = this.source.timeline.segments;
+    let first = index;
+    while (!this.cameraEnds.has(first) && first > 0 && segments[first].durationMs < CAMERA_MS) first -= 1;
+    let from = this.cameraEnds.get(first) ?? this.cameraTarget(first);
+    this.cameraEnds.set(first, from);
+    for (let at = first + 1; at <= index; at++) {
+      const blend = easeInOutCubic(segments[at].durationMs / CAMERA_MS);
+      from = blendReplayCamera(from, this.cameraTarget(at), blend);
+      this.cameraEnds.set(at, from);
+    }
+    return from;
   }
 
   private cameraTarget(index: number): ReplayCameraFrame {

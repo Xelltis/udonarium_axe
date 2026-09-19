@@ -1,11 +1,13 @@
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import type { ReplayBoardScene } from '@axe/domain/replay/replay-board-view';
+import type { ReplayBoardPiece, ReplayBoardScene } from '@axe/domain/replay/replay-board-view';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import type { ReplayCameraFrame } from '@axe/domain/replay/video/replay-video-camera';
 import { replayVideoLayout } from '@axe/domain/replay/video/replay-video-layout';
 import {
   buildReplayVideoTimeline,
   type ReplayDiceSegment,
   type ReplayLineSegment,
+  type ReplayVideoSegment,
   ReplayVideoStyle,
 } from '@axe/domain/replay/video/replay-video-timeline';
 import type { ReplayFrameAssets } from '@axe/infrastructure/replay/replay-canvas';
@@ -181,6 +183,63 @@ describe('drawing a replay video', () => {
     renderer.paint(canvas.ctx, 1000);
 
     expect(canvas.images.some((drawn) => drawn.image === surface)).toBe(true);
+  });
+
+  it('carries the camera on from the frame it last drew, however short the segments before', () => {
+    const standing = (identifier: string, x: number, y: number) =>
+      ({
+        identifier,
+        aliasName: 'character',
+        x,
+        y,
+        z: 0,
+        size: 1,
+        rotate: 0,
+        name: '',
+        imageIdentifier: '',
+        shape: 'figure',
+        width: 1,
+        height: 1,
+        showsName: false,
+        isConcealed: false,
+        color: '',
+        title: '',
+        text: '',
+        count: 0,
+        openCells: [],
+        tiled: false,
+        elevation: 0,
+        view: 3,
+        door: null,
+        sideImageIdentifier: '',
+      }) as ReplayBoardPiece;
+    const board: ReplayBoardScene = {
+      width: 40,
+      height: 40,
+      gridSize: 50,
+      gridType: 0,
+      gridShow: false,
+      gridColor: '',
+      imageIdentifier: '',
+      backgroundImageIdentifier: '',
+      pieces: [standing('a', 100, 100), standing('b', 1800, 100), standing('c', 100, 1800)],
+      overlay: null,
+    };
+    const shot = (startMs: number, durationMs: number, focus: string) =>
+      ({ kind: 'line', startMs, durationMs, focus: [focus], boardTo: 0 }) as unknown as ReplayVideoSegment;
+    const segments = [shot(0, 3000, 'a'), shot(3000, 300, 'b'), shot(3300, 300, 'c'), shot(3600, 3000, 'a')];
+    const renderer = new ReplayVideoRenderer({
+      timeline: { segments, totalMs: 6600, timeOfSeq: new Map(), imageIdentifiers: [] },
+      layout: replayVideoLayout(1920, 1080, ReplayVideoStyle.Tabletop),
+      boardAt: () => board,
+      assets: noPictures,
+      fontFamily: 'sans-serif',
+    });
+    const camera = renderer as unknown as { cameraAt(index: number, localMs: number): ReplayCameraFrame };
+
+    for (const index of [1, 2, 3]) {
+      expect(camera.cameraAt(index, 0)).toEqual(camera.cameraAt(index - 1, segments[index - 1].durationMs));
+    }
   });
 
   it('opens from black and closes to it', () => {
