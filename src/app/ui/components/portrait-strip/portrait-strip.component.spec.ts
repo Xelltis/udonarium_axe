@@ -1,7 +1,7 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import type { PortraitChoice } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitStripComponent } from '@axe/ui/components/portrait-strip/portrait-strip.component';
-import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function choices(count: number): PortraitChoice[] {
   return Array.from({ length: count }, (_, index) => ({
