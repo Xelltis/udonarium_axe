@@ -111,8 +111,9 @@ export class ReplayRecorderService {
    */
   private readonly partOwners = new Map<string, string>();
   /**
-   * The arrivals and removals of pieces not yet written out, by piece. The parts that come and go
-   * with a piece are folded into its event while it is still open.
+   * The arrival or removal of a piece just recorded, by piece, while nothing has been recorded or
+   * saved after it and it has not been written out. The parts that come and go with the piece right
+   * then are folded into it; one that comes later is told on its own, after what came between.
    */
   private readonly openPieceEvents = new Map<string, ReplayEvent>();
   /** The names of the pieces on the table when recording began, for naming one removed untouched. */
@@ -443,6 +444,7 @@ export class ReplayRecorderService {
 
     this.flushPending();
     this.pending = event;
+    this.openPieceEvents.clear();
     this.openIfPiece(event);
     this.trackRecent(event, false);
     if (this.buffer.length + 1 >= REPLAY_CHUNK_EVENT_LIMIT) this.flushPending();
@@ -532,6 +534,7 @@ export class ReplayRecorderService {
       }
     }
 
+    this.openPieceEvents.clear();
     try {
       // Keep the number with what was taken. Counting what happened during the compression
       // would mark those events as already in the board, and playback would skip them.

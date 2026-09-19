@@ -456,6 +456,34 @@ describe('ReplayRecorderService', () => {
       expect(store.allEvents().find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
     });
 
+    it('tells on its own a part added once something else has been recorded', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      dispatchUpdateOf(piece);
+      sendUpdate('bystander', 'character', { name: '見物人' });
+
+      dispatchUpdateOf(part);
+
+      expect(service.recentEvents().find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+      expect(service.recentEvents().find((event) => event.targetId === part.identifier)?.detail['part']).toBe(true);
+    });
+
+    it('tells on its own a part added once the board has been saved, so playing on from there keeps it', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      dispatchUpdateOf(piece);
+      await (service as unknown as { captureKeyframe(force: boolean): Promise<void> }).captureKeyframe(true);
+
+      dispatchUpdateOf(part);
+
+      expect(service.recentEvents().find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+      expect(service.recentEvents().find((event) => event.targetId === part.identifier)).toBeDefined();
+    });
+
     it('tells the removal of a card drawn from its deck as a piece of its own', async () => {
       const deck = CardStack.create('山札');
       const card = Card.create('切り札', '', '');
