@@ -1,10 +1,17 @@
 import type { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Card, CardState } from '@axe/domain/card/card';
+import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Coin } from '@axe/domain/coin/coin';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { buildReplayBoardScene, collectBoardAssetIds, framingOf } from '@axe/domain/replay/replay-board-view';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 
 function table(identifier: string, overrides: Record<string, unknown> = {}): ReplayObjectSnapshot {
   return {
@@ -69,6 +76,16 @@ describe('buildReplayBoardScene()', () => {
         rotate: 90,
         name: '盗賊',
         imageIdentifier: 'img-1',
+        shape: 'figure',
+        width: 2,
+        height: 2,
+        showsName: true,
+        isConcealed: false,
+        color: '',
+        title: '',
+        text: '',
+        count: 0,
+        openCells: [],
       },
     ]);
   });
@@ -172,16 +189,18 @@ describe('built from real pieces', () => {
   /** Only what this test made is copied, so it does not mix with another watching the same table. */
   function snapshotStore(root: GameObject): ReplayObjectSnapshot[] {
     const wanted = new Set(mine.map((object) => object.identifier));
+    const visited = new Set<string>();
     const descend = (identifier: string): void => {
+      if (visited.has(identifier)) return;
+      visited.add(identifier);
       for (const object of ObjectStore.instance.getObjects()) {
         const parent = String((object.toContext().syncData as Record<string, unknown>)['parentIdentifier'] ?? '');
-        if (parent === identifier && !wanted.has(object.identifier)) {
-          wanted.add(object.identifier);
-          descend(object.identifier);
-        }
+        if (parent !== identifier) continue;
+        wanted.add(object.identifier);
+        descend(object.identifier);
       }
     };
-    descend(root.identifier);
+    for (const identifier of [root.identifier, ...wanted]) descend(identifier);
 
     return ObjectStore.instance
       .getObjects()
@@ -212,6 +231,99 @@ describe('built from real pieces', () => {
 
     expect(scene).toMatchObject({ width: 12, height: 8, gridSize: 50 });
     expect(piece).toMatchObject({ name: '盗賊', imageIdentifier: 'img-1', size: 2, x: 150, y: 100 });
+  });
+
+  describe('each kind of piece', () => {
+    function onTable<T extends GameObject & { location: { name: string; x: number; y: number } }>(object: T): T {
+      object.location.name = 'table';
+      object.location.x = 50;
+      object.location.y = 50;
+      return keep(object);
+    }
+
+    function pieceOf(root: GameObject) {
+      return buildReplayBoardScene(snapshotStore(root), guest)!.pieces.find(
+        (one) => one.identifier === root.identifier
+      )!;
+    }
+
+    const guest = { userId: 'guest', role: PeerRole.Guest };
+
+    beforeEach(() => {
+      ObjectStore.instance.add(keep(new GameTable('board-view-shapes')), false);
+    });
+
+    it('shows the back of a card lying face down, and its front once turned up', () => {
+      const card = onTable(Card.create('ace', 'front-1', 'back-1'));
+      card.state = CardState.BACK;
+      expect(pieceOf(card)).toMatchObject({ shape: 'card', imageIdentifier: 'back-1', width: 2, height: 0 });
+
+      card.state = CardState.FRONT;
+      expect(pieceOf(card).imageIdentifier).toBe('front-1');
+    });
+
+    it('shows the top card of a pile, and how many it holds', () => {
+      const pile = onTable(CardStack.create('deck'));
+      pile.putOnTop(keep(Card.create('two', 'front-2', 'back-2')));
+      pile.putOnTop(keep(Card.create('one', 'front-1', 'back-1')));
+
+      expect(pieceOf(pile)).toMatchObject({ shape: 'card', imageIdentifier: 'front-1', count: 2 });
+    });
+
+    it('shows the face a die was rolled to, by its picture and its number', () => {
+      const die = onTable(DiceSymbol.create('d6', DiceType.D6, 1));
+      die.imageDataElement!.getFirstElementByName('4')!.value = 'face-4';
+      die.face = '4';
+
+      expect(pieceOf(die)).toMatchObject({ shape: 'die', imageIdentifier: 'face-4', text: '4', isConcealed: false });
+    });
+
+    it('keeps the face of a die rolled in secret from anyone but its owner', () => {
+      const die = onTable(DiceSymbol.create('d6', DiceType.D6, 1));
+      die.imageDataElement!.getFirstElementByName('4')!.value = 'face-4';
+      die.face = '4';
+      die.owner = 'alice';
+
+      expect(pieceOf(die)).toMatchObject({ imageIdentifier: '', text: '', isConcealed: true });
+    });
+
+    it('shows the side a coin landed on', () => {
+      const coin = onTable(Coin.create('coin'));
+      coin.imageDataElement!.getFirstElementByName('back')!.value = 'coin-back';
+      coin.face = 'back';
+
+      expect(pieceOf(coin)).toMatchObject({ shape: 'coin', imageIdentifier: 'coin-back' });
+    });
+
+    it('covers as much of the table as a terrain spreads over', () => {
+      const terrain = onTable(Terrain.create('wall', 3, 2, 1, 'wall-img', 'floor-img'));
+
+      expect(pieceOf(terrain)).toMatchObject({ shape: 'terrain', width: 3, height: 2, imageIdentifier: 'floor-img' });
+    });
+
+    it('fills a mask with its colour and leaves its scratched cells open', () => {
+      const mask = onTable(GameTableMask.create('fog', 4, 3, 100));
+      mask.paintColor('#223344');
+      mask.scratchedGrids = '0:0,1:2';
+
+      expect(pieceOf(mask)).toMatchObject({ shape: 'mask', width: 4, height: 3, color: '#223344' });
+      expect(pieceOf(mask).openCells).toEqual(['0:0', '1:2']);
+    });
+
+    it('reads the title and the text of a note', () => {
+      const note = onTable(TextNote.create('memo', 'the door is locked', 16, 3, 2));
+
+      expect(pieceOf(note)).toMatchObject({ shape: 'note', title: 'memo', text: 'the door is locked', width: 3 });
+    });
+
+    it('leaves a piece kept to the game master off the board a guest sees', () => {
+      const character = onTable(GameCharacter.create('boss', 1, 'img-boss'));
+      character.disclosureMode = 'gm';
+
+      const snapshots = snapshotStore(character);
+      expect(buildReplayBoardScene(snapshots, guest)!.pieces).toEqual([]);
+      expect(buildReplayBoardScene(snapshots, { userId: 'gm', role: PeerRole.GameMaster })!.pieces).toHaveLength(1);
+    });
   });
 
   it('leaves a real character that is put away off the board', () => {
