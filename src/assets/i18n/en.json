@@ -3581,7 +3581,10 @@
         "realtime": "On this browser the export runs in real time — keep this tab open until it finishes",
         "withEffects": "Include sound effects",
         "withMusic": "Include music",
-        "failed": "The export did not go through. A smaller size or fewer details often helps."
+        "failed": "The export did not go through. A smaller size or fewer details often helps.",
+        "round": "Round {{round}}",
+        "turn": "{{name}}'s turn",
+        "roundTurn": "Round {{round}} · {{name}}'s turn"
       },
       "script": {
         "title": "Write it out",
