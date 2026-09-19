@@ -92,7 +92,7 @@ export interface MapPaint {
   material?: MapMaterial;
 }
 
-export type MapLightKind = 'sconce' | 'campfire' | 'brazier' | 'stand' | 'lantern' | 'neon';
+export type MapLightKind = 'sconce' | 'campfire' | 'brazier' | 'stand' | 'lantern' | 'neon' | 'streetlamp';
 
 export interface MapLight extends MapPoint {
   kind: MapLightKind;

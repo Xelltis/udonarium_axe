@@ -2139,6 +2139,9 @@
           "outcrop": "암반",
           "hill": "언덕",
           "cactus": "선인장",
+          "junk": "고철 더미",
+          "building": "건물",
+          "roofUnit": "옥상 설비",
           "counter": "카운터",
           "stool": "스툴",
           "table": "테이블",
@@ -2227,7 +2230,9 @@
           "coast": "해안",
           "marsh": "습지",
           "snowfield": "설원",
-          "wasteland": "황야"
+          "wasteland": "황야",
+          "city": "빌딩 숲",
+          "slum": "슬럼가"
         },
         "prop": {
           "tree": "나무",
@@ -2235,7 +2240,9 @@
           "boulder": "바위",
           "outcrop": "암반",
           "hill": "언덕",
-          "cactus": "선인장"
+          "cactus": "선인장",
+          "junk": "고철 더미",
+          "building": "건물"
         },
         "grid": {
           "0": "사각",

@@ -1,6 +1,7 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { FIELD_PROP_SHAPES, FieldAtmosphere, FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
-import { makeValueNoise, warpedFbm } from '@axe/domain/tabletop/field/field-noise';
+import { makeValueNoise, ValueNoise, warpedFbm } from '@axe/domain/tabletop/field/field-noise';
+import { FieldBuilding, layTown } from '@axe/domain/tabletop/field/town-layout';
 
 export interface FieldLayout {
   width: number;
@@ -13,10 +14,12 @@ export interface FieldLayout {
   objects: FieldObject[];
   /** Patches of ground with something in the air over them: a poisoned pool, a vent, a mire. */
   pools: FieldPool[];
+  /** What stands on the lots of a town. Open country has none. */
+  buildings: FieldBuilding[];
 }
 
-/** What a cell is taken up by: something standing on it, a patch poured over it, or nothing. */
-export type FieldGroundMark = FieldPropId | 'pool' | '';
+/** What a cell is taken up by: something standing on it, a patch poured over it, a building, or nothing. */
+export type FieldGroundMark = FieldPropId | 'pool' | 'building' | '';
 
 /** A patch of ground that is not merely ground: what it is, and how thick it lies. */
 export interface FieldPool {
@@ -90,7 +93,7 @@ const WARP = 0.6;
 const POOL_SPACING = 8;
 
 /** What is put down as a whole thing rather than as a cell of ground cover. */
-const STANDING_PROPS: readonly FieldPropId[] = ['hill', 'tree', 'boulder', 'outcrop', 'cactus'];
+const STANDING_PROPS: readonly FieldPropId[] = ['hill', 'tree', 'boulder', 'outcrop', 'cactus', 'junk'];
 
 /** Below this share of the growth field nothing grows, and above it the stand thickens. */
 const GROWTH_FLOOR = 0.3;
@@ -284,7 +287,8 @@ function crowded(props: FieldGroundMark[], width: number, height: number, x: num
  * Lays out open ground: what it is made of, and what grows on it.
  *
  * Height decides the ground, a second noise decides where things grow thickest, and a
- * neighbour count keeps a wood from closing into a wall nobody can walk through.
+ * neighbour count keeps a wood from closing into a wall nobody can walk through. A town takes
+ * its ground from its streets instead, and nothing grows where a building stands.
  */
 export function generateField(
   atmosphere: FieldAtmosphere,
@@ -305,33 +309,19 @@ export function generateField(
   const growth = makeValueNoise(seed + 1013);
   const rng = seededRandom(seed + 7919);
   const ramp = RAMPS[Math.floor(rng() * RAMPS.length) % RAMPS.length];
-  const gradient = atmosphere.gradient ?? 0;
 
-  const raised = new Float64Array(width * height);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const noise = warpedFbm(land, drift, x / relief, y / relief, OCTAVES, WARP);
-      const tilt = gradient > 0 ? ramp(x, y, width, height) : 0;
-      // Moisture is mixed in before the bands are cut rather than shifting a cell across one
-      // afterwards: a hollow that holds water is lower ground as far as what grows there is
-      // concerned, and folding it in here is what keeps each band to the share it asked for.
-      const wetness = warpedFbm(damp, drift, x / (relief * 1.6), y / (relief * 1.6), 2, WARP);
-      const height01 = noise * (1 - gradient) + tilt * gradient;
-      raised[y * width + x] = height01 + (wetness - 0.5) * atmosphere.damp;
+  const buildings: FieldBuilding[] = [];
+  if (atmosphere.town) {
+    const town = layTown(atmosphere.town, width, height, seed, density);
+    ground.set(town.ground);
+    buildings.push(...town.buildings);
+    for (const building of buildings) {
+      for (let dy = 0; dy < building.h; dy++) {
+        for (let dx = 0; dx < building.w; dx++) props[(building.y + dy) * width + building.x + dx] = 'building';
+      }
     }
-  }
-  // Where each band starts is read off the board rather than set against the raw height: a
-  // preset says how much of its ground is water or wood, and gets that much of it whatever
-  // this particular board's noise happened to do.
-  const cuts = quantileCuts(
-    raised,
-    atmosphere.bands.map((band) => band.upTo)
-  );
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const index = y * width + x;
-      ground[index] = bandFor(raised[index], cuts);
-    }
+  } else {
+    raiseGround(atmosphere, ground, width, height, relief, land, drift, damp, ramp);
   }
 
   // Levelled over the board, the same way the height is, so that the bare places are as bare
@@ -382,5 +372,48 @@ export function generateField(
   }
   pourPools(atmosphere, ground, props, pools, width, height, rng);
 
-  return { width, height, ground, props, objects, pools };
+  return { width, height, ground, props, objects, pools, buildings };
+}
+
+/**
+ * Reads the ground of open country off a height, one band to each share of it.
+ *
+ * Moisture is mixed in before the bands are cut rather than shifting a cell across one
+ * afterwards: a hollow that holds water is lower ground as far as what grows there is
+ * concerned, and folding it in here is what keeps each band to the share it asked for. Where
+ * each band starts is read off the board rather than set against the raw height, so a preset
+ * gets as much water or wood as it asked for whatever this board's noise happened to do.
+ */
+function raiseGround(
+  atmosphere: FieldAtmosphere,
+  ground: Uint8Array,
+  width: number,
+  height: number,
+  relief: number,
+  land: ValueNoise,
+  drift: ValueNoise,
+  damp: ValueNoise,
+  ramp: (x: number, y: number, w: number, h: number) => number
+): void {
+  const gradient = atmosphere.gradient ?? 0;
+  const raised = new Float64Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const noise = warpedFbm(land, drift, x / relief, y / relief, OCTAVES, WARP);
+      const tilt = gradient > 0 ? ramp(x, y, width, height) : 0;
+      const wetness = warpedFbm(damp, drift, x / (relief * 1.6), y / (relief * 1.6), 2, WARP);
+      const height01 = noise * (1 - gradient) + tilt * gradient;
+      raised[y * width + x] = height01 + (wetness - 0.5) * atmosphere.damp;
+    }
+  }
+  const cuts = quantileCuts(
+    raised,
+    atmosphere.bands.map((band) => band.upTo)
+  );
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = y * width + x;
+      ground[index] = bandFor(raised[index], cuts);
+    }
+  }
 }

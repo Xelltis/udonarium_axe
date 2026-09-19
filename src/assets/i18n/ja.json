@@ -2139,6 +2139,9 @@
           "outcrop": "岩場",
           "hill": "丘",
           "cactus": "サボテン",
+          "junk": "廃材の山",
+          "building": "建物",
+          "roofUnit": "屋上設備",
           "counter": "カウンター",
           "stool": "スツール",
           "table": "テーブル",
@@ -2227,7 +2230,9 @@
           "coast": "海岸",
           "marsh": "湿地",
           "snowfield": "雪原",
-          "wasteland": "荒野"
+          "wasteland": "荒野",
+          "city": "ビル群",
+          "slum": "スラム街"
         },
         "prop": {
           "tree": "木",
@@ -2235,7 +2240,9 @@
           "boulder": "岩",
           "outcrop": "岩場",
           "hill": "丘",
-          "cactus": "サボテン"
+          "cactus": "サボテン",
+          "junk": "廃材の山",
+          "building": "建物"
         },
         "grid": {
           "0": "四角",

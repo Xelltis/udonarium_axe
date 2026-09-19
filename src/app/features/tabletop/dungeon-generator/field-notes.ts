@@ -18,7 +18,7 @@ export function describeField(plan: FieldPlan, name: string, seed: number, t: Tr
       standing: t('feature.tabletop.dungeonGenerator.summary.standing'),
       fires: t('feature.tabletop.dungeonGenerator.summary.fires'),
       textureName: (texture: string) => t(`common.textures.${texture}`),
-      propName: (prop: FieldPropId) => t(`feature.tabletop.dungeonGenerator.prop.${prop}`),
+      propName: (prop: FieldPropId | 'building') => t(`feature.tabletop.dungeonGenerator.prop.${prop}`),
     },
   });
 }

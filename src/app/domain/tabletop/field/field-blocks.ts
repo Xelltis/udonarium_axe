@@ -5,8 +5,10 @@ import {
   FIELD_PROP_SHAPES,
   FieldAtmosphere,
   FieldPropId,
+  TownPlan,
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FieldLayout } from '@axe/domain/tabletop/field/field-layout';
+import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
 
 /**
@@ -18,6 +20,16 @@ import { MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/doma
 export const FIELD_MERGE_SPAN = 4;
 
 const OPEN_FIRES: readonly MapLightKind[] = ['campfire', 'stand', 'brazier'];
+
+/** What a town is built of, besides what grows in it: the buildings and what stands on their roofs. */
+export const TOWN_PIECE_IDS = ['building', 'roofUnit'] as const;
+
+/**
+ * A tank or a plant room on a roof, which is most of what tells a roof from a car park seen
+ * from above. Dressed in steel off the ground shelf, so a building material chosen for the
+ * town leaves it alone.
+ */
+const ROOF_PLANT = { side: 'metal_grate', top: 'metal_grate', height: 0.5, fill: 0.7 } as const;
 
 function maskOfBand(layout: FieldLayout, band: number): Uint8Array {
   const mask = new Uint8Array(layout.width * layout.height);
@@ -31,10 +43,17 @@ function maskOfProp(layout: FieldLayout, prop: FieldPropId): Uint8Array {
   return mask;
 }
 
-/** Somewhere out in the open, well away from anything already lit. */
+/**
+ * Somewhere out in the open, well away from anything already lit.
+ *
+ * A place that says what it is lit by and where - street lamps on the pavement, drums in the
+ * lanes - gets those; anywhere else gets fires wherever there is open ground.
+ */
 function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: number): MapLight[] {
   const lights: MapLight[] = [];
   if (atmosphere.torches < 1) return lights;
+  const kinds = atmosphere.fires?.kinds ?? OPEN_FIRES;
+  const bands = atmosphere.fires?.bands;
   const rng = seededRandom(seed + 3301);
   const apart = Math.max(6, Math.round(Math.min(layout.width, layout.height) / 3));
 
@@ -44,11 +63,71 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
     const index = y * layout.width + x;
     if (layout.props[index]) continue;
     if (atmosphere.bands[layout.ground[index]].bare) continue;
+    if (bands && !bands.includes(layout.ground[index])) continue;
     if (lights.some((light) => Math.abs(light.x - x) < apart && Math.abs(light.y - y) < apart)) continue;
-    lights.push({ x, y, kind: OPEN_FIRES[lights.length % OPEN_FIRES.length], facing: 0, room: lights.length });
+    lights.push({ x, y, kind: kinds[lights.length % kinds.length], facing: 0, room: lights.length });
   }
 
   return lights;
+}
+
+/**
+ * The blocks one building is built of.
+ *
+ * On squares it is one block to the lot, or a podium the size of the lot with the tower set a
+ * cell in from its edge on top of it. On a board whose cells will not gather into rectangles it
+ * is a column to a cell, those round the edge of a podium standing only as tall as the podium.
+ */
+function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): MapBlock[] {
+  const standing = (): Omit<MapBlock, 'rect'> => ({
+    kind: 'prop',
+    blocksSight: true,
+    locked: false,
+    rooms: [],
+    skin: { side: { kind: 'texture', id: plan.skin.side }, top: { kind: 'texture', id: plan.skin.top } },
+    thing: 'building',
+  });
+  const { x, y, w, h, podium } = building;
+  const blocks: MapBlock[] = [];
+
+  if (span > 1) {
+    const rotate = building.spin || undefined;
+    const footprint = plan.inset > 0 ? { w: w - plan.inset * 2, d: h - plan.inset * 2 } : undefined;
+    blocks.push({ ...standing(), rect: { x, y, w, h }, height: podium || building.height, footprint, rotate });
+    if (podium > 0) {
+      blocks.push({
+        ...standing(),
+        rect: { x: x + 1, y: y + 1, w: w - 2, h: h - 2 },
+        height: building.height - podium,
+        altitude: podium,
+        rotate,
+      });
+    }
+  } else {
+    for (let dy = 0; dy < h; dy++) {
+      for (let dx = 0; dx < w; dx++) {
+        const edge = dx === 0 || dy === 0 || dx === w - 1 || dy === h - 1;
+        const height = podium > 0 && edge ? podium : building.height;
+        blocks.push({ ...standing(), rect: { x: x + dx, y: y + dy, w: 1, h: 1 }, height });
+      }
+    }
+  }
+
+  if (building.plant) {
+    blocks.push({
+      kind: 'prop',
+      rect: { x: building.plant.x, y: building.plant.y, w: 1, h: 1 },
+      blocksSight: false,
+      locked: false,
+      rooms: [],
+      skin: { side: { kind: 'texture', id: ROOF_PLANT.side }, top: { kind: 'texture', id: ROOF_PLANT.top } },
+      height: ROOF_PLANT.height,
+      footprint: { w: ROOF_PLANT.fill, d: ROOF_PLANT.fill },
+      altitude: building.height,
+      thing: 'roofUnit',
+    });
+  }
+  return blocks;
 }
 
 /**
@@ -97,6 +176,10 @@ export function fieldToBlocks(
         thing: prop,
       });
     }
+  }
+
+  if (atmosphere.town) {
+    for (const building of layout.buildings) blocks.push(...buildingBlocks(building, atmosphere.town, span));
   }
 
   // Last laid wins where two patches cover one cell, so a pool goes down over the band it lies in.

@@ -2139,6 +2139,9 @@
           "outcrop": "Outcrop",
           "hill": "Hill",
           "cactus": "Cactus",
+          "junk": "Junk heap",
+          "building": "Building",
+          "roofUnit": "Rooftop unit",
           "counter": "Counter",
           "stool": "Stool",
           "table": "Table",
@@ -2227,7 +2230,9 @@
           "coast": "Coast",
           "marsh": "Marsh",
           "snowfield": "Snowfield",
-          "wasteland": "Wasteland"
+          "wasteland": "Wasteland",
+          "city": "City blocks",
+          "slum": "Slum"
         },
         "prop": {
           "tree": "Trees",
@@ -2235,7 +2240,9 @@
           "boulder": "Boulders",
           "outcrop": "Outcrops",
           "hill": "Hills",
-          "cactus": "Cacti"
+          "cactus": "Cacti",
+          "junk": "Junk heaps",
+          "building": "Buildings"
         },
         "grid": {
           "0": "Square",

@@ -588,6 +588,18 @@ describe('DungeonBuildService', () => {
         expect(built!.imageFile.identifier).toContain('light_neon');
       }
     });
+
+    it('stands the street lamps of a city on the ground, each looking like a street lamp', async () => {
+      const plan = planField({ atmosphere: 'city', size: 40, density: 50, seed: 7 });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+      const lights = result.table.lightSources;
+
+      expect(lights.length).toBe(plan.blocks.lights.length);
+      for (const light of lights) {
+        expect(light.altitude).toBe(0);
+        expect(light.imageFile.identifier).toContain('light_streetlamp');
+      }
+    });
   });
 
   describe('building on hexes', () => {

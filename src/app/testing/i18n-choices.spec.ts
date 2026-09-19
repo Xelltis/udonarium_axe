@@ -19,6 +19,7 @@ import {
 } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { DUNGEON_ROOM_ROLES, FURNISHING_IDS } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { FIELD_ATMOSPHERE_IDS, FIELD_PROP_IDS } from '@axe/domain/tabletop/field/field-atmosphere';
+import { TOWN_PIECE_IDS } from '@axe/domain/tabletop/field/field-blocks';
 import { MAP_FUNCTION_ROLES } from '@axe/domain/tabletop/function-paint';
 import { ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
 import { TABLE_FACING_MARKS } from '@axe/domain/tabletop/table-facing-mark';
@@ -45,8 +46,8 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.tabletop.dungeonGenerator.entrance.': DUNGEON_ENTRANCE_STYLES,
   'feature.tabletop.dungeonGenerator.role.': DUNGEON_ROOM_ROLES,
   'feature.tabletop.dungeonGenerator.field.': FIELD_ATMOSPHERE_IDS,
-  'feature.tabletop.dungeonGenerator.prop.': FIELD_PROP_IDS,
-  'feature.tabletop.dungeonGenerator.piece.': [...FIELD_PROP_IDS, ...FURNISHING_IDS],
+  'feature.tabletop.dungeonGenerator.prop.': [...FIELD_PROP_IDS, 'building'],
+  'feature.tabletop.dungeonGenerator.piece.': [...FIELD_PROP_IDS, ...TOWN_PIECE_IDS, ...FURNISHING_IDS],
   ...Object.fromEntries(
     DUNGEON_ROLE_NAMINGS.map((naming) => [`feature.tabletop.dungeonGenerator.roleIn.${naming}.`, DUNGEON_ROOM_ROLES])
   ),

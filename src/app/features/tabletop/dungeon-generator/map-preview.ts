@@ -60,6 +60,18 @@ export function previewColors(wall: string, floor: string, hazard: string): Prev
   };
 }
 
+/**
+ * The colour of what a piece wears on top, where it wears a picture of its own.
+ *
+ * Seen from above a tree is its crown and a building its roof, and a town drawn in one colour
+ * for both would show a square of trees as another block of offices.
+ */
+function topFill(block: MapBlock): string | undefined {
+  const top = block.skin?.top;
+  if (top?.kind !== 'texture') return undefined;
+  return TEXTURE_BASE_COLOR[top.id as TextureId] ?? WALL_TEXTURE_BASE_COLOR[top.id as WallTextureId];
+}
+
 function fillFor(block: MapBlock, colors: PreviewColors): string {
   switch (block.kind) {
     case 'wall':
@@ -67,7 +79,7 @@ function fillFor(block: MapBlock, colors: PreviewColors): string {
     case 'door':
       return DOOR_FILL;
     case 'prop':
-      return colors.prop;
+      return topFill(block) ?? colors.prop;
     default:
       return STAIR_FILL;
   }
