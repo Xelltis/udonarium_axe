@@ -249,6 +249,8 @@ export const REPLAY_POP_MS = 1_400;
 export const REPLAY_QUIET_CAP_MS = 8_000;
 /** A beat of the board is cut where nothing happened on it for this long on the day. */
 const REPLAY_BEAT_SPLIT_MS = 20_000;
+/** A sound made this soon after a roll, on the day, is the rattle of those dice and plays as the roll does. */
+const DICE_SOUND_WINDOW_MS = 3_000;
 /** A dice command said just before its result is taken as part of the roll. */
 const DICE_COMMAND_WINDOW_MS = 5_000;
 
@@ -303,6 +305,8 @@ class TimelineBuilder {
   private background = '';
   private beat: { from: number; events: { event: ReplayEvent; index: number }[] } | null = null;
   private pendingCommand: ChatLine | null = null;
+  /** The last roll shown: when it was made on the day, and when it comes on screen. */
+  private lastRoll: { t: number; startMs: number } | null = null;
   private hasOpening = false;
 
   constructor(
@@ -343,6 +347,11 @@ class TimelineBuilder {
   }
 
   private read(event: ReplayEvent, index: number): void {
+    if (event.kind === ReplayEventKind.MediaSoundEffect) {
+      const roll = this.lastRoll;
+      if (roll && event.t - roll.t <= DICE_SOUND_WINDOW_MS) this.timeOfSeq.set(event.seq, roll.startMs);
+      return;
+    }
     if (event.kind === ReplayEventKind.VnScene) {
       this.settle(event, index);
       this.background = event.targetId ?? '';
@@ -539,6 +548,7 @@ class TimelineBuilder {
   }
 
   private pushDice(line: ChatLine, command: ChatLine | null, index: number): void {
+    this.lastRoll = { t: line.event.t, startMs: this.cursorMs };
     this.stageWindow.push(line.source);
     const roller = ROLLER_NAME.exec(line.name);
     const detail = parseDiceRollDetail(String(line.event.detail['dicebot'] ?? ''));

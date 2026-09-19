@@ -225,6 +225,19 @@ describe('laying a recording out as a video', () => {
 
       expect(dice).toMatchObject({ speaker: 'ボブ', steps: ['(1D100)'], result: '42' });
     });
+
+    it('rattles the dice as the roll comes on screen', () => {
+      const events = [
+        say('いくぞ'),
+        roll('(1D6) ＞ 4'),
+        event(ReplayEventKind.MediaSoundEffect, { identifier: 'se-dice' }),
+      ];
+      const timeline = buildReplayVideoTimeline(events, options());
+      const dice = timeline.segments[1];
+
+      expect(dice.kind).toBe('dice');
+      expect(timeline.timeOfSeq.get(3)).toBe(dice.startMs);
+    });
   });
 
   describe('chapters and notices', () => {
