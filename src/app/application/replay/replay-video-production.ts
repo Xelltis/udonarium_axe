@@ -29,10 +29,9 @@ import {
   type ReplayVideoTimeline,
 } from '@axe/domain/replay/video/replay-video-timeline';
 import { toPortraitSlot } from '@axe/domain/visual-novel/vn-portrait-position';
-import type { DrawableImageSource } from '@axe/infrastructure/replay/drawable-image';
 import type { ReplayFrameCanvas } from '@axe/infrastructure/replay/replay-canvas';
 import { REPLAY_FONT_JP, REPLAY_FONT_KR } from '@axe/infrastructure/replay/video/replay-fonts';
-import { ReplayImageCache } from '@axe/infrastructure/replay/video/replay-image-cache';
+import { ReplayImageCache, type ReplayImageSource } from '@axe/infrastructure/replay/video/replay-image-cache';
 import { ReplayVideoRenderer } from '@axe/infrastructure/replay/video/replay-video-renderer';
 
 /**
@@ -63,11 +62,33 @@ export interface ReplayVideoProductionInput {
   readingSpeed: number;
   tabs: ReadonlySet<string> | null;
   opening: { title: string; subtitle: string } | null;
-  images: DrawableImageSource;
+  images: ReplayImageSource;
   /** Measures text the way the frame will draw it, set in the font given. */
   measureWith: (font: string) => ReplayTextMeasure;
   /** Told whenever a picture becomes ready, so a preview can draw again. */
   onImageLoaded?: () => void;
+  /** The timeline already laid out, as a worker is handed it; laid out afresh when absent. */
+  timeline?: ReplayVideoTimeline;
+}
+
+/**
+ * What a production is made from, as plain data that can be handed to a worker: everything but the
+ * means of measuring text, translating it and finding pictures, which stay with the page, and with
+ * the timeline already laid out by them.
+ */
+export interface ReplayVideoShared {
+  events: readonly ReplayEvent[];
+  manifest: ReplayManifest | null;
+  base: readonly ReplayObjectSnapshot[];
+  viewer: ReplayViewer;
+  lang: string;
+  width: number;
+  height: number;
+  style: ReplayVideoStyle;
+  pacing: ReplayVideoPacing;
+  readingSpeed: number;
+  opening: { title: string; subtitle: string } | null;
+  timeline: ReplayVideoTimeline;
 }
 
 const CHECKPOINT_EVERY = 400;
@@ -99,20 +120,22 @@ export class ReplayVideoProduction {
     this.fontFamily = replayVideoFontFamily(input.text.lang);
     this.layout = replayVideoLayout(input.width, input.height, input.style);
     this.images = new ReplayImageCache(input.images, Math.max(2048, input.width), input.onImageLoaded);
-    this.timeline = buildReplayVideoTimeline(input.events, {
-      viewer: input.viewer,
-      text: input.text,
-      subtitle: {
-        measure: input.measureWith(replaySubtitleFont(this.layout, this.fontFamily)),
-        maxWidth: this.layout.text.maxWidth,
-        maxLines: this.layout.text.maxLines,
-      },
-      pacing: input.pacing,
-      readingSpeed: input.readingSpeed,
-      tabs: input.tabs,
-      opening: input.opening,
-      ...lookupsOf(input.manifest, input.base),
-    });
+    this.timeline =
+      input.timeline ??
+      buildReplayVideoTimeline(input.events, {
+        viewer: input.viewer,
+        text: input.text,
+        subtitle: {
+          measure: input.measureWith(replaySubtitleFont(this.layout, this.fontFamily)),
+          maxWidth: this.layout.text.maxWidth,
+          maxLines: this.layout.text.maxLines,
+        },
+        pacing: input.pacing,
+        readingSpeed: input.readingSpeed,
+        tabs: input.tabs,
+        opening: input.opening,
+        ...lookupsOf(input.manifest, input.base),
+      });
     this.boards.set(0, input.base);
     this.renderer = new ReplayVideoRenderer({
       timeline: this.timeline,
@@ -123,8 +146,42 @@ export class ReplayVideoProduction {
     });
   }
 
+  /**
+   * A production made again from what another one shared, drawing the same frames with pictures
+   * found through `images`. It lays nothing out, so it needs neither translations nor a way to
+   * measure text, and can be made in a worker.
+   */
+  static fromShared(shared: ReplayVideoShared, images: ReplayImageSource): ReplayVideoProduction {
+    return new ReplayVideoProduction({
+      ...shared,
+      tabs: null,
+      text: { lang: shared.lang, decode: (text) => text, t: (key) => key },
+      images,
+      measureWith: () => () => 0,
+    });
+  }
+
   get durationMs(): number {
     return this.timeline.totalMs;
+  }
+
+  /** What this production is made from, as plain data a worker can be handed. */
+  share(): ReplayVideoShared {
+    const { events, manifest, base, viewer, text, width, height, style, pacing, readingSpeed, opening } = this.input;
+    return {
+      events,
+      manifest,
+      base,
+      viewer,
+      lang: text.lang,
+      width,
+      height,
+      style,
+      pacing,
+      readingSpeed,
+      opening,
+      timeline: this.timeline,
+    };
   }
 
   /** Draws the frame at a moment, with whatever pictures are ready. */

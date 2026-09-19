@@ -6,9 +6,11 @@ import {
   type ReplayVideoSettings,
   ReplayVideoStudioService,
 } from '@axe/application/replay/replay-video-studio.service';
+import { encodeReplayVideoInWorker } from '@axe/application/replay/replay-video-worker-client';
 import { Logger } from '@axe/core/logging/logger';
 import { VideoEncoderGateway, type VideoSoundSource } from '@axe/core/media/video-encoder';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { replayArchiveName } from '@axe/domain/replay/replay-archive';
 import type { ReplayEvent } from '@axe/domain/replay/replay-event';
 import {
@@ -37,6 +39,7 @@ export interface ReplayVideoJob {
 export class ReplayVideoService {
   private readonly studio = inject(ReplayVideoStudioService);
   private readonly audioStorage = inject(AudioStorage);
+  private readonly imageStorage = inject(ImageStorage);
   private readonly mixer = inject(ReplaySoundMixer);
   private readonly encoder = inject(VideoEncoderGateway);
 
@@ -73,9 +76,10 @@ export class ReplayVideoService {
    * Makes a recording into a video and saves it, publishing progress as it goes.
    *
    * The frames are drawn by the same renderer as the preview, each only once its pictures have
-   * loaded, and the sound is mixed on the video's own clock. A sound that cannot be mixed stops the
-   * export rather than leaving a silent video. The file goes to the handle given, or is handed to
-   * the browser to download. Answers false when a video is already being made, the browser cannot
+   * loaded, in a worker where the browser allows so the page stays free and a tab left in the
+   * background does not slow it down, and on the page otherwise. The sound is mixed on the video's
+   * own clock. A sound that cannot be mixed stops the export rather than leaving a silent video.
+   * The file goes to the handle given, or is handed to the browser to download. Answers false when a video is already being made, the browser cannot
    * encode, there is nothing to show, it was cancelled, or it failed.
    */
   async render(job: ReplayVideoJob, file: FileSystemFileHandle | null = null): Promise<boolean> {
@@ -106,25 +110,52 @@ export class ReplayVideoService {
       }
       if (this.cancelled) return false;
 
+      const onProgress = (done: number, total: number) => {
+        this._done.set(done);
+        this._total.set(total);
+      };
+      const inWorker = this.encoder.isRealtimeOnly
+        ? 'unavailable'
+        : await encodeReplayVideoInWorker(
+            {
+              shared: made.share(),
+              fps: job.fps,
+              frameCount,
+              sound: audio
+                ? { sampleRate: audio.sampleRate, numberOfChannels: audio.numberOfChannels, length: audio.length }
+                : null,
+              file,
+              baseUrl: typeof document !== 'undefined' ? document.baseURI : '',
+            },
+            {
+              imageOf: (identifier) => {
+                const image = this.imageStorage.get(identifier);
+                return image ? { blob: image.blob, url: image.url } : null;
+              },
+              sound: audio,
+              isCancelled: () => this.cancelled,
+              onProgress,
+            }
+          );
       const msPerFrame = 1000 / job.fps;
-      const encoded = await this.encoder.encode({
-        width: job.settings.width,
-        height: job.settings.height,
-        fps: job.fps,
-        frameCount,
-        audio,
-        file,
-        isCancelled: () => this.cancelled,
-        onProgress: (done, total) => {
-          this._done.set(done);
-          this._total.set(total);
-        },
-        paint: async (ctx, index) => {
-          const atMs = index * msPerFrame;
-          if (!made.isReady(atMs)) await made.prepare(atMs);
-          made.paint(ctx, atMs);
-        },
-      });
+      const encoded =
+        inWorker !== 'unavailable'
+          ? inWorker
+          : await this.encoder.encode({
+              width: job.settings.width,
+              height: job.settings.height,
+              fps: job.fps,
+              frameCount,
+              audio,
+              file,
+              isCancelled: () => this.cancelled,
+              onProgress,
+              paint: async (ctx, index) => {
+                const atMs = index * msPerFrame;
+                if (!made.isReady(atMs)) await made.prepare(atMs);
+                made.paint(ctx, atMs);
+              },
+            });
       if (!encoded) {
         if (!this.cancelled) this._failure.set('encode');
         return false;

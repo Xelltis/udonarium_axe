@@ -1,4 +1,4 @@
-import { type DrawableImage, type DrawableImageSource } from '@axe/infrastructure/replay/drawable-image';
+import type { DrawableImage } from '@axe/infrastructure/replay/drawable-image';
 import type { ReplayFrameAssets } from '@axe/infrastructure/replay/replay-canvas';
 
 /**
@@ -7,6 +7,13 @@ import type { ReplayFrameAssets } from '@axe/infrastructure/replay/replay-canvas
  * recording is played back in a later session.
  */
 const BUNDLED_ASSET = /^(\.\/)?assets\/images\/[\w./-]+\.(png|jpe?g|gif|webp|svg)$/i;
+
+/** Where a picture is found by its identifier: at once, or, in a worker, by asking the page for it. */
+export interface ReplayImageSource {
+  get(
+    identifier: string
+  ): { blob: Blob | null; url: string } | null | Promise<{ blob: Blob | null; url: string } | null>;
+}
 
 /** How much decoded picture the cache keeps before letting the least recently drawn go, in bytes. */
 export const REPLAY_IMAGE_BUDGET_BYTES = 640 * 1024 * 1024;
@@ -39,7 +46,7 @@ export class ReplayImageCache implements ReplayFrameAssets {
    * @param onLoaded told whenever a picture becomes ready, so a preview can draw again.
    */
   constructor(
-    private readonly storage: DrawableImageSource,
+    private readonly storage: ReplayImageSource,
     private readonly maxSide: number,
     private readonly onLoaded: () => void = () => undefined,
     private readonly budgetBytes = REPLAY_IMAGE_BUDGET_BYTES
@@ -115,7 +122,7 @@ export class ReplayImageCache implements ReplayFrameAssets {
   }
 
   private async decode(identifier: string): Promise<DrawableImage | null> {
-    const stored = this.storage.get(identifier);
+    const stored = await this.storage.get(identifier);
     const url = stored?.url || (BUNDLED_ASSET.test(identifier) ? identifier : '');
     const blob = stored?.blob ?? (url.length > 0 ? await fetchBlob(url) : null);
     if (!blob || typeof createImageBitmap !== 'function') return null;

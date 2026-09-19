@@ -3,6 +3,8 @@ import { ReplayLibraryService } from '@axe/application/replay/replay-library.ser
 import { ReplaySoundMixer } from '@axe/application/replay/replay-sound-mixer';
 import { type ReplayVideoJob, ReplayVideoService } from '@axe/application/replay/replay-video.service';
 import { ReplayVideoAudience } from '@axe/application/replay/replay-video-studio.service';
+import { useReplayVideoWorkerFactory } from '@axe/application/replay/replay-video-worker-client';
+import type { ReplayVideoWorkerRequest } from '@axe/application/replay/replay-video-worker-message';
 import {
   type EncodedVideo,
   type VideoEncodeRequest,
@@ -80,13 +82,16 @@ describe('ReplayVideoService', () => {
   let encode: ReturnType<typeof vi.fn<(request: VideoEncodeRequest) => Promise<EncodedVideo | null>>>;
   let saved: { blob: Blob | null; name: string }[];
   let isSupported = true;
+  let isRealtimeOnly = false;
   let mix: ReturnType<typeof vi.fn<(soundtrack: ReplaySoundtrack, read: unknown) => Promise<unknown>>>;
   let keyframe: { seq: number; blob: Blob } | null;
   let drawnTexts: string[];
 
   beforeEach(() => {
+    useReplayVideoWorkerFactory(() => null);
     saved = [];
     isSupported = true;
+    isRealtimeOnly = false;
     drawnTexts = [];
     keyframe = { seq: 0, blob: new Blob([encodeReplayKeyframe(board) as BlobPart]) };
     mix = vi.fn<(soundtrack: ReplaySoundtrack, read: unknown) => Promise<unknown>>().mockResolvedValue(null);
@@ -115,6 +120,9 @@ describe('ReplayVideoService', () => {
             get isSupported() {
               return isSupported;
             },
+            get isRealtimeOnly() {
+              return isRealtimeOnly;
+            },
             encode: (request: VideoEncodeRequest) => encode(request),
             save: (blob: Blob | null, name: string) => saved.push({ blob, name }),
           },
@@ -129,6 +137,7 @@ describe('ReplayVideoService', () => {
   });
 
   afterEach(() => {
+    useReplayVideoWorkerFactory(null);
     vi.restoreAllMocks();
   });
 
@@ -294,5 +303,63 @@ describe('ReplayVideoService', () => {
     release!();
     await first;
     expect(encode).toHaveBeenCalledTimes(1);
+  });
+  describe('in a worker', () => {
+    class ExportingWorker {
+      readonly started: ReplayVideoWorkerRequest[] = [];
+      private listener: ((event: { data: unknown }) => void) | null = null;
+
+      constructor(private readonly answer: 'done' | 'failed') {}
+
+      addEventListener(type: string, listener: (event: { data: unknown }) => void): void {
+        if (type === 'message') this.listener = listener;
+      }
+
+      postMessage(message: ReplayVideoWorkerRequest): void {
+        this.started.push(message);
+        if (message.kind !== 'start') return;
+        queueMicrotask(() =>
+          this.listener?.({
+            data:
+              this.answer === 'done'
+                ? { kind: 'done', blob: new Blob(['from the worker']), extension: 'mp4' }
+                : { kind: 'failed', message: 'no encoder here' },
+          })
+        );
+      }
+
+      terminate(): void {}
+    }
+
+    it('has the worker draw and encode the video, and saves what it made', async () => {
+      const worker = new ExportingWorker('done');
+      useReplayVideoWorkerFactory(() => worker as unknown as Worker);
+
+      expect(await service.render(job([say(1, 'やあ'), say(2, 'こんばんは')]))).toBe(true);
+
+      const start = worker.started[0];
+      expect(start.kind === 'start' && start.job).toMatchObject({ fps: 30, sound: null, file: null });
+      expect(start.kind === 'start' && start.job.shared.timeline.segments.length).toBeGreaterThan(0);
+      expect(encode).not.toHaveBeenCalled();
+      expect(await saved[0].blob?.text()).toBe('from the worker');
+    });
+
+    it('makes the video on the page when the worker cannot', async () => {
+      useReplayVideoWorkerFactory(() => new ExportingWorker('failed') as unknown as Worker);
+
+      expect(await service.render(job([say(1, 'やあ')]))).toBe(true);
+      expect(encode).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps to the page where the video can only be recorded as it plays', async () => {
+      isRealtimeOnly = true;
+      const worker = new ExportingWorker('done');
+      useReplayVideoWorkerFactory(() => worker as unknown as Worker);
+
+      await service.render(job([say(1, 'やあ')]));
+
+      expect(worker.started).toHaveLength(0);
+      expect(encode).toHaveBeenCalledTimes(1);
+    });
   });
 });

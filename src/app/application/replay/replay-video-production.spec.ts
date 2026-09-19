@@ -114,6 +114,19 @@ describe('ReplayVideoProduction', () => {
     expect(production.seqAt(at + 10)).toBe(902);
   });
 
+  it('draws the same frames when made again from what it shares, as a worker makes it', () => {
+    const original = productionOf([said(1, '長い前置き。'.repeat(40)), ...events.slice(1, 40), said(902, 'おわり')]);
+    const copy = ReplayVideoProduction.fromShared(structuredClone(original.share()), { get: () => null });
+
+    expect(copy.durationMs).toBe(original.durationMs);
+    for (const at of [0, original.durationMs / 2, original.durationMs - 1]) {
+      const [a, b] = [recorder(), recorder()];
+      original.paint(a.ctx, at);
+      copy.paint(b.ctx, at);
+      expect(b.texts).toEqual(a.texts);
+    }
+  });
+
   it('is ready at once for a moment with no pictures to wait for', async () => {
     const production = productionOf(events);
 

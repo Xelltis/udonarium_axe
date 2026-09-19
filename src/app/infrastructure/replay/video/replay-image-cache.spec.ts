@@ -61,6 +61,16 @@ describe('ReplayImageCache', () => {
     expect(loaded).toHaveBeenCalled();
   });
 
+  it('waits for a picture it has to ask for, as a worker asks the page', async () => {
+    sizes.set('a', [100, 50]);
+    const asked = { get: async (identifier: string) => storage.get(identifier) };
+    const cache = new ReplayImageCache(asked, 2048);
+
+    await cache.ensure(['a']);
+
+    expect(cache.imageOf('a')).toMatchObject({ width: 100, height: 50 });
+  });
+
   it('scales a picture larger than the video down once, with the best resampling', async () => {
     sizes.set('huge', [8000, 4000]);
     const cache = new ReplayImageCache(storage, 2000);
