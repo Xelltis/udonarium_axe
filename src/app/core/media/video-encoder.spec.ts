@@ -261,6 +261,50 @@ describe('video encoding', () => {
     expect(result).toBeNull();
   });
 
+  describe('when setting up fails partway', () => {
+    class FakeWritable {
+      write = vi.fn().mockResolvedValue(undefined);
+      seek = vi.fn().mockResolvedValue(undefined);
+      truncate = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+      abort = vi.fn().mockResolvedValue(undefined);
+    }
+
+    it('lets go of the file it opened and answers nothing rather than throwing', async () => {
+      borrowed.lend('FileSystemWritableFileStream', FakeWritable);
+      borrowed.lend(
+        'VideoEncoder',
+        class {
+          constructor() {
+            throw new Error('no encoder here');
+          }
+        }
+      );
+      const writable = new FakeWritable();
+      const file = { createWritable: vi.fn().mockResolvedValue(writable) } as unknown as FileSystemFileHandle;
+
+      await expect(encodeVideo(request({ file }))).resolves.toBeNull();
+      expect(writable.abort).toHaveBeenCalledTimes(1);
+      expect(writable.close).not.toHaveBeenCalled();
+    });
+
+    it('closes the picture encoder when the sound encoder cannot be made', async () => {
+      borrowed.lend(
+        'AudioEncoder',
+        class {
+          constructor() {
+            throw new Error('no sound encoder here');
+          }
+        }
+      );
+
+      const result = await encodeVideo(request({ audio: soundOfChannels(48_000, [new Float32Array(4800)]) }));
+
+      expect(result).toBeNull();
+      expect(closed).toBe(true);
+    });
+  });
+
   it('finishes without throwing when the encoder falls over', async () => {
     failOn = 1;
     expect(await encodeVideo(request({ frameCount: 5 }))).toBeNull();

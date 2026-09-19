@@ -206,36 +206,40 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
   const estimatedBytes = ((bitrate + AUDIO_BITRATE) / 8) * (request.frameCount / request.fps);
   const streaming = request.file != null || estimatedBytes > VIDEO_INLINE_INDEX_BUDGET_BYTES;
 
-  const writable = request.file ? await request.file.createWritable() : null;
-  const parts: BlobPart[] = [];
-  const target = writable
-    ? new FileSystemWritableFileStreamTarget(writable)
-    : streaming
-      ? new StreamTarget({ onData: (data) => parts.push(data.slice()), chunked: true })
-      : new ArrayBufferTarget();
-
-  const muxer = new Muxer({
-    target,
-    video: { codec: 'avc', width: request.width, height: request.height, frameRate: request.fps },
-    audio:
-      sound && soundCodec
-        ? { codec: soundCodec.codec, numberOfChannels: sound.numberOfChannels, sampleRate: sound.sampleRate }
-        : undefined,
-    fastStart: streaming ? 'fragmented' : 'in-memory',
-  });
-
-  let failure: unknown = null;
-  const encoder = new VideoEncoder({
-    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (reason) => {
-      failure = reason;
-    },
-  });
-  const audio = sound && soundCodec ? soundPump(muxer, sound, soundCodec.webCodec) : null;
-
   const microsPerFrame = 1_000_000 / request.fps;
   const keyframeEvery = keyframeIntervalFor(request.fps);
+  let failure: unknown = null;
+  let writable: FileSystemWritableFileStream | null = null;
+  let opened: VideoEncoder | null = null;
+  let audio: ReturnType<typeof soundPump> | null = null;
   try {
+    writable = request.file ? await request.file.createWritable() : null;
+    const parts: BlobPart[] = [];
+    const target = writable
+      ? new FileSystemWritableFileStreamTarget(writable)
+      : streaming
+        ? new StreamTarget({ onData: (data) => parts.push(data.slice()), chunked: true })
+        : new ArrayBufferTarget();
+
+    const muxer = new Muxer({
+      target,
+      video: { codec: 'avc', width: request.width, height: request.height, frameRate: request.fps },
+      audio:
+        sound && soundCodec
+          ? { codec: soundCodec.codec, numberOfChannels: sound.numberOfChannels, sampleRate: sound.sampleRate }
+          : undefined,
+      fastStart: streaming ? 'fragmented' : 'in-memory',
+    });
+
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: (reason) => {
+        failure = reason;
+      },
+    });
+    opened = encoder;
+    audio = sound && soundCodec ? soundPump(muxer, sound, soundCodec.webCodec) : null;
+
     if (!(await configureVideo(encoder, request, bitrate))) throw new Error('この形式では書き出せません');
 
     for (let index = 0; index < request.frameCount; index += 1) {
@@ -277,7 +281,7 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
     if (writable) await writable.abort().catch(() => undefined);
     return null;
   } finally {
-    if (encoder.state !== 'closed') encoder.close();
+    if (opened && opened.state !== 'closed') opened.close();
     audio?.close();
   }
 }
