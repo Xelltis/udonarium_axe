@@ -22,7 +22,11 @@ import {
   encodeReplayManifest,
 } from '@axe/domain/replay/replay-codec';
 import type { ReplayEvent, ReplayManifest } from '@axe/domain/replay/replay-event';
-import { flagReplayParts, replayPartIdentifiers } from '@axe/domain/replay/replay-event-category';
+import {
+  flagReplayParts,
+  REPLAY_PARTS_FLAGGED_SINCE_FORMAT,
+  replayPartJudge,
+} from '@axe/domain/replay/replay-event-category';
 import { decodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { applyReplayEvents, indexOfSeq } from '@axe/domain/replay/replay-patch';
 import { hiddenPiecesIn, inheritOwnerVisibility } from '@axe/domain/replay/replay-visibility';
@@ -55,7 +59,8 @@ export class ReplayLibraryService {
     if (!manifest) return { manifest, events };
     const board = await this.boardAtStart(id, events);
     const visible = inheritOwnerVisibility(events, manifest.targets, hiddenPiecesIn(board));
-    return { manifest, events: flagReplayParts(visible, replayPartIdentifiers(manifest.targets, board)) };
+    if (manifest.formatVersion >= REPLAY_PARTS_FLAGGED_SINCE_FORMAT) return { manifest, events: visible };
+    return { manifest, events: flagReplayParts(visible, replayPartJudge(manifest.targets, board)) };
   }
 
   private async boardAtStart(id: number, events: readonly ReplayEvent[]): Promise<ReplayObjectSnapshot[]> {

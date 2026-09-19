@@ -219,6 +219,34 @@ describe('ReplayLibraryService', () => {
     expect(hiddenValues.every((e) => e.visibility.kind === 'gm-only')).toBe(true);
   });
 
+  it('trusts a recording written by the current recorder to have flagged its parts itself', async () => {
+    const id = (await store.createRecording({ roomName: '第一夜', startedAt: manifest.startedAt }))!;
+    const removal: ReplayEvent = {
+      ...event(1),
+      kind: ReplayEventKind.ObjectRemove,
+      targetId: 'hp',
+      detail: {},
+    };
+    await store.appendChunk({
+      recordingId: id,
+      index: 0,
+      seqStart: 1,
+      seqEnd: 1,
+      eventCount: 1,
+      bytes: encodeReplayEvents([removal]),
+    });
+    const board = encodeReplayKeyframe([
+      { identifier: 'hero', aliasName: 'character', syncData: {} },
+      { identifier: 'hp', aliasName: 'data', syncData: { parentIdentifier: 'hero' } },
+    ]);
+    await store.putKeyframe({ recordingId: id, seq: 0, at: manifest.startedAt, blob: new Blob([board as BlobPart]) });
+    await store.updateRecording(id, { manifest: encodeReplayManifest(manifest) });
+
+    const { events } = await service.load(id);
+
+    expect(events[0].detail).toEqual({});
+  });
+
   it('returns the nearest keyframe at or before a point', async () => {
     const meta = await seedRecording();
     expect(await firstIdentifierOf((await service.keyframeBefore(meta.id, 1))?.blob)).toBe('a');

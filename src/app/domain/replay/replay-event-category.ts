@@ -1,4 +1,9 @@
-import { type ReplayEvent, ReplayEventKind, type ReplayTargetSnapshot } from '@axe/domain/replay/replay-event';
+import {
+  type ReplayEvent,
+  ReplayEventKind,
+  type ReplayTargetSnapshot,
+  resolveSnapshotAt,
+} from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 
 /**
@@ -77,38 +82,66 @@ function isValueCue(event: ReplayEvent): boolean {
   return event.kind === ReplayEventKind.ObjectValue && Array.isArray(event.detail['changes']);
 }
 
+/** The first format whose recorder flags the parts itself, so that a recording read back needs no flagging. */
+export const REPLAY_PARTS_FLAGGED_SINCE_FORMAT = 3;
+
+/** Whether an object was part of a piece at a point in a recording. */
+export type ReplayPartJudge = (identifier: string, seq: number) => boolean;
+
 /**
- * The objects in a recording that are parts of a piece: what the manifest records with an owner, and
- * on the first board, every data element and every card held in a stack.
+ * Tells which objects of a recording were parts of a piece, and when.
  *
- * The board covers what was there before recording began and was never touched, which the manifest
- * does not list.
+ * An object the manifest follows is judged by the owner it had at that point, so a card put into a
+ * deck and drawn again is a piece of its own once more. Anything else is judged from the first
+ * board, where every data element and every card held in a stack is a part: that covers what was
+ * there before recording began and was never touched, which the manifest does not list.
  */
-export function replayPartIdentifiers(
+export function replayPartJudge(
   targets: readonly ReplayTargetSnapshot[],
   board: readonly ReplayObjectSnapshot[]
-): Set<string> {
-  const parts = new Set<string>();
-  for (const target of targets) if (target.ownerIdentifier) parts.add(target.identifier);
+): ReplayPartJudge {
+  const histories = new Map<string, ReplayTargetSnapshot[]>();
+  for (const target of targets) {
+    const history = histories.get(target.identifier);
+    if (history) history.push(target);
+    else histories.set(target.identifier, [target]);
+  }
 
-  const aliasOf = new Map(board.map((snapshot) => [snapshot.identifier, snapshot.aliasName]));
+  const byIdentifier = new Map(board.map((snapshot) => [snapshot.identifier, snapshot]));
+  const parentOf = (snapshot: ReplayObjectSnapshot | undefined): ReplayObjectSnapshot | undefined => {
+    const parent = snapshot?.syncData['parentIdentifier'];
+    return typeof parent === 'string' && parent.length > 0 ? byIdentifier.get(parent) : undefined;
+  };
+  const partsAtStart = new Set<string>();
   for (const snapshot of board) {
     const parent = snapshot.syncData['parentIdentifier'];
     if (typeof parent !== 'string' || parent.length < 1) continue;
-    if (snapshot.aliasName === 'data' || aliasOf.get(parent) === 'card-stack') parts.add(snapshot.identifier);
+    if (snapshot.aliasName === 'data') {
+      partsAtStart.add(snapshot.identifier);
+      continue;
+    }
+    for (let above = parentOf(snapshot); above; above = parentOf(above)) {
+      if (above.aliasName !== 'card-stack') continue;
+      partsAtStart.add(snapshot.identifier);
+      break;
+    }
   }
-  return parts;
+
+  return (identifier, seq) => {
+    const history = histories.get(identifier);
+    const then = history ? resolveSnapshotAt(history, seq) : null;
+    return then ? Boolean(then.ownerIdentifier) : partsAtStart.has(identifier);
+  };
 }
 
 /**
  * Flags the arrivals and removals of parts, for recordings written before the recorder flagged them
  * itself. Other events, and events already flagged, come back as they were.
  */
-export function flagReplayParts(events: readonly ReplayEvent[], parts: ReadonlySet<string>): ReplayEvent[] {
-  if (parts.size < 1) return [...events];
+export function flagReplayParts(events: readonly ReplayEvent[], isPart: ReplayPartJudge): ReplayEvent[] {
   return events.map((event) => {
     if (event.kind !== ReplayEventKind.ObjectCreate && event.kind !== ReplayEventKind.ObjectRemove) return event;
-    if (!event.targetId || !parts.has(event.targetId) || event.detail[REPLAY_PART_FLAG] === true) return event;
+    if (!event.targetId || event.detail[REPLAY_PART_FLAG] === true || !isPart(event.targetId, event.seq)) return event;
     return { ...event, detail: { ...event.detail, [REPLAY_PART_FLAG]: true } };
   });
 }
