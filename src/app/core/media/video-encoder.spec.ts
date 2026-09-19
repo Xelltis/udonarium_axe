@@ -4,7 +4,7 @@ import {
   defaultVideoBitrate,
   encodeVideo,
   isVideoEncodingSupported,
-  VIDEO_KEYFRAME_INTERVAL,
+  keyframeIntervalFor,
 } from '@axe/core/media/video-encoder';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
@@ -198,12 +198,13 @@ describe('video encoding', () => {
     expect(result?.blob?.type).toBe('video/mp4');
   });
 
-  it('makes the first frame and the occasional one a keyframe', async () => {
-    await encodeVideo(request({ frameCount: VIDEO_KEYFRAME_INTERVAL + 2 }));
+  it('makes the first frame a keyframe, and one every two seconds after', async () => {
+    await encodeVideo(request({ fps: 60, frameCount: 122 }));
 
+    expect(keyframeIntervalFor(60)).toBe(120);
     expect(calls[0].keyFrame).toBe(true);
     expect(calls[1].keyFrame).toBe(false);
-    expect(calls[VIDEO_KEYFRAME_INTERVAL].keyFrame).toBe(true);
+    expect(calls[120].keyFrame).toBe(true);
   });
 
   it('reports its progress', async () => {
@@ -245,6 +246,63 @@ describe('video encoding', () => {
     expect(avcCodecFor(1280, 720)).toBe('avc1.64001f');
     expect(avcCodecFor(1920, 1080)).toBe('avc1.640028');
     expect(avcCodecFor(3840, 2160)).toBe('avc1.640033');
+  });
+
+  it('claims a level high enough for sixty frames a second', () => {
+    expect(avcCodecFor(1920, 1080, 60)).toBe('avc1.64002a');
+    expect(avcCodecFor(2560, 1440, 60)).toBe('avc1.640033');
+    expect(avcCodecFor(3840, 2160, 60)).toBe('avc1.640034');
+  });
+
+  it('gives a bitrate fit for an upload, and more for sixty frames', () => {
+    expect(defaultVideoBitrate(1920, 1080, 30)).toBe(10_000_000);
+    expect(defaultVideoBitrate(1920, 1080, 60)).toBe(15_000_000);
+    expect(defaultVideoBitrate(3840, 2160, 60)).toBeGreaterThanOrEqual(53_000_000);
+  });
+
+  it('asks for a variable bitrate tuned for quality', async () => {
+    await encodeVideo(request());
+
+    expect(configured).toMatchObject({ bitrateMode: 'variable', latencyMode: 'quality' });
+  });
+
+  it('falls back to plainer settings the browser will take', async () => {
+    borrowed.lend(
+      'VideoEncoder',
+      class extends FakeVideoEncoder {
+        static async isConfigSupported(config: Record<string, unknown>) {
+          return { supported: !('latencyMode' in config), config };
+        }
+      }
+    );
+    await encodeVideo(request());
+
+    expect(configured).toMatchObject({ bitrateMode: 'variable' });
+    expect(configured?.['latencyMode']).toBeUndefined();
+  });
+
+  it('gives up when the browser takes no settings at all', async () => {
+    borrowed.lend(
+      'VideoEncoder',
+      class extends FakeVideoEncoder {
+        static async isConfigSupported(config: Record<string, unknown>) {
+          return { supported: false, config };
+        }
+      }
+    );
+
+    expect(await encodeVideo(request())).toBeNull();
+  });
+
+  it('encodes the sound alongside the picture rather than after it', async () => {
+    const order: string[] = [];
+    const paint = vi.fn(() => {
+      order.push(`frame ${audioFrames.length}`);
+    });
+    const channels = [new Float32Array(48_000)];
+    await encodeVideo(request({ paint, frameCount: 30, audio: { sampleRate: 48_000, channels } }));
+
+    expect(order[order.length - 1]).not.toBe('frame 0');
   });
 
   it('takes the aac path when given sound as well', async () => {

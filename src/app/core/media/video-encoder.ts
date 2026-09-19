@@ -29,7 +29,8 @@ export interface EncodedVideo {
   extension: string;
 }
 
-export const VIDEO_KEYFRAME_INTERVAL = 60;
+/** A keyframe every two seconds, as YouTube asks of an upload. */
+export const VIDEO_KEYFRAME_SECONDS = 2;
 /**
  * Past this, the index-first form is abandoned for streaming.
  * Putting the index first means holding the whole file in memory, which caps the length.
@@ -37,7 +38,7 @@ export const VIDEO_KEYFRAME_INTERVAL = 60;
 export const VIDEO_INLINE_INDEX_BUDGET_BYTES = 512 * 1024 * 1024;
 export const VIDEO_ENCODE_QUEUE_LIMIT = 8;
 export const AUDIO_FRAME_SAMPLES = 1024;
-export const AUDIO_BITRATE = 128_000;
+export const AUDIO_BITRATE = 192_000;
 
 /** Whether this browser has the WebCodecs video encoder and OffscreenCanvas for a fast export. */
 export function isVideoEncodingSupported(): boolean {
@@ -77,17 +78,51 @@ export async function audioCodecFor(sound: EncodedAudio): Promise<{ codec: 'aac'
   return null;
 }
 
-/** The bitrate in bits per second when a request names none, scaled by pixels and frame rate. */
-export function defaultVideoBitrate(width: number, height: number, fps: number): number {
-  return Math.round(width * height * fps * 0.09);
+/** How many frames apart keyframes come at a frame rate. */
+export function keyframeIntervalFor(fps: number): number {
+  return Math.max(1, Math.round(fps * VIDEO_KEYFRAME_SECONDS));
 }
 
-/** The H.264 High profile codec whose level fits the frame: 3.1 to 720p, 4.0 to 1080p, else 5.1. */
-export function avcCodecFor(width: number, height: number): string {
+/**
+ * The bitrate in bits per second when a request names none: what YouTube recommends for an upload
+ * of that size and rate, with room to spare for the sharp edges of text, and half as much again
+ * for 60 frames a second.
+ */
+export function defaultVideoBitrate(width: number, height: number, fps: number): number {
   const pixels = width * height;
-  if (pixels > 1920 * 1080) return 'avc1.640033';
-  if (pixels > 1280 * 720) return 'avc1.640028';
-  return 'avc1.64001f';
+  const base =
+    pixels <= 1280 * 720
+      ? 6_000_000
+      : pixels <= 1920 * 1080
+        ? 10_000_000
+        : pixels <= 2560 * 1440
+          ? 20_000_000
+          : 45_000_000;
+  return Math.round(fps > 30 ? base * 1.5 : base);
+}
+
+/** The H.264 levels, each with the macroblocks it decodes a second and the most a frame may have. */
+const AVC_LEVELS: readonly (readonly [level: number, perSecond: number, perFrame: number])[] = [
+  [0x1f, 108_000, 3_600],
+  [0x20, 216_000, 5_120],
+  [0x28, 245_760, 8_192],
+  [0x2a, 522_240, 8_704],
+  [0x32, 589_824, 22_080],
+  [0x33, 983_040, 36_864],
+  [0x34, 2_073_600, 36_864],
+];
+
+/**
+ * The H.264 High profile codec with the lowest level that carries the frame at its rate: 3.1 for
+ * 720p30, 4.0 for 1080p30, 4.2 for 1080p60, 5.1 for 1440p60 and 2160p30, 5.2 for 2160p60. A player
+ * refuses a stream whose level claims less than it needs.
+ */
+export function avcCodecFor(width: number, height: number, fps = 30): string {
+  const perFrame = Math.ceil(width / 16) * Math.ceil(height / 16);
+  const perSecond = perFrame * fps;
+  const fits = AVC_LEVELS.find(([, rate, size]) => perFrame <= size && perSecond <= rate);
+  const level = (fits ?? AVC_LEVELS[AVC_LEVELS.length - 1])[0];
+  return `avc1.6400${level.toString(16).padStart(2, '0')}`;
 }
 
 export class VideoEncoderGateway {
@@ -175,16 +210,12 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
       failure = reason;
     },
   });
+  const audio = sound && soundCodec ? soundPump(muxer, sound, soundCodec.webCodec) : null;
 
   const microsPerFrame = 1_000_000 / request.fps;
+  const keyframeEvery = keyframeIntervalFor(request.fps);
   try {
-    encoder.configure({
-      codec: avcCodecFor(request.width, request.height),
-      width: request.width,
-      height: request.height,
-      framerate: request.fps,
-      bitrate,
-    });
+    if (!(await configureVideo(encoder, request, bitrate))) throw new Error('この形式では書き出せません');
 
     for (let index = 0; index < request.frameCount; index += 1) {
       if (request.isCancelled?.()) return null;
@@ -195,16 +226,17 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
         timestamp: Math.round(index * microsPerFrame),
         duration: Math.round(microsPerFrame),
       });
-      encoder.encode(frame, { keyFrame: index % VIDEO_KEYFRAME_INTERVAL === 0 });
+      encoder.encode(frame, { keyFrame: index % keyframeEvery === 0 });
       frame.close();
 
       if (encoder.encodeQueueSize > VIDEO_ENCODE_QUEUE_LIMIT) await drain(encoder);
+      if (audio) await audio.until((index + 1) * microsPerFrame);
       request.onProgress?.(index + 1, request.frameCount);
     }
 
     await encoder.flush();
     if (failure) throw failure;
-    if (sound && soundCodec) await encodeSound(muxer, sound, soundCodec.webCodec);
+    if (audio) await audio.finish();
     muxer.finalize();
     if (writable) {
       await writable.close();
@@ -218,7 +250,43 @@ export async function encodeVideo(request: VideoEncodeRequest): Promise<EncodedV
     return null;
   } finally {
     if (encoder.state !== 'closed') encoder.close();
+    audio?.close();
   }
+}
+
+/**
+ * Sets the encoder up for the best picture the browser will make: a variable bitrate tuned for
+ * quality over speed, falling back a step at a time to the plainest settings. False when the
+ * browser will take none of them.
+ */
+async function configureVideo(encoder: VideoEncoder, request: VideoEncodeRequest, bitrate: number): Promise<boolean> {
+  const plain: VideoEncoderConfig = {
+    codec: avcCodecFor(request.width, request.height, request.fps),
+    width: request.width,
+    height: request.height,
+    framerate: request.fps,
+    bitrate,
+  };
+  const candidates: VideoEncoderConfig[] = [
+    { ...plain, bitrateMode: 'variable', latencyMode: 'quality' },
+    { ...plain, bitrateMode: 'variable' },
+    plain,
+  ];
+  if (typeof VideoEncoder.isConfigSupported !== 'function') {
+    encoder.configure(candidates[0]);
+    return true;
+  }
+  for (const candidate of candidates) {
+    try {
+      const support = await VideoEncoder.isConfigSupported(candidate);
+      if (!support.supported) continue;
+      encoder.configure(support.config ?? candidate);
+      return true;
+    } catch {
+      continue;
+    }
+  }
+  return false;
 }
 
 async function drain(encoder: VideoEncoder): Promise<void> {
@@ -227,8 +295,13 @@ async function drain(encoder: VideoEncoder): Promise<void> {
   }
 }
 
-async function encodeSound(
-  muxer: { addAudioChunk(chunk: EncodedAudioChunk, meta?: unknown): void },
+/**
+ * Encodes the sound a stretch at a time as the picture goes, so the two travel through the file
+ * together and neither waits in memory for the other. Only whole frames of sound are encoded
+ * along the way; the last, shorter one goes when the picture is done.
+ */
+function soundPump(
+  muxer: { addAudioChunk(chunk: EncodedAudioChunk, meta?: EncodedAudioChunkMetadata): void },
   sound: EncodedAudio,
   webCodec: string
 ) {
@@ -239,7 +312,6 @@ async function encodeSound(
       failure = reason;
     },
   });
-
   encoder.configure({
     codec: webCodec,
     numberOfChannels: sound.channels.length,
@@ -248,32 +320,50 @@ async function encodeSound(
   });
 
   const total = sound.channels[0].length;
-  const interleaved = new Float32Array(AUDIO_FRAME_SAMPLES * sound.channels.length);
-  try {
-    for (let offset = 0; offset < total; offset += AUDIO_FRAME_SAMPLES) {
-      if (failure) throw failure;
-      const count = Math.min(AUDIO_FRAME_SAMPLES, total - offset);
-      for (const [channel, samples] of sound.channels.entries()) {
-        interleaved.set(samples.subarray(offset, offset + count), channel * count);
-      }
+  const planar = new Float32Array(AUDIO_FRAME_SAMPLES * sound.channels.length);
+  let offset = 0;
 
-      const data = new AudioData({
-        format: 'f32-planar',
-        sampleRate: sound.sampleRate,
-        numberOfFrames: count,
-        numberOfChannels: sound.channels.length,
-        timestamp: Math.round((offset / sound.sampleRate) * 1_000_000),
-        data: interleaved.subarray(0, count * sound.channels.length),
-      });
-      encoder.encode(data);
-      data.close();
-      if (encoder.encodeQueueSize > VIDEO_ENCODE_QUEUE_LIMIT) await drainAudio(encoder);
+  const encodeNext = (count: number): void => {
+    for (const [channel, samples] of sound.channels.entries()) {
+      planar.set(samples.subarray(offset, offset + count), channel * count);
     }
-    await encoder.flush();
-    if (failure) throw failure;
-  } finally {
-    if (encoder.state !== 'closed') encoder.close();
-  }
+    const data = new AudioData({
+      format: 'f32-planar',
+      sampleRate: sound.sampleRate,
+      numberOfFrames: count,
+      numberOfChannels: sound.channels.length,
+      timestamp: Math.round((offset / sound.sampleRate) * 1_000_000),
+      data: planar.subarray(0, count * sound.channels.length),
+    });
+    encoder.encode(data);
+    data.close();
+    offset += count;
+  };
+
+  return {
+    /** Encodes every whole frame of sound up to a moment of the picture, in microseconds. */
+    async until(micros: number): Promise<void> {
+      const upto = Math.min(total, Math.floor((micros / 1_000_000) * sound.sampleRate));
+      while (offset + AUDIO_FRAME_SAMPLES <= upto) {
+        if (failure) throw failure;
+        encodeNext(AUDIO_FRAME_SAMPLES);
+        if (encoder.encodeQueueSize > VIDEO_ENCODE_QUEUE_LIMIT) await drainAudio(encoder);
+      }
+    },
+    /** Encodes what is left and waits for all of it. */
+    async finish(): Promise<void> {
+      while (offset < total) {
+        if (failure) throw failure;
+        encodeNext(Math.min(AUDIO_FRAME_SAMPLES, total - offset));
+        if (encoder.encodeQueueSize > VIDEO_ENCODE_QUEUE_LIMIT) await drainAudio(encoder);
+      }
+      await encoder.flush();
+      if (failure) throw failure;
+    },
+    close(): void {
+      if (encoder.state !== 'closed') encoder.close();
+    },
+  };
 }
 
 async function drainAudio(encoder: AudioEncoder): Promise<void> {
