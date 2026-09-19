@@ -49,10 +49,16 @@ function ask(
  * Draws and encodes a video away from the page, so the page stays free and a tab left in the
  * background does not slow the export down. The pictures and the sound are asked of the page as
  * they are wanted.
+ *
+ * The subtitles were laid out on the page in the bundled fonts. A worker that cannot load them
+ * would draw in others that run wider or narrower, so it fails before its first frame and the page
+ * makes the video instead.
  */
 async function run(job: ReplayVideoWorkerJob): Promise<void> {
   try {
-    await loadReplayFonts({ fonts: scope.fonts, FontFace: scope.FontFace }, job.baseUrl);
+    if (!(await loadReplayFonts({ fonts: scope.fonts, FontFace: scope.FontFace }, job.baseUrl))) {
+      throw new Error('the bundled fonts could not be loaded in the worker');
+    }
     const production = ReplayVideoProduction.fromShared(job.shared, {
       get: async (identifier) => {
         const reply = await ask({ kind: 'image-request', identifier });
