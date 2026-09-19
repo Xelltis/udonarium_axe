@@ -312,8 +312,17 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     return body;
   }
 
-  /** Takes a panel in from another frame, the ground it stands on and all. */
+  /**
+   * Takes a panel in from another frame, the ground it stands on and all.
+   *
+   * The panel takes on this frame's state: folded if the frame is, and never shrunk to its content,
+   * since a frame holding several shows their names at its full size. A frame shrunk to its
+   * content is let out first.
+   */
   adoptTab(handle: PanelTabHandle): void {
+    this.setShrunk(false);
+    handle.panel.isShrunk.set(false);
+    handle.panel.isMinimized.set(this.isMinimized());
     const restore = holdLiveState(handle.slot.instance.scrollable().nativeElement);
     this.slots().insert(handle.slot.hostView);
     handle.panel.attachTo(this);
