@@ -90,8 +90,9 @@ export class SaveDataService {
    * as a file, with the picture and audio tag lists.
    *
    * Pictures still loading are left out, as is hidden audio and a sound whose bytes this browser
-   * does not hold, such as one only linked to. A sound is named with an extension that reads back
-   * as a sound: the one it was added under where that is one, or else one for its kind.
+   * does not hold, such as one only linked to. A sound goes in under the name it was added with,
+   * so it is read back under that name, with an extension for its kind where the name has none
+   * and a number added where two share a name.
    */
   buildAssetFiles(wanted: { images: ReadonlySet<string>; audios: ReadonlySet<string> }): File[] {
     const files: File[] = [];
@@ -105,8 +106,9 @@ export class SaveDataService {
     files.push(new File([this.convertToXml(ImageTagList.create(images))], 'imagetag.xml', { type: 'text/plain' }));
 
     const audios = this.audioStorage.audios.filter((audio) => !audio.isHidden && wanted.audios.has(audio.identifier));
+    const taken = new Set(files.map((file) => file.name.toLowerCase()));
     for (const audio of audios) {
-      const file = createAudioArchiveFile(audio);
+      const file = createAudioArchiveFile(audio, taken);
       if (file) files.push(file);
     }
     files.push(new File([this.convertToXml(AudioTagList.create(audios))], 'audiotag.xml', { type: 'text/plain' }));
@@ -456,14 +458,21 @@ const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
 };
 
 /**
- * A sound as a file of its own, named by its identifier with an extension that is read back as a
- * sound. Null when its bytes are not held here or its kind has no such extension.
+ * A sound as a file of its own, under the name it was added with and an extension that is read
+ * back as a sound, numbered where the name is `taken` already. Null when its bytes are not held
+ * here or its kind has no such extension.
  */
-function createAudioArchiveFile(audio: AudioFile): File | null {
+function createAudioArchiveFile(audio: AudioFile, taken: Set<string>): File | null {
   const blob = audio.blob;
   if (!blob) return null;
-  const named = audio.name.includes('.') ? audio.name.slice(audio.name.lastIndexOf('.') + 1).toLowerCase() : '';
-  const extension = MimeType.type(`sound.${named}`).startsWith('audio/') ? named : AUDIO_EXTENSION_OF_TYPE[blob.type];
+  const dot = audio.name.lastIndexOf('.');
+  const named = dot > 0 ? audio.name.slice(dot + 1).toLowerCase() : '';
+  const isSoundName = MimeType.type(`sound.${named}`).startsWith('audio/');
+  const extension = isSoundName ? named : AUDIO_EXTENSION_OF_TYPE[blob.type];
   if (!extension) return null;
-  return new File([blob], `${audio.identifier}.${extension}`, { type: MimeType.type(`sound.${extension}`) });
+  const stem = (isSoundName ? audio.name.slice(0, dot) : audio.name).trim() || audio.identifier;
+  let name = `${stem}.${extension}`;
+  for (let copy = 2; taken.has(name.toLowerCase()); copy++) name = `${stem} (${copy}).${extension}`;
+  taken.add(name.toLowerCase());
+  return new File([blob], name, { type: MimeType.type(`sound.${extension}`) });
 }

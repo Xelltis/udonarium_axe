@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import {
@@ -284,6 +285,19 @@ describe('ReplayLibraryService', () => {
     expect(await service.import(new File(['zip'], 'replay.zip'))).not.toBeNull();
     expect(load).not.toHaveBeenCalled();
     expect(addImage).not.toHaveBeenCalled();
+  });
+
+  it('takes a sound in under the name it was packed with', async () => {
+    const entries = [
+      { name: 'manifest.json', type: 'application/json', blob: new Blob([JSON.stringify(manifest)]) },
+      { name: 'events/000.msgpack', type: '', blob: new Blob([encodeReplayEvents([event(1)]) as BlobPart]) },
+      { name: 'assets/戦闘曲.mp3', type: 'audio/mp3', blob: new Blob(['mp3'], { type: 'audio/mp3' }) },
+    ];
+    vi.spyOn(archiver, 'readZipEntriesAsync').mockResolvedValue(entries);
+    const addAudio = vi.spyOn(TestBed.inject(AudioStorage), 'addAsync').mockResolvedValue(null as never);
+
+    expect(await service.import(new File(['zip'], 'replay.zip'))).not.toBeNull();
+    expect((addAudio.mock.calls[0][0] as File).name).toBe('戦闘曲.mp3');
   });
 
   it('exports nothing without a manifest', async () => {

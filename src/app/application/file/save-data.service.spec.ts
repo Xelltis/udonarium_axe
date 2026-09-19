@@ -359,20 +359,27 @@ describe('SaveDataService', () => {
       for (const identifier of ['bgm-1', 'bgm-2', 'bgm-3']) AudioStorage.instance.delete(identifier);
     });
 
-    it('packs the sounds a replay uses, and only those', () => {
-      hold('bgm-1', 'battle.mp3', new Blob(['mp3'], { type: 'audio/mpeg' }));
+    it('packs the sounds a replay uses, and only those, under the names they were added with', () => {
+      hold('bgm-1', '戦闘曲.mp3', new Blob(['mp3'], { type: 'audio/mpeg' }));
       hold('bgm-2', 'town.ogg', new Blob(['ogg'], { type: 'audio/ogg' }));
 
       const files = packed(['bgm-1']);
 
-      expect(files.map((file) => file.name)).toEqual(['bgm-1.mp3']);
+      expect(files.map((file) => file.name)).toEqual(['戦闘曲.mp3']);
       expect(MimeType.type(files[0].name).startsWith('audio/')).toBe(true);
     });
 
-    it('names a sound for its kind when the name it was added under tells nothing', () => {
-      hold('bgm-1', 'bgm-1', new Blob(['mp3'], { type: 'audio/mpeg' }));
+    it('gives a name without a sound extension one for its kind', () => {
+      hold('bgm-1', 'battle', new Blob(['mp3'], { type: 'audio/mpeg' }));
 
-      expect(packed(['bgm-1']).map((file) => file.name)).toEqual(['bgm-1.mp3']);
+      expect(packed(['bgm-1']).map((file) => file.name)).toEqual(['battle.mp3']);
+    });
+
+    it('numbers a sound whose name another has taken, so neither is lost', () => {
+      hold('bgm-1', 'theme.mp3', new Blob(['one'], { type: 'audio/mpeg' }));
+      hold('bgm-2', 'Theme.mp3', new Blob(['two'], { type: 'audio/mpeg' }));
+
+      expect(packed(['bgm-1', 'bgm-2']).map((file) => file.name)).toEqual(['theme.mp3', 'Theme (2).mp3']);
     });
 
     it('leaves out a sound whose bytes are not held here', () => {
