@@ -2112,7 +2112,13 @@
           "door": "扉",
           "doorLocked": "扉（施錠）",
           "entrance": "入口",
-          "exit": "出口"
+          "exit": "出口",
+          "tree": "木",
+          "bush": "茂み",
+          "boulder": "岩",
+          "outcrop": "岩場",
+          "hill": "丘",
+          "cactus": "サボテン"
         },
         "summary": {
           "title": "ダンジョン概要",

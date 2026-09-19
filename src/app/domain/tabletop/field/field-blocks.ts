@@ -94,6 +94,7 @@ export function fieldToBlocks(
         rooms: [],
         skin: { side: { kind: 'texture', id: side }, top: { kind: 'texture', id: top } },
         height: shape.height,
+        thing: prop,
       });
     }
   }
@@ -125,6 +126,7 @@ export function fieldToBlocks(
         height: trunk.height + object.lift,
         footprint: { w: trunk.width, d: trunk.width },
         rotate: object.spin,
+        thing: object.prop,
       });
     }
 
@@ -149,6 +151,7 @@ export function fieldToBlocks(
         altitude: standing,
         rotate: object.spin,
         offset: object.drift[index],
+        thing: object.prop,
       });
       standing += layer.height;
     });
@@ -166,6 +169,7 @@ export function fieldToBlocks(
         altitude: (shape.altitude ?? 0) + object.lift + arm.at,
         rotate: object.spin,
         offset: { x: arm.reach, y: 0 },
+        thing: object.prop,
       });
     }
   }

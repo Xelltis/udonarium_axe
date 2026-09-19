@@ -338,6 +338,7 @@ export class DungeonBuildService {
 
   private terrainName(block: MapBlock): string {
     if (block.name) return block.name;
+    if (block.thing) return this.t(`feature.tabletop.dungeonGenerator.piece.${block.thing}`);
     switch (block.kind) {
       case 'wall':
         return this.t('feature.tabletop.dungeonGenerator.piece.wall');

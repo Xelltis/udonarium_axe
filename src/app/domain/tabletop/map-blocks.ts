@@ -71,6 +71,12 @@ export interface MapBlock {
   /** Whether this one opens the other way round, which is what makes a pair of doors a pair. */
   doorMirrored?: boolean;
   name?: string;
+  /**
+   * What it is - a tree, a counter, a building - which is what it is called on the table.
+   *
+   * Left out, it is called after its kind: a wall, a door, a stair.
+   */
+  thing?: string;
 }
 
 /**

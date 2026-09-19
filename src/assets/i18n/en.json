@@ -2112,7 +2112,13 @@
           "door": "Door",
           "doorLocked": "Door (locked)",
           "entrance": "Way in",
-          "exit": "Way out"
+          "exit": "Way out",
+          "tree": "Tree",
+          "bush": "Bush",
+          "boulder": "Boulder",
+          "outcrop": "Outcrop",
+          "hill": "Hill",
+          "cactus": "Cactus"
         },
         "summary": {
           "title": "Dungeon notes",

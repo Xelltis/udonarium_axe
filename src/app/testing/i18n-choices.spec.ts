@@ -42,6 +42,7 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.tabletop.dungeonGenerator.role.': DUNGEON_ROOM_ROLES,
   'feature.tabletop.dungeonGenerator.field.': FIELD_ATMOSPHERE_IDS,
   'feature.tabletop.dungeonGenerator.prop.': FIELD_PROP_IDS,
+  'feature.tabletop.dungeonGenerator.piece.': FIELD_PROP_IDS,
   'feature.tabletop.dungeonGenerator.kind.': MAP_KINDS,
   'feature.chat.messageSetting.soundType_': CHAT_SOUND_TYPES,
   'feature.roomSettings.facingMark_': TABLE_FACING_MARKS,

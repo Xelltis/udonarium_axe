@@ -8,6 +8,7 @@ import { ImageTag } from '@axe/domain/media/image-tag';
 import { WALL_TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
 import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
+import { planField } from '@axe/domain/tabletop/field/field-generator';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
@@ -16,8 +17,10 @@ import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { terrainCostOf } from '@axe/testing/terrain-cost';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const GRID = 50;
+const ja = createSyncTranslate('ja');
 
 function options(overrides: Partial<Parameters<DungeonBuildService['build']>[3]> = {}) {
   return {
@@ -522,6 +525,17 @@ describe('DungeonBuildService', () => {
 
     expect(result.table.terrains.length).toBe(plan.blocks.blocks.length);
     expect(plan.blocks.paint.some((patch) => patch.kind === 'hazard')).toBe(true);
+  });
+
+  describe('naming what was generated', () => {
+    it('names the trees of a field trees, not the way out', async () => {
+      const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 7 });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+      const names = new Set(result.table.terrains.map((terrain) => terrain.name));
+
+      expect(names.has(ja('feature.tabletop.dungeonGenerator.piece.tree'))).toBe(true);
+      expect(names.has(ja('feature.tabletop.dungeonGenerator.piece.exit'))).toBe(false);
+    });
   });
 
   describe('building on hexes', () => {

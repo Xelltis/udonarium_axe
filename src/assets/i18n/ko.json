@@ -2112,7 +2112,13 @@
           "door": "문",
           "doorLocked": "문(잠김)",
           "entrance": "입구",
-          "exit": "출구"
+          "exit": "출구",
+          "tree": "나무",
+          "bush": "덤불",
+          "boulder": "바위",
+          "outcrop": "암반",
+          "hill": "언덕",
+          "cactus": "선인장"
         },
         "summary": {
           "title": "던전 개요",
