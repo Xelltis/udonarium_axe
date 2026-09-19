@@ -62,6 +62,47 @@ describe('keeping an identifier through a file', () => {
     expect(probe.label).toBe('見張り');
   });
 
+  describe('when something here already goes by the identifier', () => {
+    const attributes = (xml: string) =>
+      new DOMParser().parseFromString(xml, 'application/xml').documentElement.attributes;
+    let original: Probe;
+
+    beforeEach(() => {
+      original = new Probe('probe-1');
+      original.label = '元';
+      original.initialize();
+    });
+
+    it('takes its place by default', () => {
+      const probe = new Probe();
+      parseAttributesKeepingIdentifier(probe, attributes('<p label="写し" identifier="probe-1"/>'));
+
+      expect(probe.identifier).toBe('probe-1');
+    });
+
+    it('stands beside it under a fresh identifier when asked to copy', () => {
+      const probe = new Probe();
+      parseAttributesKeepingIdentifier(probe, attributes('<p label="写し" identifier="probe-1"/>'), {
+        whenTaken: 'copy',
+      });
+
+      expect(probe.identifier).not.toBe('probe-1');
+      expect(probe.label).toBe('写し');
+      expect(ObjectStore.instance.get('probe-1')).toBe(original);
+    });
+
+    it('still takes up the identifier when asked to copy and nothing goes by it', () => {
+      original.destroy();
+      ObjectStore.instance.forgetDeleted(['probe-1']);
+      const probe = new Probe();
+      parseAttributesKeepingIdentifier(probe, attributes('<p label="写し" identifier="probe-1"/>'), {
+        whenTaken: 'copy',
+      });
+
+      expect(probe.identifier).toBe('probe-1');
+    });
+  });
+
   it('stays under a fresh identifier when the file carries none, as one written before identifiers were', () => {
     const probe = read('<persisted-identifier-probe label="見張り"></persisted-identifier-probe>');
 

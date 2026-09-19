@@ -3,9 +3,11 @@ import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { type InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 
 @SyncObject('cut-in')
@@ -218,6 +220,25 @@ export class CutIn extends GameObject implements InnerXml {
   get isComposed(): boolean {
     const scene = this.scene;
     return scene !== null && scene.layers.length > 0;
+  }
+
+  /**
+   * The identifier is written out with the rest.
+   *
+   * A table names the cut-ins it plays by their identifiers, so cut-ins read back under new ones
+   * would leave every table pointing at nothing, and its settings showing the bare identifiers.
+   */
+  toAttributes(): Attributes {
+    return toAttributesKeepingIdentifier(this);
+  }
+
+  /**
+   * Reads the cut-in back from a file, taking up the identifier written with it. Brought into a
+   * room that still has the one it was saved from, it is a copy under an identifier of its own,
+   * since its scene is tied to it by identifier.
+   */
+  parseAttributes(attributes: NamedNodeMap): void {
+    parseAttributesKeepingIdentifier(this, attributes, { whenTaken: 'copy' });
   }
 
   /**

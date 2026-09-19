@@ -165,7 +165,16 @@ describe('GameTableSettingComponent', () => {
       expect(launchForTable).not.toHaveBeenCalled();
     });
 
+    function cutInsNamed(...identifiers: string[]): CutIn[] {
+      return identifiers.map((identifier) => {
+        const cutIn = new CutIn(identifier);
+        cutIn.initialize();
+        return cutIn;
+      });
+    }
+
     it('reads and writes the cut-ins the table names', () => {
+      cutInsNamed('cut-1', 'cut-2');
       component.selectedTable = table;
       component.tableCutIns = ['cut-1', 'cut-2'];
 
@@ -190,7 +199,25 @@ describe('GameTableSettingComponent', () => {
       expect(labels).toContain('オープニング');
     });
 
+    it('leaves out a cut-in that is no longer in the room, rather than showing its identifier', async () => {
+      const [kept] = cutInsNamed('cut-1');
+      kept.name = 'オープニング';
+      table.cutInIdentifiers = 'cut-gone,cut-1';
+      component.selectedTable = table;
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const labels = [...fixture.nativeElement.querySelectorAll('.ng-value-label')].map(
+        (node: Element) => node.textContent
+      );
+      expect(component.tableCutIns).toEqual(['cut-1']);
+      expect(labels).toEqual(['オープニング']);
+    });
+
     it('hands back the same list until the table names other cut-ins', () => {
+      cutInsNamed('cut-1', 'cut-2');
       component.selectedTable = table;
       component.tableCutIns = ['cut-1', 'cut-2'];
       const list = component.tableCutIns;

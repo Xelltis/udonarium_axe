@@ -598,18 +598,24 @@ export class GameTableSettingComponent {
     return this.objectStore.getObjects(CutIn);
   }
 
-  private cutInIdentifiersRaw = '';
+  private cutInIdentifiersKey = '';
   private cutInIdentifiers: string[] = [];
 
   /**
    * The identifiers of the cut-ins that play when the picked table is chosen from the list; writes
    * are ignored while it cannot be edited.
+   *
+   * Only cut-ins still in the room are listed. One named by a table but gone, deleted since or
+   * never brought back by an older saved room, would otherwise show as its bare identifier.
    */
   get tableCutIns(): string[] {
     const raw = this.selectedTable?.cutInIdentifiers ?? '';
-    if (raw !== this.cutInIdentifiersRaw) {
-      this.cutInIdentifiersRaw = raw;
-      this.cutInIdentifiers = parseCutInIdentifiers(raw);
+    const present = this.getCutIns().map((cutIn) => cutIn.identifier);
+    const key = `${raw}|${present.join(',')}`;
+    if (key !== this.cutInIdentifiersKey) {
+      this.cutInIdentifiersKey = key;
+      const known = new Set(present);
+      this.cutInIdentifiers = parseCutInIdentifiers(raw).filter((identifier) => known.has(identifier));
     }
     return this.cutInIdentifiers;
   }
