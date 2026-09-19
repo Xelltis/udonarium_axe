@@ -25,7 +25,7 @@ function host(fails = false) {
     add: (face: FakeFontFace) =>
       added.push({ family: face.family, source: face.source, weight: face.descriptors.weight }),
   };
-  return { host: { fonts, FontFace: FakeFontFace as unknown as typeof FontFace } as ReplayFontHost, added, made };
+  return { host: { fonts, FontFace: FakeFontFace } as unknown as ReplayFontHost, added, made };
 }
 
 describe('loading the fonts of replay videos', () => {
