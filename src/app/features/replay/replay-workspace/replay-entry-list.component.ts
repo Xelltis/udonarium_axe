@@ -410,7 +410,10 @@ export class ReplayEntryListComponent {
     return this.insertText().trim().length > 0;
   }
 
-  /** Puts what is written in the field after the last row chosen, or at the end, and chooses it. */
+  /**
+   * Puts what is written in the field after the last row chosen, or at the end, and chooses it,
+   * so what is written next goes after it.
+   */
   protected insertHere(index = this.insertIndex()): void {
     if (!this.canInsert()) return;
     const member = this.selectedCast();
@@ -424,6 +427,11 @@ export class ReplayEntryListComponent {
       chatColor: member?.chatColor ?? '',
     });
     this.insertText.set('');
+    const added = this.editor.edited()[Math.max(0, Math.min(index, this.editor.edited().length - 1))];
+    if (added && this.editor.isInserted(added.seq)) {
+      this.chosen.set(new Set([added.seq]));
+      this.anchor = added.seq;
+    }
   }
 
   protected async stageAt(index = this.insertIndex()): Promise<void> {

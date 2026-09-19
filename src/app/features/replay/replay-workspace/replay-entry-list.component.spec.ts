@@ -377,3 +377,74 @@ describe('editing the list by choosing rows', () => {
     expect(rowElements()[1].getAttribute('aria-selected')).toBe('true');
   });
 });
+
+describe('writing entries one after another', () => {
+  let fixture: ComponentFixture<ReplayEntryListComponent>;
+  let edited: ReturnType<typeof signal<readonly ReplayEvent[]>>;
+  let nextSeq: number;
+
+  beforeEach(async () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
+    edited = signal<readonly ReplayEvent[]>(events);
+    nextSeq = 100;
+    const inserted = new Set<number>();
+    await TestBed.configureTestingModule({
+      imports: [ReplayEntryListComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: ReplayPlaybackService,
+          useValue: {
+            events: signal(events).asReadonly(),
+            cursor: signal(0).asReadonly(),
+            manifest: signal(null).asReadonly(),
+            cast: signal([]).asReadonly(),
+            isBoardMode: signal(false).asReadonly(),
+            seekTo: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: ReplayEditorService,
+          useValue: {
+            edited: edited.asReadonly(),
+            isInserted: (seq: number) => inserted.has(seq),
+            insert: (index: number, draft: { text: string }) => {
+              const entry = event(nextSeq++, draft.text);
+              inserted.add(entry.seq);
+              edited.update((list) => [...list.slice(0, index), entry, ...list.slice(index)]);
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(ReplayEntryListComponent);
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  function write(text: string): void {
+    const list = fixture.componentInstance as unknown as {
+      insertText: { set(value: string): void };
+      insertHere(): void;
+    };
+    list.insertText.set(text);
+    list.insertHere();
+    fixture.detectChanges();
+  }
+
+  it('puts each after the one written before it, in the order written', () => {
+    (fixture.nativeElement.querySelectorAll('[aria-selected]')[0] as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true })
+    );
+    fixture.detectChanges();
+
+    write('A');
+    write('B');
+
+    expect(edited().map((entry) => entry.detail['text'])).toEqual(['ひとつめ', 'A', 'B', 'ふたつめ', 'みっつめ']);
+  });
+});
