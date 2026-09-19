@@ -131,13 +131,16 @@ export class ReplayImageCache implements ReplayFrameAssets {
     const longest = Math.max(full.width, full.height);
     if (longest <= this.maxSide) return full as DrawableImage;
     const ratio = this.maxSide / longest;
-    const scaled = await createImageBitmap(full, {
-      resizeWidth: Math.max(1, Math.round(full.width * ratio)),
-      resizeHeight: Math.max(1, Math.round(full.height * ratio)),
-      resizeQuality: 'high',
-    });
-    full.close();
-    return scaled as DrawableImage;
+    try {
+      const scaled = await createImageBitmap(full, {
+        resizeWidth: Math.max(1, Math.round(full.width * ratio)),
+        resizeHeight: Math.max(1, Math.round(full.height * ratio)),
+        resizeQuality: 'high',
+      });
+      return scaled as DrawableImage;
+    } finally {
+      full.close();
+    }
   }
 
   /** Lets the pictures drawn least recently go until the rest fit the budget, never the one just loaded. */

@@ -80,6 +80,20 @@ describe('ReplayImageCache', () => {
     expect(cache.imageOf('huge')).toMatchObject({ width: 2000, height: 1000 });
   });
 
+  it('lets the full-size picture go even when scaling it down fails', async () => {
+    const full = bitmap(8000, 4000);
+    borrowed.lend('createImageBitmap', async (_source: unknown, options?: unknown) => {
+      if (options) throw new Error('out of memory');
+      return full;
+    });
+    sizes.set('huge', [8000, 4000]);
+    const cache = new ReplayImageCache(storage, 2000);
+    await cache.ensure(['huge']);
+
+    expect(full.closed).toBe(true);
+    expect(cache.imageOf('huge')).toBeNull();
+  });
+
   it('counts a picture it does not hold as ready, and never asks again', async () => {
     const cache = new ReplayImageCache(storage, 2048);
     await cache.ensure(['gone']);
