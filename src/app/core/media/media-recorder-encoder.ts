@@ -42,8 +42,11 @@ export interface SoundTrack {
   stream: MediaStream;
   /** Reads the first seconds of the sound, so it can start on time; the recording waits for it. */
   prime(): Promise<void>;
-  /** Starts the sound's clock and plays it from the start. */
-  start(): void;
+  /**
+   * Starts the sound's clock and plays it from the start, answering how many milliseconds from
+   * now its first sample sounds, which the picture has to wait for as well.
+   */
+  start(): number;
   stop(): void;
 }
 
@@ -126,6 +129,7 @@ export function soundTrackOf(audio: VideoSoundSource | null | undefined): SoundT
         const ahead = () => context.currentTime - startedAt + SOUND_AHEAD_SECONDS;
         void fill(ahead);
         timer = setInterval(() => void fill(ahead), 1000);
+        return SOUND_START_LEAD_SECONDS * 1000;
       },
       stop: () => {
         if (timer) clearInterval(timer);
@@ -173,9 +177,9 @@ export async function recordVideo(request: VideoEncodeRequest): Promise<EncodedV
   try {
     await sound?.prime();
     recorder.start();
-    sound?.start();
+    const lead = sound?.start() ?? 0;
 
-    const startedAt = performance.now();
+    const startedAt = performance.now() + lead;
     let painted = -1;
     for (;;) {
       if (request.isCancelled?.()) {
@@ -187,7 +191,7 @@ export async function recordVideo(request: VideoEncodeRequest): Promise<EncodedV
       const elapsed = performance.now() - startedAt;
       if (elapsed >= durationMs) break;
 
-      const index = Math.min(request.frameCount - 1, Math.floor(elapsed / msPerFrame));
+      const index = Math.max(0, Math.min(request.frameCount - 1, Math.floor(elapsed / msPerFrame)));
       if (index !== painted) {
         painted = index;
         await request.paint(ctx as unknown as OffscreenCanvasRenderingContext2D, index);

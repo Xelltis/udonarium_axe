@@ -191,6 +191,35 @@ describe('the sound of a recording made in real time', () => {
     }
   });
 
+  it('holds the picture back as long as the sound waits to start, so the two stay together', async () => {
+    let recordingFrom = 0;
+    const paintedAt: number[] = [];
+    borrowed.lend(
+      'MediaRecorder',
+      class extends FakeMediaRecorder {
+        override start(): void {
+          recordingFrom = performance.now();
+          super.start();
+        }
+      }
+    );
+    FakeMediaRecorder.supported = ['video/webm;codecs=vp9,opus'];
+    borrowed.lendOn(HTMLCanvasElement.prototype, 'captureStream', () => fakeStream());
+    borrowed.lendOn(HTMLCanvasElement.prototype, 'getContext', () => ({}));
+    const fps = 60;
+
+    await recordVideo({
+      width: 16,
+      height: 16,
+      fps,
+      frameCount: 3,
+      audio: slowSound(1, 0),
+      paint: (_ctx, index) => void (paintedAt[index] = performance.now() - recordingFrom),
+    });
+
+    expect(paintedAt[1]).toBeGreaterThanOrEqual(SOUND_START_LEAD_SECONDS * 1000 + 1000 / fps - 1);
+  });
+
   it('starts a stretch that comes late part way in, rather than late and over the next', async () => {
     vi.useFakeTimers();
     try {
