@@ -204,6 +204,28 @@ describe('ReplayRecorderService', () => {
     expect(service.recentEvents()[0].kind).toBe(ReplayEventKind.ObjectCreate);
   });
 
+  it('records a line said in the first moments of a recording', async () => {
+    await service.start();
+    sendUpdate('m1', 'chat', { from: 'alice', timestamp: Date.now() + 100 });
+
+    expect(service.recentEvents().map((event) => event.kind)).toEqual([ReplayEventKind.ChatMessage]);
+  });
+
+  it('leaves out an older line a peer catches the room up with', async () => {
+    await service.start();
+    sendUpdate('m1', 'chat', { from: 'alice', timestamp: Date.now() - 60_000 });
+
+    expect(service.recentEvents()).toHaveLength(0);
+  });
+
+  it('records what this browser brings to the table in the first moments', async () => {
+    vi.spyOn(Network, 'peerId', 'get').mockReturnValue('me');
+    await service.start();
+    sendUpdate('c9', 'character', { posZ: 0 }, 'me');
+
+    expect(service.recentEvents().map((event) => event.kind)).toEqual([ReplayEventKind.ObjectCreate]);
+  });
+
   it('folds a run of moves into one', async () => {
     await service.start();
     sendUpdate('c1', 'character', { location: { name: 'table', x: 0, y: 0 }, posZ: 0 });

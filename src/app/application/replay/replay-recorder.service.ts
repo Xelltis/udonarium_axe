@@ -15,7 +15,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { encodeReplayEvents, encodeReplayManifest } from '@axe/domain/replay/replay-codec';
-import { cloneSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
+import { cloneSyncData, type SyncData, syncValueOf } from '@axe/domain/replay/replay-diff';
 import {
   GM_ONLY_VISIBILITY,
   PUBLIC_VISIBILITY,
@@ -46,6 +46,9 @@ export const REPLAY_CHUNK_EVENT_LIMIT = 500;
 export const REPLAY_CHUNK_INTERVAL_MS = 30_000;
 export const REPLAY_KEYFRAME_INTERVAL_MS = 600_000;
 export const REPLAY_BASELINE_GRACE_MS = 5_000;
+const CHAT_ALIAS = 'chat';
+/** How far another browser's clock may run behind ours for a line it stamped to still count as new. */
+export const REPLAY_CLOCK_SKEW_MS = 2_000;
 export const REPLAY_RECENT_EVENT_LIMIT = 300;
 export const REPLAY_RECENT_PUBLISH_MS = 250;
 export const REPLAY_KEYFRAME_BUSY_RETRY_MS = 5_000;
@@ -300,7 +303,7 @@ export class ReplayRecorderService {
     const before = this.shadows.get(context.identifier) ?? null;
     this.shadows.set(context.identifier, cloneSyncData(after));
 
-    if (!before && at < this.baselineUntil) return;
+    if (!before && at < this.baselineUntil && !this.isFreshArrival(context.aliasName, after, sendFrom)) return;
     if (!shouldDiffObjectChange(this.preference.detailLevel(), context.aliasName, !before)) return;
 
     const draft = interpretObjectChange({
@@ -312,6 +315,21 @@ export class ReplayRecorderService {
     if (!draft) return;
     if (!before) this.notePart(context.identifier, after, draft);
     this.push(draft, sendFrom, at);
+  }
+
+  /**
+   * Whether something first seen while the room is still catching up is new, rather than the room
+   * as it already was.
+   *
+   * What this browser sent itself is new, and so is a line stamped after the recording began. A
+   * peer's copy of an older line or piece is the room catching up, which the first board holds.
+   */
+  private isFreshArrival(aliasName: string, after: SyncData, sendFrom: string): boolean {
+    const self = this.selfPeerId();
+    if (self.length > 0 && sendFrom === self) return true;
+    if (aliasName !== CHAT_ALIAS) return false;
+    const stamped = Number(syncValueOf(after, 'timestamp') ?? 0);
+    return Number.isFinite(stamped) && stamped >= this._startedAt() - REPLAY_CLOCK_SKEW_MS;
   }
 
   /**
