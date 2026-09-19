@@ -9,7 +9,7 @@
  */
 
 import { PERF_HEX_CELL_SCAN, perfCounters } from '@axe/core/util/perf-counters';
-import { GridType } from '@axe/domain/tabletop/game-table';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 
 /**
  * The distance from a hex's centre to a corner, for a grid whose cell size is measured across the

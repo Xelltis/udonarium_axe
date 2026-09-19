@@ -1,4 +1,4 @@
-import { GridType } from '@axe/domain/tabletop/game-table';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { hexCellCenter, hexLayoutOf, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { MapPoint, MapRect, MapSize } from '@axe/domain/tabletop/map-blocks';
 

@@ -5,6 +5,7 @@ import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-k
 import { CutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { DEFAULT_FOG_COLOR, DEFAULT_FOG_MODE, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { HoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import {
@@ -29,12 +30,7 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { DEFAULT_AMBIENT_COLOR } from '@axe/domain/tabletop/vision-types';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 
-export enum GridType {
-  NONE = -1,
-  SQUARE = 0,
-  HEX_VERTICAL = 1,
-  HEX_HORIZONTAL = 2,
-}
+export { GridType } from '@axe/domain/tabletop/grid-type';
 
 export enum GridSnapStyle {
   CENTER = 0,

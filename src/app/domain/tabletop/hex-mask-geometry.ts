@@ -1,4 +1,4 @@
-import { GridType } from '@axe/domain/tabletop/game-table';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { hexCircumradius, hexSpacing, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 
 export interface HexMaskGeometry {

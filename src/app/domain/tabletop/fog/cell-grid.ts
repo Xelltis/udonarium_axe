@@ -1,5 +1,5 @@
 import { hexStepsAt, SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
-import { GridType } from '@axe/domain/tabletop/game-table';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import {
   hexCellCenter,
   hexLayoutOf,

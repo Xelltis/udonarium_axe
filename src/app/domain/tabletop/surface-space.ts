@@ -1,4 +1,4 @@
-import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
+import type { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 
 export interface Vec3 {
   x: number;
