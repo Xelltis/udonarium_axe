@@ -194,9 +194,16 @@ export class PanelService {
   /** Zero for a panel that takes its turn among the others, which is nearly all of them. */
   layer: number = 0;
   invisible: boolean = false;
+  /**
+   * Whether the title bar's minimise button shrinks this panel to its content rather than folding
+   * it to its bar, for a panel whose content is all there is to it.
+   */
   minimizeToContent: boolean = false;
   frameless: boolean = false;
+  /** Whether the panel is folded to its title bar. */
   readonly isMinimized = signal(false);
+  /** Whether the panel is shrunk to its content, which the content asks for with `shrinkRequest$`. */
+  readonly isShrunk = signal(false);
   /** Buttons the content put in the title bar, beside the ones every panel wears. */
   readonly headerControls = signal<readonly PanelHeaderControl[]>([]);
 
@@ -241,17 +248,18 @@ export class PanelService {
    * Asks the frame to grow to a size, or to give back the one it had.
    *
    * The frame owns the size - it is written on the panel's own element and remembered across a
-   * shrink - so the content asks rather than writing it, the way it asks to be minimised.
+   * shrink - so the content asks rather than writing it, the way it asks to be shrunk.
    */
   readonly resizeRequest$ = new EventChannel<{ width: number; height: number } | null>();
   /**
-   * Asks the frame to shrink the panel, or to let it out again.
+   * Asks the frame to shrink the panel to its content, or to let it out again.
    *
-   * Shrinking is the frame's own doing - it puts the panel's size aside to give back - so the
-   * content asks rather than writing `isMinimized` itself, which would leave the panel its
-   * full size with nothing drawn in it.
+   * Shrunk to its content is a way of showing the panel that the content chooses, as the inventory
+   * does for the turn order alone. It is apart from minimising, which folds any panel to its bar
+   * from the title bar. Shrinking is the frame's own doing - it puts the panel's size aside to give
+   * back - so the content asks rather than writing `isShrunk` itself.
    */
-  readonly minimizeRequest$ = new EventChannel<boolean>();
+  readonly shrinkRequest$ = new EventChannel<boolean>();
   /** Whether this panel still stands in a frame, which stops being true once it is closed. */
   get isShow(): boolean {
     return this.frame !== null;

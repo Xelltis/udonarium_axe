@@ -122,7 +122,7 @@ export class RoomPanelService {
             import('@axe/features/inventory/game-object-inventory/game-object-inventory.component').then(
               (m) => m.GameObjectInventoryComponent
             ),
-          option: { width: 450, height: 600, minimizeToContent: true },
+          option: { width: 450, height: 600 },
         };
       case 'objectList':
         return {

@@ -237,11 +237,11 @@ export class GameObjectInventoryComponent {
   /**
    * Whether the panel is showing the turn order alone.
    *
-   * The panel shrinks to it, which is the frame's own doing, so this follows what the frame
-   * did rather than the setting: a reader who presses the panel's own minimise button gets
-   * the same thing.
+   * The panel shrinks to it, which is the frame's own doing, so this follows what the frame did
+   * rather than the setting: letting the panel out from its bar goes back to the list. It is apart
+   * from minimising, which folds the inventory to its bar as it does any panel.
    */
-  readonly isRoundView = computed(() => this.panelService.isMinimized());
+  readonly isRoundView = computed(() => this.panelService.isShrunk());
 
   readonly isTableView = computed(() => this.viewMode() === 'table' && !this.isRoundView());
 
@@ -418,7 +418,7 @@ export class GameObjectInventoryComponent {
     // The box goes back on with the view that needs it, rather than leaving a full view of
     // gauges floating over the map with nothing behind it.
     if (wanted !== 'table') this.isGhost.set(false);
-    this.panelService.minimizeRequest$.emit(wanted === 'round');
+    this.panelService.shrinkRequest$.emit(wanted === 'round');
     if (wanted !== 'round') this.viewPreference.set(wanted);
   }
 
