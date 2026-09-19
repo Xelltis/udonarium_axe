@@ -47,6 +47,7 @@ import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
+import { PortraitStripComponent } from '@axe/ui/components/portrait-strip/portrait-strip.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -67,6 +68,7 @@ const COLOR_SETTING_PANEL = 'chat-color-setting';
     NgSelectWindowDirective,
     NgStyle,
     PortraitPickerComponent,
+    PortraitStripComponent,
     SafePipe,
     TranslocoModule,
   ],
@@ -347,6 +349,12 @@ export class ChatInputComponent {
       url: this.imageStorage.get(element.value as string)?.url ?? '',
     }));
   });
+
+  /**
+   * Whether the speaker has portraits enough to choose between, so they are laid out as a row of
+   * pictures beside the colours, each chosen with one press.
+   */
+  readonly hasPortraitStrip = computed(() => this.portraitChoices().length > 1);
 
   /** Whether the line is a whisper to one peer rather than a message to everyone. */
   get isDirect(): boolean {

@@ -5,6 +5,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
@@ -49,6 +50,50 @@ describe('ChatInputComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('the row of portraits', () => {
+    function withPortraits(count: number): GameCharacter {
+      const character = speaker('役者');
+      for (let index = character.imageDataElement!.children.length; index < count; index++) {
+        character.imageDataElement!.appendChild(
+          DataElement.create('imageIdentifier', `face-${index}`, { type: 'image' })
+        );
+      }
+      return character;
+    }
+
+    const row = () => fixture.nativeElement.querySelector('[data-testid="chat-input-portraits"]') as HTMLElement | null;
+
+    async function speakAs(character: GameCharacter): Promise<void> {
+      component.sendFrom = character.identifier;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    it('lays out every portrait of a speaker with several beside the colours', async () => {
+      await speakAs(withPortraits(3));
+
+      expect(row()?.querySelectorAll('button')).toHaveLength(3);
+      expect(row()?.closest('[data-testid="chat-input-colors"]')).not.toBeNull();
+    });
+
+    it('speaks with the portrait pressed in it', async () => {
+      const character = withPortraits(3);
+      await speakAs(character);
+
+      (row()!.querySelectorAll('button')[2] as HTMLButtonElement).click();
+
+      expect(component.portraitIndex).toBe(2);
+      expect(character.selectedPortraitIndex).toBe(2);
+    });
+
+    it('is left out for a speaker with only one portrait to show', async () => {
+      await speakAs(withPortraits(1));
+
+      expect(row()).toBeNull();
+    });
   });
 
   describe('the characters on offer', () => {
