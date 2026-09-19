@@ -140,10 +140,15 @@ class ReplaySoundShelf {
     }
   }
 
+  /**
+   * Reads and decodes a sound, or null when either fails. A sound read again partway through a
+   * long export may fail where it did not at first; that sound is left out of the stretch rather
+   * than the export being lost.
+   */
   private async decode(identifier: string): Promise<AudioBuffer | null> {
-    const encoded = await this.read(identifier);
-    if (!encoded) return null;
     try {
+      const encoded = await this.read(identifier);
+      if (!encoded) return null;
       return await this.decoder.decodeAudioData(encoded);
     } catch (reason) {
       Logger.warn('[ReplaySound] 音を読めませんでした', identifier, reason);

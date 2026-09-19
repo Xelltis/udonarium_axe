@@ -272,6 +272,19 @@ describe('mixReplaySoundtrack()', () => {
       expect(started.map((one) => one.buffer)).toEqual(['bgm-a', 'bgm-b']);
     });
 
+    it('leaves out a sound it cannot read again, and mixes the rest', async () => {
+      let reads = 0;
+      const failingSecondTime = async (identifier: string): Promise<ArrayBuffer | null> => {
+        if (identifier === 'bgm-a' && ++reads > 1) throw new Error('gone');
+        return read(identifier);
+      };
+      const mixed = await mixReplaySoundtrack(soundtrack, failingSecondTime, ONE_SOUND_BYTES);
+      started = [];
+
+      await expect(readInStretches(mixed)).resolves.toBeUndefined();
+      expect(started.map((one) => one.buffer)).toEqual(['bgm-b', 'bgm-b', 'bgm-b']);
+    });
+
     it('holds on to what the next stretch still needs rather than decoding it again', async () => {
       const together = track({ totalMs: 20_000, music: [music('bgm-a', 0, 20_000), music('bgm-b', 0, 20_000)] });
       const mixed = await mixReplaySoundtrack(together, read, 1);
