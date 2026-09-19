@@ -143,35 +143,48 @@ function findLights(
 
 /**
  * The blocks one piece of furniture is built of: one for the whole of it, or one to a cell on a
- * board whose cells will not gather into rectangles.
+ * board whose cells will not gather into rectangles, and again for whatever is stacked on it.
  *
- * A run is as long as the cells it covers and as deep as its shape fills; anything else fills
- * the same share of its cell both ways.
+ * A run is as long as the cells it covers and as deep as its shape fills; a piece that fills its
+ * cells whole takes all of them; anything else fills the same share of its cell both ways.
  */
 function furnishingBlocks(piece: DungeonFurnishing, span: number, options: DungeonBlockOptions): MapBlock[] {
-  const shape = FURNISHING_SHAPES[piece.piece];
   const run = piece.w > 1 || piece.h > 1;
   const lying = piece.w >= piece.h;
-  return (span > 1 ? [piece] : cellsOf(piece)).map((rect) => ({
-    kind: shape.skin ? 'prop' : 'wall',
-    rect: { x: rect.x, y: rect.y, w: rect.w, h: rect.h },
-    blocksSight: shape.blocksSight,
-    blocksClimb: shape.skin ? false : options.sheerWalls === true,
-    locked: false,
-    rooms: [],
-    skin: shape.skin && {
-      side: { kind: 'texture', id: shape.skin.side },
-      top: { kind: 'texture', id: shape.skin.top },
-    },
-    height: shape.height,
-    footprint: !run
-      ? { w: shape.fill, d: shape.fill }
-      : lying
-        ? { w: rect.w, d: shape.fill }
-        : { w: shape.fill, d: rect.h },
-    rotate: piece.spin || undefined,
-    thing: piece.piece,
-  }));
+  const rects = span > 1 ? [piece] : cellsOf(piece);
+  const blocks: MapBlock[] = [];
+  let altitude = 0;
+  for (const level of [piece.piece, ...(piece.stack ?? [])]) {
+    const shape = FURNISHING_SHAPES[level];
+    for (const rect of rects) {
+      blocks.push({
+        kind: shape.skin ? 'prop' : 'wall',
+        rect: { x: rect.x, y: rect.y, w: rect.w, h: rect.h },
+        blocksSight: shape.blocksSight,
+        blocksClimb: shape.skin ? false : options.sheerWalls === true,
+        locked: false,
+        rooms: [],
+        skin: shape.skin && {
+          side: { kind: 'texture', id: shape.skin.side },
+          top: { kind: 'texture', id: shape.skin.top },
+        },
+        height: shape.height,
+        footprint:
+          shape.fill >= 1
+            ? undefined
+            : !run
+              ? { w: shape.fill, d: shape.fill }
+              : lying
+                ? { w: rect.w, d: shape.fill }
+                : { w: shape.fill, d: rect.h },
+        altitude: altitude || undefined,
+        rotate: piece.spin || undefined,
+        thing: level,
+      });
+    }
+    altitude += shape.height ?? 0;
+  }
+  return blocks;
 }
 
 function doorPropFor(atmosphere: DungeonAtmosphere): DungeonPropId {

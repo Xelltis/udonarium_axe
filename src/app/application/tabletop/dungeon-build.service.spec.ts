@@ -540,7 +540,7 @@ describe('DungeonBuildService', () => {
   });
 
   describe('furnished places and towns', () => {
-    async function buildPlace(atmosphere: 'illegalBar' | 'abandonedBuilding') {
+    async function buildPlace(atmosphere: 'illegalBar' | 'abandonedBuilding' | 'containerWarehouse') {
       const plan = planDungeon({ atmosphere, roomCount: 10, seed: 7 });
       const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options({ wallHeight: 2.5 }));
       return { plan, result };
@@ -570,6 +570,25 @@ describe('DungeonBuildService', () => {
         expect(door.isDoor).toBe(true);
         expect(door.wallImage?.identifier).toBe(walls[0].wallImage?.identifier);
         expect(door.floorImage?.identifier).toBe(walls[0].floorImage?.identifier);
+      }
+    });
+
+    it('hangs the fluorescent tubes of a warehouse on its walls, looking like tubes', async () => {
+      const { plan, result } = await buildPlace('containerWarehouse');
+      const lights = result.table.lightSources;
+
+      expect(lights.length).toBe(plan.blocks.lights.length);
+      for (const planned of plan.blocks.lights) {
+        const back = wallLightInset(planned.facing, 0.4);
+        const built = lights.find(
+          (entry) =>
+            Math.abs(entry.location.x - (planned.x + back.x) * GRID) < 0.001 &&
+            Math.abs(entry.location.y - (planned.y + back.y) * GRID) < 0.001
+        );
+        expect(built).toBeDefined();
+        expect(built!.altitude).toBeGreaterThan(0);
+        expect(built!.lightColor).toBe(planned.color);
+        expect(built!.imageFile.identifier).toContain('light_fluorescent');
       }
     });
 

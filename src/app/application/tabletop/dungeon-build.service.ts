@@ -50,6 +50,7 @@ const LIGHT_PRESET: Record<MapLightKind, LightPreset> = {
   lantern: LightPreset.LANTERN,
   neon: LightPreset.NEON,
   streetlamp: LightPreset.LANTERN,
+  fluorescent: LightPreset.NEON,
 };
 
 /** A stand and a lantern burn alike but do not look alike, so the picture follows the kind. */
@@ -61,10 +62,11 @@ const LIGHT_SKIN: Record<MapLightKind, LightSkinId> = {
   lantern: 'light_lantern',
   neon: 'light_neon',
   streetlamp: 'light_streetlamp',
+  fluorescent: 'light_fluorescent',
 };
-const WALL_MOUNTED: readonly MapLightKind[] = ['sconce', 'lantern', 'neon'];
+const WALL_MOUNTED: readonly MapLightKind[] = ['sconce', 'lantern', 'neon', 'fluorescent'];
 /** What is fixed flat to the stone, and so set back against it rather than left hanging a half cell out. */
-const WALL_FIXED: readonly MapLightKind[] = ['sconce', 'neon'];
+const WALL_FIXED: readonly MapLightKind[] = ['sconce', 'neon', 'fluorescent'];
 
 /** How far out from its wall a sconce is meant to throw the middle of its pool. */
 const SCONCE_THROW_CELLS = 2;

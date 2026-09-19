@@ -2117,7 +2117,8 @@
           "iceCave": "Ice cave",
           "sandTomb": "Sand tomb",
           "illegalBar": "Illegal bar",
-          "abandonedBuilding": "Abandoned building"
+          "abandonedBuilding": "Abandoned building",
+          "containerWarehouse": "Container warehouse"
         },
         "role": {
           "entrance": "Entrance hall",
@@ -2143,6 +2144,14 @@
             "boss": "Executive suite",
             "deadEnd": "Storeroom",
             "chamber": "Office"
+          },
+          "warehouse": {
+            "entrance": "Loading bay",
+            "hall": "Main hold",
+            "treasure": "Bonded area",
+            "boss": "Site office",
+            "deadEnd": "Supply room",
+            "chamber": "Storage bay"
           }
         },
         "piece": {
@@ -2169,6 +2178,9 @@
           "rubble": "Rubble",
           "shopCounter": "Shop counter",
           "gamingTable": "Gaming table",
+          "containerRed": "Container",
+          "containerBlue": "Container",
+          "containerGreen": "Container",
           "hiddenDoor": "Hidden door"
         },
         "summary": {

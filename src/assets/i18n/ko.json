@@ -2117,7 +2117,8 @@
           "iceCave": "얼음굴",
           "sandTomb": "모래 무덤",
           "illegalBar": "불법 바",
-          "abandonedBuilding": "폐건물"
+          "abandonedBuilding": "폐건물",
+          "containerWarehouse": "컨테이너 창고"
         },
         "role": {
           "entrance": "입구의 방",
@@ -2143,6 +2144,14 @@
             "boss": "임원실",
             "deadEnd": "창고",
             "chamber": "사무실"
+          },
+          "warehouse": {
+            "entrance": "반입구",
+            "hall": "중앙 창고",
+            "treasure": "보세 구역",
+            "boss": "관리 사무소",
+            "deadEnd": "자재 보관소",
+            "chamber": "보관 구역"
           }
         },
         "piece": {
@@ -2169,6 +2178,9 @@
           "rubble": "잔해",
           "shopCounter": "가게 카운터",
           "gamingTable": "도박 테이블",
+          "containerRed": "컨테이너",
+          "containerBlue": "컨테이너",
+          "containerGreen": "컨테이너",
           "hiddenDoor": "비밀 문"
         },
         "summary": {

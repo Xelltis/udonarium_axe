@@ -19,6 +19,7 @@ import { assignRoomRoles } from '@axe/domain/tabletop/dungeon/room-roles';
 import { fitBoardTo, generateRoomsAndMazes } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
 import { openTunnelMouth } from '@axe/domain/tabletop/dungeon/tunnel-mouth';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
 import { boardSizeOn, MapGrid, mergeSpanFor } from '@axe/domain/tabletop/map-grid';
 
@@ -65,7 +66,9 @@ export function clampRoomCount(roomCount: number): number {
 
 /** How wide a passage this atmosphere cuts when the room has not said otherwise. */
 export function defaultCorridorWidth(atmosphere: DungeonAtmosphere): number {
-  return clampCorridorWidth(atmosphere.algorithm === 'cave' ? atmosphere.cave!.tunnelWidth : 1);
+  return clampCorridorWidth(
+    atmosphere.algorithm === 'cave' ? atmosphere.cave!.tunnelWidth : (atmosphere.rooms?.corridor ?? 1)
+  );
 }
 
 /**
@@ -115,8 +118,8 @@ export function boardSizeFor(
  *
  * Everything comes from the request's seed, so the same request gives the same dungeon on every peer.
  * Furniture is put in last, and only where the place is furnished, so that a place with none comes out
- * of its seed exactly as it always has. A place with hidden doors has the ways out of its first room
- * dressed as wall.
+ * of its seed exactly as it always has; on hexes nothing is stacked. A place with hidden doors has
+ * the ways out of its first room dressed as wall.
  */
 export function generateDungeon(request: DungeonRequest): DungeonLayout {
   const atmosphere = atmosphereById(request.atmosphere);
@@ -170,7 +173,10 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   // Hung last, so that widening an opening cannot leave the room a key opens standing ajar.
   hangDoors(layout, { widths: request.doorWidth, doublePercent: request.doubleDoorPercent }, rng);
   if (atmosphere.hiddenDoors) hideDoorsOf(layout, 0);
-  if (atmosphere.furnishings) layout.furnishings = furnishRooms(layout, atmosphere.furnishings, rng);
+  if (atmosphere.furnishings) {
+    const stackable = !isHexGrid(request.gridType ?? GridType.SQUARE);
+    layout.furnishings = furnishRooms(layout, atmosphere.furnishings, rng, { stackable });
+  }
   return layout;
 }
 

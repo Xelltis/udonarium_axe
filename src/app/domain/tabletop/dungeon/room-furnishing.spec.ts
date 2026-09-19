@@ -1,7 +1,7 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { atmosphereById, DUNGEON_ATMOSPHERE_IDS } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { layoutToBlocks } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
-import { generateDungeon, planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
+import { defaultCorridorWidth, generateDungeon, planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import {
   cellAt,
   DungeonCell,
@@ -11,11 +11,17 @@ import {
   DungeonRoomRole,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
-import { furnishedCells, FURNISHING_SHAPES, furnishRooms } from '@axe/domain/tabletop/dungeon/room-furnishing';
+import {
+  CONTAINER_LENGTH,
+  CONTAINER_WIDTH,
+  furnishedCells,
+  FURNISHING_SHAPES,
+  furnishRooms,
+} from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 const SEEDS = [1, 7, 42, 1234, 99999];
-const FURNISHED = ['illegalBar', 'abandonedBuilding'] as const;
+const FURNISHED = ['illegalBar', 'abandonedBuilding', 'containerWarehouse'] as const;
 
 function open(layout: DungeonLayout, x: number, y: number): boolean {
   const cell = cellAt(layout, x, y);
@@ -64,6 +70,8 @@ function touches(piece: DungeonRect, point: DungeonPoint): boolean {
     point.x >= piece.x - 1 && point.x <= piece.x + piece.w && point.y >= piece.y - 1 && point.y <= piece.y + piece.h
   );
 }
+
+const CONTAINERS = ['containerRed', 'containerBlue', 'containerGreen'];
 
 describe('furnishRooms()', () => {
   it('leaves every room reachable, going round whatever stands in it', () => {
@@ -160,6 +168,57 @@ describe('furnishRooms()', () => {
     expect(second.furnishings).toEqual(first.furnishings);
   });
 
+  it('rows containers down a hold with aisles between, none touching another or a wall', () => {
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed });
+      const containers = layout.furnishings!.filter((piece) => CONTAINERS.includes(piece.piece));
+
+      expect(containers.length).toBeGreaterThan(0);
+      for (const box of containers) {
+        expect([box.w, box.h].sort()).toEqual([CONTAINER_WIDTH, CONTAINER_LENGTH]);
+        for (let dy = -1; dy <= box.h; dy++) {
+          for (let dx = -1; dx <= box.w; dx++) {
+            const inside = dx >= 0 && dy >= 0 && dx < box.w && dy < box.h;
+            const cell = cellAt(layout, box.x + dx, box.y + dy);
+            if (!inside) expect([DungeonCell.Room, DungeonCell.Corridor]).toContain(cell);
+          }
+        }
+        for (const other of containers) {
+          if (other === box) continue;
+          const apart =
+            other.x > box.x + box.w ||
+            box.x > other.x + other.w ||
+            other.y > box.y + box.h ||
+            box.y > other.y + other.h;
+          expect(apart).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('stands no container against anything already put down, however crowded the room', () => {
+    let crowded = 0;
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed });
+      const placed = furnishRooms(
+        layout,
+        [
+          { piece: 'crate', arrangement: 'scatter', roles: ['hall', 'chamber'], every: 12 },
+          { piece: 'containerRed', arrangement: 'stacks', roles: ['hall', 'chamber'], every: 2 },
+        ],
+        seededRandom(seed)
+      );
+      const crates = placed.filter((piece) => piece.piece === 'crate');
+      const containers = placed.filter((piece) => piece.piece === 'containerRed');
+
+      if (crates.length > 0) crowded += containers.length;
+      for (const box of containers) {
+        for (const crate of crates) expect(touches(box, crate)).toBe(false);
+      }
+    }
+    expect(crowded).toBeGreaterThan(0);
+  });
+
   it('keeps a counter and its seats clear of the way in, even where it would otherwise stand', () => {
     for (const seed of SEEDS) {
       const layout = generateDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed });
@@ -176,6 +235,21 @@ describe('furnishRooms()', () => {
 
       for (const piece of placed) expect(touches(piece, layout.entrance)).toBe(false);
     }
+  });
+
+  it('stacks some containers two high on squares, and none on hexes', () => {
+    const stacked = (gridType: GridType) =>
+      SEEDS.flatMap(
+        (seed) => generateDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed, gridType }).furnishings!
+      ).filter((piece) => piece.stack).length;
+
+    expect(stacked(GridType.SQUARE)).toBeGreaterThan(0);
+    expect(stacked(GridType.HEX_VERTICAL)).toBe(0);
+  });
+
+  it('cuts the passages of a warehouse two cells wide unless the table says otherwise', () => {
+    expect(defaultCorridorWidth(atmosphereById('containerWarehouse'))).toBe(2);
+    expect(defaultCorridorWidth(atmosphereById('illegalBar'))).toBe(1);
   });
 
   it('hides the ways out of the front of an illegal bar, and no other door', () => {
@@ -317,6 +391,21 @@ describe('a furnished place on the table', () => {
     for (const light of plan.blocks.lights) {
       expect(['sconce', 'lantern', 'campfire', 'brazier', 'stand']).toContain(light.kind);
       expect(light.color).toBeUndefined();
+    }
+  });
+
+  it('builds a stacked container as one block to a level, each standing on the one below', () => {
+    const plan = planDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed: 42 });
+    const stacked = plan.layout.furnishings!.find((piece) => piece.stack)!;
+    const levels = plan.blocks.blocks.filter((block) => block.rect.x === stacked.x && block.rect.y === stacked.y);
+
+    expect(levels.map((block) => block.thing)).toEqual([stacked.piece, ...stacked.stack!]);
+    expect(levels[0].altitude).toBeUndefined();
+    expect(levels[1].altitude).toBe(FURNISHING_SHAPES[stacked.piece].height);
+    for (const block of levels) {
+      expect(block.footprint).toBeUndefined();
+      expect(block.blocksSight).toBe(true);
+      expect(block.rect).toEqual({ x: stacked.x, y: stacked.y, w: stacked.w, h: stacked.h });
     }
   });
 

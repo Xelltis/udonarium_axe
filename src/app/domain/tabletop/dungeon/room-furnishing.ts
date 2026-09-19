@@ -15,7 +15,7 @@ export interface FurnishingShape {
   skin?: { side: WallTextureId | TextureId; top: WallTextureId | TextureId };
   /** How tall it stands, in cells. Left out, it goes up to the ceiling like the walls do. */
   height?: number;
-  /** How much of its cell it takes, across and deep. A run takes all of its length. */
+  /** How much of its cell it takes, across and deep. A run takes all of its length; one fills its cells whole. */
   fill: number;
   blocksSight: boolean;
   /** How far it may be knocked off square, in degrees. Left out, it stands square to the room. */
@@ -28,7 +28,7 @@ export interface FurnishingShape {
  * A bar's counter is a pale top over the same tubes its walls are lit by, and its tables are
  * lit from inside, which is most of what tells a bar from a back room. What an abandoned
  * building leaves behind is steel desks shoved off square and rubble where the ceiling came
- * down.
+ * down. A shipping container is the size of one, a little taller than a man is.
  */
 export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
   counter: { skin: { side: 'wall_neon', top: 'marble' }, height: 0.55, fill: 0.8, blocksSight: false },
@@ -40,7 +40,19 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
   rubble: { skin: { side: 'wall_rubble', top: 'rubble_floor' }, height: 0.3, fill: 0.9, blocksSight: false, spin: 45 },
   shopCounter: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.55, fill: 0.8, blocksSight: false },
   gamingTable: { skin: { side: 'wood_plank', top: 'felt' }, height: 0.45, fill: 0.84, blocksSight: false },
+  containerRed: { skin: { side: 'container_red', top: 'container_red' }, height: 1.7, fill: 1, blocksSight: true },
+  containerBlue: { skin: { side: 'container_blue', top: 'container_blue' }, height: 1.7, fill: 1, blocksSight: true },
+  containerGreen: {
+    skin: { side: 'container_green', top: 'container_green' },
+    height: 1.7,
+    fill: 1,
+    blocksSight: true,
+  },
 };
+
+/** How long and how wide a shipping container stands on the floor, in cells. */
+export const CONTAINER_LENGTH = 4;
+export const CONTAINER_WIDTH = 2;
 
 /**
  * How a piece is set out in a room.
@@ -48,18 +60,35 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
  * - `counter`: one run along the long wall with room to stand behind it, and seats in front.
  * - `grid`: posts standing in rows, the way the columns of a building hold its floors up.
  * - `scatter`: one here and there, none touching another.
+ * - `stacks`: rows of containers down the length of the room, aisles between the rows and a
+ *   gap between one container and the next, some of them stacked two high.
  */
-export type FurnishingArrangement = 'counter' | 'grid' | 'scatter';
+export type FurnishingArrangement = 'counter' | 'grid' | 'scatter' | 'stacks';
 
 export interface FurnishingPlan {
   piece: FurnishingId;
   arrangement: FurnishingArrangement;
   /** The rooms it goes in, by the part they play. */
   roles: readonly DungeonRoomRoleValue[];
-  /** For a scatter, how many cells of floor there are to one piece; for a grid, how far apart the posts stand. */
+  /**
+   * For a scatter, how many cells of floor there are to one piece; for a grid, how far apart the
+   * posts stand; for stacks, how wide the aisles between the rows are.
+   */
   every: number;
   /** What is set along the front of a counter, one to every other cell. */
   seat?: FurnishingId;
+  /** What each one is picked from, where the pieces come in more than one kind. Left out, the piece alone. */
+  pieces?: readonly FurnishingId[];
+}
+
+export interface FurnishingOptions {
+  /**
+   * Whether anything may be stacked on anything else.
+   *
+   * A board of hexes builds a piece a cell at a time, so a stacked container costs its cells
+   * twice over; there it stands one high.
+   */
+  stackable: boolean;
 }
 
 const AROUND: readonly [number, number][] = [
@@ -91,7 +120,8 @@ class Furnisher {
 
   constructor(
     private readonly layout: DungeonLayout,
-    private readonly rng: () => number
+    private readonly rng: () => number,
+    private readonly options: FurnishingOptions
   ) {
     this.taken = new Uint8Array(layout.width * layout.height);
     this.ends = [layout.entrance, layout.exit, ...(layout.mouth ? [layout.mouth] : [])];
@@ -123,10 +153,10 @@ class Furnisher {
     return AROUND.every(([dx, dy]) => this.walkable(x + dx, y + dy));
   }
 
-  private put(piece: FurnishingId, x: number, y: number, w: number, h: number): void {
+  private put(piece: FurnishingId, x: number, y: number, w: number, h: number, stack?: FurnishingId[]): void {
     const spin = FURNISHING_SHAPES[piece].spin ?? 0;
     const turn = spin > 0 ? Math.round((this.rng() * 2 - 1) * spin) : 0;
-    this.placed.push({ piece, x, y, w, h, spin: turn });
+    this.placed.push(stack ? { piece, x, y, w, h, spin: turn, stack } : { piece, x, y, w, h, spin: turn });
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) this.taken[(y + dy) * this.layout.width + x + dx] = 1;
     }
@@ -194,6 +224,46 @@ class Furnisher {
     }
   }
 
+  /**
+   * Rows of containers down the length of the room.
+   *
+   * A container is only put down where every cell round it is open floor, which keeps it off
+   * the walls, out of the doorways and clear of the next one, and so leaves the aisles joined up
+   * however many are stood there.
+   */
+  stacks(plan: FurnishingPlan, room: DungeonRoom): void {
+    const pieces = plan.pieces ?? [plan.piece];
+    const pick = () => pieces[Math.floor(this.rng() * pieces.length) % pieces.length];
+    const along = room.w >= room.h;
+    const length = along ? room.w : room.h;
+    const across = along ? room.h : room.w;
+    const aisle = Math.max(1, plan.every);
+    for (let row = 1; row + CONTAINER_WIDTH <= across - 1; row += CONTAINER_WIDTH + aisle) {
+      for (let at = 1; at + CONTAINER_LENGTH <= length - 1; at += CONTAINER_LENGTH + 1) {
+        const rect = along
+          ? { x: room.x + at, y: room.y + row, w: CONTAINER_LENGTH, h: CONTAINER_WIDTH }
+          : { x: room.x + row, y: room.y + at, w: CONTAINER_WIDTH, h: CONTAINER_LENGTH };
+        if (!this.clearRect(rect)) continue;
+        const piece = pick();
+        const stacked = this.options.stackable && this.rng() < 0.55;
+        this.put(piece, rect.x, rect.y, rect.w, rect.h, stacked ? [pick()] : undefined);
+      }
+    }
+  }
+
+  /** Whether a whole rectangle is open floor, with open floor all round it and nowhere near the way in or out. */
+  private clearRect(rect: { x: number; y: number; w: number; h: number }): boolean {
+    for (let dy = -1; dy <= rect.h; dy++) {
+      for (let dx = -1; dx <= rect.w; dx++) {
+        const x = rect.x + dx;
+        const y = rect.y + dy;
+        const inside = dx >= 0 && dy >= 0 && dx < rect.w && dy < rect.h;
+        if (inside ? !this.free(x, y) || this.nearEnd(x, y) : !this.walkable(x, y)) return false;
+      }
+    }
+    return true;
+  }
+
   private doorsOnSide(room: DungeonRoom, along: boolean, far: boolean): number {
     let doors = 0;
     const span = along ? room.w : room.h;
@@ -216,9 +286,10 @@ class Furnisher {
 export function furnishRooms(
   layout: DungeonLayout,
   plans: readonly FurnishingPlan[],
-  rng: () => number
+  rng: () => number,
+  options: FurnishingOptions = { stackable: true }
 ): DungeonFurnishing[] {
-  const furnisher = new Furnisher(layout, rng);
+  const furnisher = new Furnisher(layout, rng, options);
   for (const plan of plans) {
     for (const room of layout.rooms) {
       if (!plan.roles.includes(room.role)) continue;

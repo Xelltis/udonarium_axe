@@ -2117,7 +2117,8 @@
           "iceCave": "氷窟",
           "sandTomb": "砂の墳墓",
           "illegalBar": "違法BAR",
-          "abandonedBuilding": "廃ビル"
+          "abandonedBuilding": "廃ビル",
+          "containerWarehouse": "コンテナ倉庫"
         },
         "role": {
           "entrance": "入口の間",
@@ -2143,6 +2144,14 @@
             "boss": "役員室",
             "deadEnd": "物置",
             "chamber": "事務室"
+          },
+          "warehouse": {
+            "entrance": "搬入口",
+            "hall": "中央倉庫",
+            "treasure": "保税区画",
+            "boss": "管理事務所",
+            "deadEnd": "資材置き場",
+            "chamber": "保管区画"
           }
         },
         "piece": {
@@ -2169,6 +2178,9 @@
           "rubble": "瓦礫",
           "shopCounter": "売り台",
           "gamingTable": "賭博台",
+          "containerRed": "コンテナ",
+          "containerBlue": "コンテナ",
+          "containerGreen": "コンテナ",
           "hiddenDoor": "隠し扉"
         },
         "summary": {

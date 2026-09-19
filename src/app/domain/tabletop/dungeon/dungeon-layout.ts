@@ -95,6 +95,9 @@ export const FURNISHING_IDS = [
   'rubble',
   'shopCounter',
   'gamingTable',
+  'containerRed',
+  'containerBlue',
+  'containerGreen',
 ] as const;
 
 export type FurnishingId = (typeof FURNISHING_IDS)[number];
@@ -104,6 +107,8 @@ export interface DungeonFurnishing extends DungeonRect {
   piece: FurnishingId;
   /** How far it is turned off square, in degrees. */
   spin: number;
+  /** What is stacked on top of it, from the bottom up. */
+  stack?: FurnishingId[];
 }
 
 export interface DungeonLayout {

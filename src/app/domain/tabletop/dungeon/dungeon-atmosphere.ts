@@ -13,6 +13,7 @@ export const DUNGEON_ATMOSPHERE_IDS = [
   'sandTomb',
   'illegalBar',
   'abandonedBuilding',
+  'containerWarehouse',
 ] as const;
 
 export type DungeonAtmosphereId = (typeof DUNGEON_ATMOSPHERE_IDS)[number];
@@ -36,6 +37,8 @@ export interface RoomPlan {
   extraConnectorChance: number;
   wallBreakChance: number;
   shapes: readonly RoomShape[];
+  /** How wide a passage is cut when the table has not said, in cells. Left out, one. */
+  corridor?: number;
 }
 
 export interface CaveShape {
@@ -64,7 +67,7 @@ export function clampWallHeight(height: number): number {
  * into, the biggest, the one hardest to get to - but they are a front, a gambling den and the
  * boss's room.
  */
-export const DUNGEON_ROLE_NAMINGS = ['illegalBar', 'building'] as const;
+export const DUNGEON_ROLE_NAMINGS = ['illegalBar', 'building', 'warehouse'] as const;
 
 export type DungeonRoleNaming = (typeof DUNGEON_ROLE_NAMINGS)[number];
 
@@ -334,6 +337,52 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
         roles: ['entrance', 'hall', 'treasure', 'boss', 'deadEnd', 'chamber'],
         every: 14,
       },
+    ],
+  },
+  /**
+   * A dockside warehouse stacked with shipping containers.
+   *
+   * The party comes in through the loading bay. The big holds are aisles between rows of
+   * containers two high, the side rooms are the site office and the supply room, and the
+   * passages between them are wide enough for a forklift. Fluorescent tubes buzz on the walls,
+   * and the doors are shutters that roll up.
+   */
+  containerWarehouse: {
+    id: 'containerWarehouse',
+    algorithm: 'rooms',
+    defaultWall: 'wall_warehouse',
+    defaultFloor: 'warehouse_floor',
+    wallHeight: 4,
+    darkness: 0.7,
+    ambientColor: '#0a0c10',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 6,
+    entrance: 'tunnel',
+    doorStyle: 'lift',
+    door: 'door_shutter',
+    lighting: { wall: ['fluorescent'], open: [], colors: ['#e6f0ff'] },
+    roleNames: 'warehouse',
+    rooms: {
+      minRoom: 7,
+      maxRoom: 13,
+      windingPercent: 0,
+      extraConnectorChance: 0.15,
+      wallBreakChance: 0,
+      shapes: ['rect'],
+      corridor: 2,
+    },
+    furnishings: [
+      {
+        piece: 'containerRed',
+        arrangement: 'stacks',
+        roles: ['hall', 'chamber', 'treasure', 'boss'],
+        every: 2,
+        pieces: ['containerRed', 'containerBlue', 'containerGreen'],
+      },
+      { piece: 'desk', arrangement: 'scatter', roles: ['deadEnd'], every: 7 },
+      { piece: 'crate', arrangement: 'scatter', roles: ['entrance', 'deadEnd'], every: 12 },
     ],
   },
 };
