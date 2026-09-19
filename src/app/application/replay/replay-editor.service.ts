@@ -126,10 +126,14 @@ export class ReplayEditorService {
     this.change((events) => removeReplayEvents(events, seqs));
   }
 
-  /** Moves each chosen event one row up or down, keeping them apart as they were, as one change to undo. */
-  stepMany(seqs: ReadonlySet<number>, direction: -1 | 1): void {
+  /**
+   * Moves each chosen event one row up or down, keeping them apart as they were, as one change to undo.
+   *
+   * A row is counted by the events `isStop` accepts, so a list that leaves some out moves past the next it shows.
+   */
+  stepMany(seqs: ReadonlySet<number>, direction: -1 | 1, isStop?: (event: ReplayEvent) => boolean): void {
     if (seqs.size < 1) return;
-    this.change((events) => stepReplayEvents(events, seqs, direction));
+    this.change((events) => stepReplayEvents(events, seqs, direction, isStop));
   }
 
   /** Rewrites the text of the event with this sequence number. */

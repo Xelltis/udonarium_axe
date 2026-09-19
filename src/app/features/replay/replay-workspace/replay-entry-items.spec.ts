@@ -4,6 +4,7 @@ import {
   pickReplayRows,
   type ReplayEntryRow,
   replayRowStyle,
+  replayStepStops,
 } from '@axe/features/replay/replay-workspace/replay-entry-items';
 
 function row(seq: number, kind: ReplayEventKind): ReplayEntryRow {
@@ -58,6 +59,23 @@ describe('replay list items', () => {
       const items = foldReplayRows([line(1), step(2), step(3)], new Set());
 
       expect(items.map((item) => item.key)).toEqual(['r1', 'g2']);
+    });
+  });
+
+  describe('stepping a row past the others', () => {
+    const rows = [line(1), step(2), step(3), step(4), line(5)];
+
+    it('steps past a folded run as a whole, from whichever end it meets', () => {
+      const items = foldReplayRows(rows, new Set());
+
+      expect([...replayStepStops(items, -1)].sort()).toEqual([1, 2, 5]);
+      expect([...replayStepStops(items, 1)].sort()).toEqual([1, 4, 5]);
+    });
+
+    it('steps past each row of a run that is open', () => {
+      const items = foldReplayRows(rows, new Set([2]));
+
+      expect([...replayStepStops(items, -1)].sort()).toEqual([1, 2, 3, 4, 5]);
     });
   });
 

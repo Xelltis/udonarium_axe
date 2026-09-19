@@ -66,6 +66,19 @@ export function foldReplayRows(rows: readonly ReplayEntryRow[], openGroups: Read
   return items;
 }
 
+/**
+ * The events a chosen row steps past when moved up (`-1`) or down (`1`): each row on show, and a
+ * folded run as a whole, by its first event going up and its last going down.
+ */
+export function replayStepStops(items: readonly ReplayListItem[], direction: -1 | 1): Set<number> {
+  const stops = new Set<number>();
+  for (const item of items) {
+    if (item.kind === 'row') stops.add(item.row.seq);
+    else if (!item.open) stops.add((direction < 0 ? item.rows[0] : item.rows[item.rows.length - 1]).seq);
+  }
+  return stops;
+}
+
 /** How a press on a row was made: plainly, adding to the choice, or reaching to it from the last. */
 export interface ReplayPickModifiers {
   toggle: boolean;

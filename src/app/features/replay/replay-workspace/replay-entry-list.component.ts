@@ -44,6 +44,7 @@ import {
   type ReplayListItem,
   type ReplayRowStyle,
   replayRowStyle,
+  replayStepStops,
 } from '@axe/features/replay/replay-workspace/replay-entry-items';
 import { VirtualListComponent } from '@axe/ui/components/virtual-list/virtual-list.component';
 import { landingIndex, RowReorder } from '@axe/ui/dragging/row-reorder';
@@ -302,7 +303,7 @@ export class ReplayEntryListComponent {
       this.removeChosen();
     } else if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
       event.preventDefault();
-      this.editor.stepMany(chosen, event.key === 'ArrowUp' ? -1 : 1);
+      this.stepChosen(event.key === 'ArrowUp' ? -1 : 1);
     } else if (event.key === 'Enter') {
       const only = this.onlyChosenRow();
       if (only) {
@@ -326,8 +327,8 @@ export class ReplayEntryListComponent {
       { count: this.chosen().size, canRewrite: !!only?.editable, canStage: this.canEdit && !this.isStaging() },
       {
         rewrite: () => only && this.beginRowEdit(only),
-        moveUp: () => this.editor.stepMany(this.chosen(), -1),
-        moveDown: () => this.editor.stepMany(this.chosen(), 1),
+        moveUp: () => this.stepChosen(-1),
+        moveDown: () => this.stepChosen(1),
         remove: () => this.removeChosen(),
         writeAfter: () => this.writingField()?.nativeElement.focus(),
         stageAfter: () => void this.stageAt(this.insertIndex()),
@@ -347,6 +348,12 @@ export class ReplayEntryListComponent {
     this.editor.removeMany(this.chosen());
     this.chosen.set(new Set());
     this.anchor = null;
+  }
+
+  /** Moves the chosen rows past the next row on show, or past a folded run as a whole. */
+  private stepChosen(direction: -1 | 1): void {
+    const stops = replayStepStops(this.items(), direction);
+    this.editor.stepMany(this.chosen(), direction, (event) => stops.has(event.seq));
   }
 
   protected beginRowEdit(row: ReplayEntryRow): void {

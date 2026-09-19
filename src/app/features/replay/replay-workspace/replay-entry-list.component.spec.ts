@@ -358,7 +358,16 @@ describe('editing the list by choosing rows', () => {
 
     key({ key: 'ArrowUp', altKey: true });
 
-    expect(stepMany).toHaveBeenCalledWith(new Set([5]), -1);
+    expect(stepMany).toHaveBeenCalledWith(new Set([5]), -1, expect.any(Function));
+  });
+
+  it('steps a row over a folded run of the board as a whole, not one hidden event at a time', () => {
+    press(rowElements()[1]);
+
+    key({ key: 'ArrowUp', altKey: true });
+
+    const isStop = stepMany.mock.calls[0][2] as (event: ReplayEvent) => boolean;
+    expect(story.filter(isStop).map((e) => e.seq)).toEqual([1, 2, 4, 5]);
   });
 
   it('lets the choice go on Escape', () => {

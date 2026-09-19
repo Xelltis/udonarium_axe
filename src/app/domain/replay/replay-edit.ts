@@ -214,19 +214,24 @@ export function removeReplayEvents(events: readonly ReplayEvent[], seqs: Readonl
  * Moves each chosen event one place up (`-1`) or down (`1`), keeping the chosen events in the same
  * order and the same distance apart, and restamps the offsets once.
  *
- * An event that would pass the end of the list, or run into a chosen event that cannot move, stays
- * where it is. Each event that moves takes a time between its new neighbours.
+ * A place is counted by the events `isStop` accepts, every event unless told otherwise: a list that
+ * leaves some events out moves a chosen one past the next it shows, over any it leaves out on the
+ * way. An event that would pass the end of the list, or run into a chosen event that cannot move,
+ * stays where it is. Each event that moves takes a time between its new neighbours.
  */
 export function stepReplayEvents(
   events: readonly ReplayEvent[],
   seqs: ReadonlySet<number>,
-  direction: -1 | 1
+  direction: -1 | 1,
+  isStop: (event: ReplayEvent) => boolean = () => true
 ): ReplayEvent[] {
   const next = [...events];
   const order = next.map((_, index) => index).filter((index) => seqs.has(next[index].seq));
   if (direction === 1) order.reverse();
+  const passes = (at: number): boolean => at >= 0 && at < next.length && !seqs.has(next[at].seq) && !isStop(next[at]);
   for (const index of order) {
-    const target = index + direction;
+    let target = index + direction;
+    while (passes(target)) target += direction;
     if (target < 0 || target >= next.length || seqs.has(next[target].seq)) continue;
     const [moved] = next.splice(index, 1);
     next.splice(target, 0, { ...moved, at: insertTimeAt(next, target) });
