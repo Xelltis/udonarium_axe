@@ -42,7 +42,8 @@ function startWorker(): Worker | null {
  * Has a worker draw and encode a video, answering its asks for pictures and sound from the page
  * and passing its progress on. The worker is let go when it is done. Answers `unavailable` when a
  * worker cannot be started, cannot be handed the video, or fails before drawing a frame, so the
- * page can make the video itself.
+ * page can make the video itself, and null when the page cannot give the worker a picture or the
+ * sound it asks for, which the page would fail at as well.
  */
 export function encodeReplayVideoInWorker(
   job: ReplayVideoWorkerJob,
@@ -77,7 +78,10 @@ export function encodeReplayVideoInWorker(
       finish(drawing ? null : 'unavailable');
     });
     running.addEventListener('message', (event: MessageEvent<ReplayVideoWorkerResponse>) => {
-      void answer(event.data);
+      answer(event.data).catch((reason: unknown) => {
+        Logger.warn('[ReplayVideo] ワーカーの求めに応えられませんでした', reason);
+        finish(null);
+      });
     });
 
     const answer = async (message: ReplayVideoWorkerResponse): Promise<void> => {

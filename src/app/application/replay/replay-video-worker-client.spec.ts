@@ -133,6 +133,24 @@ describe('making a replay video in a worker', () => {
     expect(answer.transfer[0]).not.toBe(whole.buffer);
   });
 
+  it('gives up rather than leave the worker waiting when the sound cannot be read', async () => {
+    const worker = new FakeWorker((self, message) => {
+      if (message.kind === 'start') self.reply({ kind: 'sound-request', id: 1, start: 0, count: 3 });
+    });
+    using(worker);
+    const read = vi.fn(async () => {
+      throw new Error('cannot render');
+    });
+
+    const made = await encodeReplayVideoInWorker(
+      job,
+      host({ sound: { sampleRate: 48_000, numberOfChannels: 1, length: 6, read } })
+    );
+
+    expect(made).toBeNull();
+    expect(worker.terminated).toBe(true);
+  });
+
   it('tells the worker to stop once the export is cancelled', async () => {
     vi.useFakeTimers();
     let cancelled = false;
