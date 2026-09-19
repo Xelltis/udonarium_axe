@@ -34,7 +34,7 @@
     }
     @if (canUpload) {
       <label
-        class="rounded-ui-sm border-ui-border-panel text-ui-dim hover:border-ui-accent hover:bg-ui-accent-bg hover:text-ui-text flex min-h-28 w-full cursor-pointer flex-col items-center justify-center gap-1 border-2 border-dashed p-1.5 text-center transition-colors"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-dim hover:border-ui-accent hover:text-ui-text flex min-h-28 w-full cursor-pointer flex-col items-center justify-center gap-1 border-2 border-dashed p-1.5 text-center transition-colors hover:bg-[linear-gradient(var(--ui-accent-bg),var(--ui-accent-bg))]"
         [class.pointer-events-none]="uploading()"
         [class.opacity-60]="uploading()"
         [attr.aria-busy]="uploading()"
@@ -60,7 +60,7 @@
     }
     @if (isAllowedEmpty) {
       <button
-        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-text flex min-h-28 w-full transform-none cursor-pointer flex-col items-center justify-center gap-1 border border-solid p-1.5 shadow-none transition-colors outline-none hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] active:transform-none"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent hover:text-ui-text flex min-h-28 w-full transform-none cursor-pointer flex-col items-center justify-center gap-1 border border-solid p-1.5 shadow-none transition-colors outline-none hover:bg-[linear-gradient(var(--ui-hover),var(--ui-hover))] hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] active:transform-none"
         (click)="onSelectedFile(empty)"
       >
         <i class="material-icons text-[30px]! opacity-[0.45]">hide_image</i>
@@ -71,7 +71,7 @@
     }
     @for (file of images(); track file.identifier) {
       <button
-        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-text flex w-full transform-none cursor-pointer flex-col items-center gap-1 border border-solid p-1.5 shadow-none transition-colors outline-none hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] active:transform-none"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent hover:text-ui-text flex w-full transform-none cursor-pointer flex-col items-center gap-1 border border-solid p-1.5 shadow-none transition-colors outline-none hover:bg-[linear-gradient(var(--ui-hover),var(--ui-hover))] hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] active:transform-none"
         (click)="onSelectedFile(file)"
       >
         @if (file.url) {

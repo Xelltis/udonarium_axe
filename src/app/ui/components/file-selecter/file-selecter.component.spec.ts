@@ -69,6 +69,14 @@ describe('FileSelecterComponent', () => {
       expect(uploadTile()).not.toBeNull();
     });
 
+    it('stands on a ground of its own, so nothing behind the panel shows through it', () => {
+      playing(PeerRole.Player);
+      const tile = uploadTile()!.closest('label')!;
+
+      expect(tile.classList).toContain('bg-ui-elevated');
+      expect([...tile.classList].filter((name) => /^hover:bg-ui-/.test(name))).toEqual([]);
+    });
+
     it('offers none to a guest', () => {
       playing(PeerRole.Guest);
 
