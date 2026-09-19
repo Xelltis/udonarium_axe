@@ -250,7 +250,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    * behind the one in front, and a group carried onto a narrow screen -- or a window a reader
    * drew in -- would leave every panel but one shut behind a frame with no way into it.
    */
-  readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isMinimized());
+  readonly showsTabs = computed(() => this.tabs().length > 1 && !this.isMinimized() && !this.isShrunk());
   readonly tabLabels = computed(() => this.tabs().map((tab) => tab.panel.title));
 
   /** Closes the panel in the tab at `index`, as the tab's close button does; nothing for a bad index. */
@@ -312,8 +312,17 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     return body;
   }
 
-  /** Takes a panel in from another frame, the ground it stands on and all. */
+  /**
+   * Takes a panel in from another frame, the ground it stands on and all.
+   *
+   * The panel takes on this frame's state: folded if the frame is, and never shrunk to its content,
+   * since a frame holding several shows their names at its full size. A frame shrunk to its
+   * content is let out first.
+   */
   adoptTab(handle: PanelTabHandle): void {
+    this.setShrunk(false);
+    handle.panel.isShrunk.set(false);
+    handle.panel.isMinimized.set(this.isMinimized());
     const restore = holdLiveState(handle.slot.instance.scrollable().nativeElement);
     this.slots().insert(handle.slot.hostView);
     handle.panel.attachTo(this);
@@ -382,15 +391,14 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    */
   private listenTo(panel: PanelService): () => void {
     if (panel === this.panelService) return () => undefined;
-    const stopMinimize = panel.minimizeRequest$.subscribe((minimized) => {
-      if (panel !== this.activePanel() || minimized === this.isMinimized()) return;
-      this.toggleMinimize();
+    const stopShrink = panel.shrinkRequest$.subscribe((shrunk) => {
+      if (panel === this.activePanel()) this.setShrunk(shrunk);
     });
     const stopResize = panel.resizeRequest$.subscribe((size) => {
       if (panel === this.activePanel()) this.resizeTo(size);
     });
     return () => {
-      stopMinimize();
+      stopShrink();
       stopResize();
     };
   }
@@ -426,9 +434,8 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
       this.panelService.minWidth = this.minWidthInput();
       this.panelService.minHeight = this.minHeightInput();
     });
-    this.panelService.minimizeRequest$.subscribe((minimized) => {
-      if (this.activePanel() !== this.panelService || minimized === this.isMinimized()) return;
-      this.toggleMinimize();
+    this.panelService.shrinkRequest$.subscribe((shrunk) => {
+      if (this.activePanel() === this.panelService) this.setShrunk(shrunk);
     }, this.destroyRef);
     this.panelService.resizeRequest$.subscribe((size) => {
       if (this.activePanel() === this.panelService) this.resizeTo(size);
@@ -547,20 +554,19 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     return this.rotationDegrees() === 90 || this.rotationDegrees() === 270;
   }
 
-  /** Whether the panel is minimized by shrinking to its content rather than folding to its bar. */
+  /**
+   * Whether the panel is shrunk to its content: as narrow as what it holds, its box off, apart
+   * from being folded to its bar.
+   */
+  readonly isShrunk = signal(false);
+
+  /** Whether the panel is shrunk to its content; the name the template and the tabs know it by. */
   get contentMinimized(): boolean {
-    return this.minimizedToContent && this.isMinimized();
+    return this.isShrunk();
   }
-
-  /** Shrinking to content is asked for by the panel on show, and answered for on the way back up. */
-  private get minimizedToContent(): boolean {
-    return this.isMinimized() ? this.shrankToContent() : this.activePanel().minimizeToContent;
-  }
-
-  private readonly shrankToContent = signal(false);
 
   /** Folded away with the frame, whichever tab is in front of it. */
-  private readonly bodyCollapsed = computed(() => this.isMinimized() && !this.shrankToContent());
+  private readonly bodyCollapsed = computed(() => this.isMinimized());
 
   /** Whether the panel was opened without a frame: no title bar, no resizing, no pointer hits. */
   get frameless(): boolean {
@@ -681,8 +687,9 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   /**
    * Minimizes the panel, or restores it, from the title bar button.
    *
-   * It folds to its bar, or shrinks to its content where the front panel asks for that. Does
-   * nothing in full screen or for a cut-in playing a video.
+   * It folds to its bar, as every panel does. A panel shrunk to its content is let out again
+   * instead, and one that asked for it shrinks to its content rather than folding. Does nothing
+   * in full screen or for a cut-in playing a video.
    */
   toggleMinimize() {
     if (this.isFullScreen()) return;
@@ -694,31 +701,61 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
       }
     }
 
-    const panel = this.draggablePanel().nativeElement;
+    if (this.isShrunk()) {
+      this.setShrunk(false);
+      return;
+    }
+    if (!this.isMinimized() && this.activePanel().minimizeToContent) {
+      this.setShrunk(true);
+      return;
+    }
+
     if (this.isMinimized()) {
       this.isMinimized.set(false);
       this.markMinimized(false);
-      if (this.shrankToContent()) this.width = this.preWidth;
       this.height = this.preHeight;
-      this.shrankToContent.set(false);
     } else {
-      this.preHeight = panel.offsetHeight;
-      this.shrankToContent.set(this.activePanel().minimizeToContent);
+      this.preHeight = this.draggablePanel().nativeElement.offsetHeight;
       this.isMinimized.set(true);
       this.markMinimized(true);
-      if (this.shrankToContent()) {
-        this.preWidth = panel.offsetWidth;
-        this.width = 128;
-      } else {
-        this.height = this.titleBar().nativeElement.offsetHeight;
-      }
+      this.height = this.titleBar().nativeElement.offsetHeight;
     }
   }
 
-  /** Every panel the frame holds is shrunk with it, since what shrinks is the frame. */
+  /**
+   * Shrinks the panel to its content, or lets it out to the size it had.
+   *
+   * The content asks for it with `shrinkRequest$`, as a way of showing itself; it is apart from
+   * minimising. A folded panel is unfolded first. Does nothing in full screen.
+   */
+  setShrunk(shrunk: boolean): void {
+    if (shrunk === this.isShrunk() || this.isFullScreen()) return;
+    const unfolded = shrunk && this.isMinimized();
+    if (unfolded) this.toggleMinimize();
+
+    const panel = this.draggablePanel().nativeElement;
+    if (shrunk) {
+      this.preWidth = panel.offsetWidth;
+      this.preHeight = unfolded ? this.height : panel.offsetHeight;
+      this.width = 128;
+    } else {
+      this.width = this.preWidth;
+      this.height = this.preHeight;
+    }
+    this.isShrunk.set(shrunk);
+    this.markShrunk(shrunk);
+  }
+
+  /** Every panel the frame holds is folded with it, since what folds is the frame. */
   private markMinimized(minimized: boolean): void {
     this.panelService.isMinimized.set(minimized);
     for (const tab of this.tabs()) tab.panel.isMinimized.set(minimized);
+  }
+
+  /** Every panel the frame holds is shrunk with it, since what shrinks is the frame. */
+  private markShrunk(shrunk: boolean): void {
+    this.panelService.isShrunk.set(shrunk);
+    for (const tab of this.tabs()) tab.panel.isShrunk.set(shrunk);
   }
 
   /**
@@ -727,7 +764,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    * Does nothing while minimized. A sideways panel fills the window along its turned axes.
    */
   toggleFullScreen() {
-    if (this.isMinimized()) return;
+    if (this.isMinimized() || this.isShrunk()) return;
 
     const panel = this.draggablePanel().nativeElement;
     if (this.isFullScreen()) {

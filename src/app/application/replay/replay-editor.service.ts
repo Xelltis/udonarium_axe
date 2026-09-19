@@ -1,6 +1,8 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { REPLAY_KEYFRAME_INTERVAL_MS } from '@axe/application/replay/replay-recorder.service';
 import { Logger } from '@axe/core/logging/logger';
 import { ReplayLogStore } from '@axe/core/storage/replay-log-store';
+import { compressAsync } from '@axe/core/util/compress';
 import { encodeReplayEvents, encodeReplayManifest } from '@axe/domain/replay/replay-codec';
 import {
   createReplayEntry,
@@ -11,10 +13,12 @@ import {
   moveReplayEvent,
   nextInsertSeq,
   removeReplayEvent,
+  removeReplayEvents,
   type ReplayEntryDraft,
   replaySeqRemap,
   resequenceReplayEvents,
   retextReplayEvent,
+  stepReplayEvents,
 } from '@axe/domain/replay/replay-edit';
 import { REPLAY_FORMAT_VERSION, type ReplayEvent, type ReplayManifest } from '@axe/domain/replay/replay-event';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
@@ -22,7 +26,6 @@ import { applyReplayEvents } from '@axe/domain/replay/replay-patch';
 
 export const REPLAY_HISTORY_LIMIT = 100;
 export const REPLAY_DERIVED_CHUNK_SIZE = 500;
-export const REPLAY_DERIVED_KEYFRAME_STRIDE = 200;
 
 @Injectable({ providedIn: 'root' })
 export class ReplayEditorService {
@@ -66,9 +69,14 @@ export class ReplayEditorService {
     this._edited.set(next);
   }
 
-  /** Throws every edit away and stops editing. */
+  /** Throws every edit away and stops editing, letting go of the events it held. */
   cancel(): void {
-    this._edited.set([...this._original()]);
+    this.release();
+  }
+
+  private release(): void {
+    this._original.set([]);
+    this._edited.set([]);
     this._history.set([]);
     this._isEditing.set(false);
   }
@@ -110,6 +118,22 @@ export class ReplayEditorService {
   /** Moves the event with this sequence number up or down by `offset` rows. */
   move(seq: number, offset: number): void {
     this.change((events) => moveReplayEvent(events, seq, offset));
+  }
+
+  /** Removes every event with one of these sequence numbers, as one change to undo. Nothing chosen changes nothing. */
+  removeMany(seqs: ReadonlySet<number>): void {
+    if (seqs.size < 1) return;
+    this.change((events) => removeReplayEvents(events, seqs));
+  }
+
+  /**
+   * Moves each chosen event one row up or down, keeping them apart as they were, as one change to undo.
+   *
+   * A row is counted by the events `isStop` accepts, so a list that leaves some out moves past the next it shows.
+   */
+  stepMany(seqs: ReadonlySet<number>, direction: -1 | 1, isStop?: (event: ReplayEvent) => boolean): void {
+    if (seqs.size < 1) return;
+    this.change((events) => stepReplayEvents(events, seqs, direction, isStop));
   }
 
   /** Rewrites the text of the event with this sequence number. */
@@ -155,9 +179,7 @@ export class ReplayEditorService {
       };
       await this.store.updateRecording(id, { endedAt: manifest.endedAt, manifest: encodeReplayManifest(manifest) });
 
-      this._original.set([...this._edited()]);
-      this._history.set([]);
-      this._isEditing.set(false);
+      this.release();
       return id;
     } catch (reason) {
       Logger.warn('[ReplayEditor] 派生した記録の保存に失敗しました', reason);
@@ -167,28 +189,40 @@ export class ReplayEditorService {
     }
   }
 
+  /**
+   * Writes the boards of the new recording: one before the first event, then one every ten minutes
+   * of recorded time, as the recorder takes them.
+   *
+   * One board is carried along and only what the events change is made anew, and each board is
+   * stored compressed. A board after every few hundred events, each a copy of the whole room with
+   * its chat, took most of half an hour for an evening's session.
+   */
   private async writeKeyframes(
     id: number,
     base: readonly ReplayObjectSnapshot[],
     events: readonly ReplayEvent[]
   ): Promise<ReplayManifest['keyframes']> {
     const written: ReplayManifest['keyframes'][number][] = [];
-    let board = [...base];
-    let applied = 0;
+    let board = applyReplayEvents(base, []);
 
     const put = async (seq: number, at: number): Promise<void> => {
-      const bytes = encodeReplayKeyframe(board);
-      const blob = new Blob([bytes as BlobPart], { type: 'application/octet-stream' });
+      const blob = new Blob([(await compressAsync(encodeReplayKeyframe(board))) as BlobPart], {
+        type: 'application/octet-stream',
+      });
       await this.store.putKeyframe({ recordingId: id, seq, at, blob });
       written.push({ seq, at, byteSize: blob.size });
     };
 
     await put(0, events[0].at);
-    while (applied < events.length) {
-      const slice = events.slice(applied, applied + REPLAY_DERIVED_KEYFRAME_STRIDE);
-      board = applyReplayEvents(board, slice);
-      applied += slice.length;
-      if (applied < events.length) await put(events[applied - 1].seq, events[applied - 1].at);
+    let from = 0;
+    let lastAt = events[0].at;
+    for (let index = 0; index < events.length; index++) {
+      const isLast = index === events.length - 1;
+      if (!isLast && events[index].at - lastAt < REPLAY_KEYFRAME_INTERVAL_MS) continue;
+      board = applyReplayEvents(board, events.slice(from, index + 1), { shareInput: true });
+      from = index + 1;
+      lastAt = events[index].at;
+      if (!isLast) await put(events[index].seq, events[index].at);
     }
     return written;
   }

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { messageAdded$, selectGameTable$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
@@ -77,6 +78,39 @@ describe('ObjectSynchronizer', () => {
       localDispatch('REQUEST_CATALOG', {});
 
       expect(sendCatalogSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('hearing of a deletion', () => {
+    beforeEach(() => {
+      ObjectSynchronizer.instance.initialize();
+    });
+
+    afterEach(() => {
+      const object = ObjectStore.instance.get('put-back');
+      if (object) ObjectStore.instance.delete(object, false);
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    it('leaves alone what was put back under the name since it sent the word itself', () => {
+      const first = new GameObject('put-back');
+      first.initialize();
+      first.destroy();
+      const again = new GameObject('put-back');
+      again.initialize();
+
+      localDispatch('DELETE_GAME_OBJECT', { aliasName: '', identifier: 'put-back' });
+
+      expect(ObjectStore.instance.get('put-back')).toBe(again);
+    });
+
+    it('deletes on the word of another seat', () => {
+      const object = new GameObject('put-back');
+      object.initialize();
+
+      localDispatch('DELETE_GAME_OBJECT', { aliasName: '', identifier: 'put-back' }, 'peer-a');
+
+      expect(ObjectStore.instance.get('put-back')).toBeNull();
     });
   });
 

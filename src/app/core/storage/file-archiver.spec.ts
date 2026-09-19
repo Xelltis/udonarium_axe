@@ -218,6 +218,75 @@ describe('FileArchiver', () => {
     });
   });
 
+  describe('loadImages', () => {
+    function imageFile(name: string, size = 3): File {
+      return new File([new Uint8Array(size)], name, { type: 'image/png' });
+    }
+
+    let addAsync: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      addAsync = vi
+        .spyOn(ImageStorage.instance, 'addAsync')
+        .mockImplementation((file) => Promise.resolve(ImageFile.createEmpty(`image-${(file as File).name}`)));
+    });
+
+    it('returns what the store keeps for each image, in the order given', async () => {
+      const result = await FileArchiver.instance.loadImages([imageFile('a.png'), imageFile('b.png')]);
+
+      expect(result.images.map((image) => image.identifier)).toEqual(['image-a.png', 'image-b.png']);
+      expect(result.oversized).toEqual([]);
+    });
+
+    it('names an image over the size limit instead of storing it', async () => {
+      const result = await FileArchiver.instance.loadImages([
+        imageFile('huge.png', 2 * 1024 * 1024 + 1),
+        imageFile('small.png'),
+      ]);
+
+      expect(result.oversized).toEqual(['huge.png']);
+      expect(result.images.map((image) => image.identifier)).toEqual(['image-small.png']);
+      expect(addAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads no room data and opens no archive', async () => {
+      const loaded: Element[] = [];
+      const offXml = xmlLoaded$.subscribe((event) => loaded.push(event.xmlElement));
+      const zipped = zipSync({ 'inside.png': new Uint8Array([1, 2, 3]) });
+
+      const result = await FileArchiver.instance.loadImages([
+        new File(['<room />'], 'data.xml', { type: 'text/xml' }),
+        new File([zipped.slice()], 'room.zip', { type: 'application/zip' }),
+      ]);
+      offXml();
+
+      expect(loaded).toEqual([]);
+      expect(addAsync).not.toHaveBeenCalled();
+      expect(result.images).toEqual([]);
+    });
+
+    it('places nothing on the table', async () => {
+      const dropped: ImageDroppedEvent[] = [];
+      const off = imageDropped$.subscribe((event) => dropped.push(event));
+
+      await FileArchiver.instance.loadImages([imageFile('a.png')]);
+      off();
+
+      expect(dropped).toHaveLength(0);
+    });
+
+    it('takes images even after a room load was declined', async () => {
+      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
+        isLoadOk: () => false,
+        reloadCheckStart: vi.fn(),
+      } as unknown as ReturnType<typeof ObjectStore.instance.get>);
+
+      const result = await FileArchiver.instance.loadImages([imageFile('a.png')]);
+
+      expect(result.images).toHaveLength(1);
+    });
+  });
+
   describe('reading an archive', () => {
     it('unpacks an archive and handles what is inside', async () => {
       // build an archive for the test

@@ -7,7 +7,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { VisionService } from '@axe/application/tabletop/vision.service';
+import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -352,11 +352,20 @@ export class GameTableSettingComponent {
     this.visionService.previewAsUserId.set(value ? value : null);
   }
 
-  /** The cursors of everyone in the room who is not a game master, offered as views to preview. */
-  getNonGmCursors(): PeerCursor[] {
+  /**
+   * The players in the room, offered as views to preview.
+   *
+   * Guests are left out: every one of them sees the same, and the guest preview stands for them all.
+   */
+  getPreviewPlayers(): PeerCursor[] {
     this.objectChange.collectionOf('PeerCursor')();
-    return this.objectStore.getObjects<PeerCursor>(PeerCursor).filter((cursor) => !cursor.isGameMaster);
+    return this.objectStore
+      .getObjects<PeerCursor>(PeerCursor)
+      .filter((cursor) => !cursor.isGameMaster && !cursor.isGuest);
   }
+
+  /** The preview that looks as a guest would, offered whether or not one is connected. */
+  readonly guestPersona = GUEST_PERSONA;
 
   minWallHeight: number = 1;
   maxWallHeight: number = 20;
@@ -589,18 +598,24 @@ export class GameTableSettingComponent {
     return this.objectStore.getObjects(CutIn);
   }
 
-  private cutInIdentifiersRaw = '';
+  private cutInIdentifiersKey = '';
   private cutInIdentifiers: string[] = [];
 
   /**
    * The identifiers of the cut-ins that play when the picked table is chosen from the list; writes
    * are ignored while it cannot be edited.
+   *
+   * Only cut-ins still in the room are listed. One named by a table but gone, deleted since or
+   * never brought back by an older saved room, would otherwise show as its bare identifier.
    */
   get tableCutIns(): string[] {
     const raw = this.selectedTable?.cutInIdentifiers ?? '';
-    if (raw !== this.cutInIdentifiersRaw) {
-      this.cutInIdentifiersRaw = raw;
-      this.cutInIdentifiers = parseCutInIdentifiers(raw);
+    const present = this.getCutIns().map((cutIn) => cutIn.identifier);
+    const key = `${raw}|${present.join(',')}`;
+    if (key !== this.cutInIdentifiersKey) {
+      this.cutInIdentifiersKey = key;
+      const known = new Set(present);
+      this.cutInIdentifiers = parseCutInIdentifiers(raw).filter((identifier) => known.has(identifier));
     }
     return this.cutInIdentifiers;
   }

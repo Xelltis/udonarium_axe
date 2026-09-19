@@ -1,9 +1,5 @@
 import { buildTablePhotoLayout, type TablePhotoMember } from '@axe/domain/replay/table-photo';
-import type {
-  ReplayFrameAssets,
-  ReplayFrameCanvas,
-  ReplayFrameImage,
-} from '@axe/infrastructure/replay/replay-frame-painter';
+import type { ReplayFrameAssets, ReplayFrameCanvas, ReplayFrameImage } from '@axe/infrastructure/replay/replay-canvas';
 import { paintTablePhoto } from '@axe/infrastructure/replay/table-photo-painter';
 
 interface DrawnImage {

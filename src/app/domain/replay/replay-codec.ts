@@ -5,6 +5,7 @@ import {
   REPLAY_FORMAT_VERSION,
   type ReplayEvent,
   type ReplayManifest,
+  type ReplayPatch,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
 
@@ -37,7 +38,8 @@ export function encodeReplayEvents(events: readonly ReplayEvent[]): Uint8Array {
  * Unpacks a chunk of events written by `encodeReplayEvents`.
  *
  * Empty when the chunk is unreadable or of an unsupported version. Events without a sequence
- * number or kind are dropped, and missing fields are filled with defaults.
+ * number or kind are dropped, and missing fields are filled with defaults. Folded parts that are
+ * not changes to an object, or removed parts that are not identifiers, are dropped.
  */
 export function decodeReplayEvents(bytes: Uint8Array): ReplayEvent[] {
   const envelope = decode(bytes) as ChunkEnvelope | null;
@@ -113,6 +115,8 @@ function toWire(event: ReplayEvent): Record<string, unknown> {
   };
   if (event.targetId != null) wire['targetId'] = event.targetId;
   if (event.patch != null) wire['patch'] = event.patch;
+  if (event.parts != null && event.parts.length > 0) wire['parts'] = event.parts;
+  if (event.removedParts != null && event.removedParts.length > 0) wire['removedParts'] = event.removedParts;
   if (event.signal != null) wire['signal'] = event.signal;
   if (event.merged != null) wire['merged'] = event.merged;
   return wire;
@@ -133,6 +137,25 @@ function fromWire(wire: unknown): ReplayEvent | null {
     visibility: asVisibility(wire['visibility']),
   };
   if (!isRecord(wire['patch'])) delete event.patch;
+  const parts = asArray<unknown>(wire['parts']).filter(isPatch);
+  if (parts.length > 0) event.parts = parts;
+  else delete event.parts;
+  const removedParts = asArray<unknown>(wire['removedParts']).filter(
+    (identifier): identifier is string => typeof identifier === 'string' && identifier.length > 0
+  );
+  if (removedParts.length > 0) event.removedParts = removedParts;
+  else delete event.removedParts;
   if (!isRecord(wire['signal'])) delete event.signal;
   return event;
+}
+
+/** Whether a value read from a file has the shape of a change to an object, which the board is built from. */
+function isPatch(value: unknown): value is ReplayPatch {
+  return (
+    isRecord(value) &&
+    typeof value['identifier'] === 'string' &&
+    value['identifier'].length > 0 &&
+    isRecord(value['before']) &&
+    isRecord(value['after'])
+  );
 }

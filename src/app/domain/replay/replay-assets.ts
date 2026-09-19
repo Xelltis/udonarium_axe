@@ -44,6 +44,7 @@ export function collectReplayAssetIds(
   for (const event of events) {
     walk(event.detail);
     if (event.patch) walk(event.patch.after);
+    for (const part of event.parts ?? []) walk(part.after);
     if (event.signal) walk(event.signal.data);
     if (event.kind === ReplayEventKind.MediaSoundEffect) {
       const identifier = String(event.detail['identifier'] ?? '');

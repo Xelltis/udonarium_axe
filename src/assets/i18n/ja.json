@@ -113,7 +113,34 @@
       "stair_down": "下り階段",
       "stair_spiral": "螺旋階段",
       "poison_pool": "毒の沼",
-      "cactus_skin": "サボテンの肌"
+      "cactus_skin": "サボテンの肌",
+      "asphalt": "アスファルト",
+      "sidewalk": "歩道の敷石",
+      "concrete_floor": "コンクリートの床",
+      "neon_floor": "ネオンのタイル床",
+      "rooftop": "屋上",
+      "slum_ground": "ゴミの散る泥道",
+      "wall_concrete": "コンクリート壁",
+      "wall_neon": "ネオン管の壁",
+      "wall_corrugated": "トタン",
+      "wall_facade": "ビルの外壁",
+      "door_steel": "鉄扉",
+      "felt": "ラシャ",
+      "warehouse_floor": "倉庫の床",
+      "sf_road": "金属舗装の道路",
+      "sf_walkway": "光る歩道",
+      "sf_rooftop": "未来的な屋上",
+      "tar_roof": "タール屋根",
+      "wall_facade_concrete": "コンクリートのビル外壁",
+      "wall_sf_glass": "光の帯が走る黒ガラス",
+      "wall_sf_panel": "光る継ぎ目の白パネル",
+      "wall_brick_tenement": "レンガの長屋",
+      "wall_brownstone": "ブラウンストーン",
+      "wall_warehouse": "倉庫の鋼板壁",
+      "container_red": "コンテナ（赤）",
+      "container_blue": "コンテナ（青）",
+      "container_green": "コンテナ（緑）",
+      "door_shutter": "シャッター"
     },
     "reorder": {
       "toTop": "いちばん上へ",
@@ -152,7 +179,8 @@
       "persona": {
         "title": "ペルソナ（プレイヤー視点でレビュー）",
         "self": "GM視点（自分）",
-        "empty": "プレイヤーがいません"
+        "empty": "プレイヤーがいません",
+        "guestHint": "見学者に見える卓を確かめます。見学者が接続していなくても選べます"
       },
       "party": {
         "title": "同行",
@@ -1646,7 +1674,11 @@
         "light_brazier": "火鉢",
         "light_lantern": "ランタン",
         "light_candle": "ろうそく",
-        "light_chandelier": "シャンデリア"
+        "light_chandelier": "シャンデリア",
+        "light_neon": "ネオンサイン",
+        "light_streetlamp": "街灯",
+        "light_fluorescent": "蛍光灯",
+        "light_neon_pole": "ネオンの街灯"
       }
     },
     "vision": {
@@ -2083,7 +2115,10 @@
           "cavern": "洞窟",
           "lavaCavern": "溶岩洞",
           "iceCave": "氷窟",
-          "sandTomb": "砂の墳墓"
+          "sandTomb": "砂の墳墓",
+          "illegalBar": "違法BAR",
+          "abandonedBuilding": "廃ビル",
+          "containerWarehouse": "コンテナ倉庫"
         },
         "role": {
           "entrance": "入口の間",
@@ -2093,12 +2128,61 @@
           "deadEnd": "行き止まり",
           "chamber": "小部屋"
         },
+        "roleIn": {
+          "illegalBar": {
+            "entrance": "表の店",
+            "hall": "酒場",
+            "treasure": "賭場",
+            "boss": "元締めの部屋",
+            "deadEnd": "密造酒の貯蔵庫",
+            "chamber": "個室"
+          },
+          "building": {
+            "entrance": "エントランス",
+            "hall": "オフィスフロア",
+            "treasure": "金庫室",
+            "boss": "役員室",
+            "deadEnd": "物置",
+            "chamber": "事務室"
+          },
+          "warehouse": {
+            "entrance": "搬入口",
+            "hall": "中央倉庫",
+            "treasure": "保税区画",
+            "boss": "管理事務所",
+            "deadEnd": "資材置き場",
+            "chamber": "保管区画"
+          }
+        },
         "piece": {
           "wall": "壁",
           "door": "扉",
           "doorLocked": "扉（施錠）",
           "entrance": "入口",
-          "exit": "出口"
+          "exit": "出口",
+          "tree": "木",
+          "bush": "茂み",
+          "boulder": "岩",
+          "outcrop": "岩場",
+          "hill": "丘",
+          "cactus": "サボテン",
+          "junk": "廃材の山",
+          "streetTree": "街路樹",
+          "building": "建物",
+          "roofUnit": "屋上設備",
+          "counter": "カウンター",
+          "stool": "スツール",
+          "table": "テーブル",
+          "pillar": "柱",
+          "desk": "事務机",
+          "crate": "木箱",
+          "rubble": "瓦礫",
+          "shopCounter": "売り台",
+          "gamingTable": "賭博台",
+          "containerRed": "コンテナ",
+          "containerBlue": "コンテナ",
+          "containerGreen": "コンテナ",
+          "hiddenDoor": "隠し扉"
         },
         "summary": {
           "title": "ダンジョン概要",
@@ -2110,7 +2194,8 @@
           "doors": "扉",
           "ground": "地面",
           "standing": "地形",
-          "fires": "灯り"
+          "fires": "灯り",
+          "hidden": "隠し扉"
         },
         "title": "マップ生成",
         "gmOnly": "このツールはゲームマスター専用です",
@@ -2180,7 +2265,11 @@
           "coast": "海岸",
           "marsh": "湿地",
           "snowfield": "雪原",
-          "wasteland": "荒野"
+          "wasteland": "荒野",
+          "city": "ビル群",
+          "sfCity": "ビル群(SF)",
+          "slum": "スラム街",
+          "dump": "ゴミ処理場"
         },
         "prop": {
           "tree": "木",
@@ -2188,7 +2277,10 @@
           "boulder": "岩",
           "outcrop": "岩場",
           "hill": "丘",
-          "cactus": "サボテン"
+          "cactus": "サボテン",
+          "junk": "廃材の山",
+          "streetTree": "街路樹",
+          "building": "建物"
         },
         "grid": {
           "0": "四角",
@@ -3405,7 +3497,13 @@
         "withAssets": "画像も含める",
         "noRecordings": "保存された記録はありません",
         "soloRoom": "ひとりの卓",
-        "showIncidental": "付随する音も出す"
+        "showIncidental": "付随する音も出す",
+        "showSystem": "入退室や設定の変更も出す",
+        "boardGroup": "盤面の動き ×{{count}}"
+      },
+      "face": {
+        "front": "表",
+        "back": "裏"
       },
       "line": {
         "chat": "{{speaker}}「{{text}}」",
@@ -3432,6 +3530,7 @@
         "marker": "― {{label}} ―",
         "moveHeight": "{{actor}} が {{target}} を ({{fromX}}, {{fromY}}) 高さ {{fromZ}} から ({{toX}}, {{toY}}) 高さ {{toZ}} へ動かした",
         "moveSurface": "{{actor}} が {{target}} を{{fromSurface}}の ({{fromX}}, {{fromY}}) から{{toSurface}}の ({{toX}}, {{toY}}) へ動かした",
+        "moveBrief": "{{actor}} が {{target}} を動かした",
         "movePlace": "{{actor}} が {{target}} を{{fromPlace}}から{{toPlace}}へ移した",
         "effectOn": "{{actor}} が {{targets}} に〈{{effect}}〉をかけた",
         "effectFrom": "{{actor}} が {{caster}} から {{targets}} へ〈{{effect}}〉を放った",
@@ -3496,7 +3595,14 @@
         "rewrite": "書き直す",
         "undo": "取り消す",
         "undoHint": "Ctrl+Z",
-        "drag": "つまんで並べ替え"
+        "drag": "つまんで並べ替え",
+        "discardConfirm": "編集中の変更を捨てて、別の記録を開きますか？",
+        "writeAfter": "この後ろに書く",
+        "stageAfter": "この後ろから収録",
+        "removeCount": "{{count}} 行を消す",
+        "insertAfter": "{{time}} の行の後ろに入ります",
+        "insertAtEnd": "末尾に入ります",
+        "keysHint": "Delete で消す・Alt+↑↓ で動かす・Enter で書き直す"
       },
       "surface": {
         "floor": "床",
@@ -3546,27 +3652,56 @@
         "unsupported": "このブラウザでは動画を書き出せません",
         "size": "大きさ",
         "fps": "なめらかさ",
-        "view": "盤面の見え方",
         "pacing": "間の取り方",
-        "scope": "入れるもの",
         "pace": {
           "reading": "読める速さ",
           "recorded": "当日と同じ間"
         },
-        "of": {
-          "top": "真上から",
-          "table": "卓と同じ傾き",
-          "lines": "台詞と章だけ",
-          "everything": "盤面の動きも入れる"
-        },
-        "estimate": "{{shots}} カット・およそ {{length}}",
+        "estimate": "{{count}} 場面・およそ {{length}}・{{size}}",
+        "inMemory": "このブラウザは動画をすべてメモリーに溜めてから保存します。これだけ大きいと途中で失敗することがあります。大きさを下げるか、保存先を選べるブラウザ（Chrome・Edge）で書き出してください。",
         "start": "書き出す",
         "rendering": "書き出しています（{{percent}}%）",
         "cancel": "やめる",
+        "keepInView": "このタブは表示したままにしてください。裏に回すと、省エネ設定のブラウザーが書き出しを止めることがあります。",
+        "paused": "タブが裏に回っていたあいだ、ブラウザーが書き出しを止めていました。表示しているあいだは続きから進みます。",
         "realtime": "このブラウザでは尺と同じだけ時間がかかります（書き出し中は開いたままにしてください）",
         "withEffects": "効果音を入れる",
         "withMusic": "BGM を入れる",
-        "failed": "書き出せませんでした。細かさや大きさを下げると通ることがあります。"
+        "round": "ラウンド {{round}}",
+        "turn": "{{name}} の手番",
+        "roundTurn": "ラウンド {{round}}・{{name}} の手番",
+        "preview": "動画プレビュー",
+        "previewHint": "書き出す動画をその場で再生します",
+        "empty": "動画にできる場面がありません",
+        "building": "組み立てています",
+        "play": "再生",
+        "pause": "一時停止",
+        "styles": {
+          "novel": "ノベル",
+          "tabletop": "卓"
+        },
+        "audience": "見せる相手",
+        "audiences": {
+          "public": "公開用（見学者と同じ）",
+          "player": "自分（PL の視点）",
+          "gm": "GM（秘匿もすべて）"
+        },
+        "lang": "言語",
+        "audienceWarning": "この視点では、公開していない情報が映ります。YouTube などに出すときは「公開用」を選んでください。",
+        "style": "見せ方",
+        "speed": "字幕の速さ",
+        "speeds": {
+          "0": "ゆっくり",
+          "1": "ふつう",
+          "2": "はやめ",
+          "3": "はやい"
+        },
+        "withOpening": "冒頭に部屋の名前と日付を出す",
+        "failures": {
+          "empty": "動画にできる場面がありません。",
+          "sound": "音を混ぜられませんでした。効果音や BGM を外すと書き出せます。",
+          "encode": "書き出せませんでした。大きさやなめらかさを下げると通ることがあります。"
+        }
       },
       "script": {
         "title": "読み物にする",
@@ -4218,7 +4353,11 @@
       "tagUnset": "未設定",
       "tagAll": "全て",
       "imageEmpty": "画像なし",
-      "noImagesInTag": "この分類に画像はありません"
+      "noImagesInTag": "この分類に画像はありません",
+      "upload": "アップロード",
+      "uploading": "読み込み中…",
+      "uploadLimit": "1ファイル2MBまで",
+      "oversized": "2MBを超えるため取り込めませんでした: {{names}}"
     },
     "contextMenu": {
       "index": "インデックス",

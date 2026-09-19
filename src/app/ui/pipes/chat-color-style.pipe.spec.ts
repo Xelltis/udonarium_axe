@@ -1,4 +1,5 @@
 import { parseHexColor, relativeLuminance, rgbToLch } from '@axe/core/util/tonal-color';
+import { chatBubbleBaseTone, setChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { autoChatBubble, chatColorContrast, ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 
 const PALETTE = [
@@ -104,5 +105,37 @@ describe('chatColorContrast()', () => {
 
   it('measures against the bubble it would be given, when none was', () => {
     expect(chatColorContrast('#006633', '', 'dark')).toBeGreaterThanOrEqual(4.4);
+  });
+});
+
+describe('working a bubble out', () => {
+  it('searches once for a colour, however many lines ask for it', () => {
+    const math = vi.spyOn(Math, 'pow');
+    try {
+      const first = autoChatBubble('#123456', 'light', 61.5);
+      const searched = math.mock.calls.length;
+
+      for (let line = 0; line < 50; line++) expect(autoChatBubble('#123456', 'light', 61.5)).toBe(first);
+
+      expect(searched).toBeGreaterThan(0);
+      expect(math.mock.calls.length).toBe(searched);
+    } finally {
+      math.mockRestore();
+    }
+  });
+
+  it('works it out again once a skin has moved the page it sits on', () => {
+    const was = chatBubbleBaseTone('light');
+    try {
+      setChatBubbleBaseTone('light', 96);
+      const onPale = autoChatBubble('#654321', 'light');
+      setChatBubbleBaseTone('light', 70);
+      const onDeeper = autoChatBubble('#654321', 'light');
+
+      expect(onDeeper).not.toBe(onPale);
+      expect(onDeeper).toBe(autoChatBubble('#654321', 'light', 70));
+    } finally {
+      setChatBubbleBaseTone('light', was);
+    }
   });
 });

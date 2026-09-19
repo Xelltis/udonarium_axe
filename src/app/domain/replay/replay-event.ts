@@ -1,6 +1,6 @@
 import { PeerRole } from '@axe/domain/peer/peer-role';
 
-export const REPLAY_FORMAT_VERSION = 2;
+export const REPLAY_FORMAT_VERSION = 3;
 
 export const ReplayEventKind = {
   ChatMessage: 'chat.message',
@@ -89,6 +89,13 @@ export interface ReplayEvent {
   targetId?: string;
   detail: Readonly<Record<string, unknown>>;
   patch?: ReplayPatch;
+  /**
+   * On the arrival of a piece, the parts that arrived with it, such as its HP and other data, each
+   * made by its own patch. Recordings before format 3 told each part as an event of its own.
+   */
+  parts?: readonly ReplayPatch[];
+  /** On the removal of a piece, the parts taken away with it. */
+  removedParts?: readonly string[];
   signal?: ReplaySignal;
   visibility: ReplayVisibility;
   merged?: number;

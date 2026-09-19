@@ -53,6 +53,51 @@ describe('GameDataElementComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  describe('a long text being edited', () => {
+    function edit(fieldType: string): HTMLElement {
+      const field = DataElement.create('効果', '判定に成功した', {
+        [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+        [DataElementAttribute.FIELD_TYPE]: fieldType,
+      });
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', field);
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('gets ten lines of its own under the row, which it can be stretched from', () => {
+      const host = edit(DataElementFieldType.LONG_TEXT);
+      const content = host.querySelector('.elm-value-content')!;
+      const textarea = host.querySelector('textarea[name="data-value"]')!;
+
+      expect(content.classList.contains('gde-editing')).toBe(false);
+      expect(content.classList).toContain('row-start-2');
+      expect(textarea.classList).toContain('min-h-[calc(10lh+0.5rem+2px)]');
+      expect(textarea.classList).toContain('resize-y');
+      expect(textarea.classList).toContain('whitespace-pre-wrap');
+    });
+
+    it('leaves the other kinds of field on the one line beside the buttons', () => {
+      const content = edit(DataElementFieldType.TEXT).querySelector('.elm-value-content')!;
+
+      expect(content.classList.contains('gde-editing')).toBe(true);
+      expect(content.classList.contains('row-start-2')).toBe(false);
+    });
+
+    it('is drawn as before outside editing', () => {
+      const field = DataElement.create('効果', '判定に成功した', {
+        [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.LONG_TEXT,
+      });
+      fixture.componentRef.setInput('gameDataElement', field);
+      fixture.detectChanges();
+      const textarea = (fixture.nativeElement as HTMLElement).querySelector('textarea[name="data-value"]')!;
+
+      expect(textarea.classList).toContain('resize-none');
+      expect(textarea.classList.contains('resize-y')).toBe(false);
+    });
+  });
+
   describe('the icon picker', () => {
     it('lifts the heading it opens from above the headings of the children', () => {
       const group = DataElement.create('頭', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });

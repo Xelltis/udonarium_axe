@@ -1,11 +1,11 @@
-import { containRect } from '@axe/domain/replay/replay-frame-layout';
+import { containRect } from '@axe/domain/replay/replay-picture-fit';
 import type { TablePhotoLayout } from '@axe/domain/replay/table-photo';
 import {
   REPLAY_FRAME_FONT_FAMILY,
   type ReplayFrameAssets,
   type ReplayFrameCanvas,
   roundedRectPath,
-} from '@axe/infrastructure/replay/replay-frame-painter';
+} from '@axe/infrastructure/replay/replay-canvas';
 
 export interface TablePhotoStyle {
   backdrop: string;

@@ -113,7 +113,34 @@
       "stair_down": "Stairs down",
       "stair_spiral": "Spiral stairs",
       "poison_pool": "Poisoned pool",
-      "cactus_skin": "Cactus skin"
+      "cactus_skin": "Cactus skin",
+      "asphalt": "Asphalt",
+      "sidewalk": "Paving slabs",
+      "concrete_floor": "Concrete floor",
+      "neon_floor": "Neon tiles",
+      "rooftop": "Rooftop",
+      "slum_ground": "Littered mud",
+      "wall_concrete": "Concrete wall",
+      "wall_neon": "Neon wall",
+      "wall_corrugated": "Corrugated iron",
+      "wall_facade": "Office facade",
+      "door_steel": "Steel door",
+      "felt": "Card table felt",
+      "warehouse_floor": "Warehouse floor",
+      "sf_road": "Metal road",
+      "sf_walkway": "Lit walkway",
+      "sf_rooftop": "Future rooftop",
+      "tar_roof": "Tar roof",
+      "wall_facade_concrete": "Concrete office facade",
+      "wall_sf_glass": "Light-banded black glass",
+      "wall_sf_panel": "Glowing white panels",
+      "wall_brick_tenement": "Brick tenement",
+      "wall_brownstone": "Brownstone",
+      "wall_warehouse": "Warehouse cladding",
+      "container_red": "Container (red)",
+      "container_blue": "Container (blue)",
+      "container_green": "Container (green)",
+      "door_shutter": "Roller shutter"
     },
     "reorder": {
       "toTop": "Move to the top",
@@ -152,7 +179,8 @@
       "persona": {
         "title": "Persona (review as a player)",
         "self": "GM view (myself)",
-        "empty": "No players connected"
+        "empty": "No players connected",
+        "guestHint": "See the table as a guest would, even with no guest connected"
       },
       "party": {
         "title": "Party",
@@ -1646,7 +1674,11 @@
         "light_brazier": "Brazier",
         "light_lantern": "Lantern",
         "light_candle": "Candle",
-        "light_chandelier": "Chandelier"
+        "light_chandelier": "Chandelier",
+        "light_neon": "Neon sign",
+        "light_streetlamp": "Street lamp",
+        "light_fluorescent": "Fluorescent light",
+        "light_neon_pole": "Neon light pole"
       }
     },
     "vision": {
@@ -2083,7 +2115,10 @@
           "cavern": "Cavern",
           "lavaCavern": "Lava cavern",
           "iceCave": "Ice cave",
-          "sandTomb": "Sand tomb"
+          "sandTomb": "Sand tomb",
+          "illegalBar": "Illegal bar",
+          "abandonedBuilding": "Abandoned building",
+          "containerWarehouse": "Container warehouse"
         },
         "role": {
           "entrance": "Entrance hall",
@@ -2093,12 +2128,61 @@
           "deadEnd": "Dead end",
           "chamber": "Chamber"
         },
+        "roleIn": {
+          "illegalBar": {
+            "entrance": "Front shop",
+            "hall": "Bar room",
+            "treasure": "Gambling den",
+            "boss": "Boss's room",
+            "deadEnd": "Bootleg store",
+            "chamber": "Back room"
+          },
+          "building": {
+            "entrance": "Lobby",
+            "hall": "Open-plan office",
+            "treasure": "Vault",
+            "boss": "Executive suite",
+            "deadEnd": "Storeroom",
+            "chamber": "Office"
+          },
+          "warehouse": {
+            "entrance": "Loading bay",
+            "hall": "Main hold",
+            "treasure": "Bonded area",
+            "boss": "Site office",
+            "deadEnd": "Supply room",
+            "chamber": "Storage bay"
+          }
+        },
         "piece": {
           "wall": "Wall",
           "door": "Door",
           "doorLocked": "Door (locked)",
           "entrance": "Way in",
-          "exit": "Way out"
+          "exit": "Way out",
+          "tree": "Tree",
+          "bush": "Bush",
+          "boulder": "Boulder",
+          "outcrop": "Outcrop",
+          "hill": "Hill",
+          "cactus": "Cactus",
+          "junk": "Junk heap",
+          "streetTree": "Street tree",
+          "building": "Building",
+          "roofUnit": "Rooftop unit",
+          "counter": "Counter",
+          "stool": "Stool",
+          "table": "Table",
+          "pillar": "Pillar",
+          "desk": "Desk",
+          "crate": "Crate",
+          "rubble": "Rubble",
+          "shopCounter": "Shop counter",
+          "gamingTable": "Gaming table",
+          "containerRed": "Container",
+          "containerBlue": "Container",
+          "containerGreen": "Container",
+          "hiddenDoor": "Hidden door"
         },
         "summary": {
           "title": "Dungeon notes",
@@ -2110,7 +2194,8 @@
           "doors": "doors",
           "ground": "Ground",
           "standing": "Standing",
-          "fires": "Fires"
+          "fires": "Fires",
+          "hidden": "hidden doors"
         },
         "title": "Map generator",
         "gmOnly": "This tool is for the game master",
@@ -2180,7 +2265,11 @@
           "coast": "Coast",
           "marsh": "Marsh",
           "snowfield": "Snowfield",
-          "wasteland": "Wasteland"
+          "wasteland": "Wasteland",
+          "city": "City blocks",
+          "sfCity": "City blocks (SF)",
+          "slum": "Slum",
+          "dump": "Garbage dump"
         },
         "prop": {
           "tree": "Trees",
@@ -2188,7 +2277,10 @@
           "boulder": "Boulders",
           "outcrop": "Outcrops",
           "hill": "Hills",
-          "cactus": "Cacti"
+          "cactus": "Cacti",
+          "junk": "Junk heaps",
+          "streetTree": "Street trees",
+          "building": "Buildings"
         },
         "grid": {
           "0": "Square",
@@ -3405,7 +3497,13 @@
         "withAssets": "Include images",
         "noRecordings": "No saved recordings",
         "soloRoom": "Solo table",
-        "showIncidental": "Show incidental sounds"
+        "showIncidental": "Show incidental sounds",
+        "showSystem": "Show joins and setting changes",
+        "boardGroup": "Board moves ×{{count}}"
+      },
+      "face": {
+        "front": "face up",
+        "back": "face down"
       },
       "line": {
         "chat": "{{speaker}}: {{text}}",
@@ -3432,6 +3530,7 @@
         "marker": "— {{label}} —",
         "moveHeight": "{{actor}} moved {{target}} from ({{fromX}}, {{fromY}}) at height {{fromZ}} to ({{toX}}, {{toY}}) at height {{toZ}}",
         "moveSurface": "{{actor}} moved {{target}} from ({{fromX}}, {{fromY}}) on the {{fromSurface}} to ({{toX}}, {{toY}}) on the {{toSurface}}",
+        "moveBrief": "{{actor}} moved {{target}}",
         "movePlace": "{{actor}} moved {{target}} from {{fromPlace}} to {{toPlace}}",
         "effectOn": "{{actor}} cast {{effect}} on {{targets}}",
         "effectFrom": "{{actor}} cast {{effect}} from {{caster}} at {{targets}}",
@@ -3496,7 +3595,14 @@
         "rewrite": "Reword",
         "undo": "Undo",
         "undoHint": "Ctrl+Z",
-        "drag": "Drag to reorder"
+        "drag": "Drag to reorder",
+        "discardConfirm": "Discard the edits in progress and open another recording?",
+        "writeAfter": "Write after this",
+        "stageAfter": "Record after this",
+        "removeCount": "Remove ({{count}})",
+        "insertAfter": "Goes after the row at {{time}}",
+        "insertAtEnd": "Goes at the end",
+        "keysHint": "Delete to remove · Alt+↑↓ to move · Enter to rewrite"
       },
       "surface": {
         "floor": "floor",
@@ -3546,27 +3652,56 @@
         "unsupported": "This browser cannot write video",
         "size": "Size",
         "fps": "Frame rate",
-        "view": "Board view",
         "pacing": "Pacing",
-        "scope": "Include",
         "pace": {
           "reading": "Reading speed",
           "recorded": "As it happened"
         },
-        "of": {
-          "top": "From above",
-          "table": "Tilted like the table",
-          "lines": "Lines and chapters",
-          "everything": "The table as well"
-        },
-        "estimate": "{{shots}} shots, about {{length}}",
+        "estimate": "{{count}} moments, about {{length}}, {{size}}",
+        "inMemory": "This browser holds the whole video in memory before saving it, and one this large may fail partway. Choose a smaller size, or export from a browser that lets you pick where to save (Chrome, Edge).",
         "start": "Write it out",
         "rendering": "Writing it out ({{percent}}%)",
         "cancel": "Stop",
+        "keepInView": "Keep this tab in view. In the background, a browser saving energy may pause the export.",
+        "paused": "The browser paused the export while this tab was in the background. It carries on while the tab is in view.",
         "realtime": "On this browser the export runs in real time — keep this tab open until it finishes",
         "withEffects": "Include sound effects",
         "withMusic": "Include music",
-        "failed": "The export did not go through. A smaller size or fewer details often helps."
+        "round": "Round {{round}}",
+        "turn": "{{name}}'s turn",
+        "roundTurn": "Round {{round}} · {{name}}'s turn",
+        "preview": "Video preview",
+        "previewHint": "Plays the video as it will be exported",
+        "empty": "Nothing here can be made into a video",
+        "building": "Laying out",
+        "play": "Play",
+        "pause": "Pause",
+        "styles": {
+          "novel": "Novel",
+          "tabletop": "Table"
+        },
+        "audience": "Made for",
+        "audiences": {
+          "public": "Public (as a guest)",
+          "player": "Me (player view)",
+          "gm": "GM (all secrets)"
+        },
+        "lang": "Language",
+        "audienceWarning": "This view shows information that was never made public. Choose \"Public\" for anything you post online.",
+        "style": "Look",
+        "speed": "Subtitle speed",
+        "speeds": {
+          "0": "Slow",
+          "1": "Normal",
+          "2": "Quick",
+          "3": "Fast"
+        },
+        "withOpening": "Open with the room name and date",
+        "failures": {
+          "empty": "There is nothing here to make into a video.",
+          "sound": "The sound could not be mixed. Leave out sound effects or music to export without it.",
+          "encode": "The video could not be written. A smaller size or a lower frame rate may get through."
+        }
       },
       "script": {
         "title": "Write it out",
@@ -4218,7 +4353,11 @@
       "tagUnset": "Untagged",
       "tagAll": "All",
       "imageEmpty": "No image",
-      "noImagesInTag": "No images in this category"
+      "noImagesInTag": "No images in this category",
+      "upload": "Upload",
+      "uploading": "Loading…",
+      "uploadLimit": "Up to 2 MB each",
+      "oversized": "Not added, over 2 MB: {{names}}"
     },
     "contextMenu": {
       "index": "Index",

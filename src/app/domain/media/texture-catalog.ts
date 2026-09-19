@@ -33,6 +33,18 @@ export const TEXTURE_IDS = [
   'swamp_mud',
   'wood_plank',
   'poison_pool',
+  'asphalt',
+  'sidewalk',
+  'concrete_floor',
+  'neon_floor',
+  'rooftop',
+  'slum_ground',
+  'felt',
+  'warehouse_floor',
+  'sf_road',
+  'sf_walkway',
+  'sf_rooftop',
+  'tar_roof',
 ] as const;
 
 export type TextureId = (typeof TEXTURE_IDS)[number];
@@ -69,6 +81,18 @@ export const TEXTURE_ASSET_URLS: Record<TextureId, string> = {
   swamp_mud: 'assets/images/tiles/swamp_mud.webp',
   wood_plank: 'assets/images/tiles/wood_plank.webp',
   poison_pool: 'assets/images/tiles/poison_pool.webp',
+  asphalt: 'assets/images/tiles/asphalt.webp',
+  sidewalk: 'assets/images/tiles/sidewalk.webp',
+  concrete_floor: 'assets/images/tiles/concrete_floor.webp',
+  neon_floor: 'assets/images/tiles/neon_floor.webp',
+  rooftop: 'assets/images/tiles/rooftop.webp',
+  slum_ground: 'assets/images/tiles/slum_ground.webp',
+  felt: 'assets/images/tiles/felt.webp',
+  warehouse_floor: 'assets/images/tiles/warehouse_floor.webp',
+  sf_road: 'assets/images/tiles/sf_road.webp',
+  sf_walkway: 'assets/images/tiles/sf_walkway.webp',
+  sf_rooftop: 'assets/images/tiles/sf_rooftop.webp',
+  tar_roof: 'assets/images/tiles/tar_roof.webp',
 };
 
 export const TEXTURE_BASE_COLOR: Record<TextureId, string> = {
@@ -103,6 +127,18 @@ export const TEXTURE_BASE_COLOR: Record<TextureId, string> = {
   swamp_mud: '#4f1f06',
   wood_plank: '#ae5a07',
   poison_pool: '#107d0e',
+  asphalt: '#393c44',
+  sidewalk: '#b1adae',
+  concrete_floor: '#808380',
+  neon_floor: '#1d2236',
+  rooftop: '#686b6b',
+  slum_ground: '#7e603c',
+  felt: '#006f2a',
+  warehouse_floor: '#888e8e',
+  sf_road: '#242a39',
+  sf_walkway: '#7c8999',
+  sf_rooftop: '#474e59',
+  tar_roof: '#424446',
 };
 
 /** Whether a stored value names one of the bundled floor textures. */
@@ -123,6 +159,19 @@ export const WALL_TEXTURE_IDS = [
   'wall_rubble',
   'wall_sandstone',
   'wall_timber',
+  'wall_concrete',
+  'wall_neon',
+  'wall_corrugated',
+  'wall_facade',
+  'wall_facade_concrete',
+  'wall_sf_glass',
+  'wall_sf_panel',
+  'wall_brick_tenement',
+  'wall_brownstone',
+  'wall_warehouse',
+  'container_red',
+  'container_blue',
+  'container_green',
   'cactus_skin',
 ] as const;
 
@@ -141,6 +190,19 @@ export const WALL_TEXTURE_ASSET_URLS: Record<WallTextureId, string> = {
   wall_rubble: 'assets/images/walls/wall_rubble.webp',
   wall_sandstone: 'assets/images/walls/wall_sandstone.webp',
   wall_timber: 'assets/images/walls/wall_timber.webp',
+  wall_concrete: 'assets/images/walls/wall_concrete.webp',
+  wall_neon: 'assets/images/walls/wall_neon.webp',
+  wall_corrugated: 'assets/images/walls/wall_corrugated.webp',
+  wall_facade: 'assets/images/walls/wall_facade.webp',
+  wall_facade_concrete: 'assets/images/walls/wall_facade_concrete.webp',
+  wall_sf_glass: 'assets/images/walls/wall_sf_glass.webp',
+  wall_sf_panel: 'assets/images/walls/wall_sf_panel.webp',
+  wall_brick_tenement: 'assets/images/walls/wall_brick_tenement.webp',
+  wall_brownstone: 'assets/images/walls/wall_brownstone.webp',
+  wall_warehouse: 'assets/images/walls/wall_warehouse.webp',
+  container_red: 'assets/images/walls/container_red.webp',
+  container_blue: 'assets/images/walls/container_blue.webp',
+  container_green: 'assets/images/walls/container_green.webp',
   cactus_skin: 'assets/images/walls/cactus_skin.webp',
 };
 
@@ -158,6 +220,19 @@ export const WALL_TOP_TEXTURE: Record<WallTextureId, TextureId> = {
   wall_rubble: 'gravel',
   wall_sandstone: 'sandstone_floor',
   wall_timber: 'floor',
+  wall_concrete: 'concrete_floor',
+  wall_neon: 'metal_grate',
+  wall_corrugated: 'metal_grate',
+  wall_facade: 'rooftop',
+  wall_facade_concrete: 'rooftop',
+  wall_sf_glass: 'sf_rooftop',
+  wall_sf_panel: 'sf_rooftop',
+  wall_brick_tenement: 'tar_roof',
+  wall_brownstone: 'tar_roof',
+  wall_warehouse: 'rooftop',
+  container_red: 'metal_grate',
+  container_blue: 'metal_grate',
+  container_green: 'metal_grate',
   cactus_skin: 'steppe',
 };
 
@@ -174,6 +249,19 @@ export const WALL_TEXTURE_BASE_COLOR: Record<WallTextureId, string> = {
   wall_rubble: '#9d4623',
   wall_sandstone: '#f7cea4',
   wall_timber: '#742f07',
+  wall_concrete: '#a6a7a1',
+  wall_neon: '#212230',
+  wall_corrugated: '#656e68',
+  wall_facade: '#5c8ea8',
+  wall_facade_concrete: '#888c8a',
+  wall_sf_glass: '#0d1f2d',
+  wall_sf_panel: '#c6c8d2',
+  wall_brick_tenement: '#7d584c',
+  wall_brownstone: '#5e4c3f',
+  wall_warehouse: '#9299a1',
+  container_red: '#a22d24',
+  container_blue: '#224c90',
+  container_green: '#2e7241',
   cactus_skin: '#1d6411',
 };
 
@@ -185,10 +273,16 @@ export function isWallTextureId(value: string): value is WallTextureId {
 /**
  * Walls that belong to one thing rather than to the walls of a place.
  *
- * A cactus is green because it is a cactus. The material a map is dressed in has no business
- * with it, however the picture is shelved.
+ * A cactus is green because it is a cactus, and a shipping container is red or blue because it
+ * came off a ship that way. The material a map is dressed in has no business with either,
+ * however the picture is shelved.
  */
-export const PROP_OWN_WALL_TEXTURE_IDS: readonly WallTextureId[] = ['cactus_skin'];
+export const PROP_OWN_WALL_TEXTURE_IDS: readonly WallTextureId[] = [
+  'cactus_skin',
+  'container_red',
+  'container_blue',
+  'container_green',
+];
 
 /** Whether a wall texture belongs to one kind of prop, and so is never offered as the walls of a whole map. */
 export function isPropOwnWallTextureId(value: string): boolean {
@@ -197,6 +291,8 @@ export function isPropOwnWallTextureId(value: string): boolean {
 
 export const DUNGEON_PROP_IDS = [
   'door_iron_grate',
+  'door_shutter',
+  'door_steel',
   'door_stone',
   'door_wood',
   'stair_down',
@@ -208,6 +304,8 @@ export type DungeonPropId = (typeof DUNGEON_PROP_IDS)[number];
 
 export const DUNGEON_PROP_ASSET_URLS: Record<DungeonPropId, string> = {
   door_iron_grate: 'assets/images/dungeon/door_iron_grate.webp',
+  door_shutter: 'assets/images/dungeon/door_shutter.webp',
+  door_steel: 'assets/images/dungeon/door_steel.webp',
   door_stone: 'assets/images/dungeon/door_stone.webp',
   door_wood: 'assets/images/dungeon/door_wood.webp',
   stair_down: 'assets/images/dungeon/stair_down.webp',
@@ -217,6 +315,8 @@ export const DUNGEON_PROP_ASSET_URLS: Record<DungeonPropId, string> = {
 
 export const DUNGEON_PROP_BASE_COLOR: Record<DungeonPropId, string> = {
   door_iron_grate: '#323336',
+  door_shutter: '#636567',
+  door_steel: '#4a4d51',
   door_stone: '#4f4e4c',
   door_wood: '#594532',
   stair_down: '#4c4b49',

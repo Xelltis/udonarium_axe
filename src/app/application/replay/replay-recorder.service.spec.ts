@@ -26,6 +26,11 @@ import {
 import type { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isCompressed } from '@axe/core/util/compress';
+import { Card } from '@axe/domain/card/card';
+import { CardStack } from '@axe/domain/card/card-stack';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement } from '@axe/domain/data/data-element';
+import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { decodeReplayEvents, decodeReplayManifest } from '@axe/domain/replay/replay-codec';
@@ -201,6 +206,28 @@ describe('ReplayRecorderService', () => {
     expect(service.recentEvents()[0].kind).toBe(ReplayEventKind.ObjectCreate);
   });
 
+  it('records a line said in the first moments of a recording', async () => {
+    await service.start();
+    sendUpdate('m1', 'chat', { from: 'alice', timestamp: Date.now() + 100 });
+
+    expect(service.recentEvents().map((event) => event.kind)).toEqual([ReplayEventKind.ChatMessage]);
+  });
+
+  it('leaves out an older line a peer catches the room up with', async () => {
+    await service.start();
+    sendUpdate('m1', 'chat', { from: 'alice', timestamp: Date.now() - 60_000 });
+
+    expect(service.recentEvents()).toHaveLength(0);
+  });
+
+  it('records what this browser brings to the table in the first moments', async () => {
+    vi.spyOn(Network, 'peerId', 'get').mockReturnValue('me');
+    await service.start();
+    sendUpdate('c9', 'character', { posZ: 0 }, 'me');
+
+    expect(service.recentEvents().map((event) => event.kind)).toEqual([ReplayEventKind.ObjectCreate]);
+  });
+
   it('folds a run of moves into one', async () => {
     await service.start();
     sendUpdate('c1', 'character', { location: { name: 'table', x: 0, y: 0 }, posZ: 0 });
@@ -326,6 +353,215 @@ describe('ReplayRecorderService', () => {
     );
 
     expect(service.recentEvents()[0].visibility).toEqual({ kind: 'direct', to: ['bob'] });
+  });
+
+  describe('a piece kept to the game master', () => {
+    function hiddenPieceWithPart(): { piece: GameCharacter; part: DataElement } {
+      const piece = GameCharacter.create('ボス', 1, '');
+      piece.disclosureMode = DisclosureMode.GameMaster;
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      return { piece, part };
+    }
+
+    it('has a change to one of its parts kept hidden as well', async () => {
+      const { part } = hiddenPieceWithPart();
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch(
+        'UPDATE_GAME_OBJECT',
+        context(part.identifier, 'data', { ...(part.toContext().syncData as object), value: 'あらたな値' }),
+        'peer-a'
+      );
+
+      const [event] = service.recentEvents();
+      expect(event.targetId).toBe(part.identifier);
+      expect(event.visibility).toEqual({ kind: 'gm-only' });
+    });
+
+    it('is still hidden when it is taken away', async () => {
+      const { piece } = hiddenPieceWithPart();
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const synced = piece.toContext().syncData as { attributes: Record<string, unknown> };
+      sendUpdate(piece.identifier, 'character', { ...synced.attributes, location: { name: 'table', x: 300, y: 0 } });
+
+      objectStore.remove(piece);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
+
+      const removal = service.recentEvents().find((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removal?.visibility).toEqual({ kind: 'gm-only' });
+    });
+
+    it('is still hidden when it is taken away untouched since recording began', async () => {
+      const { piece } = hiddenPieceWithPart();
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      objectStore.remove(piece);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
+
+      const removal = service.recentEvents().find((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removal?.visibility).toEqual({ kind: 'gm-only' });
+    });
+
+    it('has one of its parts taken away on its own kept hidden as well', async () => {
+      const { part } = hiddenPieceWithPart();
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      objectStore.remove(part);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: part.identifier, aliasName: 'data' }, 'peer-a');
+
+      const removal = service.recentEvents().find((event) => event.targetId === part.identifier);
+      expect(removal?.visibility).toEqual({ kind: 'gm-only' });
+    });
+  });
+
+  describe('a piece and its parts', () => {
+    function dispatchUpdateOf(object: { toContext(): ObjectContext }): void {
+      localDispatch('UPDATE_GAME_OBJECT', object.toContext(), 'peer-a');
+    }
+
+    it('tells a piece brought out as one arrival, carrying the parts that came with it', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const parts = piece.commonDataElement!.children as DataElement[];
+
+      dispatchUpdateOf(piece);
+      for (const part of parts) dispatchUpdateOf(part);
+
+      const arrivals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectCreate);
+      expect(arrivals.map((event) => event.targetId)).toEqual([piece.identifier]);
+      expect(arrivals[0].detail['part']).toBeUndefined();
+      expect(arrivals[0].parts?.map((patch) => patch.identifier)).toEqual(parts.map((part) => part.identifier));
+    });
+
+    it('writes the parts out with their piece, and reads them back', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      dispatchUpdateOf(piece);
+      dispatchUpdateOf(part);
+      await service.stop();
+
+      const arrival = store.allEvents().find((event) => event.targetId === piece.identifier);
+      expect(arrival?.parts?.[0]).toMatchObject({ identifier: part.identifier, aliasName: 'data' });
+    });
+
+    it('tells on its own, as a part, one that arrives before its piece', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+
+      dispatchUpdateOf(part);
+      dispatchUpdateOf(piece);
+
+      const arrivals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectCreate);
+      expect(arrivals.find((event) => event.targetId === part.identifier)?.detail['part']).toBe(true);
+      expect(arrivals.find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+    });
+
+    it('tells on its own a part that arrives once its piece has been written out', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      dispatchUpdateOf(piece);
+      sendUpdate('bystander', 'character', { name: '見物人' });
+      await vi.advanceTimersByTimeAsync(REPLAY_CHUNK_INTERVAL_MS);
+
+      dispatchUpdateOf(part);
+
+      const arrival = service.recentEvents().find((event) => event.targetId === part.identifier);
+      expect(arrival?.detail['part']).toBe(true);
+      expect(store.allEvents().find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+    });
+
+    it('tells on its own a part added once something else has been recorded', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      dispatchUpdateOf(piece);
+      sendUpdate('bystander', 'character', { name: '見物人' });
+
+      dispatchUpdateOf(part);
+
+      expect(service.recentEvents().find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+      expect(service.recentEvents().find((event) => event.targetId === part.identifier)?.detail['part']).toBe(true);
+    });
+
+    it('tells on its own a part added once the board has been saved, so playing on from there keeps it', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const piece = GameCharacter.create('ゴブリン', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      dispatchUpdateOf(piece);
+      await (service as unknown as { captureKeyframe(force: boolean): Promise<void> }).captureKeyframe(true);
+
+      dispatchUpdateOf(part);
+
+      expect(service.recentEvents().find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+      expect(service.recentEvents().find((event) => event.targetId === part.identifier)).toBeDefined();
+    });
+
+    it('tells the removal of a card drawn from its deck as a piece of its own', async () => {
+      const deck = CardStack.create('山札');
+      const card = Card.create('切り札', '', '');
+      deck.putOnTop(card);
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      deck.drawCard();
+      dispatchUpdateOf(card);
+      objectStore.remove(card);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: card.identifier, aliasName: 'card' }, 'peer-a');
+
+      const removal = service
+        .recentEvents()
+        .find((event) => event.kind === ReplayEventKind.ObjectRemove && event.targetId === card.identifier);
+      expect(removal).toBeDefined();
+      expect(removal?.detail['part']).toBeUndefined();
+    });
+
+    it('takes a piece away as one removal, carrying the parts that went with it', async () => {
+      const piece = GameCharacter.create('ボス', 1, '');
+      const parts = piece.commonDataElement!.children as DataElement[];
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      objectStore.remove(piece);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
+      for (const part of parts) {
+        localDispatch('DELETE_GAME_OBJECT', { identifier: part.identifier, aliasName: 'data' }, 'peer-a');
+      }
+
+      const removals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removals.map((event) => event.targetId)).toEqual([piece.identifier]);
+      expect(removals[0].removedParts).toEqual(parts.map((part) => part.identifier));
+    });
+
+    it('names a piece taken away untouched, and flags its parts going with it', async () => {
+      const piece = GameCharacter.create('ボス', 1, '');
+      const part = piece.commonDataElement!.children[0] as DataElement;
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch('DELETE_GAME_OBJECT', { identifier: part.identifier, aliasName: 'data' }, 'peer-a');
+      objectStore.remove(piece);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
+      await service.stop();
+
+      const removals = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removals.find((event) => event.targetId === part.identifier)?.detail['part']).toBe(true);
+      expect(removals.find((event) => event.targetId === piece.identifier)?.detail['part']).toBeUndefined();
+      const manifest = decodeReplayManifest([...store.recordings.values()][0].manifest!);
+      expect(manifest?.targets.find((target) => target.identifier === piece.identifier)?.name).toBe('ボス');
+    });
   });
 
   it('carries the chosen detail level to the next session', () => {

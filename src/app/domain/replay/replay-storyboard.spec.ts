@@ -128,6 +128,18 @@ describe('buildReplayStoryboard()', () => {
     expect(board.shots[1].isNarration).toBe(true);
   });
 
+  it('makes no shot of a part arriving with its piece, nor of the running of the room', () => {
+    const part: ReplayEvent = { ...say(2, ''), kind: ReplayEventKind.ObjectCreate, detail: { part: true } };
+    const join: ReplayEvent = { ...say(3, ''), kind: ReplayEventKind.PeerJoin, detail: {} };
+    const board = buildReplayStoryboard([say(1, 'やあ'), part, join], cast, {
+      pacing: ReplayShotPacing.Reading,
+      scope: ReplayShotScope.Everything,
+      caption: () => '何かが起きた',
+    });
+
+    expect(board.shots.map((shot) => shot.kind)).toEqual([ReplayEventKind.ChatMessage]);
+  });
+
   it('pictures no sound that only accompanies a move', () => {
     const se: ReplayEvent = { ...say(2, ''), kind: ReplayEventKind.MediaSoundEffect, detail: { identifier: 'se-1' } };
     const board = buildReplayStoryboard([say(1, 'やあ'), se], cast, {

@@ -1,6 +1,6 @@
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
-import { GridType } from '@axe/domain/tabletop/game-table';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { computeLitCells } from '@axe/domain/tabletop/lit-cells';
 import {
   Point,
@@ -12,7 +12,7 @@ import {
 } from '@axe/domain/tabletop/los/segments';
 import { computeVisibilityPolygon } from '@axe/domain/tabletop/los/visibility-polygon';
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
+import type { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { maxLobeScale, VisionLobe, visionLobeScale } from '@axe/domain/tabletop/vision-shape';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 

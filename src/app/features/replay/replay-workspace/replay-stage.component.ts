@@ -1,9 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { formatReplayElapsed, type ReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
+import {
+  formatReplayElapsed,
+  replayLineParams,
+  type ReplayLogLine,
+  toReplayLogLine,
+} from '@axe/features/replay/replay-log-line';
 import { EMPTY_REPLAY_DICTIONARY, replayNamesAt } from '@axe/features/replay/replay-names';
 import {
   buildReplayTimeline,
@@ -23,6 +29,7 @@ export class ReplayStageComponent {
   private readonly playback = inject(ReplayPlaybackService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
   private readonly confirm = inject(ConfirmService);
 
   protected readonly cursor = this.playback.cursor;
@@ -67,10 +74,7 @@ export class ReplayStageComponent {
   }
 
   protected lineParams(line: ReplayLogLine): Record<string, string | number> {
-    if (!line.paramKeys) return line.params;
-    const resolved: Record<string, string | number> = { ...line.params };
-    for (const [name, key] of Object.entries(line.paramKeys)) resolved[name] = this.t(key);
-    return resolved;
+    return replayLineParams(line, this.t, this.language.currentLang());
   }
 
   protected async seekTo(index: number): Promise<void> {

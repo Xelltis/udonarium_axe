@@ -81,6 +81,34 @@ export interface DungeonDoorLeaf extends DungeonRect {
   locked: boolean;
   /** Whether it is hung the other way round, which is what makes two leaves a pair. */
   mirrored: boolean;
+  /** Whether it is dressed as the wall it stands in, so that nobody who does not know it is there sees a door. */
+  hidden?: boolean;
+}
+
+export const FURNISHING_IDS = [
+  'counter',
+  'stool',
+  'table',
+  'pillar',
+  'desk',
+  'crate',
+  'rubble',
+  'shopCounter',
+  'gamingTable',
+  'containerRed',
+  'containerBlue',
+  'containerGreen',
+] as const;
+
+export type FurnishingId = (typeof FURNISHING_IDS)[number];
+
+/** A piece of furniture standing in a room, and the cells it takes. */
+export interface DungeonFurnishing extends DungeonRect {
+  piece: FurnishingId;
+  /** How far it is turned off square, in degrees. */
+  spin: number;
+  /** What is stacked on top of it, from the bottom up. */
+  stack?: FurnishingId[];
 }
 
 export interface DungeonLayout {
@@ -104,6 +132,8 @@ export interface DungeonLayout {
   mouth: DungeonPoint | null;
   /** Where the key to the locked door lies, or -1 when nothing is locked. */
   keyRoomIndex: number;
+  /** What stands in the rooms, where the place is furnished at all. */
+  furnishings?: DungeonFurnishing[];
   seed: number;
 }
 

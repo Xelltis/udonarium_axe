@@ -29,12 +29,22 @@ export function replayValueOfNamed(
   rootIdentifier: string,
   path: readonly string[]
 ): string {
+  const element = replayElementOfNamed(childrenOf, rootIdentifier, path);
+  return element ? String(element.syncData['value'] ?? '') : '';
+}
+
+/** The data element itself that `replayValueOfNamed` reads the value of. Null when any step is missing. */
+export function replayElementOfNamed(
+  childrenOf: Map<string, ReplayObjectSnapshot[]>,
+  rootIdentifier: string,
+  path: readonly string[]
+): ReplayObjectSnapshot | null {
   let scope: ReplayObjectSnapshot | null = findDescendant(childrenOf, rootIdentifier, path[0]);
   for (const name of path.slice(1)) {
-    if (!scope) return '';
+    if (!scope) return null;
     scope = findDescendant(childrenOf, scope.identifier, name);
   }
-  return scope ? String(scope.syncData['value'] ?? '') : '';
+  return scope;
 }
 
 function findDescendant(

@@ -1,11 +1,22 @@
 import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
-import { MapMood } from '@axe/domain/tabletop/map-blocks';
+import { MapLightKind, MapMood } from '@axe/domain/tabletop/map-blocks';
 
-export const FIELD_ATMOSPHERE_IDS = ['woodland', 'meadow', 'coast', 'marsh', 'snowfield', 'wasteland'] as const;
+export const FIELD_ATMOSPHERE_IDS = [
+  'woodland',
+  'meadow',
+  'coast',
+  'marsh',
+  'snowfield',
+  'wasteland',
+  'city',
+  'sfCity',
+  'slum',
+  'dump',
+] as const;
 
 export type FieldAtmosphereId = (typeof FIELD_ATMOSPHERE_IDS)[number];
 
-export const FIELD_PROP_IDS = ['tree', 'bush', 'boulder', 'outcrop', 'hill', 'cactus'] as const;
+export const FIELD_PROP_IDS = ['tree', 'bush', 'boulder', 'outcrop', 'hill', 'cactus', 'junk', 'streetTree'] as const;
 
 export type FieldPropId = (typeof FIELD_PROP_IDS)[number];
 
@@ -144,6 +155,51 @@ export const FIELD_PROP_SHAPES: Record<FieldPropId, FieldPropShape> = {
     spacing: 3,
   },
   /**
+   * A heap of scrap: sheets of tin and whatever else was not worth carrying off.
+   *
+   * Built the way a boulder is, undercut and off square, since a heap left lying is as shapeless
+   * as a stone is and a box of rust would read as a crate.
+   */
+  junk: {
+    side: 'wall_corrugated',
+    top: 'slum_ground',
+    height: 0.7,
+    span: 1,
+    blocksSight: false,
+    layers: [
+      { spread: 0.86, height: 0.28 },
+      { spread: 0.7, height: 0.24 },
+      { spread: 0.42, height: 0.18 },
+    ],
+    spin: 45,
+    squash: 0.3,
+    drift: 0.12,
+    spacing: 2,
+  },
+  /**
+   * A tree planted in the pavement.
+   *
+   * A wood's tree is a crown five cells across; one that grows beside a row of houses has a
+   * narrow crown on a thin trunk, hung clear of the heads of whoever walks under it and kept
+   * off the walls behind it.
+   */
+  streetTree: {
+    side: 'forest',
+    top: 'forest',
+    height: 0.9,
+    span: 3,
+    blocksSight: false,
+    altitude: 1.3,
+    trunk: { side: 'wall_timber', top: 'black_soil', width: 0.18, height: 1.5 },
+    layers: [
+      { spread: 1.15, height: 0.4 },
+      { spread: 0.85, height: 0.35 },
+      { spread: 0.45, height: 0.25 },
+    ],
+    drift: 0.08,
+    spacing: 4,
+  },
+  /**
    * A rise in the ground rather than a thing standing on it.
    *
    * The ground itself is a picture painted flat, so the only way a meadow gets a fold in it
@@ -204,6 +260,61 @@ export interface FieldPoolPlan {
   bands: readonly number[];
 }
 
+/**
+ * How a built-up place is laid out: its streets, the blocks between them, and what stands on each lot.
+ *
+ * Nothing about a town comes out of the lie of the land. Its streets are cut across the board and
+ * its buildings are put down in the lots between them, so it has a plan of its own rather than
+ * bands of ground read off a height.
+ */
+export interface TownPlan {
+  /** How wide a street is cut, in cells, at its narrowest and at its widest. */
+  street: { least: number; most: number };
+  /** How big a block between streets is, in cells, at its smallest and at its largest. */
+  block: { least: number; most: number };
+  /** How wide the pavement round a block is, in cells. */
+  kerb: number;
+  /** How small a lot may be cut and how big it may be left, in cells. */
+  lot: { least: number; most: number };
+  /** How tall a building stands, in cells, at its lowest and at its highest. */
+  storeys: { least: number; most: number };
+  /** Whether the tallest stand in the middle of the board, the way they do downtown. */
+  downtown: boolean;
+  /** How many lots in a hundred stand empty at a middling density. */
+  vacancy: number;
+  /** What the buildings are made of; each building wears one of these. */
+  skins: readonly { side: WallTextureId; top: WallTextureId | TextureId }[];
+  /** How tall a building has to be before it rises from a podium, set back from the edge of its lot. */
+  setbackAbove?: number;
+  /** How many buildings in a hundred carry a tank or a plant room on the roof. */
+  roofPlant: number;
+  /** What the tank on a roof is made of. Left out, steel; an old walk-up keeps its water in a wooden tub. */
+  plantSkin?: { side: WallTextureId | TextureId; top: WallTextureId | TextureId };
+  /**
+   * How deep a row house runs back from the pavement, in cells, where a block is lined with
+   * them rather than filled; the middle of the block is left for yards.
+   */
+  frontage?: number;
+  /** Whether each row of blocks is cut on its own, so that the lanes crossing it do not line up. */
+  crooked?: boolean;
+  /** How far a building may stand off square, in degrees. Left out, square to its street. */
+  spin?: number;
+  /** How much of its lot a building leaves bare round its walls, in cells on each side. */
+  inset?: number;
+  /** How much of the street stands under water, from none of it to all of it. */
+  puddles?: number;
+  /** Which band of ground each part of the town is painted with. */
+  zones: { street: number; kerb: number; lot: number; puddle?: number };
+}
+
+/** What a place is lit by at night, and where those lights may stand. */
+export interface FieldFirePlan {
+  kinds: readonly MapLightKind[];
+  bands: readonly number[];
+  /** The colours they burn, taken in turn. Left out, each burns the colour of its kind. */
+  colors?: readonly string[];
+}
+
 export interface FieldAtmosphere extends MapMood {
   id: FieldAtmosphereId;
   defaultGround: TextureId;
@@ -226,6 +337,10 @@ export interface FieldAtmosphere extends MapMood {
    * sea along one side, which is a ramp with the noise laid over it.
    */
   gradient?: number;
+  /** How the place is built up, where it is a town rather than open country. */
+  town?: TownPlan;
+  /** What it is lit by and where. Left out, fires anywhere on open ground. */
+  fires?: FieldFirePlan;
 }
 
 export const MIN_FIELD_SIZE = 20;
@@ -397,6 +512,184 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     weatherDensity: 0.2,
     gridShow: true,
     torches: 1,
+  },
+  /**
+   * Streets between office blocks, the tallest in the middle, at dusk.
+   *
+   * The blocks are cut on one grid so the avenues run straight across the board, with a
+   * pavement round each block and a square here and there where a lot was left open. The towers
+   * are glass or concrete, and stop at seven cells: any taller and a table seen at a slant is
+   * all facade and no street.
+   */
+  city: {
+    id: 'city',
+    defaultGround: 'asphalt',
+    defaultProp: 'wall_facade',
+    relief: 10,
+    damp: 0,
+    bands: [
+      { upTo: 0.4, texture: 'asphalt' },
+      { upTo: 0.7, texture: 'sidewalk' },
+      { upTo: 1, texture: 'stone_tile' },
+    ],
+    props: [{ prop: 'bush', chance: 0.3, bands: [2] }],
+    town: {
+      street: { least: 2, most: 3 },
+      block: { least: 7, most: 11 },
+      kerb: 1,
+      lot: { least: 3, most: 5 },
+      storeys: { least: 2.5, most: 7 },
+      downtown: true,
+      vacancy: 12,
+      skins: [
+        { side: 'wall_facade', top: 'rooftop' },
+        { side: 'wall_facade_concrete', top: 'rooftop' },
+      ],
+      setbackAbove: 4.5,
+      roofPlant: 45,
+      zones: { street: 0, kerb: 1, lot: 2 },
+    },
+    fires: { kinds: ['streetlamp'], bands: [1] },
+    darkness: 0.35,
+    ambientColor: '#101626',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 10,
+  },
+  /**
+   * The same streets a century on, at night and in the rain.
+   *
+   * Towers of black glass banded with light and white panels seamed with it, streets paved in
+   * metal, squares that glow, and light poles burning cyan and magenta along the walkways.
+   */
+  sfCity: {
+    id: 'sfCity',
+    defaultGround: 'sf_road',
+    defaultProp: 'wall_sf_glass',
+    relief: 10,
+    damp: 0,
+    bands: [
+      { upTo: 0.4, texture: 'sf_road' },
+      { upTo: 0.7, texture: 'sf_walkway' },
+      { upTo: 1, texture: 'neon_floor' },
+    ],
+    props: [],
+    town: {
+      street: { least: 2, most: 3 },
+      block: { least: 7, most: 11 },
+      kerb: 1,
+      lot: { least: 3, most: 5 },
+      storeys: { least: 3.5, most: 8 },
+      downtown: true,
+      vacancy: 14,
+      skins: [
+        { side: 'wall_sf_glass', top: 'sf_rooftop' },
+        { side: 'wall_sf_panel', top: 'sf_rooftop' },
+      ],
+      setbackAbove: 5,
+      roofPlant: 50,
+      zones: { street: 0, kerb: 1, lot: 2 },
+    },
+    fires: { kinds: ['neonpole'], bands: [1], colors: ['#00e5ff', '#ff2bd6'] },
+    darkness: 0.6,
+    ambientColor: '#0a0820',
+    weatherKind: 'rain',
+    weatherDensity: 0.2,
+    gridShow: true,
+    torches: 12,
+  },
+  /**
+   * An old quarter of brick walk-ups, the kind of downtown the city grew out of.
+   *
+   * Every block is lined with row houses standing shoulder to shoulder on the pavement, brick
+   * and brownstone, three and four storeys with water tanks on some of the roofs and yards
+   * behind them in the middle of the block. Trees grow out of the pavement, lamps light it,
+   * and now and then somebody has a fire going in a drum on the corner.
+   */
+  slum: {
+    id: 'slum',
+    defaultGround: 'asphalt',
+    defaultProp: 'wall_brick_tenement',
+    relief: 10,
+    damp: 0,
+    bands: [
+      { upTo: 0.4, texture: 'asphalt' },
+      { upTo: 0.7, texture: 'sidewalk' },
+      { upTo: 1, texture: 'concrete_floor' },
+    ],
+    props: [{ prop: 'streetTree', chance: 0.7, bands: [1] }],
+    town: {
+      street: { least: 2, most: 2 },
+      block: { least: 9, most: 12 },
+      kerb: 1,
+      lot: { least: 2, most: 3 },
+      storeys: { least: 2.5, most: 4 },
+      downtown: false,
+      vacancy: 8,
+      skins: [
+        { side: 'wall_brick_tenement', top: 'tar_roof' },
+        { side: 'wall_brownstone', top: 'tar_roof' },
+      ],
+      roofPlant: 30,
+      plantSkin: { side: 'wood_plank', top: 'wood_plank' },
+      frontage: 3,
+      zones: { street: 0, kerb: 1, lot: 2 },
+    },
+    fires: { kinds: ['streetlamp', 'streetlamp', 'brazier'], bands: [1] },
+    darkness: 0.35,
+    ambientColor: '#17121a',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 9,
+  },
+  /**
+   * The tip at the edge of town where the city's rubbish ends up, and the people who live off it.
+   *
+   * Tin shacks put up anyhow along lanes of mud, heaps of scrap between them and standing water
+   * in the ruts, in the rain. The lanes wander because every row of shacks was put up on its own,
+   * the shacks are low, knocked off square and never quite touching, and whoever is out tonight
+   * is round a drum.
+   */
+  dump: {
+    id: 'dump',
+    defaultGround: 'slum_ground',
+    defaultProp: 'wall_corrugated',
+    relief: 9,
+    damp: 0,
+    bands: [
+      { upTo: 0.5, texture: 'slum_ground' },
+      { upTo: 0.85, texture: 'rubble_floor' },
+      { upTo: 1, texture: 'swamp_mud' },
+    ],
+    props: [
+      { prop: 'junk', chance: 0.14, bands: [0, 1] },
+      { prop: 'bush', chance: 0.04, bands: [1], skin: { side: 'rock_moss', top: 'rock_moss' } },
+    ],
+    town: {
+      street: { least: 1, most: 2 },
+      block: { least: 4, most: 7 },
+      kerb: 0,
+      lot: { least: 2, most: 3 },
+      storeys: { least: 1, most: 1.8 },
+      downtown: false,
+      vacancy: 24,
+      skins: [{ side: 'wall_corrugated', top: 'wall_corrugated' }],
+      roofPlant: 0,
+      crooked: true,
+      spin: 6,
+      inset: 0.22,
+      puddles: 0.22,
+      zones: { street: 0, kerb: 0, lot: 1, puddle: 2 },
+    },
+    fires: { kinds: ['brazier', 'campfire'], bands: [0, 1] },
+    darkness: 0.5,
+    ambientColor: '#140f0a',
+    weatherKind: 'rain',
+    weatherDensity: 0.3,
+    gridShow: true,
+    torches: 6,
   },
 };
 

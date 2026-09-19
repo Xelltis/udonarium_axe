@@ -1,4 +1,5 @@
 import { FIELD_ATMOSPHERES } from '@axe/domain/tabletop/field/field-atmosphere';
+import { planField } from '@axe/domain/tabletop/field/field-generator';
 import { MapBlock, MapBlocks, MapMaterial } from '@axe/domain/tabletop/map-blocks';
 import { withFieldMaterials } from '@axe/features/tabletop/dungeon-generator/field-materials';
 
@@ -58,5 +59,30 @@ describe('withFieldMaterials', () => {
 
     expect(result.paint[0].material).toEqual(ground);
     expect(result.paint[1].material).toEqual({ kind: 'texture', id: 'rubble_floor' });
+  });
+
+  it('leaves every piece in the skin the preset gave it until a material is chosen', () => {
+    const slum = FIELD_ATMOSPHERES.slum;
+    const plan = planField({ atmosphere: 'slum', size: 48, density: 100, seed: 42 });
+    const result = withFieldMaterials(plan.blocks, slum, ground, null);
+
+    expect(result.blocks).toBe(plan.blocks.blocks);
+    const facades = new Set(
+      result.blocks.filter((each) => each.thing === 'building').map((each) => (each.skin!.side as { id: string }).id)
+    );
+    expect(facades).toEqual(new Set(slum.town!.skins.map((skin) => skin.side)));
+  });
+
+  it('dresses the buildings of a town in the material asked for, and leaves what stands on their roofs in steel', () => {
+    const city = FIELD_ATMOSPHERES.city;
+    const plan = planField({ atmosphere: 'city', size: 40, density: 100, seed: 42 });
+    const glass: MapMaterial = { kind: 'library', identifier: 'glass' };
+    const result = withFieldMaterials(plan.blocks, city, ground, glass);
+
+    for (const block of result.blocks.filter((each) => each.thing === 'building'))
+      expect(block.skin!.side).toEqual(glass);
+    const units = result.blocks.filter((each) => each.thing === 'roofUnit');
+    expect(units.length).toBeGreaterThan(0);
+    for (const unit of units) expect(unit.skin!.side).toEqual({ kind: 'texture', id: 'metal_grate' });
   });
 });

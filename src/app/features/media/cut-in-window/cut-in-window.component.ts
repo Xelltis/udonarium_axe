@@ -52,6 +52,12 @@ export class CutInWindowComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly cutInArea = viewChild<ElementRef<HTMLDivElement>>('cutInArea');
+  /**
+   * The size of the cut-in area, kept as it changes. Reading it off the element instead makes the
+   * browser lay the whole page out again on every check of the window, which is every change to
+   * the room while a cut-in is showing.
+   */
+  private readonly areaSize = signal({ width: 640, height: 340 });
   readonly videoPlayer = viewChild<YouTubePlayer>('videoPlayerComponent');
 
   left = 0;
@@ -116,6 +122,16 @@ export class CutInWindowComponent {
     effect(() => {
       const vol = this.videoVolumeSig();
       this.videoPlayer()?.setVolume(vol);
+    });
+    effect((onCleanup) => {
+      const area = this.cutInArea()?.nativeElement;
+      if (!area || typeof ResizeObserver !== 'function') return;
+      const observer = new ResizeObserver((entries) => {
+        const rect = entries[0]?.contentRect;
+        if (rect) this.areaSize.set({ width: Math.round(rect.width), height: Math.round(rect.height) });
+      });
+      observer.observe(area);
+      onCleanup(() => observer.disconnect());
     });
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;
@@ -343,18 +359,18 @@ export class CutInWindowComponent {
 
   /**
    * The width given to the YouTube player, following the cut-in area, or 640 before the area
-   * exists.
+   * has been measured.
    */
   get youTubeWidth(): number {
-    return this.cutInArea()?.nativeElement.clientWidth ?? 640;
+    return this.areaSize().width;
   }
 
   /**
    * The height given to the YouTube player, following the cut-in area, or 340 before the area
-   * exists.
+   * has been measured.
    */
   get youTubeHeight(): number {
-    return this.cutInArea()?.nativeElement.clientHeight ?? 340;
+    return this.areaSize().height;
   }
 
   /**

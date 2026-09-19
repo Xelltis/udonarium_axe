@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
@@ -12,7 +13,7 @@ import {
   ReplayScriptFormat,
 } from '@axe/domain/replay/replay-script';
 import { buildReplayStoryboard, ReplayShotPacing, ReplayShotScope } from '@axe/domain/replay/replay-storyboard';
-import { toReplayLogLine } from '@axe/features/replay/replay-log-line';
+import { renderReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
 import { EMPTY_REPLAY_DICTIONARY, replayNamesAt } from '@axe/features/replay/replay-names';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -34,6 +35,7 @@ export class ReplayScriptPanelComponent {
   private readonly playback = inject(ReplayPlaybackService);
   private readonly editor = inject(ReplayEditorService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
 
   protected readonly formats = REPLAY_SCRIPT_FORMATS;
   protected readonly isOpen = signal(false);
@@ -87,9 +89,7 @@ export class ReplayScriptPanelComponent {
   private captionOf(event: ReplayEvent): string {
     const dictionary = this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY;
     const line = toReplayLogLine(event, replayNamesAt(dictionary, event.seq));
-    const params: Record<string, string | number> = { ...line.params };
-    for (const [name, key] of Object.entries(line.paramKeys ?? {})) params[name] = this.t(key);
-    return this.t(line.key, params);
+    return renderReplayLogLine(line, this.t, this.language.currentLang());
   }
 
   private events() {

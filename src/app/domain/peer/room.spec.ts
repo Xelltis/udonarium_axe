@@ -10,7 +10,7 @@ import { createDefaultEffectPresets } from '@axe/domain/effect/builtin-effect-pr
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
-import { Party } from '@axe/domain/party/party';
+import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { Room } from '@axe/domain/peer/room';
 
@@ -73,8 +73,8 @@ describe('Room', () => {
   });
 
   describe('saving who travels together', () => {
-    function makeParty(): Party {
-      const party = new Party();
+    function makeParty(identifier?: string): Party {
+      const party = new Party(identifier);
       party.name = '本隊';
       party.color = '#fcd34d';
       party.initialize();
@@ -88,26 +88,53 @@ describe('Room', () => {
 
       const xml = new Room().innerXml();
 
-      expect(xml).toContain('name="本隊"');
+      expect(xml).toContain(`<party name="本隊" color="#fcd34d" identifier="${party.identifier}">`);
       expect(xml).toContain(`partyIdentifier="${party.identifier}"`);
     });
 
-    it('reads them back', () => {
-      const party = makeParty();
-      const character = GameCharacter.create('斥候', 1, '');
-      character.partyIdentifier = party.identifier;
-      const xml = `<room>${new Room().innerXml()}</room>`;
+    // A character written by the room carries dotted attributes, which the test DOM refuses to
+    // parse, so what is read back here is written by hand in the same shape.
+    it('reads them back with each member still in its party', () => {
+      loadRoom(
+        '<party name="本隊" color="#fcd34d" identifier="party-1"></party>' +
+          '<character partyIdentifier="party-1"></character>'
+      );
 
-      const reloadCheck = new ReloadCheck('ReloadCheck');
-      reloadCheck.initialize();
-      reloadCheck.reloadCheckStart(false);
-      ObjectSerializer.instance.parseXml(xml);
+      const parties = store.getObjects(Party);
+      expect(parties).toHaveLength(1);
+      expect(parties[0].identifier).toBe('party-1');
+      expect(parties[0].name).toBe('本隊');
+      expect(parties[0].color).toBe('#fcd34d');
+      expect(store.getObjects(GameCharacter)[0].partyIdentifier).toBe('party-1');
+    });
+
+    it('brings a party back over the one it replaces in the room it was saved from', () => {
+      makeParty('party-1');
+
+      loadRoom(
+        '<party name="本隊" color="#fcd34d" identifier="party-1"></party>' +
+          '<character partyIdentifier="party-1"></character>'
+      );
+
+      expect(store.getObjects(Party).map((party) => party.identifier)).toEqual(['party-1']);
+    });
+
+    it('still reads a party saved before its identifier was written, in no one’s company', () => {
+      loadRoom('<party name="本隊" color="#fcd34d"></party><character partyIdentifier="party-1"></character>');
 
       const parties = store.getObjects(Party);
       expect(parties).toHaveLength(1);
       expect(parties[0].name).toBe('本隊');
-      expect(parties[0].color).toBe('#fcd34d');
-      expect(store.getObjects(GameCharacter)[0].partyIdentifier).toBe(parties[0].identifier);
+      expect(parties[0].identifier).not.toBe('party-1');
+    });
+
+    it('reads a party written with nothing at all as an unnamed one in the first colour', () => {
+      loadRoom('<party></party>');
+
+      const parties = store.getObjects(Party);
+      expect(parties).toHaveLength(1);
+      expect(parties[0].name).toBe('');
+      expect(parties[0].color).toBe(PARTY_COLORS[0]);
     });
   });
 

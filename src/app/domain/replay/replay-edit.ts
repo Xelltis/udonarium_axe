@@ -114,10 +114,18 @@ export function createReplayEntry(draft: ReplayEntryDraft, seq: number, at: numb
   };
 }
 
-/** Works each event's offset out afresh from the time of the first event, never below 0. */
+/**
+ * Works each event's offset out afresh from the time of the first event, never below 0.
+ *
+ * An event whose offset comes out the same is handed back as it was, so an edit to one event of
+ * a long recording copies that one rather than every event.
+ */
 export function restampReplayTimes(events: readonly ReplayEvent[]): ReplayEvent[] {
   const origin = events[0]?.at ?? 0;
-  return events.map((event) => ({ ...event, t: Math.max(0, event.at - origin) }));
+  return events.map((event) => {
+    const t = Math.max(0, event.at - origin);
+    return t === event.t ? event : { ...event, t };
+  });
 }
 
 /** Inserts one event at a position, keeping its own sequence number and time, and restamps the offsets. */
@@ -194,6 +202,41 @@ export function textOf(event: ReplayEvent): string {
 /** Takes the event with the given sequence number out of the list and restamps the offsets. */
 export function removeReplayEvent(events: readonly ReplayEvent[], seq: number): ReplayEvent[] {
   return restampReplayTimes(events.filter((event) => event.seq !== seq));
+}
+
+/** Takes every event with one of these sequence numbers out of the list and restamps the offsets once. */
+export function removeReplayEvents(events: readonly ReplayEvent[], seqs: ReadonlySet<number>): ReplayEvent[] {
+  if (seqs.size < 1) return [...events];
+  return restampReplayTimes(events.filter((event) => !seqs.has(event.seq)));
+}
+
+/**
+ * Moves each chosen event one place up (`-1`) or down (`1`), keeping the chosen events in the same
+ * order and the same distance apart, and restamps the offsets once.
+ *
+ * A place is counted by the events `isStop` accepts, every event unless told otherwise: a list that
+ * leaves some events out moves a chosen one past the next it shows, over any it leaves out on the
+ * way. An event that would pass the end of the list, or run into a chosen event that cannot move,
+ * stays where it is. Each event that moves takes a time between its new neighbours.
+ */
+export function stepReplayEvents(
+  events: readonly ReplayEvent[],
+  seqs: ReadonlySet<number>,
+  direction: -1 | 1,
+  isStop: (event: ReplayEvent) => boolean = () => true
+): ReplayEvent[] {
+  const next = [...events];
+  const order = next.map((_, index) => index).filter((index) => seqs.has(next[index].seq));
+  if (direction === 1) order.reverse();
+  const passes = (at: number): boolean => at >= 0 && at < next.length && !seqs.has(next[at].seq) && !isStop(next[at]);
+  for (const index of order) {
+    let target = index + direction;
+    while (passes(target)) target += direction;
+    if (target < 0 || target >= next.length || seqs.has(next[target].seq)) continue;
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, { ...moved, at: insertTimeAt(next, target) });
+  }
+  return restampReplayTimes(next);
 }
 
 /**

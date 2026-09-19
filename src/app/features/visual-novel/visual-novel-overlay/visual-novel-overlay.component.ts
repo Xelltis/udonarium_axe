@@ -40,6 +40,18 @@ import {
   toStageResetAt,
   VN_PORTRAIT_POS_UNSET,
 } from '@axe/domain/visual-novel/vn-portrait-position';
+import {
+  buildVnStage,
+  leftOfSlot,
+  slotBandLeft,
+  slotBandWidth,
+  slotLabelLeftInBand,
+  stageCutFor,
+  VN_STAGE_LOOKBACK,
+  VN_STAGE_SLOT_COUNT,
+  VnStageCharacter,
+  VnStageSource,
+} from '@axe/domain/visual-novel/vn-stage-cast';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import {
@@ -78,18 +90,6 @@ import {
   AttachedSound,
   VisualNovelSoundBoardComponent,
 } from '@axe/features/visual-novel/visual-novel-sound-board/visual-novel-sound-board.component';
-import {
-  buildVnStage,
-  leftOfSlot,
-  slotBandLeft,
-  slotBandWidth,
-  slotLabelLeftInBand,
-  stageCutFor,
-  VN_STAGE_LOOKBACK,
-  VN_STAGE_SLOT_COUNT,
-  VnStageCharacter,
-  VnStageSource,
-} from '@axe/features/visual-novel/visual-novel-stage';
 import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { spotBeside } from '@axe/ui/panel-spot';

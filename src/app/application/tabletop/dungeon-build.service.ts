@@ -48,6 +48,10 @@ const LIGHT_PRESET: Record<MapLightKind, LightPreset> = {
   brazier: LightPreset.BRAZIER,
   stand: LightPreset.LANTERN,
   lantern: LightPreset.LANTERN,
+  neon: LightPreset.NEON,
+  streetlamp: LightPreset.LANTERN,
+  fluorescent: LightPreset.NEON,
+  neonpole: LightPreset.NEON,
 };
 
 /** A stand and a lantern burn alike but do not look alike, so the picture follows the kind. */
@@ -57,8 +61,14 @@ const LIGHT_SKIN: Record<MapLightKind, LightSkinId> = {
   brazier: 'light_brazier',
   stand: 'light_stand',
   lantern: 'light_lantern',
+  neon: 'light_neon',
+  streetlamp: 'light_streetlamp',
+  fluorescent: 'light_fluorescent',
+  neonpole: 'light_neon_pole',
 };
-const WALL_MOUNTED: readonly MapLightKind[] = ['sconce', 'lantern'];
+const WALL_MOUNTED: readonly MapLightKind[] = ['sconce', 'lantern', 'neon', 'fluorescent'];
+/** What is fixed flat to the stone, and so set back against it rather than left hanging a half cell out. */
+const WALL_FIXED: readonly MapLightKind[] = ['sconce', 'neon', 'fluorescent'];
 
 /** How far out from its wall a sconce is meant to throw the middle of its pool. */
 const SCONCE_THROW_CELLS = 2;
@@ -296,16 +306,20 @@ export class DungeonBuildService {
     const { rect } = block;
     switch (block.kind) {
       case 'wall': {
-        const terrain = Terrain.create(name, rect.w, rect.h, wallHeight, images.wallSide, images.wallTop);
+        const width = block.footprint?.w ?? rect.w;
+        const depth = block.footprint?.d ?? rect.h;
+        const terrain = Terrain.create(name, width, depth, wallHeight, images.wallSide, images.wallTop);
         terrain.mode = TerrainViewState.ALL;
         return terrain;
       }
       case 'door': {
-        const door = this.registerAsset(DUNGEON_PROP_ASSET_URLS[block.prop ?? 'door_wood']);
+        const door = block.disguised
+          ? images.wallSide
+          : this.registerAsset(DUNGEON_PROP_ASSET_URLS[block.prop ?? 'door_wood']);
         const acrossX = block.across === 'x';
         const width = acrossX ? DOOR_THICKNESS : rect.w;
         const depth = acrossX ? rect.h : DOOR_THICKNESS;
-        const terrain = Terrain.create(name, width, depth, wallHeight, door, door);
+        const terrain = Terrain.create(name, width, depth, wallHeight, door, block.disguised ? images.wallTop : door);
         terrain.mode = TerrainViewState.ALL;
         terrain.doorStyle = block.doorStyle ?? DoorStyle.SWING;
         if (block.doorMirrored) terrain.doorMirrored = true;
@@ -338,10 +352,12 @@ export class DungeonBuildService {
 
   private terrainName(block: MapBlock): string {
     if (block.name) return block.name;
+    if (block.thing) return this.t(`feature.tabletop.dungeonGenerator.piece.${block.thing}`);
     switch (block.kind) {
       case 'wall':
         return this.t('feature.tabletop.dungeonGenerator.piece.wall');
       case 'door':
+        if (block.disguised) return this.t('feature.tabletop.dungeonGenerator.piece.hiddenDoor');
         return block.locked
           ? this.t('feature.tabletop.dungeonGenerator.piece.doorLocked')
           : this.t('feature.tabletop.dungeonGenerator.piece.door');
@@ -376,13 +392,16 @@ export class DungeonBuildService {
     for (const light of lights) {
       const source = LightSource.create(this.t(`feature.light.skin.${LIGHT_SKIN[light.kind]}`));
       applyLightPreset(source, LIGHT_PRESET[light.kind]);
+      if (light.color) source.lightColor = light.color;
       source.lightEnabled = true;
       source.lightDirection = light.kind === 'sconce' ? light.facing : 0;
       source.isLock = true;
       const element = source.imageDataElement?.getFirstElementByName('imageIdentifier');
       if (element) element.value = this.registerAsset(LIGHT_SKIN_ASSET_URLS[LIGHT_SKIN[light.kind]]);
       const at = blockOrigin({ x: light.x, y: light.y, w: 1, h: 1 }, grid);
-      const back = light.kind === 'sconce' ? wallLightInset(light.facing, SCONCE_WALL_INSET_CELLS) : { x: 0, y: 0 };
+      const back = WALL_FIXED.includes(light.kind)
+        ? wallLightInset(light.facing, SCONCE_WALL_INSET_CELLS)
+        : { x: 0, y: 0 };
       source.location = { name: 'table', x: at.x + back.x * GRID_SIZE, y: at.y + back.y * GRID_SIZE };
       source.posZ = 0;
       source.altitude = WALL_MOUNTED.includes(light.kind) ? Math.max(0, wallHeight - 1) : 0;

@@ -1,5 +1,26 @@
 <div class="text-ui-text flex h-full flex-col gap-2 p-3">
   <div class="flex items-center gap-2">
+    @if (isOpen()) {
+      <div class="relative">
+        <button
+          class="rounded-ui-sm flex max-w-72 cursor-pointer items-center gap-1 px-[0.8em] py-[0.3em] text-[0.74rem]"
+          [attr.aria-expanded]="isChooserOpen()"
+          (click)="toggleChooser()"
+        >
+          <i class="material-icons text-[15px]">video_library</i>
+          <span class="truncate">{{ openedLabel() }}</span>
+          <i class="material-icons text-[15px]">expand_more</i>
+        </button>
+        @if (isChooserOpen()) {
+          <div class="fixed inset-0 z-10" (click)="isChooserOpen.set(false)"></div>
+          <div
+            class="border-ui-border bg-ui-panel rounded-ui shadow-ui-md absolute top-[calc(100%+4px)] left-0 z-11 h-96 w-80 border border-solid p-2"
+          >
+            <replay-recording-list />
+          </div>
+        }
+      </div>
+    }
     @if (isRecording()) {
       <span class="text-ui-muted flex items-center gap-1 text-[0.72rem]">
         <span class="size-1.5 animate-pulse rounded-full bg-red-500"></span>
@@ -8,6 +29,16 @@
     }
     <span class="flex-1"></span>
     @if (isOpen()) {
+      <button
+        class="rounded-ui-sm flex cursor-pointer items-center gap-1 px-[0.8em] py-[0.3em] text-[0.74rem]"
+        [class.text-ui-accent]="isPreviewOpen()"
+        [attr.aria-pressed]="isPreviewOpen()"
+        [title]="'feature.replay.video.previewHint' | transloco"
+        (click)="togglePreview()"
+      >
+        <i class="material-icons text-[15px]">smart_display</i>
+        {{ 'feature.replay.video.preview' | transloco }}
+      </button>
       <button
         class="rounded-ui-sm flex cursor-pointer items-center gap-1 px-[0.8em] py-[0.3em] text-[0.74rem]"
         [class.text-ui-accent]="isDigestOpen()"
@@ -58,21 +89,20 @@
     }
   </div>
 
-  <div class="flex min-h-0 flex-1 gap-2">
-    <replay-recording-list />
-
-    <div class="flex min-w-0 flex-1 flex-col gap-2">
-      @if (!isOpen()) {
-        <p class="text-ui-muted text-[0.8rem] leading-[1.7]">{{ 'feature.replay.player.empty' | transloco }}</p>
-      } @else if (isDigestOpen()) {
-        <replay-digest-panel />
-      } @else {
-        <replay-stage />
-      }
+  @if (isOpen()) {
+    <div class="flex min-h-0 flex-1 gap-3">
+      <div class="flex w-[42%] max-w-140 min-w-64 shrink-0 flex-col gap-2">
+        @if (isDigestOpen()) {
+          <replay-digest-panel />
+        } @else if (isPreviewOpen()) {
+          <replay-video-preview />
+        } @else {
+          <replay-stage />
+        }
+      </div>
+      <replay-entry-list class="min-w-0 flex-1" [editing]="isEditing()" />
     </div>
-
-    @if (isOpen()) {
-      <replay-entry-list [editing]="isEditing()" />
-    }
-  </div>
+  } @else {
+    <replay-recording-list class="min-h-0 flex-1" />
+  }
 </div>

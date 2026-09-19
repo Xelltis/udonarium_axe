@@ -93,6 +93,12 @@ describe('RoomPanelService', () => {
     await expect(openLazy.mock.calls[1][0]()).resolves.toBe(DungeonGeneratorComponent);
   });
 
+  it('opens the inventory as a panel the minimise button folds to its bar, like any other', () => {
+    service.open('inventory');
+
+    expect(option().minimizeToContent).toBeFalsy();
+  });
+
   it('loads the dice table settings, so the menu and the chat window open the same panel', async () => {
     service.open('diceTableSetting');
 

@@ -265,6 +265,55 @@
   cursor: pointer;
 }
 
+/* The portrait slider in the chat input: the seek bar's thin track and small knob. The selectors
+   outrank the global input[type='range'] rules, which would otherwise draw the thick framed bar.
+   How far along it is comes in as --seek-progress. */
+input[type='range'].portrait-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border: none;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--ui-accent) var(--seek-progress, 0%),
+    var(--ui-panel-border) var(--seek-progress, 0%)
+  );
+}
+
+input[type='range'].portrait-slider::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ui-accent);
+  transition: transform 0.1s;
+}
+
+input[type='range'].portrait-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.3);
+}
+
+input[type='range'].portrait-slider::-moz-range-track {
+  height: 3px;
+  border: none;
+  border-radius: 2px;
+  background: var(--ui-panel-border);
+}
+
+input[type='range'].portrait-slider::-moz-range-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ui-accent);
+}
+
+input[type='range'].portrait-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ui-accent);
+}
+
 /* Tailwind v4 のテキストサイズユーティリティ (text-base / text-sm 等) は
    line-height を内包するため、Google CDN 由来の `.material-icons { line-height: 1 }`
    を上書きしてアイコンコンテナが縦方向に膨らむ。glyph はもともと line-height: 1

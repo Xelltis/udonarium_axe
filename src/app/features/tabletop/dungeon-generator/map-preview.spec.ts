@@ -1,5 +1,6 @@
 import { TEXTURE_BASE_COLOR, WALL_TEXTURE_BASE_COLOR } from '@axe/domain/media/texture-catalog';
 import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
+import { planField } from '@axe/domain/tabletop/field/field-generator';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
 import { buildMapPreview, previewColors, TORCH_FILL } from '@axe/features/tabletop/dungeon-generator/map-preview';
@@ -119,5 +120,20 @@ describe('buildMapPreview()', () => {
     it('is squares when nothing else was asked for', () => {
       expect(buildMapPreview(size, blocks, colors).viewBox).toBe('0 0 4 4');
     });
+  });
+});
+
+describe('buildMapPreview() of a town', () => {
+  it('shows a building by its roof and a planting by its leaves, so the one is not taken for the other', () => {
+    const plan = planField({ atmosphere: 'city', size: 60, density: 50, seed: 7 });
+    const preview = buildMapPreview(plan.layout, plan.blocks, previewColors('wall_facade', 'asphalt', ''));
+    const fillOf = (thing: string) => {
+      const index = plan.blocks.blocks.findIndex((block) => block.thing === thing);
+      expect(index).toBeGreaterThanOrEqual(0);
+      return preview.rects[plan.blocks.paint.length + index].fill;
+    };
+
+    expect(fillOf('building')).toBe(TEXTURE_BASE_COLOR.rooftop);
+    expect(fillOf('bush')).not.toBe(fillOf('building'));
   });
 });

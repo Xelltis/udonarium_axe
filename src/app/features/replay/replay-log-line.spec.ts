@@ -2,6 +2,8 @@ import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domai
 import {
   formatReplayElapsed,
   formatReplayTime,
+  renderReplayLogLine,
+  replayLineParams,
   type ReplayNameLookup,
   toReplayLogLine,
 } from '@axe/features/replay/replay-log-line';
@@ -143,6 +145,14 @@ describe('toReplayLogLine()', () => {
     expect(line.params).toEqual({ actor: 'アリス', target: '盗賊', name: 'HP', from: '12', to: '7' });
   });
 
+  it('writes a change to a piece’s value under the piece’s name', () => {
+    const line = toReplayLogLine(
+      event(ReplayEventKind.ObjectValue, { name: 'HP', current: { from: 12, to: 7 } }, { targetId: 'c1-hp' }),
+      { ...names, targetName: (id) => (id === 'c1-hp' ? 'HP' : id), ownerName: (id) => (id === 'c1-hp' ? '盗賊' : '') }
+    );
+    expect(line.params).toMatchObject({ target: '盗賊', name: 'HP', from: '12', to: '7' });
+  });
+
   it('writes a turn as an angle', () => {
     const line = toReplayLogLine(event(ReplayEventKind.ObjectRotate, { rotate: { from: 0, to: 90.2 } }), names);
     expect(line.params['angle']).toBe(90);
@@ -185,7 +195,7 @@ describe('toReplayLogLine()', () => {
     );
     expect(line.key).toBe('feature.replay.line.effectFrom');
     expect(line.params['caster']).toBe('術者');
-    expect(line.params['targets']).toBe('敵A、敵B');
+    expect(line.lists?.['targets']).toEqual(['敵A', '敵B']);
   });
 
   it('writes one whose target is unknown all the same', () => {
@@ -209,5 +219,57 @@ describe('toReplayLogLine()', () => {
     const line = toReplayLogLine(event('object.unknown' as ReplayEventKind, {}), names);
     expect(line.key).toBe('feature.replay.line.update');
     expect(line.icon).toBe('radio_button_unchecked');
+  });
+});
+
+describe('reading a line in the reader’s language', () => {
+  const words: Record<string, string> = {
+    'common.chat.logClearedBy': '{{user}}さんがログを消しました',
+    'feature.role.gm': 'ゲームマスター',
+    'feature.replay.face.back': '裏',
+  };
+  const t = (key: string, params: Record<string, unknown> = {}): string =>
+    (words[key] ?? key).replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(params[name] ?? ''));
+
+  it('decodes a notice the tool packed for translation', () => {
+    const line = toReplayLogLine(
+      event(ReplayEventKind.ChatMessage, { name: 'System', text: '@i18n:common.chat.logClearedBy:{"user":"GM"}' }),
+      names
+    );
+
+    expect(replayLineParams(line, t, 'ja')['text']).toBe('GMさんがログを消しました');
+  });
+
+  it('names a role rather than showing its code', () => {
+    const line = toReplayLogLine(event(ReplayEventKind.PeerRoleChange, { role: 'gm' }), names);
+
+    expect(replayLineParams(line, t, 'ja')['role']).toBe('ゲームマスター');
+  });
+
+  it('names the side a card or coin was turned to, and leaves a die’s number as it is', () => {
+    const card = toReplayLogLine(event(ReplayEventKind.ObjectFace, { from: 0, to: 1 }), names);
+    const die = toReplayLogLine(event(ReplayEventKind.ObjectFace, { to: '1' }), names);
+
+    expect(replayLineParams(card, t, 'ja')['face']).toBe('裏');
+    expect(replayLineParams(die, t, 'ja')['face']).toBe('1');
+  });
+
+  it('joins the targets of an effect the way the language joins a list', () => {
+    const line = toReplayLogLine(
+      event(ReplayEventKind.EffectCast, { targets: ['c1', 'd1'] }, { targetId: 'preset' }),
+      names
+    );
+
+    expect(replayLineParams(line, t, 'ja')['targets']).toBe('盗賊、ダイス');
+    expect(replayLineParams(line, t, 'en')['targets']).toBe('盗賊 and ダイス');
+  });
+
+  it('renders the whole line with those parameters', () => {
+    const line = toReplayLogLine(event(ReplayEventKind.PeerRoleChange, { role: 'gm' }), names);
+
+    const t = (key: string, params?: Record<string, unknown>): string =>
+      params ? `${key}:${String(params['role'])}` : key;
+
+    expect(renderReplayLogLine(line, t, 'ja')).toBe('feature.replay.line.role:feature.role.gm');
   });
 });

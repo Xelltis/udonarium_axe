@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { VisionService } from '@axe/application/tabletop/vision.service';
+import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_VISION_CELLS_MISS, PERF_VISION_SCENE, perfCounters } from '@axe/core/util/perf-counters';
@@ -621,6 +621,34 @@ describe('VisionService', () => {
     expect(viewer.userId).toBe('guest-2');
     expect(viewer.isGameMaster).toBe(false);
     expect(viewer.visionOwnerIds).toContain('player-3');
+  });
+
+  describe('looking as a guest with none connected', () => {
+    it('gives the game master the sight any guest would have', () => {
+      addPeer('player-3', PeerRole.Player);
+      makeMyCursor('gm-x', PeerRole.GameMaster);
+      service.previewAsUserId.set(GUEST_PERSONA);
+
+      const viewer = service.viewer();
+      expect(viewer.isGameMaster).toBe(false);
+      expect(viewer.visionOwnerIds).toEqual(['player-3']);
+    });
+
+    it('works with the game master alone in the room, as offline', () => {
+      makeMyCursor('gm-x', PeerRole.GameMaster);
+      service.previewAsUserId.set(GUEST_PERSONA);
+
+      const viewer = service.viewer();
+      expect(viewer.isGameMaster).toBe(false);
+      expect(viewer.visionOwnerIds).toEqual([]);
+    });
+
+    it('does not look through the game masters own pieces', () => {
+      makeMyCursor('gm-x', PeerRole.GameMaster);
+      service.previewAsUserId.set(GUEST_PERSONA);
+
+      expect(service.viewer().visionOwnerIds).not.toContain('gm-x');
+    });
   });
 
   describe.each([

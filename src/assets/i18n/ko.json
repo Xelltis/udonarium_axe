@@ -113,7 +113,34 @@
       "stair_down": "내려가는 계단",
       "stair_spiral": "나선 계단",
       "poison_pool": "독 늪",
-      "cactus_skin": "선인장 껍질"
+      "cactus_skin": "선인장 껍질",
+      "asphalt": "아스팔트",
+      "sidewalk": "보도블록",
+      "concrete_floor": "콘크리트 바닥",
+      "neon_floor": "네온 타일 바닥",
+      "rooftop": "옥상",
+      "slum_ground": "쓰레기 진흙길",
+      "wall_concrete": "콘크리트 벽",
+      "wall_neon": "네온관 벽",
+      "wall_corrugated": "함석판",
+      "wall_facade": "빌딩 외벽",
+      "door_steel": "철문",
+      "felt": "도박판 펠트",
+      "warehouse_floor": "창고 바닥",
+      "sf_road": "금속 포장 도로",
+      "sf_walkway": "빛나는 보도",
+      "sf_rooftop": "미래형 옥상",
+      "tar_roof": "타르 지붕",
+      "wall_facade_concrete": "콘크리트 빌딩 외벽",
+      "wall_sf_glass": "빛줄기 흑유리",
+      "wall_sf_panel": "빛나는 이음새 흰 패널",
+      "wall_brick_tenement": "벽돌 연립주택",
+      "wall_brownstone": "브라운스톤",
+      "wall_warehouse": "창고 강판 벽",
+      "container_red": "컨테이너(빨강)",
+      "container_blue": "컨테이너(파랑)",
+      "container_green": "컨테이너(초록)",
+      "door_shutter": "셔터"
     },
     "reorder": {
       "toTop": "맨 위로",
@@ -152,7 +179,8 @@
       "persona": {
         "title": "페르소나(플레이어 시점으로 확인)",
         "self": "GM 시점(자신)",
-        "empty": "플레이어가 없습니다"
+        "empty": "플레이어가 없습니다",
+        "guestHint": "관전자에게 보이는 테이블을 확인합니다. 관전자가 접속해 있지 않아도 선택할 수 있습니다"
       },
       "party": {
         "title": "동행",
@@ -1646,7 +1674,11 @@
         "light_brazier": "화로",
         "light_lantern": "랜턴",
         "light_candle": "양초",
-        "light_chandelier": "샹들리에"
+        "light_chandelier": "샹들리에",
+        "light_neon": "네온사인",
+        "light_streetlamp": "가로등",
+        "light_fluorescent": "형광등",
+        "light_neon_pole": "네온 가로등"
       }
     },
     "vision": {
@@ -2083,7 +2115,10 @@
           "cavern": "동굴",
           "lavaCavern": "용암굴",
           "iceCave": "얼음굴",
-          "sandTomb": "모래 무덤"
+          "sandTomb": "모래 무덤",
+          "illegalBar": "불법 바",
+          "abandonedBuilding": "폐건물",
+          "containerWarehouse": "컨테이너 창고"
         },
         "role": {
           "entrance": "입구의 방",
@@ -2093,12 +2128,61 @@
           "deadEnd": "막다른 길",
           "chamber": "작은 방"
         },
+        "roleIn": {
+          "illegalBar": {
+            "entrance": "위장 가게",
+            "hall": "술집",
+            "treasure": "도박장",
+            "boss": "두목의 방",
+            "deadEnd": "밀주 창고",
+            "chamber": "밀실"
+          },
+          "building": {
+            "entrance": "로비",
+            "hall": "사무실 층",
+            "treasure": "금고실",
+            "boss": "임원실",
+            "deadEnd": "창고",
+            "chamber": "사무실"
+          },
+          "warehouse": {
+            "entrance": "반입구",
+            "hall": "중앙 창고",
+            "treasure": "보세 구역",
+            "boss": "관리 사무소",
+            "deadEnd": "자재 보관소",
+            "chamber": "보관 구역"
+          }
+        },
         "piece": {
           "wall": "벽",
           "door": "문",
           "doorLocked": "문(잠김)",
           "entrance": "입구",
-          "exit": "출구"
+          "exit": "출구",
+          "tree": "나무",
+          "bush": "덤불",
+          "boulder": "바위",
+          "outcrop": "암반",
+          "hill": "언덕",
+          "cactus": "선인장",
+          "junk": "고철 더미",
+          "streetTree": "가로수",
+          "building": "건물",
+          "roofUnit": "옥상 설비",
+          "counter": "카운터",
+          "stool": "스툴",
+          "table": "테이블",
+          "pillar": "기둥",
+          "desk": "사무용 책상",
+          "crate": "나무 상자",
+          "rubble": "잔해",
+          "shopCounter": "가게 카운터",
+          "gamingTable": "도박 테이블",
+          "containerRed": "컨테이너",
+          "containerBlue": "컨테이너",
+          "containerGreen": "컨테이너",
+          "hiddenDoor": "비밀 문"
         },
         "summary": {
           "title": "던전 개요",
@@ -2110,7 +2194,8 @@
           "doors": "문",
           "ground": "지면",
           "standing": "지형",
-          "fires": "불빛"
+          "fires": "불빛",
+          "hidden": "비밀 문"
         },
         "title": "맵 생성",
         "gmOnly": "이 도구는 게임 마스터 전용입니다",
@@ -2180,7 +2265,11 @@
           "coast": "해안",
           "marsh": "습지",
           "snowfield": "설원",
-          "wasteland": "황야"
+          "wasteland": "황야",
+          "city": "빌딩 숲",
+          "sfCity": "빌딩 숲(SF)",
+          "slum": "슬럼가",
+          "dump": "쓰레기 처리장"
         },
         "prop": {
           "tree": "나무",
@@ -2188,7 +2277,10 @@
           "boulder": "바위",
           "outcrop": "암반",
           "hill": "언덕",
-          "cactus": "선인장"
+          "cactus": "선인장",
+          "junk": "고철 더미",
+          "streetTree": "가로수",
+          "building": "건물"
         },
         "grid": {
           "0": "사각",
@@ -3405,7 +3497,13 @@
         "withAssets": "이미지도 포함",
         "noRecordings": "저장된 기록이 없습니다",
         "soloRoom": "혼자인 탁상",
-        "showIncidental": "딸린 소리도 내기"
+        "showIncidental": "딸린 소리도 내기",
+        "showSystem": "입퇴장과 설정 변경도 표시",
+        "boardGroup": "보드 움직임 ×{{count}}"
+      },
+      "face": {
+        "front": "앞면",
+        "back": "뒷면"
       },
       "line": {
         "chat": "{{speaker}}: \"{{text}}\"",
@@ -3432,6 +3530,7 @@
         "marker": "― {{label}} ―",
         "moveHeight": "{{actor}}이(가) {{target}}을(를) ({{fromX}}, {{fromY}}) 높이 {{fromZ}}에서 ({{toX}}, {{toY}}) 높이 {{toZ}}로 옮겼습니다",
         "moveSurface": "{{actor}}이(가) {{target}}을(를) {{fromSurface}}의 ({{fromX}}, {{fromY}})에서 {{toSurface}}의 ({{toX}}, {{toY}})로 옮겼습니다",
+        "moveBrief": "{{actor}}이(가) {{target}}을(를) 옮겼습니다",
         "movePlace": "{{actor}}이(가) {{target}}을(를) {{fromPlace}}에서 {{toPlace}}(으)로 옮겼습니다",
         "effectOn": "{{actor}}이(가) {{targets}}에게 〈{{effect}}〉을(를) 걸었습니다",
         "effectFrom": "{{actor}}이(가) {{caster}}에게서 {{targets}}(으)로 〈{{effect}}〉을(를) 날렸습니다",
@@ -3498,7 +3597,14 @@
         "rewrite": "고쳐 쓰기",
         "undo": "취소하기",
         "undoHint": "Ctrl+Z",
-        "drag": "잡아서 순서 바꾸기"
+        "drag": "잡아서 순서 바꾸기",
+        "discardConfirm": "편집 중인 변경을 버리고 다른 기록을 열까요?",
+        "writeAfter": "이 뒤에 쓰기",
+        "stageAfter": "이 뒤부터 녹화",
+        "removeCount": "{{count}}행 지우기",
+        "insertAfter": "{{time}} 행 뒤에 들어갑니다",
+        "insertAtEnd": "맨 끝에 들어갑니다",
+        "keysHint": "Delete로 지우기 · Alt+↑↓로 옮기기 · Enter로 다시 쓰기"
       },
       "surface": {
         "floor": "바닥",
@@ -3548,27 +3654,56 @@
         "unsupported": "이 브라우저에서는 동영상을 내보낼 수 없습니다",
         "size": "크기",
         "fps": "부드러움",
-        "view": "판이 보이는 방식",
         "pacing": "사이 두는 법",
-        "scope": "넣을 것",
         "pace": {
           "reading": "읽을 수 있는 속도",
           "recorded": "그날과 같은 간격"
         },
-        "of": {
-          "top": "바로 위에서",
-          "table": "탁상과 같은 기울기",
-          "lines": "대사와 장만",
-          "everything": "판의 움직임도 넣기"
-        },
-        "estimate": "{{shots}}컷 · 약 {{length}}",
+        "estimate": "{{count}}개 장면 · 약 {{length}} · {{size}}",
+        "inMemory": "이 브라우저는 동영상 전체를 메모리에 모은 뒤 저장합니다. 이만큼 크면 도중에 실패할 수 있습니다. 크기를 낮추거나 저장 위치를 고를 수 있는 브라우저(Chrome, Edge)에서 내보내 주세요.",
         "start": "내보내기",
         "rendering": "내보내는 중({{percent}}%)",
         "cancel": "그만두기",
+        "keepInView": "이 탭을 화면에 띄워 두세요. 뒤로 가면 절전 설정의 브라우저가 내보내기를 멈출 수 있습니다.",
+        "paused": "탭이 뒤에 있는 동안 브라우저가 내보내기를 멈췄습니다. 화면에 띄워 두면 이어서 진행합니다.",
         "realtime": "이 브라우저에서는 길이만큼 시간이 걸립니다(내보내는 동안 열어 두세요)",
         "withEffects": "효과음 넣기",
         "withMusic": "BGM 넣기",
-        "failed": "내보내지 못했습니다. 세밀함이나 크기를 낮추면 될 때가 있습니다."
+        "round": "라운드 {{round}}",
+        "turn": "{{name}}의 차례",
+        "roundTurn": "라운드 {{round}} · {{name}}의 차례",
+        "preview": "동영상 미리보기",
+        "previewHint": "내보낼 동영상을 그 자리에서 재생합니다",
+        "empty": "동영상으로 만들 장면이 없습니다",
+        "building": "구성 중",
+        "play": "재생",
+        "pause": "일시정지",
+        "styles": {
+          "novel": "노벨",
+          "tabletop": "테이블"
+        },
+        "audience": "보여줄 대상",
+        "audiences": {
+          "public": "공개용 (견학자와 동일)",
+          "player": "나 (PL 시점)",
+          "gm": "GM (비밀 모두 포함)"
+        },
+        "lang": "언어",
+        "audienceWarning": "이 시점에서는 공개하지 않은 정보가 보입니다. YouTube 등에 올릴 때는 \"공개용\"을 선택하세요.",
+        "style": "보여주는 방식",
+        "speed": "자막 속도",
+        "speeds": {
+          "0": "느리게",
+          "1": "보통",
+          "2": "조금 빠르게",
+          "3": "빠르게"
+        },
+        "withOpening": "처음에 방 이름과 날짜 표시",
+        "failures": {
+          "empty": "동영상으로 만들 장면이 없습니다.",
+          "sound": "소리를 섞지 못했습니다. 효과음이나 BGM을 빼면 내보낼 수 있습니다.",
+          "encode": "내보내지 못했습니다. 크기나 프레임 수를 낮추면 될 수 있습니다."
+        }
       },
       "script": {
         "title": "읽을거리로 만들기",
@@ -4220,7 +4355,11 @@
       "tagUnset": "미설정",
       "tagAll": "전체",
       "imageEmpty": "이미지 없음",
-      "noImagesInTag": "이 분류에 이미지가 없습니다"
+      "noImagesInTag": "이 분류에 이미지가 없습니다",
+      "upload": "업로드",
+      "uploading": "불러오는 중…",
+      "uploadLimit": "파일당 2MB까지",
+      "oversized": "2MB를 넘어 추가하지 못했습니다: {{names}}"
     },
     "contextMenu": {
       "index": "인덱스",

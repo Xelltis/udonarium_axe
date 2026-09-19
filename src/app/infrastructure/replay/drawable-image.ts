@@ -1,4 +1,4 @@
-import type { ReplayFrameImage } from '@axe/infrastructure/replay/replay-frame-painter';
+import type { ReplayFrameImage } from '@axe/infrastructure/replay/replay-canvas';
 
 export type DrawableImage = ReplayFrameImage & { close?(): void };
 

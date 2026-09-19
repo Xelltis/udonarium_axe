@@ -97,6 +97,20 @@ describe('buildReplayDigest()', () => {
     expect(digest.speakers[0]).toMatchObject({ userId: 'alice', name: 'アリス', messages: 2, diceRolls: 1 });
   });
 
+  it('does not count a notice the tool wrote into the chat as anybody’s line', () => {
+    const digest = buildReplayDigest(
+      [
+        event(ReplayEventKind.ChatMessage, 'alice'),
+        event(ReplayEventKind.ChatMessage, 'gm', { from: 'System', text: '@i18n:common.chat.logClearedBy:{}' }),
+      ],
+      MANIFEST,
+      PLAYER
+    );
+
+    expect(digest.numbers.messages).toBe(1);
+    expect(digest.speakers.map((speaker) => speaker.userId)).toEqual(['alice']);
+  });
+
   it('leaves a line a player cannot see out of their summary', () => {
     const secret = { ...event(ReplayEventKind.ChatMessage, 'gm'), visibility: GM_ONLY_VISIBILITY };
     const events = [event(ReplayEventKind.ChatMessage, 'alice'), secret];

@@ -161,7 +161,7 @@ describe('GameObjectInventoryComponent', () => {
       putOnTable('魔物', monsters.identifier);
       Config.instance.turnOrderMode = 'faction';
       Config.instance.factionSkipUnassigned = true;
-      TestBed.inject(PanelService).isMinimized.set(true);
+      TestBed.inject(PanelService).isShrunk.set(true);
 
       fixture.detectChanges();
       await fixture.whenStable();
@@ -1272,7 +1272,7 @@ describe('GameObjectInventoryComponent', () => {
       it('walks round the ways of reading it and back again', () => {
         fixture.detectChanges();
         const asked: boolean[] = [];
-        TestBed.inject(PanelService).minimizeRequest$.subscribe((minimized) => asked.push(minimized));
+        TestBed.inject(PanelService).shrinkRequest$.subscribe((shrunk) => asked.push(shrunk));
 
         TestBed.inject(PanelService).headerControls()[0].press();
         expect(component.viewMode()).toBe('table');
@@ -1284,10 +1284,22 @@ describe('GameObjectInventoryComponent', () => {
         expect(asked).toEqual([false, true]);
       });
 
+      it('stays on its list when folded to its bar, the turn order being a way of showing it apart from that', () => {
+        fixture.detectChanges();
+
+        TestBed.inject(PanelService).isMinimized.set(true);
+
+        expect(component.isRoundView()).toBe(false);
+
+        TestBed.inject(PanelService).isShrunk.set(true);
+
+        expect(component.isRoundView()).toBe(true);
+      });
+
       it('asks the frame to shrink rather than shrinking itself', () => {
         fixture.detectChanges();
         const asked: boolean[] = [];
-        TestBed.inject(PanelService).minimizeRequest$.subscribe((minimized) => asked.push(minimized));
+        TestBed.inject(PanelService).shrinkRequest$.subscribe((shrunk) => asked.push(shrunk));
 
         component.setViewMode('round');
         component.setViewMode('rich');

@@ -1,8 +1,8 @@
 import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
-import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
 import {
   EffectKind,
   EffectTargeting,
@@ -81,7 +81,7 @@ export class EffectPreset extends GameObject {
    * again, taking it from the one who brought it back.
    */
   toAttributes(): Attributes {
-    return { ...ObjectSerializer.toAttributes(this.toContext().syncData), identifier: this.identifier };
+    return toAttributesKeepingIdentifier(this);
   }
 
   /**
@@ -91,17 +91,7 @@ export class EffectPreset extends GameObject {
    * the effect stays under the fresh identifier it was made with.
    */
   parseAttributes(attributes: NamedNodeMap): void {
-    const context = this.toContext();
-    const syncData = context.syncData as Record<string, unknown>;
-    ObjectSerializer.parseAttributes(syncData, attributes);
-
-    const persisted = syncData['identifier'];
-    // The context is the one place an identifier belongs; it is no part of what is synchronised.
-    delete syncData['identifier'];
-    this.apply(context);
-    if (typeof persisted === 'string' && persisted.length > 0 && !ObjectStore.instance.isDeleted(persisted)) {
-      (this as unknown as { context: { identifier: string } }).context.identifier = persisted;
-    }
+    parseAttributesKeepingIdentifier(this, attributes);
   }
 
   /** Every effect on the room's shelf. */

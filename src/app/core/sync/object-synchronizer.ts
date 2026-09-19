@@ -115,7 +115,12 @@ export class ObjectSynchronizer {
             ObjectStore.instance.forgetDeleted(identifiers ?? []);
             break;
           }
+          // The store took the object away before the word went out, so hearing it back
+          // does nothing but take away whatever has been put back under that name since:
+          // a room just loaded brings back its parties and effect library under the names
+          // they were saved under, and its own deletions arrive after them.
           case 'DELETE_GAME_OBJECT': {
+            if (msg.isSendFromSelf) break;
             const identifier: ObjectIdentifier = (msg.data as { identifier: string }).identifier;
             ObjectStore.instance.delete(identifier, false);
             break;

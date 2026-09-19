@@ -52,6 +52,27 @@ describe('interpretObjectChange()', () => {
     ).toBeNull();
   });
 
+  it('reads the table everyone is shown changing as a switch of table', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'TableSelecter',
+      identifier: 'TableSelecter',
+      before: { viewTableIdentifier: 'table-1' },
+      after: { viewTableIdentifier: 'table-2' },
+    });
+    expect(draft?.kind).toBe(ReplayEventKind.TableChange);
+    expect(draft?.targetIdentifier).toBe('table-2');
+  });
+
+  it('does not count taking up the first table as a switch', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'TableSelecter',
+      identifier: 'TableSelecter',
+      before: { viewTableIdentifier: '' },
+      after: { viewTableIdentifier: 'table-1' },
+    });
+    expect(draft?.kind).not.toBe(ReplayEventKind.TableChange);
+  });
+
   it('reads a change of position as a move', () => {
     const draft = interpretObjectChange({
       aliasName: 'character',

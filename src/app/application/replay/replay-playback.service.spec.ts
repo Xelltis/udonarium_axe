@@ -15,6 +15,7 @@ import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DataElement } from '@axe/domain/data/data-element';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { createReplayEntry, retextReplayEvent } from '@axe/domain/replay/replay-edit';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
@@ -195,6 +196,45 @@ describe('ReplayPlaybackService', () => {
 
     await service.next();
     expect(soundsHeard()).toEqual(['se-dice']);
+  });
+
+  it('brings a piece out with its parts on a single step forward, and takes them away with it', async () => {
+    const arrival: ReplayEvent = {
+      seq: 2,
+      at: 2000,
+      t: 2000,
+      kind: ReplayEventKind.ObjectCreate,
+      actorId: 'alice',
+      targetId: 'c3',
+      detail: {},
+      patch: {
+        identifier: 'c3',
+        aliasName: 'character',
+        before: {},
+        after: { 'attributes.location': { name: 'table', x: 100, y: 0 } },
+      },
+      parts: [{ identifier: 'c3-hp', aliasName: 'data', before: {}, after: { parentIdentifier: 'c3', value: 8 } }],
+      visibility: PUBLIC_VISIBILITY,
+    };
+    const removal: ReplayEvent = {
+      ...arrival,
+      seq: 3,
+      kind: ReplayEventKind.ObjectRemove,
+      patch: undefined,
+      parts: undefined,
+      removedParts: ['c3-hp'],
+    };
+    library.load.mockResolvedValue({ manifest: null, events: [moveEvent(1, 10, 0), arrival, removal] });
+    await service.open(1);
+    await service.enterBoardMode();
+
+    await service.next();
+    expect(objectStore.get('c3')).toBeInstanceOf(GameCharacter);
+    expect(objectStore.get<DataElement>('c3-hp')?.value).toBe(8);
+
+    await service.next();
+    expect(objectStore.get('c3')).toBeNull();
+    expect(objectStore.get('c3-hp')).toBeNull();
   });
 
   it('stays silent when skipping ahead', async () => {

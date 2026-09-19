@@ -59,6 +59,7 @@ const TURN_STATE_ALIAS = 'TurnState';
 const VOTE_ALIAS = 'Vote';
 const GAME_TABLE_ALIAS = 'game-table';
 const PEER_CURSOR_ALIAS = 'PeerCursor';
+const TABLE_SELECTER_ALIAS = 'TableSelecter';
 
 const TABLE_SCENE_KEYS: readonly string[] = [
   'imageIdentifier',
@@ -238,6 +239,10 @@ function describeChange(
       detail: { role: asString(syncValueOf(after, 'role')), name: asString(syncValueOf(after, 'name')) },
     };
   }
+  if (aliasName === TABLE_SELECTER_ALIAS && before && hasChangedKey(keys, 'viewTableIdentifier')) {
+    const table = describeTableChange(before, after);
+    if (table) return table;
+  }
   if (!before) return { kind: ReplayEventKind.ObjectCreate, detail: { aliasName } };
 
   if (hasChangedKey(keys, 'location') || hasChangedKey(keys, 'posZ')) return describeMove(before, after);
@@ -414,6 +419,21 @@ function describeChatMessage(after: SyncData): { kind: ReplayEventKind; detail: 
   };
   const kind = from === DICEBOT_SENDER ? ReplayEventKind.ChatDice : ReplayEventKind.ChatMessage;
   return { kind, detail };
+}
+
+/**
+ * The switch to another table, told by the table everyone is now shown.
+ *
+ * The first table taken up, from none, is where the room begins rather than a switch.
+ */
+function describeTableChange(
+  before: SyncData,
+  after: SyncData
+): { kind: ReplayEventKind; detail: Record<string, unknown>; targetIdentifier: string } | null {
+  const from = asString(syncValueOf(before, 'viewTableIdentifier'));
+  const to = asString(syncValueOf(after, 'viewTableIdentifier'));
+  if (from.length < 1 || to.length < 1) return null;
+  return { kind: ReplayEventKind.TableChange, targetIdentifier: to, detail: { from, to } };
 }
 
 function describeMove(before: SyncData, after: SyncData): { kind: ReplayEventKind; detail: Record<string, unknown> } {

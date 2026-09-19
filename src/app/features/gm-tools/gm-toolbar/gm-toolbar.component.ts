@@ -11,7 +11,7 @@ import {
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { VisionService } from '@axe/application/tabletop/vision.service';
+import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -81,10 +81,23 @@ export class GmToolbarComponent {
   /** Drawn for the game master unless they have hidden it from the widget menu. */
   protected readonly shown = computed(() => this.isGameMaster() && this.widgets.gmToolbar());
 
+  /**
+   * The players whose eyes the master may look through.
+   *
+   * Guests are left out: every one of them sees the same, and the guest preview stands for them all.
+   */
   protected readonly personas = computed<PeerCursor[]>(() => {
     this.objectChange.collectionOf('PeerCursor')();
-    return this.objectStore.getObjects<PeerCursor>(PeerCursor).filter((cursor) => !cursor.isGameMaster);
+    return this.objectStore
+      .getObjects<PeerCursor>(PeerCursor)
+      .filter((cursor) => !cursor.isGameMaster && !cursor.isGuest);
   });
+
+  /** The preview that looks as a guest would, offered whether or not one is connected. */
+  protected readonly guestPersona = GUEST_PERSONA;
+
+  /** Whether the master is looking at the table as a guest would. */
+  protected readonly previewingGuest = computed(() => this.visionService.previewAsUserId() === GUEST_PERSONA);
 
   protected readonly currentPersona = computed<PeerCursor | null>(() => {
     const userId = this.visionService.previewAsUserId();

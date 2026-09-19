@@ -33,7 +33,7 @@ export interface ReplaySoundChoice {
 export const DEFAULT_REPLAY_SOUND_CHOICE: ReplaySoundChoice = { withEffects: true, withMusic: true };
 
 /**
- * The sound effects and music of a replay video, timed on the storyboard's clock.
+ * The sound effects and music of a replay video, timed on the clock of its storyboard or timeline.
  *
  * Events the storyboard does not reach are passed over. Each change of music ends the track
  * before it, and a track still playing runs to the end. Empty when the storyboard has no length
@@ -41,7 +41,7 @@ export const DEFAULT_REPLAY_SOUND_CHOICE: ReplaySoundChoice = { withEffects: tru
  */
 export function buildReplaySoundtrack(
   events: readonly ReplayEvent[],
-  storyboard: ReplayStoryboard,
+  storyboard: Pick<ReplayStoryboard, 'timeOfSeq' | 'totalMs'>,
   choice: ReplaySoundChoice = DEFAULT_REPLAY_SOUND_CHOICE
 ): ReplaySoundtrack {
   if (storyboard.totalMs < 1) return EMPTY_REPLAY_SOUNDTRACK;
