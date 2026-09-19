@@ -189,6 +189,18 @@ describe('rearranging the entries', () => {
     expect(rows()[0].classList).toContain('opacity-40');
   });
 
+  it('lets go of a drag that ended where its row could not hear it', () => {
+    const source = rows()[0];
+    source.dispatchEvent(dragEvent('dragstart'));
+    fixture.detectChanges();
+    expect(rows()[0].classList.contains('opacity-40')).toBe(true);
+
+    document.dispatchEvent(new MouseEvent('mousemove'));
+    fixture.detectChanges();
+
+    expect(rows()[0].classList.contains('opacity-40')).toBe(false);
+  });
+
   it('takes that mark away once it is let go', () => {
     const source = rows()[0];
     const destination = rows()[2];
@@ -256,6 +268,7 @@ describe('editing the list by choosing rows', () => {
   let fixture: ComponentFixture<ReplayEntryListComponent>;
   let removeMany: ReturnType<typeof vi.fn>;
   let stepMany: ReturnType<typeof vi.fn>;
+  let retext: ReturnType<typeof vi.fn>;
   let openMenu: ReturnType<typeof vi.spyOn>;
 
   const moveEvent = (seq: number): ReplayEvent => ({
@@ -290,6 +303,7 @@ describe('editing the list by choosing rows', () => {
   beforeEach(async () => {
     removeMany = vi.fn();
     stepMany = vi.fn();
+    retext = vi.fn();
     PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
     await TestBed.configureTestingModule({
       imports: [ReplayEntryListComponent],
@@ -315,6 +329,7 @@ describe('editing the list by choosing rows', () => {
             isInserted: () => false,
             removeMany,
             stepMany,
+            retext,
           },
         },
       ],
@@ -413,6 +428,50 @@ describe('editing the list by choosing rows', () => {
     fixture.detectChanges();
 
     expect(rowElements().every((row) => row.getAttribute('aria-selected') === 'false')).toBe(true);
+  });
+
+  describe('rewriting the row chosen', () => {
+    function field(): HTMLInputElement | null {
+      return fixture.nativeElement.querySelector('input[type="text"]:not([placeholder])');
+    }
+
+    async function open(): Promise<HTMLInputElement> {
+      press(rowElements()[0]);
+      key({ key: 'Enter' });
+      await fixture.whenStable();
+      return field()!;
+    }
+
+    it('puts the keys in the field that opens, so what is typed goes there', async () => {
+      const input = await open();
+
+      expect(document.activeElement).toBe(input);
+    });
+
+    it('writes nothing when called off, even as the field closing takes the focus with it', async () => {
+      const input = await open();
+      input.value = '書き換え';
+
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      input.dispatchEvent(new FocusEvent('blur'));
+      fixture.detectChanges();
+
+      expect(retext).not.toHaveBeenCalled();
+      expect(field()).toBeNull();
+    });
+
+    it('writes the row once on Enter, and leaves it closed', async () => {
+      const input = await open();
+      input.value = '書き換え';
+
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      input.dispatchEvent(new FocusEvent('blur'));
+      fixture.detectChanges();
+
+      expect(retext).toHaveBeenCalledTimes(1);
+      expect(retext).toHaveBeenCalledWith(1, '書き換え');
+      expect(field()).toBeNull();
+    });
   });
 
   it('lets the choice go on Escape', () => {

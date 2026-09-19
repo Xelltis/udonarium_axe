@@ -1,7 +1,10 @@
+import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
+  effect,
   ElementRef,
   inject,
   input,
@@ -82,6 +85,9 @@ export class ReplayEntryListComponent {
   private readonly language = inject(LanguageService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly writingField = viewChild<ElementRef<HTMLInputElement>>('writing');
+  private readonly rewriteField = viewChild<ElementRef<HTMLInputElement>>('rewrite');
+  private readonly listHost = viewChild(VirtualListComponent, { read: ElementRef });
+  private readonly document = inject(DOCUMENT);
 
   readonly editing = input(false);
 
@@ -119,6 +125,18 @@ export class ReplayEntryListComponent {
 
   protected readonly isMarkerDraft = computed(() => this.insertKind() === ReplayEventKind.Marker);
   protected readonly isFreeSpeaker = computed(() => this.insertCastId().length < 1);
+
+  /**
+   * Lets go of a drag at the first move of the mouse after it, which no drag lets through.
+   *
+   * A row scrolled far enough out of the list is no longer drawn, and never hears that its drag ended.
+   */
+  private readonly settleDrag = (): void => this.rowDrag.cancel();
+
+  constructor() {
+    effect(() => this.rewriteField()?.nativeElement.focus());
+    inject(DestroyRef).onDestroy(() => this.document.removeEventListener('mousemove', this.settleDrag));
+  }
 
   private readonly viewer = computed(() => ({
     userId: PeerCursor.myCursor?.userId ?? '',
@@ -304,7 +322,7 @@ export class ReplayEntryListComponent {
    * arrow moves them a row, Enter rewrites the one chosen, and Escape lets the choice go.
    */
   protected onKeydown(event: KeyboardEvent): void {
-    if (!this.editing() || this.editingSeq() !== null) return;
+    if (!this.editing() || this.editingSeq() !== null || event.target instanceof HTMLInputElement) return;
     const chosen = this.chosen();
     if (event.key === 'Escape') {
       this.chosen.set(new Set());
@@ -374,14 +392,27 @@ export class ReplayEntryListComponent {
     this.editingSeq.set(row.seq);
   }
 
-  protected commitRowEdit(seq: number, text: string): void {
+  /**
+   * Rewrites a row with what was typed, once: the field going away afterwards takes the focus with
+   * it, and that must not write the row again, nor write one whose rewriting was called off.
+   */
+  protected commitRowEdit(seq: number, text: string, fromKey = false): void {
+    if (this.editingSeq() !== seq) return;
     this.editor.retext(seq, text);
     this.editingSeq.set(null);
+    if (fromKey) this.listHost()?.nativeElement.focus();
+  }
+
+  /** Calls the rewriting off, leaving the row as it was, and hands the keys back to the list. */
+  protected cancelRowEdit(): void {
+    this.editingSeq.set(null);
+    this.listHost()?.nativeElement.focus();
   }
 
   protected dragStart(row: ReplayEntryRow, event: DragEvent): void {
     if (!this.editing()) return;
     this.rowDrag.begin(row.seq);
+    this.document.addEventListener('mousemove', this.settleDrag, { once: true });
     if (!event.dataTransfer) return;
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(row.seq));
@@ -410,6 +441,7 @@ export class ReplayEntryListComponent {
 
   protected dragEnd(): void {
     this.rowDrag.cancel();
+    this.document.removeEventListener('mousemove', this.settleDrag);
   }
 
   protected dropHint(row: ReplayEntryRow): string | null {

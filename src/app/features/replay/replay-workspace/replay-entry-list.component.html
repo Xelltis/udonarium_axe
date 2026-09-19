@@ -61,12 +61,12 @@
           @if (editingSeq() === row.seq) {
             <div class="px-2 py-1">
               <input
+                #rewrite
                 class="border-ui-accent bg-ui-panel rounded-ui-sm w-full border border-solid px-1.5 py-1 text-[0.8rem]"
                 type="text"
-                autofocus
                 [value]="rawText(row)"
-                (keydown.enter)="commitRowEdit(row.seq, $any($event.target).value)"
-                (keydown.escape)="editingSeq.set(null)"
+                (keydown.enter)="commitRowEdit(row.seq, $any($event.target).value, true)"
+                (keydown.escape)="cancelRowEdit()"
                 (blur)="commitRowEdit(row.seq, $any($event.target).value)"
               />
             </div>
