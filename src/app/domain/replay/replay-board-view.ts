@@ -4,7 +4,7 @@ import { syncValueOf } from '@axe/domain/replay/replay-diff';
 import type { ReplayViewer } from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { visibilityOfDisclosure } from '@axe/domain/replay/replay-visibility';
-import { replayOverlayPlan } from '@axe/domain/replay/replay-vision-scene';
+import { replayDarknessOf } from '@axe/domain/replay/replay-vision-scene';
 import type { OverlayPlan } from '@axe/domain/tabletop/vision-scene';
 
 /** How a piece is drawn: as a standing figure, a card, a die and so on. */
@@ -16,6 +16,7 @@ export const ReplayPieceShape = {
   Terrain: 'terrain',
   Mask: 'mask',
   Note: 'note',
+  Light: 'light',
 } as const;
 
 export type ReplayPieceShape = (typeof ReplayPieceShape)[keyof typeof ReplayPieceShape];
@@ -50,6 +51,16 @@ export interface ReplayBoardPiece {
   count: number;
   /** The cells of a mask scratched open, each as `column:row` within the mask. */
   openCells: readonly string[];
+  /** Whether its picture is laid a cell to a tile rather than stretched over it, as dungeon walls are. */
+  tiled: boolean;
+  /** How many cells tall it stands, for a block of terrain. */
+  elevation: number;
+  /** Which faces of a block of terrain are shown (`TerrainViewState`): 3 all, 1 the floor, 2 the walls, 0 none. */
+  view: number;
+  /** How a door opens and whether it stands open. Null for anything that is not a door. */
+  door: { style: string; open: boolean; mirrored: boolean } | null;
+  /** The picture on the sides of a block of terrain, such as the bricks of a wall. */
+  sideImageIdentifier: string;
 }
 
 export interface ReplayBoardScene {
@@ -81,6 +92,7 @@ const SHAPE_OF_ALIAS: ReadonlyMap<string, ReplayPieceShape> = new Map([
   ['text-note', ReplayPieceShape.Note],
   ['dice-symbol', ReplayPieceShape.Die],
   ['coin', ReplayPieceShape.Coin],
+  ['light-source', ReplayPieceShape.Light],
 ]);
 
 /** Whether objects of this kind are pieces drawn on the board. */
@@ -122,6 +134,12 @@ export function buildReplayBoardScene(
 
   const childrenOf = groupReplayChildren(snapshots);
   const reading: PieceReading = { childrenOf, snapshots, viewer, cardsOf: null };
+  const otherTables = new Set(
+    snapshots
+      .filter((one) => one.aliasName === TABLE_ALIAS && one.identifier !== table.identifier)
+      .map((one) => one.identifier)
+  );
+  const darkness = viewer && options?.withOverlay !== false ? replayDarknessOf(snapshots, viewer) : null;
   const pieces: ReplayBoardPiece[] = [];
   for (const snapshot of snapshots) {
     const shape = SHAPE_OF_ALIAS.get(snapshot.aliasName);
@@ -129,9 +147,12 @@ export function buildReplayBoardScene(
 
     const location = syncValueOf(snapshot.syncData, 'location') as Record<string, unknown> | undefined;
     if (!location || String(location['name'] ?? '') !== TABLE_PLACE) continue;
+    if (otherTables.has(String(snapshot.syncData['parentIdentifier'] ?? ''))) continue;
     if (viewer && !canSeePiece(snapshot, viewer)) continue;
 
-    pieces.push(readPiece(snapshot, shape, numberOf(location['x']), numberOf(location['y']), reading));
+    const piece = readPiece(snapshot, shape, numberOf(location['x']), numberOf(location['y']), reading);
+    if (darkness && piece.shape === ReplayPieceShape.Figure && !seenIn(darkness, piece, table)) continue;
+    pieces.push(piece);
   }
 
   pieces.sort((a, b) => a.z - b.z || a.y - b.y);
@@ -146,7 +167,7 @@ export function buildReplayBoardScene(
     imageIdentifier: String(syncValueOf(table.syncData, 'imageIdentifier') ?? ''),
     backgroundImageIdentifier: String(syncValueOf(table.syncData, 'backgroundImageIdentifier') ?? ''),
     pieces,
-    overlay: viewer && options?.withOverlay !== false ? replayOverlayPlan(snapshots, viewer) : null,
+    overlay: darkness?.plan ?? null,
   };
 }
 
@@ -191,6 +212,11 @@ function readPiece(
     text: '',
     count: 0,
     openCells: [],
+    tiled: false,
+    elevation: 0,
+    view: 3,
+    door: null,
+    sideImageIdentifier: '',
   };
 
   switch (shape) {
@@ -214,12 +240,34 @@ function readPiece(
     }
     case ReplayPieceShape.Coin:
       return { ...piece, imageIdentifier: image(attribute('face') === 'back' ? 'back' : 'front') };
-    case ReplayPieceShape.Terrain:
+    case ReplayPieceShape.Terrain: {
+      const doorStyle = String(attribute('doorStyle') ?? '');
       return {
         ...piece,
         width: Math.max(0.25, numberOf(common('width'), 1)),
         height: Math.max(0.25, numberOf(common('depth'), 1)),
         imageIdentifier: image('top') || image('floor') || image('imageIdentifier'),
+        sideImageIdentifier: image('south') || image('wall'),
+        tiled: booleanOf(attribute('isTiledTexture')),
+        elevation: Math.max(0, numberOf(common('height'), 1)),
+        z: piece.z + numberOf(common('altitude')),
+        view: numberOf(attribute('mode'), 3),
+        door:
+          doorStyle.length > 0 && doorStyle !== 'none'
+            ? {
+                style: doorStyle,
+                open: booleanOf(attribute('isDoorOpen')),
+                mirrored: booleanOf(attribute('doorMirrored')),
+              }
+            : null,
+      };
+    }
+    case ReplayPieceShape.Light:
+      return {
+        ...piece,
+        showsName: false,
+        color: String(attribute('lightColor') ?? ''),
+        isConcealed: !booleanOf(attribute('lightEnabled') ?? true),
       };
     case ReplayPieceShape.Mask:
       return {
@@ -290,6 +338,17 @@ function maskColorOf(snapshot: ReplayObjectSnapshot, reading: PieceReading): str
   const color = replayElementOfNamed(reading.childrenOf, snapshot.identifier, ['common', 'color']);
   const current = color ? String(syncValueOf(color.syncData, 'currentValue') ?? '') : '';
   return current.length > 0 ? current : '#0a0a0a';
+}
+
+/** Whether a figure stands where the viewer could see it through the darkness, judged at its middle. */
+function seenIn(
+  darkness: NonNullable<ReturnType<typeof replayDarknessOf>>,
+  piece: ReplayBoardPiece,
+  table: ReplayObjectSnapshot
+): boolean {
+  const grid = Math.max(1, numberOf(syncValueOf(table.syncData, 'gridSize'), 50));
+  const size = footprintOf(piece, grid);
+  return darkness.sees(piece.x + size.width / 2, piece.y + size.height / 2);
 }
 
 /** Whether a viewer may see a piece kept to the game master or to chosen users. */
@@ -382,6 +441,7 @@ export function collectBoardAssetIds(scene: ReplayBoardScene | null): string[] {
     scene.imageIdentifier,
     scene.backgroundImageIdentifier,
     ...scene.pieces.map((piece) => piece.imageIdentifier),
+    ...scene.pieces.map((piece) => piece.sideImageIdentifier),
   ];
 }
 

@@ -25,6 +25,11 @@ function piece(identifier: string, overrides: Partial<ReplayBoardPiece> = {}): R
     text: '',
     count: 0,
     openCells: [],
+    tiled: false,
+    elevation: 0,
+    view: 3,
+    door: null,
+    sideImageIdentifier: '',
     ...overrides,
   };
 }
@@ -72,9 +77,17 @@ function beat(motions: Partial<ReplayMotion>[], pops: ReplayBoardSegment['pops']
 
 const surface = image(1000, 1000);
 const figure = image(100, 200);
-const assets: ReplayFrameAssets = {
-  imageOf: (identifier) => (identifier === 'table' ? surface : identifier === 'fig' ? figure : null),
+const paving = image(64, 64);
+const bricks = image(64, 64);
+const torch = image(32, 32);
+const pictures: Record<string, ReturnType<typeof image>> = {
+  table: surface,
+  fig: figure,
+  paving,
+  bricks,
+  torch,
 };
+const assets: ReplayFrameAssets = { imageOf: (identifier) => pictures[identifier] ?? null };
 
 function paint(overrides: Partial<ReplayBoardPaint>) {
   const canvas = recorder();
@@ -214,6 +227,51 @@ describe('drawing the board of a replay video', () => {
     const traced = tracedWith({ ...scene([mask]), gridType: 2 });
 
     expect(traced.moves).toBe(5);
+  });
+
+  const wall = (overrides: Partial<ReplayBoardPiece> = {}) =>
+    piece('w', {
+      shape: 'terrain',
+      width: 4,
+      height: 1,
+      elevation: 3,
+      imageIdentifier: 'paving',
+      sideImageIdentifier: 'bricks',
+      showsName: false,
+      ...overrides,
+    });
+
+  it('lifts a tall block and turns its front face to the viewer in the picture of its sides', () => {
+    const drawn = paint({ scene: scene([wall()]) }).images;
+    const top = drawn.find((one) => one.image === paving)!;
+    const front = drawn.find((one) => one.image === bricks)!;
+
+    expect(front).toBeDefined();
+    expect(top.y).toBeLessThan(100);
+    expect(front.y).toBeGreaterThan(top.y);
+  });
+
+  it('lays a block that shows only its floor flat, with no sides', () => {
+    const drawn = paint({ scene: scene([wall({ view: 1 })]) }).images;
+
+    expect(drawn.some((one) => one.image === bricks)).toBe(false);
+    expect(drawn.find((one) => one.image === paving)!.y).toBe(100);
+  });
+
+  it('swings a door that stands open out of the way it barred', () => {
+    const door = (open: boolean) =>
+      wall({ width: 2, height: 0.2, door: { style: 'swing', open, mirrored: false }, imageIdentifier: 'paving' });
+    const at = (open: boolean) => paint({ scene: scene([door(open)]) }).images.find((one) => one.image === paving)!;
+
+    expect(at(true).x).not.toBeCloseTo(at(false).x, 1);
+  });
+
+  it('stands a light in its picture over the table', () => {
+    const drawn = paint({
+      scene: scene([piece('l', { shape: 'light', imageIdentifier: 'torch', color: '#ffaa33' })]),
+    }).images;
+
+    expect(drawn.some((one) => one.image === torch)).toBe(true);
   });
 
   it('frames only what the camera sees, at the scale it sees it', () => {

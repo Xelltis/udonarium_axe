@@ -1,6 +1,13 @@
 import { type DrawableImage, type DrawableImageSource } from '@axe/infrastructure/replay/drawable-image';
 import type { ReplayFrameAssets } from '@axe/infrastructure/replay/replay-canvas';
 
+/**
+ * A picture that ships with the app, named by its own path, as the textures of generated dungeons
+ * are. It can be loaded by that path even when this browser was never told of it, as when a
+ * recording is played back in a later session.
+ */
+const BUNDLED_ASSET = /^(\.\/)?assets\/images\/[\w./-]+\.(png|jpe?g|gif|webp|svg)$/i;
+
 /** How much decoded picture the cache keeps before letting the least recently drawn go, in bytes. */
 export const REPLAY_IMAGE_BUDGET_BYTES = 640 * 1024 * 1024;
 
@@ -15,8 +22,9 @@ interface Entry {
  * Each is scaled down once, with the best resampling the browser has, to no larger than the video
  * can show, so drawing it every frame never resamples a huge picture and memory is not spent on
  * pixels that never reach the screen. When the decoded pictures pass the budget, those drawn least
- * recently are let go and decoded again if they are wanted back. A picture this browser does not
- * hold, or cannot read, is remembered as missing and drawn as absent.
+ * recently are let go and decoded again if they are wanted back. A picture that ships with the app is
+ * loaded by its path when this browser holds no record of it. One it neither holds nor can load is
+ * remembered as missing and drawn as absent.
  */
 export class ReplayImageCache implements ReplayFrameAssets {
   private readonly entries = new Map<string, Entry>();
@@ -108,8 +116,8 @@ export class ReplayImageCache implements ReplayFrameAssets {
 
   private async decode(identifier: string): Promise<DrawableImage | null> {
     const stored = this.storage.get(identifier);
-    if (!stored) return null;
-    const blob = stored.blob ?? (stored.url.length > 0 ? await fetchBlob(stored.url) : null);
+    const url = stored?.url || (BUNDLED_ASSET.test(identifier) ? identifier : '');
+    const blob = stored?.blob ?? (url.length > 0 ? await fetchBlob(url) : null);
     if (!blob || typeof createImageBitmap !== 'function') return null;
 
     const full = await createImageBitmap(blob);

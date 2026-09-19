@@ -10,6 +10,7 @@ import { type ReplayPieceState, replayPieceStateAt, STILL_PIECE } from '@axe/dom
 import type { ReplayCameraFrame } from '@axe/domain/replay/video/replay-video-camera';
 import type { ReplayVideoRect } from '@axe/domain/replay/video/replay-video-layout';
 import type { ReplayBoardSegment, ReplayMotion } from '@axe/domain/replay/video/replay-video-timeline';
+import { calcHexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import {
   hexCellCenter,
   hexCircumradius,
@@ -59,8 +60,20 @@ const LAYER_OF_SHAPE: Readonly<Record<string, number>> = {
   [ReplayPieceShape.Card]: 3,
   [ReplayPieceShape.Coin]: 4,
   [ReplayPieceShape.Die]: 4,
+  [ReplayPieceShape.Light]: 4,
   [ReplayPieceShape.Figure]: 5,
 };
+
+/**
+ * What lies on the ground and is darkened with it: the terrain, masks, notes and cards. Figures,
+ * dice, coins and lights stand above the dark, as the table shows them.
+ */
+const GROUND_SHAPES: ReadonlySet<string> = new Set([
+  ReplayPieceShape.Terrain,
+  ReplayPieceShape.Mask,
+  ReplayPieceShape.Note,
+  ReplayPieceShape.Card,
+]);
 
 interface PlacedPiece {
   piece: ReplayBoardPiece;
@@ -98,21 +111,22 @@ export function paintReplayBoard(ctx: ReplayFrameCanvas, paint: ReplayBoardPaint
   ctx.translate(area.x - camera.x * scale, area.y - camera.y * scale);
   ctx.scale(scale, scale);
   paintTable(ctx, scene, assets, scale, camera);
+
+  const placed = placePieces(paint);
+  const ground = placed.filter((one) => GROUND_SHAPES.has(one.piece.shape));
+  const standing = placed.filter((one) => !GROUND_SHAPES.has(one.piece.shape));
+  for (const one of ground) paintPiece(ctx, one, scene.gridSize, scene.gridType, assets, scale);
   if (scene.overlay) {
-    const width = scene.width * scene.gridSize;
-    const height = scene.height * scene.gridSize;
     paintReplayDarkness(ctx as unknown as DarknessCanvas, scene.overlay, {
       left: 0,
       top: 0,
-      width,
-      height,
+      width: scene.width * scene.gridSize,
+      height: scene.height * scene.gridSize,
       onBoard: (value) => value,
     });
   }
-
-  const placed = placePieces(paint);
-  if (paint.highlight) paintHighlight(ctx, placed, scene.gridSize, paint.highlight);
-  for (const one of placed) paintPiece(ctx, one, scene.gridSize, scene.gridType, assets, scale);
+  if (paint.highlight) paintHighlight(ctx, standing, scene.gridSize, paint.highlight);
+  for (const one of standing) paintPiece(ctx, one, scene.gridSize, scene.gridType, assets, scale);
   ctx.restore();
 
   const labelFont = `700 ${paint.labelSize}px ${paint.fontFamily}`;
@@ -331,7 +345,22 @@ function paintPiece(
       paintCoin(ctx, picture, left, top, size.width, size.height);
       break;
     case ReplayPieceShape.Terrain:
-      paintTerrain(ctx, picture, left, top, size.width, size.height, scale);
+      paintTerrain(
+        ctx,
+        piece,
+        picture,
+        assets.imageOf(piece.sideImageIdentifier),
+        left,
+        top,
+        size.width,
+        size.height,
+        grid,
+        gridType,
+        scale
+      );
+      break;
+    case ReplayPieceShape.Light:
+      paintLight(ctx, piece, picture, grid);
       break;
     case ReplayPieceShape.Mask:
       paintMask(ctx, piece, picture, left, top, size.width, size.height, grid, gridType);
@@ -495,26 +524,260 @@ function paintCoin(
   ctx.restore();
 }
 
+/** How far up the screen a block's top is lifted for each cell it stands tall, as a share of a cell. */
+const LIFT_PER_CELL = 0.16;
+/** The tallest a block is drawn, in cells, so a tower does not cover the room in front of it. */
+const LIFT_MAX_CELLS = 3;
+
+type Point = { x: number; y: number };
+
+/**
+ * A block of terrain seen from a little south of straight above, the way the table's tilted view
+ * shows it: its top lifted by how tall it stands, tiled a cell to a picture where it is tiled as
+ * dungeon walls are, and the faces turned towards the viewer below it in the picture of its sides,
+ * shaded by how squarely they face. On a hex table a block is the patch of hexes the table gives it.
+ * It casts a shadow as long as it is tall. A door standing open is moved out of the way it barred.
+ */
 function paintTerrain(
   ctx: ReplayFrameCanvas,
+  piece: ReplayBoardPiece,
+  top: (CanvasImageSource & { width: number; height: number }) | null,
+  side: (CanvasImageSource & { width: number; height: number }) | null,
+  left: number,
+  upper: number,
+  width: number,
+  height: number,
+  grid: number,
+  gridType: number,
+  scale: number
+): void {
+  if (piece.view === 0) return;
+  ctx.save();
+  openDoor(ctx, piece, left, upper, width, height);
+
+  const outline = outlineOf(piece, left, upper, width, height, grid, gridType);
+  const lift = piece.view === 1 ? 0 : Math.min(LIFT_MAX_CELLS, piece.elevation) * grid * LIFT_PER_CELL;
+
+  ctx.save();
+  if (lift > 0) {
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    ctx.shadowBlur = grid * 0.25;
+    ctx.shadowOffsetX = lift * 0.2;
+    ctx.shadowOffsetY = lift * 0.35;
+  }
+  ctx.fillStyle = '#2d3038';
+  tracePolygon(ctx, outline, 0);
+  ctx.fill();
+  ctx.restore();
+
+  if (lift > 0) paintSides(ctx, outline, lift, side ?? top, piece.tiled ? grid : 0);
+  if (piece.view === 2) {
+    ctx.strokeStyle = 'rgba(20, 22, 28, 0.9)';
+    ctx.lineWidth = grid * 0.08;
+    tracePolygon(ctx, outline, -lift);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  ctx.save();
+  tracePolygon(ctx, outline, -lift);
+  ctx.clip();
+  const bounds = boundsOf(outline);
+  ctx.fillStyle = '#5d6270';
+  ctx.fillRect(bounds.x, bounds.y - lift, bounds.width, bounds.height);
+  if (top) paintSurface(ctx, top, bounds.x, bounds.y - lift, bounds.width, bounds.height, piece.tiled ? grid : 0);
+  ctx.restore();
+
+  ctx.strokeStyle = lift > 0 ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.35)';
+  ctx.lineWidth = Math.max(1 / scale, grid * 0.025);
+  tracePolygon(ctx, outline, -lift);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The outline of a block on the table, round its middle: its rectangle, or on a hex table its patch of hexes. */
+function outlineOf(
+  piece: ReplayBoardPiece,
+  left: number,
+  upper: number,
+  width: number,
+  height: number,
+  grid: number,
+  gridType: number
+): Point[] {
+  const cells = Math.min(piece.width, piece.height);
+  if (isHexGrid(gridType) && cells >= 1) {
+    return calcHexFlowerParams(cells, grid, isFlatTopGrid(gridType)).outline.map((point) => ({
+      x: point.x,
+      y: point.y,
+    }));
+  }
+  return [
+    { x: left, y: upper },
+    { x: left + width, y: upper },
+    { x: left + width, y: upper + height },
+    { x: left, y: upper + height },
+  ];
+}
+
+/** The faces of a block that turn towards the viewer, each standing on an edge of its outline up to its lifted top. */
+function paintSides(
+  ctx: ReplayFrameCanvas,
+  outline: readonly Point[],
+  lift: number,
   picture: (CanvasImageSource & { width: number; height: number }) | null,
+  cell: number
+): void {
+  const turn = signedArea(outline) >= 0 ? 1 : -1;
+  for (let index = 0; index < outline.length; index += 1) {
+    const a = outline[index];
+    const b = outline[(index + 1) % outline.length];
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length < 0.001) continue;
+    const southward = (-(b.x - a.x) / length) * turn;
+    if (southward <= 0.05) continue;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(b.x, b.y - lift);
+    ctx.lineTo(a.x, a.y - lift);
+    ctx.closePath();
+    ctx.clip();
+    const x = Math.min(a.x, b.x);
+    const y = Math.min(a.y, b.y) - lift;
+    const w = Math.abs(b.x - a.x) || 1;
+    const h = Math.abs(b.y - a.y) + lift;
+    ctx.fillStyle = '#4a4d57';
+    ctx.fillRect(x, y, w, h);
+    if (picture) paintSurface(ctx, picture, x, y, w, h, cell);
+    ctx.fillStyle = `rgba(0, 0, 0, ${(0.5 - 0.3 * southward).toFixed(3)})`;
+    ctx.fillRect(x, y, w, h);
+    ctx.restore();
+  }
+}
+
+function tracePolygon(ctx: ReplayFrameCanvas, points: readonly Point[], shiftY: number): void {
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y + shiftY);
+    else ctx.lineTo(point.x, point.y + shiftY);
+  });
+  ctx.closePath();
+}
+
+function boundsOf(points: readonly Point[]): { x: number; y: number; width: number; height: number } {
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+}
+
+/** Twice the area an outline encloses, positive when it runs clockwise on screen. */
+function signedArea(points: readonly Point[]): number {
+  let area = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index];
+    const b = points[(index + 1) % points.length];
+    area += a.x * b.y - b.x * a.y;
+  }
+  return area;
+}
+
+/** Moves an open door out of the way it barred, the way the table moves it. */
+function openDoor(
+  ctx: ReplayFrameCanvas,
+  piece: ReplayBoardPiece,
+  left: number,
+  top: number,
+  width: number,
+  height: number
+): void {
+  const door = piece.door;
+  if (!door || !door.open) return;
+  const alongY = width < height;
+  const mirrored = door.mirrored ? -1 : 1;
+  switch (door.style) {
+    case 'swing': {
+      const hingeX = alongY ? 0 : door.mirrored ? left + width : left;
+      const hingeY = alongY ? (door.mirrored ? top + height : top) : 0;
+      ctx.translate(hingeX, hingeY);
+      ctx.rotate(((alongY ? -95 : 95) * mirrored * Math.PI) / 180);
+      ctx.translate(-hingeX, -hingeY);
+      return;
+    }
+    case 'slide':
+      if (alongY) ctx.translate(0, height * mirrored);
+      else ctx.translate(width * mirrored, 0);
+      return;
+    default:
+      ctx.globalAlpha *= 0.25;
+  }
+}
+
+/**
+ * A picture laid over a face, stretched to it or, given a cell size, repeated a cell to a tile from
+ * the face's top left corner.
+ */
+function paintSurface(
+  ctx: ReplayFrameCanvas,
+  picture: CanvasImageSource & { width: number; height: number },
   left: number,
   top: number,
   width: number,
   height: number,
-  scale: number
+  cell: number
 ): void {
-  ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-  ctx.shadowBlur = 16 / scale;
-  ctx.shadowOffsetY = 6 / scale;
-  ctx.fillStyle = '#5d6270';
+  const pattern = cell > 0 && typeof ctx.createPattern === 'function' ? ctx.createPattern(picture, 'repeat') : null;
+  if (!pattern || typeof DOMMatrix === 'undefined') {
+    ctx.drawImage(picture, left, top, width, height);
+    return;
+  }
+  pattern.setTransform(new DOMMatrix().translate(left, top).scale(cell / picture.width, cell / picture.height));
+  ctx.fillStyle = pattern;
   ctx.fillRect(left, top, width, height);
-  ctx.restore();
-  if (picture) ctx.drawImage(picture, left, top, width, height);
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-  ctx.lineWidth = 2 / scale;
-  ctx.strokeRect(left, top, width, height);
+}
+
+/** A light standing on the table: its picture over a glow of its colour, or a small flame where it has no picture. */
+function paintLight(
+  ctx: ReplayFrameCanvas,
+  piece: ReplayBoardPiece,
+  picture: (CanvasImageSource & { width: number; height: number }) | null,
+  grid: number
+): void {
+  const size = grid * piece.size;
+  if (!piece.isConcealed) {
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 0.9);
+    glow.addColorStop(0, withAlpha(piece.color || '#ffcc66', 0.55));
+    glow.addColorStop(1, withAlpha(piece.color || '#ffcc66', 0));
+    ctx.fillStyle = glow;
+    ctx.fillRect(-size, -size, size * 2, size * 2);
+  }
+  if (picture && picture.width > 0) {
+    const drawn = Math.min(size / picture.width, size / picture.height);
+    ctx.drawImage(
+      picture,
+      (-picture.width * drawn) / 2,
+      (-picture.height * drawn) / 2,
+      picture.width * drawn,
+      picture.height * drawn
+    );
+    return;
+  }
+  ctx.fillStyle = piece.color || '#ffcc66';
+  ctx.beginPath();
+  ctx.arc(0, 0, size * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** A colour written as `#rrggbb` with an opacity; anything else is returned as it was. */
+function withAlpha(color: string, alpha: number): string {
+  const match = /^#([0-9a-f]{6})/i.exec(color.trim());
+  if (!match) return color;
+  const value = parseInt(match[1], 16);
+  return `rgba(${(value >> 16) & 0xff}, ${(value >> 8) & 0xff}, ${value & 0xff}, ${alpha})`;
 }
 
 /**

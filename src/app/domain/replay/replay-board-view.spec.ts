@@ -10,7 +10,8 @@ import { buildReplayBoardScene, collectBoardAssetIds, framingOf } from '@axe/dom
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { LightSource } from '@axe/domain/tabletop/light-source';
+import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 
 function table(identifier: string, overrides: Record<string, unknown> = {}): ReplayObjectSnapshot {
@@ -86,6 +87,11 @@ describe('buildReplayBoardScene()', () => {
         text: '',
         count: 0,
         openCells: [],
+        tiled: false,
+        elevation: 0,
+        view: 3,
+        door: null,
+        sideImageIdentifier: '',
       },
     ]);
   });
@@ -132,6 +138,36 @@ describe('buildReplayBoardScene()', () => {
   });
 });
 
+describe('which table a piece is on', () => {
+  it('leaves the terrain of another table off the one in view', () => {
+    const wall = {
+      ...piece('w1', 'terrain'),
+      syncData: { ...piece('w1', 'terrain').syncData, parentIdentifier: 't1' },
+    };
+    const scene = buildReplayBoardScene([table('t1'), table('t2'), selecter('t2'), wall, piece('c1', 'character')])!;
+
+    expect(scene.pieces.map((one) => one.identifier)).toEqual(['c1']);
+  });
+});
+
+describe('the dark', () => {
+  const dark = [table('t1', { darknessEnabled: true, darknessLevel: 1 }), selecter('t1'), piece('c1', 'character')];
+
+  it('hides a figure a guest could not see in the dark', () => {
+    expect(buildReplayBoardScene(dark, { userId: '', role: PeerRole.Guest })!.pieces).toEqual([]);
+  });
+
+  it('shows it to the game master', () => {
+    expect(buildReplayBoardScene(dark, { userId: 'gm', role: PeerRole.GameMaster })!.pieces).toHaveLength(1);
+  });
+
+  it('shows every figure where the table is not dark', () => {
+    expect(
+      buildReplayBoardScene([table('t1'), piece('c1', 'character')], { userId: '', role: PeerRole.Guest })!.pieces
+    ).toHaveLength(1);
+  });
+});
+
 describe('framingOf()', () => {
   it('crops about the pieces with a margin', () => {
     const scene = buildReplayBoardScene([
@@ -166,7 +202,7 @@ describe('collectBoardAssetIds()', () => {
       data('d5', 'd4', 'imageIdentifier', 'img-1'),
     ]);
 
-    expect(collectBoardAssetIds(scene)).toEqual(['top-t1', 'bg-1', 'img-1']);
+    expect(collectBoardAssetIds(scene)).toEqual(['top-t1', 'bg-1', 'img-1', '']);
   });
 
   it('returns nothing without a board', () => {
@@ -314,6 +350,36 @@ describe('built from real pieces', () => {
       const note = onTable(TextNote.create('memo', 'the door is locked', 16, 3, 2));
 
       expect(pieceOf(note)).toMatchObject({ shape: 'note', title: 'memo', text: 'the door is locked', width: 3 });
+    });
+
+    it('reads a dungeon wall: its picture laid a cell to a tile, how tall it stands, which faces show', () => {
+      const wall = onTable(Terrain.create('wall', 4, 1, 3, 'bricks', 'cobbles'));
+      wall.isTiledTexture = true;
+      wall.mode = TerrainViewState.ALL;
+
+      expect(pieceOf(wall)).toMatchObject({
+        imageIdentifier: 'cobbles',
+        tiled: true,
+        elevation: 3,
+        view: 3,
+        door: null,
+      });
+    });
+
+    it('reads a door, how it opens and whether it stands open', () => {
+      const door = onTable(Terrain.create('door', 1, 0.2, 3, 'door', 'door'));
+      door.doorStyle = DoorStyle.SWING;
+      door.isDoorOpen = true;
+
+      expect(pieceOf(door).door).toEqual({ style: 'swing', open: true, mirrored: false });
+    });
+
+    it('reads a light, its picture and its colour', () => {
+      const light = onTable(LightSource.create('torch'));
+      light.imageDataElement!.getFirstElementByName('imageIdentifier')!.value = 'torch-img';
+      light.lightColor = '#ffaa33';
+
+      expect(pieceOf(light)).toMatchObject({ shape: 'light', imageIdentifier: 'torch-img', color: '#ffaa33' });
     });
 
     it('leaves a piece kept to the game master off the board a guest sees', () => {

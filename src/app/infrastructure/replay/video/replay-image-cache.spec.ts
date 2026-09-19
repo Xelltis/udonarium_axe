@@ -78,6 +78,20 @@ describe('ReplayImageCache', () => {
     expect(cache.imageOf('gone')).toBeNull();
   });
 
+  it('loads a picture that ships with the app by its path when this browser holds no record of it', async () => {
+    const fetched: string[] = [];
+    borrowed.lend('fetch', async (url: string) => {
+      fetched.push(url);
+      sizes.set('shipped', [64, 64]);
+      return { ok: true, blob: async () => new Blob(['shipped']) };
+    });
+    const cache = new ReplayImageCache(storage, 2048);
+    await cache.ensure(['assets/images/walls/wall_ashlar.webp', 'not-a-path']);
+
+    expect(fetched).toEqual(['assets/images/walls/wall_ashlar.webp']);
+    expect(cache.imageOf('assets/images/walls/wall_ashlar.webp')).toMatchObject({ width: 64 });
+  });
+
   it('lets the picture drawn longest ago go once past its budget', async () => {
     sizes.set('a', [10, 10]);
     sizes.set('b', [10, 10]);

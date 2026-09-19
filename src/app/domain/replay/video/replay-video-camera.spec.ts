@@ -22,6 +22,11 @@ function piece(identifier: string, x: number, y: number): ReplayBoardPiece {
     text: '',
     count: 0,
     openCells: [],
+    tiled: false,
+    elevation: 0,
+    view: 3,
+    door: null,
+    sideImageIdentifier: '',
   };
 }
 
