@@ -1,5 +1,6 @@
 import {
   encodeReplayVideoInWorker,
+  REPLAY_WORKER_CANCEL_GRACE_MS,
   type ReplayVideoWorkerHost,
   useReplayVideoWorkerFactory,
 } from '@axe/application/replay/replay-video-worker-client';
@@ -168,6 +169,25 @@ describe('making a replay video in a worker', () => {
 
     expect(await made).toBeNull();
     expect(worker.terminated).toBe(true);
+  });
+
+  it('lets go of a worker that does not stop soon after the export is cancelled', async () => {
+    vi.useFakeTimers();
+    let cancelled = false;
+    const worker = new FakeWorker();
+    using(worker);
+
+    const made = encodeReplayVideoInWorker(job, host({ isCancelled: () => cancelled }));
+    cancelled = true;
+    await vi.advanceTimersByTimeAsync(500);
+    expect(worker.sent('cancel')).toHaveLength(1);
+    expect(worker.terminated).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(REPLAY_WORKER_CANCEL_GRACE_MS);
+
+    expect(await made).toBeNull();
+    expect(worker.terminated).toBe(true);
+    expect(worker.sent('cancel')).toHaveLength(1);
   });
 
   it('leaves the video to the page when there is no worker', async () => {

@@ -21,6 +21,11 @@ export interface ReplayVideoWorkerHost {
 export type ReplayVideoWorkerOutcome = EncodedVideo | null | 'unavailable';
 
 const CANCEL_CHECK_MS = 200;
+/**
+ * How long a worker is given to stop once told to, in milliseconds. One held up waiting on a
+ * picture, a font or the sound would never look at the word, so it is let go instead.
+ */
+export const REPLAY_WORKER_CANCEL_GRACE_MS = 3_000;
 
 let makeWorker: (() => Worker | null) | null = null;
 
@@ -40,7 +45,8 @@ function startWorker(): Worker | null {
 
 /**
  * Has a worker draw and encode a video, answering its asks for pictures and sound from the page
- * and passing its progress on. The worker is let go when it is done. Answers `unavailable` when a
+ * and passing its progress on. The worker is let go when it is done, or when it has not stopped
+ * soon after the export was cancelled. Answers `unavailable` when a
  * worker cannot be started, cannot be handed the video, or fails before drawing a frame, so the
  * page can make the video itself, and null when the page cannot give the worker a picture or the
  * sound it asks for, which the page would fail at as well.
@@ -62,13 +68,17 @@ export function encodeReplayVideoInWorker(
   return new Promise((resolve) => {
     let drawing = false;
     let settled = false;
+    let grace: ReturnType<typeof setTimeout> | null = null;
     const watch = setInterval(() => {
-      if (host.isCancelled()) running.postMessage({ kind: 'cancel' } satisfies ReplayVideoWorkerRequest);
+      if (!host.isCancelled() || grace !== null) return;
+      running.postMessage({ kind: 'cancel' } satisfies ReplayVideoWorkerRequest);
+      grace = setTimeout(() => finish(null), REPLAY_WORKER_CANCEL_GRACE_MS);
     }, CANCEL_CHECK_MS);
     const finish = (outcome: ReplayVideoWorkerOutcome) => {
       if (settled) return;
       settled = true;
       clearInterval(watch);
+      if (grace !== null) clearTimeout(grace);
       running.terminate();
       resolve(outcome);
     };
