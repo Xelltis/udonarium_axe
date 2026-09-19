@@ -86,10 +86,12 @@ export class SaveDataService {
   }
 
   /**
-   * Archive files for the wanted pictures and audio: each loaded picture as a file, with the
-   * picture and audio tag lists.
+   * Archive files for the wanted pictures and audio: each loaded picture and each sound held here
+   * as a file, with the picture and audio tag lists.
    *
-   * Pictures still loading are left out, as is hidden audio.
+   * Pictures still loading are left out, as is hidden audio and a sound whose bytes this browser
+   * does not hold, such as one only linked to. A sound is named with an extension that reads back
+   * as a sound: the one it was added under where that is one, or else one for its kind.
    */
   buildAssetFiles(wanted: { images: ReadonlySet<string>; audios: ReadonlySet<string> }): File[] {
     const files: File[] = [];
@@ -103,6 +105,10 @@ export class SaveDataService {
     files.push(new File([this.convertToXml(ImageTagList.create(images))], 'imagetag.xml', { type: 'text/plain' }));
 
     const audios = this.audioStorage.audios.filter((audio) => !audio.isHidden && wanted.audios.has(audio.identifier));
+    for (const audio of audios) {
+      const file = createAudioArchiveFile(audio);
+      if (file) files.push(file);
+    }
     files.push(new File([this.convertToXml(AudioTagList.create(audios))], 'audiotag.xml', { type: 'text/plain' }));
     return files;
   }
@@ -435,4 +441,29 @@ export class SaveDataService {
 
     return fileName + `_${year}-${month}-${day}_${hours}${minutes}`;
   }
+}
+
+const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/wav': 'wav',
+  'audio/wave': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/aac': 'm4a',
+  'audio/mp4': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/ogg': 'ogg',
+};
+
+/**
+ * A sound as a file of its own, named by its identifier with an extension that is read back as a
+ * sound. Null when its bytes are not held here or its kind has no such extension.
+ */
+function createAudioArchiveFile(audio: AudioFile): File | null {
+  const blob = audio.blob;
+  if (!blob) return null;
+  const named = audio.name.includes('.') ? audio.name.slice(audio.name.lastIndexOf('.') + 1).toLowerCase() : '';
+  const extension = MimeType.type(`sound.${named}`).startsWith('audio/') ? named : AUDIO_EXTENSION_OF_TYPE[blob.type];
+  if (!extension) return null;
+  return new File([blob], `${audio.identifier}.${extension}`, { type: MimeType.type(`sound.${extension}`) });
 }
