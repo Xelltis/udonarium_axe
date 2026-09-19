@@ -19,16 +19,21 @@ export function visibilityOfDisclosure(mode: unknown, userIds: unknown): ReplayV
   return PUBLIC_VISIBILITY;
 }
 
+/** Who may see an object, read from its synced state: the disclosure among its attributes, or none. */
+export function visibilityOfSyncData(syncData: Readonly<Record<string, unknown>>): ReplayVisibility {
+  const attributes = syncData['attributes'];
+  const source = (typeof attributes === 'object' && attributes !== null ? attributes : syncData) as Record<
+    string,
+    unknown
+  >;
+  return visibilityOfDisclosure(source['disclosureMode'], source['disclosureUserIds']);
+}
+
 /** The pieces on a board that were kept from somebody, with who could see each. Public pieces are left out. */
 export function hiddenPiecesIn(snapshots: readonly ReplayObjectSnapshot[]): Map<string, ReplayVisibility> {
   const hidden = new Map<string, ReplayVisibility>();
   for (const snapshot of snapshots) {
-    const attributes = snapshot.syncData['attributes'];
-    const source = (typeof attributes === 'object' && attributes !== null ? attributes : snapshot.syncData) as Record<
-      string,
-      unknown
-    >;
-    const visibility = visibilityOfDisclosure(source['disclosureMode'], source['disclosureUserIds']);
+    const visibility = visibilityOfSyncData(snapshot.syncData);
     if (visibility.kind !== 'public') hidden.set(snapshot.identifier, visibility);
   }
   return hidden;

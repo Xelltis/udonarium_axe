@@ -383,12 +383,37 @@ describe('ReplayRecorderService', () => {
       const { piece } = hiddenPieceWithPart();
       await service.start();
       vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
-      sendUpdate(piece.identifier, 'character', { location: { name: 'table', x: 300, y: 0 } });
+      const synced = piece.toContext().syncData as { attributes: Record<string, unknown> };
+      sendUpdate(piece.identifier, 'character', { ...synced.attributes, location: { name: 'table', x: 300, y: 0 } });
 
       objectStore.remove(piece);
       localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
 
       const removal = service.recentEvents().find((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removal?.visibility).toEqual({ kind: 'gm-only' });
+    });
+
+    it('is still hidden when it is taken away untouched since recording began', async () => {
+      const { piece } = hiddenPieceWithPart();
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      objectStore.remove(piece);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: piece.identifier, aliasName: 'character' }, 'peer-a');
+
+      const removal = service.recentEvents().find((event) => event.kind === ReplayEventKind.ObjectRemove);
+      expect(removal?.visibility).toEqual({ kind: 'gm-only' });
+    });
+
+    it('has one of its parts taken away on its own kept hidden as well', async () => {
+      const { part } = hiddenPieceWithPart();
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      objectStore.remove(part);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: part.identifier, aliasName: 'data' }, 'peer-a');
+
+      const removal = service.recentEvents().find((event) => event.targetId === part.identifier);
       expect(removal?.visibility).toEqual({ kind: 'gm-only' });
     });
   });

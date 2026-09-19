@@ -39,7 +39,7 @@ import {
   shouldDiffObjectChange,
 } from '@axe/domain/replay/replay-interpreter';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
-import { visibilityOfDisclosure } from '@axe/domain/replay/replay-visibility';
+import { visibilityOfDisclosure, visibilityOfSyncData } from '@axe/domain/replay/replay-visibility';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const REPLAY_CHUNK_EVENT_LIMIT = 500;
@@ -295,8 +295,9 @@ export class ReplayRecorderService {
     }
     if (eventName === 'DELETE_GAME_OBJECT') {
       const context = data as { identifier: string; aliasName: string };
-      this.shadows.delete(context.identifier);
       const owner = this.partOwners.get(context.identifier);
+      this.noteRemovedVisibility(context.identifier, owner);
+      this.shadows.delete(context.identifier);
       if (owner !== undefined) {
         this.partOwners.delete(context.identifier);
         if (this.foldPartRemoval(owner, context.identifier)) return;
@@ -402,6 +403,20 @@ export class ReplayRecorderService {
     this.partOwners.set(identifier, owner?.identifier ?? '');
     draft.detail[REPLAY_PART_FLAG] = true;
     return true;
+  }
+
+  /**
+   * Keeps who could see an object being taken away, before its last synced state is let go.
+   *
+   * The room has already dropped it, so its removal is judged by what is remembered here: a piece
+   * by its own disclosure, a part by its piece's. A piece hidden from the start and never touched
+   * since would otherwise be told to everyone as it leaves.
+   */
+  private noteRemovedVisibility(identifier: string, owner: string | undefined): void {
+    const holder = owner || identifier;
+    const shadow = this.shadows.get(holder);
+    const visibility = shadow ? visibilityOfSyncData(shadow) : this.lastVisibility.get(holder);
+    if (visibility) this.lastVisibility.set(identifier, visibility);
   }
 
   /**
