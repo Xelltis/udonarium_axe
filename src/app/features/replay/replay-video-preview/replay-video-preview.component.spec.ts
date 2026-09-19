@@ -52,6 +52,8 @@ describe('ReplayVideoPreviewComponent', () => {
   let produce: ReturnType<typeof vi.fn>;
   let made: FakeProduction[];
   let events: WritableSignal<readonly ReplayEvent[]>;
+  let cursor: WritableSignal<number>;
+  let currentEvent: WritableSignal<ReplayEvent | null>;
 
   beforeEach(async () => {
     vi.useFakeTimers();
@@ -59,6 +61,8 @@ describe('ReplayVideoPreviewComponent', () => {
     borrowed.lendOn(HTMLCanvasElement.prototype, 'getContext', () => canvas.ctx);
     made = [];
     events = signal<readonly ReplayEvent[]>([say(1, 'やあ'), say(2, 'どうも')]);
+    cursor = signal(0);
+    currentEvent = signal<ReplayEvent | null>(null);
     produce = vi.fn(async () => {
       const production = fakeProduction();
       made.push(production);
@@ -76,7 +80,8 @@ describe('ReplayVideoPreviewComponent', () => {
             recordingId: signal<number | null>(3).asReadonly(),
             events: events.asReadonly(),
             manifest: signal({ roomName: '第一夜', startedAt: 0 }).asReadonly(),
-            currentEvent: signal<ReplayEvent | null>(null).asReadonly(),
+            cursor: cursor.asReadonly(),
+            currentEvent: currentEvent.asReadonly(),
           },
         },
         {
@@ -129,11 +134,25 @@ describe('ReplayVideoPreviewComponent', () => {
 
   it('goes to the row chosen in the list', async () => {
     await settle();
-    TestBed.inject(ReplayFocusService).seq.set(2);
+    TestBed.inject(ReplayFocusService).choose(2);
     fixture.detectChanges();
     await settle(50);
 
     expect(made[0].paint.mock.calls.at(-1)?.[1]).toBe(2000);
+  });
+
+  it('follows the playback cursor again once it moves on from where a row was chosen', async () => {
+    await settle();
+    TestBed.inject(ReplayFocusService).choose(2);
+    fixture.detectChanges();
+    await settle(50);
+
+    cursor.set(1);
+    currentEvent.set(say(1, 'やあ'));
+    fixture.detectChanges();
+    await settle(50);
+
+    expect(made[0].paint.mock.calls.at(-1)?.[1]).toBe(1000);
   });
 
   it('plays on from where it is', async () => {

@@ -5,6 +5,7 @@ import {
   ElementRef,
   inject,
   input,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -84,6 +85,9 @@ export class ReplayEntryListComponent {
 
   readonly editing = input(false);
 
+  /** Changes whenever editing starts or ends or another recording opens, when whatever was chosen means nothing any more. */
+  private readonly session = computed(() => [this.editing(), this.playback.recordingId()]);
+
   protected readonly cursor = this.playback.cursor;
   protected readonly isStaging = this.staging.isStaging;
   protected readonly scopes = [ReplayLogScope.All, ReplayLogScope.Chat, ReplayLogScope.Board];
@@ -91,11 +95,20 @@ export class ReplayEntryListComponent {
 
   protected readonly filter = signal<ReplayLogFilter>(DEFAULT_REPLAY_LOG_FILTER);
   /** The rows chosen for the next edit, by sequence number. */
-  protected readonly chosen = signal<ReadonlySet<number>>(new Set());
-  private anchor: number | null = null;
+  protected readonly chosen = linkedSignal<unknown, ReadonlySet<number>>({
+    source: this.session,
+    computation: () => new Set(),
+  });
+  private readonly anchor = linkedSignal<unknown, number | null>({ source: this.session, computation: () => null });
   /** The folded runs of board events opened, by the sequence number of their first event. */
-  private readonly openGroups = signal<ReadonlySet<number>>(new Set());
-  protected readonly editingSeq = signal<number | null>(null);
+  private readonly openGroups = linkedSignal<unknown, ReadonlySet<number>>({
+    source: this.session,
+    computation: () => new Set(),
+  });
+  protected readonly editingSeq = linkedSignal<unknown, number | null>({
+    source: this.session,
+    computation: () => null,
+  });
   protected readonly rowDrag = new RowReorder<number>();
 
   protected readonly insertKind = signal<ReplayEventKind>(ReplayEventKind.ChatMessage);
@@ -263,17 +276,17 @@ export class ReplayEntryListComponent {
    * recording from there.
    */
   protected async press(row: ReplayEntryRow, event: MouseEvent): Promise<void> {
-    this.focus.seq.set(row.seq);
     if (!this.editing()) {
       await this.playback.seekTo(row.index);
       return;
     }
-    const picked = pickReplayRows(this.chosen(), this.anchor, this.shownRows(), row.seq, {
+    this.focus.choose(row.seq);
+    const picked = pickReplayRows(this.chosen(), this.anchor(), this.shownRows(), row.seq, {
       toggle: event.ctrlKey || event.metaKey,
       range: event.shiftKey,
     });
     this.chosen.set(picked.chosen);
-    this.anchor = picked.anchor;
+    this.anchor.set(picked.anchor);
   }
 
   /** Opens a folded run of board events, or folds it again. */
@@ -320,7 +333,7 @@ export class ReplayEntryListComponent {
     event.stopPropagation();
     if (!this.isChosen(row)) {
       this.chosen.set(new Set([row.seq]));
-      this.anchor = row.seq;
+      this.anchor.set(row.seq);
     }
     const only = this.onlyChosenRow();
     const actions = buildReplayEntryContextMenu(
@@ -347,7 +360,7 @@ export class ReplayEntryListComponent {
   private removeChosen(): void {
     this.editor.removeMany(this.chosen());
     this.chosen.set(new Set());
-    this.anchor = null;
+    this.anchor.set(null);
   }
 
   /** Moves the chosen rows past the next row on show, or past a folded run as a whole. */
@@ -437,7 +450,7 @@ export class ReplayEntryListComponent {
     const added = this.editor.edited()[Math.max(0, Math.min(index, this.editor.edited().length - 1))];
     if (added && this.editor.isInserted(added.seq)) {
       this.chosen.set(new Set([added.seq]));
-      this.anchor = added.seq;
+      this.anchor.set(added.seq);
     }
   }
 

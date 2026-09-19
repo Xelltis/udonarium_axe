@@ -23,6 +23,13 @@ function event(seq: number, text: string): ReplayEvent {
 
 const events: readonly ReplayEvent[] = [event(1, 'ひとつめ'), event(2, 'ふたつめ'), event(3, 'みっつめ')];
 
+/** The recording open in the replay, shared by every fake playback so a spec can open another. */
+let recordingId = signal<number | null>(1);
+
+beforeEach(() => {
+  recordingId = signal<number | null>(1);
+});
+
 function dragEvent(name: string, clientY = 0): Event {
   const fired = new Event(name, { bubbles: true, cancelable: true });
   Object.defineProperty(fired, 'clientY', { value: clientY });
@@ -67,6 +74,7 @@ describe('rearranging the entries', () => {
           provide: ReplayPlaybackService,
           useValue: {
             events: signal(events).asReadonly(),
+            recordingId: recordingId.asReadonly(),
             cursor: signal(0).asReadonly(),
             manifest: signal(null).asReadonly(),
             cast: signal([]).asReadonly(),
@@ -79,6 +87,7 @@ describe('rearranging the entries', () => {
           provide: ReplayEditorService,
           useValue: {
             edited: signal(events).asReadonly(),
+            isEditing: signal(true).asReadonly(),
             isInserted: () => false,
             insert: vi.fn(),
             move,
@@ -207,6 +216,7 @@ describe('a long recording in the list', () => {
           provide: ReplayPlaybackService,
           useValue: {
             events: signal(many).asReadonly(),
+            recordingId: recordingId.asReadonly(),
             cursor: signal(0).asReadonly(),
             manifest: signal(null).asReadonly(),
             cast: signal([]).asReadonly(),
@@ -214,7 +224,14 @@ describe('a long recording in the list', () => {
             seekTo: vi.fn().mockResolvedValue(undefined),
           },
         },
-        { provide: ReplayEditorService, useValue: { edited: signal(many).asReadonly(), isInserted: () => false } },
+        {
+          provide: ReplayEditorService,
+          useValue: {
+            edited: signal(many).asReadonly(),
+            isEditing: signal(false).asReadonly(),
+            isInserted: () => false,
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -282,6 +299,7 @@ describe('editing the list by choosing rows', () => {
           provide: ReplayPlaybackService,
           useValue: {
             events: signal(story).asReadonly(),
+            recordingId: recordingId.asReadonly(),
             cursor: signal(0).asReadonly(),
             manifest: signal(null).asReadonly(),
             cast: signal([]).asReadonly(),
@@ -291,7 +309,13 @@ describe('editing the list by choosing rows', () => {
         },
         {
           provide: ReplayEditorService,
-          useValue: { edited: signal(story).asReadonly(), isInserted: () => false, removeMany, stepMany },
+          useValue: {
+            edited: signal(story).asReadonly(),
+            isEditing: signal(true).asReadonly(),
+            isInserted: () => false,
+            removeMany,
+            stepMany,
+          },
         },
       ],
     }).compileComponents();
@@ -370,6 +394,27 @@ describe('editing the list by choosing rows', () => {
     expect(story.filter(isStop).map((e) => e.seq)).toEqual([1, 2, 4, 5]);
   });
 
+  it('forgets the rows chosen once editing ends, so they are neither shown nor removed later', () => {
+    press(rowElements()[0]);
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+
+    key({ key: 'Delete' });
+
+    expect(rowElements().every((row) => row.getAttribute('aria-selected') === 'false')).toBe(true);
+    expect(removeMany).not.toHaveBeenCalled();
+  });
+
+  it('forgets the rows chosen once another recording opens', () => {
+    press(rowElements()[0]);
+    recordingId.set(2);
+    fixture.detectChanges();
+
+    expect(rowElements().every((row) => row.getAttribute('aria-selected') === 'false')).toBe(true);
+  });
+
   it('lets the choice go on Escape', () => {
     press(rowElements()[0]);
 
@@ -405,6 +450,7 @@ describe('writing entries one after another', () => {
           provide: ReplayPlaybackService,
           useValue: {
             events: signal(events).asReadonly(),
+            recordingId: recordingId.asReadonly(),
             cursor: signal(0).asReadonly(),
             manifest: signal(null).asReadonly(),
             cast: signal([]).asReadonly(),
@@ -416,6 +462,7 @@ describe('writing entries one after another', () => {
           provide: ReplayEditorService,
           useValue: {
             edited: edited.asReadonly(),
+            isEditing: signal(true).asReadonly(),
             isInserted: (seq: number) => inserted.has(seq),
             insert: (index: number, draft: { text: string }) => {
               const entry = event(nextSeq++, draft.text);
