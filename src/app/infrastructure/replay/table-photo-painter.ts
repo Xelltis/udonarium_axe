@@ -5,7 +5,7 @@ import {
   type ReplayFrameAssets,
   type ReplayFrameCanvas,
   roundedRectPath,
-} from '@axe/infrastructure/replay/replay-frame-painter';
+} from '@axe/infrastructure/replay/replay-canvas';
 
 export interface TablePhotoStyle {
   backdrop: string;
