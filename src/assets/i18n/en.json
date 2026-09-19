@@ -124,7 +124,23 @@
       "wall_neon": "Neon wall",
       "wall_corrugated": "Corrugated iron",
       "wall_facade": "Office facade",
-      "door_steel": "Steel door"
+      "door_steel": "Steel door",
+      "felt": "Card table felt",
+      "warehouse_floor": "Warehouse floor",
+      "sf_road": "Metal road",
+      "sf_walkway": "Lit walkway",
+      "sf_rooftop": "Future rooftop",
+      "tar_roof": "Tar roof",
+      "wall_facade_concrete": "Concrete office facade",
+      "wall_sf_glass": "Light-banded black glass",
+      "wall_sf_panel": "Glowing white panels",
+      "wall_brick_tenement": "Brick tenement",
+      "wall_brownstone": "Brownstone",
+      "wall_warehouse": "Warehouse cladding",
+      "container_red": "Container (red)",
+      "container_blue": "Container (blue)",
+      "container_green": "Container (green)",
+      "door_shutter": "Roller shutter"
     },
     "reorder": {
       "toTop": "Move to the top",
@@ -1660,7 +1676,9 @@
         "light_candle": "Candle",
         "light_chandelier": "Chandelier",
         "light_neon": "Neon sign",
-        "light_streetlamp": "Street lamp"
+        "light_streetlamp": "Street lamp",
+        "light_fluorescent": "Fluorescent light",
+        "light_neon_pole": "Neon light pole"
       }
     },
     "vision": {

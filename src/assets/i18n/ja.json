@@ -124,7 +124,23 @@
       "wall_neon": "ネオン管の壁",
       "wall_corrugated": "トタン",
       "wall_facade": "ビルの外壁",
-      "door_steel": "鉄扉"
+      "door_steel": "鉄扉",
+      "felt": "ラシャ",
+      "warehouse_floor": "倉庫の床",
+      "sf_road": "金属舗装の道路",
+      "sf_walkway": "光る歩道",
+      "sf_rooftop": "未来的な屋上",
+      "tar_roof": "タール屋根",
+      "wall_facade_concrete": "コンクリートのビル外壁",
+      "wall_sf_glass": "光の帯が走る黒ガラス",
+      "wall_sf_panel": "光る継ぎ目の白パネル",
+      "wall_brick_tenement": "レンガの長屋",
+      "wall_brownstone": "ブラウンストーン",
+      "wall_warehouse": "倉庫の鋼板壁",
+      "container_red": "コンテナ（赤）",
+      "container_blue": "コンテナ（青）",
+      "container_green": "コンテナ（緑）",
+      "door_shutter": "シャッター"
     },
     "reorder": {
       "toTop": "いちばん上へ",
@@ -1660,7 +1676,9 @@
         "light_candle": "ろうそく",
         "light_chandelier": "シャンデリア",
         "light_neon": "ネオンサイン",
-        "light_streetlamp": "街灯"
+        "light_streetlamp": "街灯",
+        "light_fluorescent": "蛍光灯",
+        "light_neon_pole": "ネオンの街灯"
       }
     },
     "vision": {

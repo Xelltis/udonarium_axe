@@ -124,7 +124,23 @@
       "wall_neon": "네온관 벽",
       "wall_corrugated": "함석판",
       "wall_facade": "빌딩 외벽",
-      "door_steel": "철문"
+      "door_steel": "철문",
+      "felt": "도박판 펠트",
+      "warehouse_floor": "창고 바닥",
+      "sf_road": "금속 포장 도로",
+      "sf_walkway": "빛나는 보도",
+      "sf_rooftop": "미래형 옥상",
+      "tar_roof": "타르 지붕",
+      "wall_facade_concrete": "콘크리트 빌딩 외벽",
+      "wall_sf_glass": "빛줄기 흑유리",
+      "wall_sf_panel": "빛나는 이음새 흰 패널",
+      "wall_brick_tenement": "벽돌 연립주택",
+      "wall_brownstone": "브라운스톤",
+      "wall_warehouse": "창고 강판 벽",
+      "container_red": "컨테이너(빨강)",
+      "container_blue": "컨테이너(파랑)",
+      "container_green": "컨테이너(초록)",
+      "door_shutter": "셔터"
     },
     "reorder": {
       "toTop": "맨 위로",
@@ -1660,7 +1676,9 @@
         "light_candle": "양초",
         "light_chandelier": "샹들리에",
         "light_neon": "네온사인",
-        "light_streetlamp": "가로등"
+        "light_streetlamp": "가로등",
+        "light_fluorescent": "형광등",
+        "light_neon_pole": "네온 가로등"
       }
     },
     "vision": {
