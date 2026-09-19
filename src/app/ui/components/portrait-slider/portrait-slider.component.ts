@@ -3,7 +3,8 @@ import type { PortraitChoice } from '@axe/ui/components/portrait-picker/portrait
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
- * A slider running through a character's portraits, with the name of the one it rests on.
+ * A small slider running through a character's portraits, followed by the place of the one it
+ * rests on and its name.
  *
  * Each portrait is chosen as the knob passes it, so dragging runs through the faces one after
  * another. The wheel over the slider steps it too, as do the arrow keys.
@@ -22,6 +23,12 @@ export class PortraitSliderComponent {
 
   /** The highest position of the knob: one for each portrait after the first. */
   readonly last = computed(() => Math.max(0, this.choices().length - 1));
+
+  /** How far along the knob is, as the share of the bar drawn in the accent colour. */
+  readonly progress = computed(() => {
+    const last = this.last();
+    return last > 0 ? `${(this.selectedIndex() / last) * 100}%` : '0%';
+  });
 
   /** The name of the portrait the knob rests on, or null when it has none. */
   readonly name = computed(() => this.choices()[this.selectedIndex()]?.name || null);

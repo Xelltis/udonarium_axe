@@ -31,7 +31,7 @@ describe('PortraitSliderComponent', () => {
 
   const slider = () => fixture.nativeElement.querySelector('input[type="range"]') as HTMLInputElement;
   const shown = () =>
-    [...(fixture.nativeElement as HTMLElement).querySelectorAll('span span')].map((span) => span.textContent!.trim());
+    [...(fixture.nativeElement as HTMLElement).querySelectorAll('span')].map((span) => span.textContent!.trim());
 
   function slideTo(value: number): void {
     slider().value = String(value);
@@ -46,18 +46,23 @@ describe('PortraitSliderComponent', () => {
     expect(slider().value).toBe('3');
   });
 
-  it('says the name of the portrait it rests on and where it is among them', async () => {
+  it('says where the portrait it rests on is among them, then its name', async () => {
     await setup(9, 3);
 
-    expect(shown()).toEqual(['表情3', '4/9']);
+    expect(shown()).toEqual(['4/9', '表情3']);
     expect(slider().getAttribute('aria-valuetext')).toBe('表情3');
   });
 
-  it('gives only the place of a portrait without a name', async () => {
+  it('names a portrait without a name by its number', async () => {
     await setup(9, 1);
 
-    expect(shown()).toEqual(['2/9']);
-    expect(slider().getAttribute('aria-valuetext')).toBe('立ち絵 2');
+    expect(shown()).toEqual(['2/9', '立ち絵 2']);
+  });
+
+  it('draws the bar up to the knob in the accent colour', async () => {
+    await setup(9, 2);
+
+    expect(slider().style.getPropertyValue('--seek-progress')).toBe('25%');
   });
 
   it('chooses each portrait the knob is moved to, and not the one it already rests on', async () => {
@@ -95,6 +100,6 @@ describe('PortraitSliderComponent', () => {
     fixture.detectChanges();
 
     expect(slider().value).toBe('7');
-    expect(shown()).toEqual(['表情7', '8/9']);
+    expect(shown()).toEqual(['8/9', '表情7']);
   });
 });
