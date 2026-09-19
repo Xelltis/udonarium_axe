@@ -3566,7 +3566,8 @@
           "reading": "Reading speed",
           "recorded": "As it happened"
         },
-        "estimate": "{{count}} moments, about {{length}}",
+        "estimate": "{{count}} moments, about {{length}}, {{size}}",
+        "inMemory": "This browser holds the whole video in memory before saving it, and one this large may fail partway. Choose a smaller size, or export from a browser that lets you pick where to save (Chrome, Edge).",
         "start": "Write it out",
         "rendering": "Writing it out ({{percent}}%)",
         "cancel": "Stop",

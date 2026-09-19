@@ -3566,7 +3566,8 @@
           "reading": "読める速さ",
           "recorded": "当日と同じ間"
         },
-        "estimate": "{{count}} 場面・およそ {{length}}",
+        "estimate": "{{count}} 場面・およそ {{length}}・{{size}}",
+        "inMemory": "このブラウザは動画をすべてメモリーに溜めてから保存します。これだけ大きいと途中で失敗することがあります。大きさを下げるか、保存先を選べるブラウザ（Chrome・Edge）で書き出してください。",
         "start": "書き出す",
         "rendering": "書き出しています（{{percent}}%）",
         "cancel": "やめる",

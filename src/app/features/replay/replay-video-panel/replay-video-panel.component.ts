@@ -9,6 +9,7 @@ import {
   type ReplayVideoRecording,
   ReplayVideoStudioService,
 } from '@axe/application/replay/replay-video-studio.service';
+import { AUDIO_BITRATE, defaultVideoBitrate } from '@axe/core/media/video-encoder';
 import { askVideoFile, isVideoFileSinkSupported, VIDEO_FILE_DECLINED } from '@axe/core/media/video-file-sink';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { replayArchiveName } from '@axe/domain/replay/replay-archive';
@@ -23,6 +24,17 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 export const REPLAY_VIDEO_FPS_CHOICES = [30, 60] as const;
 export const REPLAY_READING_SPEEDS = [0.8, 1, 1.25, 1.5] as const;
+/**
+ * How large a video may grow before saving it through memory is warned against. A browser that
+ * cannot stream to a chosen file holds the whole video until it is done.
+ */
+export const REPLAY_VIDEO_MEMORY_WARNING_BYTES = 1024 ** 3;
+
+/** A file size as a reader takes it in: megabytes below a gigabyte, gigabytes to a tenth above. */
+export function formatReplayVideoBytes(bytes: number): string {
+  if (bytes < 1024 ** 3) return `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+}
 
 /**
  * The export of a replay as a video file: its size and frame rate, its look, who it is made for, its
@@ -78,14 +90,22 @@ export class ReplayVideoPanelComponent {
   });
 
   protected readonly estimate = computed(() => {
-    if (!this.isOpen()) return { count: 0, length: '' };
+    if (!this.isOpen()) return { count: 0, length: '', size: '', holdsInMemory: false };
     const recording = this.recording();
-    if (!recording) return { count: 0, length: '' };
+    if (!recording) return { count: 0, length: '', size: '', holdsInMemory: false };
     const { count, durationMs } = this.studio.estimate(
       recording,
       this.settings.settingsAt({ width: 1920, height: 1080 })
     );
-    return { count, length: formatReplayElapsed(durationMs) };
+    const { width, height } = REPLAY_VIDEO_SIZES[this.settings.sizeKey()];
+    const bitrate = defaultVideoBitrate(width, height, this.settings.fps()) + AUDIO_BITRATE;
+    const bytes = (bitrate / 8) * (durationMs / 1000);
+    return {
+      count,
+      length: formatReplayElapsed(durationMs),
+      size: formatReplayVideoBytes(bytes),
+      holdsInMemory: !isVideoFileSinkSupported() && bytes > REPLAY_VIDEO_MEMORY_WARNING_BYTES,
+    };
   });
 
   protected get canEdit(): boolean {

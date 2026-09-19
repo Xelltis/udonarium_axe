@@ -147,8 +147,17 @@
       }
 
       <span class="text-ui-muted border-ui-border border-t border-solid pt-1.5 text-[0.7rem] leading-normal">
-        {{ 'feature.replay.video.estimate' | transloco: { count: estimate().count, length: estimate().length } }}
+        {{
+          'feature.replay.video.estimate'
+            | transloco: { count: estimate().count, length: estimate().length, size: estimate().size }
+        }}
       </span>
+
+      @if (estimate().holdsInMemory) {
+        <span class="rounded-ui-sm bg-ui-danger-soft text-ui-danger px-1.5 py-1 text-[0.7rem] leading-normal">
+          {{ 'feature.replay.video.inMemory' | transloco }}
+        </span>
+      }
 
       @if (isRealtimeOnly) {
         <span class="text-ui-muted text-[0.7rem] leading-normal">

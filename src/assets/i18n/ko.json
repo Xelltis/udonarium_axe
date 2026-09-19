@@ -3568,7 +3568,8 @@
           "reading": "읽을 수 있는 속도",
           "recorded": "그날과 같은 간격"
         },
-        "estimate": "{{count}}개 장면 · 약 {{length}}",
+        "estimate": "{{count}}개 장면 · 약 {{length}} · {{size}}",
+        "inMemory": "이 브라우저는 동영상 전체를 메모리에 모은 뒤 저장합니다. 이만큼 크면 도중에 실패할 수 있습니다. 크기를 낮추거나 저장 위치를 고를 수 있는 브라우저(Chrome, Edge)에서 내보내 주세요.",
         "start": "내보내기",
         "rendering": "내보내는 중({{percent}}%)",
         "cancel": "그만두기",

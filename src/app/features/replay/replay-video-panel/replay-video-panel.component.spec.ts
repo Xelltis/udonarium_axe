@@ -231,4 +231,44 @@ describe('ReplayVideoPanelComponent', () => {
     expect(render).not.toHaveBeenCalled();
     expect(buttonByText('書き出す')).toBeDefined();
   });
+
+  it('says how large the file will be', async () => {
+    await setup();
+    await open();
+
+    expect(fixture.nativeElement.textContent).toMatch(/\d+ MB/);
+  });
+
+  describe('a video too large to hold in memory', () => {
+    beforeEach(() => {
+      events = Array.from({ length: 80 }, (_, index) =>
+        say(index + 1, 'しばらく沈黙が続いた。誰も口を開こうとしない。')
+      );
+    });
+
+    it('is warned against where the browser cannot save as it writes', async () => {
+      await setup();
+      await open();
+      choose('大きさ', '2160p');
+
+      expect(fixture.nativeElement.textContent).toContain('メモリーに溜めて');
+    });
+
+    it('is not, where the video streams to the file chosen', async () => {
+      borrowed.lend('showSaveFilePicker', vi.fn());
+      await setup();
+      await open();
+      choose('大きさ', '2160p');
+
+      expect(fixture.nativeElement.textContent).not.toContain('メモリーに溜めて');
+    });
+
+    it('is not, once made small enough', async () => {
+      await setup();
+      await open();
+      choose('大きさ', '720p');
+
+      expect(fixture.nativeElement.textContent).not.toContain('メモリーに溜めて');
+    });
+  });
 });
