@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import type { SupportedLang } from '@axe/application/i18n/transloco.config';
+import { ReplayFontLoader } from '@axe/application/replay/replay-font-loader.service';
 import { readKeyframeBytes } from '@axe/application/replay/replay-keyframe-bytes';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import {
@@ -19,7 +20,6 @@ import type {
   ReplayVideoStyle,
   ReplayVideoText,
 } from '@axe/domain/replay/video/replay-video-timeline';
-import { loadReplayFonts } from '@axe/infrastructure/replay/video/replay-fonts';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
@@ -69,6 +69,7 @@ export interface ReplayVideoRecording {
 @Injectable({ providedIn: 'root' })
 export class ReplayVideoStudioService {
   private readonly library = inject(ReplayLibraryService);
+  private readonly fonts = inject(ReplayFontLoader);
   private readonly imageStorage = inject(ImageStorage);
   private readonly transloco = inject(TranslocoService);
 
@@ -81,7 +82,7 @@ export class ReplayVideoStudioService {
     const [base, text, bundledFonts] = await Promise.all([
       this.baseBoardOf(recording.id, recording.events),
       this.textFor(settings.lang),
-      loadReplayFonts(),
+      this.fonts.load(),
     ]);
     return new ReplayVideoProduction({
       ...this.inputOf(recording, settings, base, text, onImageLoaded),

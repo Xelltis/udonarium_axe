@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ReplayFontLoader } from '@axe/application/replay/replay-font-loader.service';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import {
   ReplayVideoAudience,
@@ -7,7 +8,6 @@ import {
 } from '@axe/application/replay/replay-video-studio.service';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { ReplayVideoPacing, ReplayVideoStyle } from '@axe/domain/replay/video/replay-video-timeline';
-import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const line: ReplayEvent = {
@@ -34,33 +34,23 @@ const settings: ReplayVideoSettings = {
 };
 
 describe('ReplayVideoStudioService', () => {
-  const borrowed = new BorrowedGlobals();
   let service: ReplayVideoStudioService;
+  let fontsLoad: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
 
   beforeEach(() => {
+    fontsLoad = vi.fn<() => Promise<boolean>>();
     TestBed.configureTestingModule({
       providers: [
         ...TEST_PROVIDERS,
         { provide: ReplayLibraryService, useValue: { keyframeBefore: vi.fn().mockResolvedValue(null) } },
+        { provide: ReplayFontLoader, useValue: { load: fontsLoad } },
       ],
     });
     service = TestBed.inject(ReplayVideoStudioService);
   });
 
-  afterEach(() => borrowed.giveBack());
-
-  function fontsThat(load: () => Promise<unknown>): void {
-    borrowed.lendOn(document, 'fonts', { add: () => undefined });
-    borrowed.lend(
-      'FontFace',
-      class {
-        load = load;
-      }
-    );
-  }
-
   it('lays the video out knowing the bundled fonts are there, once they have loaded', async () => {
-    fontsThat(async () => undefined);
+    fontsLoad.mockResolvedValue(true);
 
     const made = await service.produce(recording, settings);
 
@@ -69,9 +59,7 @@ describe('ReplayVideoStudioService', () => {
   });
 
   it('lays it out knowing the device fonts are standing in, when the bundled ones fail to load', async () => {
-    fontsThat(async () => {
-      throw new Error('offline');
-    });
+    fontsLoad.mockResolvedValue(false);
 
     const made = await service.produce(recording, settings);
 
