@@ -237,6 +237,23 @@ describe('ChatTabComponent', () => {
       expect(internalFull().bottomIndex).toBe(1);
     });
 
+    it('draws no more than a reader at the bottom needs when many lines arrive at once', () => {
+      type Range = { topIndex: number; bottomIndex: number };
+      const range = () => component as unknown as Range;
+      for (let i = 0; i < 300; i++) {
+        const message = new ChatMessage();
+        message.initialize();
+        chatTab.appendChild(message);
+        emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: message.identifier });
+      }
+
+      const drawn = component.chatMessages;
+
+      expect(range().bottomIndex).toBe(299);
+      expect(drawn.length).toBeLessThanOrEqual(150);
+      expect(drawn[drawn.length - 1]).toBe(chatTab.chatMessages[299]);
+    });
+
     describe('on iOS, which never narrows the lines while it scrolls', () => {
       type InternalIOS = {
         isIOS: boolean;

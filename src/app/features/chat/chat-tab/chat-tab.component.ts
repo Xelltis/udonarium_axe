@@ -33,6 +33,7 @@ import {
   calcMaxElementHeight,
   findDisplayableTopIndex,
   getBoundedScrollPosition,
+  MAX_RESTING_RENDERED_ROWS,
   ScrollPosition,
   shouldTrimRenderedRange,
 } from '@axe/features/chat/chat-tab/chat-tab-scroll-helpers';
@@ -106,6 +107,7 @@ export class ChatTabComponent {
       const newLastIndex = this.chatTab.chatMessages.length - 1;
       if (this.bottomIndex >= newLastIndex - 1) {
         this.bottomIndex = newLastIndex;
+        this.topIndex = Math.max(this.topIndex, newLastIndex - MAX_RESTING_RENDERED_ROWS + 1);
       }
       this.renderVersion.update((v) => v + 1);
       this.needUpdate = true;
