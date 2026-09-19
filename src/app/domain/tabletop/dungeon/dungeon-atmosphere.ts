@@ -11,7 +11,7 @@ export const DUNGEON_ATMOSPHERE_IDS = [
   'lavaCavern',
   'iceCave',
   'sandTomb',
-  'cyberBar',
+  'illegalBar',
   'abandonedBuilding',
 ] as const;
 
@@ -61,9 +61,10 @@ export function clampWallHeight(height: number): number {
  * What the rooms of a place are called, where the names a dungeon gives them would be wrong.
  *
  * Nobody keeps a treasury in a bar. The rooms play the same parts - the one the party walks
- * into, the biggest, the one hardest to get to - but they are a floor, a VIP room and an office.
+ * into, the biggest, the one hardest to get to - but they are a front, a gambling den and the
+ * boss's room.
  */
-export const DUNGEON_ROLE_NAMINGS = ['bar', 'building'] as const;
+export const DUNGEON_ROLE_NAMINGS = ['illegalBar', 'building'] as const;
 
 export type DungeonRoleNaming = (typeof DUNGEON_ROLE_NAMINGS)[number];
 
@@ -92,6 +93,12 @@ export interface DungeonAtmosphere {
   furnishings?: readonly FurnishingPlan[];
   /** What its rooms are called. Left out, they are called what the rooms of a dungeon are. */
   roleNames?: DungeonRoleNaming;
+  /**
+   * Whether the ways out of the room the party comes into are hidden in its walls.
+   *
+   * What makes a bar a speakeasy is that the way to it is not a door anybody passing sees.
+   */
+  hiddenDoors?: boolean;
 }
 
 export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere> = {
@@ -244,29 +251,31 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
     },
   },
   /**
-   * A bar in the lower floors of a city that never switches its signs off.
+   * A bar nobody is meant to find, under a shop that is only there to hide it.
    *
-   * The party comes in off the street, the biggest room is the floor with the counter along
-   * its wall, and the rooms off it are booths, a back office and a store room. It is lit by
-   * tubes rather than fire, and the doors run aside by themselves.
+   * The party comes down the stair into the front, and the ways on out of it are hidden in its
+   * walls. Behind them are the bar with its counter, the back rooms, a gambling den at the end
+   * of the longest walk, a store of bootleg liquor, and the boss's room locked at the bottom
+   * of it all. It is lit low and red, and the doors run aside by themselves.
    */
-  cyberBar: {
-    id: 'cyberBar',
+  illegalBar: {
+    id: 'illegalBar',
     algorithm: 'rooms',
     defaultWall: 'wall_neon',
     defaultFloor: 'neon_floor',
     wallHeight: 2,
-    darkness: 0.8,
-    ambientColor: '#12061c',
+    darkness: 0.85,
+    ambientColor: '#16040c',
     weatherKind: '',
     weatherDensity: 0,
     gridShow: true,
-    torches: 6,
-    entrance: 'tunnel',
+    torches: 5,
+    entrance: 'stair',
     doorStyle: 'slide',
     door: 'door_steel',
-    lighting: { wall: ['neon'], open: [], colors: ['#ff2bd6', '#00e5ff', '#9d4dff'] },
-    roleNames: 'bar',
+    lighting: { wall: ['neon'], open: [], colors: ['#ff3b5c', '#ff2bd6', '#b44dff'] },
+    roleNames: 'illegalBar',
+    hiddenDoors: true,
     rooms: {
       minRoom: 5,
       maxRoom: 9,
@@ -276,9 +285,11 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
       shapes: ['rect'],
     },
     furnishings: [
+      { piece: 'shopCounter', arrangement: 'counter', roles: ['entrance'], every: 0 },
       { piece: 'counter', arrangement: 'counter', roles: ['hall'], every: 0, seat: 'stool' },
-      { piece: 'table', arrangement: 'scatter', roles: ['entrance', 'hall', 'chamber', 'treasure', 'boss'], every: 9 },
-      { piece: 'crate', arrangement: 'scatter', roles: ['deadEnd'], every: 5 },
+      { piece: 'gamingTable', arrangement: 'scatter', roles: ['treasure'], every: 6 },
+      { piece: 'table', arrangement: 'scatter', roles: ['hall', 'chamber', 'boss'], every: 9 },
+      { piece: 'crate', arrangement: 'scatter', roles: ['entrance', 'deadEnd'], every: 5 },
     ],
   },
   /**

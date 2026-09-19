@@ -240,6 +240,7 @@ export function layoutToBlocks(
           prop: doorPropFor(atmosphere),
           doorStyle: atmosphere.doorStyle,
           doorMirrored: leaf.mirrored,
+          disguised: leaf.hidden || undefined,
         });
       }
     }

@@ -2116,7 +2116,7 @@
           "lavaCavern": "溶岩洞",
           "iceCave": "氷窟",
           "sandTomb": "砂の墳墓",
-          "cyberBar": "サイバーパンクなバー",
+          "illegalBar": "違法BAR",
           "abandonedBuilding": "廃ビル"
         },
         "role": {
@@ -2128,12 +2128,12 @@
           "chamber": "小部屋"
         },
         "roleIn": {
-          "bar": {
-            "entrance": "入口",
-            "hall": "フロア",
-            "treasure": "VIPルーム",
-            "boss": "オーナー室",
-            "deadEnd": "倉庫",
+          "illegalBar": {
+            "entrance": "表の店",
+            "hall": "酒場",
+            "treasure": "賭場",
+            "boss": "元締めの部屋",
+            "deadEnd": "密造酒の貯蔵庫",
             "chamber": "個室"
           },
           "building": {
@@ -2166,7 +2166,10 @@
           "pillar": "柱",
           "desk": "事務机",
           "crate": "木箱",
-          "rubble": "瓦礫"
+          "rubble": "瓦礫",
+          "shopCounter": "売り台",
+          "gamingTable": "賭博台",
+          "hiddenDoor": "隠し扉"
         },
         "summary": {
           "title": "ダンジョン概要",
@@ -2178,7 +2181,8 @@
           "doors": "扉",
           "ground": "地面",
           "standing": "地形",
-          "fires": "灯り"
+          "fires": "灯り",
+          "hidden": "隠し扉"
         },
         "title": "マップ生成",
         "gmOnly": "このツールはゲームマスター専用です",

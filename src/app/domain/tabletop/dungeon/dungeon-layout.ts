@@ -81,9 +81,21 @@ export interface DungeonDoorLeaf extends DungeonRect {
   locked: boolean;
   /** Whether it is hung the other way round, which is what makes two leaves a pair. */
   mirrored: boolean;
+  /** Whether it is dressed as the wall it stands in, so that nobody who does not know it is there sees a door. */
+  hidden?: boolean;
 }
 
-export const FURNISHING_IDS = ['counter', 'stool', 'table', 'pillar', 'desk', 'crate', 'rubble'] as const;
+export const FURNISHING_IDS = [
+  'counter',
+  'stool',
+  'table',
+  'pillar',
+  'desk',
+  'crate',
+  'rubble',
+  'shopCounter',
+  'gamingTable',
+] as const;
 
 export type FurnishingId = (typeof FURNISHING_IDS)[number];
 

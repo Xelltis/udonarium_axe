@@ -540,18 +540,36 @@ describe('DungeonBuildService', () => {
   });
 
   describe('furnished places and towns', () => {
-    async function buildPlace(atmosphere: 'cyberBar' | 'abandonedBuilding') {
+    async function buildPlace(atmosphere: 'illegalBar' | 'abandonedBuilding') {
       const plan = planDungeon({ atmosphere, roomCount: 10, seed: 7 });
       const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options({ wallHeight: 2.5 }));
       return { plan, result };
     }
 
     it('names each piece of furniture for what it is rather than for its kind', async () => {
-      const { plan, result } = await buildPlace('cyberBar');
+      const { plan, result } = await buildPlace('illegalBar');
       const names = result.table.terrains.map((terrain) => terrain.name);
 
       for (const piece of new Set(plan.layout.furnishings!.map((each) => each.piece))) {
         expect(names).toContain(ja(`feature.tabletop.dungeonGenerator.piece.${piece}`));
+      }
+    });
+
+    it('dresses a hidden door in the pictures of the wall it stands in, and calls it a hidden door', async () => {
+      const { plan, result } = await buildPlace('illegalBar');
+      const hidden = result.table.terrains.filter(
+        (terrain) => terrain.name === ja('feature.tabletop.dungeonGenerator.piece.hiddenDoor')
+      );
+      const walls = result.table.terrains.filter(
+        (terrain) => terrain.name === ja('feature.tabletop.dungeonGenerator.piece.wall')
+      );
+
+      expect(hidden.length).toBe(plan.blocks.blocks.filter((block) => block.disguised).length);
+      expect(hidden.length).toBeGreaterThan(0);
+      for (const door of hidden) {
+        expect(door.isDoor).toBe(true);
+        expect(door.wallImage?.identifier).toBe(walls[0].wallImage?.identifier);
+        expect(door.floorImage?.identifier).toBe(walls[0].floorImage?.identifier);
       }
     });
 
@@ -570,7 +588,7 @@ describe('DungeonBuildService', () => {
     });
 
     it('burns each tube of a bar the colour it was given, set back against its wall', async () => {
-      const { plan, result } = await buildPlace('cyberBar');
+      const { plan, result } = await buildPlace('illegalBar');
       const lights = result.table.lightSources;
 
       expect(plan.blocks.lights.length).toBeGreaterThan(0);

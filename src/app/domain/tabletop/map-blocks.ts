@@ -70,6 +70,8 @@ export interface MapBlock {
   doorStyle?: string;
   /** Whether this one opens the other way round, which is what makes a pair of doors a pair. */
   doorMirrored?: boolean;
+  /** Whether a door is dressed as the wall it stands in rather than as a door. */
+  disguised?: boolean;
   name?: string;
   /**
    * What it is - a tree, a counter, a building - which is what it is called on the table.

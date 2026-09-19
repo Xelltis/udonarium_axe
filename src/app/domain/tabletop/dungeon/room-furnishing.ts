@@ -25,9 +25,10 @@ export interface FurnishingShape {
 /**
  * What each piece of furniture is built as.
  *
- * A bar's counter is a pale top over the same tubes its walls are lit by, and its tables are lit
- * from inside, which is most of what tells a bar from a back room. What an abandoned building leaves behind is steel
- * desks shoved off square and rubble where the ceiling came down.
+ * A bar's counter is a pale top over the same tubes its walls are lit by, and its tables are
+ * lit from inside, which is most of what tells a bar from a back room. What an abandoned
+ * building leaves behind is steel desks shoved off square and rubble where the ceiling came
+ * down.
  */
 export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
   counter: { skin: { side: 'wall_neon', top: 'marble' }, height: 0.55, fill: 0.8, blocksSight: false },
@@ -37,6 +38,8 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
   desk: { skin: { side: 'wall_metal', top: 'wall_metal' }, height: 0.42, fill: 0.8, blocksSight: false, spin: 35 },
   crate: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.6, fill: 0.78, blocksSight: false, spin: 12 },
   rubble: { skin: { side: 'wall_rubble', top: 'rubble_floor' }, height: 0.3, fill: 0.9, blocksSight: false, spin: 45 },
+  shopCounter: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.55, fill: 0.8, blocksSight: false },
+  gamingTable: { skin: { side: 'wood_plank', top: 'felt' }, height: 0.45, fill: 0.84, blocksSight: false },
 };
 
 /**
@@ -83,6 +86,7 @@ export function furnishedCells(layout: DungeonLayout): Set<number> {
 
 class Furnisher {
   private readonly taken: Uint8Array;
+  private readonly ends: { x: number; y: number }[];
   readonly placed: DungeonFurnishing[] = [];
 
   constructor(
@@ -90,9 +94,13 @@ class Furnisher {
     private readonly rng: () => number
   ) {
     this.taken = new Uint8Array(layout.width * layout.height);
-    for (const point of [layout.entrance, layout.exit, layout.mouth]) {
-      if (point) this.taken[point.y * layout.width + point.x] = 1;
-    }
+    this.ends = [layout.entrance, layout.exit, ...(layout.mouth ? [layout.mouth] : [])];
+    for (const point of this.ends) this.taken[point.y * layout.width + point.x] = 1;
+  }
+
+  /** Whether a cell is on or beside the way in or the way out. */
+  private nearEnd(x: number, y: number): boolean {
+    return this.ends.some((end) => Math.abs(end.x - x) <= 1 && Math.abs(end.y - y) <= 1);
   }
 
   /** Whether a cell is floor of a room with nothing on it yet. */
@@ -153,7 +161,8 @@ class Furnisher {
    *
    * The cell behind it is where whoever serves stands, and the open ends are how they get
    * there, so a door on that wall still opens onto floor that joins the rest of the room.
-   * The wall with no door on it is taken where there is one.
+   * The wall with no door on it is taken where there is one, and neither the counter nor its
+   * seats stand beside the way in or out.
    */
   counter(plan: FurnishingPlan, room: DungeonRoom): void {
     const along = room.w >= room.h;
@@ -172,17 +181,15 @@ class Furnisher {
         along ? { x: room.x + 1 + offset, y: room.y + row } : { x: room.x + row, y: room.y + 1 + offset };
       const cells = [behind, bar, front].flatMap((row) => Array.from({ length }, (_, offset) => at(offset, row)));
       if (!cells.every((cell) => this.free(cell.x, cell.y))) continue;
+      const seats = plan.seat ? Array.from({ length: Math.ceil(length / 2) }, (_, index) => at(index * 2, front)) : [];
+      const standing = [...Array.from({ length }, (_, offset) => at(offset, bar)), ...seats];
+      if (standing.some((cell) => this.nearEnd(cell.x, cell.y))) continue;
       const ends = [at(-1, behind), at(length, behind), at(-1, bar), at(length, bar)];
       if (!ends.every((cell) => this.walkable(cell.x, cell.y))) continue;
 
       const start = at(0, bar);
       this.put(plan.piece, start.x, start.y, along ? length : 1, along ? 1 : length);
-      if (plan.seat) {
-        for (let offset = 0; offset < length; offset += 2) {
-          const seat = at(offset, front);
-          this.put(plan.seat, seat.x, seat.y, 1, 1);
-        }
-      }
+      for (const seat of seats) this.put(plan.seat!, seat.x, seat.y, 1, 1);
       return;
     }
   }

@@ -1,6 +1,6 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { generateCave } from '@axe/domain/tabletop/dungeon/cave-automata';
-import { DoorWidths, hangDoors } from '@axe/domain/tabletop/dungeon/door-hanging';
+import { DoorWidths, hangDoors, hideDoorsOf } from '@axe/domain/tabletop/dungeon/door-hanging';
 import {
   atmosphereById,
   DungeonAtmosphere,
@@ -115,7 +115,8 @@ export function boardSizeFor(
  *
  * Everything comes from the request's seed, so the same request gives the same dungeon on every peer.
  * Furniture is put in last, and only where the place is furnished, so that a place with none comes out
- * of its seed exactly as it always has.
+ * of its seed exactly as it always has. A place with hidden doors has the ways out of its first room
+ * dressed as wall.
  */
 export function generateDungeon(request: DungeonRequest): DungeonLayout {
   const atmosphere = atmosphereById(request.atmosphere);
@@ -168,6 +169,7 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   assignRoomRoles(layout);
   // Hung last, so that widening an opening cannot leave the room a key opens standing ajar.
   hangDoors(layout, { widths: request.doorWidth, doublePercent: request.doubleDoorPercent }, rng);
+  if (atmosphere.hiddenDoors) hideDoorsOf(layout, 0);
   if (atmosphere.furnishings) layout.furnishings = furnishRooms(layout, atmosphere.furnishings, rng);
   return layout;
 }

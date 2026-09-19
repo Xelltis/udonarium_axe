@@ -1,3 +1,4 @@
+import { seededRandom } from '@axe/core/util/seeded-random';
 import { atmosphereById, DUNGEON_ATMOSPHERE_IDS } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { layoutToBlocks } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import { generateDungeon, planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
@@ -6,6 +7,7 @@ import {
   DungeonCell,
   DungeonLayout,
   DungeonPoint,
+  DungeonRect,
   DungeonRoomRole,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
@@ -13,7 +15,7 @@ import { furnishedCells, FURNISHING_SHAPES, furnishRooms } from '@axe/domain/tab
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 const SEEDS = [1, 7, 42, 1234, 99999];
-const FURNISHED = ['cyberBar', 'abandonedBuilding'] as const;
+const FURNISHED = ['illegalBar', 'abandonedBuilding'] as const;
 
 function open(layout: DungeonLayout, x: number, y: number): boolean {
   const cell = cellAt(layout, x, y);
@@ -56,6 +58,13 @@ function near(a: DungeonPoint, b: DungeonPoint): boolean {
   return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1;
 }
 
+/** Whether any cell a piece takes is on or beside a point. */
+function touches(piece: DungeonRect, point: DungeonPoint): boolean {
+  return (
+    point.x >= piece.x - 1 && point.x <= piece.x + piece.w && point.y >= piece.y - 1 && point.y <= piece.y + piece.h
+  );
+}
+
 describe('furnishRooms()', () => {
   it('leaves every room reachable, going round whatever stands in it', () => {
     for (const atmosphere of FURNISHED) {
@@ -77,7 +86,7 @@ describe('furnishRooms()', () => {
         const layout = generateDungeon({ atmosphere, roomCount: 10, seed });
         const ends = [layout.entrance, layout.exit, ...(layout.mouth ? [layout.mouth] : [])];
         for (const piece of layout.furnishings!) {
-          for (const end of ends) expect(near(piece, end)).toBe(false);
+          for (const end of ends) expect(touches(piece, end)).toBe(false);
         }
       }
     }
@@ -95,7 +104,7 @@ describe('furnishRooms()', () => {
   });
 
   it('runs a counter along the long wall of a bar, with room to serve behind it and seats in front', () => {
-    const layout = SEEDS.map((seed) => generateDungeon({ atmosphere: 'cyberBar', roomCount: 8, seed })).find((each) =>
+    const layout = SEEDS.map((seed) => generateDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed })).find((each) =>
       each.furnishings!.some((piece) => piece.piece === 'counter')
     )!;
     const counter = layout.furnishings!.find((piece) => piece.piece === 'counter')!;
@@ -113,7 +122,7 @@ describe('furnishRooms()', () => {
 
   it('keeps a counter to the floor of the bar, and tables out of its store rooms', () => {
     for (const seed of SEEDS) {
-      const layout = generateDungeon({ atmosphere: 'cyberBar', roomCount: 12, seed });
+      const layout = generateDungeon({ atmosphere: 'illegalBar', roomCount: 12, seed });
       const roleAt = (x: number, y: number) =>
         layout.rooms.find((room) => room.x <= x && x < room.x + room.w && room.y <= y && y < room.y + room.h)?.role;
       for (const piece of layout.furnishings!) {
@@ -145,10 +154,42 @@ describe('furnishRooms()', () => {
   });
 
   it('gives back the same furniture for the same request', () => {
-    const first = generateDungeon({ atmosphere: 'cyberBar', roomCount: 8, seed: 42 });
-    const second = generateDungeon({ atmosphere: 'cyberBar', roomCount: 8, seed: 42 });
+    const first = generateDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 42 });
+    const second = generateDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 42 });
 
     expect(second.furnishings).toEqual(first.furnishings);
+  });
+
+  it('keeps a counter and its seats clear of the way in, even where it would otherwise stand', () => {
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed });
+      const room = layout.rooms.find((each) => each.index !== 0 && each.w >= each.h && each.w >= 5 && each.h >= 5)!;
+      layout.entrance = { x: room.x + 1, y: room.y + 3 };
+      layout.exit = layout.entrance;
+      layout.mouth = null;
+      for (const other of layout.rooms) other.role = other === room ? 'hall' : 'chamber';
+      const placed = furnishRooms(
+        layout,
+        [{ piece: 'counter', arrangement: 'counter', roles: ['hall'], every: 0, seat: 'stool' }],
+        seededRandom(seed)
+      );
+
+      for (const piece of placed) expect(touches(piece, layout.entrance)).toBe(false);
+    }
+  });
+
+  it('hides the ways out of the front of an illegal bar, and no other door', () => {
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed });
+      const front = layout.doorLeaves.filter((leaf) => leaf.rooms.includes(0));
+
+      expect(front.length).toBeGreaterThan(0);
+      for (const leaf of layout.doorLeaves) expect(leaf.hidden === true).toBe(leaf.rooms.includes(0));
+    }
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed });
+      expect(layout.doorLeaves.some((leaf) => leaf.hidden)).toBe(false);
+    }
   });
 
   it('leaves a place with nothing to furnish it with bare', () => {
@@ -229,9 +270,9 @@ describe('a furnished place on the table', () => {
   });
 
   it('lays a counter as one run on squares, and as a piece to a cell on hexes', () => {
-    const square = planDungeon({ atmosphere: 'cyberBar', roomCount: 8, seed: 7 });
+    const square = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 7 });
     const run = square.layout.furnishings!.find((piece) => piece.piece === 'counter');
-    const hexed = planDungeon({ atmosphere: 'cyberBar', roomCount: 8, seed: 7, gridType: GridType.HEX_VERTICAL });
+    const hexed = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 7, gridType: GridType.HEX_VERTICAL });
 
     if (run) {
       const block = square.blocks.blocks.find((each) => each.thing === 'counter')!;
@@ -256,9 +297,9 @@ describe('a furnished place on the table', () => {
   });
 
   it('hangs steel doors in a bar that slide aside, and lights it with tubes in turn of colour', () => {
-    const plan = planDungeon({ atmosphere: 'cyberBar', roomCount: 8, seed: 42 });
+    const plan = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 42 });
     const doors = plan.blocks.blocks.filter((block) => block.kind === 'door');
-    const colors = atmosphereById('cyberBar').lighting!.colors!;
+    const colors = atmosphereById('illegalBar').lighting!.colors!;
 
     expect(doors.length).toBeGreaterThan(0);
     expect(doors.every((door) => door.prop === 'door_steel' && door.doorStyle === 'slide')).toBe(true);
@@ -277,5 +318,14 @@ describe('a furnished place on the table', () => {
       expect(['sconce', 'lantern', 'campfire', 'brazier', 'stand']).toContain(light.kind);
       expect(light.color).toBeUndefined();
     }
+  });
+
+  it('dresses a hidden door as the wall it stands in', () => {
+    const plan = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 42 });
+    const doors = plan.blocks.blocks.filter((block) => block.kind === 'door');
+
+    expect(doors.some((door) => door.disguised)).toBe(true);
+    expect(doors.some((door) => !door.disguised)).toBe(true);
+    for (const door of doors) expect(door.disguised === true).toBe(door.rooms.includes(0));
   });
 });

@@ -31,6 +31,7 @@ export function describeDungeon(
       locked: t('feature.tabletop.dungeonGenerator.summary.locked'),
       torch: t('feature.tabletop.dungeonGenerator.summary.torch'),
       doors: t('feature.tabletop.dungeonGenerator.summary.doors'),
+      hidden: t('feature.tabletop.dungeonGenerator.summary.hidden'),
     },
   });
 }

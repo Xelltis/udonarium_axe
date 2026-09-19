@@ -2116,7 +2116,7 @@
           "lavaCavern": "용암굴",
           "iceCave": "얼음굴",
           "sandTomb": "모래 무덤",
-          "cyberBar": "사이버펑크 바",
+          "illegalBar": "불법 바",
           "abandonedBuilding": "폐건물"
         },
         "role": {
@@ -2128,13 +2128,13 @@
           "chamber": "작은 방"
         },
         "roleIn": {
-          "bar": {
-            "entrance": "입구",
-            "hall": "홀",
-            "treasure": "VIP룸",
-            "boss": "사장실",
-            "deadEnd": "창고",
-            "chamber": "룸"
+          "illegalBar": {
+            "entrance": "위장 가게",
+            "hall": "술집",
+            "treasure": "도박장",
+            "boss": "두목의 방",
+            "deadEnd": "밀주 창고",
+            "chamber": "밀실"
           },
           "building": {
             "entrance": "로비",
@@ -2166,7 +2166,10 @@
           "pillar": "기둥",
           "desk": "사무용 책상",
           "crate": "나무 상자",
-          "rubble": "잔해"
+          "rubble": "잔해",
+          "shopCounter": "가게 카운터",
+          "gamingTable": "도박 테이블",
+          "hiddenDoor": "비밀 문"
         },
         "summary": {
           "title": "던전 개요",
@@ -2178,7 +2181,8 @@
           "doors": "문",
           "ground": "지면",
           "standing": "지형",
-          "fires": "불빛"
+          "fires": "불빛",
+          "hidden": "비밀 문"
         },
         "title": "맵 생성",
         "gmOnly": "이 도구는 게임 마스터 전용입니다",

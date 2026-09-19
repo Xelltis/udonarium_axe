@@ -47,7 +47,7 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.tabletop.dungeonGenerator.role.': DUNGEON_ROOM_ROLES,
   'feature.tabletop.dungeonGenerator.field.': FIELD_ATMOSPHERE_IDS,
   'feature.tabletop.dungeonGenerator.prop.': [...FIELD_PROP_IDS, 'building'],
-  'feature.tabletop.dungeonGenerator.piece.': [...FIELD_PROP_IDS, ...TOWN_PIECE_IDS, ...FURNISHING_IDS],
+  'feature.tabletop.dungeonGenerator.piece.': [...FIELD_PROP_IDS, ...TOWN_PIECE_IDS, ...FURNISHING_IDS, 'hiddenDoor'],
   ...Object.fromEntries(
     DUNGEON_ROLE_NAMINGS.map((naming) => [`feature.tabletop.dungeonGenerator.roleIn.${naming}.`, DUNGEON_ROOM_ROLES])
   ),

@@ -329,3 +329,15 @@ function leafOf(doorway: Doorway, start: number, span: number, mirrored: boolean
     doorway.across === 'x' ? { x: from.x, y: from.y, w: 1, h: span } : { x: from.x, y: from.y, w: span, h: 1 };
   return { ...rect, across: doorway.across, rooms: [...doorway.rooms], locked: doorway.locked, mirrored };
 }
+
+/**
+ * Dresses every door out of a room as the wall it stands in.
+ *
+ * The doors are still there and still open; only somebody who does not know where to push sees
+ * nothing but wall.
+ */
+export function hideDoorsOf(layout: DungeonLayout, room: number): void {
+  for (const leaf of layout.doorLeaves) {
+    if (leaf.rooms.includes(room)) leaf.hidden = true;
+  }
+}

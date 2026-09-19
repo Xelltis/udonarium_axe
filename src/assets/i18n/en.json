@@ -2116,7 +2116,7 @@
           "lavaCavern": "Lava cavern",
           "iceCave": "Ice cave",
           "sandTomb": "Sand tomb",
-          "cyberBar": "Cyberpunk bar",
+          "illegalBar": "Illegal bar",
           "abandonedBuilding": "Abandoned building"
         },
         "role": {
@@ -2128,13 +2128,13 @@
           "chamber": "Chamber"
         },
         "roleIn": {
-          "bar": {
-            "entrance": "Entrance",
-            "hall": "Bar floor",
-            "treasure": "VIP room",
-            "boss": "Owner's office",
-            "deadEnd": "Storeroom",
-            "chamber": "Booth"
+          "illegalBar": {
+            "entrance": "Front shop",
+            "hall": "Bar room",
+            "treasure": "Gambling den",
+            "boss": "Boss's room",
+            "deadEnd": "Bootleg store",
+            "chamber": "Back room"
           },
           "building": {
             "entrance": "Lobby",
@@ -2166,7 +2166,10 @@
           "pillar": "Pillar",
           "desk": "Desk",
           "crate": "Crate",
-          "rubble": "Rubble"
+          "rubble": "Rubble",
+          "shopCounter": "Shop counter",
+          "gamingTable": "Gaming table",
+          "hiddenDoor": "Hidden door"
         },
         "summary": {
           "title": "Dungeon notes",
@@ -2178,7 +2181,8 @@
           "doors": "doors",
           "ground": "Ground",
           "standing": "Standing",
-          "fires": "Fires"
+          "fires": "Fires",
+          "hidden": "hidden doors"
         },
         "title": "Map generator",
         "gmOnly": "This tool is for the game master",

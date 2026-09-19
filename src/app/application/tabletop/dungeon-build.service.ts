@@ -309,11 +309,13 @@ export class DungeonBuildService {
         return terrain;
       }
       case 'door': {
-        const door = this.registerAsset(DUNGEON_PROP_ASSET_URLS[block.prop ?? 'door_wood']);
+        const door = block.disguised
+          ? images.wallSide
+          : this.registerAsset(DUNGEON_PROP_ASSET_URLS[block.prop ?? 'door_wood']);
         const acrossX = block.across === 'x';
         const width = acrossX ? DOOR_THICKNESS : rect.w;
         const depth = acrossX ? rect.h : DOOR_THICKNESS;
-        const terrain = Terrain.create(name, width, depth, wallHeight, door, door);
+        const terrain = Terrain.create(name, width, depth, wallHeight, door, block.disguised ? images.wallTop : door);
         terrain.mode = TerrainViewState.ALL;
         terrain.doorStyle = block.doorStyle ?? DoorStyle.SWING;
         if (block.doorMirrored) terrain.doorMirrored = true;
@@ -351,6 +353,7 @@ export class DungeonBuildService {
       case 'wall':
         return this.t('feature.tabletop.dungeonGenerator.piece.wall');
       case 'door':
+        if (block.disguised) return this.t('feature.tabletop.dungeonGenerator.piece.hiddenDoor');
         return block.locked
           ? this.t('feature.tabletop.dungeonGenerator.piece.doorLocked')
           : this.t('feature.tabletop.dungeonGenerator.piece.door');
