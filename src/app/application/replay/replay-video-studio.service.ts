@@ -19,6 +19,7 @@ import type {
   ReplayVideoStyle,
   ReplayVideoText,
 } from '@axe/domain/replay/video/replay-video-timeline';
+import { loadReplayFonts } from '@axe/infrastructure/replay/video/replay-fonts';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
@@ -62,7 +63,8 @@ export interface ReplayVideoRecording {
 
 /**
  * Makes replay videos ready to draw: it reads the board the recording starts from, sets up the words
- * in the language chosen, and hands back a production for the preview or the export to draw.
+ * in the language chosen, loads the fonts the video is set in, and hands back a production for the
+ * preview or the export to draw.
  */
 @Injectable({ providedIn: 'root' })
 export class ReplayVideoStudioService {
@@ -79,6 +81,7 @@ export class ReplayVideoStudioService {
     const [base, text] = await Promise.all([
       this.baseBoardOf(recording.id, recording.events),
       this.textFor(settings.lang),
+      loadReplayFonts(),
     ]);
     return new ReplayVideoProduction(this.inputOf(recording, settings, base, text, onImageLoaded));
   }

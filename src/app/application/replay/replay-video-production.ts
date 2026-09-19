@@ -31,15 +31,21 @@ import {
 import { toPortraitSlot } from '@axe/domain/visual-novel/vn-portrait-position';
 import type { DrawableImageSource } from '@axe/infrastructure/replay/drawable-image';
 import type { ReplayFrameCanvas } from '@axe/infrastructure/replay/replay-canvas';
+import { REPLAY_FONT_JP, REPLAY_FONT_KR } from '@axe/infrastructure/replay/video/replay-fonts';
 import { ReplayImageCache } from '@axe/infrastructure/replay/video/replay-image-cache';
 import { ReplayVideoRenderer } from '@axe/infrastructure/replay/video/replay-video-renderer';
 
-/** The font every word of a replay video is set in, Japanese and Korean faces first by the language. */
+/**
+ * The font every word of a replay video is set in: the faces bundled with the app first, Korean or
+ * Japanese first by the language, so a line mixing the two draws each from its own bundled face;
+ * then the device's own faces for anything neither covers.
+ */
 export function replayVideoFontFamily(lang: string): string {
+  const bundled = lang === 'ko' ? [REPLAY_FONT_KR, REPLAY_FONT_JP] : [REPLAY_FONT_JP, REPLAY_FONT_KR];
   const japanese = "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic UI', 'Yu Gothic', Meiryo";
   const korean = "'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic'";
-  const faces = lang === 'ko' ? `${korean}, ${japanese}` : `${japanese}, ${korean}`;
-  return `${faces}, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif`;
+  const device = lang === 'ko' ? `${korean}, ${japanese}` : `${japanese}, ${korean}`;
+  return `${bundled.map((family) => `'${family}'`).join(', ')}, ${device}, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif`;
 }
 
 /** Everything a production is made from, gathered by the service that makes it. */

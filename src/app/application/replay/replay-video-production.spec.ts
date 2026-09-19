@@ -123,12 +123,15 @@ describe('ReplayVideoProduction', () => {
 });
 
 describe('the font of a replay video', () => {
-  it('puts the Korean faces first for a Korean video, and the Japanese ones otherwise', () => {
-    expect(replayVideoFontFamily('ko').indexOf('Noto Sans KR')).toBeLessThan(
-      replayVideoFontFamily('ko').indexOf('Noto Sans JP')
-    );
-    expect(replayVideoFontFamily('ja').indexOf('Noto Sans JP')).toBeLessThan(
-      replayVideoFontFamily('ja').indexOf('Noto Sans KR')
-    );
+  it('sets the words in both bundled faces before any the device has', () => {
+    expect(replayVideoFontFamily('ja').startsWith("'Axe Replay JP', 'Axe Replay KR', ")).toBe(true);
+    expect(replayVideoFontFamily('ko').startsWith("'Axe Replay KR', 'Axe Replay JP', ")).toBe(true);
+  });
+
+  it('falls back to the device faces of the language first', () => {
+    const korean = replayVideoFontFamily('ko');
+    expect(korean.indexOf('Malgun Gothic')).toBeLessThan(korean.indexOf('Yu Gothic'));
+    const japanese = replayVideoFontFamily('ja');
+    expect(japanese.indexOf('Yu Gothic')).toBeLessThan(japanese.indexOf('Malgun Gothic'));
   });
 });
