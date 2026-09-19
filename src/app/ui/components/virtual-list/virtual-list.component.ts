@@ -91,6 +91,8 @@ export class VirtualListComponent<T> {
 
   private readonly observer =
     typeof ResizeObserver === 'undefined' ? null : new ResizeObserver((entries) => this.onResize(entries));
+  /** The drawn rows being watched for their height, so those no longer drawn can be let go. */
+  private readonly watched = new Set<Element>();
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -99,7 +101,7 @@ export class VirtualListComponent<T> {
     });
     this.observer?.observe(this.host);
     afterRenderEffect(() => {
-      for (const cell of this.cells()) this.observer?.observe(cell.nativeElement);
+      this.watchRows(this.cells().map((cell) => cell.nativeElement));
       this.areaTop.set(this.area().nativeElement.offsetTop);
       if (this.viewportHeight() === 0) this.viewportHeight.set(this.host.clientHeight);
     });
@@ -124,6 +126,22 @@ export class VirtualListComponent<T> {
     });
   }
 
+  /** Watches the rows drawn now for their height, and stops watching those no longer drawn. */
+  private watchRows(drawn: readonly HTMLElement[]): void {
+    if (!this.observer) return;
+    const now = new Set<Element>(drawn);
+    for (const element of this.watched) {
+      if (now.has(element)) continue;
+      this.observer.unobserve(element);
+      this.watched.delete(element);
+    }
+    for (const element of now) {
+      if (this.watched.has(element)) continue;
+      this.observer.observe(element);
+      this.watched.add(element);
+    }
+  }
+
   private rowHeights(): VirtualRowHeights {
     this.heights ??= new VirtualRowHeights(this.estimate());
     return this.heights;
@@ -133,7 +151,8 @@ export class VirtualListComponent<T> {
    * Takes the drawn heights of the rows, and of the list itself.
    *
    * A row above the screen that grows or shrinks would carry what is on screen with it, so the
-   * scroll moves by as much to keep the rows in view where they were.
+   * scroll moves by as much to keep the rows in view where they were. A row no longer in the page
+   * is reported with no height, which is not its height, and is passed over.
    */
   private onResize(entries: readonly ResizeObserverEntry[]): void {
     let changed = false;
@@ -146,9 +165,11 @@ export class VirtualListComponent<T> {
         this.viewportHeight.set(this.host.clientHeight);
         continue;
       }
-      const index = Number((entry.target as HTMLElement).dataset['index']);
+      const row = entry.target as HTMLElement;
+      const index = Number(row.dataset['index']);
       if (!Number.isInteger(index) || index >= keys.length) continue;
-      const height = (entry.target as HTMLElement).offsetHeight;
+      const height = row.offsetHeight;
+      if (height <= 0) continue;
       const delta = this.rowHeights().measure(keys[index], height);
       if (delta === 0) continue;
       changed = true;
