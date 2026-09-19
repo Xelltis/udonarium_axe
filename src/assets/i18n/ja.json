@@ -3561,30 +3561,53 @@
         "unsupported": "このブラウザでは動画を書き出せません",
         "size": "大きさ",
         "fps": "なめらかさ",
-        "view": "盤面の見え方",
         "pacing": "間の取り方",
-        "scope": "入れるもの",
         "pace": {
           "reading": "読める速さ",
           "recorded": "当日と同じ間"
         },
-        "of": {
-          "top": "真上から",
-          "table": "卓と同じ傾き",
-          "lines": "台詞と章だけ",
-          "everything": "盤面の動きも入れる"
-        },
-        "estimate": "{{shots}} カット・およそ {{length}}",
+        "estimate": "{{count}} 場面・およそ {{length}}",
         "start": "書き出す",
         "rendering": "書き出しています（{{percent}}%）",
         "cancel": "やめる",
         "realtime": "このブラウザでは尺と同じだけ時間がかかります（書き出し中は開いたままにしてください）",
         "withEffects": "効果音を入れる",
         "withMusic": "BGM を入れる",
-        "failed": "書き出せませんでした。細かさや大きさを下げると通ることがあります。",
         "round": "ラウンド {{round}}",
         "turn": "{{name}} の手番",
-        "roundTurn": "ラウンド {{round}}・{{name}} の手番"
+        "roundTurn": "ラウンド {{round}}・{{name}} の手番",
+        "preview": "動画プレビュー",
+        "previewHint": "書き出す動画をその場で再生します",
+        "empty": "動画にできる場面がありません",
+        "building": "組み立てています",
+        "play": "再生",
+        "pause": "一時停止",
+        "styles": {
+          "novel": "ノベル",
+          "tabletop": "卓"
+        },
+        "audience": "見せる相手",
+        "audiences": {
+          "public": "公開用（見学者と同じ）",
+          "player": "自分（PL の視点）",
+          "gm": "GM（秘匿もすべて）"
+        },
+        "lang": "言語",
+        "audienceWarning": "この視点では、公開していない情報が映ります。YouTube などに出すときは「公開用」を選んでください。",
+        "style": "見せ方",
+        "speed": "字幕の速さ",
+        "speeds": {
+          "0": "ゆっくり",
+          "1": "ふつう",
+          "2": "はやめ",
+          "3": "はやい"
+        },
+        "withOpening": "冒頭に部屋の名前と日付を出す",
+        "failures": {
+          "empty": "動画にできる場面がありません。",
+          "sound": "音を混ぜられませんでした。効果音や BGM を外すと書き出せます。",
+          "encode": "書き出せませんでした。大きさやなめらかさを下げると通ることがあります。"
+        }
       },
       "script": {
         "title": "読み物にする",

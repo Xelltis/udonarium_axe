@@ -18,6 +18,7 @@ import { earliestReplaySeq } from '@axe/domain/replay/replay-edit';
 import { ReplayDigestPanelComponent } from '@axe/features/replay/replay-digest-panel/replay-digest-panel.component';
 import { ReplayScriptPanelComponent } from '@axe/features/replay/replay-script-panel/replay-script-panel.component';
 import { ReplayVideoPanelComponent } from '@axe/features/replay/replay-video-panel/replay-video-panel.component';
+import { ReplayVideoPreviewComponent } from '@axe/features/replay/replay-video-preview/replay-video-preview.component';
 import { ReplayEntryListComponent } from '@axe/features/replay/replay-workspace/replay-entry-list.component';
 import { ReplayRecordingListComponent } from '@axe/features/replay/replay-workspace/replay-recording-list.component';
 import { ReplayStageComponent } from '@axe/features/replay/replay-workspace/replay-stage.component';
@@ -37,6 +38,7 @@ import { TranslocoModule } from '@jsverse/transloco';
     ReplayDigestPanelComponent,
     ReplayScriptPanelComponent,
     ReplayVideoPanelComponent,
+    ReplayVideoPreviewComponent,
   ],
 })
 export class ReplayWorkspaceComponent {
@@ -55,6 +57,8 @@ export class ReplayWorkspaceComponent {
   protected readonly isSaving = this.editor.isSaving;
   protected readonly canUndo = this.editor.canUndo;
   protected readonly isDigestOpen = signal(false);
+  /** Whether the left column shows the video as it will be written, rather than the playback controls. */
+  protected readonly isPreviewOpen = signal(false);
   /** Whether the list of recordings is open over the workspace, for choosing another. */
   protected readonly isChooserOpen = signal(false);
 
@@ -74,7 +78,9 @@ export class ReplayWorkspaceComponent {
     });
     // Closing a recording returns to the playback view, so the next one does not open on the summary.
     effect(() => {
-      if (!this.isOpen()) this.isDigestOpen.set(false);
+      if (this.isOpen()) return;
+      this.isDigestOpen.set(false);
+      this.isPreviewOpen.set(false);
     });
     // Choosing a recording from the list is what closes it.
     effect(() => {
@@ -90,7 +96,15 @@ export class ReplayWorkspaceComponent {
   protected toggleDigest(): void {
     // The summary has no transport, and playback left running behind it could not be stopped.
     if (!this.isDigestOpen()) this.playback.stopAutoPlay();
+    this.isPreviewOpen.set(false);
     this.isDigestOpen.update((open) => !open);
+  }
+
+  /** Shows the video as it will be written in the left column, or the playback controls again. */
+  protected togglePreview(): void {
+    if (!this.isPreviewOpen()) this.playback.stopAutoPlay();
+    this.isDigestOpen.set(false);
+    this.isPreviewOpen.update((open) => !open);
   }
 
   protected get canEdit(): boolean {

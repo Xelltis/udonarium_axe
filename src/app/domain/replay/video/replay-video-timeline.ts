@@ -255,6 +255,8 @@ const DICE_COMMAND_WINDOW_MS = 5_000;
 const ROLLER_NAME = /^<(Secret-)?BCDice[：:](.*)>$/s;
 const DICE_COMMAND = /^(?=[!-~]*[A-Za-z])(?=[!-~]*\d)[!-~]+$/;
 const DICE_STEP = /\s*[＞→>]\s*/;
+/** The name of the game system a dice bot puts before its working, as in `DiceBot : (2D6)`. */
+const DICE_SYSTEM = /^[^(（:：]{1,40}\s[:：]\s*(?=[(（])/;
 const SYSTEM_SENDER = 'System';
 
 /**
@@ -265,7 +267,8 @@ const SYSTEM_SENDER = 'System';
  * the pages its subtitle box holds, each held long enough to read in the language of the video.
  * The running of the room and the parts of pieces are left out of the picture, though they still
  * change the board. A roll is shown with the command said just before it. Every event is given the
- * moment it falls at, for the sound.
+ * moment it falls at, for the sound. A recording with nothing to show makes an empty timeline, with
+ * no opening card either.
  */
 export function buildReplayVideoTimeline(
   events: readonly ReplayEvent[],
@@ -300,6 +303,7 @@ class TimelineBuilder {
   private background = '';
   private beat: { from: number; events: { event: ReplayEvent; index: number }[] } | null = null;
   private pendingCommand: ChatLine | null = null;
+  private hasOpening = false;
 
   constructor(
     private readonly events: readonly ReplayEvent[],
@@ -313,6 +317,7 @@ class TimelineBuilder {
   build(): ReplayVideoTimeline {
     const opening = this.options.opening;
     if (opening && opening.title.trim().length > 0) {
+      this.hasOpening = true;
       this.push({
         ...this.base(this.events[0]?.seq ?? 0, 0, REPLAY_OPENING_MS),
         kind: 'chapter',
@@ -329,6 +334,7 @@ class TimelineBuilder {
     this.flushCommand();
     this.flushBeat(this.events.length);
 
+    if (this.segments.length === (this.hasOpening ? 1 : 0)) this.segments.length = 0;
     const last = this.segments[this.segments.length - 1];
     const totalMs = last ? last.startMs + last.durationMs : 0;
     for (const [seq, at] of this.timeOfSeq) if (at > totalMs) this.timeOfSeq.set(seq, totalMs);
@@ -538,6 +544,7 @@ class TimelineBuilder {
     const detail = parseDiceRollDetail(String(line.event.detail['dicebot'] ?? ''));
     const steps = line.text
       .split('\n')[0]
+      .replace(DICE_SYSTEM, '')
       .split(DICE_STEP)
       .map((step) => step.trim())
       .filter((step) => step.length > 0);

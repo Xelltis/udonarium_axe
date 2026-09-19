@@ -21,6 +21,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type { ReplayCastMember } from '@axe/domain/replay/replay-cast';
 import { chatTabIdentifierNear, INSERTABLE_KINDS, isTextEditable, textOf } from '@axe/domain/replay/replay-edit';
 import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { ReplayFocusService } from '@axe/features/replay/replay-focus.service';
 import {
   collectReplayActorIds,
   DEFAULT_REPLAY_LOG_FILTER,
@@ -70,6 +71,7 @@ interface ReplayEntryView {
 })
 export class ReplayEntryListComponent {
   private readonly playback = inject(ReplayPlaybackService);
+  private readonly focus = inject(ReplayFocusService);
   private readonly editor = inject(ReplayEditorService);
   private readonly staging = inject(ReplayStagingService);
   private readonly chatMessageService = inject(ChatMessageService);
@@ -255,6 +257,7 @@ export class ReplayEntryListComponent {
    * recording from there.
    */
   protected async press(row: ReplayEntryRow, event: MouseEvent): Promise<void> {
+    this.focus.seq.set(row.seq);
     if (!this.editing()) {
       await this.playback.seekTo(row.index);
       return;

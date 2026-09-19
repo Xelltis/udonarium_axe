@@ -189,7 +189,10 @@ describe('laying a recording out as a video', () => {
 
   describe('dice', () => {
     it('shows a roll with the command said before it, and what it came to', () => {
-      const timeline = buildReplayVideoTimeline([say('2d6+3 攻撃'), roll('(2D6+3) ＞ 5[2,3]+3 ＞ 8')], options());
+      const timeline = buildReplayVideoTimeline(
+        [say('2d6+3 攻撃'), roll('DiceBot : (2D6+3) ＞ 5[2,3]+3 ＞ 8')],
+        options()
+      );
       const dice = timeline.segments[0] as ReplayDiceSegment;
 
       expect(kinds(timeline.segments)).toEqual(['dice']);
@@ -240,6 +243,15 @@ describe('laying a recording out as a video', () => {
 
       expect(timeline.segments[0]).toMatchObject({ kind: 'chapter', title: '卓', subtitle: '日付', startMs: 0 });
       expect(timeline.segments[1].startMs).toBe(timeline.segments[0].durationMs);
+    });
+
+    it('opens nothing when there is nothing to show', () => {
+      const timeline = buildReplayVideoTimeline(
+        [event(ReplayEventKind.PeerJoin)],
+        options({ opening: { title: '卓', subtitle: '日付' } })
+      );
+
+      expect(timeline).toMatchObject({ segments: [], totalMs: 0 });
     });
 
     it('says whose turn it is in the language of the video', () => {

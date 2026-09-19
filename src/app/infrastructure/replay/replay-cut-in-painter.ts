@@ -8,7 +8,7 @@ import {
   replaySampleAt,
   replaySceneDurationOf,
 } from '@axe/domain/replay/replay-cut-in-scene';
-import { containRect, coverRect } from '@axe/domain/replay/replay-frame-layout';
+import { containRect, coverRect } from '@axe/domain/replay/replay-picture-fit';
 import {
   REPLAY_FRAME_FONT_FAMILY,
   type ReplayFrameAssets,

@@ -1,4 +1,4 @@
-import { containRect } from '@axe/domain/replay/replay-frame-layout';
+import { containRect } from '@axe/domain/replay/replay-picture-fit';
 import type { TablePhotoLayout } from '@axe/domain/replay/table-photo';
 import {
   REPLAY_FRAME_FONT_FAMILY,

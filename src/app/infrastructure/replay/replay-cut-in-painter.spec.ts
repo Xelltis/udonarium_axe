@@ -1,11 +1,10 @@
 import type { ReplayCutInScene } from '@axe/domain/replay/replay-cut-in-scene';
-import { REPLAY_FRAME_PRESETS, replayFrameLayout } from '@axe/domain/replay/replay-frame-layout';
 import type { ReplayFrameAssets } from '@axe/infrastructure/replay/replay-canvas';
 import { paintReplayCutInScene } from '@axe/infrastructure/replay/replay-cut-in-painter';
 import { image, recorder } from '@axe/testing/canvas-recorder';
 
-const layout = replayFrameLayout(REPLAY_FRAME_PRESETS['1080p']);
-const area = layout.board;
+/** The part of a 1080p frame a cut-in is played into. */
+const area = { x: 24, y: 96, width: 1872, height: 600 };
 
 describe('paintReplayCutInScene()', () => {
   function sceneOf(layers: Partial<ReplayCutInScene['layers'][number]>[]): ReplayCutInScene {
@@ -218,7 +217,7 @@ describe('paintReplayCutInScene()', () => {
     paintReplayCutInScene(ctx, area, scene, small, 0);
 
     // Fitted rather than left at its own size, which is what object-fit: contain does.
-    expect(images[0].width).toBeGreaterThan(100 * layout.scale);
+    expect(images[0].width).toBeGreaterThan(100);
   });
 
   it('draws nothing of a picture that has no size to it', () => {

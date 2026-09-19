@@ -25,90 +25,129 @@
     </div>
   } @else if (isOpen()) {
     <div
-      class="border-ui-border-panel bg-ui-panel rounded-ui shadow-ui-md absolute top-[calc(100%+6px)] right-0 z-20 flex w-72 flex-col gap-2 border border-solid p-2.5 [backdrop-filter:blur(24px)_saturate(1.5)]"
+      class="border-ui-border-panel bg-ui-panel rounded-ui shadow-ui-md absolute top-[calc(100%+6px)] right-0 z-20 flex w-80 flex-col gap-2 border border-solid p-2.5 [backdrop-filter:blur(24px)_saturate(1.5)]"
     >
       <label class="text-ui-muted flex items-center justify-between gap-1.5 text-[0.72rem]">
-        {{ 'feature.replay.video.size' | transloco }}
+        {{ 'feature.replay.video.style' | transloco }}
         <select
           class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
-          [value]="sizeKey()"
-          (change)="setSize($any($event.target).value)"
+          (change)="setStyle($any($event.target).value)"
         >
-          @for (size of sizes; track size) {
-            <option [value]="size">{{ size }}</option>
+          @for (choice of styles; track choice) {
+            <option [value]="choice" [selected]="settings.style() === choice">
+              {{ 'feature.replay.video.styles.' + choice | transloco }}
+            </option>
           }
         </select>
       </label>
 
       <label class="text-ui-muted flex items-center justify-between gap-1.5 text-[0.72rem]">
-        {{ 'feature.replay.video.view' | transloco }}
+        {{ 'feature.replay.video.audience' | transloco }}
         <select
           class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
-          [value]="view()"
-          (change)="setView($any($event.target).value)"
+          (change)="setAudience($any($event.target).value)"
         >
-          @for (choice of views; track choice) {
-            <option [value]="choice">{{ 'feature.replay.video.of.' + choice | transloco }}</option>
+          @for (choice of audiences; track choice) {
+            <option [value]="choice" [selected]="settings.audience() === choice">
+              {{ 'feature.replay.video.audiences.' + choice | transloco }}
+            </option>
+          }
+        </select>
+      </label>
+      @if (settings.audience() !== 'public') {
+        <span class="rounded-ui-sm bg-ui-danger-soft text-ui-danger px-1.5 py-1 text-[0.68rem] leading-normal">
+          {{ 'feature.replay.video.audienceWarning' | transloco }}
+        </span>
+      }
+
+      <label class="text-ui-muted flex items-center justify-between gap-1.5 text-[0.72rem]">
+        {{ 'feature.replay.video.lang' | transloco }}
+        <select
+          class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
+          (change)="setLang($any($event.target).value)"
+        >
+          @for (choice of langs; track choice) {
+            <option [value]="choice" [selected]="settings.lang() === choice">
+              {{ 'common.language.' + choice | transloco }}
+            </option>
           }
         </select>
       </label>
 
-      <label class="text-ui-muted flex items-center justify-between gap-1.5 text-[0.72rem]">
-        {{ 'feature.replay.video.fps' | transloco }}
-        <select
-          class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
-          [value]="fps()"
-          (change)="setFps($any($event.target).value)"
-        >
-          @for (choice of fpsChoices; track choice) {
-            <option [value]="choice">{{ choice }} fps</option>
-          }
-        </select>
-      </label>
+      <div class="flex gap-2">
+        <label class="text-ui-muted flex flex-1 items-center justify-between gap-1.5 text-[0.72rem]">
+          {{ 'feature.replay.video.size' | transloco }}
+          <select
+            class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
+            (change)="setSize($any($event.target).value)"
+          >
+            @for (size of sizes; track size) {
+              <option [value]="size" [selected]="settings.sizeKey() === size">{{ size }}</option>
+            }
+          </select>
+        </label>
+        <label class="text-ui-muted flex items-center justify-between gap-1.5 text-[0.72rem]">
+          {{ 'feature.replay.video.fps' | transloco }}
+          <select
+            class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
+            (change)="setFps($any($event.target).value)"
+          >
+            @for (choice of fpsChoices; track choice) {
+              <option [value]="choice" [selected]="settings.fps() === choice">{{ choice }} fps</option>
+            }
+          </select>
+        </label>
+      </div>
 
       <label class="text-ui-muted flex items-center justify-between gap-1.5 text-[0.72rem]">
         {{ 'feature.replay.video.pacing' | transloco }}
         <select
           class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
-          [value]="pacing()"
           (change)="setPacing($any($event.target).value)"
         >
           @for (option of pacings; track option) {
-            <option [value]="option">{{ 'feature.replay.video.pace.' + option | transloco }}</option>
+            <option [value]="option" [selected]="settings.pacing() === option">
+              {{ 'feature.replay.video.pace.' + option | transloco }}
+            </option>
           }
         </select>
       </label>
 
       <label class="text-ui-muted flex items-center justify-between gap-1.5 text-[0.72rem]">
-        {{ 'feature.replay.video.scope' | transloco }}
+        {{ 'feature.replay.video.speed' | transloco }}
         <select
           class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
-          [value]="scope()"
-          (change)="setScope($any($event.target).value)"
+          (change)="setSpeed($any($event.target).value)"
         >
-          @for (option of scopes; track option) {
-            <option [value]="option">{{ 'feature.replay.video.of.' + option | transloco }}</option>
+          @for (speed of speeds; track speed) {
+            <option [value]="speed" [selected]="settings.readingSpeed() === speed">
+              {{ 'feature.replay.video.speeds.' + $index | transloco }}
+            </option>
           }
         </select>
       </label>
 
       <label class="text-ui-muted flex cursor-pointer items-center gap-1.5 text-[0.72rem]">
-        <input type="checkbox" [checked]="withEffects()" (change)="toggleEffects()" />
+        <input type="checkbox" [checked]="settings.withOpening()" (change)="toggleOpening()" />
+        {{ 'feature.replay.video.withOpening' | transloco }}
+      </label>
+      <label class="text-ui-muted flex cursor-pointer items-center gap-1.5 text-[0.72rem]">
+        <input type="checkbox" [checked]="settings.withEffects()" (change)="toggleEffects()" />
         {{ 'feature.replay.video.withEffects' | transloco }}
       </label>
       <label class="text-ui-muted flex cursor-pointer items-center gap-1.5 text-[0.72rem]">
-        <input type="checkbox" [checked]="withMusic()" (change)="toggleMusic()" />
+        <input type="checkbox" [checked]="settings.withMusic()" (change)="toggleMusic()" />
         {{ 'feature.replay.video.withMusic' | transloco }}
       </label>
 
-      @if (failed()) {
+      @if (failure(); as reason) {
         <span class="rounded-ui-sm bg-ui-danger-soft text-ui-danger px-1.5 py-1 text-[0.7rem] leading-normal">
-          {{ 'feature.replay.video.failed' | transloco }}
+          {{ 'feature.replay.video.failures.' + reason | transloco }}
         </span>
       }
 
       <span class="text-ui-muted border-ui-border border-t border-solid pt-1.5 text-[0.7rem] leading-normal">
-        {{ 'feature.replay.video.estimate' | transloco: { shots: estimate().shots, length: estimate().length } }}
+        {{ 'feature.replay.video.estimate' | transloco: { count: estimate().count, length: estimate().length } }}
       </span>
 
       @if (isRealtimeOnly) {
@@ -119,7 +158,7 @@
 
       <button
         class="rounded-ui-sm border-ui-accent bg-ui-accent hover:bg-ui-accent-hover cursor-pointer border border-solid px-[0.7em] py-[0.25em] text-[0.74rem] text-white"
-        [disabled]="!canEdit || estimate().shots < 1"
+        [disabled]="!canEdit || estimate().count < 1"
         (click)="render()"
       >
         {{ 'feature.replay.video.start' | transloco }}

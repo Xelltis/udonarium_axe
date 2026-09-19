@@ -3561,30 +3561,53 @@
         "unsupported": "This browser cannot write video",
         "size": "Size",
         "fps": "Frame rate",
-        "view": "Board view",
         "pacing": "Pacing",
-        "scope": "Include",
         "pace": {
           "reading": "Reading speed",
           "recorded": "As it happened"
         },
-        "of": {
-          "top": "From above",
-          "table": "Tilted like the table",
-          "lines": "Lines and chapters",
-          "everything": "The table as well"
-        },
-        "estimate": "{{shots}} shots, about {{length}}",
+        "estimate": "{{count}} moments, about {{length}}",
         "start": "Write it out",
         "rendering": "Writing it out ({{percent}}%)",
         "cancel": "Stop",
         "realtime": "On this browser the export runs in real time — keep this tab open until it finishes",
         "withEffects": "Include sound effects",
         "withMusic": "Include music",
-        "failed": "The export did not go through. A smaller size or fewer details often helps.",
         "round": "Round {{round}}",
         "turn": "{{name}}'s turn",
-        "roundTurn": "Round {{round}} · {{name}}'s turn"
+        "roundTurn": "Round {{round}} · {{name}}'s turn",
+        "preview": "Video preview",
+        "previewHint": "Plays the video as it will be exported",
+        "empty": "Nothing here can be made into a video",
+        "building": "Laying out",
+        "play": "Play",
+        "pause": "Pause",
+        "styles": {
+          "novel": "Novel",
+          "tabletop": "Table"
+        },
+        "audience": "Made for",
+        "audiences": {
+          "public": "Public (as a guest)",
+          "player": "Me (player view)",
+          "gm": "GM (all secrets)"
+        },
+        "lang": "Language",
+        "audienceWarning": "This view shows information that was never made public. Choose \"Public\" for anything you post online.",
+        "style": "Look",
+        "speed": "Subtitle speed",
+        "speeds": {
+          "0": "Slow",
+          "1": "Normal",
+          "2": "Quick",
+          "3": "Fast"
+        },
+        "withOpening": "Open with the room name and date",
+        "failures": {
+          "empty": "There is nothing here to make into a video.",
+          "sound": "The sound could not be mixed. Leave out sound effects or music to export without it.",
+          "encode": "The video could not be written. A smaller size or a lower frame rate may get through."
+        }
       },
       "script": {
         "title": "Write it out",
