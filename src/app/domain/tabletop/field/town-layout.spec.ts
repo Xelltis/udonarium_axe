@@ -5,7 +5,10 @@ import { GridType } from '@axe/domain/tabletop/game-table';
 
 const SEEDS = [1, 7, 42, 1234, 99999];
 const CITY = FIELD_ATMOSPHERES.city.town!;
-const SLUM = FIELD_ATMOSPHERES.slum.town!;
+const FUTURE = FIELD_ATMOSPHERES.sfCity.town!;
+const ROWS = FIELD_ATMOSPHERES.slum.town!;
+const DUMP = FIELD_ATMOSPHERES.dump.town!;
+const TOWNS = [CITY, FUTURE, ROWS, DUMP];
 const WIDTH = 40;
 const HEIGHT = 30;
 
@@ -19,7 +22,7 @@ function builtOn(town: TownGround): Uint8Array {
   return taken;
 }
 
-/** How many cells of street there are, and whether the streets all join up. */
+/** How many cells of street and pavement there are, and whether they all join up. */
 function streets(town: TownGround, plan: TownPlan): { cells: number; joined: boolean } {
   const walkable = (index: number) =>
     town.ground[index] === plan.zones.street ||
@@ -49,13 +52,26 @@ function streets(town: TownGround, plan: TownPlan): { cells: number; joined: boo
   return { cells: all.length, joined: seen.size === all.length };
 }
 
+/** Whether a building stands with one side against the pavement. */
+function facesPavement(town: TownGround, plan: TownPlan, building: FieldBuilding): boolean {
+  const at = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < WIDTH && y < HEIGHT && town.ground[y * WIDTH + x] === plan.zones.kerb;
+  for (let dx = 0; dx < building.w; dx++) {
+    if (at(building.x + dx, building.y - 1) || at(building.x + dx, building.y + building.h)) return true;
+  }
+  for (let dy = 0; dy < building.h; dy++) {
+    if (at(building.x - 1, building.y + dy) || at(building.x + building.w, building.y + dy)) return true;
+  }
+  return false;
+}
+
 function middleOf(building: FieldBuilding): number {
   return Math.hypot(building.x + building.w / 2 - WIDTH / 2, building.y + building.h / 2 - HEIGHT / 2);
 }
 
 describe('layTown()', () => {
   it('joins every street to every other, so the whole town can be walked', () => {
-    for (const plan of [CITY, SLUM]) {
+    for (const plan of TOWNS) {
       for (const seed of SEEDS) {
         const found = streets(layTown(plan, WIDTH, HEIGHT, seed, 50), plan);
 
@@ -66,7 +82,7 @@ describe('layTown()', () => {
   });
 
   it('puts every building on the board, on a lot, and never two on one cell', () => {
-    for (const plan of [CITY, SLUM]) {
+    for (const plan of TOWNS) {
       for (const seed of SEEDS) {
         const town = layTown(plan, WIDTH, HEIGHT, seed, 100);
         const taken = builtOn(town);
@@ -84,40 +100,46 @@ describe('layTown()', () => {
     }
   });
 
-  it('never builds on a lot too narrow to hold more than a sliver', () => {
-    for (const plan of [CITY, SLUM]) {
+  it('never builds on a lot too narrow to hold more than a sliver, nor on one bigger than the plan allows', () => {
+    for (const plan of TOWNS) {
+      const widest = Math.max(plan.lot.most + plan.lot.least - 1, plan.frontage ?? 0);
       for (const seed of SEEDS) {
         for (const building of layTown(plan, WIDTH, HEIGHT, seed, 100).buildings) {
           expect(Math.min(building.w, building.h)).toBeGreaterThanOrEqual(2);
-          expect(Math.max(building.w, building.h)).toBeLessThanOrEqual(plan.lot.most);
+          expect(Math.max(building.w, building.h)).toBeLessThanOrEqual(widest);
         }
       }
     }
   });
 
-  it('builds each as tall as the plan allows and no taller', () => {
-    for (const plan of [CITY, SLUM]) {
+  it('builds each as tall as the plan allows and no taller, in one of the facades it offers', () => {
+    for (const plan of TOWNS) {
+      const worn = new Set<number>();
       for (const seed of SEEDS) {
         for (const building of layTown(plan, WIDTH, HEIGHT, seed, 50).buildings) {
           expect(building.height).toBeGreaterThanOrEqual(plan.storeys.least);
           expect(building.height).toBeLessThanOrEqual(plan.storeys.most);
+          worn.add(building.skin);
         }
       }
+      expect([...worn].sort()).toEqual(plan.skins.map((_, index) => index));
     }
   });
 
   it('raises the tallest towers in the middle of a city', () => {
-    for (const seed of SEEDS) {
-      const buildings = layTown(CITY, WIDTH, HEIGHT, seed, 100).buildings;
-      const byNearness = [...buildings].sort((left, right) => middleOf(left) - middleOf(right));
-      const half = Math.floor(byNearness.length / 2);
-      const mean = (some: FieldBuilding[]) => some.reduce((sum, each) => sum + each.height, 0) / some.length;
+    for (const plan of [CITY, FUTURE]) {
+      for (const seed of SEEDS) {
+        const buildings = layTown(plan, WIDTH, HEIGHT, seed, 100).buildings;
+        const byNearness = [...buildings].sort((left, right) => middleOf(left) - middleOf(right));
+        const half = Math.floor(byNearness.length / 2);
+        const mean = (some: FieldBuilding[]) => some.reduce((sum, each) => sum + each.height, 0) / some.length;
 
-      expect(mean(byNearness.slice(0, half))).toBeGreaterThan(mean(byNearness.slice(half)));
+        expect(mean(byNearness.slice(0, half))).toBeGreaterThan(mean(byNearness.slice(half)));
+      }
     }
   });
 
-  it('sets a tall tower back from the edge of its lot on a podium, and a short one not at all', () => {
+  it('sets a tall tower back from the edge of its lot on a podium, and a row house not at all', () => {
     const buildings = SEEDS.flatMap((seed) => layTown(CITY, WIDTH, HEIGHT, seed, 100).buildings);
     const podiums = buildings.filter((building) => building.podium > 0);
 
@@ -127,7 +149,7 @@ describe('layTown()', () => {
       expect(Math.min(building.w, building.h)).toBeGreaterThanOrEqual(4);
       expect(building.podium).toBeLessThan(building.height);
     }
-    for (const building of layTown(SLUM, WIDTH, HEIGHT, 42, 100).buildings) expect(building.podium).toBe(0);
+    for (const building of layTown(ROWS, WIDTH, HEIGHT, 42, 100).buildings) expect(building.podium).toBe(0);
   });
 
   it('puts what stands on a roof on that roof, and on the tower rather than the podium', () => {
@@ -144,17 +166,20 @@ describe('layTown()', () => {
     }
   });
 
-  it('knocks the shacks of a slum off square, and leaves a city square to its streets', () => {
-    const shacks = SEEDS.flatMap((seed) => layTown(SLUM, WIDTH, HEIGHT, seed, 50).buildings);
-    const towers = SEEDS.flatMap((seed) => layTown(CITY, WIDTH, HEIGHT, seed, 50).buildings);
+  it('lines a block of row houses with them along the pavement and keeps the yards behind them', () => {
+    for (const seed of SEEDS) {
+      const town = layTown(ROWS, WIDTH, HEIGHT, seed, 100);
+      const taken = builtOn(town);
+      const yards = [...town.ground.keys()].filter((index) => town.ground[index] === ROWS.zones.lot && !taken[index]);
 
-    expect(shacks.some((shack) => shack.spin !== 0)).toBe(true);
-    expect(shacks.every((shack) => Math.abs(shack.spin) <= SLUM.spin)).toBe(true);
-    expect(towers.every((tower) => tower.spin === 0)).toBe(true);
+      for (const building of town.buildings) expect(facesPavement(town, ROWS, building)).toBe(true);
+      expect(town.buildings.some((building) => Math.min(building.w, building.h) === ROWS.frontage)).toBe(true);
+      expect(yards.length).toBeGreaterThan(0);
+    }
   });
 
   it('builds more of the lots up the higher the density', () => {
-    for (const plan of [CITY, SLUM]) {
+    for (const plan of TOWNS) {
       const count = (density: number) =>
         SEEDS.reduce((sum, seed) => sum + layTown(plan, WIDTH, HEIGHT, seed, density).buildings.length, 0);
 
@@ -163,33 +188,50 @@ describe('layTown()', () => {
     }
   });
 
-  it('floods only the street, and about as much of it as the plan says', () => {
-    for (const seed of SEEDS) {
-      const town = layTown(SLUM, WIDTH, HEIGHT, seed, 50);
-      const flooded = [...town.ground].filter((band) => band === SLUM.zones.puddle).length;
-      const street = [...town.ground].filter((band) => band === SLUM.zones.street).length;
+  it('runs the avenues of a planned town straight across the board', () => {
+    for (const plan of [CITY, FUTURE, ROWS]) {
+      const town = layTown(plan, WIDTH, HEIGHT, 42, 100);
+      const taken = builtOn(town);
+      const open = (x: number) => [...Array(HEIGHT).keys()].every((y) => taken[y * WIDTH + x] === 0);
 
-      expect(flooded / (flooded + street)).toBeCloseTo(SLUM.puddles!, 1);
-      for (const building of town.buildings) {
-        expect(town.ground[building.y * WIDTH + building.x]).not.toBe(SLUM.zones.puddle);
-      }
+      expect([...Array(WIDTH).keys()].some(open)).toBe(true);
     }
-    expect([...layTown(CITY, WIDTH, HEIGHT, 42, 50).ground]).not.toContain(3);
   });
 
-  it('lets the lanes of a slum wander, where the avenues of a city run straight across', () => {
+  it('lets the lanes of the dump wander, where no avenue runs straight across it', () => {
     const straight = (town: TownGround) => {
-      const columns = new Set<number>();
-      for (let x = 0; x < WIDTH; x++) {
-        let open = true;
-        for (let y = 0; y < HEIGHT && open; y++) open = builtOn(town)[y * WIDTH + x] === 0;
-        if (open) columns.add(x);
-      }
-      return columns.size;
+      const taken = builtOn(town);
+      return [...Array(WIDTH).keys()].filter((x) => [...Array(HEIGHT).keys()].every((y) => taken[y * WIDTH + x] === 0))
+        .length;
     };
 
-    expect(straight(layTown(CITY, WIDTH, HEIGHT, 42, 100))).toBeGreaterThan(0);
-    expect(SEEDS.some((seed) => straight(layTown(SLUM, WIDTH, HEIGHT, seed, 100)) === 0)).toBe(true);
+    expect(SEEDS.some((seed) => straight(layTown(DUMP, WIDTH, HEIGHT, seed, 100)) === 0)).toBe(true);
+  });
+
+  it('knocks the shacks of the dump off square, and leaves every other town square to its streets', () => {
+    const shacks = SEEDS.flatMap((seed) => layTown(DUMP, WIDTH, HEIGHT, seed, 50).buildings);
+
+    expect(shacks.some((shack) => shack.spin !== 0)).toBe(true);
+    expect(shacks.every((shack) => Math.abs(shack.spin) <= DUMP.spin!)).toBe(true);
+    for (const plan of [CITY, FUTURE, ROWS]) {
+      for (const building of layTown(plan, WIDTH, HEIGHT, 42, 50).buildings) expect(building.spin).toBe(0);
+    }
+  });
+
+  it('floods only the lanes of the dump, and about as much of them as the plan says', () => {
+    for (const seed of SEEDS) {
+      const town = layTown(DUMP, WIDTH, HEIGHT, seed, 50);
+      const flooded = [...town.ground].filter((band) => band === DUMP.zones.puddle).length;
+      const street = [...town.ground].filter((band) => band === DUMP.zones.street).length;
+
+      expect(flooded / (flooded + street)).toBeCloseTo(DUMP.puddles!, 1);
+      for (const building of town.buildings) {
+        expect(town.ground[building.y * WIDTH + building.x]).not.toBe(DUMP.zones.puddle);
+      }
+    }
+    for (const plan of [CITY, FUTURE, ROWS]) {
+      expect([...layTown(plan, WIDTH, HEIGHT, 42, 50).ground].every((band) => band <= 2)).toBe(true);
+    }
   });
 
   it('lays out the same town twice for one seed, and another for another', () => {
@@ -213,10 +255,11 @@ describe('a town on the table', () => {
       expect(tower.height).toBeCloseTo(building.height - building.podium);
       expect(tower.rect.w).toBe(building.w - 2);
     }
-    for (const block of blocks) {
+    for (const building of plan.layout.buildings) {
+      const block = blocks.find((each) => each.rect.x === building.x && each.rect.y === building.y)!;
       expect(block.blocksSight).toBe(true);
-      expect(block.skin?.side).toEqual({ kind: 'texture', id: 'wall_facade' });
-      expect(block.skin?.top).toEqual({ kind: 'texture', id: 'rooftop' });
+      expect(block.skin?.side).toEqual({ kind: 'texture', id: CITY.skins[building.skin].side });
+      expect(block.skin?.top).toEqual({ kind: 'texture', id: CITY.skins[building.skin].top });
     }
   });
 
@@ -236,17 +279,6 @@ describe('a town on the table', () => {
     }
   });
 
-  it('sets a shack in from the edge of its lot and turns it the way it stands', () => {
-    const plan = planField({ atmosphere: 'slum', size: 40, density: 50, seed: 42 });
-    const shack = plan.layout.buildings.find((building) => building.spin !== 0)!;
-    const block = plan.blocks.blocks.find(
-      (each) => each.thing === 'building' && each.rect.x === shack.x && each.rect.y === shack.y
-    )!;
-
-    expect(block.rotate).toBe(shack.spin);
-    expect(block.footprint).toEqual({ w: shack.w - SLUM.inset * 2, d: shack.h - SLUM.inset * 2 });
-  });
-
   it('stands a roof unit on top of its roof, in steel the building material leaves alone', () => {
     const plan = planField({ atmosphere: 'city', size: 40, density: 100, seed: 42 });
     const units = plan.blocks.blocks.filter((block) => block.thing === 'roofUnit');
@@ -260,31 +292,62 @@ describe('a town on the table', () => {
     }
   });
 
-  it('lights a city by street lamps on its pavements, and a slum by fires in its lanes', () => {
-    for (const seed of SEEDS) {
-      const city = planField({ atmosphere: 'city', size: 40, density: 50, seed });
-      const slum = planField({ atmosphere: 'slum', size: 40, density: 50, seed });
+  it('sets a shack of the dump in from the edge of its lot and turns it the way it stands', () => {
+    const plan = planField({ atmosphere: 'dump', size: 40, density: 50, seed: 42 });
+    const shack = plan.layout.buildings.find((building) => building.spin !== 0)!;
+    const block = plan.blocks.blocks.find(
+      (each) => each.thing === 'building' && each.rect.x === shack.x && each.rect.y === shack.y
+    )!;
 
-      expect(city.blocks.lights.length).toBeGreaterThan(0);
-      for (const light of city.blocks.lights) {
-        expect(light.kind).toBe('streetlamp');
-        expect(city.layout.ground[light.y * city.layout.width + light.x]).toBe(CITY.zones.kerb);
-      }
-      for (const light of slum.blocks.lights) {
-        expect(['brazier', 'campfire']).toContain(light.kind);
-        expect(slum.layout.props[light.y * slum.layout.width + light.x]).toBe('');
+    expect(block.rotate).toBe(shack.spin);
+    expect(block.footprint).toEqual({ w: shack.w - DUMP.inset! * 2, d: shack.h - DUMP.inset! * 2 });
+  });
+
+  it('keeps the water of an old walk-up in a wooden tank on its roof', () => {
+    const plan = planField({ atmosphere: 'slum', size: 40, density: 100, seed: 42 });
+    const units = plan.blocks.blocks.filter((block) => block.thing === 'roofUnit');
+
+    expect(units.length).toBeGreaterThan(0);
+    for (const unit of units) expect(unit.skin?.side).toEqual({ kind: 'texture', id: 'wood_plank' });
+  });
+
+  it('lights its pavements by the lamps of the place, in the colours it asks for', () => {
+    for (const seed of SEEDS) {
+      for (const [id, kinds] of [
+        ['city', ['streetlamp']],
+        ['sfCity', ['neonpole']],
+        ['slum', ['streetlamp', 'brazier']],
+        ['dump', ['brazier', 'campfire']],
+      ] as const) {
+        const plan = planField({ atmosphere: id, size: 40, density: 50, seed });
+        const fires = FIELD_ATMOSPHERES[id].fires!;
+
+        expect(plan.blocks.lights.length).toBeGreaterThan(0);
+        plan.blocks.lights.forEach((light, index) => {
+          const at = light.y * plan.layout.width + light.x;
+          expect(kinds as readonly string[]).toContain(light.kind);
+          expect(fires.bands).toContain(plan.layout.ground[at]);
+          expect(plan.layout.props[at]).toBe('');
+          expect(light.color).toBe(fires.colors?.[index % fires.colors.length]);
+        });
       }
     }
   });
 
-  it('plants the squares of a city and nothing where a building stands', () => {
-    const plan = planField({ atmosphere: 'city', size: 60, density: 50, seed: 7 });
-    const planted = plan.layout.props.flatMap((mark, index) => (mark === 'bush' ? [index] : []));
+  it('plants the squares of a city, and trees along the pavements of the row houses', () => {
+    const city = planField({ atmosphere: 'city', size: 60, density: 50, seed: 7 });
+    const rows = planField({ atmosphere: 'slum', size: 40, density: 50, seed: 7 });
+    const bushes = city.layout.props.flatMap((mark, index) => (mark === 'bush' ? [index] : []));
+    const trees = rows.layout.objects.filter((object) => object.prop === 'streetTree');
 
-    expect(planted.length).toBeGreaterThan(0);
-    for (const index of planted) expect(plan.layout.ground[index]).toBe(CITY.zones.lot);
-    for (const object of plan.layout.objects) {
-      expect(plan.layout.props[object.y * plan.layout.width + object.x]).not.toBe('building');
+    expect(bushes.length).toBeGreaterThan(0);
+    for (const index of bushes) expect(city.layout.ground[index]).toBe(CITY.zones.lot);
+    expect(trees.length).toBeGreaterThan(0);
+    for (const tree of trees) expect(rows.layout.ground[tree.y * rows.layout.width + tree.x]).toBe(ROWS.zones.kerb);
+    for (const plan of [city, rows]) {
+      for (const object of plan.layout.objects) {
+        expect(plan.layout.props[object.y * plan.layout.width + object.x]).not.toBe('building');
+      }
     }
   });
 });

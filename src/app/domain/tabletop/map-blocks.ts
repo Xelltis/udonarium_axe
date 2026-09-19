@@ -95,7 +95,7 @@ export interface MapPaint {
 }
 
 export type MapLightKind =
-  'sconce' | 'campfire' | 'brazier' | 'stand' | 'lantern' | 'neon' | 'streetlamp' | 'fluorescent';
+  'sconce' | 'campfire' | 'brazier' | 'stand' | 'lantern' | 'neon' | 'streetlamp' | 'fluorescent' | 'neonpole';
 
 export interface MapLight extends MapPoint {
   kind: MapLightKind;

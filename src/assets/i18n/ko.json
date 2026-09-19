@@ -2167,6 +2167,7 @@
           "hill": "언덕",
           "cactus": "선인장",
           "junk": "고철 더미",
+          "streetTree": "가로수",
           "building": "건물",
           "roofUnit": "옥상 설비",
           "counter": "카운터",
@@ -2266,7 +2267,9 @@
           "snowfield": "설원",
           "wasteland": "황야",
           "city": "빌딩 숲",
-          "slum": "슬럼가"
+          "sfCity": "빌딩 숲(SF)",
+          "slum": "슬럼가",
+          "dump": "쓰레기 처리장"
         },
         "prop": {
           "tree": "나무",
@@ -2276,6 +2279,7 @@
           "hill": "언덕",
           "cactus": "선인장",
           "junk": "고철 더미",
+          "streetTree": "가로수",
           "building": "건물"
         },
         "grid": {

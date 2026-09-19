@@ -626,6 +626,21 @@ describe('DungeonBuildService', () => {
       }
     });
 
+    it('stands the light poles of the future city on the ground, burning the colours they were given', async () => {
+      const plan = planField({ atmosphere: 'sfCity', size: 40, density: 50, seed: 7 });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+      const lights = result.table.lightSources;
+
+      expect(lights.length).toBe(plan.blocks.lights.length);
+      for (const light of lights) {
+        expect(light.altitude).toBe(0);
+        expect(light.imageFile.identifier).toContain('light_neon_pole');
+      }
+      expect(new Set(lights.map((light) => light.lightColor))).toEqual(
+        new Set(plan.blocks.lights.map((light) => light.color))
+      );
+    });
+
     it('stands the street lamps of a city on the ground, each looking like a street lamp', async () => {
       const plan = planField({ atmosphere: 'city', size: 40, density: 50, seed: 7 });
       const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());

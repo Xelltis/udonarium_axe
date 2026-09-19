@@ -9,6 +9,8 @@ export interface FieldBuilding extends MapRect {
   height: number;
   /** How tall the podium it rises from is, in cells; nothing where it rises sheer from its lot. */
   podium: number;
+  /** Which of the town's facades it wears, by index. */
+  skin: number;
   /** How far it stands off square, in degrees. */
   spin: number;
   /** The cell of its roof a tank or a plant room stands on, if it carries one. */
@@ -75,6 +77,48 @@ function cutLots(rect: MapRect, plan: TownPlan, rng: () => number, lots: MapRect
   }
 }
 
+/** Cuts a strip of frontage into narrow lots along its length, the last taking what is left. */
+function cutStrip(rect: MapRect, plan: TownPlan, rng: () => number, lots: MapRect[]): void {
+  const along = rect.w >= rect.h;
+  const length = along ? rect.w : rect.h;
+  let at = 0;
+  while (at < length) {
+    let size = between(plan.lot.least, plan.lot.most, rng);
+    if (length - at - size < plan.lot.least) size = length - at;
+    lots.push(
+      along ? { x: rect.x + at, y: rect.y, w: size, h: rect.h } : { x: rect.x, y: rect.y + at, w: rect.w, h: size }
+    );
+    at += size;
+  }
+}
+
+/**
+ * Lines a block with narrow lots facing the street, and leaves the middle of it open.
+ *
+ * Row houses stand shoulder to shoulder along the pavement and keep their yards behind them. A
+ * block too shallow to have a middle gets two rows back to back instead, so that every house
+ * still has a front door on a street.
+ */
+function lineBlock(inner: MapRect, depth: number, plan: TownPlan, rng: () => number, lots: MapRect[]): void {
+  const { x, y, w, h } = inner;
+  if (h <= depth * 2) {
+    const front = Math.ceil(h / 2);
+    cutStrip({ x, y, w, h: front }, plan, rng, lots);
+    if (h > front) cutStrip({ x, y: y + front, w, h: h - front }, plan, rng, lots);
+    return;
+  }
+  if (w <= depth * 2) {
+    const front = Math.ceil(w / 2);
+    cutStrip({ x, y, w: front, h }, plan, rng, lots);
+    if (w > front) cutStrip({ x: x + front, y, w: w - front, h }, plan, rng, lots);
+    return;
+  }
+  cutStrip({ x, y, w, h: depth }, plan, rng, lots);
+  cutStrip({ x, y: y + h - depth, w, h: depth }, plan, rng, lots);
+  cutStrip({ x, y: y + depth, w: depth, h: h - depth * 2 }, plan, rng, lots);
+  cutStrip({ x: x + w - depth, y: y + depth, w: depth, h: h - depth * 2 }, plan, rng, lots);
+}
+
 /**
  * How tall a building on this lot stands.
  *
@@ -96,13 +140,14 @@ function build(lot: MapRect, plan: TownPlan, width: number, height: number, rng:
   const tall = heightFor(lot, plan, width, height, rng);
   const setback = plan.setbackAbove !== undefined && tall > plan.setbackAbove && lot.w >= 4 && lot.h >= 4;
   const podium = setback ? 1 + Math.floor(rng() * 2) : 0;
-  const spin = plan.spin > 0 ? Math.round((rng() * 2 - 1) * plan.spin) : 0;
+  const skin = Math.floor(rng() * plan.skins.length) % plan.skins.length;
+  const spin = plan.spin ? Math.round((rng() * 2 - 1) * plan.spin) : 0;
   let plant: MapPoint | null = null;
   if (rng() * 100 < plan.roofPlant) {
     const roof = podium > 0 ? { x: lot.x + 1, y: lot.y + 1, w: lot.w - 2, h: lot.h - 2 } : lot;
     plant = { x: roof.x + Math.floor(rng() * roof.w), y: roof.y + Math.floor(rng() * roof.h) };
   }
-  return { ...lot, height: tall, podium, spin, plant };
+  return { ...lot, height: tall, podium, skin, spin, plant };
 }
 
 /** Lays standing water over the lowest share of the street, in patches rather than cell by cell. */
@@ -128,9 +173,12 @@ function flood(ground: Uint8Array, plan: TownPlan, width: number, height: number
  * Lays out a town: its streets across the board, a pavement round each block between them, the
  * blocks cut into lots, and a building put up on every lot not left standing empty.
  *
- * A crooked town cuts each row of blocks on its own, so its lanes wander and meet at odd places.
- * Density fills the lots up: at the middle of the range as many stand empty as the plan says,
- * at the bottom half as many again are built on, and at the top nearly all of them.
+ * The streets run straight across the board on one grid, unless the town is crooked and cuts
+ * each row of blocks on its own so its lanes wander and meet at odd places. A town of row houses
+ * lines each block with them and leaves the middle open for yards, and a town with puddles
+ * leaves standing water in the lowest of its lanes. Density fills the lots up: at the middle of
+ * the range as many stand empty as the plan says, at the bottom half as many again are built on,
+ * and at the top nearly all of them.
  */
 export function layTown(plan: TownPlan, width: number, height: number, seed: number, density: number): TownGround {
   const rng = seededRandom(seed + 6007);
@@ -159,7 +207,8 @@ export function layTown(plan: TownPlan, width: number, height: number, seed: num
       }
 
       const lots: MapRect[] = [];
-      cutLots(inner, plan, rng, lots);
+      if (plan.frontage) lineBlock(inner, plan.frontage, plan, rng, lots);
+      else cutLots(inner, plan, rng, lots);
       for (const lot of lots) {
         if (lot.w < MIN_BUILT_LOT || lot.h < MIN_BUILT_LOT || rng() >= built) continue;
         buildings.push(build(lot, plan, width, height, rng));

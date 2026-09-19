@@ -65,7 +65,9 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
     if (atmosphere.bands[layout.ground[index]].bare) continue;
     if (bands && !bands.includes(layout.ground[index])) continue;
     if (lights.some((light) => Math.abs(light.x - x) < apart && Math.abs(light.y - y) < apart)) continue;
-    lights.push({ x, y, kind: kinds[lights.length % kinds.length], facing: 0, room: lights.length });
+    const color = atmosphere.fires?.colors?.[lights.length % atmosphere.fires.colors.length];
+    const light: MapLight = { x, y, kind: kinds[lights.length % kinds.length], facing: 0, room: lights.length };
+    lights.push(color ? { ...light, color } : light);
   }
 
   return lights;
@@ -79,12 +81,13 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
  * is a column to a cell, those round the edge of a podium standing only as tall as the podium.
  */
 function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): MapBlock[] {
+  const skin = plan.skins[building.skin] ?? plan.skins[0];
   const standing = (): Omit<MapBlock, 'rect'> => ({
     kind: 'prop',
     blocksSight: true,
     locked: false,
     rooms: [],
-    skin: { side: { kind: 'texture', id: plan.skin.side }, top: { kind: 'texture', id: plan.skin.top } },
+    skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
     thing: 'building',
   });
   const { x, y, w, h, podium } = building;
@@ -92,7 +95,8 @@ function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): 
 
   if (span > 1) {
     const rotate = building.spin || undefined;
-    const footprint = plan.inset > 0 ? { w: w - plan.inset * 2, d: h - plan.inset * 2 } : undefined;
+    const inset = plan.inset ?? 0;
+    const footprint = inset > 0 ? { w: w - inset * 2, d: h - inset * 2 } : undefined;
     blocks.push({ ...standing(), rect: { x, y, w, h }, height: podium || building.height, footprint, rotate });
     if (podium > 0) {
       blocks.push({
@@ -120,7 +124,10 @@ function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): 
       blocksSight: false,
       locked: false,
       rooms: [],
-      skin: { side: { kind: 'texture', id: ROOF_PLANT.side }, top: { kind: 'texture', id: ROOF_PLANT.top } },
+      skin: {
+        side: { kind: 'texture', id: plan.plantSkin?.side ?? ROOF_PLANT.side },
+        top: { kind: 'texture', id: plan.plantSkin?.top ?? ROOF_PLANT.top },
+      },
       height: ROOF_PLANT.height,
       footprint: { w: ROOF_PLANT.fill, d: ROOF_PLANT.fill },
       altitude: building.height,

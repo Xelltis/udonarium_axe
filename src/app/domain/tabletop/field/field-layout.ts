@@ -93,7 +93,7 @@ const WARP = 0.6;
 const POOL_SPACING = 8;
 
 /** What is put down as a whole thing rather than as a cell of ground cover. */
-const STANDING_PROPS: readonly FieldPropId[] = ['hill', 'tree', 'boulder', 'outcrop', 'cactus', 'junk'];
+const STANDING_PROPS: readonly FieldPropId[] = ['hill', 'tree', 'boulder', 'outcrop', 'cactus', 'junk', 'streetTree'];
 
 /** Below this share of the growth field nothing grows, and above it the stand thickens. */
 const GROWTH_FLOOR = 0.3;

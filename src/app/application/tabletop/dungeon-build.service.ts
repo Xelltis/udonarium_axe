@@ -51,6 +51,7 @@ const LIGHT_PRESET: Record<MapLightKind, LightPreset> = {
   neon: LightPreset.NEON,
   streetlamp: LightPreset.LANTERN,
   fluorescent: LightPreset.NEON,
+  neonpole: LightPreset.NEON,
 };
 
 /** A stand and a lantern burn alike but do not look alike, so the picture follows the kind. */
@@ -63,6 +64,7 @@ const LIGHT_SKIN: Record<MapLightKind, LightSkinId> = {
   neon: 'light_neon',
   streetlamp: 'light_streetlamp',
   fluorescent: 'light_fluorescent',
+  neonpole: 'light_neon_pole',
 };
 const WALL_MOUNTED: readonly MapLightKind[] = ['sconce', 'lantern', 'neon', 'fluorescent'];
 /** What is fixed flat to the stone, and so set back against it rather than left hanging a half cell out. */

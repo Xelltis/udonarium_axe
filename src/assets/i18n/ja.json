@@ -2167,6 +2167,7 @@
           "hill": "丘",
           "cactus": "サボテン",
           "junk": "廃材の山",
+          "streetTree": "街路樹",
           "building": "建物",
           "roofUnit": "屋上設備",
           "counter": "カウンター",
@@ -2266,7 +2267,9 @@
           "snowfield": "雪原",
           "wasteland": "荒野",
           "city": "ビル群",
-          "slum": "スラム街"
+          "sfCity": "ビル群(SF)",
+          "slum": "スラム街",
+          "dump": "ゴミ処理場"
         },
         "prop": {
           "tree": "木",
@@ -2276,6 +2279,7 @@
           "hill": "丘",
           "cactus": "サボテン",
           "junk": "廃材の山",
+          "streetTree": "街路樹",
           "building": "建物"
         },
         "grid": {
