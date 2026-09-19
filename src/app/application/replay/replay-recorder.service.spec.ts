@@ -26,6 +26,8 @@ import {
 import type { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isCompressed } from '@axe/core/util/compress';
+import { Card } from '@axe/domain/card/card';
+import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
@@ -452,6 +454,25 @@ describe('ReplayRecorderService', () => {
       const arrival = service.recentEvents().find((event) => event.targetId === part.identifier);
       expect(arrival?.detail['part']).toBe(true);
       expect(store.allEvents().find((event) => event.targetId === piece.identifier)?.parts).toBeUndefined();
+    });
+
+    it('tells the removal of a card drawn from its deck as a piece of its own', async () => {
+      const deck = CardStack.create('山札');
+      const card = Card.create('切り札', '', '');
+      deck.putOnTop(card);
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      deck.drawCard();
+      dispatchUpdateOf(card);
+      objectStore.remove(card);
+      localDispatch('DELETE_GAME_OBJECT', { identifier: card.identifier, aliasName: 'card' }, 'peer-a');
+
+      const removal = service
+        .recentEvents()
+        .find((event) => event.kind === ReplayEventKind.ObjectRemove && event.targetId === card.identifier);
+      expect(removal).toBeDefined();
+      expect(removal?.detail['part']).toBeUndefined();
     });
 
     it('takes a piece away as one removal, carrying the parts that went with it', async () => {

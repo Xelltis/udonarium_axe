@@ -317,6 +317,9 @@ export class ReplayRecorderService {
     const after = context.syncData as SyncData;
     const before = this.shadows.get(context.identifier) ?? null;
     this.shadows.set(context.identifier, cloneSyncData(after));
+    if (before && before['parentIdentifier'] !== after['parentIdentifier']) {
+      this.notePartOwner(context.identifier, after['parentIdentifier']);
+    }
 
     if (!before && at < this.baselineUntil && !this.isFreshArrival(context.aliasName, after, sendFrom)) return;
     if (!shouldDiffObjectChange(this.preference.detailLevel(), context.aliasName, !before)) return;
@@ -332,6 +335,18 @@ export class ReplayRecorderService {
       return;
     }
     this.push(draft, sendFrom, at);
+  }
+
+  /**
+   * Keeps up with whether an object is part of a piece once it has moved: a card drawn from its deck
+   * is a piece of its own from then on, and one put into a deck becomes part of it. Judged from the
+   * parent it moved to, since the room may not have taken the move in yet.
+   */
+  private notePartOwner(identifier: string, parentIdentifier: unknown): void {
+    const parent = typeof parentIdentifier === 'string' ? this.objectStore.get(parentIdentifier) : null;
+    const owner = parent instanceof TabletopObject ? parent : ownerOf(parent);
+    if (owner) this.partOwners.set(identifier, owner.identifier);
+    else this.partOwners.delete(identifier);
   }
 
   /**
