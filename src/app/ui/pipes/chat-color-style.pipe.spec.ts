@@ -1,11 +1,6 @@
-import { lchToRgb, parseHexColor, relativeLuminance, rgbToLch } from '@axe/core/util/tonal-color';
+import { parseHexColor, relativeLuminance, rgbToLch } from '@axe/core/util/tonal-color';
 import { chatBubbleBaseTone, setChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { autoChatBubble, chatColorContrast, ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
-
-vi.mock('@axe/core/util/tonal-color', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@axe/core/util/tonal-color')>();
-  return { ...actual, lchToRgb: vi.fn(actual.lchToRgb) };
-});
 
 const PALETTE = [
   '#000000',
@@ -115,14 +110,18 @@ describe('chatColorContrast()', () => {
 
 describe('working a bubble out', () => {
   it('searches once for a colour, however many lines ask for it', () => {
-    vi.mocked(lchToRgb).mockClear();
-    const first = autoChatBubble('#123456', 'light', 61.5);
-    const searched = vi.mocked(lchToRgb).mock.calls.length;
+    const math = vi.spyOn(Math, 'pow');
+    try {
+      const first = autoChatBubble('#123456', 'light', 61.5);
+      const searched = math.mock.calls.length;
 
-    for (let line = 0; line < 50; line++) expect(autoChatBubble('#123456', 'light', 61.5)).toBe(first);
+      for (let line = 0; line < 50; line++) expect(autoChatBubble('#123456', 'light', 61.5)).toBe(first);
 
-    expect(searched).toBeGreaterThan(0);
-    expect(vi.mocked(lchToRgb).mock.calls.length).toBe(searched);
+      expect(searched).toBeGreaterThan(0);
+      expect(math.mock.calls.length).toBe(searched);
+    } finally {
+      math.mockRestore();
+    }
   });
 
   it('works it out again once a skin has moved the page it sits on', () => {
