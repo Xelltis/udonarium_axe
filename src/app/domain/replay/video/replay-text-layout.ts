@@ -59,13 +59,11 @@ function breakParagraph(paragraph: string, measure: ReplayTextMeasure, maxWidth:
   for (let i = 0; i < units.length; i++) {
     const unit = units[i];
     const candidate = line + unit;
-    if (measure(candidate) <= maxWidth || line.length < 1) {
-      if (line.length < 1 && measure(unit) > maxWidth) {
-        const pieces = breakLongUnit(unit, measure, maxWidth);
-        lines.push(...pieces.slice(0, -1));
-        line = pieces[pieces.length - 1];
-        continue;
-      }
+    if (line.length < 1) {
+      line = startLine(unit, measure, maxWidth, lines);
+      continue;
+    }
+    if (measure(candidate) <= maxWidth) {
       line = candidate;
       continue;
     }
@@ -79,7 +77,7 @@ function breakParagraph(paragraph: string, measure: ReplayTextMeasure, maxWidth:
       line = line.slice(0, -lastChar(line).length);
     }
     lines.push(line.trimEnd());
-    line = (carried + unit).trimStart();
+    line = startLine((carried + unit).trimStart(), measure, maxWidth, lines);
   }
   if (line.length > 0 || lines.length < 1) lines.push(line.trimEnd());
   return lines;
@@ -102,6 +100,17 @@ function unitsOf(paragraph: string): string[] {
   }
   if (word.length > 0) units.push(word);
   return units;
+}
+
+/**
+ * Starts a new line with a run of text, breaking it where it must when it is wider than a whole
+ * line: the full lines go out, and what is left over is the line it returns.
+ */
+function startLine(text: string, measure: ReplayTextMeasure, maxWidth: number, lines: string[]): string {
+  if (measure(text) <= maxWidth) return text;
+  const pieces = breakLongUnit(text, measure, maxWidth);
+  lines.push(...pieces.slice(0, -1));
+  return pieces[pieces.length - 1];
 }
 
 function breakLongUnit(unit: string, measure: ReplayTextMeasure, maxWidth: number): string[] {

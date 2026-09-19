@@ -45,6 +45,12 @@ describe('laying a subtitle out', () => {
     expect(page.lines).toEqual(['abcd', 'efgh', 'ij']);
   });
 
+  it('breaks a word wider than a line where it must, even after other words', () => {
+    const [page] = layoutReplayText('see abcdefghijkl', byChars, 5, 5);
+
+    expect(page.lines).toEqual(['see', 'abcde', 'fghij', 'kl']);
+  });
+
   it('keeps the line breaks of the text', () => {
     const [page] = layoutReplayText('あい\nうえ', byChars, 10, 3);
 
