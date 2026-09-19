@@ -5,6 +5,8 @@ import type { ReplaySoundtrack } from '@axe/domain/replay/replay-soundtrack';
 
 export const REPLAY_AUDIO_SAMPLE_RATE = 48_000;
 export const REPLAY_AUDIO_CHANNELS = 2;
+/** The level the mix is held under, in decibels below full scale. */
+export const REPLAY_LIMIT_DB = -1.5;
 
 export type ReplayAudioSource = (audioIdentifier: string) => Promise<ArrayBuffer | null>;
 
@@ -29,7 +31,8 @@ export class ReplaySoundMixer {
 /**
  * Renders a replay's sound effects and music into one stereo track for a video.
  *
- * Music loops for as long as its cue lasts and fades in and out. A sound that cannot be read or
+ * Music loops for as long as its cue lasts and fades in and out, and the whole mix passes through a
+ * limiter so nothing clips. A sound that cannot be read or
  * decoded is left out. Answers null when the browser cannot mix, the soundtrack is empty, or none
  * of its sounds could be read.
  */
@@ -60,9 +63,10 @@ export async function mixReplaySoundtrack(
   }
   if (buffers.size < 1) return null;
 
+  const output = limiterOf(context);
   for (const cue of soundtrack.effects) {
     const buffer = buffers.get(cue.audioIdentifier);
-    if (buffer) play(context, buffer, cue.startMs / 1000, cue.gain, cue.offsetMs / 1000);
+    if (buffer) play(context, output, buffer, cue.startMs / 1000, cue.gain, cue.offsetMs / 1000);
   }
 
   for (const cue of soundtrack.music) {
@@ -70,7 +74,7 @@ export async function mixReplaySoundtrack(
     if (!buffer) continue;
     const startedAt = cue.startMs / 1000;
     const duration = (cue.endMs - cue.startMs) / 1000;
-    const gain = play(context, buffer, startedAt, cue.gain, cue.offsetMs / 1000, duration, true);
+    const gain = play(context, output, buffer, startedAt, cue.gain, cue.offsetMs / 1000, duration, true);
     const fade = Math.min(cue.fadeMs / 1000, duration / 2);
     if (fade > 0) {
       gain.gain.setValueAtTime(0, startedAt);
@@ -88,8 +92,26 @@ export async function mixReplaySoundtrack(
   return { sampleRate: rendered.sampleRate, channels };
 }
 
+/**
+ * A limiter every sound passes through on its way out, so an effect landing on loud music is held
+ * just under full scale instead of clipping. A context that cannot make one sends the sound
+ * straight out.
+ */
+function limiterOf(context: OfflineAudioContext): AudioNode {
+  if (typeof context.createDynamicsCompressor !== 'function') return context.destination;
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = REPLAY_LIMIT_DB;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.25;
+  limiter.connect(context.destination);
+  return limiter;
+}
+
 function play(
   context: OfflineAudioContext,
+  output: AudioNode,
   buffer: AudioBuffer,
   startedAt: number,
   gainValue: number,
@@ -103,7 +125,7 @@ function play(
 
   const gain = context.createGain();
   gain.gain.value = gainValue;
-  source.connect(gain).connect(context.destination);
+  source.connect(gain).connect(output);
 
   const from = buffer.duration > 0 ? offset % buffer.duration : 0;
   if (duration === undefined) source.start(startedAt, from);

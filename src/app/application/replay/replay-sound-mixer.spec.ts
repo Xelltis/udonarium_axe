@@ -1,4 +1,8 @@
-import { isSoundMixingSupported, mixReplaySoundtrack } from '@axe/application/replay/replay-sound-mixer';
+import {
+  isSoundMixingSupported,
+  mixReplaySoundtrack,
+  REPLAY_LIMIT_DB,
+} from '@axe/application/replay/replay-sound-mixer';
 import type { ReplaySoundtrack } from '@axe/domain/replay/replay-soundtrack';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
@@ -14,6 +18,7 @@ interface StartedSource {
 }
 
 let started: StartedSource[];
+let limiter: { threshold: number; ratio: number; into: unknown; fed: number } | null;
 let decoded: string[];
 let decodeFails: string[];
 
@@ -47,6 +52,25 @@ class FakeOfflineAudioContext {
     return source;
   }
 
+  createDynamicsCompressor() {
+    const node = {
+      threshold: { value: 0 },
+      knee: { value: 0 },
+      ratio: { value: 1 },
+      attack: { value: 0 },
+      release: { value: 0 },
+      connect: (next: unknown) => {
+        limiter!.into = next;
+        return next;
+      },
+    };
+    limiter = { threshold: 0, ratio: 1, into: null, fed: 0 };
+    Object.defineProperty(node.threshold, 'value', { set: (value: number) => (limiter!.threshold = value) });
+    Object.defineProperty(node.ratio, 'value', { set: (value: number) => (limiter!.ratio = value) });
+    compressor = node;
+    return node;
+  }
+
   createGain() {
     const node = {
       gain: {
@@ -54,7 +78,10 @@ class FakeOfflineAudioContext {
         setValueAtTime: () => undefined,
         linearRampToValueAtTime: () => undefined,
       },
-      connect: (next: unknown) => next,
+      connect: (next: unknown) => {
+        if (next === compressor && limiter) limiter.fed += 1;
+        return next;
+      },
     };
     Object.defineProperty(node.gain, 'value', {
       get: () => lastGain,
@@ -75,6 +102,7 @@ class FakeOfflineAudioContext {
 }
 
 let lastGain = 1;
+let compressor: unknown = null;
 
 function track(overrides: Partial<ReplaySoundtrack> = {}): ReplaySoundtrack {
   return { effects: [], music: [], totalMs: 10_000, ...overrides };
@@ -93,6 +121,8 @@ describe('mixReplaySoundtrack()', () => {
     decoded = [];
     decodeFails = [];
     lastGain = 1;
+    limiter = null;
+    compressor = null;
     borrowed.lend('OfflineAudioContext', FakeOfflineAudioContext);
   });
 
@@ -147,6 +177,20 @@ describe('mixReplaySoundtrack()', () => {
 
   it('returns nothing when it can read none of them', async () => {
     expect(await mixReplaySoundtrack(track({ effects: [{ ...ase(0), audioIdentifier: 'missing' }] }), read)).toBeNull();
+  });
+
+  it('holds the whole mix under full scale so nothing clips', async () => {
+    await mixReplaySoundtrack(
+      track({
+        effects: [{ audioIdentifier: 'se', startMs: 0, offsetMs: 0, gain: 0.9 }],
+        music: [{ audioIdentifier: 'bgm', startMs: 0, offsetMs: 0, gain: 0.45, endMs: 5000, fadeMs: 0 }],
+      }),
+      read
+    );
+
+    expect(limiter).toMatchObject({ threshold: REPLAY_LIMIT_DB, ratio: 20, fed: 2 });
+    expect(limiter?.into).toBeDefined();
+    expect(REPLAY_LIMIT_DB).toBeLessThan(0);
   });
 
   it('returns a waveform as long as the video', async () => {
