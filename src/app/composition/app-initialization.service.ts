@@ -24,6 +24,7 @@ import { createDefaultEffectPresets } from '@axe/domain/effect/builtin-effect-pr
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
+import { registerBuiltinMaterials } from '@axe/domain/media/builtin-materials';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
@@ -87,6 +88,7 @@ export class AppInitializationService {
     this.initializeAudioPresets();
     this.initializeEffectPresets();
     this.initializeCutIns();
+    this.initializeMaterials();
     this.initializeStatusAilments();
     this.initializePeerCursor();
   }
@@ -99,6 +101,10 @@ export class AppInitializationService {
 
   private initializeCutIns(): void {
     createDefaultCutIns(this.imageStorage);
+  }
+
+  private initializeMaterials(): void {
+    registerBuiltinMaterials(this.imageStorage);
   }
 
   private initializeStatusAilments(): void {
