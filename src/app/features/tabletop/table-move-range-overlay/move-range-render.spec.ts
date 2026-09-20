@@ -6,6 +6,7 @@ import {
   moveRangeOutline,
   moveRangePolygons,
   OutlineSegment,
+  wayRunsOn,
 } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
 import { legacyCellCenterOf, legacyCellIndexAt, legacyCellPolygonOf } from '@axe/testing/legacy-hex-lookup';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -176,5 +177,37 @@ describe('the paths a drawn reach is kept as', () => {
 
     expect(hex.area).not.toBe(first.area);
     expect(traced).toBe(4);
+  });
+});
+
+describe('wayRunsOn', () => {
+  /** A layer holding the cells given, as the raised ground on a board reads. */
+  function raised(...cells: number[]): (cell: number) => boolean {
+    return (cell) => cells.includes(cell);
+  }
+
+  it('takes the whole way where all of it lies on the layer', () => {
+    expect(wayRunsOn([1, 2, 3], raised(1, 2, 3))).toEqual([[1, 2, 3]]);
+  });
+
+  it('takes none of it where none of it does', () => {
+    expect(wayRunsOn([1, 2, 3], raised(8))).toEqual([]);
+  });
+
+  it('carries the step onto the layer with it, so the line climbs the ledge', () => {
+    expect(wayRunsOn([1, 2, 3, 4], raised(3, 4))).toEqual([[2, 3, 4]]);
+    expect(wayRunsOn([1, 2, 3, 4], raised(1, 2))).toEqual([[1, 2, 3]]);
+  });
+
+  it('breaks a way that leaves the layer and comes back into two runs', () => {
+    expect(wayRunsOn([1, 2, 3, 4, 5, 6], raised(1, 6))).toEqual([
+      [1, 2],
+      [5, 6],
+    ]);
+  });
+
+  it('has nothing to draw for a way of one cell or none', () => {
+    expect(wayRunsOn([1], raised(1))).toEqual([]);
+    expect(wayRunsOn([], raised(1))).toEqual([]);
   });
 });

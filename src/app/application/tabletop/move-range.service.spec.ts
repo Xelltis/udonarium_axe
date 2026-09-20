@@ -7,10 +7,10 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import { Config } from '@axe/domain/peer/config';
-import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { countCells } from '@axe/domain/tabletop/move/reachable-cells';
-import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -47,8 +47,9 @@ describe('MoveRangeService', () => {
     return character;
   }
 
+  /** A wall two cells high, which is more than a piece steps over. */
   function wallOver(col: number, fromRow: number, depthCells: number): Terrain {
-    const terrain = Terrain.create('壁', 1, depthCells, 1, '', '');
+    const terrain = Terrain.create('壁', 1, depthCells, 2, '', '');
     terrain.location = { name: 'table', x: col * GRID, y: fromRow * GRID };
     table.appendChild(terrain);
     return terrain;
@@ -190,6 +191,86 @@ describe('MoveRangeService', () => {
     service.show(pieceAt(5, 5, 3));
 
     expect(service.range()!.held).toBeNull();
+  });
+
+  describe('a piece up on the blocks', () => {
+    /** A block of the given height, walls and all, which is what a room is built out of. */
+    function blockOver(col: number, row: number, cells: number, height: number): Terrain {
+      const terrain = Terrain.create('ブロック', cells, cells, height, '', '');
+      terrain.mode = TerrainViewState.ALL;
+      terrain.location = { name: 'table', x: col * GRID, y: row * GRID };
+      table.appendChild(terrain);
+      return terrain;
+    }
+
+    it('walks along the tops of the blocks it is standing on', () => {
+      blockOver(4, 4, 4, 1);
+
+      service.show(pieceAt(5, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 7, 5))).toBe(true);
+      expect(view.cells.get(cellIndexOf(view.grid, 5, 7))).toBe(true);
+    });
+
+    it('is stopped by what stands higher than the ground it is on', () => {
+      blockOver(4, 4, 4, 1);
+      blockOver(8, 4, 1, 3);
+
+      service.show(pieceAt(7, 4, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 8, 4))).toBe(false);
+    });
+
+    it('is stopped by a face too sheer to be stood on, level or not', () => {
+      blockOver(4, 4, 4, 1);
+      blockOver(8, 4, 1, 1).blocksClimb = true;
+
+      service.show(pieceAt(7, 4, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 8, 4))).toBe(false);
+    });
+
+    it('steps up onto a ledge from the table, a cell high and under', () => {
+      blockOver(6, 4, 2, 0.5);
+      blockOver(8, 4, 2, 1);
+
+      service.show(pieceAt(5, 5, 3));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(true);
+      expect(view.cells.get(cellIndexOf(view.grid, 8, 5))).toBe(true);
+    });
+
+    it('is stopped by a wall that rises more than a cell over it', () => {
+      blockOver(6, 4, 2, 1.5);
+
+      service.show(pieceAt(5, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(false);
+    });
+
+    it('steps off a block onto ground within a cell of it', () => {
+      blockOver(4, 4, 2, 2);
+      blockOver(6, 4, 2, 1);
+
+      service.show(pieceAt(5, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(true);
+    });
+
+    it('is stopped by a low ledge too sheer to be stood on', () => {
+      blockOver(6, 4, 2, 0.5).blocksClimb = true;
+
+      service.show(pieceAt(5, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(false);
+    });
   });
 
   describe('what a reach is, and is not, answerable for', () => {
@@ -697,6 +778,62 @@ describe('MoveRangeService and the ground an enemy holds', () => {
       walkHero();
 
       expect(reached(6, 5)).toBe(false);
+    });
+  });
+
+  describe('the ground a piece stands on', () => {
+    const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+
+    /** A block laid flat, which a piece walked at steps up onto rather than around. */
+    function platformAt(col: number, row: number, cells: number, height: number): Terrain {
+      const terrain = Terrain.create('台', cells, cells, height, '', '');
+      terrain.mode = TerrainViewState.FLOOR;
+      terrain.location = { name: 'table', x: col * GRID, y: row * GRID };
+      table.appendChild(terrain);
+      return terrain;
+    }
+
+    it('reads how high the ground under each cell stands', () => {
+      platformAt(4, 4, 2, 1);
+
+      const ground = service.groundHeightsOn(grid);
+      expect(ground[cellIndexOf(grid, 4, 4)]).toBe(GRID);
+      expect(ground[cellIndexOf(grid, 8, 8)]).toBe(0);
+    });
+
+    it('gathers the ground lying level with the piece and leaves the rest of the table out', () => {
+      platformAt(4, 4, 2, 1);
+      platformAt(8, 8, 2, 2);
+
+      const level = service.groundAtHeight(grid, GRID);
+
+      expect(level).not.toBeNull();
+      expect(level!.get(cellIndexOf(grid, 5, 5))).toBe(true);
+      expect(level!.get(cellIndexOf(grid, 8, 8))).toBe(false);
+      expect(level!.get(cellIndexOf(grid, 0, 0))).toBe(false);
+    });
+
+    it('has no ground above the floor to speak of on a table laid flat', () => {
+      expect(service.groundAtHeight(grid, 0)).toBeNull();
+      expect(service.groundAtHeight(grid, GRID)).toBeNull();
+    });
+
+    it('hands the same set of cells back, so the overlay traces its paths once', () => {
+      platformAt(4, 4, 2, 1);
+
+      expect(service.groundAtHeight(grid, GRID)).toBe(service.groundAtHeight(grid, GRID));
+    });
+
+    it('reads the ground afresh once a block has moved', () => {
+      const platform = platformAt(4, 4, 2, 1);
+      expect(service.groundHeightsOn(grid)[cellIndexOf(grid, 4, 4)]).toBe(GRID);
+
+      platform.location = { name: 'table', x: 8 * GRID, y: 8 * GRID };
+      TestBed.inject(ObjectChangeService).notifyChanged(platform.identifier);
+
+      const ground = service.groundHeightsOn(grid);
+      expect(ground[cellIndexOf(grid, 4, 4)]).toBe(0);
+      expect(ground[cellIndexOf(grid, 8, 8)]).toBe(GRID);
     });
   });
 });

@@ -52,6 +52,36 @@ export class CellBits {
     return changed;
   }
 
+  /**
+   * Keeps only the cells the other set has as well, and reports whether anything was dropped.
+   *
+   * Cells beyond the end of the other set are dropped: a set that does not reach them does not
+   * hold them either.
+   */
+  and(other: CellBits): boolean {
+    let changed = false;
+    for (let i = 0; i < this.words.length; i++) {
+      const kept = this.words[i] & (other.words[i] ?? 0);
+      if (kept === this.words[i]) continue;
+      this.words[i] = kept;
+      changed = true;
+    }
+    return changed;
+  }
+
+  /** Drops every cell the other set has, and reports whether anything was dropped. */
+  without(other: CellBits): boolean {
+    let changed = false;
+    const limit = Math.min(this.words.length, other.words.length);
+    for (let i = 0; i < limit; i++) {
+      const left = this.words[i] & ~other.words[i];
+      if (left === this.words[i]) continue;
+      this.words[i] = left;
+      changed = true;
+    }
+    return changed;
+  }
+
   /** Whether every cell set in the other set is also set here. */
   covers(other: CellBits): boolean {
     for (let i = 0; i < other.words.length; i++) {
