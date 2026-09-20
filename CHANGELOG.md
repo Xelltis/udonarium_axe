@@ -1,3 +1,14 @@
+## [1.57.1](https://github.com/Xelltis/udonarium_axe/compare/v1.57.0...v1.57.1) (2026-09-20)
+
+### 🐛 Bug Fixes
+
+* **media:** offer the bundled floor and wall pictures as textures ([bfc2548](https://github.com/Xelltis/udonarium_axe/commit/bfc25483b5315e2937d71911752c8bf380630721))
+* **tabletop:** let a piece walk the ground it can step to, and draw the reach on it ([dfdac3d](https://github.com/Xelltis/udonarium_axe/commit/dfdac3dd8a062bdf9a71d8d6eadcdeb583c9483d))
+
+### 📝 Documentation
+
+* **website:** write the release notes for v1.57.1 ([51dfed2](https://github.com/Xelltis/udonarium_axe/commit/51dfed2f59449581e765aa283493f06ba8007020))
+
 ## [1.57.0](https://github.com/Xelltis/udonarium_axe/compare/v1.56.0...v1.57.0) (2026-09-19)
 
 ### ✨ Features
