@@ -1,4 +1,14 @@
-import { hopHeightAt, hopLiftFor, landingHeightAt, landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
+import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { GridType } from '@axe/domain/tabletop/game-table';
+import {
+  hopHeightAt,
+  hopLiftFor,
+  isLevelWith,
+  isWalkableStep,
+  landingHeightAt,
+  landingHeightsOn,
+  landingLeanAt,
+} from '@axe/domain/tabletop/move/landing-height';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 
 function block(opts: { x: number; y: number; h: number; altitude?: number; identifier?: string }): Terrain {
@@ -46,6 +56,76 @@ describe('landingHeightAt', () => {
     shelf.location.surface = 'north-wall';
 
     expect(landingHeightAt([shelf], 50, 50, 50)).toBe(0);
+  });
+});
+
+describe('landingHeightsOn', () => {
+  const grid = cellGridOf(6, 6, 50, GridType.SQUARE);
+
+  it('gives the floor everywhere nothing is standing', () => {
+    const heights = landingHeightsOn(grid, []);
+
+    expect(heights.length).toBe(36);
+    expect([...heights].every((height) => height === 0)).toBe(true);
+  });
+
+  it('answers each cell with the height of what is standing in it', () => {
+    const heights = landingHeightsOn(grid, [block({ x: 0, y: 0, h: 2 })]);
+
+    expect(heights[cellIndexOf(grid, 0, 0)]).toBe(100);
+    expect(heights[cellIndexOf(grid, 1, 1)]).toBe(100);
+    expect(heights[cellIndexOf(grid, 2, 0)]).toBe(0);
+  });
+
+  it('agrees with what a piece put down on the cell would be standing on', () => {
+    const terrains = [block({ x: 0, y: 0, h: 2 }), block({ x: 100, y: 0, h: 1, identifier: 'low' })];
+    const heights = landingHeightsOn(grid, terrains);
+
+    for (const [col, row] of [
+      [0, 0],
+      [2, 1],
+      [4, 4],
+    ]) {
+      const centre = cellCenterOf(grid, cellIndexOf(grid, col, row));
+      expect(heights[cellIndexOf(grid, col, row)]).toBe(landingHeightAt(terrains, 50, centre.x, centre.y));
+    }
+  });
+
+  it('leaves out a face too sheer to be stood on', () => {
+    const cliff = block({ x: 0, y: 0, h: 2 });
+    cliff.blocksClimb = true;
+
+    expect(landingHeightsOn(grid, [cliff])[cellIndexOf(grid, 0, 0)]).toBe(0);
+  });
+});
+
+describe('isWalkableStep', () => {
+  it('steps up and down a cell, and anything under one', () => {
+    expect(isWalkableStep(50, 0, 50)).toBe(true);
+    expect(isWalkableStep(25, 0, 50)).toBe(true);
+    expect(isWalkableStep(0, 50, 50)).toBe(true);
+    expect(isWalkableStep(100, 100, 50)).toBe(true);
+  });
+
+  it('makes nothing of a step it is already standing level with', () => {
+    expect(isWalkableStep(100.2, 100, 50)).toBe(true);
+  });
+
+  it('is stopped by more than a cell, up or down', () => {
+    expect(isWalkableStep(100, 0, 50)).toBe(false);
+    expect(isWalkableStep(0, 100, 50)).toBe(false);
+  });
+});
+
+describe('isLevelWith', () => {
+  it('counts two blocks built to the same height as one and the same ground', () => {
+    expect(isLevelWith(100, 100)).toBe(true);
+    expect(isLevelWith(100, 100.2)).toBe(true);
+  });
+
+  it('counts a step up or down as ground of its own', () => {
+    expect(isLevelWith(100, 150)).toBe(false);
+    expect(isLevelWith(100, 0)).toBe(false);
   });
 });
 

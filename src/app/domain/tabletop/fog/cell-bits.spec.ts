@@ -54,6 +54,35 @@ describe('CellBits', () => {
     expect(held.get(9)).toBe(true);
   });
 
+  it('keeps only the cells another one holds as well', () => {
+    const held = new CellBits(16);
+    for (const index of [1, 2, 9]) held.set(index);
+    const other = new CellBits(16);
+    for (const index of [2, 9, 12]) other.set(index);
+
+    expect(held.and(other)).toBe(true);
+
+    expect(held.get(1)).toBe(false);
+    expect(held.get(2)).toBe(true);
+    expect(held.get(9)).toBe(true);
+    expect(held.get(12)).toBe(false);
+    expect(held.and(other)).toBe(false);
+  });
+
+  it('drops the cells another one holds', () => {
+    const held = new CellBits(16);
+    for (const index of [1, 2, 9]) held.set(index);
+    const other = new CellBits(16);
+    for (const index of [2, 12]) other.set(index);
+
+    expect(held.without(other)).toBe(true);
+
+    expect(held.get(1)).toBe(true);
+    expect(held.get(2)).toBe(false);
+    expect(held.get(9)).toBe(true);
+    expect(held.without(other)).toBe(false);
+  });
+
   it('knows when it already holds everything another one does', () => {
     const held = new CellBits(16);
     held.set(1);

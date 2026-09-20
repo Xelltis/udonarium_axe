@@ -33,6 +33,7 @@ import { downloadBlob } from '@axe/core/util/download-blob';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
+import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import {
   isTextureId,
@@ -303,7 +304,11 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected readonly faceTextures = computed<ImageFile[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden);
+    // What the tool is built with is shown by its own swatches here, and it is in the library
+    // as well, so it is left out of this list rather than offered twice over.
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden).filter(
+      (file) => !isBuiltinMaterial(file.identifier)
+    );
   });
 
   protected chooseFaceImageTexture(face: keyof TerrainFaceImages, file: ImageFile): void {

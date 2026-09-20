@@ -21,6 +21,7 @@ import {
   fightsByCell,
   leavesFight,
 } from '@axe/domain/tabletop/move/engagement';
+import { isLevelWith, isWalkableStep, landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
@@ -57,6 +58,11 @@ function sameStrings(a: readonly string[], b: readonly string[]): boolean {
 
 function sameElements<T>(a: readonly T[], b: readonly T[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+/** What tells one board from another, for anything rasterised over the cells of one. */
+function gridKeyOf(grid: CellGrid): string {
+  return `${grid.cols}:${grid.rows}:${grid.sizePx}:${grid.type}`;
 }
 
 export interface MoveRangeView {
@@ -252,11 +258,18 @@ export class MoveRangeService {
   });
 
   private raster: { token: object; gridKey: string; blocked: CellBits; leapt: CellBits } | null = null;
+  private heights: {
+    token: object;
+    gridKey: string;
+    ground: Float64Array;
+    /** The cells of each height already asked for, kept so the same set is handed back each time. */
+    levels: Map<number, CellBits | null>;
+  } | null = null;
 
   private rasterFor(grid: CellGrid): { blocked: CellBits; leapt: CellBits } {
     const token = this.terrainToken();
     const terrains = this.terrainList();
-    const gridKey = `${grid.cols}:${grid.rows}:${grid.sizePx}:${grid.type}`;
+    const gridKey = gridKeyOf(grid);
     if (this.raster?.token !== token || this.raster.gridKey !== gridKey) {
       this.raster = {
         token,
@@ -266,6 +279,53 @@ export class MoveRangeService {
       };
     }
     return this.raster;
+  }
+
+  /** How high the ground stands in each cell, kept against the terrain as it stands. */
+  private heightsFor(grid: CellGrid): Float64Array {
+    return this.groundOn(grid).ground;
+  }
+
+  private groundOn(grid: CellGrid): { ground: Float64Array; levels: Map<number, CellBits | null> } {
+    const token = this.terrainToken();
+    const gridKey = gridKeyOf(grid);
+    if (this.heights?.token !== token || this.heights.gridKey !== gridKey) {
+      this.heights = { token, gridKey, ground: landingHeightsOn(grid, this.terrainList()), levels: new Map() };
+    }
+    return this.heights;
+  }
+
+  /**
+   * How high the ground stands in every cell of the board, in pixels above the floor.
+   *
+   * What a piece put down on a cell would be standing on: the floor unless a block it can get
+   * on top of is there to be stood on.
+   */
+  groundHeightsOn(grid: CellGrid): Float64Array {
+    return this.heightsFor(grid);
+  }
+
+  /**
+   * The ground lying level with one height above the floor, or nothing where none of it does.
+   *
+   * A piece standing on a block is walking along the tops of the blocks rather than along the
+   * table, and what it can reach up there belongs on top of them: drawn on the table it would
+   * be under the very ground it is describing.
+   */
+  groundAtHeight(grid: CellGrid, heightPx: number): CellBits | null {
+    if (!(heightPx > 0)) return null;
+    const { ground, levels } = this.groundOn(grid);
+    const held = levels.get(heightPx);
+    // The same set is handed back rather than one built afresh: the overlay traces its paths
+    // once per set of cells, and a new set on every step of a pointer would trace them again.
+    if (held !== undefined) return held;
+    const cells = new CellBits(cellCount(grid));
+    for (let cell = 0; cell < ground.length; cell++) {
+      if (isLevelWith(ground[cell], heightPx)) cells.set(cell);
+    }
+    const level = cells.isEmpty ? null : cells;
+    levels.set(heightPx, level);
+    return level;
   }
 
   /** Everything a reach turns on besides the piece itself, as one object that is new whenever any of it is. */
@@ -334,6 +394,18 @@ export class MoveRangeService {
     // Only the terrain differs between walking and jumping; everything else stands in the way
     // of both, so it is gathered once and laid over each of them.
     const leapt = paved ? paved.leapt.copy() : blockedByTerrain(grid, table.terrains, terrainBlocksJump);
+    // What a piece can step to is ground rather than something to walk around: the tops of
+    // the blocks it is already standing on, and anything within a cell of them, up or down.
+    // A wall is only a wall to somebody it rises over.
+    const heights = reuse ? this.heightsFor(grid) : landingHeightsOn(grid, table.terrains);
+    const standingPx = start < heights.length ? heights[start] : 0;
+    for (let cell = 0; cell < heights.length; cell++) {
+      if (!blocked.get(cell)) continue;
+      // A face too sheer to be stood on is the one thing a step does not answer.
+      if (leapt.get(cell)) continue;
+      if (!isWalkableStep(heights[cell], standingPx, table.gridSize)) continue;
+      blocked.unset(cell);
+    }
     const otherwise = new CellBits(cellCount(grid));
     const painted = moveBlockMapOn(table)?.read(grid);
     if (painted) otherwise.or(painted);

@@ -39,8 +39,9 @@ describe('MovePlanService', () => {
     return character;
   }
 
+  /** A wall two cells high, which is more than a piece steps over. */
   function wallOver(col: number, fromRow: number, depthCells: number): void {
-    const terrain = Terrain.create('壁', 1, depthCells, 1, '', '');
+    const terrain = Terrain.create('壁', 1, depthCells, 2, '', '');
     terrain.location = { name: 'table', x: col * GRID, y: fromRow * GRID };
     table.appendChild(terrain);
   }

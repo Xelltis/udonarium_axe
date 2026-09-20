@@ -57,6 +57,30 @@ export function moveRangeOutline(grid: CellGrid, cells: CellBits): OutlineSegmen
   return edges;
 }
 
+/**
+ * A way broken into the runs of it that lie on one layer of the board.
+ *
+ * The step between two layers belongs to both, so a line drawn a layer at a time climbs the
+ * ledge rather than breaking off at the foot of it and picking up again on top.
+ */
+export function wayRunsOn(way: readonly number[], onLayer: (cell: number) => boolean): number[][] {
+  const runs: number[][] = [];
+  let run: number[] = [];
+  for (let step = 0; step + 1 < way.length; step++) {
+    const from = way[step];
+    const to = way[step + 1];
+    if (onLayer(from) || onLayer(to)) {
+      if (run.length < 1) run.push(from);
+      run.push(to);
+      continue;
+    }
+    if (run.length > 0) runs.push(run);
+    run = [];
+  }
+  if (run.length > 0) runs.push(run);
+  return runs;
+}
+
 interface CellPaths {
   grid: CellGrid;
   sizePx: number;
