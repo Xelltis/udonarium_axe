@@ -41,7 +41,7 @@
     "tslib": "^2.3.1"
   },
   "devDependencies": {
-    "@analogjs/vite-plugin-angular": "^2.7.4",
+    "@analogjs/vite-plugin-angular": "^2.7.5",
     "@angular-eslint/builder": "^22.5.0",
     "@angular-eslint/eslint-plugin": "^22.5.0",
     "@angular-eslint/eslint-plugin-template": "^22.5.0",
