@@ -171,6 +171,52 @@ describe('ChatMessageService', () => {
     });
   });
 
+  describe('deleting a line', () => {
+    let service: ChatMessageService;
+    let tab: ChatTab;
+
+    beforeEach(() => {
+      beMyself('me');
+      service = TestBed.inject(ChatMessageService);
+      tab = ChatTabList.instance.addChatTab('テストタブ');
+    });
+
+    afterEach(() => {
+      tab.destroy();
+    });
+
+    const lineFrom = (from: string): ChatMessage =>
+      tab.addMessage({ from, name: 'アリア', text: '言い間違い', timestamp: 1000 });
+
+    it('takes the reader’s own line out of the chat, leaving it in the room', () => {
+      const mine = lineFrom('me');
+
+      service.pseudoDelete(mine);
+
+      expect(mine.isPseudoDeleted).toBe(true);
+      expect(mine.isShownInChat).toBe(false);
+      expect(tab.chatMessages).toContain(mine);
+      expect(service.canPseudoDelete(mine)).toBe(false);
+    });
+
+    it('is not offered on somebody else’s line, or on a dice result', () => {
+      const theirs = lineFrom('someone');
+      const result = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'me',
+        name: 'DiceBot',
+        tag: 'system',
+        text: '2D6 → 7',
+        timestamp: 1001,
+      });
+
+      service.pseudoDelete(theirs);
+
+      expect(theirs.isPseudoDeleted).toBe(false);
+      expect(service.canPseudoDelete(result)).toBe(false);
+    });
+  });
+
   describe('opening what a die was thrown on', () => {
     let service: ChatMessageService;
     let tab: ChatTab;

@@ -77,6 +77,15 @@ describe('ChatTab', () => {
       // difference between the two.
       expect(tab.displayableMessagesLength()).toBe(2);
     });
+
+    it('stops counting a line somebody else pseudo-deleted', () => {
+      const tab = new ChatTab();
+      tab.initialize();
+      tab.addMessage({ from: 'p1', text: '一言' }).pseudoDelete(1000);
+      tab.addMessage({ from: 'p1', text: '二言' });
+
+      expect(tab.countDisplayableMessages()).toBe(1);
+    });
   });
 
   describe('findRollSource()', () => {

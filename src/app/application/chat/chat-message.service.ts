@@ -606,6 +606,24 @@ export class ChatMessageService {
   }
 
   /**
+   * Whether this reader may delete the line: they said it, and it is not a notice from the tool. A
+   * dice result is the dice bot's line, so a roll stays where the table saw it.
+   */
+  canPseudoDelete(message: ChatMessage): boolean {
+    return !message.isPseudoDeleted && message.changeable;
+  }
+
+  /**
+   * Deletes a line from everybody's chat as though it had never been said, leaving it in the room's
+   * data and its log; it is a pseudo-deletion, which is not put back. Does nothing for a line this
+   * reader may not delete.
+   */
+  pseudoDelete(message: ChatMessage): void {
+    if (!this.canPseudoDelete(message)) return;
+    message.pseudoDelete(this.getTime());
+  }
+
+  /**
    * Says a line again in another tab, as though it had been said there.
    *
    * It goes to the end of that tab rather than back into the middle of it under its old time:

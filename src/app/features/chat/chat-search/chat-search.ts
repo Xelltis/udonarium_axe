@@ -36,7 +36,7 @@ export function findChatSearchHits(
   textOf: (message: ChatMessage) => string
 ): ChatMessage[] {
   if (query.length === 0) return [];
-  return messages.filter((message) => message.isDisplayable && normalizeSearchText(textOf(message)).includes(query));
+  return messages.filter((message) => message.isShownInChat && normalizeSearchText(textOf(message)).includes(query));
 }
 
 /**

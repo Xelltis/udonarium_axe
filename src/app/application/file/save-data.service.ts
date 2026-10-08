@@ -319,6 +319,7 @@ export class SaveDataService {
     return {
       secret: label('secret'),
       edited: label('edited'),
+      pseudoDeleted: label('pseudoDeleted'),
       quote: label('quote'),
       reply: label('reply'),
       critical: label('critical'),

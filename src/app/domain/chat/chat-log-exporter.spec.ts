@@ -489,6 +489,26 @@ describe('ChatLogExporter', () => {
     });
   });
 
+  describe('a pseudo-deleted line', () => {
+    const deleted = () => createMockMessage({ text: '言い間違い', isPseudoDeleted: true } as Partial<ChatMessage>);
+
+    it('is in everybody’s log, marked in both layouts', () => {
+      expect(ChatLogExporter.isVisibleMessage(deleted(), 'user-B')).toBe(true);
+      expect(ChatLogExporter.formatMessageStandard(false, '', deleted())).toContain('言い間違い (削除済)');
+      expect(ChatLogExporter.formatMessageCoc('メイン', deleted())).toContain('(削除済)');
+    });
+
+    it('is not quoted in the lines that answer it', () => {
+      const answer = createMockMessage({
+        text: '返事',
+        quoteOf: 'd',
+        quoteOfMessage: deleted(),
+      } as Partial<ChatMessage>);
+
+      expect(ChatLogExporter.formatMessageStandard(false, '', answer)).not.toContain('言い間違い');
+    });
+  });
+
   describe('exportTabHtml', () => {
     it('writes the log out', () => {
       const msg = createMockMessage({ name: 'GM', text: '開始' });

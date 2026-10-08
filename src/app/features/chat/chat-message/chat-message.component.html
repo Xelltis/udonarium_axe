@@ -150,6 +150,15 @@
                   }
                 </span>
               }
+              @if (canPseudoDelete) {
+                <i
+                  data-testid="chat-message-pseudo-delete"
+                  class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
+                  [title]="'feature.chat.message.deleteLineHint' | transloco"
+                  (click)="pseudoDelete()"
+                  >delete_outline</i
+                >
+              }
               @if (canShowInTicker()) {
                 <i
                   data-testid="chat-message-ticker"
@@ -494,6 +503,15 @@
                       </span>
                     }
                   </span>
+                }
+                @if (canPseudoDelete) {
+                  <i
+                    data-testid="chat-message-pseudo-delete"
+                    class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
+                    [title]="'feature.chat.message.deleteLineHint' | transloco"
+                    (click)="pseudoDelete()"
+                    >delete_outline</i
+                  >
                 }
                 @if (canShowInTicker()) {
                   <i

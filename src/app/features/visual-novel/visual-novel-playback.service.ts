@@ -82,13 +82,16 @@ export class VisualNovelPlaybackService {
    * to the room - and the screen is the one thing here that gets shown around, there being a
    * view of it made for streaming. A roll that was kept back has no business being called out
    * there by anybody's screen, its own thrower's least of all. It is read in the chat window,
-   * where it is one line among many and only for the eyes it belongs to.
+   * where it is one line among many and only for the eyes it belongs to. A pseudo-deleted line is
+   * left out too, its speaker's screen included: it was taken off the stage.
    */
   readonly logMessages = computed(() => {
     this.renderVersion();
     const tab = this.chatTab();
     if (!tab) return [] as ChatMessage[];
-    return tab.chatMessages.filter((message) => message.isDisplayable && !message.isOutOfStory && !message.isSecret);
+    return tab.chatMessages.filter(
+      (message) => message.isDisplayable && !message.isOutOfStory && !message.isSecret && !message.isPseudoDeleted
+    );
   });
 
   /** The lines novel mode reads out, one after another. */

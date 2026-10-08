@@ -2957,7 +2957,10 @@
         "afterWhisper": "あとから秘話にする",
         "afterWhisperTo": "秘話の相手",
         "afterWhisperNobody": "部屋にほかの参加者がいません",
-        "undoAfterWhisper": "あとから秘話をやめて全員に戻す"
+        "undoAfterWhisper": "あとから秘話をやめて全員に戻す",
+        "deleteLine": "削除",
+        "deleteLineHint": "削除（全員の画面から消えます。ログには残ります）",
+        "deleteLineConfirm": "この発言を削除しますか？全員の画面から消え、元に戻せません。ログには残ります。"
       },
       "stream": {
         "title": "発言の流れ",
@@ -3149,6 +3152,7 @@
         "labels": {
           "secret": "シークレットダイス",
           "edited": "編集済",
+          "pseudoDeleted": "削除済",
           "quote": "引用",
           "reply": "返信先",
           "critical": "クリティカル",

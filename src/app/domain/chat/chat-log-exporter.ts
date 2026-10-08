@@ -27,6 +27,7 @@ export type ChatLogLine = Pick<
   | 'isDicebot'
   | 'rollDetail'
   | 'isOutOfStory'
+  | 'isPseudoDeleted'
 >;
 
 export interface ChatLogTab {
@@ -105,8 +106,8 @@ export class ChatLogExporter {
    * One line in the standard log layout: the tab name and the time when asked for, the portrait,
    * any quoted or replied-to line, then the name and text in the speaker's colour.
    *
-   * A secret roll the reader did not make shows as `（シークレットダイス）`, and an edited line is marked
-   * `(編集済)`. `userId` is the reader; without it, the local user.
+   * A secret roll the reader did not make shows as `（シークレットダイス）`, an edited line is marked
+   * `(編集済)`, and a deleted line `(削除済)`. `userId` is the reader; without it, the local user.
    */
   static formatMessageStandard(
     isTime: boolean,
@@ -152,6 +153,7 @@ export class ChatLogExporter {
       str += '（シークレットダイス）';
     }
     if (message.fixd) str += ' (編集済)';
+    if (message.isPseudoDeleted) str += ' (削除済)';
     str += '</font>';
     str += '</div></div>\n';
     return str;
@@ -161,8 +163,8 @@ export class ChatLogExporter {
    * One line in the classic layout other log tools can read: the tab name, the portrait, any quoted
    * or replied-to line, then the name and text in the speaker's colour.
    *
-   * Secret rolls and edits are marked as in the standard layout, and arrows in the text are written
-   * as `＞`.
+   * Secret rolls, edits and deleted lines are marked as in the standard layout, and arrows in the text
+   * are written as `＞`.
    */
   static formatMessageCoc(
     tabName: string,
@@ -192,6 +194,7 @@ export class ChatLogExporter {
       str += '（シークレットダイス）';
     }
     if (message.fixd) str += ' (編集済)';
+    if (message.isPseudoDeleted) str += ' (削除済)';
     str += '\n';
 
     str += '      </div>\n';
@@ -446,10 +449,11 @@ export class ChatLogExporter {
 
   /**
    * A line quoted or replied to, as far as the reader's log may show it: a whisper the reader was
-   * not part of, an after-the-fact one included, does not live on in the answers to it.
+   * not part of, an after-the-fact one included, does not live on in the answers to it, and nor does
+   * a pseudo-deleted line, which the room was shown as never said.
    */
   static referencedLine(target: ChatLogLine | null, userId?: string): ChatLogLine | null {
-    if (!target) return null;
+    if (!target || target.isPseudoDeleted) return null;
     return ChatLogExporter.isVisibleMessage(target, userId) ? target : null;
   }
 

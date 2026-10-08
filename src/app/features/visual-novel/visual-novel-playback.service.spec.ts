@@ -122,6 +122,15 @@ describe('VisualNovelPlaybackService', () => {
     });
   });
 
+  it('leaves a pseudo-deleted line out of the script, on the screen of the one who said it too', () => {
+    say('取り消したい台詞', character.identifier);
+    say('そのあとの台詞', character.identifier);
+    tab.chatMessages[0].pseudoDelete(5000);
+    TestBed.inject(ObjectChangeService).notifyChanged(tab.identifier);
+
+    expect(playback.logMessages().map((message) => message.text)).toEqual(['そのあとの台詞']);
+  });
+
   it('reads what the game master says as themselves', () => {
     PeerCursor.myCursor.role = PeerRole.GameMaster;
     say('では、判定を', PeerCursor.myCursor.identifier);

@@ -13,6 +13,7 @@ function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuStat
     canChange: true,
     afterWhisperTargets: null,
     canUndoAfterWhisper: false,
+    canPseudoDelete: false,
     canShowInTicker: true,
     copyTargets: [{ identifier: 'tab-2', name: 'サブタブ' }],
     hasOriginal: true,
@@ -32,6 +33,7 @@ function callbacks(): ChatMessageMenuCallbacks {
     edit: vi.fn(),
     whisperTo: vi.fn(),
     undoAfterWhisper: vi.fn(),
+    pseudoDelete: vi.fn(),
     showInTicker: vi.fn(),
     jumpToOriginal: vi.fn(),
     copyText: vi.fn(),
@@ -89,6 +91,16 @@ describe('buildChatMessageContextMenu()', () => {
     menu.find((action) => action.name === 'feature.chat.message.undoAfterWhisper')!.action?.();
 
     expect(calls.undoAfterWhisper).toHaveBeenCalledOnce();
+  });
+
+  it('offers deleting a line the reader may delete, and nowhere else', () => {
+    const calls = callbacks();
+    const menu = buildChatMessageContextMenu(state({ canPseudoDelete: true }), calls, translate);
+    menu.find((action) => action.name === 'feature.chat.message.deleteLine')!.action?.();
+    expect(calls.pseudoDelete).toHaveBeenCalledOnce();
+
+    const others = buildChatMessageContextMenu(state(), calls, translate);
+    expect(others.map((action) => action.name)).not.toContain('feature.chat.message.deleteLine');
   });
 
   it('offers only the words of a line nothing else can be done with', () => {

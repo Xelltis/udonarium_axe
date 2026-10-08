@@ -10,6 +10,8 @@ export interface ChatMessageMenuState {
   afterWhisperTargets: readonly { identifier: string; name: string }[] | null;
   /** Whether the reader may put an after-the-fact whisper back for everyone. */
   canUndoAfterWhisper: boolean;
+  /** Whether the reader may delete the line from the chat, leaving it in the log. */
+  canPseudoDelete: boolean;
   canShowInTicker: boolean;
   /** The tabs the line may be said again in; empty where it may not be copied. */
   copyTargets: readonly { identifier: string; name: string }[];
@@ -31,6 +33,7 @@ export interface ChatMessageMenuCallbacks {
   edit: () => void;
   whisperTo: (peerIdentifier: string) => void;
   undoAfterWhisper: () => void;
+  pseudoDelete: () => void;
   showInTicker: () => void;
   jumpToOriginal: () => void;
   copyText: (text: string) => void;
@@ -87,6 +90,9 @@ export function buildChatMessageContextMenu(
   }
   if (state.canUndoAfterWhisper) {
     actions.push({ name: t('feature.chat.message.undoAfterWhisper'), action: () => callbacks.undoAfterWhisper() });
+  }
+  if (state.canPseudoDelete) {
+    actions.push({ name: t('feature.chat.message.deleteLine'), action: () => callbacks.pseudoDelete() });
   }
   if (state.canShowInTicker) {
     actions.push({ name: t('feature.chat.message.ticker'), action: () => callbacks.showInTicker() });

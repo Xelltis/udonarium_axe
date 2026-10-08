@@ -124,6 +124,15 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   @SyncVar() afterWhisperTo: string;
   /** The name the line was said under before it became an after-the-fact whisper, put back by `undoAfterWhisper`. */
   @SyncVar() afterWhisperName: string;
+  /**
+   * When the one who said the line deleted it, in epoch milliseconds; read with `isPseudoDeleted`.
+   *
+   * The deletion is a pseudo-deletion (疑似削除): the line is gone from everybody's chat as though
+   * it had never been said, its speaker's included, but it is still in the room, saved with the room
+   * and written into the log, which can be asked to leave it out. There is no putting it back. Left
+   * without an initialiser, as `vnEmote` is.
+   */
+  @SyncVar() pseudoDeletedAt: number;
 
   targetInfo: ChatMessageTargetContext[];
 
@@ -360,6 +369,22 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     this.removeAttribute('afterWhisperTo');
     this.removeAttribute('afterWhisperName');
     this.removeAttribute('afterWhisperAt');
+  }
+
+  /** Whether the one who said the line deleted it, leaving it to the log alone. */
+  get isPseudoDeleted(): boolean {
+    return isPositiveTime(this.pseudoDeletedAt);
+  }
+
+  /** Deletes the line from the chat, leaving it in the log. A line deleted already keeps the moment it first was. */
+  pseudoDelete(at: number): void {
+    if (this.isPseudoDeleted) return;
+    this.pseudoDeletedAt = at;
+  }
+
+  /** Whether the local user is shown the line in chat: one they may see, and that was not deleted. */
+  get isShownInChat(): boolean {
+    return this.isDisplayable && !this.isPseudoDeleted;
   }
 
   /** The room's tab list, looked up in the object store. */

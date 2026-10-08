@@ -591,7 +591,7 @@ export class ChatTabComponent {
   async reveal(message: ChatMessage): Promise<HTMLElement | null> {
     const tab = this.chatTab;
     const panel = this.panelService.scrollablePanel;
-    if (!tab || !panel || !message.isDisplayable) return null;
+    if (!tab || !panel || !message.isShownInChat) return null;
     const index = tab.chatMessages.indexOf(message);
     if (index < 0) return null;
     if (index < this.topIndex || this.bottomIndex < index) this.drawAround(index, panel);

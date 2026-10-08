@@ -26,6 +26,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
@@ -98,6 +99,7 @@ export class ChatMessageComponent {
   private readonly systemAvatarMenu = inject(SystemAvatarMenuService);
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly contextMenuService = inject(ContextMenuService);
+  private readonly confirm = inject(ConfirmService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly viewport = inject(ViewportService);
 
@@ -257,6 +259,7 @@ export class ChatMessageComponent {
           ? this.whisperTargets().map((peer) => ({ identifier: peer.identifier, name: peer.name }))
           : null,
         canUndoAfterWhisper: this.canUndoAfterWhisper,
+        canPseudoDelete: this.canPseudoDelete,
         canShowInTicker: this.canShowInTicker(),
         copyTargets: this.canCopyToTab ? this.copyTargets() : [],
         hasOriginal: !!(message.replyTo || message.quoteOf),
@@ -278,6 +281,7 @@ export class ChatMessageComponent {
           if (peer) this.whisperTo(peer);
         },
         undoAfterWhisper: () => this.undoAfterWhisper(),
+        pseudoDelete: () => void this.pseudoDelete(),
         showInTicker: () => this.clickShowInTicker(),
         jumpToOriginal: () => (message.replyTo ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
         copyText: (text) => this.copyText(text),
@@ -526,8 +530,9 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(msg.identifier)();
     this.objectChange.versionOf(msg.replyTo)();
     const target = msg.replyToMessage;
-    // A whisper the reader was not part of, an after-the-fact one included, is not shown through an answer to it.
-    if (!target || !target.isDisplayable) return null;
+    // A line kept from the reader's chat, a whisper they were not part of or a deleted one, is not
+    // shown through an answer to it.
+    if (!target || !target.isShownInChat) return null;
     const text = vnBodyOf(target.vnEmote, target.text ?? '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -543,7 +548,7 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(msg.identifier)();
     this.objectChange.versionOf(msg.quoteOf)();
     const target = this.objectStore.get<ChatMessage>(msg.quoteOf);
-    if (!(target instanceof ChatMessage) || !target.isDisplayable) return null;
+    if (!(target instanceof ChatMessage) || !target.isShownInChat) return null;
     const text = vnBodyOf(target.vnEmote, target.text ?? '').trim();
     return {
       name: target.name ?? '',
@@ -639,6 +644,30 @@ export class ChatMessageComponent {
     this.isWhisperPickerOpen.set(false);
     if (!this.canUndoAfterWhisper) return;
     this.chatMessageService.undoAfterWhisper(this.chatMessage);
+  }
+
+  /** Whether this reader may delete the line, which they may of a line they said. */
+  get canPseudoDelete(): boolean {
+    if (this.readOnly()) return false;
+    const message = this.chatMessage;
+    return !!message && this.chatMessageService.canPseudoDelete(message);
+  }
+
+  /**
+   * Deletes the line from everybody's chat, leaving it in the log, from its button or the line's
+   * menu. There is no putting it back, so the reader is asked first.
+   */
+  async pseudoDelete(): Promise<void> {
+    if (!this.canPseudoDelete) return;
+    this.isCopyPickerOpen.set(false);
+    this.isWhisperPickerOpen.set(false);
+    const message = this.chatMessage;
+    const sure = await this.confirm.ask({
+      message: this.t('feature.chat.message.deleteLineConfirm'),
+      okLabel: this.t('feature.chat.message.deleteLine'),
+      danger: true,
+    });
+    if (sure) this.chatMessageService.pseudoDelete(message);
   }
 
   /** Puts this line in the ticker running round the table, where that ticker is shown at all. */

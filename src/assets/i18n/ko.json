@@ -2957,7 +2957,10 @@
         "afterWhisper": "나중에 귓속말로 바꾸기",
         "afterWhisperTo": "귓속말 상대",
         "afterWhisperNobody": "방에 다른 참가자가 없습니다",
-        "undoAfterWhisper": "나중에 귓속말을 취소하고 모두에게 보이기"
+        "undoAfterWhisper": "나중에 귓속말을 취소하고 모두에게 보이기",
+        "deleteLine": "삭제",
+        "deleteLineHint": "삭제 (모두의 화면에서 사라지지만 로그에는 남습니다)",
+        "deleteLineConfirm": "이 발언을 삭제할까요? 모두의 화면에서 사라지며 되돌릴 수 없습니다. 로그에는 남습니다."
       },
       "stream": {
         "title": "발언의 흐름",
@@ -3149,6 +3152,7 @@
         "labels": {
           "secret": "시크릿 다이스",
           "edited": "편집됨",
+          "pseudoDeleted": "삭제됨",
           "quote": "인용",
           "reply": "답장 대상",
           "critical": "크리티컬",

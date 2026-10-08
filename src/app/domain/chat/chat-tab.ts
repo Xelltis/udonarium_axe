@@ -69,16 +69,17 @@ export class ChatTab extends ObjectNode implements InnerXml {
   }
 
   /**
-   * How many lines the local user may see the tab holds, counted now rather than as they arrived.
+   * How many lines the local user is shown in the tab, counted now rather than as they arrived.
    *
    * {@link displayableMessagesLength} is a tally kept as lines come in, which is what the
    * scrollbar is sized from and is near enough for that. This walks the tab instead, so a log
-   * that has been cleared says so rather than going on reporting what it once held.
+   * that has been cleared, or a line pseudo-deleted, says so rather than going on reporting what
+   * it once held.
    */
   countDisplayableMessages(): number {
     let count = 0;
     for (const message of this.chatMessages) {
-      if (message instanceof ChatMessage && message.isDisplayable) count++;
+      if (message instanceof ChatMessage && message.isShownInChat) count++;
     }
     return count;
   }

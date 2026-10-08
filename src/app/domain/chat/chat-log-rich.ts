@@ -16,6 +16,7 @@ export type ChatLogScope = 'tab' | 'all';
 export interface ChatLogLabels {
   secret: string;
   edited: string;
+  pseudoDeleted: string;
   quote: string;
   reply: string;
   critical: string;
@@ -31,6 +32,7 @@ export interface ChatLogLabels {
 export const DEFAULT_CHAT_LOG_LABELS: ChatLogLabels = {
   secret: 'シークレットダイス',
   edited: '編集済',
+  pseudoDeleted: '削除済',
   quote: '引用',
   reply: '返信先',
   critical: 'クリティカル',
@@ -271,7 +273,9 @@ function renderSay(entry: ChatLogEntry, continuation: boolean, context: RenderCo
   const body = visible
     ? textHtml(vnBodyOf(message.vnEmote, decode(message.text, context))) + renderAttachments(message, context)
     : `<span class="seal">${esc(labels.secret)}</span>`;
-  const edited = message.fixd ? `<span class="ed">${esc(labels.edited)}</span>` : '';
+  const edited =
+    (message.fixd ? `<span class="ed">${esc(labels.edited)}</span>` : '') +
+    (message.isPseudoDeleted ? `<span class="ed">${esc(labels.pseudoDeleted)}</span>` : '');
 
   return (
     `<article class="${classes.join(' ')}" data-t="${entry.tabIndex}" style="--c:${colorOf(message.messColor)}">` +

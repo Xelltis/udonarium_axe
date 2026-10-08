@@ -34,6 +34,7 @@ function line(overrides: Partial<ChatLogLine> = {}): ChatLogLine {
     isDicebot: false,
     rollDetail: null,
     isOutOfStory: false,
+    isPseudoDeleted: false,
     ...overrides,
   };
 }
@@ -206,6 +207,18 @@ describe('renderRichChatLog', () => {
   it('marks a line that was edited', () => {
     const html = renderRichChatLog('washi', 'tab', [tab('メイン', [line({ fixd: true })])]);
     expect(html).toContain('<span class="ed">編集済</span>');
+  });
+
+  it('keeps a deleted line in the log, marked under the label given, and does not quote it', () => {
+    const deleted = line({ text: '言い間違い', isPseudoDeleted: true });
+    const answer = line({ text: '返事', replyTo: 'x', replyToMessage: deleted as never });
+
+    const html = renderRichChatLog('washi', 'tab', [tab('メイン', [deleted, answer])], {
+      labels: { pseudoDeleted: 'Deleted' },
+    });
+
+    expect(html).toContain('<span class="ed">Deleted</span>');
+    expect(html.split('言い間違い')).toHaveLength(2);
   });
 
   it('does not quote a whisper in the log of somebody it was not whispered to', () => {

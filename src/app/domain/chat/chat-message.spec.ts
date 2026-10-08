@@ -570,4 +570,66 @@ describe('ChatMessage', () => {
       expect(message.isAfterWhisper).toBe(false);
     });
   });
+
+  describe('a deleted line', () => {
+    const reload = (message: ChatMessage): ChatMessage => {
+      const xml = message.toXml();
+      store.delete(message, false);
+      store.clearDeleteHistory();
+      return ObjectSerializer.instance.parseXml(xml) as ChatMessage;
+    };
+
+    const said = (from: string): ChatMessage => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.from = from;
+      message.text = '言わなかったことにしたい';
+      return message;
+    };
+
+    it('is gone from everybody’s chat, the chat of the one who said it included', () => {
+      const theirs = said('someone');
+      const mine = said('test-user');
+
+      theirs.pseudoDelete(1000);
+      mine.pseudoDelete(1000);
+
+      expect(theirs.isShownInChat).toBe(false);
+      expect(mine.isShownInChat).toBe(false);
+    });
+
+    it('is still in the room, for the log and the saved room to keep', () => {
+      const message = said('someone');
+
+      message.pseudoDelete(1000);
+
+      expect(message.isDisplayable).toBe(true);
+      expect(message.isDirect).toBe(false);
+      expect(reload(message).isPseudoDeleted).toBe(true);
+    });
+
+    it('keeps the moment it was first deleted', () => {
+      const message = said('someone');
+      message.pseudoDelete(1000);
+      message.pseudoDelete(2000);
+
+      expect(Number(message.pseudoDeletedAt)).toBe(1000);
+    });
+
+    it('is not shown a whisper the reader was not part of, deleted or not', () => {
+      const message = said('someone');
+      message.to = 'third-user';
+
+      expect(message.isShownInChat).toBe(false);
+    });
+
+    it('reads a line from a room saved before there were any as not deleted', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.setAttribute('pseudoDeletedAt', '');
+
+      expect(message.isPseudoDeleted).toBe(false);
+      expect(message.isShownInChat).toBe(true);
+    });
+  });
 });

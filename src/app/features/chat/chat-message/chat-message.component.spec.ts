@@ -14,6 +14,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -1331,6 +1332,70 @@ describe('ChatMessageComponent', () => {
       await settle();
 
       expect(fixture.nativeElement.textContent).not.toContain('秘密の合言葉');
+    });
+  });
+
+  describe('deleting a line', () => {
+    let tab: ChatTab;
+
+    const testId = (id: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-testid="${id}"]`);
+
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    function shown(from: string, extra: Partial<ChatMessage> = {}): ChatMessage {
+      const message = tab.addMessage({ from, name: 'アリア', text: '言い間違い', timestamp: 1000, ...extra });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+      return message;
+    }
+
+    beforeEach(() => {
+      beMyself('me');
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => tab.destroy());
+
+    it('deletes the reader’s own line once they say they are sure, asking as for something not put back', async () => {
+      const message = shown('me');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      testId('chat-message-pseudo-delete')!.click();
+      await vi.waitFor(() => expect(message.isPseudoDeleted).toBe(true));
+
+      expect(ask).toHaveBeenCalledWith(expect.objectContaining({ danger: true }));
+    });
+
+    it('leaves the line as it was when the reader thinks better of it', async () => {
+      const message = shown('me');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+
+      testId('chat-message-pseudo-delete')!.click();
+      await vi.waitFor(() => expect(ask).toHaveBeenCalled());
+      await settle();
+
+      expect(message.isPseudoDeleted).toBe(false);
+    });
+
+    it('offers no deleting of somebody else’s line', () => {
+      shown('someone');
+
+      expect(testId('chat-message-pseudo-delete')).toBeNull();
+    });
+
+    it('stops showing a deleted line through an answer to it', async () => {
+      const original = tab.addMessage({ from: 'someone', name: 'ノア', text: '取り消された話', timestamp: 900 });
+      shown('third', { replyTo: original.identifier } as Partial<ChatMessage>);
+      expect(fixture.nativeElement.textContent).toContain('取り消された話');
+
+      original.pseudoDelete(2000);
+      await settle();
+
+      expect(fixture.nativeElement.textContent).not.toContain('取り消された話');
     });
   });
 
