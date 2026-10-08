@@ -89,8 +89,8 @@ describe('PanelWindowService', () => {
       expect(on({ isCompact: false, isTouch: true, hasFinePointer: true }).isSupported).toBe(true);
     });
 
-    it('keeps it in on a narrow window, even with a mouse', () => {
-      expect(on({ isCompact: true, isTouch: false, hasFinePointer: true }).isSupported).toBe(false);
+    it('lets a panel out of a PC window made narrow, where the app is laid out as on a phone', () => {
+      expect(on({ isCompact: true, isTouch: false, hasFinePointer: true }).isSupported).toBe(true);
     });
   });
 

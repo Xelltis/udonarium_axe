@@ -120,12 +120,12 @@ export class PanelWindowService {
    * Whether this browser will let a panel out at all.
    *
    * A phone or a tablet opens a window as one more tab, where a panel stands alone with no table
-   * beside it to work with, so a narrow screen, or one with nothing but a finger to point with, is
-   * not offered the button. A PC with a touch screen still has its mouse or touchpad, and keeps it.
+   * beside it to work with, so a screen with nothing but a finger to point with is not offered the
+   * button. A PC keeps it however narrow its window, and with a touch screen as well, as it still
+   * has its mouse or touchpad and opens a window of its own.
    */
   get isSupported(): boolean {
-    const fingerOnly = this.viewport.isTouch() && !this.viewport.hasFinePointer();
-    if (this.viewport.isCompact() || fingerOnly) return false;
+    if (this.viewport.isTouch() && !this.viewport.hasFinePointer()) return false;
     return typeof this.document.defaultView?.open === 'function';
   }
 
