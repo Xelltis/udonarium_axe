@@ -1,3 +1,16 @@
+## [1.62.2](https://github.com/Xelltis/udonarium_axe/compare/v1.62.1...v1.62.2) (2026-10-08)
+
+### 🐛 Bug Fixes
+
+* **jukebox:** leave shuffle and repeat to the game master, and nothing to a guest ([c4fdcff](https://github.com/Xelltis/udonarium_axe/commit/c4fdcff5c8d3a746ae9f68f06e3243f2ac1765b0))
+* **jukebox:** write who turned shuffle or repeat to the system log ([2846d91](https://github.com/Xelltis/udonarium_axe/commit/2846d91369e66b7c9332b4a0e78eef9cc03bc035))
+
+### 📝 Documentation
+
+* **website:** add the jukebox's shuffle and repeat to the v1.62.1 release notes ([74dfd5d](https://github.com/Xelltis/udonarium_axe/commit/74dfd5d23aa03545f3ffb9de62038325bffd838f))
+* **website:** move the jukebox's shuffle and repeat to the v1.62.2 release notes ([e334190](https://github.com/Xelltis/udonarium_axe/commit/e3341904a03a1ea50c960b6746b471913c25daf2))
+* **website:** note who may play the jukebox and where its mode changes are logged ([12464ad](https://github.com/Xelltis/udonarium_axe/commit/12464add850750474c8cc7902cd37b171c021a94))
+
 ## [1.62.1](https://github.com/Xelltis/udonarium_axe/compare/v1.62.0...v1.62.1) (2026-10-08)
 
 ### 🐛 Bug Fixes
