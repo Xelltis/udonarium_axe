@@ -928,6 +928,29 @@
           </button>
         </div>
       </div>
+
+      <div
+        class="border-ui-danger-ring bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+        data-testid="room-settings-danger-zone"
+      >
+        <div class="border-ui-danger border-l-2 border-solid pl-2">
+          <span class="text-ui-danger text-[12px] font-semibold tracking-wide">{{
+            'feature.roomSettings.sectionDanger' | transloco
+          }}</span>
+        </div>
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-danger-ring text-ui-danger hover:border-ui-danger hover:bg-ui-danger-bg flex cursor-pointer items-center gap-2 self-start border border-solid bg-transparent px-2.5 py-1.5 text-left text-[12px] transition-colors [&_i]:text-[18px]"
+          data-testid="room-settings-wipe-browser-data"
+          (click)="wipeBrowserData()"
+        >
+          <i class="material-icons">delete_forever</i>
+          {{ 'feature.roomSettings.wipeBrowserData' | transloco }}
+        </button>
+        <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+          {{ 'feature.roomSettings.wipeBrowserDataHint' | transloco }}
+        </p>
+      </div>
     }
   </div>
 </div>

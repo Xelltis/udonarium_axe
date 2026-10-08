@@ -11,6 +11,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { BrowserDataWipeService } from '@axe/features/room-settings/browser-data-wipe.service';
 import { RoomSettingsPanelComponent } from '@axe/features/room-settings/room-settings-panel/room-settings-panel.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -381,6 +382,22 @@ describe('RoomSettingsPanelComponent', () => {
       button.click();
 
       expect(opened).toEqual(['replay']);
+    });
+
+    it('offers anyone, someone watching as well, to wipe this browser’s data from the utility part', async () => {
+      const wipe = vi.spyOn(TestBed.inject(BrowserDataWipeService), 'wipe').mockResolvedValue(false);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      component.tab.set('utility');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const button = fixture.nativeElement.querySelector(
+        '[data-testid="room-settings-wipe-browser-data"]'
+      ) as HTMLButtonElement;
+      expect(button.closest('[inert]')).toBeNull();
+      button.click();
+
+      expect(wipe).toHaveBeenCalledOnce();
     });
 
     it('shows the boxes only once an enemy holds ground', async () => {

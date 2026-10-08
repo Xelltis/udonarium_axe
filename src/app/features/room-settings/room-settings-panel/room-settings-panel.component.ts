@@ -77,6 +77,7 @@ import {
 } from '@axe/domain/ui/room-settings-tab';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { RoomSnapshotPanelComponent } from '@axe/features/room-archive/room-snapshot-panel/room-snapshot-panel.component';
+import { BrowserDataWipeService } from '@axe/features/room-settings/browser-data-wipe.service';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
@@ -121,6 +122,7 @@ export class RoomSettingsPanelComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly roomSnapshot = inject(RoomSnapshotService);
   private readonly roomPanels = inject(RoomPanelService);
+  private readonly browserDataWipe = inject(BrowserDataWipeService);
 
   readonly tabs = ROOM_SETTINGS_TABS;
   readonly uiTabs = ROOM_SETTINGS_UI_TABS;
@@ -143,6 +145,14 @@ export class RoomSettingsPanelComponent {
    */
   openReplay(): void {
     this.roomPanels.open('replay');
+  }
+
+  /**
+   * Throws away everything the app keeps in this browser and loads the page again, once the reader
+   * has said they are sure. Anyone may, as it touches this browser alone.
+   */
+  wipeBrowserData(): void {
+    void this.browserDataWipe.wipe();
   }
 
   /**
