@@ -57,12 +57,16 @@ describe('PanelWindowService', () => {
   }
 
   describe('where a panel may be let out', () => {
-    function on(screen: { isCompact: boolean; isTouch: boolean }): PanelWindowService {
+    function on(screen: { isCompact: boolean; isTouch: boolean; hasFinePointer: boolean }): PanelWindowService {
       TestBed.configureTestingModule({
         providers: [
           {
             provide: ViewportService,
-            useValue: { isCompact: signal(screen.isCompact), isTouch: signal(screen.isTouch) },
+            useValue: {
+              isCompact: signal(screen.isCompact),
+              isTouch: signal(screen.isTouch),
+              hasFinePointer: signal(screen.hasFinePointer),
+            },
           },
         ],
       });
@@ -70,15 +74,23 @@ describe('PanelWindowService', () => {
     }
 
     it('lets a panel out on a wide screen with a mouse', () => {
-      expect(on({ isCompact: false, isTouch: false }).isSupported).toBe(true);
+      expect(on({ isCompact: false, isTouch: false, hasFinePointer: true }).isSupported).toBe(true);
     });
 
     it('keeps it in on a phone, where a window is only another tab', () => {
-      expect(on({ isCompact: true, isTouch: true }).isSupported).toBe(false);
+      expect(on({ isCompact: true, isTouch: true, hasFinePointer: false }).isSupported).toBe(false);
     });
 
     it('keeps it in on a tablet too', () => {
-      expect(on({ isCompact: false, isTouch: true }).isSupported).toBe(false);
+      expect(on({ isCompact: false, isTouch: true, hasFinePointer: false }).isSupported).toBe(false);
+    });
+
+    it('lets a panel out on a PC whose touch screen counts as its main pointer, as it has a mouse too', () => {
+      expect(on({ isCompact: false, isTouch: true, hasFinePointer: true }).isSupported).toBe(true);
+    });
+
+    it('keeps it in on a narrow window, even with a mouse', () => {
+      expect(on({ isCompact: true, isTouch: false, hasFinePointer: true }).isSupported).toBe(false);
     });
   });
 
