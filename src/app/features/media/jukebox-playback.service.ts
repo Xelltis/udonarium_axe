@@ -1,4 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -9,6 +11,7 @@ import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox, RepeatMode } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
 /** A point in a track or its length, read out as minutes and seconds such as `1:05`; `0:00` for nothing sensible. */
 export function formatTrackTime(seconds: number): string {
@@ -36,7 +39,9 @@ export interface PlaylistView {
  * does.
  *
  * What plays changes for the whole room, so a guest, who is there to watch, changes none of it, and
- * only the game master turns shuffle and repeat, as with the room's other shared settings.
+ * only the game master turns shuffle and repeat, as with the room's other shared settings. A turn
+ * of either is written in the system log under the name of whoever made it, so the room can see
+ * who changed it.
  */
 @Injectable({ providedIn: 'root' })
 export class JukeboxPlaybackService {
@@ -45,6 +50,7 @@ export class JukeboxPlaybackService {
   private readonly audioStorage = inject(AudioStorage);
   private readonly t = inject(TRANSLATE_FN);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly chatMessage = inject(ChatMessageService);
   private readonly knownDurations = new Map<string, number>();
 
   /** Whether this reader may change what the room plays, which every role but a guest may. */
@@ -218,17 +224,29 @@ export class JukeboxPlaybackService {
     this.jukebox?.seek(seconds);
   }
 
-  /** Turns shuffle on or off for the room. */
+  /** Turns shuffle on or off for the room, and writes in the system log who did. */
   toggleShuffle(): void {
     const jukebox = this.jukebox;
     if (!jukebox || !this.rolePermission.canEditShared) return;
     jukebox.setShuffled(!jukebox.shuffles);
+    this.logChange(jukebox.shuffles ? 'shuffleOn' : 'shuffleOff');
   }
 
-  /** Steps the room's repeat mode on through none, the whole playlist and one track. */
+  /**
+   * Steps the room's repeat mode on through none, the whole playlist and one track, and writes in
+   * the system log who did and what it is now.
+   */
   cycleRepeatMode(): void {
-    if (!this.rolePermission.canEditShared) return;
-    this.jukebox?.cycleRepeatMode();
+    const jukebox = this.jukebox;
+    if (!jukebox || !this.rolePermission.canEditShared) return;
+    jukebox.cycleRepeatMode();
+    const logKeys: Record<RepeatMode, string> = { none: 'repeatNone', all: 'repeatAll', one: 'repeatOne' };
+    this.logChange(logKeys[jukebox.repeatMode] ?? 'repeatNone');
+  }
+
+  private logChange(key: string): void {
+    const name = PeerCursor.myCursor?.name ?? '';
+    this.chatMessage.sendSystemMessage(encodeI18nMessage(`feature.media.jukebox.log.${key}`, { name }));
   }
 
   /** Makes a playlist the one the room plays through and starts it from the top. */

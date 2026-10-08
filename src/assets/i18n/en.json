@@ -413,6 +413,13 @@
     "media": {
       "jukebox": {
         "gmOnlySuffix": " (only the GM can change it)",
+        "log": {
+          "repeatOne": "{{name}} set the jukebox to repeat one track.",
+          "repeatAll": "{{name}} set the jukebox to repeat the playlist.",
+          "repeatNone": "{{name}} turned off repeat on the jukebox.",
+          "shuffleOn": "{{name}} turned on shuffle on the jukebox.",
+          "shuffleOff": "{{name}} turned off shuffle on the jukebox."
+        },
         "title": "Jukebox",
         "panelMain": "BGM list",
         "playButton": "Play",

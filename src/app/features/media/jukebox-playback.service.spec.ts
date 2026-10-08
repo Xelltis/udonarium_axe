@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
@@ -136,11 +139,21 @@ describe('JukeboxPlaybackService', () => {
   });
 
   describe('what each role may change', () => {
+    let logged: string[];
+
     function playAs(role: PeerRole, name = 'Alice'): void {
       PeerCursor.createMyCursor();
       PeerCursor.myCursor.role = role;
       PeerCursor.myCursor.name = name;
     }
+
+    beforeEach(() => {
+      logged = [];
+      vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockImplementation((text: string) => {
+        logged.push(decodeI18nMessage(text, TestBed.inject(TRANSLATE_FN)));
+        return {} as ChatMessage;
+      });
+    });
 
     it('lets a guest only listen, leaving the room’s music as it is', () => {
       addReady('a', 'b');
@@ -175,6 +188,37 @@ describe('JukeboxPlaybackService', () => {
       expect(service.canChangeModes()).toBe(false);
       expect(jukebox.repeatMode).toBe('one');
       expect(jukebox.shuffles).toBe(false);
+      expect(logged).toEqual([]);
+    });
+
+    it('writes each turn of repeat by the game master to the system log, naming them', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      playAs(PeerRole.GameMaster, 'Gina');
+
+      service.cycleRepeatMode();
+      service.cycleRepeatMode();
+      service.cycleRepeatMode();
+
+      expect(jukebox.repeatMode).toBe('one');
+      expect(logged).toEqual([
+        t('feature.media.jukebox.log.repeatNone', { name: 'Gina' }),
+        t('feature.media.jukebox.log.repeatAll', { name: 'Gina' }),
+        t('feature.media.jukebox.log.repeatOne', { name: 'Gina' }),
+      ]);
+    });
+
+    it('writes each turn of shuffle by the game master to the system log, naming them', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      playAs(PeerRole.GameMaster, 'Gina');
+
+      service.toggleShuffle();
+      service.toggleShuffle();
+
+      expect(jukebox.shuffles).toBe(false);
+      expect(logged).toEqual([
+        t('feature.media.jukebox.log.shuffleOn', { name: 'Gina' }),
+        t('feature.media.jukebox.log.shuffleOff', { name: 'Gina' }),
+      ]);
     });
   });
 

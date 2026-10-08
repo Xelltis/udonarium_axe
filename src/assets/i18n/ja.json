@@ -413,6 +413,13 @@
     "media": {
       "jukebox": {
         "gmOnlySuffix": "（GM だけが変えられます）",
+        "log": {
+          "repeatOne": "{{name}} さんがジュークボックスを1曲リピートにしました。",
+          "repeatAll": "{{name}} さんがジュークボックスを再生リストのリピートにしました。",
+          "repeatNone": "{{name}} さんがジュークボックスのリピートを解除しました。",
+          "shuffleOn": "{{name}} さんがジュークボックスのシャッフルをオンにしました。",
+          "shuffleOff": "{{name}} さんがジュークボックスのシャッフルをオフにしました。"
+        },
         "title": "ジュークボックス",
         "panelMain": "BGM一覧",
         "playButton": "再生",

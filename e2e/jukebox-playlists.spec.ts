@@ -175,6 +175,24 @@ test.describe('ジュークボックスの再生リスト', () => {
     await expect(repeat).toHaveAttribute('title', '再生リストをリピート');
   });
 
+  test('シャッフルとリピートを変えたGMの名前がシステムログに残ること', async ({ page }) => {
+    const jukebox = await openJukeboxWithTracks(page, 'GM');
+
+    await jukebox.getByTestId('jukebox-shuffle').click();
+    await jukebox.getByTestId('jukebox-repeat').click();
+    // The jukebox panel lies over the chat's tabs, so the tab is chosen without a pointer.
+    await page
+      .locator('chat-window label')
+      .filter({ hasText: /^\s*システム\s*\d*\s*$/ })
+      .first()
+      .locator('input[type="radio"]')
+      .dispatchEvent('click');
+
+    const chat = page.locator('chat-window');
+    await expect(chat).toContainText('さんがジュークボックスのシャッフルをオンにしました。');
+    await expect(chat).toContainText('さんがジュークボックスのリピートを解除しました。');
+  });
+
   test('プレイヤーはシャッフルとリピートを変えられず、見学は再生も止められないこと', async ({ page }) => {
     const jukebox = await openJukeboxWithTracks(page, 'PL');
     const mini = page.locator('app-mini-jukebox');
