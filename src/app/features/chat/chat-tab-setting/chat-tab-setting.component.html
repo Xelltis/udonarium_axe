@@ -247,6 +247,20 @@
               <i class="material-icons">visibility</i>{{ 'feature.chat.log.preview' | transloco }}
             </button>
           </div>
+          <label
+            class="text-ui-muted inline-flex w-fit cursor-pointer items-center gap-1.25 text-[12px] select-none"
+            [title]="'feature.chat.log.omitDeletedHint' | transloco"
+          >
+            <input
+              type="checkbox"
+              class="m-0 size-3.25 cursor-pointer [accent-color:var(--ui-accent)]"
+              name="omit-deleted"
+              data-testid="chat-log-omit-deleted"
+              [ngModel]="omitDeleted()"
+              (ngModelChange)="setOmitDeleted($event)"
+            />
+            {{ 'feature.chat.log.omitDeleted' | transloco }}
+          </label>
           <div class="flex flex-wrap items-center gap-1.5">
             <button
               type="button"

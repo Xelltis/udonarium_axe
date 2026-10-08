@@ -3083,6 +3083,8 @@
         "previewFrameTitle": "내보낼 로그 견본",
         "previewLimited": "최근 {{count}}건으로 표시하고 있습니다. 저장하면 탭 전체가 내보내집니다.",
         "previewSample": "아직 발언이 없어 견본 대화로 표시하고 있습니다.",
+        "omitDeleted": "삭제한 발언은 로그에 넣지 않기",
+        "omitDeletedHint": "삭제한 발언을 저장하는 로그에서 뺍니다",
         "styles": {
           "standard": {
             "name": "표준",

@@ -46,6 +46,19 @@
     </ul>
 
     <div class="border-ui-border-panel flex shrink-0 flex-col gap-2 border-t border-solid p-2">
+      <label
+        class="text-ui-muted flex cursor-pointer items-start gap-1.25 text-xs/tight select-none"
+        [title]="'feature.chat.log.omitDeletedHint' | transloco"
+      >
+        <input
+          type="checkbox"
+          class="m-0 mt-px size-3.25 shrink-0 cursor-pointer [accent-color:var(--ui-accent)]"
+          data-testid="chat-log-preview-omit-deleted"
+          [checked]="omitDeleted()"
+          (change)="setOmitDeleted($any($event.target).checked)"
+        />
+        {{ 'feature.chat.log.omitDeleted' | transloco }}
+      </label>
       @if (!isSystemTab()) {
         <div
           class="rounded-ui-sm border-ui-border-panel grid grid-cols-2 overflow-hidden border border-solid"

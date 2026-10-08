@@ -3083,6 +3083,8 @@
         "previewFrameTitle": "Sample of the exported log",
         "previewLimited": "Showing the latest {{count}} lines. Saving writes out the whole tab.",
         "previewSample": "Nothing has been said yet, so a sample conversation is shown.",
+        "omitDeleted": "Leave deleted lines out of the log",
+        "omitDeletedHint": "Deleted lines are left out of the saved log",
         "styles": {
           "standard": {
             "name": "Standard",

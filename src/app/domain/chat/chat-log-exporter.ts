@@ -458,6 +458,18 @@ export class ChatLogExporter {
   }
 
   /**
+   * The tabs with their deleted lines left out, for a log that should not hold them.
+   * The tabs themselves are left as they are.
+   */
+  static withoutDeleted(tabs: readonly ChatLogTab[]): ChatLogTab[] {
+    return tabs.map((tab) => ({
+      name: tab.name,
+      isSystemTab: tab.isSystemTab,
+      chatMessages: tab.chatMessages.filter((message) => !message.isPseudoDeleted),
+    }));
+  }
+
+  /**
    * The text of a quoted or replied-to line folded onto one line and cut to `maxTextLength`
    * characters with an ellipsis, without the staging an older novel-mode line carries.
    */

@@ -489,13 +489,25 @@ describe('ChatLogExporter', () => {
     });
   });
 
-  describe('a pseudo-deleted line', () => {
+  describe('a deleted line', () => {
     const deleted = () => createMockMessage({ text: '言い間違い', isPseudoDeleted: true } as Partial<ChatMessage>);
 
     it('is in everybody’s log, marked in both layouts', () => {
       expect(ChatLogExporter.isVisibleMessage(deleted(), 'user-B')).toBe(true);
       expect(ChatLogExporter.formatMessageStandard(false, '', deleted())).toContain('言い間違い (削除済)');
       expect(ChatLogExporter.formatMessageCoc('メイン', deleted())).toContain('(削除済)');
+    });
+
+    it('is left out of tabs asked to be without such lines, leaving the rest and the tab as they were', () => {
+      const kept = createMockMessage({ text: '残る発言' });
+      const tab = { name: 'メイン', isSystemTab: false, chatMessages: [kept, deleted()] };
+
+      const [result] = ChatLogExporter.withoutDeleted([tab]);
+
+      expect(result.name).toBe('メイン');
+      expect(result.isSystemTab).toBe(false);
+      expect(result.chatMessages).toEqual([kept]);
+      expect(tab.chatMessages).toHaveLength(2);
     });
 
     it('is not quoted in the lines that answer it', () => {

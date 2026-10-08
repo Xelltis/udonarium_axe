@@ -3083,6 +3083,8 @@
         "previewFrameTitle": "書き出されるログの見本",
         "previewLimited": "直近 {{count}} 件で表示しています。保存するとタブ全体が書き出されます。",
         "previewSample": "まだ発言がないため、見本の会話で表示しています。",
+        "omitDeleted": "削除した発言をログに出力しない",
+        "omitDeletedHint": "削除した発言を、保存するログから外します",
         "styles": {
           "standard": {
             "name": "標準",

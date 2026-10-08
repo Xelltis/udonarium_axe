@@ -1,6 +1,9 @@
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CHAT_LOG_STYLE_STORAGE_KEY } from '@axe/application/chat/chat-log-style-preference.service';
+import {
+  CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
+  CHAT_LOG_STYLE_STORAGE_KEY,
+} from '@axe/application/chat/chat-log-style-preference.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -125,11 +128,13 @@ describe('ChatTabSettingComponent', () => {
 
     beforeEach(() => {
       localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
+      localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
       saveData = TestBed.inject(SaveDataService);
     });
 
     afterEach(() => {
       localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
+      localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
       vi.restoreAllMocks();
     });
 
@@ -143,6 +148,24 @@ describe('ChatTabSettingComponent', () => {
       component.saveLog();
 
       expect(spy.mock.calls[0][0]).toBe('washi');
+    });
+
+    it('keeps deleted lines in until asked to leave them out, for one tab or all', () => {
+      const tab = new ChatTab();
+      tab.initialize();
+      component.selectedTab.set(tab);
+      const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
+
+      component.saveLog();
+      component.setOmitDeleted(true);
+      component.saveLog();
+      component.saveAllLog();
+
+      expect(spy.mock.calls.map((call) => call[4])).toEqual([
+        { omitDeleted: false },
+        { omitDeleted: true },
+        { omitDeleted: true },
+      ]);
     });
 
     it('writes the standard layout for the system tab in place of the one other tools read', () => {

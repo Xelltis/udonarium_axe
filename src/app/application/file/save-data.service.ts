@@ -18,7 +18,12 @@ import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { xml2element } from '@axe/core/util/xml-util';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
-import { ChatLogImageSrcResolver, ChatLogTab, ChatLogTextDecoder } from '@axe/domain/chat/chat-log-exporter';
+import {
+  ChatLogExporter,
+  ChatLogImageSrcResolver,
+  ChatLogTab,
+  ChatLogTextDecoder,
+} from '@axe/domain/chat/chat-log-exporter';
 import { ChatLogLabels, ChatLogScope } from '@axe/domain/chat/chat-log-rich';
 import { ChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -279,15 +284,22 @@ export class SaveDataService {
     return rawValue.split(/\n+/);
   }
 
-  /** Downloads chat tabs as an HTML log named after the room, with portraits and attachments shrunk and embedded. */
+  /**
+   * Downloads chat tabs as an HTML log named after the room, with portraits and attachments shrunk
+   * and embedded.
+   *
+   * Asked to leave out deleted lines, it leaves out their pictures as well.
+   */
   async saveChatLog(
     style: ChatLogStyle,
     scope: ChatLogScope,
     tabs: readonly ChatLogTab[],
-    label: string
+    label: string,
+    options: { omitDeleted?: boolean } = {}
   ): Promise<void> {
-    const images = await this.prepareChatLogImages(tabs);
-    const text = this.renderChatLog(style, scope, tabs, images);
+    const logTabs = options.omitDeleted ? ChatLogExporter.withoutDeleted(tabs) : tabs;
+    const images = await this.prepareChatLogImages(logTabs);
+    const text = this.renderChatLog(style, scope, logTabs, images);
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     downloadBlob(blob, this.appendTimestamp(`${this.chatLogRoomName()}_log_${label}`) + '.html');
   }
