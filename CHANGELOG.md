@@ -1,3 +1,17 @@
+## [1.62.3](https://github.com/Xelltis/udonarium_axe/compare/v1.62.2...v1.62.3) (2026-10-08)
+
+### 🐛 Bug Fixes
+
+* **panels:** keep the button for a window of its own in a narrow PC window ([b71125c](https://github.com/Xelltis/udonarium_axe/commit/b71125cb17d807981bec734854c87ef78ea3ad09))
+* **panels:** offer a window of its own again on a PC with a touch screen ([f358b50](https://github.com/Xelltis/udonarium_axe/commit/f358b50aff2ea23927abaf9730420fe84bfe96cc))
+* **room-settings:** erase this browser's data from a danger zone in the utility tab ([cff45ad](https://github.com/Xelltis/udonarium_axe/commit/cff45ad7e30d1ba47474645d8422f64296992def))
+* **storage:** wipe everything the app keeps in this browser on the next load ([51c001b](https://github.com/Xelltis/udonarium_axe/commit/51c001b1d7075e84b1ba062976468316fe9d785e))
+
+### 📝 Documentation
+
+* **website:** describe erasing this browser's data from the room settings ([6e7a7ee](https://github.com/Xelltis/udonarium_axe/commit/6e7a7ee2a588ed65ea448b947c7878883f40005c))
+* **website:** write the release notes for v1.62.3 ([d8e66c4](https://github.com/Xelltis/udonarium_axe/commit/d8e66c48d570dc12b7dbf4b6481659818d58d877))
+
 ## [1.62.2](https://github.com/Xelltis/udonarium_axe/compare/v1.62.1...v1.62.2) (2026-10-08)
 
 ### 🐛 Bug Fixes
