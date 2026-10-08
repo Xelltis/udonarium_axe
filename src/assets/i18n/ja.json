@@ -412,6 +412,7 @@
     },
     "media": {
       "jukebox": {
+        "gmOnlySuffix": "（GM だけが変えられます）",
         "title": "ジュークボックス",
         "panelMain": "BGM一覧",
         "playButton": "再生",

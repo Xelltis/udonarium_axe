@@ -21,7 +21,7 @@
             </div>
           }
         </div>
-        @if (jukebox.audio) {
+        @if (jukebox.audio && canOperate()) {
           <button
             class="border-ui-border-panel absolute top-2 right-2 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid bg-black/45 p-0 text-white/80 transition-[background,color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-[18px]!"
             (click)="stopBGM(jukebox.audio)"
@@ -84,8 +84,9 @@
         }}</span>
         <button
           type="button"
-          class="border-ui-border-panel text-ui-muted ml-auto inline-flex cursor-pointer items-center gap-0.5 rounded-full border border-solid bg-transparent px-2 py-0.5 text-[10px] font-medium transition-[background,color,border-color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-[13px]!"
+          class="border-ui-border-panel text-ui-muted ml-auto inline-flex cursor-pointer items-center gap-0.5 rounded-full border border-solid bg-transparent px-2 py-0.5 text-[10px] font-medium transition-[background,color,border-color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-[13px]!"
           (click)="backgroundSounds.stopAll()"
+          [disabled]="!canOperate()"
           data-testid="jukebox-background-stop-all"
         >
           <i class="material-icons">stop</i>{{ 'feature.media.jukebox.bgsStopAll' | transloco }}
@@ -103,12 +104,13 @@
           >
           <input
             type="range"
-            class="h-1 w-24 shrink-0 cursor-pointer [accent-color:var(--ui-accent)]"
+            class="h-1 w-24 shrink-0 cursor-pointer [accent-color:var(--ui-accent)] disabled:cursor-default disabled:opacity-40"
             [name]="'background-volume-' + sound.audioIdentifier"
             min="0"
             max="1"
             step="0.01"
             [value]="sound.level"
+            [disabled]="!canOperate()"
             (input)="onBackgroundVolumeInput(sound.audioIdentifier, $event)"
             (change)="onBackgroundVolumeChange(sound.audioIdentifier, $event)"
             [attr.aria-label]="'feature.media.jukebox.bgsRoomVolumeOf' | transloco: { name: sound.name }"
@@ -116,8 +118,9 @@
           />
           <button
             type="button"
-            class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-base!"
+            class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
             (click)="backgroundSounds.stop(sound.audioIdentifier)"
+            [disabled]="!canOperate()"
             [title]="'feature.media.jukebox.bgsStop' | transloco"
             data-testid="jukebox-background-stop"
           >
@@ -135,9 +138,10 @@
     <div class="flex items-center gap-1.5">
       <button
         type="button"
-        class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[13px]!"
+        class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[13px]!"
         [class.text-ui-accent!]="isSeekLocked()"
         (click)="toggleSeekLock()"
+        [disabled]="!canOperate()"
         [title]="
           isSeekLocked()
             ? ('feature.media.miniJukebox.seekUnlock' | transloco)
@@ -159,7 +163,7 @@
         max="100"
         step="0.1"
         [value]="displayProgress() * 100"
-        [disabled]="!playback.isPlaying() || isSeekLocked()"
+        [disabled]="!canOperate() || !playback.isPlaying() || isSeekLocked()"
         (input)="onSeekInput($event)"
         (change)="onSeekCommit($event)"
         [attr.aria-label]="'feature.media.jukebox.seek' | transloco"
@@ -173,13 +177,15 @@
     <div class="flex items-center justify-center gap-1">
       <button
         type="button"
-        class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[20px]!"
+        class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[20px]!"
         [class.text-ui-accent!]="playback.isShuffled()"
         (click)="playback.toggleShuffle()"
+        [disabled]="!canChangeModes()"
         [title]="
-          playback.isShuffled()
+          (playback.isShuffled()
             ? ('feature.media.miniJukebox.shuffleOn' | transloco)
-            : ('feature.media.miniJukebox.shuffleOff' | transloco)
+            : ('feature.media.miniJukebox.shuffleOff' | transloco)) +
+          (canChangeModes() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
         "
         [attr.aria-pressed]="playback.isShuffled()"
         data-testid="jukebox-shuffle"
@@ -190,7 +196,7 @@
         type="button"
         class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[22px]!"
         (click)="playback.previous()"
-        [disabled]="!playback.queue().length"
+        [disabled]="!canOperate() || !playback.queue().length"
         [title]="'feature.media.miniJukebox.prev' | transloco"
         data-testid="jukebox-prev"
       >
@@ -200,7 +206,7 @@
         type="button"
         class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-hover m-0 inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[26px]!"
         (click)="playback.togglePlayPause()"
-        [disabled]="!playback.isPlaying() && !playback.isPaused() && !playback.queue().length"
+        [disabled]="!canOperate() || (!playback.isPlaying() && !playback.isPaused() && !playback.queue().length)"
         [title]="
           playback.isPlaying()
             ? ('feature.media.miniJukebox.pause' | transloco)
@@ -214,7 +220,7 @@
         type="button"
         class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[22px]!"
         (click)="playback.next()"
-        [disabled]="!playback.queue().length"
+        [disabled]="!canOperate() || !playback.queue().length"
         [title]="'feature.media.miniJukebox.next' | transloco"
         data-testid="jukebox-next"
       >
@@ -222,15 +228,17 @@
       </button>
       <button
         type="button"
-        class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[20px]!"
+        class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[20px]!"
         [class.text-ui-accent!]="playback.repeatMode() !== 'none'"
         (click)="playback.cycleRepeatMode()"
+        [disabled]="!canChangeModes()"
         [title]="
-          playback.repeatMode() === 'one'
+          (playback.repeatMode() === 'one'
             ? ('feature.media.miniJukebox.repeatOne' | transloco)
             : playback.repeatMode() === 'all'
               ? ('feature.media.miniJukebox.repeatAll' | transloco)
-              : ('feature.media.miniJukebox.repeatOff' | transloco)
+              : ('feature.media.miniJukebox.repeatOff' | transloco)) +
+          (canChangeModes() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
         "
         data-testid="jukebox-repeat"
       >
@@ -426,7 +434,7 @@
               class="bg-ui-input border-ui-border-panel text-ui-muted rounded-ui-sm focus:border-ui-accent w-fit cursor-pointer border border-solid px-1 py-px text-[10px] outline-none disabled:cursor-not-allowed disabled:opacity-40"
               [ngModel]="getTagOf(audio)"
               (ngModelChange)="setTagOf(audio, $event)"
-              [disabled]="isOnAnyPlaylist(audio)"
+              [disabled]="!canOperate() || isOnAnyPlaylist(audio)"
               [title]="isOnAnyPlaylist(audio) ? ('feature.media.jukebox.tagDisabled' | transloco) : ''"
             >
               @for (tag of tagList(); track tag) {
@@ -458,8 +466,9 @@
             @if (getTagOf(audio) === 'SE') {
               @if (isSePlaying(audio)) {
                 <button
-                  class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+                  class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                   (click)="stopSE(audio)"
+                  [disabled]="!canOperate()"
                   [title]="'feature.media.jukebox.stopSE' | transloco"
                 >
                   <i class="material-icons">stop</i>
@@ -468,7 +477,7 @@
                 <button
                   class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                   (click)="playBGM(audio)"
-                  [disabled]="!audio.isReady"
+                  [disabled]="!canOperate() || !audio.isReady"
                   [title]="'feature.media.jukebox.playSE' | transloco"
                 >
                   <i class="material-icons">play_arrow</i>
@@ -477,8 +486,9 @@
             } @else if (isBackgroundSound(audio)) {
               @if (backgroundSounds.isPlaying(audio)) {
                 <button
-                  class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+                  class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                   (click)="backgroundSounds.toggle(audio)"
+                  [disabled]="!canOperate()"
                   [title]="'feature.media.jukebox.bgsStop' | transloco"
                   data-testid="jukebox-background-toggle"
                 >
@@ -488,7 +498,7 @@
                 <button
                   class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                   (click)="backgroundSounds.toggle(audio)"
-                  [disabled]="!audio.isReady"
+                  [disabled]="!canOperate() || !audio.isReady"
                   [title]="'feature.media.jukebox.bgsPlay' | transloco"
                   data-testid="jukebox-background-toggle"
                 >
@@ -499,15 +509,16 @@
               <button
                 class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                 (click)="playBGM(audio)"
-                [disabled]="!audio.isReady"
+                [disabled]="!canOperate() || !audio.isReady"
                 [title]="'feature.media.jukebox.playBGM' | transloco"
               >
                 <i class="material-icons">play_arrow</i>
               </button>
             } @else {
               <button
-                class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+                class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                 (click)="stopBGM(audio)"
+                [disabled]="!canOperate()"
                 [title]="'feature.media.jukebox.stop' | transloco"
               >
                 <i class="material-icons">stop</i>
@@ -516,16 +527,18 @@
             @if (getTagOf(audio) === 'BGM') {
               @if (!isInPlaylist(audio)) {
                 <button
-                  class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+                  class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                   (click)="addToPlaylist(audio)"
+                  [disabled]="!canOperate()"
                   [title]="'feature.media.jukebox.addToPlaylistNamed' | transloco: { name: viewedPlaylist()?.label }"
                 >
                   <i class="material-icons">playlist_add</i>
                 </button>
               } @else {
                 <button
-                  class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+                  class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                   (click)="removeFromPlaylist(audio)"
+                  [disabled]="!canOperate()"
                   [title]="
                     'feature.media.jukebox.removeFromPlaylistNamed' | transloco: { name: viewedPlaylist()?.label }
                   "
@@ -570,8 +583,9 @@
           </button>
         }
         <button
-          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex cursor-pointer items-center gap-0.5 rounded-full border border-dashed bg-transparent px-2 py-0.75 text-[11px] font-medium whitespace-nowrap transition-[background,color,border-color] select-none [&_.material-icons]:text-[13px]!"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex cursor-pointer items-center gap-0.5 rounded-full border border-dashed bg-transparent px-2 py-0.75 text-[11px] font-medium whitespace-nowrap transition-[background,color,border-color] select-none disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-[13px]!"
           (click)="createPlaylist()"
+          [disabled]="!canOperate()"
           [title]="'feature.media.jukebox.createPlaylist' | transloco"
           data-testid="jukebox-playlist-create"
         >
@@ -586,6 +600,7 @@
             type="text"
             [value]="viewed.name"
             [placeholder]="viewed.label"
+            [readOnly]="!canOperate()"
             (change)="renamePlaylist(playlistName.value)"
             [attr.aria-label]="'feature.media.jukebox.playlistName' | transloco"
             data-testid="jukebox-playlist-name"
@@ -593,7 +608,7 @@
           <button
             class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
             (click)="playViewedPlaylist()"
-            [disabled]="!viewed.count"
+            [disabled]="!canOperate() || !viewed.count"
             [title]="'feature.media.jukebox.playPlaylist' | transloco"
             data-testid="jukebox-playlist-play"
           >
@@ -601,8 +616,9 @@
           </button>
           @if (!viewed.isDefault) {
             <button
-              class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-base!"
+              class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
               (click)="deletePlaylist()"
+              [disabled]="!canOperate()"
               [title]="'feature.media.jukebox.deletePlaylist' | transloco"
               data-testid="jukebox-playlist-delete"
             >
@@ -621,7 +637,7 @@
           [class.pl-1.75!]="audio === jukebox.audio"
           [class.border-l-[3px]]="audio === jukebox.audio"
           [class.border-l-ui-accent!]="audio === jukebox.audio"
-          draggable="true"
+          [attr.draggable]="canOperate()"
           (dragstart)="onPlaylistDragStart(i)"
           (dragover)="onPlaylistDragOver($event, i)"
           (dragend)="onPlaylistDragEnd()"
@@ -652,23 +668,25 @@
               <button
                 class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                 (click)="playFromPlaylist(audio)"
-                [disabled]="!audio.isReady"
+                [disabled]="!canOperate() || !audio.isReady"
                 [title]="'feature.media.jukebox.playBGM' | transloco"
               >
                 <i class="material-icons">play_arrow</i>
               </button>
             } @else {
               <button
-                class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+                class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                 (click)="stopBGM(audio)"
+                [disabled]="!canOperate()"
                 [title]="'feature.media.jukebox.stop' | transloco"
               >
                 <i class="material-icons">stop</i>
               </button>
             }
             <button
-              class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+              class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
               (click)="removeFromPlaylist(audio)"
+              [disabled]="!canOperate()"
               [title]="'feature.media.jukebox.removeFromPlaylist' | transloco"
             >
               <i class="material-icons">remove_circle_outline</i>

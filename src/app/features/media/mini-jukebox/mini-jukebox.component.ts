@@ -128,6 +128,10 @@ export class MiniJukeboxComponent {
   });
 
   readonly repeatMode = this.playback.repeatMode;
+  /** Whether this player may change what the room plays, which a guest may not. */
+  readonly canOperate = this.playback.canOperate;
+  /** Whether this player may turn shuffle and repeat, which only the game master may. */
+  readonly canChangeModes = this.playback.canChangeModes;
 
   /** The names of the background sounds playing, one after another, for the line under the controls. */
   readonly backgroundNames = computed(() =>
@@ -232,7 +236,7 @@ export class MiniJukeboxComponent {
    * Locks or unlocks the seek bar; the lock is kept on the jukebox, so it holds for the whole room.
    */
   toggleSeekLock() {
-    if (this.jukebox) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
+    if (this.jukebox && this.canOperate()) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
   }
 
   /**

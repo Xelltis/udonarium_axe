@@ -412,6 +412,7 @@
     },
     "media": {
       "jukebox": {
+        "gmOnlySuffix": " (only the GM can change it)",
         "title": "Jukebox",
         "panelMain": "BGM list",
         "playButton": "Play",

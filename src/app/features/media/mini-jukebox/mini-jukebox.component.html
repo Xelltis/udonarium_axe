@@ -83,10 +83,11 @@
     <div class="flex h-5 items-center gap-2 px-3 pt-0.5">
       <button
         type="button"
-        class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-4.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none [&_.material-icons]:text-[12px]!"
+        class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-4.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[12px]!"
         [class.text-ui-accent!]="isSeekLocked()"
         (mousedown)="$event.stopPropagation()"
         (click)="toggleSeekLock()"
+        [disabled]="!canOperate()"
         [title]="
           isSeekLocked()
             ? ('feature.media.miniJukebox.seekUnlock' | transloco)
@@ -110,7 +111,7 @@
         min="0"
         max="100"
         step="0.1"
-        [disabled]="!isPlaying()"
+        [disabled]="!canOperate() || !isPlaying()"
         (input)="onSeekInput($event)"
         (change)="onSeekCommit($event)"
       />
@@ -123,7 +124,7 @@
       <button
         class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[20px]!"
         (click)="playPrev()"
-        [disabled]="!bgmList().length"
+        [disabled]="!canOperate() || !bgmList().length"
         [title]="'feature.media.miniJukebox.prev' | transloco"
       >
         <i class="material-icons">skip_previous</i>
@@ -131,7 +132,7 @@
       <button
         class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[20px]!"
         (click)="togglePlayPause()"
-        [disabled]="!isPlaying() && !isPaused() && !bgmList().length"
+        [disabled]="!canOperate() || (!isPlaying() && !isPaused() && !bgmList().length)"
         [title]="
           isPlaying() ? ('feature.media.miniJukebox.pause' | transloco) : ('feature.media.miniJukebox.play' | transloco)
         "
@@ -142,7 +143,7 @@
       <button
         class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[20px]!"
         (click)="playNext()"
-        [disabled]="!bgmList().length"
+        [disabled]="!canOperate() || !bgmList().length"
         [title]="'feature.media.miniJukebox.next' | transloco"
       >
         <i class="material-icons">skip_next</i>
@@ -151,10 +152,12 @@
         class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[20px]!"
         [class.text-ui-accent!]="isShuffled()"
         (click)="toggleShuffle()"
+        [disabled]="!canChangeModes()"
         [title]="
-          isShuffled()
+          (isShuffled()
             ? ('feature.media.miniJukebox.shuffleOn' | transloco)
-            : ('feature.media.miniJukebox.shuffleOff' | transloco)
+            : ('feature.media.miniJukebox.shuffleOff' | transloco)) +
+          (canChangeModes() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
         "
         [attr.aria-pressed]="isShuffled()"
         data-testid="mini-jukebox-shuffle"
@@ -165,13 +168,16 @@
         class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[20px]!"
         [class.text-ui-accent!]="repeatMode() !== 'none'"
         (click)="cycleRepeatMode()"
+        [disabled]="!canChangeModes()"
         [title]="
-          repeatMode() === 'one'
+          (repeatMode() === 'one'
             ? ('feature.media.miniJukebox.repeatOne' | transloco)
             : repeatMode() === 'all'
               ? ('feature.media.miniJukebox.repeatAll' | transloco)
-              : ('feature.media.miniJukebox.repeatOff' | transloco)
+              : ('feature.media.miniJukebox.repeatOff' | transloco)) +
+          (canChangeModes() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
         "
+        data-testid="mini-jukebox-repeat"
       >
         <i class="material-icons">{{ repeatMode() === 'one' ? 'repeat_one' : 'repeat' }}</i>
       </button>
@@ -209,9 +215,10 @@
         <span class="text-ui-muted min-w-0 flex-1 truncate text-[11px]">{{ backgroundNames() }}</span>
         <button
           type="button"
-          class="text-ui-muted m-0 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-[16px]!"
+          class="text-ui-muted m-0 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[16px]!"
           (mousedown)="$event.stopPropagation()"
           (click)="backgroundSounds.stopAll()"
+          [disabled]="!canOperate()"
           [title]="'feature.media.jukebox.bgsStopAll' | transloco"
           data-testid="mini-jukebox-background-stop-all"
         >
@@ -230,8 +237,9 @@
         >
           @if (hasManyPlaylists()) {
             <button
-              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none [&_.material-icons]:text-[18px]!"
+              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[18px]!"
               (click)="stepPlaylist(-1)"
+              [disabled]="!canOperate()"
               [title]="'feature.media.miniJukebox.prevPlaylist' | transloco"
               data-testid="mini-jukebox-prev-playlist"
             >
@@ -246,8 +254,9 @@
           >
           @if (hasManyPlaylists()) {
             <button
-              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none [&_.material-icons]:text-[18px]!"
+              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[18px]!"
               (click)="stepPlaylist(1)"
+              [disabled]="!canOperate()"
               [title]="'feature.media.miniJukebox.nextPlaylist' | transloco"
               data-testid="mini-jukebox-next-playlist"
             >
@@ -257,10 +266,11 @@
         </div>
         @for (audio of bgmList(); track audio.identifier) {
           <button
-            class="border-ui-border-panel text-ui-muted hover:border-b-ui-border-panel hover:bg-ui-hover hover:text-ui-text m-0 flex w-full cursor-pointer items-center gap-2 rounded-none border-b border-none bg-transparent px-3 py-1.75 text-left text-[12px] transition-colors last:border-b-0 hover:border-transparent hover:shadow-none"
+            class="border-ui-border-panel text-ui-muted hover:border-b-ui-border-panel hover:bg-ui-hover hover:text-ui-text m-0 flex w-full cursor-pointer items-center gap-2 rounded-none border-b border-none bg-transparent px-3 py-1.75 text-left text-[12px] transition-colors last:border-b-0 hover:border-transparent hover:shadow-none disabled:cursor-default"
             [class.text-ui-accent!]="audio.identifier === lastAudioIdentifier()"
             [class.bg-ui-accent-bg!]="audio.identifier === lastAudioIdentifier()"
             (click)="playFromList(audio)"
+            [disabled]="!canOperate()"
           >
             <i class="material-icons shrink-0 text-[14px]!">{{
               audio.identifier === lastAudioIdentifier() && isPlaying() ? 'volume_up' : 'music_note'

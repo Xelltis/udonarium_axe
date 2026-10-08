@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -204,6 +205,79 @@ describe('JukeboxComponent', () => {
       await fixture.whenStable();
 
       expect((fixture.nativeElement as HTMLElement).querySelector('input[name="room-volume-change"]')).toBeNull();
+    });
+  });
+
+  describe('what each role may touch', () => {
+    const control = (testId: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)!;
+    const titled = (title: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`button[title="${title}"]`)!;
+    const transport = ['jukebox-prev', 'jukebox-play-pause', 'jukebox-next'];
+    const modes = ['jukebox-shuffle', 'jukebox-repeat'];
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      AudioStorage.instance.add(makeReadyAudio('song'));
+      AudioStorage.instance.add(makeReadyAudio('other'));
+      ObjectStore.instance.get<Playlist>(Playlist.DEFAULT_IDENTIFIER)?.destroy();
+      new Playlist(Playlist.DEFAULT_IDENTIFIER).initialize();
+      ObjectStore.instance.get<Playlist>(Playlist.DEFAULT_IDENTIFIER)!.entries = ['song', 'other'];
+      vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(() => {});
+      vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(() => {});
+      component.jukebox.play('song');
+    });
+
+    it('greys out every control of the room’s music for a guest, but the preview', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      await fixture.whenStable();
+
+      for (const testId of [...transport, ...modes]) expect(control(testId).disabled, testId).toBe(true);
+      expect(titled(t('feature.media.jukebox.playBGM')).disabled).toBe(true);
+      expect(titled(t('feature.media.jukebox.stop')).disabled).toBe(true);
+      expect(titled(t('feature.media.jukebox.preview')).disabled).toBe(false);
+    });
+
+    it('lets a player play the room’s music, and leaves shuffle and repeat to the game master', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      PeerCursor.myCursor.role = PeerRole.Player;
+      await fixture.whenStable();
+
+      for (const testId of transport) expect(control(testId).disabled, testId).toBe(false);
+      for (const testId of modes) {
+        expect(control(testId).disabled, testId).toBe(true);
+        expect(control(testId).title, testId).toContain(t('feature.media.jukebox.gmOnlySuffix'));
+      }
+    });
+
+    it('takes shuffle and repeat back from the game master who becomes a player', async () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      await fixture.whenStable();
+      for (const testId of modes) expect(control(testId).disabled, testId).toBe(false);
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      await fixture.whenStable();
+
+      for (const testId of modes) expect(control(testId).disabled, testId).toBe(true);
+    });
+
+    it('leaves a guest’s clicks on the room’s playlists and tags undone', async () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      await fixture.whenStable();
+      const playlists = ObjectStore.instance.getObjects(Playlist).length;
+      const song = AudioStorage.instance.get('song')!;
+
+      component.removeFromPlaylist(song);
+      component.setTagOf(AudioStorage.instance.get('other')!, 'SE');
+      component.createPlaylist();
+      component.toggleSeekLock();
+
+      expect(ObjectStore.instance.get<Playlist>(Playlist.DEFAULT_IDENTIFIER)!.entries).toEqual(['song', 'other']);
+      expect(component.getTagOf(AudioStorage.instance.get('other')!)).toBe('BGM');
+      expect(ObjectStore.instance.getObjects(Playlist)).toHaveLength(playlists);
+      expect(component.jukebox.isSeekLocked).toBe(true);
     });
   });
 

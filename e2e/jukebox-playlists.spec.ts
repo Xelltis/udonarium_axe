@@ -29,8 +29,21 @@ const TRACKS = [
   { name: 'Boss.wav', seconds: 22 },
 ];
 
-async function openJukeboxWithTracks(page: Page): Promise<Locator> {
+async function becomeRole(page: Page, role: 'GM' | 'PL' | '見学'): Promise<void> {
+  await page
+    .locator('ui-panel')
+    .filter({ hasText: '接続情報' })
+    .getByRole('button', { name: new RegExp(`^\\s*${role}\\s*$`) })
+    .click();
+}
+
+/**
+ * Opens the jukebox with the tracks loaded, taking a role first when one is given; the connection
+ * panel comes to the front when its role buttons are pressed, so it is done before the jukebox opens.
+ */
+async function openJukeboxWithTracks(page: Page, role?: 'GM' | 'PL' | '見学'): Promise<Locator> {
   await waitAppReady(page);
+  if (role) await becomeRole(page, role);
   await openPanel(page, 'ジュークボックス');
   const jukebox = page.locator('app-jukebox');
   await expect(jukebox).toBeVisible({ timeout: 10000 });
@@ -144,7 +157,7 @@ test.describe('ジュークボックスの再生リスト', () => {
   });
 
   test('シャッフルとリピートが部屋全体の設定として、パネルとミニプレイヤーの両方に出ること', async ({ page }) => {
-    const jukebox = await openJukeboxWithTracks(page);
+    const jukebox = await openJukeboxWithTracks(page, 'GM');
     const mini = page.locator('app-mini-jukebox');
 
     await jukebox.getByTestId('jukebox-shuffle').click();
@@ -160,5 +173,31 @@ test.describe('ジュークボックスの再生リスト', () => {
     await expect(repeat).toHaveAttribute('title', 'リピートなし');
     await repeat.click();
     await expect(repeat).toHaveAttribute('title', '再生リストをリピート');
+  });
+
+  test('プレイヤーはシャッフルとリピートを変えられず、見学は再生も止められないこと', async ({ page }) => {
+    const jukebox = await openJukeboxWithTracks(page, 'PL');
+    const mini = page.locator('app-mini-jukebox');
+    await jukebox.getByTestId('jukebox-tab-playlist').click();
+    await addFromLibrary(jukebox, 'Town.wav', 'Battle.wav');
+    await jukebox.getByTestId('jukebox-playlist-play').click();
+    await expect(jukebox.getByTestId('jukebox-play-pause')).toHaveAttribute('title', '一時停止');
+
+    await expect(jukebox.getByTestId('jukebox-play-pause')).toBeEnabled();
+    for (const button of [
+      jukebox.getByTestId('jukebox-shuffle'),
+      jukebox.getByTestId('jukebox-repeat'),
+      mini.getByTestId('mini-jukebox-shuffle'),
+      mini.getByTestId('mini-jukebox-repeat'),
+    ]) {
+      await expect(button).toBeDisabled();
+    }
+    await expect(jukebox.getByTestId('jukebox-repeat')).toHaveAttribute('title', /GM だけが変えられます/);
+
+    await becomeRole(page, '見学');
+    await expect(jukebox.getByTestId('jukebox-play-pause')).toBeDisabled();
+    await expect(jukebox.getByTestId('jukebox-next')).toBeDisabled();
+    await expect(mini.getByTestId('mini-jukebox-play-pause')).toBeDisabled();
+    await expect(jukebox.getByTestId('jukebox-play-pause')).toHaveAttribute('title', '一時停止');
   });
 });

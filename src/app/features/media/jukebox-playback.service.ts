@@ -1,5 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -33,6 +34,9 @@ export interface PlaylistView {
  *
  * Starting music from here first stops the cut-ins that have no tag, as music started anywhere
  * does.
+ *
+ * What plays changes for the whole room, so a guest, who is there to watch, changes none of it, and
+ * only the game master turns shuffle and repeat, as with the room's other shared settings.
  */
 @Injectable({ providedIn: 'root' })
 export class JukeboxPlaybackService {
@@ -40,7 +44,20 @@ export class JukeboxPlaybackService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly knownDurations = new Map<string, number>();
+
+  /** Whether this reader may change what the room plays, which every role but a guest may. */
+  readonly canOperate = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  });
+
+  /** Whether this reader may turn shuffle and repeat for the room, which only the game master may. */
+  readonly canChangeModes = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditShared;
+  });
 
   private get jukebox(): Jukebox | null {
     return this.objectStore.get<Jukebox>('Jukebox') ?? null;
@@ -150,12 +167,14 @@ export class JukeboxPlaybackService {
 
   /** Plays a track for the room, as the room's music or once as an effect when it is tagged SE. */
   play(audio: AudioFile): void {
+    if (!this.rolePermission.canEditTabletop) return;
     this.cutInLauncher?.stopBlankTagCutIn();
     this.jukebox?.play(audio.identifier, AudioTag.get(audio.identifier)?.tag !== 'SE');
   }
 
   /** Plays a track of a playlist for the room and makes that the playlist the room goes on through. */
   playFromPlaylist(playlist: Playlist, audio: AudioFile): void {
+    if (!this.rolePermission.canEditTabletop) return;
     this.cutInLauncher?.stopBlankTagCutIn();
     this.jukebox?.playFromPlaylist(playlist, audio.identifier);
   }
@@ -163,7 +182,7 @@ export class JukeboxPlaybackService {
   /** Pauses the room's track, goes on with a paused one, or starts the playlist when nothing is held. */
   togglePlayPause(): void {
     const jukebox = this.jukebox;
-    if (!jukebox) return;
+    if (!jukebox || !this.rolePermission.canEditTabletop) return;
     if (jukebox.isPlaying) {
       jukebox.pause();
       return;
@@ -175,41 +194,47 @@ export class JukeboxPlaybackService {
 
   /** Stops the room's track and lets it go. */
   stop(): void {
+    if (!this.rolePermission.canEditTabletop) return;
     this.jukebox?.stop();
   }
 
   /** Plays the next track for the room. */
   next(): void {
+    if (!this.rolePermission.canEditTabletop) return;
     this.cutInLauncher?.stopBlankTagCutIn();
     this.jukebox?.playNext();
   }
 
   /** Plays the previous track for the room, or starts the current one again when it is a few seconds in. */
   previous(): void {
+    if (!this.rolePermission.canEditTabletop) return;
     this.cutInLauncher?.stopBlankTagCutIn();
     this.jukebox?.playPrevious();
   }
 
   /** Moves the room's track to a point in seconds. */
   seek(seconds: number): void {
+    if (!this.rolePermission.canEditTabletop) return;
     this.jukebox?.seek(seconds);
   }
 
   /** Turns shuffle on or off for the room. */
   toggleShuffle(): void {
     const jukebox = this.jukebox;
-    if (jukebox) jukebox.setShuffled(!jukebox.shuffles);
+    if (!jukebox || !this.rolePermission.canEditShared) return;
+    jukebox.setShuffled(!jukebox.shuffles);
   }
 
   /** Steps the room's repeat mode on through none, the whole playlist and one track. */
   cycleRepeatMode(): void {
+    if (!this.rolePermission.canEditShared) return;
     this.jukebox?.cycleRepeatMode();
   }
 
   /** Makes a playlist the one the room plays through and starts it from the top. */
   playPlaylist(identifier: string): void {
     const playlist = this.playlistOf(identifier);
-    if (!playlist) return;
+    if (!playlist || !this.rolePermission.canEditTabletop) return;
     this.cutInLauncher?.stopBlankTagCutIn();
     this.jukebox?.playPlaylist(playlist);
   }

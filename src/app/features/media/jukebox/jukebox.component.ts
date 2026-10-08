@@ -63,6 +63,12 @@ export class JukeboxComponent {
   /** Whether this player may move the room volume, which only the game master may, as with the room's other settings. */
   readonly canChangeRoomVolume = this.roomVolumes.canChange;
 
+  /** Whether this player may change what the room plays, which a guest may not. */
+  readonly canOperate = this.playback.canOperate;
+
+  /** Whether this player may turn shuffle and repeat, which only the game master may. */
+  readonly canChangeModes = this.playback.canChangeModes;
+
   /**
    * The room-wide volume every player's sound is multiplied by, from the room volume slider.
    *
@@ -271,7 +277,7 @@ export class JukeboxComponent {
    * The tag is a synced object, so the room sees the change. A track in the playlist keeps its tag.
    */
   setTagOf(audio: AudioFile, tag: string) {
-    if (this.isOnAnyPlaylist(audio)) return;
+    if (!this.canOperate() || this.isOnAnyPlaylist(audio)) return;
     let audioTag = AudioTag.get(audio.identifier);
     if (!audioTag) audioTag = AudioTag.create(audio.identifier);
     audioTag.tag = tag;
@@ -290,11 +296,13 @@ export class JukeboxComponent {
 
   /** Adds a BGM track to the playlist shown. */
   addToPlaylist(audio: AudioFile): void {
+    if (!this.canOperate()) return;
     this.playlist?.addEntry(audio.identifier);
   }
 
   /** Takes a track off the playlist shown. */
   removeFromPlaylist(audio: AudioFile): void {
+    if (!this.canOperate()) return;
     this.playlist?.removeEntry(audio.identifier);
   }
 
@@ -305,6 +313,7 @@ export class JukeboxComponent {
 
   /** Makes a new, empty playlist for the room and shows it. */
   createPlaylist(): void {
+    if (!this.canOperate()) return;
     const count = this.playback.playlists().length;
     const playlist = Playlist.create(this.t('feature.media.jukebox.playlistNewName', { number: count + 1 }));
     this.chosenPlaylist.set(playlist.identifier);
@@ -313,6 +322,7 @@ export class JukeboxComponent {
 
   /** Renames the playlist shown. An empty name puts back the stand-in it goes by. */
   renamePlaylist(name: string): void {
+    if (!this.canOperate()) return;
     const playlist = this.playlist;
     const next = name.trim();
     if (playlist && playlist.name !== next) playlist.name = next;
@@ -327,7 +337,7 @@ export class JukeboxComponent {
    */
   async deletePlaylist(): Promise<void> {
     const playlist = this.playlist;
-    if (!playlist || playlist.isDefault) return;
+    if (!playlist || playlist.isDefault || !this.canOperate()) return;
     const label = this.playback.labelOf(playlist);
     if (!(await this.confirm.ask(this.t('feature.media.jukebox.deletePlaylistConfirm', { name: label })))) return;
     if (this.jukebox?.playlistIdentifier === playlist.identifier) this.jukebox.playlistIdentifier = '';
@@ -358,7 +368,8 @@ export class JukeboxComponent {
 
   /** Puts a library track on a playlist or takes it off, from its menu. Only music goes on a playlist. */
   onLibraryContextMenu(event: MouseEvent, audio: AudioFile): void {
-    if (this.getTagOf(audio) !== 'BGM' || !this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+    if (this.getTagOf(audio) !== 'BGM' || !this.canOperate() || !this.pointerDeviceService.isAllowedToOpenContextMenu)
+      return;
     const actions = buildLibraryTrackMenu(
       this.targetsFor(audio),
       {
@@ -375,6 +386,7 @@ export class JukeboxComponent {
 
   /** Remembers which playlist row a drag started from. */
   onPlaylistDragStart(index: number): void {
+    if (!this.canOperate()) return;
     this.dragFromIndex = index;
   }
 
@@ -404,7 +416,7 @@ export class JukeboxComponent {
    */
   onPlaylistContextMenu(event: MouseEvent, audio: AudioFile): void {
     const playlist = this.playlist;
-    if (!playlist || !this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+    if (!playlist || !this.canOperate() || !this.pointerDeviceService.isAllowedToOpenContextMenu) return;
     const shown = this.playlistAudios();
     const index = shown.indexOf(audio);
     if (index < 0) return;
@@ -488,11 +500,12 @@ export class JukeboxComponent {
 
   /** Stops the room's BGM, but only if this track is the one playing. */
   stopBGM(audio: AudioFile) {
-    if (this.jukebox.audio === audio) this.jukebox.stop();
+    if (this.jukebox.audio === audio) this.playback.stop();
   }
 
   /** Stops a sound effect for the whole room. */
   stopSE(audio: AudioFile) {
+    if (!this.canOperate()) return;
     this.jukebox.stopSE(audio.identifier);
   }
 
@@ -520,7 +533,7 @@ export class JukeboxComponent {
 
   /** Locks or unlocks the seek bar for the whole room. */
   toggleSeekLock(): void {
-    if (this.jukebox) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
+    if (this.jukebox && this.canOperate()) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
   }
 
   /** Shows where the seek bar is being dragged to without moving playback yet. */
