@@ -1,3 +1,13 @@
+## [1.62.1](https://github.com/Xelltis/udonarium_axe/compare/v1.62.0...v1.62.1) (2026-10-08)
+
+### 🐛 Bug Fixes
+
+* **cut-in:** play a YouTube cut-in again ([b982481](https://github.com/Xelltis/udonarium_axe/commit/b982481893f0cec4a22686a7b7607c368d23f476))
+
+### 📝 Documentation
+
+* **website:** write the release notes for v1.62.1 ([a016687](https://github.com/Xelltis/udonarium_axe/commit/a01668777639242668610aea45a87bdec957842e))
+
 ## [1.62.0](https://github.com/Xelltis/udonarium_axe/compare/v1.61.1...v1.62.0) (2026-10-08)
 
 ### ✨ Features
