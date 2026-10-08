@@ -1,4 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
+import { REPLAY_LOG_DATABASE } from '@axe/core/storage/app-database-names';
 import {
   type ReplayChunkInput,
   type ReplayChunkRecord,
@@ -11,7 +12,6 @@ import {
   sortRecordingsByNewest,
 } from '@axe/core/storage/replay-log-store';
 
-const DB_NAME = 'axe-replay-logs';
 const DB_VERSION = 1;
 const RECORDING_STORE = 'recordings';
 const CHUNK_STORE = 'chunks';
@@ -201,9 +201,9 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
     if (!this.dbPromise) {
       this.dbPromise = new Promise<IDBDatabase | null>((resolve) => {
         try {
-          const request = indexedDB.open(DB_NAME, DB_VERSION);
+          const request = indexedDB.open(REPLAY_LOG_DATABASE, DB_VERSION);
           request.onupgradeneeded = () => upgrade(request.result);
-          request.onsuccess = () => resolve(request.result);
+          request.onsuccess = () => resolve(this.letGoWhenAsked(request.result));
           request.onerror = () => {
             Logger.warn('[ReplayLogStore] IndexedDB を開けませんでした', request.error);
             resolve(null);
@@ -215,6 +215,18 @@ export class IndexedDbReplayLogStore extends ReplayLogStore {
       });
     }
     return this.dbPromise;
+  }
+
+  /**
+   * Closes the handle when another tab deletes or upgrades the database, which would otherwise
+   * wait for as long as this page keeps it open; the next use opens it again.
+   */
+  private letGoWhenAsked(db: IDBDatabase): IDBDatabase {
+    db.onversionchange = () => {
+      db.close();
+      this.dbPromise = null;
+    };
+    return db;
   }
 
   private async run<T>(

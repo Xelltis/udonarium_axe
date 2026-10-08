@@ -65,13 +65,25 @@ export class IndexedBlobStore {
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(this.letGoWhenAsked(request.result));
       request.onerror = () => {
         Logger.warn(`${this.purpose} storage is unavailable`, request.error);
         resolve(null);
       };
     });
     return this.dbPromise;
+  }
+
+  /**
+   * Closes the handle when another tab deletes or upgrades the database, which would otherwise
+   * wait for as long as this page keeps it open; the next use opens it again.
+   */
+  private letGoWhenAsked(db: IDBDatabase): IDBDatabase {
+    db.onversionchange = () => {
+      db.close();
+      this.dbPromise = null;
+    };
+    return db;
   }
 
   private async request<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest): Promise<T | null> {

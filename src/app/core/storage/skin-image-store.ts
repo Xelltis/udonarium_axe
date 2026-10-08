@@ -1,3 +1,4 @@
+import { SKIN_IMAGE_DATABASE } from '@axe/core/storage/app-database-names';
 import { IndexedBlobStore } from '@axe/core/storage/indexed-blob-store';
 
 /** The largest a picture behind the room may be once it has been resampled. */
@@ -26,6 +27,6 @@ export class SkinImageStore extends IndexedBlobStore {
   }
 
   private constructor() {
-    super('axe-skin-images', 'skin background');
+    super(SKIN_IMAGE_DATABASE, 'skin background');
   }
 }

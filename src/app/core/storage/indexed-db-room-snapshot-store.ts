@@ -1,4 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
+import { ROOM_SNAPSHOT_DATABASE } from '@axe/core/storage/app-database-names';
 import {
   RoomSnapshotInput,
   RoomSnapshotMeta,
@@ -8,7 +9,6 @@ import {
 } from '@axe/core/storage/room-snapshot-store';
 import { blobFromStored, storedBytesOf } from '@axe/core/storage/stored-bytes';
 
-const DB_NAME = 'axe-room-snapshots';
 const DB_VERSION = 1;
 const STORE_NAME = 'snapshots';
 
@@ -82,14 +82,14 @@ export class IndexedDbRoomSnapshotStore extends RoomSnapshotStore {
     if (!this.dbPromise) {
       this.dbPromise = new Promise<IDBDatabase | null>((resolve) => {
         try {
-          const request = indexedDB.open(DB_NAME, DB_VERSION);
+          const request = indexedDB.open(ROOM_SNAPSHOT_DATABASE, DB_VERSION);
           request.onupgradeneeded = () => {
             const db = request.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
               db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
             }
           };
-          request.onsuccess = () => resolve(request.result);
+          request.onsuccess = () => resolve(this.letGoWhenAsked(request.result));
           request.onerror = () => {
             Logger.warn('[RoomSnapshotStore] IndexedDB を開けませんでした', request.error);
             resolve(null);
@@ -101,6 +101,18 @@ export class IndexedDbRoomSnapshotStore extends RoomSnapshotStore {
       });
     }
     return this.dbPromise;
+  }
+
+  /**
+   * Closes the handle when another tab deletes or upgrades the database, which would otherwise
+   * wait for as long as this page keeps it open; the next use opens it again.
+   */
+  private letGoWhenAsked(db: IDBDatabase): IDBDatabase {
+    db.onversionchange = () => {
+      db.close();
+      this.dbPromise = null;
+    };
+    return db;
   }
 
   private async request<T>(

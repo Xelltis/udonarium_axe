@@ -1,3 +1,4 @@
+import { DICE_IMAGE_DATABASE } from '@axe/core/storage/app-database-names';
 import { IndexedBlobStore } from '@axe/core/storage/indexed-blob-store';
 
 /**
@@ -16,6 +17,6 @@ export class DiceImageStore extends IndexedBlobStore {
   }
 
   private constructor() {
-    super('axe-dice-images', 'dice picture');
+    super(DICE_IMAGE_DATABASE, 'dice picture');
   }
 }
