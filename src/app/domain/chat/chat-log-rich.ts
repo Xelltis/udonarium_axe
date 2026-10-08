@@ -333,8 +333,9 @@ function renderPortrait(message: ChatLogLine, name: string, context: RenderConte
 
 function renderReferences(message: ChatLogLine, context: RenderContext): string {
   const { labels } = context;
-  const quote = message.quoteOf ? message.quoteOfMessage : null;
-  const reply = message.replyTo ? message.replyToMessage : null;
+  const userId = context.options.userId;
+  const quote = ChatLogExporter.referencedLine(message.quoteOf ? message.quoteOfMessage : null, userId);
+  const reply = ChatLogExporter.referencedLine(message.replyTo ? message.replyToMessage : null, userId);
   let html = '';
   if (quote) html += renderReference('❝', quote, 280, labels.quote, context);
   if (reply) html += renderReference('↩', reply, 120, labels.reply, context);

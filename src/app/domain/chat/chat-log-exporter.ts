@@ -132,7 +132,7 @@ export class ChatLogExporter {
     str += ChatLogExporter.formatPortraitImage(message, imageSrcResolver);
 
     str += '<div class="ct">';
-    str += ChatLogExporter.formatReferenceBlock(message, textDecoder);
+    str += ChatLogExporter.formatReferenceBlock(message, userId, textDecoder);
     str += "<font color='";
     if (message.messColor) str += message.messColor.toLowerCase();
     str += "'>";
@@ -178,7 +178,7 @@ export class ChatLogExporter {
     str += `      ${ChatLogExporter.formatPortraitImage(message, imageSrcResolver)}\n`;
     str += '      <div class="ct">\n';
     str += '        ';
-    const refBlock = ChatLogExporter.formatReferenceBlock(message, textDecoder);
+    const refBlock = ChatLogExporter.formatReferenceBlock(message, userId, textDecoder);
     if (refBlock) str += refBlock;
     const decodedName = ChatLogExporter.decode(message.name, textDecoder);
     str += `<span>${ChatLogExporter.escapeHtml(decodedName).replace('<', '').replace('>', '')}</span> `;
@@ -413,9 +413,9 @@ export class ChatLogExporter {
 
   // The message quoted or replied to is put in front of the body as a small quotation,
   // trimmed to about the length the chat itself previews.
-  private static formatReferenceBlock(message: ChatLogLine, textDecoder?: ChatLogTextDecoder): string {
-    const quote = message.quoteOf ? message.quoteOfMessage : null;
-    const reply = message.replyTo ? message.replyToMessage : null;
+  private static formatReferenceBlock(message: ChatLogLine, userId?: string, textDecoder?: ChatLogTextDecoder): string {
+    const quote = ChatLogExporter.referencedLine(message.quoteOf ? message.quoteOfMessage : null, userId);
+    const reply = ChatLogExporter.referencedLine(message.replyTo ? message.replyToMessage : null, userId);
     if (!quote && !reply) return '';
 
     const blocks: string[] = [];
@@ -442,6 +442,15 @@ export class ChatLogExporter {
       );
     }
     return blocks.join('');
+  }
+
+  /**
+   * A line quoted or replied to, as far as the reader's log may show it: a whisper the reader was
+   * not part of, an after-the-fact one included, does not live on in the answers to it.
+   */
+  static referencedLine(target: ChatLogLine | null, userId?: string): ChatLogLine | null {
+    if (!target) return null;
+    return ChatLogExporter.isVisibleMessage(target, userId) ? target : null;
   }
 
   /**

@@ -1233,6 +1233,107 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  describe('the after-the-fact whisper', () => {
+    let tab: ChatTab;
+    let noa: PeerCursor;
+
+    const testId = (id: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-testid="${id}"]`);
+    const host = () => fixture.nativeElement as HTMLElement;
+    const allTestId = (id: string) => [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(`[data-testid="${id}"]`),
+    ];
+
+    /** Changes reach the view through the versions a microtask later, as they do in the room. */
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    function shown(from: string, extra: Partial<ChatMessage> = {}): ChatMessage {
+      const message = tab.addMessage({
+        from,
+        name: 'アリア',
+        text: '扉の向こうから声がした',
+        timestamp: 1000,
+        ...extra,
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+      return message;
+    }
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      noa = new PeerCursor();
+      noa.initialize();
+      noa.userId = 'noa';
+      noa.name = 'ノア';
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => {
+      tab.destroy();
+      noa.destroy();
+    });
+
+    it('whispers the reader’s own line to the one picked, as any whisper is shown, and puts it back', async () => {
+      const message = shown('me');
+
+      testId('chat-message-after-whisper')!.click();
+      fixture.detectChanges();
+      const targets = allTestId('chat-message-after-whisper-target');
+      expect(targets.map((target) => target.textContent?.trim())).toEqual(['ノア']);
+      targets[0].click();
+      await settle();
+
+      expect(message.to).toBe('noa');
+      expect(testId('chat-message-after-whisper-picker')).toBeNull();
+      expect(host().querySelector('.msg-name')?.textContent).toBe('アリア > ノア');
+      expect(host().textContent).not.toContain('あとから秘話');
+
+      testId('chat-message-after-whisper')!.click();
+      fixture.detectChanges();
+      testId('chat-message-after-whisper-undo')!.click();
+      await settle();
+
+      expect(message.isAfterWhisper).toBe(false);
+      expect(message.isDirect).toBe(false);
+      expect(host().querySelector('.msg-name')?.textContent).toBe('アリア');
+    });
+
+    it('says when there is nobody else in the room to whisper to', () => {
+      noa.destroy();
+      shown('me');
+
+      testId('chat-message-after-whisper')!.click();
+      fixture.detectChanges();
+
+      expect(allTestId('chat-message-after-whisper-target')).toHaveLength(0);
+      expect(testId('chat-message-after-whisper-picker')?.textContent).toContain(
+        TestBed.inject(TRANSLATE_FN)('feature.chat.message.afterWhisperNobody')
+      );
+    });
+
+    it('offers no after-the-fact whisper of somebody else’s line', () => {
+      shown('noa');
+
+      expect(testId('chat-message-after-whisper')).toBeNull();
+    });
+
+    it('stops showing a line through an answer to it once it is whispered to somebody else', async () => {
+      const original = tab.addMessage({ from: 'noa', name: 'ノア', text: '秘密の合言葉', timestamp: 900 });
+      shown('third', { replyTo: original.identifier, quoteOf: original.identifier } as Partial<ChatMessage>);
+      expect(fixture.nativeElement.textContent).toContain('秘密の合言葉');
+
+      original.makeAfterWhisper('third', 'サード', 2000);
+      await settle();
+
+      expect(fixture.nativeElement.textContent).not.toContain('秘密の合言葉');
+    });
+  });
+
   describe('consuming a jump to the original message', () => {
     /**
      * A jump is always cleared once it is consumed.

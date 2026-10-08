@@ -208,6 +208,16 @@ describe('renderRichChatLog', () => {
     expect(html).toContain('<span class="ed">編集済</span>');
   });
 
+  it('does not quote a whisper in the log of somebody it was not whispered to', () => {
+    const whisper = line({ text: '内緒の話', from: 'user-A', to: 'user-C' });
+    const answer = line({ text: '返事', replyTo: 'x', replyToMessage: whisper as never });
+
+    expect(renderRichChatLog('washi', 'tab', [tab('メイン', [answer])], { userId: 'user-B' })).not.toContain(
+      '内緒の話'
+    );
+    expect(renderRichChatLog('washi', 'tab', [tab('メイン', [answer])], { userId: 'user-C' })).toContain('内緒の話');
+  });
+
   it('keeps a colour it cannot trust out of the style attribute', () => {
     const html = renderRichChatLog('neon', 'tab', [
       tab('メイン', [line({ messColor: 'red;background:url(https://example.com/x)' })]),

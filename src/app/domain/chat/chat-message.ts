@@ -12,6 +12,12 @@ import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
 
+/** Whether an attribute holds a moment, as opposed to being unset; an empty one is not read as 0. */
+function isPositiveTime(value: unknown): boolean {
+  const time = Number(value);
+  return Number.isFinite(time) && time > 0;
+}
+
 export interface ChatMessageTargetContext {
   text: string;
   object: GameCharacter | null;
@@ -101,6 +107,23 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   @SyncVar() quoteOf: string = '';
   @SyncVar() fixd: boolean = false;
   @SyncVar() disclosedAt: number;
+  /**
+   * When the one who said the line made it an after-the-fact whisper (あとから秘話), in epoch
+   * milliseconds; read with `isAfterWhisper`.
+   *
+   * Such a line becomes a whisper like any other: addressed and named as one, so from then on it
+   * reaches the one it is whispered to and its speaker alone, in older versions of the tool too.
+   * This only remembers that it was said to everyone first, so that it can be put back. Left without
+   * an initialiser, as `vnEmote` is: most lines never become one.
+   */
+  @SyncVar() afterWhisperAt: number;
+  /**
+   * Who the line was addressed to before it became an after-the-fact whisper, put back by
+   * `undoAfterWhisper`. Empty for everyone.
+   */
+  @SyncVar() afterWhisperTo: string;
+  /** The name the line was said under before it became an after-the-fact whisper, put back by `undoAfterWhisper`. */
+  @SyncVar() afterWhisperName: string;
 
   targetInfo: ChatMessageTargetContext[];
 
@@ -304,6 +327,39 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    */
   get isSecret(): boolean {
     return this.tags.includes('secret');
+  }
+
+  /** Whether the one who said the line made it an after-the-fact whisper. */
+  get isAfterWhisper(): boolean {
+    return isPositiveTime(this.afterWhisperAt);
+  }
+
+  /**
+   * Makes the line a whisper to the user given, named as a whisper is, `speaker > listener`; or
+   * whispers it to them instead of whoever it was whispered to afterwards before. Who it was said to
+   * in the first place, and under what name, are kept for `undoAfterWhisper`. Nothing changes
+   * without anyone to whisper to.
+   */
+  makeAfterWhisper(to: string, toName: string, at: number): void {
+    if (!to) return;
+    if (!this.isAfterWhisper) {
+      this.afterWhisperTo = this.to ?? '';
+      this.afterWhisperName = this.name ?? '';
+      this.afterWhisperAt = at;
+    }
+    this.to = to;
+    const speaker = String(this.afterWhisperName ?? '');
+    this.name = toName ? `${speaker} > ${toName}` : speaker;
+  }
+
+  /** Puts an after-the-fact whisper back where it was, said again to whoever it was said to before. */
+  undoAfterWhisper(): void {
+    if (!this.isAfterWhisper) return;
+    this.to = String(this.afterWhisperTo ?? '');
+    this.name = String(this.afterWhisperName ?? '');
+    this.removeAttribute('afterWhisperTo');
+    this.removeAttribute('afterWhisperName');
+    this.removeAttribute('afterWhisperAt');
   }
 
   /** The room's tab list, looked up in the object store. */

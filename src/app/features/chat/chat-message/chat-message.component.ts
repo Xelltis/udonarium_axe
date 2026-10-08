@@ -253,6 +253,10 @@ export class ChatMessageComponent {
         canInteract: this.canInteract,
         canShareAsMemo: this.canShareAsMemo,
         canChange: this.canChange,
+        afterWhisperTargets: this.canMakeAfterWhisper
+          ? this.whisperTargets().map((peer) => ({ identifier: peer.identifier, name: peer.name }))
+          : null,
+        canUndoAfterWhisper: this.canUndoAfterWhisper,
         canShowInTicker: this.canShowInTicker(),
         copyTargets: this.canCopyToTab ? this.copyTargets() : [],
         hasOriginal: !!(message.replyTo || message.quoteOf),
@@ -269,6 +273,11 @@ export class ChatMessageComponent {
         },
         shareAsMemo: () => this.clickShareAsMemo(),
         edit: () => this.startEdit(),
+        whisperTo: (identifier) => {
+          const peer = this.whisperTargets().find((candidate) => candidate.identifier === identifier);
+          if (peer) this.whisperTo(peer);
+        },
+        undoAfterWhisper: () => this.undoAfterWhisper(),
         showInTicker: () => this.clickShowInTicker(),
         jumpToOriginal: () => (message.replyTo ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
         copyText: (text) => this.copyText(text),
@@ -517,7 +526,8 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(msg.identifier)();
     this.objectChange.versionOf(msg.replyTo)();
     const target = msg.replyToMessage;
-    if (!target) return null;
+    // A whisper the reader was not part of, an after-the-fact one included, is not shown through an answer to it.
+    if (!target || !target.isDisplayable) return null;
     const text = vnBodyOf(target.vnEmote, target.text ?? '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -533,7 +543,7 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(msg.identifier)();
     this.objectChange.versionOf(msg.quoteOf)();
     const target = this.objectStore.get<ChatMessage>(msg.quoteOf);
-    if (!(target instanceof ChatMessage)) return null;
+    if (!(target instanceof ChatMessage) || !target.isDisplayable) return null;
     const text = vnBodyOf(target.vnEmote, target.text ?? '').trim();
     return {
       name: target.name ?? '',
@@ -586,6 +596,49 @@ export class ChatMessageComponent {
     if (!this.canInteract) return;
     if (this.compose) this.compose.requestQuote(this.chatMessage.identifier);
     else this.uiSignalService.requestChatQuote(this.chatMessage.identifier);
+  }
+
+  /** Whether this reader may make the line an after-the-fact whisper, which they may of a line they said. */
+  get canMakeAfterWhisper(): boolean {
+    if (this.readOnly()) return false;
+    const message = this.chatMessage;
+    return !!message && this.chatMessageService.canMakeAfterWhisper(message);
+  }
+
+  /** Whether this reader may put the line, which they made an after-the-fact whisper, back for everyone. */
+  get canUndoAfterWhisper(): boolean {
+    if (this.readOnly()) return false;
+    const message = this.chatMessage;
+    return !!message && this.chatMessageService.canUndoAfterWhisper(message);
+  }
+
+  readonly isWhisperPickerOpen = signal(false);
+
+  /** The seats the line could be whispered to afterwards: everyone in the room but this reader. */
+  whisperTargets(): PeerCursor[] {
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
+    return this.chatMessageService.afterWhisperCandidates();
+  }
+
+  /** Opens or closes the list of seats to whisper the line to, from its button. */
+  toggleWhisperPicker(): void {
+    if (!this.canMakeAfterWhisper) return;
+    this.isCopyPickerOpen.set(false);
+    this.isWhisperPickerOpen.update((open) => !open);
+  }
+
+  /** Makes the line an after-the-fact whisper to the seat chosen, from the list or the line's menu. */
+  whisperTo(peer: PeerCursor): void {
+    this.isWhisperPickerOpen.set(false);
+    if (!this.canMakeAfterWhisper) return;
+    this.chatMessageService.makeAfterWhisper(this.chatMessage, peer);
+  }
+
+  /** Puts an after-the-fact whisper back for everyone, from the list or the line's menu. */
+  undoAfterWhisper(): void {
+    this.isWhisperPickerOpen.set(false);
+    if (!this.canUndoAfterWhisper) return;
+    this.chatMessageService.undoAfterWhisper(this.chatMessage);
   }
 
   /** Puts this line in the ticker running round the table, where that ticker is shown at all. */
@@ -648,6 +701,7 @@ export class ChatMessageComponent {
   /** Opens or closes the list of tabs to copy the line into, from the copy button. */
   toggleCopyPicker(): void {
     if (!this.canCopyToTab) return;
+    this.isWhisperPickerOpen.set(false);
     this.isCopyPickerOpen.update((open) => !open);
   }
 

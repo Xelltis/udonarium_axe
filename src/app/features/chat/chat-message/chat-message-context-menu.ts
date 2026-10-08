@@ -6,6 +6,10 @@ export interface ChatMessageMenuState {
   canInteract: boolean;
   canShareAsMemo: boolean;
   canChange: boolean;
+  /** The seats the line may be whispered to afterwards, or null where the reader may not. */
+  afterWhisperTargets: readonly { identifier: string; name: string }[] | null;
+  /** Whether the reader may put an after-the-fact whisper back for everyone. */
+  canUndoAfterWhisper: boolean;
   canShowInTicker: boolean;
   /** The tabs the line may be said again in; empty where it may not be copied. */
   copyTargets: readonly { identifier: string; name: string }[];
@@ -25,6 +29,8 @@ export interface ChatMessageMenuCallbacks {
   copyToTab: (tabIdentifier: string) => void;
   shareAsMemo: () => void;
   edit: () => void;
+  whisperTo: (peerIdentifier: string) => void;
+  undoAfterWhisper: () => void;
   showInTicker: () => void;
   jumpToOriginal: () => void;
   copyText: (text: string) => void;
@@ -64,6 +70,23 @@ export function buildChatMessageContextMenu(
   }
   if (state.canChange) {
     actions.push({ name: t('feature.chat.messageFix.change'), action: () => callbacks.edit() });
+  }
+  if (state.afterWhisperTargets) {
+    const targets = state.afterWhisperTargets;
+    actions.push(
+      targets.length > 0
+        ? {
+            name: t('feature.chat.message.afterWhisper'),
+            subActions: targets.map((peer) => ({
+              name: peer.name,
+              action: () => callbacks.whisperTo(peer.identifier),
+            })),
+          }
+        : { name: t('feature.chat.message.afterWhisperNobody'), enabled: false }
+    );
+  }
+  if (state.canUndoAfterWhisper) {
+    actions.push({ name: t('feature.chat.message.undoAfterWhisper'), action: () => callbacks.undoAfterWhisper() });
   }
   if (state.canShowInTicker) {
     actions.push({ name: t('feature.chat.message.ticker'), action: () => callbacks.showInTicker() });

@@ -11,6 +11,8 @@ function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuStat
     canInteract: true,
     canShareAsMemo: true,
     canChange: true,
+    afterWhisperTargets: null,
+    canUndoAfterWhisper: false,
     canShowInTicker: true,
     copyTargets: [{ identifier: 'tab-2', name: 'サブタブ' }],
     hasOriginal: true,
@@ -28,6 +30,8 @@ function callbacks(): ChatMessageMenuCallbacks {
     copyToTab: vi.fn(),
     shareAsMemo: vi.fn(),
     edit: vi.fn(),
+    whisperTo: vi.fn(),
+    undoAfterWhisper: vi.fn(),
     showInTicker: vi.fn(),
     jumpToOriginal: vi.fn(),
     copyText: vi.fn(),
@@ -50,6 +54,41 @@ describe('buildChatMessageContextMenu()', () => {
       '',
       'feature.chat.message.copyText',
     ]);
+  });
+
+  it('offers whispering the line afterwards to one of the room, after editing', () => {
+    const calls = callbacks();
+    const menu = buildChatMessageContextMenu(
+      state({ afterWhisperTargets: [{ identifier: 'peer-noa', name: 'ノア' }] }),
+      calls,
+      translate
+    );
+    const names = menu.map((action) => action.name);
+    const whisper = menu.find((action) => action.name === 'feature.chat.message.afterWhisper')!;
+
+    expect(names.indexOf('feature.chat.message.afterWhisper')).toBe(
+      names.indexOf('feature.chat.messageFix.change') + 1
+    );
+    expect(whisper.subActions?.map((peer) => peer.name)).toEqual(['ノア']);
+    whisper.subActions?.[0].action?.();
+    expect(calls.whisperTo).toHaveBeenCalledWith('peer-noa');
+  });
+
+  it('says so, and offers nothing to press, when nobody else is in the room', () => {
+    const menu = buildChatMessageContextMenu(state({ afterWhisperTargets: [] }), callbacks(), translate);
+    const nobody = menu.find((action) => action.name === 'feature.chat.message.afterWhisperNobody');
+
+    expect(nobody?.enabled).toBe(false);
+    expect(menu.map((action) => action.name)).not.toContain('feature.chat.message.afterWhisper');
+  });
+
+  it('offers putting an after-the-fact whisper back for everyone', () => {
+    const calls = callbacks();
+    const menu = buildChatMessageContextMenu(state({ canUndoAfterWhisper: true }), calls, translate);
+
+    menu.find((action) => action.name === 'feature.chat.message.undoAfterWhisper')!.action?.();
+
+    expect(calls.undoAfterWhisper).toHaveBeenCalledOnce();
   });
 
   it('offers only the words of a line nothing else can be done with', () => {

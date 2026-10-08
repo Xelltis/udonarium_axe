@@ -2953,7 +2953,11 @@
         "ticker": "티커",
         "copyToTab": "다른 탭으로 복사",
         "copyText": "본문 복사",
-        "selectText": "텍스트 선택"
+        "selectText": "텍스트 선택",
+        "afterWhisper": "나중에 귓속말로 바꾸기",
+        "afterWhisperTo": "귓속말 상대",
+        "afterWhisperNobody": "방에 다른 참가자가 없습니다",
+        "undoAfterWhisper": "나중에 귓속말을 취소하고 모두에게 보이기"
       },
       "stream": {
         "title": "발언의 흐름",

@@ -472,4 +472,102 @@ describe('ChatMessage', () => {
       expect(message.rollDetail).toBeNull();
     });
   });
+
+  describe('an after-the-fact whisper', () => {
+    const reload = (message: ChatMessage): ChatMessage => {
+      const xml = message.toXml();
+      store.delete(message, false);
+      store.clearDeleteHistory();
+      return ObjectSerializer.instance.parseXml(xml) as ChatMessage;
+    };
+
+    const said = (from: string, to = ''): ChatMessage => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.from = from;
+      message.name = 'アリア';
+      if (to) message.to = to;
+      message.text = '本当はノアにだけ言いたかった';
+      return message;
+    };
+
+    it('becomes a whisper like any other, reaching the one it is whispered to and its speaker alone', () => {
+      const message = said('speaker');
+
+      message.makeAfterWhisper('test-user', 'ノア', 1000);
+
+      expect(message.isAfterWhisper).toBe(true);
+      expect(message.name).toBe('アリア > ノア');
+      expect(message.isDirect).toBe(true);
+      expect(message.isDisplayable).toBe(true);
+      expect(message.isDisplayableTo('speaker')).toBe(true);
+      expect(message.isDisplayableTo('third-user')).toBe(false);
+    });
+
+    it('is a whisper to an older version too, which knows nothing of it', () => {
+      const message = said('speaker');
+
+      message.makeAfterWhisper('test-user', 'ノア', 1000);
+
+      expect(message.to).toBe('test-user');
+    });
+
+    it('says the line to everyone again when put back, under its own name, leaving nothing of having been one', () => {
+      const message = said('speaker');
+      message.makeAfterWhisper('test-user', 'ノア', 1000);
+
+      message.undoAfterWhisper();
+
+      expect(message.isAfterWhisper).toBe(false);
+      expect(message.isDirect).toBe(false);
+      expect(message.name).toBe('アリア');
+      const xml = message.toXml();
+      expect(xml).not.toContain('afterWhisperAt');
+      expect(xml).not.toContain('afterWhisperTo');
+      expect(xml).not.toContain('afterWhisperName');
+    });
+
+    it('can be whispered to somebody else, named after them, and still goes back to everyone', () => {
+      const message = said('speaker');
+      message.makeAfterWhisper('second-user', 'ミナ', 1000);
+
+      message.makeAfterWhisper('test-user', 'ノア', 2000);
+      expect(message.to).toBe('test-user');
+      expect(message.name).toBe('アリア > ノア');
+      expect(Number(message.afterWhisperAt)).toBe(1000);
+
+      message.undoAfterWhisper();
+      expect(message.to).toBe('');
+      expect(message.name).toBe('アリア');
+    });
+
+    it('changes nothing without anyone to whisper to', () => {
+      const message = said('speaker');
+
+      message.makeAfterWhisper('', 'ノア', 1000);
+
+      expect(message.isAfterWhisper).toBe(false);
+      expect(message.name).toBe('アリア');
+    });
+
+    it('stays one through a save, and can still be put back after it', () => {
+      const message = said('speaker');
+      message.makeAfterWhisper('test-user', 'ノア', 1000);
+
+      const reloaded = reload(message);
+
+      expect(reloaded.isAfterWhisper).toBe(true);
+      reloaded.undoAfterWhisper();
+      expect(reloaded.to).toBe('');
+      expect(reloaded.name).toBe('アリア');
+    });
+
+    it('reads a line from a room saved before there were any as an ordinary line', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.setAttribute('afterWhisperAt', '');
+
+      expect(message.isAfterWhisper).toBe(false);
+    });
+  });
 });

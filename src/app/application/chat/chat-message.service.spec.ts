@@ -76,6 +76,101 @@ describe('ChatMessageService', () => {
     }
   ));
 
+  describe('an after-the-fact whisper', () => {
+    let service: ChatMessageService;
+    let tab: ChatTab;
+    let other: PeerCursor;
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      other = new PeerCursor();
+      other.initialize();
+      other.userId = 'someone';
+      other.name = 'ノア';
+      service = TestBed.inject(ChatMessageService);
+      tab = ChatTabList.instance.addChatTab('テストタブ');
+    });
+
+    afterEach(() => {
+      tab.destroy();
+      other.destroy();
+    });
+
+    const lineFrom = (from: string, text = '本当はノアにだけ'): ChatMessage =>
+      tab.addMessage({ from, name: 'アリア', text, timestamp: 1000 });
+
+    it('offers everyone in the room but the reader', () => {
+      expect(service.afterWhisperCandidates()).toEqual([other]);
+    });
+
+    it('whispers the reader’s own line to the one chosen, and puts it back', () => {
+      const mine = lineFrom('me');
+
+      service.makeAfterWhisper(mine, other);
+      expect(mine.isAfterWhisper).toBe(true);
+      expect(mine.name).toBe('アリア > ノア');
+      expect(mine.isDisplayableTo('someone')).toBe(true);
+      expect(mine.isDisplayableTo('third')).toBe(false);
+
+      service.undoAfterWhisper(mine);
+      expect(mine.isAfterWhisper).toBe(false);
+      expect(mine.isDisplayableTo('third')).toBe(true);
+    });
+
+    it('is not offered on somebody else’s line', () => {
+      const theirs = lineFrom('someone');
+
+      expect(service.canMakeAfterWhisper(theirs)).toBe(false);
+      service.makeAfterWhisper(theirs, other);
+
+      expect(theirs.isAfterWhisper).toBe(false);
+    });
+
+    it('is not offered on a line whispered from the start', () => {
+      const whisper = tab.addMessage({
+        from: 'me',
+        to: 'someone',
+        name: 'アリア > ノア',
+        text: '内緒',
+        timestamp: 1000,
+      });
+
+      expect(service.canMakeAfterWhisper(whisper)).toBe(false);
+    });
+
+    it('whispers to nobody who is not in the room', () => {
+      const mine = lineFrom('me');
+      const gone = new PeerCursor();
+      gone.userId = 'gone';
+
+      service.makeAfterWhisper(mine, gone);
+
+      expect(mine.isAfterWhisper).toBe(false);
+    });
+
+    it('leaves a dice result where the table saw it', () => {
+      const result = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'me',
+        name: 'DiceBot',
+        tag: 'system',
+        text: '2D6 → 7',
+        timestamp: 1001,
+      });
+
+      expect(service.canMakeAfterWhisper(result)).toBe(false);
+    });
+
+    it('offers putting back only on an after-the-fact whisper', () => {
+      const mine = lineFrom('me');
+
+      expect(service.canUndoAfterWhisper(mine)).toBe(false);
+      service.makeAfterWhisper(mine, other);
+      expect(service.canUndoAfterWhisper(mine)).toBe(true);
+    });
+  });
+
   describe('opening what a die was thrown on', () => {
     let service: ChatMessageService;
     let tab: ChatTab;

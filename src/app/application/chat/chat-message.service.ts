@@ -564,6 +564,48 @@ export class ChatMessageService {
   }
 
   /**
+   * Whether this reader may make the line an after-the-fact whisper, or whisper one to somebody
+   * else: they said it to everyone, and it is not a notice from the tool.
+   *
+   * A dice result is the dice bot's line, so a roll stays where the table saw it, and a line
+   * whispered from the start is a whisper already.
+   */
+  canMakeAfterWhisper(message: ChatMessage): boolean {
+    if (message.isDirect && !message.isAfterWhisper) return false;
+    return message.changeable;
+  }
+
+  /** Whether this reader may put a line they made an after-the-fact whisper back where it was. */
+  canUndoAfterWhisper(message: ChatMessage): boolean {
+    return message.isAfterWhisper && message.changeable;
+  }
+
+  /**
+   * The seats a line can be whispered to afterwards: everyone in the room but this reader, who said
+   * it and keeps it either way.
+   */
+  afterWhisperCandidates(): PeerCursor[] {
+    const me = PeerCursor.myCursor;
+    return this.objectStore.getObjects(PeerCursor).filter((peer) => peer !== me && !!peer.userId);
+  }
+
+  /**
+   * Makes a line an after-the-fact whisper to one seat, which with the speaker are then the only ones
+   * it reaches. Does nothing for a line this reader may not, or for a seat not in the room.
+   */
+  makeAfterWhisper(message: ChatMessage, peer: PeerCursor): void {
+    if (!this.canMakeAfterWhisper(message)) return;
+    if (!this.afterWhisperCandidates().includes(peer)) return;
+    message.makeAfterWhisper(peer.userId, peer.name, this.getTime());
+  }
+
+  /** Puts an after-the-fact whisper back where it was. Does nothing for a line this reader may not put back. */
+  undoAfterWhisper(message: ChatMessage): void {
+    if (!this.canUndoAfterWhisper(message)) return;
+    message.undoAfterWhisper();
+  }
+
+  /**
    * Says a line again in another tab, as though it had been said there.
    *
    * It goes to the end of that tab rather than back into the middle of it under its old time:

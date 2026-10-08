@@ -2953,7 +2953,11 @@
         "ticker": "ティッカー",
         "copyToTab": "別のタブにコピー",
         "copyText": "本文をコピー",
-        "selectText": "文字を選ぶ"
+        "selectText": "文字を選ぶ",
+        "afterWhisper": "あとから秘話にする",
+        "afterWhisperTo": "秘話の相手",
+        "afterWhisperNobody": "部屋にほかの参加者がいません",
+        "undoAfterWhisper": "あとから秘話をやめて全員に戻す"
       },
       "stream": {
         "title": "発言の流れ",

@@ -461,6 +461,34 @@ describe('ChatLogExporter', () => {
     });
   });
 
+  describe('an after-the-fact whisper', () => {
+    const whisperedAfterwards = (overrides: Partial<ChatMessage> = {}) =>
+      createMockMessage({ from: 'user-A', to: 'user-C', text: 'あの人にだけ', ...overrides });
+
+    it('reaches the logs of its speaker and the one it was whispered to alone', () => {
+      const line = whisperedAfterwards();
+
+      expect(ChatLogExporter.isVisibleMessage(line, 'user-A')).toBe(true);
+      expect(ChatLogExporter.isVisibleMessage(line, 'user-C')).toBe(true);
+      expect(ChatLogExporter.isVisibleMessage(line, 'user-B')).toBe(false);
+    });
+
+    it('is not quoted in the log of somebody it was not whispered to', () => {
+      const answer = createMockMessage({
+        text: '返事',
+        replyTo: 'w',
+        replyToMessage: whisperedAfterwards(),
+        quoteOf: 'w',
+        quoteOfMessage: whisperedAfterwards(),
+      } as Partial<ChatMessage>);
+
+      const outsider = ChatLogExporter.formatMessageStandard(false, '', answer, 'user-B');
+      expect(outsider).not.toContain('あの人にだけ');
+      expect(outsider).not.toContain('<blockquote');
+      expect(ChatLogExporter.formatMessageStandard(false, '', answer, 'user-C')).toContain('あの人にだけ');
+    });
+  });
+
   describe('exportTabHtml', () => {
     it('writes the log out', () => {
       const msg = createMockMessage({ name: 'GM', text: '開始' });
