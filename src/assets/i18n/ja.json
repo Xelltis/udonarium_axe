@@ -3001,6 +3001,14 @@
             "marked": "個人しおり",
             "markedAs": "個人しおり：{{name}}"
           }
+        },
+        "history": {
+          "open": "編集履歴を見る",
+          "close": "編集履歴を閉じる",
+          "title": "編集履歴",
+          "original": "最初の発言",
+          "edit": "{{count}}回目の編集",
+          "current": "現在"
         }
       },
       "stream": {

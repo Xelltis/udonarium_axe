@@ -326,9 +326,13 @@
               <span>{{ 'feature.chat.message.secretDice' | transloco }}</span>
             }
             @if (!isEditing() && isEdited()) {
-              &nbsp;{{ 'feature.chat.message.edited' | transloco }}
+              &nbsp;<ng-container
+                [ngTemplateOutlet]="editedMark"
+                [ngTemplateOutletContext]="{ label: 'feature.chat.message.edited' }"
+              />
             }
           </div>
+          <ng-container [ngTemplateOutlet]="historyPanel" />
           @if (chatMessage.isDicebot && !isEditing()) {
             <div class="px-2.5">
               <dice-roll-stage [messageIdentifier]="chatMessage.identifier" />
@@ -482,7 +486,10 @@
                 <span>{{ 'feature.chat.message.secretDice' | transloco }}</span>
               }
               @if (!isEditing() && isEdited()) {
-                {{ 'feature.chat.message.editedSimple' | transloco }}
+                <ng-container
+                  [ngTemplateOutlet]="editedMark"
+                  [ngTemplateOutletContext]="{ label: 'feature.chat.message.editedSimple' }"
+                />
               }
               @if (!isEditing()) {
                 @if (canInteract) {
@@ -653,8 +660,63 @@
               }
             </font>
           </span>
+          <ng-container [ngTemplateOutlet]="historyPanel" />
         </div>
       </div>
     }
   </div>
 </div>
+
+<!-- The edited mark opens the line's history where one was kept; a line edited before then is only marked. -->
+<ng-template #editedMark let-label="label">
+  @if (versions().length > 0) {
+    <button
+      type="button"
+      data-testid="chat-message-history-toggle"
+      class="text-ui-dim hover:text-ui-accent m-0 inline cursor-pointer border-none bg-transparent p-0 align-baseline text-inherit underline decoration-dotted underline-offset-2"
+      [title]="
+        (isHistoryOpen() ? 'feature.chat.message.history.close' : 'feature.chat.message.history.open') | transloco
+      "
+      [attr.aria-expanded]="isHistoryOpen()"
+      (click)="toggleHistory()"
+    >
+      {{ label | transloco }}
+    </button>
+  } @else {
+    {{ label | transloco }}
+  }
+</ng-template>
+
+<ng-template #historyPanel>
+  @if (isHistoryOpen() && !isEditing() && versions().length > 0) {
+    <div
+      data-testid="chat-message-history"
+      class="border-ui-border-panel mx-2.5 mt-1 mb-0.5 flex flex-col gap-1.5 border-0 border-l-2 border-solid pl-2"
+    >
+      <div class="text-ui-dim text-[10px] font-semibold tracking-[0.04em]">
+        {{ 'feature.chat.message.history.title' | transloco }}
+      </div>
+      <ol class="m-0 flex list-none flex-col gap-1.5 p-0">
+        @for (version of versions(); track $index; let first = $first; let last = $last) {
+          <li data-testid="chat-message-history-version" class="flex flex-col gap-0.5">
+            <span class="text-ui-dim text-[10px] tabular-nums">
+              {{ version.at | date: 'y/M/d H:mm:ss' }} ·
+              @if (first) {
+                {{ 'feature.chat.message.history.original' | transloco }}
+              } @else if (last) {
+                {{ 'feature.chat.message.history.current' | transloco }}
+              } @else {
+                {{ 'feature.chat.message.history.edit' | transloco: { count: $index } }}
+              }
+            </span>
+            <span
+              class="[&_a]:text-ui-accent text-(length:--chat-font-size) leading-normal whitespace-pre-line text-inherit"
+              [class.opacity-70]="!last"
+              [innerHTML]="decorateVersion(version.text) | linkify | safe"
+            ></span>
+          </li>
+        }
+      </ol>
+    </div>
+  }
+</ng-template>

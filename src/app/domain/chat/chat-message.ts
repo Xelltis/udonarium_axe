@@ -7,9 +7,16 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import {
+  appendChatMessageEdit,
+  type ChatMessageVersion,
+  chatMessageVersions,
+  parseChatMessageEdits,
+} from '@axe/domain/chat/chat-message-history';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
+import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 import { VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
 
 /** Whether an attribute holds a moment, as opposed to being unset; an empty one is not read as 0. */
@@ -106,6 +113,14 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   @SyncVar() replyTo: string = '';
   @SyncVar() quoteOf: string = '';
   @SyncVar() fixd: boolean = false;
+  /**
+   * What the line said before each edit, and when the edit came, as `appendChatMessageEdit` writes
+   * it; read with `versions`.
+   *
+   * Kept on the line so that it travels and is saved with it. Left without an initialiser, as
+   * `vnEmote` is: most lines are never edited, and a line edited before this was kept has none.
+   */
+  @SyncVar() editHistory: string;
   @SyncVar() disclosedAt: number;
   /**
    * When the one who said the line made it an after-the-fact whisper (あとから秘話), in epoch
@@ -346,6 +361,30 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    */
   get isSecret(): boolean {
     return this.tags.includes('secret');
+  }
+
+  /**
+   * Every wording the line has had, oldest first, each from when it began to say it, the last being
+   * what it says now; empty for a line with no earlier wordings kept. Read without any staging, as
+   * the line is shown.
+   */
+  get versions(): ChatMessageVersion[] {
+    const edits = parseChatMessageEdits(this.editHistory);
+    return chatMessageVersions(edits, vnBodyOf(this.vnEmote, this.text ?? ''), this.timestamp);
+  }
+
+  /**
+   * Edits the line to say `text`, keeping what it said before in its history and marking it as
+   * edited. `staging` is how novel mode is to stage it, kept beside the words. Nothing changes when
+   * the words and their staging are as they were.
+   */
+  edit(text: string, staging: string, at: number): void {
+    const before = vnBodyOf(this.vnEmote, this.text ?? '');
+    if (this.text === text && (this.vnEmote ?? '') === staging) return;
+    if (before !== text) this.editHistory = appendChatMessageEdit(this.editHistory, before, at);
+    this.text = text;
+    if (staging.length > 0) this.vnEmote = staging;
+    this.fixd = true;
   }
 
   /** Whether the one who said the line made it an after-the-fact whisper. */

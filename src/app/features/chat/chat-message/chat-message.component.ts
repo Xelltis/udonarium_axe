@@ -1,4 +1,4 @@
-import { DatePipe, NgClass, NgStyle } from '@angular/common';
+import { DatePipe, NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -73,6 +73,7 @@ const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
   imports: [
     NgClass,
     NgStyle,
+    NgTemplateOutlet,
     DatePipe,
     FormsModule,
     LinkifyPipe,
@@ -183,6 +184,28 @@ export class ChatMessageComponent {
     return { shared: markOf('shared'), personal: markOf('personal') };
   });
 
+  /** Every wording the line has had, oldest first, or none where no earlier wording was kept. */
+  readonly versions = computed(() => {
+    const chatMessage = this.chatMessageInput();
+    if (!chatMessage) return [];
+    this.objectChange.versionOf(chatMessage.identifier)();
+    return chatMessage.versions;
+  });
+
+  /** Whether the line's history of edits is open under it. */
+  readonly isHistoryOpen = signal(false);
+
+  /** Opens the line's history of edits under it, or closes it, from the edited mark or the line's menu. */
+  toggleHistory(): void {
+    if (this.versions().length === 0) return;
+    this.isHistoryOpen.update((open) => !open);
+  }
+
+  /** An earlier wording of the line as HTML, with markup escaped and the chat's decorations applied. */
+  protected decorateVersion(text: string): string {
+    return decorateChatStyleText(text);
+  }
+
   readonly isEdited = computed(() => {
     const chatMessage = this.chatMessageInput();
     if (!chatMessage) return false;
@@ -288,6 +311,8 @@ export class ChatMessageComponent {
         canShowInTicker: this.canShowInTicker(),
         copyTargets: this.canCopyToTab ? this.copyTargets() : [],
         hasOriginal: !!(message.replyTo || message.quoteOf),
+        hasHistory: this.versions().length > 0,
+        isHistoryOpen: this.isHistoryOpen(),
         text: this.readableText(message),
         selectedText: picked.inside,
         isTouch: this.viewport.isTouch(),
@@ -309,6 +334,7 @@ export class ChatMessageComponent {
         undoAfterWhisper: () => this.undoAfterWhisper(),
         pseudoDelete: () => void this.pseudoDelete(),
         showInTicker: () => this.clickShowInTicker(),
+        toggleHistory: () => this.toggleHistory(),
         jumpToOriginal: () => (message.replyTo ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
         copyText: (text) => this.copyText(text),
         selectText: () => this.selectText(),
@@ -489,7 +515,8 @@ export class ChatMessageComponent {
    * Writes the draft back to the message and closes the editor.
    *
    * Trailing space is dropped, and a draft left empty is treated as a cancel. A change marks the line
-   * as edited and reaches the room through the synced message; an unchanged draft writes nothing.
+   * as edited, keeps what it said before in its history, and reaches the room through the synced
+   * message; an unchanged draft writes nothing.
    */
   saveEdit() {
     const draft = this.editDraft();
@@ -502,11 +529,7 @@ export class ChatMessageComponent {
     // A line said before the staging was kept apart still carries it at the end. Editing the
     // body would take it away with the rest of the suffix, so it moves beside the line first.
     const staging = encodeVnEmote(vnEmoteOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    if (this.chatMessage.text !== next || this.chatMessage.vnEmote !== staging) {
-      this.chatMessage.text = next;
-      if (staging.length > 0) this.chatMessage.vnEmote = staging;
-      this.chatMessage.fixd = true;
-    }
+    this.chatMessage.edit(next, staging, this.chatMessageService.getTime());
     this.editDraft.set(null);
   }
 

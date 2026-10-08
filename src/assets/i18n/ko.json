@@ -3001,6 +3001,14 @@
             "marked": "개인 책갈피",
             "markedAs": "개인 책갈피: {{name}}"
           }
+        },
+        "history": {
+          "open": "편집 이력 보기",
+          "close": "편집 이력 닫기",
+          "title": "편집 이력",
+          "original": "처음 발언",
+          "edit": "{{count}}번째 편집",
+          "current": "현재"
         }
       },
       "stream": {

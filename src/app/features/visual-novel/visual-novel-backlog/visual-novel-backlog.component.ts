@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -69,6 +70,7 @@ export interface VnBacklogEntry {
 })
 export class VisualNovelBacklogComponent {
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly chatMessageService = inject(ChatMessageService);
   private readonly imageService = inject(ImageService);
   private readonly translate = inject(TRANSLATE_FN);
   private readonly language = inject(LanguageService);
@@ -287,7 +289,8 @@ export class VisualNovelBacklogComponent {
    * Writes the edit form back to the line and closes the form.
    *
    * Empty text is not kept, and the form stays open for it. The line is marked as edited only where
-   * its text or emote changed; a line that may no longer be changed closes the form without a word.
+   * its text or emote changed, and what it said before goes into its history as an edit in the chat
+   * does; a line that may no longer be changed closes the form without a word.
    */
   saveEditEntry(): void {
     const message = this.playback.logMessages().find((candidate) => candidate.identifier === this.editingIdentifier());
@@ -307,9 +310,9 @@ export class VisualNovelBacklogComponent {
       exited: this.editExited(),
     });
     if (message.text !== text || message.vnEmote !== emote) {
-      message.text = text;
-      message.vnEmote = emote;
-      message.fixd = true;
+      message.edit(text, emote, this.chatMessageService.getTime());
+      // An emptied staging is asked for here, which the chat's own edit leaves alone.
+      if (message.vnEmote !== emote) message.vnEmote = emote;
     }
     if (message.vnPortraitPos !== this.editSlot()) {
       message.vnPortraitPos = this.editSlot();

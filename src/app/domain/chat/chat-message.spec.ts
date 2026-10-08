@@ -713,4 +713,67 @@ describe('ChatMessage', () => {
       expect(message.fixd).toBe(false);
     });
   });
+
+  describe('editing a line', () => {
+    const reload = (message: ChatMessage): ChatMessage => {
+      const xml = message.toXml();
+      store.delete(message, false);
+      store.clearDeleteHistory();
+      return ObjectSerializer.instance.parseXml(xml) as ChatMessage;
+    };
+
+    const said = (text: string): ChatMessage => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.setAttribute('timestamp', 1000);
+      message.text = text;
+      return message;
+    };
+
+    it('keeps every wording it has had, with when each began, and marks it as edited', () => {
+      const message = said('こんばんわ');
+
+      message.edit('こんばんは', '', 2000);
+      message.edit('こんばんは！', '', 3000);
+
+      expect(message.fixd).toBe(true);
+      expect(message.versions).toEqual([
+        { text: 'こんばんわ', at: 1000 },
+        { text: 'こんばんは', at: 2000 },
+        { text: 'こんばんは！', at: 3000 },
+      ]);
+    });
+
+    it('keeps its history through a save', () => {
+      const message = said('こんばんわ');
+      message.edit('こんばんは', '', 2000);
+
+      expect(reload(message).versions.map((version) => version.text)).toEqual(['こんばんわ', 'こんばんは']);
+    });
+
+    it('writes nothing when the words and their staging are as they were', () => {
+      const message = said('こんばんは');
+
+      message.edit('こんばんは', '', 2000);
+
+      expect(message.fixd).toBe(false);
+      expect(message.versions).toEqual([]);
+    });
+
+    it('keeps no earlier wording when only the staging moved beside the words', () => {
+      const message = said('こんばんは');
+
+      message.edit('こんばんは', '{"pose":"smile"}', 2000);
+
+      expect(message.fixd).toBe(true);
+      expect(message.versions).toEqual([]);
+    });
+
+    it('has no history to show for a line edited before it was kept', () => {
+      const message = said('こんばんは');
+      message.fixd = true;
+
+      expect(message.versions).toEqual([]);
+    });
+  });
 });

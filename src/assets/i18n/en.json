@@ -3001,6 +3001,14 @@
             "marked": "Personal bookmark",
             "markedAs": "Personal bookmark: {{name}}"
           }
+        },
+        "history": {
+          "open": "View edit history",
+          "close": "Close edit history",
+          "title": "Edit history",
+          "original": "As first said",
+          "edit": "Edit {{count}}",
+          "current": "Now"
         }
       },
       "stream": {

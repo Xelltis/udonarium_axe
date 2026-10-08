@@ -18,6 +18,8 @@ function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuStat
     canShowInTicker: true,
     copyTargets: [{ identifier: 'tab-2', name: 'サブタブ' }],
     hasOriginal: true,
+    hasHistory: false,
+    isHistoryOpen: false,
     text: 'こんにちは',
     selectedText: '',
     isTouch: false,
@@ -37,6 +39,7 @@ function callbacks(): ChatMessageMenuCallbacks {
     undoAfterWhisper: vi.fn(),
     pseudoDelete: vi.fn(),
     showInTicker: vi.fn(),
+    toggleHistory: vi.fn(),
     jumpToOriginal: vi.fn(),
     copyText: vi.fn(),
     selectText: vi.fn(),
@@ -126,6 +129,21 @@ describe('buildChatMessageContextMenu()', () => {
     ]);
     menu.find((action) => action.name === 'feature.chat.message.bookmarks.personal.add')!.action?.();
     expect(calls.toggleBookmark).toHaveBeenCalledWith('personal');
+  });
+
+  it('offers opening the history of an edited line just before following it back to its original', () => {
+    const calls = callbacks();
+    const menu = buildChatMessageContextMenu(state({ hasHistory: true }), calls, translate);
+    const names = menu.map((action) => action.name);
+
+    expect(names.indexOf('feature.chat.message.history.open')).toBe(
+      names.indexOf('feature.chat.message.jumpToOriginal') - 1
+    );
+    menu.find((action) => action.name === 'feature.chat.message.history.open')!.action?.();
+    expect(calls.toggleHistory).toHaveBeenCalledOnce();
+
+    const open = buildChatMessageContextMenu(state({ hasHistory: true, isHistoryOpen: true }), calls, translate);
+    expect(open.map((action) => action.name)).toContain('feature.chat.message.history.close');
   });
 
   it('offers only the words of a line nothing else can be done with', () => {

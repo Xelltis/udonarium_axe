@@ -20,6 +20,9 @@ export interface ChatMessageMenuState {
   copyTargets: readonly { identifier: string; name: string }[];
   /** Whether the line answers or quotes another one it can be followed back to. */
   hasOriginal: boolean;
+  /** Whether earlier wordings of the line were kept, and whether they are open under it. */
+  hasHistory: boolean;
+  isHistoryOpen: boolean;
   /** The words of the line as the reader is shown them; empty where they are kept from the reader. */
   text: string;
   /** The words picked out inside the line when the menu opened, copied in place of the whole line; empty where none were. */
@@ -39,6 +42,7 @@ export interface ChatMessageMenuCallbacks {
   undoAfterWhisper: () => void;
   pseudoDelete: () => void;
   showInTicker: () => void;
+  toggleHistory: () => void;
   jumpToOriginal: () => void;
   copyText: (text: string) => void;
   selectText: () => void;
@@ -104,6 +108,10 @@ export function buildChatMessageContextMenu(
   }
   if (state.canShowInTicker) {
     actions.push({ name: t('feature.chat.message.ticker'), action: () => callbacks.showInTicker() });
+  }
+  if (state.hasHistory) {
+    const name = t(`feature.chat.message.history.${state.isHistoryOpen ? 'close' : 'open'}`);
+    actions.push({ name, action: () => callbacks.toggleHistory() });
   }
   if (state.hasOriginal) {
     actions.push({ name: t('feature.chat.message.jumpToOriginal'), action: () => callbacks.jumpToOriginal() });

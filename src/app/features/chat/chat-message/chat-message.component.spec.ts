@@ -1472,6 +1472,78 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  describe('the history of an edited line', () => {
+    let tab: ChatTab;
+
+    const testId = (id: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-testid="${id}"]`);
+
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    function shown(from: string, text: string): ChatMessage {
+      const message = tab.addMessage({ from, name: 'アリア', text, timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+      return message;
+    }
+
+    beforeEach(() => {
+      beMyself('me');
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => tab.destroy());
+
+    it('keeps what the line said before when the speaker edits it in place', async () => {
+      const message = shown('me', 'こんばんわ');
+
+      component.startEdit();
+      component.onEditInput('こんばんは');
+      component.saveEdit();
+      await settle();
+
+      expect(message.versions.map((version) => version.text)).toEqual(['こんばんわ', 'こんばんは']);
+    });
+
+    it('opens every wording under the line from its edited mark, for anyone who sees it, and closes again', async () => {
+      const message = shown('someone', 'こんばんわ');
+      message.edit('こんばんは', '', 2000);
+      message.edit('こんばんは！', '', 3000);
+      await settle();
+      expect(testId('chat-message-history')).toBeNull();
+
+      testId('chat-message-history-toggle')!.click();
+      fixture.detectChanges();
+
+      const versions = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+          '[data-testid="chat-message-history-version"]'
+        ),
+      ];
+      expect(versions.map((version) => version.lastElementChild?.textContent)).toEqual([
+        'こんばんわ',
+        'こんばんは',
+        'こんばんは！',
+      ]);
+
+      testId('chat-message-history-toggle')!.click();
+      fixture.detectChanges();
+      expect(testId('chat-message-history')).toBeNull();
+    });
+
+    it('only marks a line edited before its history was kept', async () => {
+      const message = shown('someone', 'こんばんは');
+      message.fixd = true;
+      await settle();
+
+      expect(fixture.nativeElement.textContent).toContain(TestBed.inject(TRANSLATE_FN)('feature.chat.message.edited'));
+      expect(testId('chat-message-history-toggle')).toBeNull();
+    });
+  });
+
   describe('consuming a jump to the original message', () => {
     /**
      * A jump is always cleared once it is consumed.
