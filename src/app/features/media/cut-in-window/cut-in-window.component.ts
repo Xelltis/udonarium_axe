@@ -78,6 +78,8 @@ export class CutInWindowComponent {
     this.resolveFirstRender = resolve;
   });
   private readyVideoTarget: CutInVideoTarget | null = null;
+  private isVideoCued = false;
+  private isVideoStarted = false;
   private destroyed = false;
 
   constructor() {
@@ -275,7 +277,7 @@ export class CutInWindowComponent {
     }
 
     this.playbackStarted.set(true);
-    if (this.readyVideoTarget) this.startVideo(this.readyVideoTarget);
+    if (this.readyVideoTarget && this.isVideoCued) this.startVideo(this.readyVideoTarget);
 
     const playbackMs = cutInPlaybackMs(this.cutIn, this.cutIn.scene);
     if (playbackMs > 0) {
@@ -396,19 +398,20 @@ export class CutInWindowComponent {
   }
 
   /**
-   * Takes hold of the YouTube player once it is ready, starting the video straight away if playback
-   * has already begun and otherwise only setting its volume.
+   * Takes hold of the YouTube player once it is ready and sets its volume.
+   *
+   * The video is not started here: the player component cues the video once it has told its
+   * listeners it is ready, and a video started before the cue has finished stays at its first
+   * frame. It starts when the player says the video is cued, or when playback begins after that.
    */
   onPlayerReady($event: { target: CutInVideoTarget }) {
     this.readyVideoTarget = $event.target;
-    if (this.playbackStarted()) {
-      this.startVideo($event.target);
-    } else {
-      $event.target.setVolume(this.videoVolume);
-    }
+    $event.target.setVolume(this.videoVolume);
   }
 
   private startVideo(target: CutInVideoTarget): void {
+    if (this.isVideoStarted) return;
+    this.isVideoStarted = true;
     target.setVolume(this.videoVolume);
     if (this.playbackStartedAtMs !== null && target.seekTo) {
       const elapsedSeconds = Math.max(0, Date.now() - this.playbackStartedAtMs) / 1000;
@@ -420,9 +423,9 @@ export class CutInWindowComponent {
   /**
    * Follows the YouTube player's state.
    *
-   * Playing, pausing and cueing each mark a short transition. When the video ends, a looping
-   * cut-in plays again from its start time unless looping is forced off, and otherwise the window
-   * closes.
+   * Playing, pausing and cueing each mark a short transition. Once the video is cued it starts, if
+   * playback has begun. When the video ends, a looping cut-in plays again from its start time unless
+   * looping is forced off, and otherwise the window closes.
    */
   onPlayerStateChange($event: {
     data: number;
@@ -444,6 +447,8 @@ export class CutInWindowComponent {
       }, 200);
     }
     if (state == 5) {
+      this.isVideoCued = true;
+      if (this.playbackStarted() && this.readyVideoTarget) this.startVideo(this.readyVideoTarget);
       this.videoStateTransition = true;
       this._timeoutIdVideo = setTimeout(() => {
         this.videoStateTransition = false;
