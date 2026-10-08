@@ -6,6 +6,9 @@ export interface ChatMessageMenuState {
   canInteract: boolean;
   canShareAsMemo: boolean;
   canChange: boolean;
+  /** Whether the reader may put the room's mark on the line or take it off. */
+  canBookmark: boolean;
+  isBookmarked: boolean;
   /** The seats the line may be whispered to afterwards, or null where the reader may not. */
   afterWhisperTargets: readonly { identifier: string; name: string }[] | null;
   /** Whether the reader may put an after-the-fact whisper back for everyone. */
@@ -31,6 +34,7 @@ export interface ChatMessageMenuCallbacks {
   copyToTab: (tabIdentifier: string) => void;
   shareAsMemo: () => void;
   edit: () => void;
+  toggleBookmark: () => void;
   whisperTo: (peerIdentifier: string) => void;
   undoAfterWhisper: () => void;
   pseudoDelete: () => void;
@@ -73,6 +77,10 @@ export function buildChatMessageContextMenu(
   }
   if (state.canChange) {
     actions.push({ name: t('feature.chat.messageFix.change'), action: () => callbacks.edit() });
+  }
+  if (state.canBookmark) {
+    const name = state.isBookmarked ? t('feature.chat.message.unbookmark') : t('feature.chat.message.bookmark');
+    actions.push({ name, action: () => callbacks.toggleBookmark() });
   }
   if (state.afterWhisperTargets) {
     const targets = state.afterWhisperTargets;

@@ -11,6 +11,8 @@ function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuStat
     canInteract: true,
     canShareAsMemo: true,
     canChange: true,
+    canBookmark: false,
+    isBookmarked: false,
     afterWhisperTargets: null,
     canUndoAfterWhisper: false,
     canPseudoDelete: false,
@@ -31,6 +33,7 @@ function callbacks(): ChatMessageMenuCallbacks {
     copyToTab: vi.fn(),
     shareAsMemo: vi.fn(),
     edit: vi.fn(),
+    toggleBookmark: vi.fn(),
     whisperTo: vi.fn(),
     undoAfterWhisper: vi.fn(),
     pseudoDelete: vi.fn(),
@@ -101,6 +104,20 @@ describe('buildChatMessageContextMenu()', () => {
 
     const others = buildChatMessageContextMenu(state(), calls, translate);
     expect(others.map((action) => action.name)).not.toContain('feature.chat.message.deleteLine');
+  });
+
+  it('offers the room’s mark right after editing, and taking it off a marked line', () => {
+    const calls = callbacks();
+    const menu = buildChatMessageContextMenu(state({ canBookmark: true }), calls, translate);
+    const names = menu.map((action) => action.name);
+
+    expect(names.indexOf('feature.chat.message.bookmark')).toBe(names.indexOf('feature.chat.messageFix.change') + 1);
+    menu.find((action) => action.name === 'feature.chat.message.bookmark')!.action?.();
+    expect(calls.toggleBookmark).toHaveBeenCalledOnce();
+
+    const marked = buildChatMessageContextMenu(state({ canBookmark: true, isBookmarked: true }), calls, translate);
+    expect(marked.map((action) => action.name)).toContain('feature.chat.message.unbookmark');
+    expect(marked.map((action) => action.name)).not.toContain('feature.chat.message.bookmark');
   });
 
   it('offers only the words of a line nothing else can be done with', () => {

@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
+import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
@@ -36,6 +37,8 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat-bookmark-list.component';
+import { flashChatLine } from '@axe/features/chat/chat-bookmark/chat-line-flash';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
@@ -75,6 +78,7 @@ const AT_BOTTOM_THRESHOLD_PX = 8;
     TranslocoModule,
     ChatTabStripComponent,
     ChatSearchBarComponent,
+    ChatBookmarkListComponent,
   ],
   host: {
     class: 'block h-full min-h-0 min-w-0',
@@ -103,6 +107,7 @@ export class ChatWindowComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
+  private readonly chatBookmarks = inject(ChatBookmarkService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -149,9 +154,16 @@ export class ChatWindowComponent {
   private readonly logScroll = viewChild.required<ElementRef<HTMLDivElement>>('logScroll');
   readonly chatTabRef = viewChild(ChatTabComponent);
   private readonly searchBar = viewChild(ChatSearchBarComponent);
+  private readonly bookmarkList = viewChild(ChatBookmarkListComponent);
 
   /** Whether the box that finds words in the tab is open. */
   readonly searchOpen = signal(false);
+
+  /** Whether the list of the room's marks on chat lines is open. */
+  readonly bookmarksOpen = signal(false);
+
+  /** How many marks this reader can see, shown on the button that opens their list. */
+  readonly bookmarkCount = computed(() => this.chatBookmarks.entries().length);
 
   /** Brings a line the search lands on into view, through the tab drawing the log. */
   readonly revealLine = (message: ChatMessage): Promise<HTMLElement | null> =>
@@ -169,6 +181,7 @@ export class ChatWindowComponent {
 
   /** Opens the search, or puts the caret back in it with what is typed picked out. */
   openSearch(): void {
+    this.bookmarksOpen.set(false);
     const bar = this.searchBar();
     if (bar) {
       bar.focus();
@@ -189,6 +202,42 @@ export class ChatWindowComponent {
   toggleSearch(): void {
     if (this.searchOpen()) this.closeSearch();
     else this.openSearch();
+  }
+
+  /** Opens the list of marks from its button, in place of the search, or closes it when it is open. */
+  toggleBookmarks(): void {
+    if (this.bookmarksOpen()) {
+      this.closeBookmarks();
+      return;
+    }
+    this.searchOpen.set(false);
+    this.bookmarksOpen.set(true);
+    afterNextRender(() => this.bookmarkList()?.focus(), { injector: this.injector });
+  }
+
+  /** Closes the list of marks and hands the keyboard back to the chat input. */
+  closeBookmarks(): void {
+    this.bookmarksOpen.set(false);
+    const host = this.hostElement.nativeElement;
+    (host.querySelector<HTMLElement>('textarea.chat-input') ?? host).focus();
+  }
+
+  /**
+   * Goes to the line a mark is on: the window turns to its tab, the log is drawn around it however
+   * far up it is, and the line is flashed. The list closes, so it does not stand over the line.
+   */
+  async jumpToBookmark(message: ChatMessage): Promise<void> {
+    this.bookmarksOpen.set(false);
+    const tab = message.parent;
+    if (!(tab instanceof ChatTab)) return;
+    if (this.chatTabidentifier !== tab.identifier) {
+      this.chatTabidentifier = tab.identifier;
+      // Turning to a tab sends the log to its foot a task later; the line is sought after that.
+      await new Promise<void>((resolve) => setTimeout(resolve));
+      await new Promise<void>((resolve) => afterNextRender(() => resolve(), { injector: this.injector }));
+    }
+    const line = await this.revealLine(message);
+    if (line) flashChatLine(line);
   }
 
   private searchKeysDocument: Document | null = null;

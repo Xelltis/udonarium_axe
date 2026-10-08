@@ -2906,6 +2906,18 @@
         "newer": "다음 발언으로 (Shift+Enter)",
         "close": "닫기 (Esc)"
       },
+      "bookmark": {
+        "button": "책갈피",
+        "open": "책갈피 목록",
+        "title": "책갈피",
+        "close": "닫기 (Esc)",
+        "jump": "이 발언으로 이동",
+        "rename": "제목 바꾸기",
+        "renamePlaceholder": "제목 (비워 두면 발언 첫머리)",
+        "renameHint": "Enter로 확정 / Esc로 취소",
+        "remove": "책갈피 빼기",
+        "empty": "아직 책갈피가 없습니다. 발언의 책갈피 버튼이나 우클릭(길게 누르기) 메뉴로 끼울 수 있습니다. 책갈피는 방의 모든 사람과 공유됩니다."
+      },
       "input": {
         "you": "(당신)",
         "everyone": "전원",
@@ -2954,6 +2966,10 @@
         "copyToTab": "다른 탭으로 복사",
         "copyText": "본문 복사",
         "selectText": "텍스트 선택",
+        "bookmark": "책갈피 끼우기",
+        "unbookmark": "책갈피 빼기",
+        "bookmarked": "책갈피",
+        "bookmarkedAs": "책갈피: {{name}}",
         "afterWhisper": "나중에 귓속말로 바꾸기",
         "afterWhisperTo": "귓속말 상대",
         "afterWhisperNobody": "방에 다른 참가자가 없습니다",

@@ -2906,6 +2906,18 @@
         "newer": "Later line (Shift+Enter)",
         "close": "Close (Esc)"
       },
+      "bookmark": {
+        "button": "Bookmarks",
+        "open": "Bookmarks",
+        "title": "Bookmarks",
+        "close": "Close (Esc)",
+        "jump": "Go to this line",
+        "rename": "Rename",
+        "renamePlaceholder": "Title (leave empty for the line’s opening words)",
+        "renameHint": "Enter to save / Esc to cancel",
+        "remove": "Remove bookmark",
+        "empty": "No bookmarks yet. Bookmark a line with its bookmark button or from its right-click (long-press) menu. Bookmarks are shared with everyone in the room."
+      },
       "input": {
         "you": " (you)",
         "everyone": "Everyone",
@@ -2954,6 +2966,10 @@
         "copyToTab": "Copy to another tab",
         "copyText": "Copy text",
         "selectText": "Select text",
+        "bookmark": "Bookmark this line",
+        "unbookmark": "Remove bookmark",
+        "bookmarked": "Bookmarked",
+        "bookmarkedAs": "Bookmark: {{name}}",
         "afterWhisper": "Whisper it afterwards",
         "afterWhisperTo": "Whisper to",
         "afterWhisperNobody": "Nobody else is in the room",

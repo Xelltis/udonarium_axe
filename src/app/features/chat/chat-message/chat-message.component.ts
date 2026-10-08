@@ -14,6 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
@@ -82,6 +83,7 @@ export class ChatMessageComponent {
   protected readonly skins = inject(SkinService);
 
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly chatBookmarks = inject(ChatBookmarkService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
@@ -160,6 +162,14 @@ export class ChatMessageComponent {
     if (!chatMessage) return false;
     this.objectChange.versionOf(chatMessage.identifier)();
     return chatMessage.isDirect;
+  });
+
+  /** The mark the room put on the line, by the name it shows under, or null for a line not marked. */
+  readonly bookmark = computed<{ name: string } | null>(() => {
+    const chatMessage = this.chatMessageInput();
+    if (!chatMessage) return null;
+    this.objectChange.versionOf(chatMessage.identifier)();
+    return chatMessage.isBookmarked ? { name: chatMessage.bookmarkName } : null;
   });
 
   readonly isEdited = computed(() => {
@@ -258,6 +268,8 @@ export class ChatMessageComponent {
         afterWhisperTargets: this.canMakeAfterWhisper
           ? this.whisperTargets().map((peer) => ({ identifier: peer.identifier, name: peer.name }))
           : null,
+        canBookmark: this.canBookmark,
+        isBookmarked: message.isBookmarked,
         canUndoAfterWhisper: this.canUndoAfterWhisper,
         canPseudoDelete: this.canPseudoDelete,
         canShowInTicker: this.canShowInTicker(),
@@ -280,6 +292,7 @@ export class ChatMessageComponent {
           const peer = this.whisperTargets().find((candidate) => candidate.identifier === identifier);
           if (peer) this.whisperTo(peer);
         },
+        toggleBookmark: () => this.toggleBookmark(),
         undoAfterWhisper: () => this.undoAfterWhisper(),
         pseudoDelete: () => void this.pseudoDelete(),
         showInTicker: () => this.clickShowInTicker(),
@@ -601,6 +614,19 @@ export class ChatMessageComponent {
     if (!this.canInteract) return;
     if (this.compose) this.compose.requestQuote(this.chatMessage.identifier);
     else this.uiSignalService.requestChatQuote(this.chatMessage.identifier);
+  }
+
+  /** Whether this reader may put the room's mark on the line, or take it off. */
+  get canBookmark(): boolean {
+    if (this.readOnly()) return false;
+    const message = this.chatMessage;
+    return !!message && this.chatBookmarks.canBookmark(message);
+  }
+
+  /** Marks the line for the room to find again, or takes the mark off, from its button or the line's menu. */
+  toggleBookmark(): void {
+    if (!this.canBookmark) return;
+    this.chatBookmarks.toggle(this.chatMessage);
   }
 
   /** Whether this reader may make the line an after-the-fact whisper, which they may of a line they said. */

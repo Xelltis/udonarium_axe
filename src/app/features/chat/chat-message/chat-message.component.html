@@ -40,6 +40,18 @@
             <span class="tip msg-from" [title]="chatMessage.from">{{ shortFrom(chatMessage.from) }}</span>
             <span class="tip"> | </span>
             <span class="tip msg-timestamp">{{ chatMessage.timestamp | date: 'y/M/d H:mm' }}</span>
+            @if (bookmark(); as mark) {
+              <i
+                data-testid="chat-message-bookmark-mark"
+                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
+                [title]="
+                  mark.name
+                    ? ('feature.chat.message.bookmarkedAs' | transloco: { name: mark.name })
+                    : ('feature.chat.message.bookmarked' | transloco)
+                "
+                >bookmark</i
+              >
+            }
             @if (!isEditing()) {
               @if (canInteract) {
                 <i
@@ -166,6 +178,17 @@
                   [title]="'feature.chat.message.ticker' | transloco"
                   (click)="clickShowInTicker()"
                   >campaign</i
+                >
+              }
+              @if (canBookmark) {
+                <i
+                  data-testid="chat-message-bookmark"
+                  class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
+                  [title]="
+                    (bookmark() ? 'feature.chat.message.unbookmark' : 'feature.chat.message.bookmark') | transloco
+                  "
+                  (click)="toggleBookmark()"
+                  >{{ bookmark() ? 'bookmark_remove' : 'bookmark_add' }}</i
                 >
               }
             }
@@ -305,6 +328,18 @@
             }
             @if (simpleDispFlagUserId() || simpleDispFlagTime()) {
               <span class="tip">　</span>
+            }
+            @if (bookmark(); as mark) {
+              <i
+                data-testid="chat-message-bookmark-mark"
+                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
+                [title]="
+                  mark.name
+                    ? ('feature.chat.message.bookmarkedAs' | transloco: { name: mark.name })
+                    : ('feature.chat.message.bookmarked' | transloco)
+                "
+                >bookmark</i
+              >
             }
             @if (replyPreview(); as preview) {
               <button
@@ -520,6 +555,17 @@
                     [title]="'feature.chat.message.ticker' | transloco"
                     (click)="clickShowInTicker()"
                     >campaign</i
+                  >
+                }
+                @if (canBookmark) {
+                  <i
+                    data-testid="chat-message-bookmark"
+                    class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
+                    [title]="
+                      (bookmark() ? 'feature.chat.message.unbookmark' : 'feature.chat.message.bookmark') | transloco
+                    "
+                    (click)="toggleBookmark()"
+                    >{{ bookmark() ? 'bookmark_remove' : 'bookmark_add' }}</i
                   >
                 }
               }

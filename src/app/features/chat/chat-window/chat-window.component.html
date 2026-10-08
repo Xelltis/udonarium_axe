@@ -15,6 +15,14 @@
       }
     </div>
 
+    @if (bookmarksOpen()) {
+      <chat-bookmark-list
+        class="absolute top-1 right-1 z-20 w-80 max-w-[calc(100%-0.5rem)]"
+        (jump)="jumpToBookmark($event)"
+        (closed)="closeBookmarks()"
+      />
+    }
+
     @if (searchOpen()) {
       <chat-search-bar
         class="absolute top-1 right-1 z-20 w-80 max-w-[calc(100%-0.5rem)]"
@@ -102,6 +110,23 @@
           >
             <i class="material-icons align-middle text-[12px]!">search</i>
             <span class="text-[11px] @max-[500px]:hidden">{{ 'feature.chat.search.button' | transloco }}</span>
+          </button>
+          <button
+            type="button"
+            class="text-ui-titlebar-muted hover:border-ui-border-panel hover:bg-ui-hover hover:text-ui-titlebar-text m-0 flex cursor-pointer items-center justify-center gap-0.5 rounded-full border border-solid border-transparent bg-transparent px-1.5 py-0.75 text-[11px] transition-colors hover:shadow-none @max-[500px]:h-6.5 @max-[500px]:w-auto @max-[500px]:min-w-7 @max-[500px]:p-0.5"
+            [class.text-ui-accent!]="bookmarksOpen()"
+            [title]="'feature.chat.bookmark.open' | transloco"
+            [attr.aria-pressed]="bookmarksOpen()"
+            data-testid="chat-bookmarks-toggle"
+            (click)="toggleBookmarks()"
+          >
+            <i class="material-icons align-middle text-[12px]!">bookmarks</i>
+            <span class="text-[11px] @max-[500px]:hidden">{{ 'feature.chat.bookmark.button' | transloco }}</span>
+            @if (bookmarkCount() > 0) {
+              <span class="text-ui-dim text-[10px] tabular-nums" data-testid="chat-bookmarks-toggle-count">{{
+                bookmarkCount()
+              }}</span>
+            }
           </button>
           <button
             type="button"

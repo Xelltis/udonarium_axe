@@ -632,4 +632,85 @@ describe('ChatMessage', () => {
       expect(message.isShownInChat).toBe(true);
     });
   });
+
+  describe('marking a line to find again', () => {
+    const reload = (message: ChatMessage): ChatMessage => {
+      const xml = message.toXml();
+      store.delete(message, false);
+      store.clearDeleteHistory();
+      return ObjectSerializer.instance.parseXml(xml) as ChatMessage;
+    };
+
+    it('starts unmarked, and a room saved before marks reads as unmarked', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      expect(message.isBookmarked).toBe(false);
+
+      message.setAttribute('bookmarkedAt', '');
+      expect(message.isBookmarked).toBe(false);
+      expect(message.bookmarkName).toBe('');
+    });
+
+    it('keeps the mark and its name through a save', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.bookmark(1000);
+      message.renameBookmark('  事件の証言A ');
+
+      const reloaded = reload(message);
+
+      expect(reloaded.isBookmarked).toBe(true);
+      expect(reloaded.bookmarkName).toBe('事件の証言A');
+    });
+
+    it('keeps the moment it was first marked', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.bookmark(1000);
+      message.bookmark(2000);
+
+      expect(Number(message.bookmarkedAt)).toBe(1000);
+    });
+
+    it('keeps the name when the mark is taken off, so putting it back finds the name again', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.bookmark(1000);
+      message.renameBookmark('事件の証言A');
+
+      message.unbookmark();
+      expect(message.isBookmarked).toBe(false);
+      message.bookmark(2000);
+
+      expect(message.bookmarkName).toBe('事件の証言A');
+    });
+
+    it('goes back to being named after the line when the name is emptied', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.renameBookmark('事件の証言A');
+
+      message.renameBookmark('   ');
+
+      expect(message.bookmarkName).toBe('');
+      expect(message.toXml()).not.toContain('bookmarkTitle');
+    });
+
+    it('reads a name that came back as a number as text', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.setAttribute('bookmarkTitle', 42);
+
+      expect(message.bookmarkName).toBe('42');
+    });
+
+    it('does not mark the line as edited', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      message.bookmark(1000);
+      message.renameBookmark('証言');
+
+      expect(message.fixd).toBe(false);
+    });
+  });
 });

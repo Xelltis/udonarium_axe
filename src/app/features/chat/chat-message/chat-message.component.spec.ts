@@ -1399,6 +1399,59 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  describe('the room’s mark', () => {
+    let tab: ChatTab;
+
+    const testId = (id: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-testid="${id}"]`);
+
+    /** Changes reach the view through the versions a microtask later, as they do in the room. */
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    function shown(from: string): ChatMessage {
+      const message = tab.addMessage({ from, name: 'アリア', text: '扉の向こうから声がした', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+      return message;
+    }
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Player;
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => tab.destroy());
+
+    it('marks a line from its button and shows the mark with the name the room gave it', async () => {
+      const message = shown('someone');
+      expect(testId('chat-message-bookmark-mark')).toBeNull();
+
+      testId('chat-message-bookmark')!.click();
+      message.renameBookmark('事件の証言A');
+      await settle();
+
+      expect(message.isBookmarked).toBe(true);
+      const mark = testId('chat-message-bookmark-mark')!;
+      expect(mark.title).toContain('事件の証言A');
+      expect(testId('chat-message-bookmark')?.textContent?.trim()).toBe('bookmark_remove');
+    });
+
+    it('shows a guest the mark but offers no button to change it', async () => {
+      const message = shown('someone');
+      message.bookmark(1000);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      await settle();
+
+      expect(testId('chat-message-bookmark-mark')).toBeTruthy();
+      expect(testId('chat-message-bookmark')).toBeNull();
+    });
+  });
+
   describe('consuming a jump to the original message', () => {
     /**
      * A jump is always cleared once it is consumed.

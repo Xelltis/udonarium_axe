@@ -2906,6 +2906,18 @@
         "newer": "次の発言へ（Shift+Enter）",
         "close": "閉じる（Esc）"
       },
+      "bookmark": {
+        "button": "しおり",
+        "open": "しおりの一覧",
+        "title": "しおり",
+        "close": "閉じる（Esc）",
+        "jump": "この発言へ移動",
+        "rename": "題名を変える",
+        "renamePlaceholder": "題名（空にすると発言の書き出し）",
+        "renameHint": "Enter で確定 / Esc で取消",
+        "remove": "しおりを外す",
+        "empty": "しおりはまだありません。発言のしおりボタンか、右クリック（長押し）のメニューで挟めます。しおりは部屋の全員で共有されます。"
+      },
       "input": {
         "you": "（あなた）",
         "everyone": "全員",
@@ -2954,6 +2966,10 @@
         "copyToTab": "別のタブにコピー",
         "copyText": "本文をコピー",
         "selectText": "文字を選ぶ",
+        "bookmark": "しおりを挟む",
+        "unbookmark": "しおりを外す",
+        "bookmarked": "しおり",
+        "bookmarkedAs": "しおり：{{name}}",
         "afterWhisper": "あとから秘話にする",
         "afterWhisperTo": "秘話の相手",
         "afterWhisperNobody": "部屋にほかの参加者がいません",
