@@ -6,6 +6,25 @@
     <i class="material-icons text-ui-accent text-[15px]!" aria-hidden="true">bookmarks</i>
     <span class="text-ui-text text-[12px] font-semibold">{{ 'feature.chat.bookmark.title' | transloco }}</span>
     <span class="text-ui-dim text-[11px] tabular-nums" data-testid="chat-bookmarks-count">{{ items().length }}</span>
+    <div
+      class="rounded-ui-sm border-ui-border-panel ml-1 flex overflow-hidden border border-solid"
+      role="group"
+      [attr.aria-label]="'feature.chat.bookmark.filter' | transloco"
+    >
+      @for (option of filters; track option) {
+        <button
+          type="button"
+          class="text-ui-muted hover:bg-ui-hover border-ui-border-panel m-0 cursor-pointer border-0 border-l border-solid bg-transparent px-1.5 py-0.5 text-[11px] transition-colors first:border-l-0 hover:shadow-none"
+          [class.bg-ui-accent-bg!]="filter() === option"
+          [class.text-ui-accent!]="filter() === option"
+          [attr.aria-pressed]="filter() === option"
+          [attr.data-testid]="'chat-bookmarks-filter-' + option"
+          (click)="chooseFilter(option)"
+        >
+          {{ 'feature.chat.bookmark.filters.' + option | transloco }}
+        </button>
+      }
+    </div>
     <button
       type="button"
       class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm ml-auto inline-flex size-6.5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[16px]!"
@@ -19,12 +38,13 @@
   </div>
 
   <ul #list class="m-0 min-h-0 flex-1 list-none overflow-y-auto p-1 outline-none" tabindex="-1">
-    @for (item of items(); track item.message.identifier) {
+    @for (item of items(); track item.key) {
       <li
         class="group/mark rounded-ui-sm hover:bg-ui-hover flex items-start gap-1 transition-colors"
         data-testid="chat-bookmark-item"
+        [attr.data-kind]="item.kind"
       >
-        @if (renaming() === item.message.identifier) {
+        @if (renaming() === item.key) {
           <div class="flex min-w-0 flex-1 flex-col gap-0.5 px-1.5 py-1">
             <input
               #renameInput
@@ -49,9 +69,17 @@
             [title]="'feature.chat.bookmark.jump' | transloco"
             (click)="open(item)"
           >
-            <span class="text-ui-text w-full truncate text-[12px] font-medium" data-testid="chat-bookmark-title">{{
-              item.title
-            }}</span>
+            <span class="flex w-full min-w-0 items-center gap-1">
+              <span
+                class="rounded-ui shrink-0 px-1 text-[10px] leading-tight"
+                [class]="item.kind === 'shared' ? 'bg-ui-accent-bg text-ui-accent' : 'bg-ui-hover text-ui-muted'"
+                data-testid="chat-bookmark-kind"
+                >{{ 'feature.chat.bookmark.kinds.' + item.kind | transloco }}</span
+              >
+              <span class="text-ui-text min-w-0 truncate text-[12px] font-medium" data-testid="chat-bookmark-title">{{
+                item.title
+              }}</span>
+            </span>
             @if (item.named && item.excerpt) {
               <span class="text-ui-muted line-clamp-2 w-full text-[11px] leading-snug">{{ item.excerpt }}</span>
             }
@@ -59,7 +87,7 @@
               >{{ item.tabName }} · {{ item.speaker }} · {{ item.placedAt | date: 'M/d H:mm' }}</span
             >
           </button>
-          @if (canEdit) {
+          @if (canEdit(item)) {
             <span
               class="flex shrink-0 items-center gap-0.5 self-center pr-1 opacity-0 transition-opacity group-focus-within/mark:opacity-100 group-hover/mark:opacity-100 pointer-coarse:opacity-100"
             >
@@ -89,7 +117,7 @@
       </li>
     } @empty {
       <li class="text-ui-dim px-2 py-3 text-xs/relaxed" data-testid="chat-bookmarks-empty">
-        {{ 'feature.chat.bookmark.empty' | transloco }}
+        {{ 'feature.chat.bookmark.empty.' + filter() | transloco }}
       </li>
     }
   </ul>

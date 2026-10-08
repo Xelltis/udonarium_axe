@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -157,5 +159,75 @@ describe('ChatBookmarkListComponent', () => {
     expect(all('chat-bookmark-item')).toHaveLength(1);
     expect(one('chat-bookmark-rename')).toBeNull();
     expect(one('chat-bookmark-remove')).toBeNull();
+  });
+
+  describe('the reader’s own marks', () => {
+    const bookmarks = () => TestBed.inject(ChatBookmarkService);
+
+    it('are listed with the room’s, each saying whose it is, and can be shown on their own', () => {
+      const line = marked('犯人は左利きだった', 1000);
+      bookmarks().add(line, 'personal');
+      fixture.detectChanges();
+
+      expect(all('chat-bookmark-item').map((item) => item.dataset['kind'])).toEqual(['shared', 'personal']);
+      expect(all('chat-bookmark-kind').map((kind) => kind.textContent?.trim())).toEqual([
+        TestBed.inject(TRANSLATE_FN)('feature.chat.bookmark.kinds.shared'),
+        TestBed.inject(TRANSLATE_FN)('feature.chat.bookmark.kinds.personal'),
+      ]);
+
+      one('chat-bookmarks-filter-personal')!.click();
+      fixture.detectChanges();
+      expect(all('chat-bookmark-item').map((item) => item.dataset['kind'])).toEqual(['personal']);
+
+      one('chat-bookmarks-filter-shared')!.click();
+      fixture.detectChanges();
+      expect(all('chat-bookmark-item').map((item) => item.dataset['kind'])).toEqual(['shared']);
+    });
+
+    it('are renamed apart from the room’s mark on the same line', async () => {
+      const line = marked('犯人は左利きだった', 1000);
+      bookmarks().add(line, 'personal');
+      fixture.detectChanges();
+      one('chat-bookmarks-filter-personal')!.click();
+      fixture.detectChanges();
+
+      one('chat-bookmark-rename')!.click();
+      await fixture.whenStable();
+      const input = one('chat-bookmark-rename-input') as HTMLInputElement;
+      input.value = '自分用';
+      input.dispatchEvent(new Event('input'));
+      keydown(input, 'Enter');
+      fixture.detectChanges();
+
+      expect(bookmarks().nameOf(line, 'personal')).toBe('自分用');
+      expect(line.bookmarkName).toBe('');
+    });
+
+    it('may be renamed and taken off by a guest, whose hands are off the room’s', () => {
+      const line = marked('犯人は左利きだった', 1000);
+      bookmarks().add(line, 'personal');
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      fixture.detectChanges();
+
+      const [shared, personal] = all('chat-bookmark-item');
+      expect(shared.querySelector('[data-testid="chat-bookmark-remove"]')).toBeNull();
+      (personal.querySelector('[data-testid="chat-bookmark-remove"]') as HTMLElement).click();
+      fixture.detectChanges();
+
+      expect(bookmarks().isBookmarked(line, 'personal')).toBe(false);
+      expect(line.isBookmarked).toBe(true);
+    });
+
+    it('say so when there are none of the kind shown', () => {
+      marked('犯人は左利きだった', 1000);
+      fixture.detectChanges();
+
+      one('chat-bookmarks-filter-personal')!.click();
+      fixture.detectChanges();
+
+      expect(one('chat-bookmarks-empty')?.textContent?.trim()).toBe(
+        TestBed.inject(TRANSLATE_FN)('feature.chat.bookmark.empty.personal')
+      );
+    });
   });
 });

@@ -1,14 +1,14 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
+import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 
 /** What the reader may do with one line, as the line works it out. */
 export interface ChatMessageMenuState {
   canInteract: boolean;
   canShareAsMemo: boolean;
   canChange: boolean;
-  /** Whether the reader may put the room's mark on the line or take it off. */
-  canBookmark: boolean;
-  isBookmarked: boolean;
+  /** The kinds of mark the reader may put on the line or take off, with whether it carries each. */
+  bookmarkKinds: readonly { kind: ChatBookmarkKind; isBookmarked: boolean }[];
   /** The seats the line may be whispered to afterwards, or null where the reader may not. */
   afterWhisperTargets: readonly { identifier: string; name: string }[] | null;
   /** Whether the reader may put an after-the-fact whisper back for everyone. */
@@ -34,7 +34,7 @@ export interface ChatMessageMenuCallbacks {
   copyToTab: (tabIdentifier: string) => void;
   shareAsMemo: () => void;
   edit: () => void;
-  toggleBookmark: () => void;
+  toggleBookmark: (kind: ChatBookmarkKind) => void;
   whisperTo: (peerIdentifier: string) => void;
   undoAfterWhisper: () => void;
   pseudoDelete: () => void;
@@ -78,9 +78,9 @@ export function buildChatMessageContextMenu(
   if (state.canChange) {
     actions.push({ name: t('feature.chat.messageFix.change'), action: () => callbacks.edit() });
   }
-  if (state.canBookmark) {
-    const name = state.isBookmarked ? t('feature.chat.message.unbookmark') : t('feature.chat.message.bookmark');
-    actions.push({ name, action: () => callbacks.toggleBookmark() });
+  for (const { kind, isBookmarked } of state.bookmarkKinds) {
+    const name = t(`feature.chat.message.bookmarks.${kind}.${isBookmarked ? 'remove' : 'add'}`);
+    actions.push({ name, action: () => callbacks.toggleBookmark(kind) });
   }
   if (state.afterWhisperTargets) {
     const targets = state.afterWhisperTargets;

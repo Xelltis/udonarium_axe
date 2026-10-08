@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import {
@@ -1427,28 +1428,47 @@ describe('ChatMessageComponent', () => {
 
     afterEach(() => tab.destroy());
 
-    it('marks a line from its button and shows the mark with the name the room gave it', async () => {
+    it('marks a line for the room from its button, and shows the mark with the name it was given', async () => {
       const message = shown('someone');
       expect(testId('chat-message-bookmark-mark')).toBeNull();
 
       testId('chat-message-bookmark')!.click();
+      fixture.detectChanges();
+      testId('chat-message-bookmark-shared')!.click();
       message.renameBookmark('事件の証言A');
       await settle();
 
       expect(message.isBookmarked).toBe(true);
+      expect(testId('chat-message-bookmark-picker')).toBeNull();
       const mark = testId('chat-message-bookmark-mark')!;
+      expect(mark.dataset['kind']).toBe('shared');
       expect(mark.title).toContain('事件の証言A');
-      expect(testId('chat-message-bookmark')?.textContent?.trim()).toBe('bookmark_remove');
     });
 
-    it('shows a guest the mark but offers no button to change it', async () => {
+    it('marks a line for the reader alone, with a mark of its own, leaving the line as it was', async () => {
+      const message = shown('someone');
+
+      testId('chat-message-bookmark')!.click();
+      fixture.detectChanges();
+      testId('chat-message-bookmark-personal')!.click();
+      await settle();
+
+      expect(message.isBookmarked).toBe(false);
+      expect(TestBed.inject(ChatBookmarkService).isBookmarked(message, 'personal')).toBe(true);
+      expect(testId('chat-message-bookmark-mark')?.dataset['kind']).toBe('personal');
+    });
+
+    it('lets a guest keep a mark of their own but not put the room’s on', async () => {
       const message = shown('someone');
       message.bookmark(1000);
       PeerCursor.myCursor.role = PeerRole.Guest;
       await settle();
 
-      expect(testId('chat-message-bookmark-mark')).toBeTruthy();
-      expect(testId('chat-message-bookmark')).toBeNull();
+      expect(testId('chat-message-bookmark-mark')?.dataset['kind']).toBe('shared');
+      testId('chat-message-bookmark')!.click();
+      fixture.detectChanges();
+      expect(testId('chat-message-bookmark-shared')).toBeNull();
+      expect(testId('chat-message-bookmark-personal')).toBeTruthy();
     });
   });
 

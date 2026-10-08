@@ -15,6 +15,7 @@ import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import {
   isChatTextHidden,
@@ -28,12 +29,18 @@ const TITLE_LENGTH = 40;
 /** How much of a line is shown under a mark that has a name of its own. */
 const EXCERPT_LENGTH = 120;
 
+/** Which marks the list shows: both kinds, or one. */
+export type ChatBookmarkFilter = 'all' | ChatBookmarkKind;
+
 /** One mark as the list shows it. */
 export interface ChatBookmarkItem {
+  /** The mark among all the list holds, as its kind and the identifier of its line. */
+  readonly key: string;
   readonly message: ChatMessage;
-  /** The name the room gave the mark, or the opening words of the line where it gave none. */
+  readonly kind: ChatBookmarkKind;
+  /** The name the mark was given, or the opening words of the line where it was given none. */
   readonly title: string;
-  /** Whether the room named the mark, so the line's own words are shown under the name. */
+  /** Whether the mark was named, so the line's own words are shown under the name. */
   readonly named: boolean;
   readonly excerpt: string;
   readonly speaker: string;
@@ -42,11 +49,12 @@ export interface ChatBookmarkItem {
 }
 
 /**
- * The marks the room put on chat lines, as a list to go back to them by.
+ * The bookmarks on chat lines, the room's shared ones and the reader's own, as a list to go back to
+ * them by.
  *
- * Choosing a mark asks for its line to be shown; renaming and taking marks off are offered to
- * those who may change them. Escape closes the list, and while a name is being typed it puts the
- * name back instead.
+ * The list shows both kinds or one, each mark saying which it is. Choosing a mark asks for its line
+ * to be shown; renaming and taking marks off are offered on the marks the reader may change. Escape
+ * closes the list, and while a name is being typed it puts the name back instead.
  */
 @Component({
   selector: 'chat-bookmark-list',
@@ -70,19 +78,25 @@ export class ChatBookmarkListComponent {
   private readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
   private readonly listRef = viewChild<ElementRef<HTMLElement>>('list');
 
+  /** Which marks are shown. */
+  readonly filter = signal<ChatBookmarkFilter>('all');
+  /** The choices of which marks to show, in the order they are offered. */
+  readonly filters: readonly ChatBookmarkFilter[] = ['all', 'shared', 'personal'];
+
   /** The marks this reader may see, in the order their lines were said. */
-  readonly items = computed<readonly ChatBookmarkItem[]>(() => {
+  readonly allItems = computed<readonly ChatBookmarkItem[]>(() => {
     this.language.currentLang();
     const canSeeHidden = this.rolePermission.canSeeHidden;
-    return this.bookmarks.entries().map(({ message, tab }) => {
+    return this.bookmarks.entries().map(({ message, tab, kind, name }) => {
       const hidden = isChatTextHidden(message, canSeeHidden);
       const words = hidden
         ? this.t('feature.chat.message.secretDice')
         : readableChatText(message, false, this.t).replace(/\s+/g, ' ');
       const speaker = readableChatName(message, this.t);
-      const name = message.bookmarkName;
       return {
+        key: `${kind}:${message.identifier}`,
         message,
+        kind,
         title: name || shorten(words, TITLE_LENGTH) || speaker,
         named: name.length > 0,
         excerpt: shorten(words, EXCERPT_LENGTH),
@@ -93,26 +107,39 @@ export class ChatBookmarkListComponent {
     });
   });
 
-  /** The line whose mark is being renamed, by identifier, or null while none is. */
+  /** The marks shown under the filter chosen. */
+  readonly items = computed<readonly ChatBookmarkItem[]>(() => {
+    const filter = this.filter();
+    const items = this.allItems();
+    return filter === 'all' ? items : items.filter((item) => item.kind === filter);
+  });
+
+  /** The mark being renamed, by its key, or null while none is. */
   readonly renaming = signal<string | null>(null);
   /** The name being typed for the mark. */
   readonly draft = signal('');
 
-  /** Whether this reader may rename marks and take them off. */
-  get canEdit(): boolean {
-    return this.bookmarks.canEdit;
+  /** Whether this reader may rename the mark and take it off: anyone their own, the table the room's. */
+  canEdit(item: ChatBookmarkItem): boolean {
+    return this.bookmarks.canEdit(item.kind);
+  }
+
+  /** Shows both kinds of mark, or one. */
+  chooseFilter(filter: ChatBookmarkFilter): void {
+    this.renaming.set(null);
+    this.filter.set(filter);
   }
 
   /** Shows the line a mark is on. */
   open(item: ChatBookmarkItem): void {
-    if (this.renaming() === item.message.identifier) return;
+    if (this.renaming() === item.key) return;
     this.jump.emit(item.message);
   }
 
   /** Opens the name of a mark for typing, starting from the name it shows under. */
   startRename(item: ChatBookmarkItem): void {
-    if (!this.canEdit) return;
-    this.renaming.set(item.message.identifier);
+    if (!this.canEdit(item)) return;
+    this.renaming.set(item.key);
     this.draft.set(item.named ? item.title : '');
     afterNextRender(
       () => {
@@ -126,8 +153,8 @@ export class ChatBookmarkListComponent {
 
   /** Gives the mark being renamed the name typed; an empty name goes back to the line's own words. */
   commitRename(item: ChatBookmarkItem): void {
-    if (this.renaming() !== item.message.identifier) return;
-    this.bookmarks.rename(item.message, this.draft());
+    if (this.renaming() !== item.key) return;
+    this.bookmarks.rename(item.message, item.kind, this.draft());
     this.renaming.set(null);
   }
 
@@ -147,7 +174,7 @@ export class ChatBookmarkListComponent {
 
   /** Takes the mark off a line. */
   remove(item: ChatBookmarkItem): void {
-    this.bookmarks.remove(item.message);
+    this.bookmarks.remove(item.message, item.kind);
   }
 
   /** Puts the keyboard in the list, so Escape closes it straight away. */

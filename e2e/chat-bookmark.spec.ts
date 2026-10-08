@@ -25,6 +25,7 @@ test.describe('チャットのしおり', () => {
     const witness = lineSaying(page, '犯人は左利きだったと思う');
     await witness.locator('.msg-text').hover();
     await witness.getByTestId('chat-message-bookmark').click();
+    await witness.getByTestId('chat-message-bookmark-shared').click();
     await expect(witness.getByTestId('chat-message-bookmark-mark')).toBeVisible();
 
     await say(
@@ -61,6 +62,7 @@ test.describe('チャットのしおり', () => {
     const line = lineSaying(page, 'あとで見返す発言');
     await line.locator('.msg-text').hover();
     await line.getByTestId('chat-message-bookmark').click();
+    await line.getByTestId('chat-message-bookmark-shared').click();
     await expect(page.getByTestId('chat-bookmarks-toggle-count')).toHaveText('1');
 
     await page.getByTestId('chat-bookmarks-toggle').click();
@@ -70,5 +72,27 @@ test.describe('チャットのしおり', () => {
 
     await expect(page.getByTestId('chat-bookmarks-empty')).toBeVisible();
     await expect(line.getByTestId('chat-message-bookmark-mark')).toHaveCount(0);
+  });
+
+  test('個人しおりは共有しおりと分かれて一覧に並び、個人だけに絞れること', async ({ page }) => {
+    await say(page, ['みんなで覚えておく発言', '自分だけ覚えておく発言']);
+    const shared = lineSaying(page, 'みんなで覚えておく発言');
+    await shared.locator('.msg-text').hover();
+    await shared.getByTestId('chat-message-bookmark').click();
+    await shared.getByTestId('chat-message-bookmark-shared').click();
+    const personal = lineSaying(page, '自分だけ覚えておく発言');
+    await personal.locator('.msg-text').hover();
+    await personal.getByTestId('chat-message-bookmark').click();
+    await personal.getByTestId('chat-message-bookmark-personal').click();
+    await expect(personal.locator('[data-testid="chat-message-bookmark-mark"][data-kind="personal"]')).toBeVisible();
+
+    await page.getByTestId('chat-bookmarks-toggle').click();
+    const items = page.getByTestId('chat-bookmark-item');
+    await expect(items).toHaveCount(2);
+    await expect(items.getByTestId('chat-bookmark-kind')).toHaveText(['共有', '個人']);
+
+    await page.getByTestId('chat-bookmarks-filter-personal').click();
+    await expect(items).toHaveCount(1);
+    await expect(items.getByTestId('chat-bookmark-title')).toHaveText('自分だけ覚えておく発言');
   });
 });

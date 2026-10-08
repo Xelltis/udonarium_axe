@@ -36,6 +36,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -56,6 +57,9 @@ import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** The kinds of mark a line can carry, in the order they are offered. */
+const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
 
 @Component({
   selector: 'chat-message',
@@ -164,12 +168,19 @@ export class ChatMessageComponent {
     return chatMessage.isDirect;
   });
 
-  /** The mark the room put on the line, by the name it shows under, or null for a line not marked. */
-  readonly bookmark = computed<{ name: string } | null>(() => {
+  /**
+   * The marks on the line, the room's and this reader's own, each by the name it shows under, or null
+   * for a kind the line does not carry.
+   */
+  readonly bookmarks = computed<Record<ChatBookmarkKind, { name: string } | null>>(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return null;
+    if (!chatMessage) return { shared: null, personal: null };
     this.objectChange.versionOf(chatMessage.identifier)();
-    return chatMessage.isBookmarked ? { name: chatMessage.bookmarkName } : null;
+    const markOf = (kind: ChatBookmarkKind) =>
+      this.chatBookmarks.isBookmarked(chatMessage, kind)
+        ? { name: this.chatBookmarks.nameOf(chatMessage, kind) }
+        : null;
+    return { shared: markOf('shared'), personal: markOf('personal') };
   });
 
   readonly isEdited = computed(() => {
@@ -268,8 +279,10 @@ export class ChatMessageComponent {
         afterWhisperTargets: this.canMakeAfterWhisper
           ? this.whisperTargets().map((peer) => ({ identifier: peer.identifier, name: peer.name }))
           : null,
-        canBookmark: this.canBookmark,
-        isBookmarked: message.isBookmarked,
+        bookmarkKinds: BOOKMARK_KINDS.filter((kind) => this.canBookmark(kind)).map((kind) => ({
+          kind,
+          isBookmarked: !!this.bookmarks()[kind],
+        })),
         canUndoAfterWhisper: this.canUndoAfterWhisper,
         canPseudoDelete: this.canPseudoDelete,
         canShowInTicker: this.canShowInTicker(),
@@ -292,7 +305,7 @@ export class ChatMessageComponent {
           const peer = this.whisperTargets().find((candidate) => candidate.identifier === identifier);
           if (peer) this.whisperTo(peer);
         },
-        toggleBookmark: () => this.toggleBookmark(),
+        toggleBookmark: (kind) => this.toggleBookmark(kind),
         undoAfterWhisper: () => this.undoAfterWhisper(),
         pseudoDelete: () => void this.pseudoDelete(),
         showInTicker: () => this.clickShowInTicker(),
@@ -616,17 +629,34 @@ export class ChatMessageComponent {
     else this.uiSignalService.requestChatQuote(this.chatMessage.identifier);
   }
 
-  /** Whether this reader may put the room's mark on the line, or take it off. */
-  get canBookmark(): boolean {
+  /** Whether this reader may put a mark of the kind on the line, or take it off. */
+  canBookmark(kind: ChatBookmarkKind): boolean {
     if (this.readOnly()) return false;
     const message = this.chatMessage;
-    return !!message && this.chatBookmarks.canBookmark(message);
+    return !!message && this.chatBookmarks.canBookmark(message, kind);
   }
 
-  /** Marks the line for the room to find again, or takes the mark off, from its button or the line's menu. */
-  toggleBookmark(): void {
-    if (!this.canBookmark) return;
-    this.chatBookmarks.toggle(this.chatMessage);
+  /** Whether the bookmark button is offered: the reader may mark the line with one kind or the other. */
+  get canBookmarkAny(): boolean {
+    return BOOKMARK_KINDS.some((kind) => this.canBookmark(kind));
+  }
+
+  readonly isBookmarkPickerOpen = signal(false);
+  protected readonly bookmarkKinds = BOOKMARK_KINDS;
+
+  /** Opens or closes the choice of the room's mark or the reader's own, from the bookmark button. */
+  toggleBookmarkPicker(): void {
+    if (!this.canBookmarkAny) return;
+    this.isCopyPickerOpen.set(false);
+    this.isWhisperPickerOpen.set(false);
+    this.isBookmarkPickerOpen.update((open) => !open);
+  }
+
+  /** Marks the line with the kind to find again, or takes that mark off, from the choice or the line's menu. */
+  toggleBookmark(kind: ChatBookmarkKind): void {
+    this.isBookmarkPickerOpen.set(false);
+    if (!this.canBookmark(kind)) return;
+    this.chatBookmarks.toggle(this.chatMessage, kind);
   }
 
   /** Whether this reader may make the line an after-the-fact whisper, which they may of a line they said. */
@@ -655,6 +685,7 @@ export class ChatMessageComponent {
   toggleWhisperPicker(): void {
     if (!this.canMakeAfterWhisper) return;
     this.isCopyPickerOpen.set(false);
+    this.isBookmarkPickerOpen.set(false);
     this.isWhisperPickerOpen.update((open) => !open);
   }
 
@@ -757,6 +788,7 @@ export class ChatMessageComponent {
   toggleCopyPicker(): void {
     if (!this.canCopyToTab) return;
     this.isWhisperPickerOpen.set(false);
+    this.isBookmarkPickerOpen.set(false);
     this.isCopyPickerOpen.update((open) => !open);
   }
 

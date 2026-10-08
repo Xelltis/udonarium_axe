@@ -14,6 +14,7 @@ import { basename, join, resolve } from 'path';
 
 Logger.setLevel(LogLevel.NONE);
 
+import { CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY } from '@axe/application/chat/chat-personal-bookmark.store';
 import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-volumes';
 import { COMPASS_FACE_STORAGE_KEY } from '@axe/application/ui/compass-face.service';
 import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
@@ -379,7 +380,7 @@ function forgetMyCursor(): void {
 // asks for a flat screen must not leave the next one's otherwise ordinary table lying down. The
 // same goes for what a seat shows: a spec that puts a toolbar away, folds one or hides the bars
 // over the pieces writes that choice to the browser, and the file after it builds its services
-// from whatever is left there.
+// from whatever is left there. A reader's own bookmarks on chat lines are kept there too.
 function forgetSeatPreferences(): void {
   localStorage.removeItem(TABLETOP_DISPLAY_STORAGE_KEY);
   localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
@@ -389,6 +390,7 @@ function forgetSeatPreferences(): void {
   localStorage.removeItem(PIECE_OVERLAY_STORAGE_KEY);
   localStorage.removeItem(COMPASS_FACE_STORAGE_KEY);
   localStorage.removeItem(PERSONAL_VOLUME_STORAGE_KEY);
+  localStorage.removeItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY);
 }
 
 beforeAll(async () => {

@@ -49,9 +49,9 @@ describe('ChatBookmarkService', () => {
     const second = say(side, '証言B', 1500);
     const third = say(main, '証言C', 3000);
 
-    service.add(third);
-    service.add(first);
-    service.add(second);
+    service.add(third, 'shared');
+    service.add(first, 'shared');
+    service.add(second, 'shared');
 
     expect(service.entries().map((entry) => entry.message)).toEqual([first, second, third]);
     expect(service.entries()[1].tab).toBe(side);
@@ -60,7 +60,7 @@ describe('ChatBookmarkService', () => {
   it('drops a mark as soon as its line is gone', async () => {
     const main = addTab('メイン');
     const line = say(main, '証言A', 1000);
-    service.add(line);
+    service.add(line, 'shared');
     expect(service.entries()).toHaveLength(1);
 
     line.destroy();
@@ -71,8 +71,8 @@ describe('ChatBookmarkService', () => {
 
   it('drops the marks of a log that was cleared', async () => {
     const main = addTab('メイン');
-    service.add(say(main, '証言A', 1000));
-    service.add(say(main, '証言B', 2000));
+    service.add(say(main, '証言A', 1000), 'shared');
+    service.add(say(main, '証言B', 2000), 'shared');
     expect(service.entries()).toHaveLength(2);
 
     while (main.children.length > 0) main.children[0].destroy();
@@ -93,7 +93,7 @@ describe('ChatBookmarkService', () => {
   it('keeps the mark on a line whispered afterwards from those it was not whispered to, and shows it again once it is put back', async () => {
     const main = addTab('メイン');
     const line = say(main, '証言A', 1000);
-    service.add(line);
+    service.add(line, 'shared');
     expect(service.entries()).toHaveLength(1);
 
     line.makeAfterWhisper('third', 'サード', 2000);
@@ -108,7 +108,7 @@ describe('ChatBookmarkService', () => {
   it('drops the mark of a deleted line from the list', async () => {
     const main = addTab('メイン');
     const line = say(main, '証言A', 1000);
-    service.add(line);
+    service.add(line, 'shared');
     expect(service.entries()).toHaveLength(1);
 
     line.pseudoDelete(2000);
@@ -142,11 +142,11 @@ describe('ChatBookmarkService', () => {
     const other = say(main, '証言B', 2000);
     beSeat(PeerRole.Guest);
 
-    service.add(other);
-    service.rename(line, '書き換え');
-    service.remove(line);
+    service.add(other, 'shared');
+    service.rename(line, 'shared', '書き換え');
+    service.remove(line, 'shared');
 
-    expect(service.canEdit).toBe(false);
+    expect(service.canEdit('shared')).toBe(false);
     expect(other.isBookmarked).toBe(false);
     expect(line.bookmarkName).toBe('');
     expect(line.isBookmarked).toBe(true);
@@ -156,12 +156,12 @@ describe('ChatBookmarkService', () => {
   it('names a mark, and goes back to the line’s own words when the name is emptied', () => {
     const main = addTab('メイン');
     const line = say(main, '証言A', 1000);
-    service.add(line);
+    service.add(line, 'shared');
 
-    service.rename(line, '事件の証言A');
+    service.rename(line, 'shared', '事件の証言A');
     expect(line.bookmarkName).toBe('事件の証言A');
 
-    service.rename(line, '');
+    service.rename(line, 'shared', '');
     expect(line.bookmarkName).toBe('');
   });
 
@@ -171,8 +171,8 @@ describe('ChatBookmarkService', () => {
     const loose = new ChatMessage();
     loose.initialize();
 
-    expect(service.canBookmark(notice)).toBe(false);
-    expect(service.canBookmark(loose)).toBe(false);
+    expect(service.canBookmark(notice, 'shared')).toBe(false);
+    expect(service.canBookmark(loose, 'shared')).toBe(false);
     loose.destroy();
   });
 
@@ -180,9 +180,83 @@ describe('ChatBookmarkService', () => {
     const main = addTab('メイン');
     const line = say(main, '証言A', 1000);
 
-    service.toggle(line);
+    service.toggle(line, 'shared');
     expect(line.isBookmarked).toBe(true);
-    service.toggle(line);
+    service.toggle(line, 'shared');
     expect(line.isBookmarked).toBe(false);
+  });
+
+  describe('a reader’s own bookmarks', () => {
+    it('are listed with the room’s, after them on a line that has both, and say whose they are', () => {
+      const main = addTab('メイン');
+      const first = say(main, '証言A', 1000);
+      const second = say(main, '証言B', 2000);
+
+      service.add(second, 'personal');
+      service.add(first, 'personal');
+      service.add(first, 'shared');
+
+      expect(service.entries().map((entry) => [entry.message.text, entry.kind])).toEqual([
+        ['証言A', 'shared'],
+        ['証言A', 'personal'],
+        ['証言B', 'personal'],
+      ]);
+    });
+
+    it('are kept apart from the line, so nothing reaches the room', () => {
+      const main = addTab('メイン');
+      const line = say(main, '証言A', 1000);
+
+      service.add(line, 'personal');
+      service.rename(line, 'personal', '自分用のメモ');
+
+      expect(line.isBookmarked).toBe(false);
+      expect(line.toXml()).not.toContain('自分用のメモ');
+      expect(service.nameOf(line, 'personal')).toBe('自分用のメモ');
+      expect(service.nameOf(line, 'shared')).toBe('');
+    });
+
+    it('are named and taken off without touching the room’s mark on the same line', () => {
+      const main = addTab('メイン');
+      const line = say(main, '証言A', 1000);
+      service.add(line, 'shared');
+      service.rename(line, 'shared', '事件の証言A');
+      service.add(line, 'personal');
+
+      service.rename(line, 'personal', '気になる');
+      service.remove(line, 'personal');
+
+      expect(line.bookmarkName).toBe('事件の証言A');
+      expect(service.isBookmarked(line, 'shared')).toBe(true);
+      expect(service.isBookmarked(line, 'personal')).toBe(false);
+    });
+
+    it('may be kept by a guest, who may not change the room’s', () => {
+      const main = addTab('メイン');
+      const line = say(main, '証言A', 1000);
+      beSeat(PeerRole.Guest);
+
+      service.add(line, 'personal');
+      service.add(line, 'shared');
+
+      expect(service.canEdit('personal')).toBe(true);
+      expect(service.isBookmarked(line, 'personal')).toBe(true);
+      expect(line.isBookmarked).toBe(false);
+    });
+
+    it('drop out of the list once their line is deleted or gone', async () => {
+      const main = addTab('メイン');
+      const deleted = say(main, '証言A', 1000);
+      const gone = say(main, '証言B', 2000);
+      service.add(deleted, 'personal');
+      service.add(gone, 'personal');
+      expect(service.entries()).toHaveLength(2);
+
+      deleted.pseudoDelete(3000);
+      gone.destroy();
+      await settle();
+
+      expect(service.entries()).toHaveLength(0);
+    });
   });
 });
