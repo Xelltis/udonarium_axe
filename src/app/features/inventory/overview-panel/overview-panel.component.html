@@ -21,6 +21,9 @@
       @case ('text-note') {
         <ng-container *ngTemplateOutlet="overviewNote; context: { note: tabletopObject }"></ng-container>
       }
+      @case ('white-board') {
+        <ng-container *ngTemplateOutlet="overviewWhiteBoard; context: { board: tabletopObject }"></ng-container>
+      }
       @case ('character') {
         <ng-container *ngTemplateOutlet="overviewCharacter; context: { character: tabletopObject }"></ng-container>
       }
@@ -47,6 +50,28 @@
 @if (isOpenImageView) {
   <ng-container *ngTemplateOutlet="imageView"></ng-container>
 }
+
+<ng-template #overviewWhiteBoard let-board="board">
+  <div class="w-62.5 text-[12px]" [ngClass]="pointerEventsStyle" data-testid="overview-white-board">
+    <div class="relative">
+      <white-board-face class="bg-ui-input h-50 w-62.5" [whiteBoard]="board" [padding]="8" />
+      <button
+        class="absolute -bottom-5.25 left-2 z-3 size-10.5 rounded-full p-1"
+        data-testid="overview-white-board-zoom"
+        [title]="'feature.inventory.overview.enlarge' | transloco"
+        [attr.aria-label]="'feature.inventory.overview.enlarge' | transloco"
+        (click)="chanageImageView(true)"
+      >
+        <i class="material-icons align-bottom text-[24px]!">zoom_in</i>
+      </button>
+    </div>
+    <div
+      class="text-ui-text bg-ui-elevated border-ui-border-panel box-border h-8 truncate border border-solid pr-[1em] pl-15 text-[1em]/8"
+    >
+      {{ board.name }}
+    </div>
+  </div>
+</ng-template>
 
 <ng-template #overviewCard let-card="card">
   <div class="max-w-62.5 text-[12px]" [ngClass]="pointerEventsStyle" [ngStyle]="{ width: overViewCardWidth + 'px' }">
@@ -573,16 +598,20 @@
     (click)="chanageImageView(false)"
   >
     <div class="pointer-events-none absolute top-4 right-4"><i class="material-icons text-[36px]!">close</i></div>
-    @if (overviewFaceCard; as faceCard) {
-      <card-face-preview
-        class="block size-full"
-        [card]="faceCard"
-        [imageUrl]="imageUrl()"
-        [padding]="16"
-        [framed]="false"
-      />
+    @if (faceWhiteBoard; as board) {
+      <white-board-face class="size-full" data-testid="enlarged-white-board" [whiteBoard]="board" [padding]="16" />
     } @else {
-      <img class="box-border size-full object-contain p-4 align-bottom" [src]="imageUrl() | safe: 'resourceUrl'" />
+      @if (overviewFaceCard; as faceCard) {
+        <card-face-preview
+          class="block size-full"
+          [card]="faceCard"
+          [imageUrl]="imageUrl()"
+          [padding]="16"
+          [framed]="false"
+        />
+      } @else {
+        <img class="box-border size-full object-contain p-4 align-bottom" [src]="imageUrl() | safe: 'resourceUrl'" />
+      }
     }
   </div>
 </ng-template>

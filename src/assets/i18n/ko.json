@@ -1390,7 +1390,8 @@
         "cardHidden": "카드",
         "diceHidden": "???",
         "imageUnset": "이미지 미설정",
-        "urlEdit": "URL 편집:"
+        "urlEdit": "URL 편집:",
+        "enlarge": "크게 보기"
       },
       "sheet": {
         "toggleEdit": "편집 전환",

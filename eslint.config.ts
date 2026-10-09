@@ -59,7 +59,7 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   'gm-object-list': ['disclosure', 'gm-tools', 'tabletop'],
   'gm-tools': ['card', 'chat', 'menu'],
   hotbar: ['pl-tools', 'visual-novel'],
-  inventory: ['gm-tools'],
+  inventory: ['gm-tools', 'tabletop'],
   'language-selector': [],
   lobby: [],
   'map-editor': ['tabletop'],

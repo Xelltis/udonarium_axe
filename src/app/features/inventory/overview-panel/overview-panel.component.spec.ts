@@ -16,6 +16,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { OverviewPanelComponent } from '@axe/features/inventory/overview-panel/overview-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -232,6 +233,30 @@ describe('OverviewPanelComponent', () => {
       component.chanageImageView(false);
       card.destroy();
       ImageStorage.instance.delete(image.identifier);
+    }
+  });
+
+  it('shows a whiteboard’s face in its pop-up, and opens it out to fill the screen from the button', () => {
+    const board = WhiteBoard.create('作戦ボード', 4, 3, 1);
+    component.tabletopObject = board;
+
+    try {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="overview-white-board"] white-board-face')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="overview-white-board"]').textContent).toContain(
+        '作戦ボード'
+      );
+      expect(fixture.nativeElement.querySelector('[data-testid="enlarged-white-board"]')).toBeNull();
+
+      (fixture.nativeElement.querySelector('[data-testid="overview-white-board-zoom"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      const enlarged = fixture.nativeElement.querySelector('[data-testid="enlarged-white-board"]') as HTMLElement;
+      expect(enlarged).toBeTruthy();
+      expect(enlarged.classList).toContain('size-full');
+    } finally {
+      component.chanageImageView(false);
+      board.destroy();
     }
   });
 

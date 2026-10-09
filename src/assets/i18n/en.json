@@ -1390,7 +1390,8 @@
         "cardHidden": "Card",
         "diceHidden": "???",
         "imageUnset": "No image",
-        "urlEdit": "Edit URL:"
+        "urlEdit": "Edit URL:",
+        "enlarge": "View larger"
       },
       "sheet": {
         "toggleEdit": "Toggle edit",
