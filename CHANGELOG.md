@@ -1,3 +1,43 @@
+## [1.63.0](https://github.com/Xelltis/udonarium_axe/compare/v1.62.3...v1.63.0) (2026-10-09)
+
+### ✨ Features
+
+* **chat-log:** leave deleted lines out of a saved log on request ([a4489f2](https://github.com/Xelltis/udonarium_axe/commit/a4489f2fd4a6393ade65ca26dbeaf9c646323990))
+* **chat:** delete a line from the chat while keeping it in the log ([0e77c2e](https://github.com/Xelltis/udonarium_axe/commit/0e77c2e0c714039003aac20ad6c8fdc3ab2073a1))
+* **chat:** gather what can be done with a line into a toolbar over it ([413881f](https://github.com/Xelltis/udonarium_axe/commit/413881ff961f4190d2bdd48b5450a28105c8d479))
+* **chat:** keep personal bookmarks apart from the room's shared ones ([731de25](https://github.com/Xelltis/udonarium_axe/commit/731de258d06755147b8e15c08f5f2358658adbae))
+* **chat:** keep the history of a line's edits ([3bbd3e1](https://github.com/Xelltis/udonarium_axe/commit/3bbd3e109af318ede8da69235af6d6b800dd7406))
+* **chat:** put deleting one's own line on the toolbar beside editing ([32d19bc](https://github.com/Xelltis/udonarium_axe/commit/32d19bc27cb68eb0824634d907f4d39e8859e0ba))
+* **chat:** share bookmarks on chat lines across the room ([aeae272](https://github.com/Xelltis/udonarium_axe/commit/aeae27240401a7de9b3c2872615ae8e781302d3e))
+* **chat:** whisper a line afterwards to someone chosen ([5d1a1a7](https://github.com/Xelltis/udonarium_axe/commit/5d1a1a70fecd155ca65c6beaa4eca3b87b94f57a))
+
+### 🐛 Bug Fixes
+
+* **chat:** count no deleted line as unread or as a line to draw ([4874aa3](https://github.com/Xelltis/udonarium_axe/commit/4874aa3fba21831c19fe41cd8515e0221034bd5c))
+* **chat:** keep a line's edit history true to when and by which edit ([ea4543b](https://github.com/Xelltis/udonarium_axe/commit/ea4543bb27384a332e382aa4fc63eedb6bf9b36e))
+* **chat:** keep personal bookmarks made in two windows of the app ([3766814](https://github.com/Xelltis/udonarium_axe/commit/3766814ebd7612fd1c88dc7720f5899bf615ffe3))
+* **chat:** keep the app's hover ring off the line toolbar and bookmark list ([f51bb9b](https://github.com/Xelltis/udonarium_axe/commit/f51bb9ba0bf3e4e5a6363688ff91da3660e8cb00))
+* **chat:** light a line up through the line's own flash ([44fd3cd](https://github.com/Xelltis/udonarium_axe/commit/44fd3cd3063aa00aca8e00ccf413935a44f97425))
+* **chat:** open a line's menus for a guest, with what a guest may do ([6036a16](https://github.com/Xelltis/udonarium_axe/commit/6036a16419ef1cfc369129475f26ba7cba6feb02))
+* **chat:** show nothing of a line kept from the reader through its history ([e99c738](https://github.com/Xelltis/udonarium_axe/commit/e99c73828edd4274fe115da4c1a86d722deadd8b))
+* **chat:** whisper a line afterwards only to someone who may read its tab ([d8b2494](https://github.com/Xelltis/udonarium_axe/commit/d8b249461092381dfb573ceab7d4ed4ef800f0b7))
+* **context-menu:** dim an item that is not enabled and ignore a press on it ([403d2dc](https://github.com/Xelltis/udonarium_axe/commit/403d2dc4490278a6bd27301fb463c3b02f52b4ef))
+
+### ⚡ Performance
+
+* **chat:** keep the bookmark list from reading the whole log ([e47c072](https://github.com/Xelltis/udonarium_axe/commit/e47c072752d48920764d12280064cabe75405db7))
+* **chat:** tell whether a line has a toolbar without building its menu ([0a8a8eb](https://github.com/Xelltis/udonarium_axe/commit/0a8a8ebd61b986d986b747e23edacbb882f5d44d))
+
+### 📝 Documentation
+
+* **website:** describe the line toolbar, bookmarks, edit history and more ([a24ec8c](https://github.com/Xelltis/udonarium_axe/commit/a24ec8cde54c954a8f8c2a795d62621423c6d111))
+* **website:** note a guest's line menu, the ticker and older edits ([ff62db7](https://github.com/Xelltis/udonarium_axe/commit/ff62db7085acc16f241fc471d55d3e15de6b1e99))
+* **website:** write the release notes for v1.63.0 ([fe0ddc5](https://github.com/Xelltis/udonarium_axe/commit/fe0ddc5ee81e223360c5b70541ffe733040451ec))
+
+### ♻️ Refactor
+
+* **chat:** build the bookmark choice menu in the line's menu file ([bddfdec](https://github.com/Xelltis/udonarium_axe/commit/bddfdec62dc71314acb609446d3afabb8c67da6b))
+
 ## [1.62.3](https://github.com/Xelltis/udonarium_axe/compare/v1.62.2...v1.62.3) (2026-10-08)
 
 ### 🐛 Bug Fixes
