@@ -14,16 +14,12 @@ test.describe('発言の削除', () => {
     await waitAppReady(page);
   });
 
-  test('確かめてから削除すると、自分の画面からも消えること', async ({ page }) => {
+  test('ツールバーの削除ボタンから、確かめてから削除すると、自分の画面からも消えること', async ({ page }) => {
     await say(page, 'うっかり書いた発言');
     const line = page.locator('chat-tab chat-message').filter({ hasText: 'うっかり書いた発言' });
 
     await line.locator('.msg-text').hover();
-    await line.getByTestId('chat-message-action-more').click();
-    await page
-      .locator('context-menu li')
-      .filter({ hasText: /^\s*削除\s*$/ })
-      .click();
+    await line.getByTestId('chat-message-action-delete').click();
     const dialog = page.locator('confirm-dialog');
     await expect(dialog).toContainText('元に戻せません');
     await dialog.getByRole('button', { name: '削除' }).click();
@@ -31,7 +27,7 @@ test.describe('発言の削除', () => {
     await expect(line).toHaveCount(0);
   });
 
-  test('確認でやめると、発言はそのまま残ること', async ({ page }) => {
+  test('メニューの削除から、確認でやめると、発言はそのまま残ること', async ({ page }) => {
     await say(page, '残しておく発言');
     const line = page.locator('chat-tab chat-message').filter({ hasText: '残しておく発言' });
 

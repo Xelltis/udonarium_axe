@@ -400,10 +400,12 @@
   What can be done with the line, floating over its top right corner while the pointer is on it or
   the keyboard is on something in it, so it takes no room from the line and every line keeps its
   height. A button pressed with the mouse keeps the focus without showing it, and so does not hold
-  the toolbar up once the pointer has gone. The
-  answers people reach for most stand in it; everything, those included, is under its last button,
-  in the same menu a right click or a press held on the line opens. A touch screen has no hover, so
-  it reaches the line through that press alone.
+  the toolbar up once the pointer has gone.
+
+  The answers people reach for most stand in it, and what the speaker does to their own line:
+  editing it, and deleting it, which asks first and is told apart by its colour. Everything, those
+  included, is under its last button, in the same menu a right click or a press held on the line
+  opens. A touch screen has no hover, so it reaches the line through that press alone.
 -->
 <ng-template #actionToolbar>
   @if (toolbarActions(); as actions) {
@@ -458,6 +460,18 @@
           (click)="startEdit()"
         >
           <i class="material-icons" aria-hidden="true">edit</i>
+        </button>
+      }
+      @if (actions.delete) {
+        <button
+          type="button"
+          data-testid="chat-message-action-delete"
+          class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!"
+          [title]="'feature.chat.message.deleteLine' | transloco"
+          [attr.aria-label]="'feature.chat.message.deleteLine' | transloco"
+          (click)="pseudoDelete()"
+        >
+          <i class="material-icons" aria-hidden="true">delete_outline</i>
         </button>
       }
       <span class="bg-ui-border-panel mx-0.5 h-4 w-px" aria-hidden="true"></span>

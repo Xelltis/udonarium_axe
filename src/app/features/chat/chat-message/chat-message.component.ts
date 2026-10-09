@@ -365,11 +365,19 @@ export class ChatMessageComponent {
   /**
    * The answers the toolbar over the line offers at once, or null where it offers nothing: a line
    * only to be read, a line being edited, or one nothing can be done with.
+   *
+   * Deleting stands there beside editing, both being what the speaker does to their own line; it
+   * asks before it deletes, so having it at hand does not make it easy to do by mistake.
    */
-  protected toolbarActions(): { answer: boolean; bookmark: boolean; edit: boolean } | null {
+  protected toolbarActions(): { answer: boolean; bookmark: boolean; edit: boolean; delete: boolean } | null {
     if (!this.chatMessage || this.readOnly() || this.isEditing()) return null;
     if (this.lineActions('').length === 0) return null;
-    return { answer: this.canInteract, bookmark: this.canBookmarkAny, edit: this.canChange };
+    return {
+      answer: this.canInteract,
+      bookmark: this.canBookmarkAny,
+      edit: this.canChange,
+      delete: this.canPseudoDelete,
+    };
   }
 
   /** Opens everything that can be done with the line under the toolbar's last button. */

@@ -1503,16 +1503,28 @@ describe('ChatMessageComponent', () => {
 
     afterEach(() => tab.destroy());
 
-    it('holds answering, marking and editing the reader’s own line, then everything else', () => {
+    it('holds answering, marking, editing and deleting the reader’s own line, then everything else', () => {
       shown('me');
 
-      expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'edit', 'more']);
+      expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'edit', 'delete', 'more']);
     });
 
-    it('holds no editing of somebody else’s line', () => {
+    it('holds no editing or deleting of somebody else’s line', () => {
       shown('someone');
 
       expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'more']);
+    });
+
+    it('asks before deleting from its button, and deletes once the reader is sure', async () => {
+      const message = shown('me');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>('[data-testid="chat-message-action-delete"]')!
+        .click();
+
+      await vi.waitFor(() => expect(message.isPseudoDeleted).toBe(true));
+      expect(ask).toHaveBeenCalledWith(expect.objectContaining({ danger: true }));
     });
 
     it('is not there over a line only to be read, nor over one being edited', () => {
