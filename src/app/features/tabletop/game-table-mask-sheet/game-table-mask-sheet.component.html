@@ -155,7 +155,8 @@
           max="200"
           step="1"
           data-field="mask-text-size"
-          [(ngModel)]="textSize"
+          [value]="textSize"
+          (change)="commitTextSize($any($event.target))"
         />
       </div>
       <div class="mb-2 flex items-center gap-2 last:mb-0">

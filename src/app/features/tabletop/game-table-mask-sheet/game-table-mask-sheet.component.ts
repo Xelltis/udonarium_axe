@@ -184,14 +184,20 @@ export class GameTableMaskSheetComponent {
     if (mask) mask.text = text ?? '';
   }
 
-  /** The size of the words in pixels. A field left empty changes nothing. */
+  /** The size of the words in pixels. */
   get textSize(): number {
     return this._gameTableMask()?.textSize ?? GameTableMask.DEFAULT_TEXT_SIZE;
   }
-  set textSize(size: number) {
+
+  /**
+   * Takes the size typed into the field once it is settled, by Enter, by leaving the field or by its
+   * arrows, rather than at every key, so a size can be typed a digit at a time before it is held to
+   * its bounds. The field then shows the size the mask took; a field left empty changes nothing.
+   */
+  protected commitTextSize(field: HTMLInputElement): void {
     const mask = this._gameTableMask();
-    if (!mask || size === null || size === undefined || `${size}`.trim() === '') return;
-    mask.textSize = Number(size);
+    if (mask && field.value.trim() !== '') mask.textSize = Number(field.value);
+    field.value = `${this.textSize}`;
   }
 
   /** The colour of the words. */
