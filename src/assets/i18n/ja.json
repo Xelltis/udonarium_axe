@@ -4990,6 +4990,110 @@
       "previous": "前の立ち絵",
       "next": "次の立ち絵",
       "unnamed": "立ち絵 {{index}}"
+    },
+    "stamp": {
+      "families": {
+        "recent": "最近",
+        "sfx": "描き文字",
+        "seal": "判子",
+        "motif": "図柄"
+      },
+      "items": {
+        "sfx": {
+          "laugh": {
+            "label": "ドッ",
+            "name": "笑"
+          },
+          "shock": {
+            "label": "ガーン",
+            "name": "ショック"
+          },
+          "creepy": {
+            "label": "ゾワッ",
+            "name": "こわい"
+          },
+          "heart": {
+            "label": "キュン",
+            "name": "すき"
+          },
+          "clap": {
+            "label": "パチパチ",
+            "name": "拍手"
+          },
+          "notice": {
+            "label": "ハッ!",
+            "name": "気づき"
+          },
+          "gulp": {
+            "label": "ゴクリ",
+            "name": "緊張"
+          },
+          "smirk": {
+            "label": "ニヤリ",
+            "name": "企み"
+          }
+        },
+        "seal": {
+          "ok": {
+            "label": "了解",
+            "name": "了解"
+          },
+          "seen": {
+            "label": "見た",
+            "name": "見た"
+          },
+          "lol": {
+            "label": "草",
+            "name": "笑"
+          },
+          "wow": {
+            "label": "驚",
+            "name": "驚き"
+          },
+          "fear": {
+            "label": "怖",
+            "name": "こわい"
+          },
+          "sob": {
+            "label": "泣",
+            "name": "泣ける"
+          },
+          "god": {
+            "label": "神",
+            "name": "神"
+          },
+          "precious": {
+            "label": "尊",
+            "name": "尊い"
+          }
+        },
+        "motif": {
+          "critical": {
+            "name": "クリティカル"
+          },
+          "fumble": {
+            "name": "ファンブル"
+          },
+          "skull": {
+            "name": "死亡フラグ"
+          },
+          "sword": {
+            "name": "いくぞ"
+          },
+          "shield": {
+            "name": "かばう"
+          },
+          "magnifier": {
+            "name": "調べたい"
+          },
+          "candle": {
+            "name": "こわい"
+          },
+          "potion": {
+            "name": "回復・尊い"
+          }
+        }
+      }
     }
   },
   "error": {}

@@ -4990,6 +4990,110 @@
       "previous": "Previous portrait",
       "next": "Next portrait",
       "unnamed": "Portrait {{index}}"
+    },
+    "stamp": {
+      "families": {
+        "recent": "Recent",
+        "sfx": "Sound effects",
+        "seal": "Seals",
+        "motif": "Table marks"
+      },
+      "items": {
+        "sfx": {
+          "laugh": {
+            "label": "HAHA",
+            "name": "Laugh"
+          },
+          "shock": {
+            "label": "WHAM",
+            "name": "Shock"
+          },
+          "creepy": {
+            "label": "EEK",
+            "name": "Creepy"
+          },
+          "heart": {
+            "label": "AWW",
+            "name": "Love it"
+          },
+          "clap": {
+            "label": "CLAP",
+            "name": "Applause"
+          },
+          "notice": {
+            "label": "GASP",
+            "name": "Realised"
+          },
+          "gulp": {
+            "label": "GULP",
+            "name": "Nervous"
+          },
+          "smirk": {
+            "label": "HEH",
+            "name": "Scheming"
+          }
+        },
+        "seal": {
+          "ok": {
+            "label": "OK",
+            "name": "Got it"
+          },
+          "seen": {
+            "label": "SEEN",
+            "name": "Seen"
+          },
+          "lol": {
+            "label": "LOL",
+            "name": "LOL"
+          },
+          "wow": {
+            "label": "WOW",
+            "name": "Wow"
+          },
+          "fear": {
+            "label": "EEK",
+            "name": "Scary"
+          },
+          "sob": {
+            "label": "SOB",
+            "name": "Teary"
+          },
+          "god": {
+            "label": "GOD",
+            "name": "Amazing"
+          },
+          "precious": {
+            "label": "AWW",
+            "name": "Precious"
+          }
+        },
+        "motif": {
+          "critical": {
+            "name": "Critical"
+          },
+          "fumble": {
+            "name": "Fumble"
+          },
+          "skull": {
+            "name": "Doom flag"
+          },
+          "sword": {
+            "name": "Let's go"
+          },
+          "shield": {
+            "name": "I cover you"
+          },
+          "magnifier": {
+            "name": "Investigate"
+          },
+          "candle": {
+            "name": "Spooky"
+          },
+          "potion": {
+            "name": "Heal / precious"
+          }
+        }
+      }
     }
   },
   "error": {}

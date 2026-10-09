@@ -4992,6 +4992,110 @@
       "previous": "이전 입화",
       "next": "다음 입화",
       "unnamed": "입화 {{index}}"
+    },
+    "stamp": {
+      "families": {
+        "recent": "최근",
+        "sfx": "효과음",
+        "seal": "도장",
+        "motif": "그림"
+      },
+      "items": {
+        "sfx": {
+          "laugh": {
+            "label": "푸핫",
+            "name": "웃음"
+          },
+          "shock": {
+            "label": "쿵",
+            "name": "충격"
+          },
+          "creepy": {
+            "label": "오싹",
+            "name": "무서움"
+          },
+          "heart": {
+            "label": "두근",
+            "name": "좋아"
+          },
+          "clap": {
+            "label": "짝짝",
+            "name": "박수"
+          },
+          "notice": {
+            "label": "헉!",
+            "name": "깨달음"
+          },
+          "gulp": {
+            "label": "꿀꺽",
+            "name": "긴장"
+          },
+          "smirk": {
+            "label": "씨익",
+            "name": "음모"
+          }
+        },
+        "seal": {
+          "ok": {
+            "label": "확인",
+            "name": "확인"
+          },
+          "seen": {
+            "label": "봤음",
+            "name": "봤음"
+          },
+          "lol": {
+            "label": "ㅋㅋ",
+            "name": "웃음"
+          },
+          "wow": {
+            "label": "놀람",
+            "name": "놀람"
+          },
+          "fear": {
+            "label": "무섭",
+            "name": "무서움"
+          },
+          "sob": {
+            "label": "눈물",
+            "name": "눈물"
+          },
+          "god": {
+            "label": "갓",
+            "name": "최고"
+          },
+          "precious": {
+            "label": "존귀",
+            "name": "소중해"
+          }
+        },
+        "motif": {
+          "critical": {
+            "name": "크리티컬"
+          },
+          "fumble": {
+            "name": "펌블"
+          },
+          "skull": {
+            "name": "사망 플래그"
+          },
+          "sword": {
+            "name": "간다"
+          },
+          "shield": {
+            "name": "감싸기"
+          },
+          "magnifier": {
+            "name": "조사하고 싶어"
+          },
+          "candle": {
+            "name": "무서움"
+          },
+          "potion": {
+            "name": "회복·소중해"
+          }
+        }
+      }
     }
   }
 }

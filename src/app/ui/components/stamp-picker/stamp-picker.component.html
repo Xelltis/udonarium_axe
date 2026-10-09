@@ -1,0 +1,34 @@
+<div class="border-ui-border-separator flex shrink-0 items-center gap-0.5 border-b border-solid p-1" role="tablist">
+  @for (each of tabs(); track each) {
+    <button
+      type="button"
+      role="tab"
+      class="rounded-ui-sm text-ui-muted hover:bg-ui-menu-hover hover:text-ui-text cursor-pointer border border-solid border-transparent bg-transparent px-2 py-0.5 text-[11px] whitespace-nowrap transition-colors"
+      [class.border-ui-accent]="each === tab()"
+      [class.text-ui-accent]="each === tab()"
+      [attr.aria-selected]="each === tab()"
+      [attr.data-testid]="'stamp-picker-tab-' + each"
+      (click)="tab.set(each)"
+    >
+      {{ 'ui.stamp.families.' + each | transloco }}
+    </button>
+  }
+</div>
+
+<div
+  class="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(52px,1fr))] content-start gap-1 overflow-y-auto p-1.5"
+  role="listbox"
+  data-testid="stamp-picker-list"
+>
+  @for (id of stamps(); track id) {
+    <button
+      type="button"
+      role="option"
+      class="rounded-ui-sm hover:bg-ui-menu-hover flex h-13 cursor-pointer items-center justify-center border border-solid border-transparent bg-transparent p-0.5 transition-colors"
+      [attr.data-testid]="'stamp-picker-choice-' + id"
+      (click)="pick(id)"
+    >
+      <ui-stamp [stampId]="id" [size]="44" />
+    </button>
+  }
+</div>
