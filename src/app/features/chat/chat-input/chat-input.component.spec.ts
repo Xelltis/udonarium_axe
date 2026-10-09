@@ -14,6 +14,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
+import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -427,6 +428,37 @@ describe('ChatInputComponent', () => {
 
       component.setColorNum(-3);
       expect(component.colorSelectNo()).toBe(0);
+    });
+
+    it('opens the stamps beside the send button, and sends the one picked as a line, leaving the box alone', async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      component.text = '書きかけ';
+      const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
+      const emitted: Outgoing[] = [];
+      component.chat.subscribe((value) => emitted.push(value));
+
+      const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        '[data-testid="chat-input-stamp"]'
+      )!;
+      button.click();
+      expect(toggle).toHaveBeenCalledWith(button, expect.any(Function));
+      toggle.mock.calls[0][1]('seal:ok');
+
+      expect(emitted).toEqual([
+        expect.objectContaining({ stamp: 'seal:ok', gameSystem: null, replyTo: '', toTicker: false }),
+      ]);
+      expect(emitted[0].text.length).toBeGreaterThan(0);
+      expect(component.text).toBe('書きかけ');
+    });
+
+    it('sends no stamp this version does not know', () => {
+      const emitted = vi.fn();
+      component.chat.subscribe(emitted);
+
+      component.sendStamp('sfx:from-a-newer-version');
+
+      expect(emitted).not.toHaveBeenCalled();
     });
 
     it('sends on enter alone and never on another key or mid-composition', async () => {

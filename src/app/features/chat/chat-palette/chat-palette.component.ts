@@ -415,11 +415,25 @@ export class ChatPaletteComponent {
    * macros.
    *
    * Does nothing without a chat tab, a character or a palette. A line sent with the ticker switch
-   * on is shown on the ticker as well.
+   * on is shown on the ticker as well. A stamp goes as a line of its own, past the macros, with
+   * nothing read out of the words standing in for it.
    */
   sendChat(value: ChatOutgoing) {
     const character = this.character();
     if (!this.chatTab || !character || !this.palette) return;
+    if (value.stamp) {
+      this.chatMessageService.sendStamp(
+        this.chatTab,
+        value.stamp,
+        value.text,
+        value.sendFrom,
+        value.sendTo,
+        value.portraitIndex,
+        value.messColor,
+        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
+      );
+      return;
+    }
 
     const sent = this.characterMacro.send(character, value.text, {
       tab: this.chatTab,

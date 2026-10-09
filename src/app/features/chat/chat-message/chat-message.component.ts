@@ -137,8 +137,16 @@ export class ChatMessageComponent {
 
   /** Whether the pencil is offered on this line. */
   get canChange(): boolean {
-    return !this.readOnly() && (this.chatMessage?.changeable ?? false);
+    return !this.readOnly() && (this.chatMessage?.changeable ?? false) && !this.chatMessage.sentStamp;
   }
+
+  /** The stamp the line was sent as, drawn large in place of its words; null for a line of words. */
+  protected readonly sentStamp = computed(() => {
+    const message = this.chatMessageInput();
+    if (!message) return null;
+    this.objectChange.versionOf(message.identifier)();
+    return message.sentStamp;
+  });
   /** The message this row draws, as passed in through the `chatMessage` input. */
   get chatMessage(): ChatMessage {
     return this.chatMessageInput();

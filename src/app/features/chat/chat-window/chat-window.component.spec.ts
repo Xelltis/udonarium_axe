@@ -98,6 +98,45 @@ describe('ChatWindowComponent', () => {
     }
   });
 
+  it('sends a stamp as a line of its own, past everything a line of words goes through', () => {
+    const tab = ChatTabList.instance.addChatTab('卓上');
+    try {
+      component.chatTabidentifier = tab.identifier;
+      fixture.detectChanges();
+      const service = TestBed.inject(ChatMessageService);
+      const words = vi.spyOn(service, 'sendMessage');
+      const stamp = vi.spyOn(service, 'sendStamp');
+
+      component.sendChat({
+        text: '［ゾワッ］',
+        gameSystem: null,
+        sendFrom: PeerCursor.myCursor.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#000000',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: 'sfx:creepy',
+      });
+
+      expect(words).not.toHaveBeenCalled();
+      expect(stamp).toHaveBeenCalledWith(
+        tab,
+        'sfx:creepy',
+        '［ゾワッ］',
+        PeerCursor.myCursor.identifier,
+        '',
+        0,
+        '#000000',
+        { light: '', dark: '' }
+      );
+      expect(tab.chatMessages.map((message) => message.sentStamp)).toEqual(['sfx:creepy']);
+    } finally {
+      tab.destroy();
+    }
+  });
+
   it('leaves an ordinary line off the ticker', () => {
     const tab = ChatTabList.instance.addChatTab('普通');
     try {

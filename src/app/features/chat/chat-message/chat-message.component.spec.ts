@@ -2057,6 +2057,39 @@ describe('ChatMessageComponent', () => {
       expect(chip('motif:skull')).not.toBeNull();
     });
 
+    it('draws a line sent as a stamp as the stamp, large, in place of its words, and offers no editing', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: '［ゾワッ］',
+        timestamp: 1000,
+        stamp: 'sfx:creepy',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      const drawn = host().querySelector('[data-testid="chat-message-stamp"] [data-stamp]') as HTMLElement;
+      expect(drawn.dataset['stampId']).toBe('sfx:creepy');
+      expect(drawn.style.width).toBe('96px');
+      expect(host().querySelector('[data-chat-search-text]')).toBeNull();
+      expect(host().querySelector('[data-testid="chat-message-action-edit"]')).toBeNull();
+    });
+
+    it('shows the words of a line sent as a stamp from a newer version', () => {
+      const message = tab.addMessage({
+        from: 'someone',
+        name: 'GM',
+        text: '［新しいスタンプ］',
+        timestamp: 1000,
+        stamp: 'sfx:from-a-newer-version',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      expect(host().querySelector('[data-testid="chat-message-stamp"]')).toBeNull();
+      expect(host().textContent).toContain('［新しいスタンプ］');
+    });
+
     it('shows no stamps on a line taken out of the chat', async () => {
       const message = shown();
       answered(message, 'other', 'あいて', 'seal:ok');

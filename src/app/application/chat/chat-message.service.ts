@@ -30,6 +30,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
+import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -236,6 +237,49 @@ export class ChatMessageService {
     const imageIdentifier = this.findImageIdentifier(sendFrom, imgIndex);
     if (imageIdentifier != PeerCursor.myCursor.lastControlImageIdentifier) imgIndex = 0;
     this.sendMessage(sysTab!, text, null, sendFrom, undefined, imgIndex, '#006633');
+  }
+
+  /**
+   * Sends a stamp into a tab as a line of its own, from a piece or a peer, as a line of words is
+   * sent but with nothing read out of its words: no dice, no resources, no portrait command.
+   *
+   * `words` stand in for the stamp wherever it cannot be drawn: in a version that does not know it,
+   * in a log, in a video. A stamp that is a picture in the room carries the picture as well, for
+   * those to show. A stamp this version does not know is not sent, and null comes back.
+   */
+  sendStamp(
+    chatTab: ChatTab,
+    stampId: string,
+    words: string,
+    sendFrom: string,
+    sendTo?: string,
+    portraitIndex?: number,
+    color?: string,
+    bubbles?: { light: string; dark: string }
+  ): ChatMessage | null {
+    const stamp = stampOf(stampId);
+    if (!stamp) return null;
+
+    const imgIndex = resolvePortraitIndex(portraitIndex);
+    const chatMessage: ChatMessageContext = {
+      from: Network.peerContext.userId,
+      to: sendTo != null ? this.findId(sendTo) : undefined,
+      name: this.makeMessageName(sendFrom, sendTo),
+      imageIdentifier: this.findImageIdentifier(sendFrom, imgIndex),
+      timestamp: this.calcTimeStamp(chatTab),
+      text: words,
+      imagePos: this.findImagePos(sendFrom),
+      messColor: resolveMessageColor(color, '#000000'),
+      sendFrom,
+      senderRole: PeerCursor.myRole,
+      stamp: stampId,
+    };
+    if (stamp.kind === 'image') chatMessage.attachmentImageIdentifiers = JSON.stringify([stamp.imageIdentifier]);
+    if (bubbles?.light) chatMessage.messBubbleLight = bubbles.light;
+    if (bubbles?.dark) chatMessage.messBubbleDark = bubbles.dark;
+
+    this.setLastControlInfoToPeer(sendFrom, chatMessage.imageIdentifier ?? '', imgIndex, sendTo);
+    return chatTab.addMessage(chatMessage);
   }
 
   /**

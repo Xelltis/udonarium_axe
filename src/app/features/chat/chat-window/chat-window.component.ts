@@ -643,11 +643,25 @@ export class ChatWindowComponent {
    * is sent once for each targeted piece on the table, filled in against that piece and tagged with
    * its name, with the parts that change the speaker's own resources or buffs taken out after the
    * first copy so they apply once; with nothing targeted, the line says so. Nothing is sent when
-   * the reader may not speak in the tab. A line marked for the ticker is also shown there.
+   * the reader may not speak in the tab. A line marked for the ticker is also shown there. A stamp
+   * goes as a line of its own, with nothing read out of the words standing in for it.
    */
   sendChat(value: ChatOutgoing) {
     const tab = this.chatTab();
     if (tab && !canRoleSpeakTab(tab, PeerCursor.myRole)) return;
+    if (tab && value.stamp) {
+      this.chatMessageService.sendStamp(
+        tab,
+        value.stamp,
+        value.text,
+        value.sendFrom,
+        value.sendTo,
+        value.portraitIndex,
+        value.messColor,
+        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
+      );
+      return;
+    }
     if (tab) {
       let outtext = '';
       let objects: GameCharacter[];

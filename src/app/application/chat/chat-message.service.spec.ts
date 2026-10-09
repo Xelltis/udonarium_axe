@@ -365,6 +365,44 @@ describe('ChatMessageService', () => {
     });
   });
 
+  describe('sending a stamp', () => {
+    function sent(stampId: string, sendTo?: string): { message: ChatMessage | null; tab: ChatTab } {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const tab = new ChatTab();
+      tab.initialize();
+      ObjectStore.instance.add(tab);
+      const message = service.sendStamp(tab, stampId, '［ゾワッ］', PeerCursor.myCursor.identifier, sendTo);
+      return { message, tab };
+    }
+
+    it('sends it as a line of its own, with its words standing in for it and nothing read out of them', () => {
+      const dice = vi.spyOn(TestBed.inject(ObjectStore), 'get');
+      const { message, tab } = sent('sfx:creepy');
+
+      expect(message!.stamp).toBe('sfx:creepy');
+      expect(message!.sentStamp).toBe('sfx:creepy');
+      expect(message!.text).toBe('［ゾワッ］');
+      expect(message!.tag ?? '').toBe('');
+      expect(message!.attachmentImageIdentifiers).toBe('');
+      expect(tab.chatMessages).toEqual([message]);
+      expect(dice).not.toHaveBeenCalledWith('DiceBot');
+    });
+
+    it('carries a picture from the room with it, for whatever cannot draw the stamp', () => {
+      const { message } = sent('image:stamp-picture');
+
+      expect(message!.attachmentImageIdentifierList).toEqual(['stamp-picture']);
+    });
+
+    it('sends nothing for a stamp this version does not know', () => {
+      const { message, tab } = sent('sfx:from-a-newer-version');
+
+      expect(message).toBeNull();
+      expect(tab.chatMessages).toEqual([]);
+    });
+  });
+
   describe('what a line records about who spoke it', () => {
     it('writes down the role the speaker was wearing at the time', () => {
       const service = TestBed.inject(ChatMessageService);

@@ -136,6 +136,10 @@
                   </button>
                 </div>
               </div>
+            } @else if (sentStamp(); as stampId) {
+              <div class="py-0.5" data-testid="chat-message-stamp">
+                <ui-stamp [stampId]="stampId" [size]="96" [play]="animeState() === 'active' ? 1 : 0" />
+              </div>
             } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
               <span
                 #messageBody
@@ -297,6 +301,10 @@
                       {{ 'feature.chat.messageFix.change' | transloco }}
                     </button>
                   </span>
+                </span>
+              } @else if (sentStamp(); as stampId) {
+                <span class="inline-block align-middle" data-testid="chat-message-stamp">
+                  <ui-stamp [stampId]="stampId" [size]="64" [play]="animeState() === 'active' ? 1 : 0" />
                 </span>
               } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
                 <span

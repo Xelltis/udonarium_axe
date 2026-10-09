@@ -2986,7 +2986,8 @@
         "sendToTicker": "ティッカー",
         "sendToTickerHint": "この発言を画面の外周にも流します",
         "tools": "入力の設定",
-        "myDice": "マイダイス"
+        "myDice": "マイダイス",
+        "stamp": "スタンプを送る"
       },
       "tab": {
         "unnamedCharacter": "無名のキャラクター",
@@ -5094,7 +5095,9 @@
             "name": "回復・尊い"
           }
         }
-      }
+      },
+      "picture": "スタンプ",
+      "standIn": "［{{words}}］"
     }
   },
   "error": {}

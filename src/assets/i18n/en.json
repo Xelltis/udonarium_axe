@@ -2986,7 +2986,8 @@
         "sendToTicker": "Ticker",
         "sendToTickerHint": "Also run this line around the edge of the screen",
         "tools": "Input settings",
-        "myDice": "My Dice"
+        "myDice": "My Dice",
+        "stamp": "Send a stamp"
       },
       "tab": {
         "unnamedCharacter": "Unnamed character",
@@ -5094,7 +5095,9 @@
             "name": "Heal / precious"
           }
         }
-      }
+      },
+      "picture": "Stamp",
+      "standIn": "[{{words}}]"
     }
   },
   "error": {}

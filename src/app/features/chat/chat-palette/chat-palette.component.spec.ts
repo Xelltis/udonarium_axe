@@ -122,6 +122,33 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  describe('sending a stamp', () => {
+    it('sends it as a line of its own, past the macros, as the chat window does', () => {
+      const speaker = createChar('術者');
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.character.set(speaker);
+      component.chatTabidentifier.set(tab.identifier);
+      const macro = vi.spyOn(TestBed.inject(CharacterMacroService), 'send').mockReturnValue(null);
+      const stamp = vi.spyOn(component.chatMessageService, 'sendStamp').mockReturnValue(null);
+
+      component.sendChat({
+        text: '［了解］',
+        gameSystem: null,
+        sendFrom: speaker.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#112233',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: 'seal:ok',
+      });
+
+      expect(macro).not.toHaveBeenCalled();
+      expect(stamp.mock.calls[0].slice(1, 4)).toEqual(['seal:ok', '［了解］', speaker.identifier]);
+    });
+  });
+
   describe('sending a line to the ticker', () => {
     it('shows the line on the ticker where the switch is on, as the chat window does', () => {
       const speaker = createChar('術者');
