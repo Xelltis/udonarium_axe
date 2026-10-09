@@ -1553,7 +1553,23 @@
         "makeSecret": "秘匿にする",
         "clearSecret": "秘匿を解除",
         "makeSecretHint": "チェックした画像を GM 以外の一覧から隠します",
-        "secretMark": "秘匿画像"
+        "secretMark": "秘匿画像",
+        "paste": "貼り付け",
+        "pasteHint": "クリップボードの画像を確かめてから追加します（この一覧を選んで Ctrl+V でも貼れます）",
+        "pasteNothing": "クリップボードに画像がありません",
+        "pasteWithKeys": "ブラウザが貼り付けを許しませんでした。一覧を選んで Ctrl+V で貼ってください",
+        "clearBackground": "背景を透過",
+        "clearBackgroundHint": "チェックした画像 1 枚の背景を消した複製を作ります"
+      },
+      "imageIntake": {
+        "title": "画像を追加",
+        "hint": "背景をクリックすると、その色とつながった範囲が透明になります。何度でもクリックできます。",
+        "tolerance": "色の幅",
+        "undo": "ひとつ戻す",
+        "cancel": "やめる",
+        "add": "追加",
+        "failed": "この画像は読み込めませんでした",
+        "tooLarge": "2MB を超えるため追加できません。透過する範囲を変えるか、小さな画像にしてください"
       },
       "tooLarge": {
         "one": "「{{name}}」は大きすぎるため読み込めませんでした（{{limits}}）",
