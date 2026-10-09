@@ -138,6 +138,12 @@ export function stampArtUrl(stamp: BuiltinStamp): string | null {
   return isArtStampFamily(stamp.family) ? `assets/images/stamps/${stamp.family}/${stamp.key}.webp` : null;
 }
 
+/** Whether a stamp is a picture, one of the app's or one from the room, rather than drawn by the app. */
+export function isPictureStamp(id: string): boolean {
+  const ref = stampOf(id);
+  return ref !== null && (ref.kind === 'image' || isArtStampFamily(ref.stamp.family));
+}
+
 /** The translation key for the words written on a stamp, for the families that write any. */
 export function stampLabelKey(stamp: BuiltinStamp): string {
   return `ui.stamp.items.${stamp.family}.${stamp.key}.label`;

@@ -2075,6 +2075,21 @@ describe('ChatMessageComponent', () => {
       expect(host().querySelector('[data-testid="chat-message-action-edit"]')).toBeNull();
     });
 
+    it('draws a line sent as a picture larger, so the words in it read', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: '［クリティカル!］',
+        timestamp: 1000,
+        stamp: 'roll:critical',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      const drawn = host().querySelector('[data-testid="chat-message-stamp"] [data-stamp]') as HTMLElement;
+      expect(drawn.style.height).toBe('128px');
+    });
+
     it('shows the words of a line sent as a stamp from a newer version', () => {
       const message = tab.addMessage({
         from: 'someone',

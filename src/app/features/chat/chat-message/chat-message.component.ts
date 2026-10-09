@@ -43,6 +43,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
+import { isPictureStamp } from '@axe/domain/chat/stamp-catalog';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -147,6 +148,15 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(message.identifier)();
     return message.sentStamp;
   });
+  /**
+   * How large the stamp a line was sent as is drawn: a picture larger than the app's own, so that
+   * the words in it read.
+   */
+  protected stampLineSize(stampId: string, compact: boolean): number {
+    if (isPictureStamp(stampId)) return compact ? 88 : 128;
+    return compact ? 64 : 96;
+  }
+
   /** The message this row draws, as passed in through the `chatMessage` input. */
   get chatMessage(): ChatMessage {
     return this.chatMessageInput();
