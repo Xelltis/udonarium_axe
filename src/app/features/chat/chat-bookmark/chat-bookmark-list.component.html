@@ -27,7 +27,7 @@
     </div>
     <button
       type="button"
-      class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm ml-auto inline-flex size-6.5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[16px]!"
+      class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm ml-auto inline-flex size-6.5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
       data-testid="chat-bookmarks-close"
       [title]="'feature.chat.bookmark.close' | transloco"
       [attr.aria-label]="'feature.chat.bookmark.close' | transloco"
@@ -64,7 +64,7 @@
         } @else {
           <button
             type="button"
-            class="m-0 flex min-w-0 flex-1 cursor-pointer flex-col items-start gap-0.5 border-none bg-transparent px-1.5 py-1 text-left"
+            class="m-0 flex min-w-0 flex-1 cursor-pointer flex-col items-start gap-0.5 border-none bg-transparent px-1.5 py-1 text-left hover:bg-transparent hover:shadow-none"
             data-testid="chat-bookmark-open"
             [title]="'feature.chat.bookmark.jump' | transloco"
             (click)="open(item)"
@@ -93,7 +93,7 @@
             >
               <button
                 type="button"
-                class="text-ui-muted hover:text-ui-accent rounded-ui-sm inline-flex size-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 [&_.material-icons]:text-[15px]!"
+                class="text-ui-muted hover:text-ui-accent rounded-ui-sm inline-flex size-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:shadow-none [&_.material-icons]:text-[15px]!"
                 data-testid="chat-bookmark-rename"
                 [title]="'feature.chat.bookmark.rename' | transloco"
                 [attr.aria-label]="'feature.chat.bookmark.rename' | transloco"
@@ -103,7 +103,7 @@
               </button>
               <button
                 type="button"
-                class="text-ui-muted hover:text-ui-danger rounded-ui-sm inline-flex size-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 [&_.material-icons]:text-[15px]!"
+                class="text-ui-muted hover:text-ui-danger rounded-ui-sm inline-flex size-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 hover:shadow-none [&_.material-icons]:text-[15px]!"
                 data-testid="chat-bookmark-remove"
                 [title]="'feature.chat.bookmark.remove' | transloco"
                 [attr.aria-label]="'feature.chat.bookmark.remove' | transloco"

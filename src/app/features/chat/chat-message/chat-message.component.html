@@ -348,7 +348,7 @@
     <button
       type="button"
       data-testid="chat-message-history-toggle"
-      class="text-ui-dim hover:text-ui-accent m-0 inline cursor-pointer border-none bg-transparent p-0 align-baseline text-inherit underline decoration-dotted underline-offset-2"
+      class="text-ui-dim hover:text-ui-accent m-0 inline cursor-pointer border-none bg-transparent p-0 align-baseline text-inherit underline decoration-dotted underline-offset-2 hover:bg-transparent hover:shadow-none"
       [title]="
         (isHistoryOpen() ? 'feature.chat.message.history.close' : 'feature.chat.message.history.open') | transloco
       "
@@ -419,7 +419,7 @@
         <button
           type="button"
           data-testid="chat-message-action-reply"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
           [title]="'feature.chat.message.reply' | transloco"
           [attr.aria-label]="'feature.chat.message.reply' | transloco"
           (click)="clickReply()"
@@ -429,7 +429,7 @@
         <button
           type="button"
           data-testid="chat-message-action-quote"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
           [title]="'feature.chat.message.quote' | transloco"
           [attr.aria-label]="'feature.chat.message.quote' | transloco"
           (click)="clickQuote()"
@@ -441,7 +441,7 @@
         <button
           type="button"
           data-testid="chat-message-action-bookmark"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
           [title]="'feature.chat.message.bookmarks.button' | transloco"
           [attr.aria-label]="'feature.chat.message.bookmarks.button' | transloco"
           aria-haspopup="menu"
@@ -454,7 +454,7 @@
         <button
           type="button"
           data-testid="chat-message-action-edit"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
           [title]="'feature.chat.message.edit' | transloco"
           [attr.aria-label]="'feature.chat.message.edit' | transloco"
           (click)="startEdit()"
@@ -466,7 +466,7 @@
         <button
           type="button"
           data-testid="chat-message-action-delete"
-          class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!"
+          class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
           [title]="'feature.chat.message.deleteLine' | transloco"
           [attr.aria-label]="'feature.chat.message.deleteLine' | transloco"
           (click)="pseudoDelete()"
@@ -478,7 +478,7 @@
       <button
         type="button"
         data-testid="chat-message-action-more"
-        class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!"
+        class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
         [title]="'feature.chat.message.more' | transloco"
         [attr.aria-label]="'feature.chat.message.more' | transloco"
         aria-haspopup="menu"
