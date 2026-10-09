@@ -17,6 +17,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
+import { stampWords } from '@axe/application/chat/stamp-words';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -50,7 +51,6 @@ import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
-import { stampWords } from '@axe/features/chat/stamp/stamp-words';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';

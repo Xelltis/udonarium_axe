@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { stampWords } from '@axe/application/chat/stamp-words';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { stampWords } from '@axe/features/chat/stamp/stamp-words';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('the words that stand in for a stamp', () => {
