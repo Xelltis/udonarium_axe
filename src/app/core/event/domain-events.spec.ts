@@ -2,11 +2,9 @@ import {
   alarmPop$,
   alarmTimeUp$,
   callDiceThrow,
-  cardStackDecreased$,
   diceThrow$,
   emitAlarmPop,
   emitAlarmTimeUp,
-  emitCardStackDecreased,
   emitFinishVote,
   emitMessageAdded,
   emitSelectFile,
@@ -94,14 +92,6 @@ describe('domain-events emit→subscribe wiring', () => {
     u2();
     expect(timeUp).toEqual([{ text: 'ring' }]);
     expect(pop).toEqual([{ title: 'pop', time: 1000 }]);
-  });
-
-  it('sends a shrinking card stack onto its channel', () => {
-    const received: unknown[] = [];
-    const unsub = cardStackDecreased$.subscribe((e) => received.push(e));
-    emitCardStackDecreased({ cardStackIdentifier: 's1', cardIdentifier: 'c1' });
-    unsub();
-    expect(received).toHaveLength(1);
   });
 
   it('sends a file selection onto its channel', () => {

@@ -39,11 +39,6 @@ export interface MessageAddedEvent {
   messageIdentifier: string;
 }
 
-export interface CardStackDecreasedEvent {
-  cardStackIdentifier: string;
-  cardIdentifier: string;
-}
-
 export interface CutInEvent {
   cutIn: unknown;
 }
@@ -144,7 +139,6 @@ export const resourceChange$ = new EventChannel<ResourceChangeEvent>();
 export const selectGameTable$ = new EventChannel<SelectGameTableEvent>();
 export const updateAudioResource$ = new EventChannel<void>();
 export const messageAdded$ = new EventChannel<MessageAddedEvent>();
-export const cardStackDecreased$ = new EventChannel<CardStackDecreasedEvent>();
 export const startCutIn$ = new EventChannel<CutInEvent>();
 export const soundOnlyCutIn$ = new EventChannel<CutInEvent>();
 export const stopCutIn$ = new EventChannel<CutInEvent>();
@@ -191,10 +185,6 @@ export function emitSelectGameTable(event: SelectGameTableEvent) {
 /** Announces that a message joined a chat tab, whether sent here or received from a peer. */
 export function emitMessageAdded(event: MessageAddedEvent) {
   messageAdded$.emit(event);
-}
-/** Announces that a card left a card stack, whether taken here or by a peer. */
-export function emitCardStackDecreased(event: CardStackDecreasedEvent) {
-  cardStackDecreased$.emit(event);
 }
 /** Announces on this device that a cut-in starts; open windows for the same cut-in or tag close. */
 export function emitStartCutIn(event: CutInEvent) {
