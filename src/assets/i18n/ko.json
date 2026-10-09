@@ -5391,6 +5391,9 @@
           },
           "ready": {
             "name": "덤벼라"
+          },
+          "lowhp": {
+            "name": "남은 HP 1"
           }
         },
         "explore": {
@@ -5553,6 +5556,39 @@
           },
           "goodnight": {
             "name": "잘 자"
+          },
+          "tea": {
+            "name": "휴식"
+          },
+          "clap": {
+            "name": "짝짝"
+          },
+          "cheer": {
+            "name": "힘내!"
+          },
+          "popcorn": {
+            "name": "관전 중"
+          },
+          "memo": {
+            "name": "메모 메모"
+          },
+          "rules": {
+            "name": "룰 확인"
+          },
+          "hurry": {
+            "name": "시간 됐어"
+          },
+          "letsplay": {
+            "name": "놀자!"
+          },
+          "ruling": {
+            "name": "GM 판단으로!"
+          },
+          "oshi": {
+            "name": "입덕"
+          },
+          "foreshadow": {
+            "name": "이건 복선…!"
           }
         }
       },

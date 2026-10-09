@@ -5389,6 +5389,9 @@
           },
           "ready": {
             "name": "かかってこい"
+          },
+          "lowhp": {
+            "name": "残りHP1"
           }
         },
         "explore": {
@@ -5551,6 +5554,39 @@
           },
           "goodnight": {
             "name": "おやすみ"
+          },
+          "tea": {
+            "name": "休憩"
+          },
+          "clap": {
+            "name": "パチパチ"
+          },
+          "cheer": {
+            "name": "がんばれ!"
+          },
+          "popcorn": {
+            "name": "見守り中"
+          },
+          "memo": {
+            "name": "メモメモ"
+          },
+          "rules": {
+            "name": "ルール確認"
+          },
+          "hurry": {
+            "name": "時間だよ"
+          },
+          "letsplay": {
+            "name": "遊ぼう!"
+          },
+          "ruling": {
+            "name": "GM判断で!"
+          },
+          "oshi": {
+            "name": "推せる!"
+          },
+          "foreshadow": {
+            "name": "これは伏線…!"
           }
         }
       },

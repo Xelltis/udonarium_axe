@@ -147,6 +147,7 @@ export const BUILTIN_STAMPS: readonly BuiltinStamp[] = [
   picture('battle', 'protect', 'slam'),
   picture('battle', 'smash', 'slam'),
   picture('battle', 'ready'),
+  picture('battle', 'lowhp', 'shiver'),
 
   picture('explore', 'magnifier'),
   picture('explore', 'listen'),
@@ -202,6 +203,17 @@ export const BUILTIN_STAMPS: readonly BuiltinStamp[] = [
   picture('talk', 'beg', 'slam'),
   picture('talk', 'brb'),
   picture('talk', 'goodnight'),
+  picture('talk', 'tea'),
+  picture('talk', 'clap'),
+  picture('talk', 'cheer', 'beat'),
+  picture('talk', 'popcorn'),
+  picture('talk', 'memo'),
+  picture('talk', 'rules'),
+  picture('talk', 'hurry', 'shiver'),
+  picture('talk', 'letsplay'),
+  picture('talk', 'ruling', 'slam'),
+  picture('talk', 'oshi', 'beat'),
+  picture('talk', 'foreshadow'),
 ];
 
 const BY_ID = new Map(BUILTIN_STAMPS.map((each) => [each.id, each]));

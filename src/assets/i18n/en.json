@@ -5389,6 +5389,9 @@
           },
           "ready": {
             "name": "Bring it on"
+          },
+          "lowhp": {
+            "name": "1 HP left"
           }
         },
         "explore": {
@@ -5551,6 +5554,39 @@
           },
           "goodnight": {
             "name": "Good night"
+          },
+          "tea": {
+            "name": "Tea break"
+          },
+          "clap": {
+            "name": "Applause"
+          },
+          "cheer": {
+            "name": "You can do it!"
+          },
+          "popcorn": {
+            "name": "Just watching"
+          },
+          "memo": {
+            "name": "Taking notes"
+          },
+          "rules": {
+            "name": "Checking the rules"
+          },
+          "hurry": {
+            "name": "Time’s ticking"
+          },
+          "letsplay": {
+            "name": "Let’s play!"
+          },
+          "ruling": {
+            "name": "GM’s call!"
+          },
+          "oshi": {
+            "name": "I stan this"
+          },
+          "foreshadow": {
+            "name": "That’s foreshadowing…!"
           }
         }
       },
