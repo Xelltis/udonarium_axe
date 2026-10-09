@@ -279,12 +279,14 @@ describe('Room', () => {
       ]);
     });
 
-    it('starts with none from a room saved before there were any', () => {
+    it('leaves the ones there are where the room data brings none, as tables dropped in on their own', () => {
       ChatReaction.create('line-before', 'old', 'まえ').stamps = 'seal:ok';
 
       loadRoom('<card></card>');
 
-      expect(store.getObjects(ChatReaction)).toEqual([]);
+      expect(store.getObjects(ChatReaction).map((each) => [each.messageIdentifier, each.stamps])).toEqual([
+        ['line-before', 'seal:ok'],
+      ]);
       expect(store.getObjects(Card)).toHaveLength(1);
     });
 

@@ -99,11 +99,14 @@ export class Room extends GameObject implements InnerXml {
     // what was deleted, and only whoever loaded the room still has them. So what is made under
     // a fixed identifier is left alone by a room that brings none of its own: the effect
     // library, which belongs to the toolbox rather than the table, and the sample cut-ins,
-    // which a room saved before they existed knows nothing about.
+    // which a room saved before they existed knows nothing about. The stamps put on lines go the
+    // same way: room data that brings none, such as tables dropped in on their own, leaves the
+    // chat and what was put on it as they are.
     const brings = (aliasName: string): boolean =>
       Array.from(element.children).some((child) => child.nodeName === aliasName);
     const bringsPresets = brings(EffectPreset.aliasName);
     const bringsCutIns = brings(CutIn.aliasName);
+    const bringsReactions = brings(ChatReaction.aliasName);
     const objects: GameObject[] = [
       ...ObjectStore.instance.getObjects(GameTable),
       ...ObjectStore.instance.getObjects(GameTableMask),
@@ -124,7 +127,7 @@ export class Room extends GameObject implements InnerXml {
       ...(bringsPresets ? ObjectStore.instance.getObjects(EffectPreset) : []),
       ...ObjectStore.instance.getObjects(EffectField),
       ...ObjectStore.instance.getObjects(StampPack),
-      ...ObjectStore.instance.getObjects(ChatReaction),
+      ...(bringsReactions ? ObjectStore.instance.getObjects(ChatReaction) : []),
     ];
 
     const reLoadOk = this.reloadCheck.answerCheck();
