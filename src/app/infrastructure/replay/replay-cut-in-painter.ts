@@ -1,5 +1,6 @@
 import { clipPoints } from '@axe/domain/media/cut-in-clip';
 import { fillScaleOf, fillStops, rayDegOf } from '@axe/domain/media/cut-in-fill';
+import { letterMotionOf, letterPoseAt, lettersOf, letterTimingOf } from '@axe/domain/media/cut-in-letter-motion';
 import { wipePoints } from '@axe/domain/media/cut-in-wipe';
 import {
   layerFill,
@@ -76,7 +77,8 @@ export function paintReplayCutInScene(
     clipTo(ctx, layer, left, top);
     wipeTo(ctx, layer, layer.wipeShape, sample.wipe, left, top);
     wipeTo(ctx, layer, layer.crumbleShape, sample.crumble, left, top);
-    paintLayer(ctx, layer, left, top, assets, fontFamily);
+    const sinceMs = ms - Math.min(durationMs, Math.max(0, layer.startMs));
+    paintLayer(ctx, layer, left, top, assets, fontFamily, sinceMs);
 
     ctx.restore();
   }
@@ -116,14 +118,17 @@ function clipTo(ctx: ReplayFrameCanvas, layer: ReplayCutInLayer, left: number, t
  *
  * Lines are broken where they were written, letters are set as far apart as they were
  * told, and a layer told to run downwards is drawn a character at a time down columns
- * going right to left — which is how vertical Japanese is set.
+ * going right to left — which is how vertical Japanese is set. A layer whose letters come
+ * on one at a time has each letter drawn where `letterPoseAt` puts it, `sinceMs` after the
+ * layer came on, as the stage does.
  */
 function paintWords(
   ctx: ReplayFrameCanvas,
   layer: ReplayCutInLayer,
   left: number,
   top: number,
-  fontFamily: string
+  fontFamily: string,
+  sinceMs: number
 ): void {
   ctx.font = `${layer.fontWeight} ${layer.fontSizePx}px ${fontFamily}`;
   const spaced = ctx as unknown as { letterSpacing?: string };
@@ -138,6 +143,26 @@ function paintWords(
   ctx.textBaseline = 'middle';
 
   const step = layer.fontSizePx * Math.max(0.4, layer.lineHeight);
+  const motion = letterMotionOf(layer.letterMotion);
+  const timing = motion ? letterTimingOf(motion, layer.letterStaggerMs, layer.letterDurationMs) : null;
+  const placed = lettersOf(layer.text);
+  const drawLetter = (letter: string, rank: number, x: number, y: number) => {
+    if (!motion || !timing) {
+      if (stroked) ctx.strokeText(letter, x, y);
+      ctx.fillText(letter, x, y);
+      return;
+    }
+    const pose = letterPoseAt(motion, rank, sinceMs, layer.fontSizePx, timing);
+    if (pose.opacity <= 0) return;
+    ctx.save();
+    ctx.globalAlpha *= pose.opacity;
+    ctx.translate(x + pose.dx, y + pose.dy);
+    ctx.rotate((pose.rotateDeg * Math.PI) / 180);
+    ctx.scale(pose.scale, pose.scale);
+    if (stroked) ctx.strokeText(letter, 0, 0);
+    ctx.fillText(letter, 0, 0);
+    ctx.restore();
+  };
 
   if (layer.vertical) {
     ctx.textAlign = 'center';
@@ -145,16 +170,32 @@ function paintWords(
     // The first line is the rightmost column, which is the way vertical Japanese reads.
     const rightmost = left + (layer.width - blockWidth) / 2 + blockWidth - step / 2;
 
-    for (const [column, line] of lines.entries()) {
+    for (const [column, letters] of placed.entries()) {
       const x = rightmost - column * step;
-      const letters = [...line];
       const down = layer.fontSizePx + layer.letterSpacingPx;
       const startY = top + (layer.height - letters.length * down) / 2 + down / 2;
 
-      for (const [at, letter] of letters.entries()) {
-        const y = startY + at * down;
-        if (stroked) ctx.strokeText(letter, x, y);
-        ctx.fillText(letter, x, y);
+      for (const [at, letter] of letters.entries()) drawLetter(letter.text, letter.rank, x, startY + at * down);
+    }
+  } else if (motion) {
+    // Each letter is drawn on its own, centred where it would stand in the line.
+    ctx.textAlign = 'center';
+    const startY = top + (layer.height - lines.length * step) / 2 + step / 2;
+
+    for (const [at, letters] of placed.entries()) {
+      const y = startY + at * step;
+      const lineWidth = ctx.measureText(letters.map((letter) => letter.text).join('')).width;
+      const lineLeft =
+        layer.textAlign === 'left'
+          ? left
+          : layer.textAlign === 'right'
+            ? left + layer.width - lineWidth
+            : left + (layer.width - lineWidth) / 2;
+      let before = '';
+      for (const letter of letters) {
+        const x = lineLeft + ctx.measureText(before).width + ctx.measureText(letter.text).width / 2;
+        drawLetter(letter.text, letter.rank, x, y);
+        before += letter.text;
       }
     }
   } else {
@@ -206,7 +247,8 @@ function paintLayer(
   left: number,
   top: number,
   assets: ReplayFrameAssets,
-  fontFamily: string
+  fontFamily: string,
+  sinceMs: number
 ): void {
   if (layer.kind === 'fill') {
     paintBand(ctx, layer, left, top);
@@ -214,7 +256,7 @@ function paintLayer(
   }
 
   if (layer.kind === 'text') {
-    paintWords(ctx, layer, left, top, fontFamily);
+    paintWords(ctx, layer, left, top, fontFamily, sinceMs);
     return;
   }
 

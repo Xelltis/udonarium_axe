@@ -742,7 +742,20 @@
         "stageZoomFit": "Fit the whole cut-in (or hold ctrl and scroll)",
         "copyPose": "Take the moment this layer is holding (ctrl and C)",
         "pastePose": "Lay it down at the playhead (ctrl and V)",
-        "seekTo": "Go to a moment"
+        "seekTo": "Go to a moment",
+        "letterMotion": "Letters",
+        "letterStagger": "Gap (ms)",
+        "letterDuration": "Length (ms)",
+        "letterDefault": "Default",
+        "letterMotions": {
+          "none": "All at once",
+          "type": "Type",
+          "fade": "Fade in",
+          "pop": "Pop",
+          "slide": "Slide in",
+          "wave": "Wave",
+          "shake": "Shake"
+        }
       }
     },
     "card": {

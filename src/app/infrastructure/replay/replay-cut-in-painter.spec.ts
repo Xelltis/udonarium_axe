@@ -49,6 +49,9 @@ describe('paintReplayCutInScene()', () => {
         letterSpacingPx: 0,
         lineHeight: 1.15,
         vertical: false,
+        letterMotion: '',
+        letterStaggerMs: 0,
+        letterDurationMs: 0,
         fillShape: 'linear',
         fillFrom: '#000000',
         fillMid: '',
@@ -65,6 +68,30 @@ describe('paintReplayCutInScene()', () => {
   }
 
   const assets: ReplayFrameAssets = { imageOf: (identifier) => (identifier === 'pic' ? image(400, 200) : null) };
+
+  it('types a layer\u2019s letters on one at a time, as the stage does, and draws them all once they are on', () => {
+    const scene = sceneOf([
+      { kind: 'text', text: 'いくぞ', letterMotion: 'type', letterStaggerMs: 100, startMs: 200, fontSizePx: 40 },
+    ]);
+
+    const early = recorder();
+    paintReplayCutInScene(early.ctx, area, scene, assets, 350);
+    expect(early.texts.map((text) => text.text)).toEqual(['い', 'く']);
+
+    const late = recorder();
+    paintReplayCutInScene(late.ctx, area, scene, assets, 900);
+    expect(late.texts.map((text) => text.text)).toEqual(['い', 'く', 'ぞ']);
+    const xs = late.texts.map((text) => text.x);
+    expect(xs[0]).toBeLessThan(xs[1]);
+    expect(xs[1]).toBeLessThan(xs[2]);
+  });
+
+  it('draws a layer whose letters come on all at once as whole lines, as before', () => {
+    const plain = recorder();
+    paintReplayCutInScene(plain.ctx, area, sceneOf([{ kind: 'text', text: 'いくぞ' }]), assets, 0);
+
+    expect(plain.texts.map((text) => text.text)).toEqual(['いくぞ']);
+  });
 
   it('draws the picture of every layer that has one', () => {
     const { ctx, images } = recorder();

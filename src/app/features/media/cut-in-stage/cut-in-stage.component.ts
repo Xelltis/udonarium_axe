@@ -17,11 +17,19 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { clipCss } from '@axe/domain/media/cut-in-clip';
 import { fillCss } from '@axe/domain/media/cut-in-fill';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
+import {
+  letterFrames,
+  letterMotionOf,
+  lettersOf,
+  letterTimingOf,
+  type PlacedLetter,
+} from '@axe/domain/media/cut-in-letter-motion';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import {
   layerFilter,
   layerOrigin,
   layerTransform,
+  layerWindow,
   sampleLayerAt,
   sceneDurationOf,
   toCrumbleFrames,
@@ -31,6 +39,9 @@ import {
 import { wipeCss } from '@axe/domain/media/cut-in-wipe';
 import { type StageFit, stageFit } from '@axe/features/media/cut-in-editor/cut-in-stage-geometry';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+
+/** How many keyframes all the letters of one layer may have between them, before each gets fewer. */
+const LETTER_FRAME_BUDGET = 6000;
 
 /**
  * The layers of a cut-in, drawn and set going.
@@ -76,6 +87,9 @@ export class CutInStageComponent {
   private readonly handles = new Map<string, Animation>();
   private readonly wipeHandles = new Map<string, Animation>();
   private readonly crumbleHandles = new Map<string, Animation>();
+  private readonly letterHandles = new Map<string, Animation[]>();
+  /** The letters each moving text layer was last drawn with, kept while its words stay the same. */
+  private readonly letterLines = new Map<string, { text: string; lines: PlacedLetter[][] }>();
   private readonly hostSize = signal({ width: 0, height: 0 });
 
   readonly layers = computed<CutInLayer[]>(() => {
@@ -191,6 +205,20 @@ export class CutInStageComponent {
     return this.imageStorage.get(layer.imageIdentifier)?.url ?? '';
   }
 
+  /**
+   * The letters of a text layer whose letters come on one at a time, a line to a list; null for a
+   * layer whose words come on all at once.
+   */
+  protected letterLinesOf(layer: CutInLayer): PlacedLetter[][] | null {
+    this.objectChange.versionOf(layer.identifier)();
+    if (!letterMotionOf(layer.letterMotion)) return null;
+    const kept = this.letterLines.get(layer.identifier);
+    if (kept?.text === layer.text) return kept.lines;
+    const lines = lettersOf(layer.text);
+    this.letterLines.set(layer.identifier, { text: layer.text, lines });
+    return lines;
+  }
+
   protected fillOf(layer: CutInLayer): string {
     this.objectChange.versionOf(layer.identifier)();
     return fillCss(layer.fill);
@@ -245,7 +273,37 @@ export class CutInStageComponent {
       if (crumbleFrames.length > 1 && crumbleElement) {
         this.crumbleHandles.set(layer.identifier, crumbleElement.animate(crumbleFrames, options));
       }
+
+      this.animateLetters(element, layer, durationMs, options);
     }
+  }
+
+  /**
+   * Sets each letter of a text layer whose letters come on one at a time going, on the same clock
+   * as the layer, from keyframes worked out by `letterFrames` so the replay video draws the same.
+   */
+  private animateLetters(
+    element: HTMLElement,
+    layer: CutInLayer,
+    durationMs: number,
+    options: KeyframeAnimationOptions
+  ): void {
+    const motion = letterMotionOf(layer.letterMotion);
+    if (!motion) return;
+    const letters = [...element.querySelectorAll<HTMLElement>('[data-letter-rank]')];
+    if (letters.length < 1) return;
+    const timing = letterTimingOf(motion, layer.letterStaggerMs, layer.letterDurationMs);
+    const window = layerWindow(layer, durationMs);
+    const budget = Math.max(30, Math.min(240, Math.floor(LETTER_FRAME_BUDGET / letters.length)));
+    const handles = letters.map((letter) => {
+      const rank = Number(letter.dataset['letterRank']);
+      const frames = letterFrames(motion, rank, window, durationMs, layer.fontSizePx, timing, budget);
+      return letter.animate(
+        frames.map((frame) => ({ ...frame })),
+        options
+      );
+    });
+    this.letterHandles.set(layer.identifier, handles);
   }
 
   /** Lets the animations run, or holds every one of them at the same moment. */
@@ -267,7 +325,11 @@ export class CutInStageComponent {
         continue;
       }
 
-      const outlines = [this.wipeHandles.get(layer.identifier), this.crumbleHandles.get(layer.identifier)];
+      const outlines = [
+        this.wipeHandles.get(layer.identifier),
+        this.crumbleHandles.get(layer.identifier),
+        ...(this.letterHandles.get(layer.identifier) ?? []),
+      ];
       if (playing) {
         handle.play();
         for (const outline of outlines) outline?.play();
@@ -302,6 +364,8 @@ export class CutInStageComponent {
     this.wipeHandles.clear();
     for (const handle of this.crumbleHandles.values()) stopAnimation(handle);
     this.crumbleHandles.clear();
+    for (const handles of this.letterHandles.values()) for (const handle of handles) stopAnimation(handle);
+    this.letterHandles.clear();
   }
 
   private watchHostSize(): void {

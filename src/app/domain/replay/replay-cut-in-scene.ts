@@ -60,6 +60,10 @@ export interface ReplayCutInLayer {
   letterSpacingPx: number;
   lineHeight: number;
   vertical: boolean;
+  /** Empty for the words all at once. */
+  letterMotion: string;
+  letterStaggerMs: number;
+  letterDurationMs: number;
   fillShape: CutInFillShape;
   fillFrom: string;
   fillMid: string;
@@ -240,6 +244,9 @@ function readLayer(attributes: Record<string, unknown>): ReplayCutInLayer {
     letterSpacingPx: number(attributes['letterSpacingPx'], 0),
     lineHeight: number(attributes['lineHeight'], 1.15),
     vertical: attributes['vertical'] === true,
+    letterMotion: text(attributes['letterMotion']),
+    letterStaggerMs: number(attributes['letterStaggerMs'], 0),
+    letterDurationMs: number(attributes['letterDurationMs'], 0),
     fillShape: isCutInFillShape(attributes['fillShape']) ? attributes['fillShape'] : 'linear',
     fillFrom: text(attributes['fillFrom']) || '#000000',
     fillMid: text(attributes['fillMid']),

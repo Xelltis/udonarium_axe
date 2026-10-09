@@ -93,6 +93,15 @@ export class CutInLayer extends ObjectNode {
   @SyncVar() lineHeight: number = 1.15;
   /** Whether the words run down the layer rather than across it. */
   @SyncVar() vertical: boolean = false;
+  /**
+   * How the letters come on one at a time, as `cut-in-letter-motion.ts` names the ways; empty for
+   * the words all at once, which is how every layer saved before reads.
+   */
+  @SyncVar() letterMotion: string = '';
+  /** How far apart the letters come on, in ms; 0 for the motion's own. */
+  @SyncVar() letterStaggerMs: number = 0;
+  /** How long one letter takes to come on, in ms; 0 for the motion's own. */
+  @SyncVar() letterDurationMs: number = 0;
 
   // kind: fill
   @SyncVar() fillShape: CutInFillShape = 'linear';

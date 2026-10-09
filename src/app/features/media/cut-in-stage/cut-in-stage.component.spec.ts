@@ -268,6 +268,43 @@ describe('CutInStageComponent', () => {
     expect(words.textContent).toBe('ドン\nッ！');
   });
 
+  it('draws a layer whose letters come on one at a time a letter to a span, each on the layer\u2019s clock', () => {
+    const animate = stubAnimate();
+    const scene = makeScene(2000);
+    addLayer(scene, { kind: 'text', text: 'いく\nぞ', letterMotion: 'fade', letterStaggerMs: 100, startMs: 500 });
+
+    show(scene, false, 700);
+
+    const letters = [...fixture.nativeElement.querySelectorAll('[data-letter-rank]')] as HTMLElement[];
+    expect(letters.map((letter) => [letter.textContent, letter.dataset['letterRank']])).toEqual([
+      ['い', '0'],
+      ['く', '1'],
+      ['ぞ', '2'],
+    ]);
+    expect(fixture.nativeElement.querySelectorAll('.whitespace-pre-wrap br')).toHaveLength(1);
+
+    const letterCalls = animate.mock.calls.filter((_, at) => animate.mock.contexts[at] instanceof HTMLSpanElement);
+    expect(letterCalls).toHaveLength(3);
+    const [frames, options] = letterCalls[1] as [{ offset: number; opacity: number }[], KeyframeAnimationOptions];
+    expect(options.duration).toBe(2000);
+    expect(frames.find((frame) => frame.offset === 600 / 2000)!.opacity).toBe(0);
+
+    const handles = animate.mock.results.map(
+      (result) => result.value as { pause: ReturnType<typeof vi.fn>; currentTime: number }
+    );
+    expect(handles.every((handle) => handle.pause.mock.calls.length > 0 && handle.currentTime === 700)).toBe(true);
+  });
+
+  it('writes a layer with a motion this version does not know as it was typed', () => {
+    const scene = makeScene();
+    addLayer(scene, { kind: 'text', text: 'ドン', letterMotion: 'from-a-newer-version' });
+
+    show(scene, false, 0);
+
+    expect(fixture.nativeElement.querySelector('[data-letter-rank]')).toBeNull();
+    expect((fixture.nativeElement.querySelector('.whitespace-pre-wrap') as HTMLElement).textContent).toBe('ドン');
+  });
+
   it('refuses to let the browser drag a layer picture away', () => {
     const scene = makeScene();
     addLayer(scene, { imageIdentifier: 'nothing' });

@@ -742,7 +742,20 @@
         "stageZoomFit": "전체 보기(Ctrl+휠로도 확대·축소)",
         "copyPose": "이 순간의 모습 복사(Ctrl+C)",
         "pastePose": "재생 헤드 위치에 붙여넣기(Ctrl+V)",
-        "seekTo": "시각 지정"
+        "seekTo": "시각 지정",
+        "letterMotion": "글자 움직임",
+        "letterStagger": "간격(ms)",
+        "letterDuration": "길이(ms)",
+        "letterDefault": "기본",
+        "letterMotions": {
+          "none": "없음",
+          "type": "타자",
+          "fade": "스르륵",
+          "pop": "통통",
+          "slide": "미끄러져 들어옴",
+          "wave": "물결",
+          "shake": "떨림"
+        }
       }
     },
     "card": {

@@ -170,6 +170,64 @@
           />
           {{ 'feature.media.cutInEditor.vertical' | transloco }}
         </label>
+        <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.letterMotion' | transloco }}</label>
+        <select
+          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
+          name="cut-in-layer-letter-motion"
+          data-testid="cut-in-letter-motion"
+          [(ngModel)]="letterMotion"
+          [attr.disabled]="!isEditable() ? '' : null"
+        >
+          @for (motion of letterMotions; track motion) {
+            <option [value]="motion">
+              {{ 'feature.media.cutInEditor.letterMotions.' + (motion || 'none') | transloco }}
+            </option>
+          }
+        </select>
+        <div class="col-start-2 flex flex-wrap gap-1">
+          @for (motion of letterPresets; track motion) {
+            <button
+              type="button"
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] transition-[background,color] disabled:cursor-default disabled:opacity-50"
+              [class.border-ui-accent!]="letterMotion === motion"
+              [class.text-ui-accent!]="letterMotion === motion"
+              [attr.aria-pressed]="letterMotion === motion"
+              [attr.data-testid]="'cut-in-letter-preset-' + motion"
+              [disabled]="!isEditable()"
+              (click)="useLetterPreset(motion)"
+            >
+              {{ 'feature.media.cutInEditor.letterMotions.' + motion | transloco }}
+            </button>
+          }
+        </div>
+        @if (letterTakesStagger) {
+          <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.letterStagger' | transloco }}</label>
+          <input
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+            name="cut-in-layer-letter-stagger"
+            type="number"
+            min="0"
+            max="1000"
+            step="10"
+            [placeholder]="'feature.media.cutInEditor.letterDefault' | transloco"
+            [(ngModel)]="letterStaggerMs"
+            [attr.disabled]="!isEditable() ? '' : null"
+          />
+        }
+        @if (letterTakesDuration) {
+          <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.letterDuration' | transloco }}</label>
+          <input
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+            name="cut-in-layer-letter-duration"
+            type="number"
+            min="0"
+            max="3000"
+            step="50"
+            [placeholder]="'feature.media.cutInEditor.letterDefault' | transloco"
+            [(ngModel)]="letterDurationMs"
+            [attr.disabled]="!isEditable() ? '' : null"
+          />
+        }
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.fontFamily' | transloco }}</label>
         <input
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-[12px] outline-none disabled:opacity-50"
