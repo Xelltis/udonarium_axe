@@ -1,5 +1,6 @@
 import type { ImageFile } from '@axe/core/storage/image-file';
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
+import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 
 export type ChatLogLine = Pick<
@@ -88,7 +89,7 @@ export class ChatLogExporter {
       return String(value);
     }
     const escaped = value.replace(/[&'`"<>]/g, (match) => HTML_ESCAPE_MAP[match] ?? match);
-    return escaped.replace(/[|｜]([^|｜\s]+?)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>').replace(/\s/g, ' ');
+    return escaped.replace(RUBY_NOTATION, '<ruby>$1<rt>$2</rt></ruby>').replace(/\s/g, ' ');
   }
 
   /**

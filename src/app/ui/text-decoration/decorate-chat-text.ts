@@ -2,6 +2,8 @@
    生のテキスト文字列を受け取り、HTML エスケープ → ルビ → 引用ブロック装飾を順に適用した HTML を返す。
    ChatMessageComponent (live chat) と TextNoteComponent (非編集モード) が同じ見た目で描画するために使う。 */
 
+import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
+
 const HTML_ESCAPE_MAP: Readonly<Record<string, string>> = {
   '&': '&amp;',
   "'": '&#x27;',
@@ -19,8 +21,6 @@ export function escapeHtml(text: unknown): string {
   if (typeof text !== 'string') return String(text);
   return text.replace(/[&'`"<>]/g, (match) => HTML_ESCAPE_MAP[match] ?? match);
 }
-
-const RUBY_NOTATION = /[|｜]([^|｜\s]+?)《(.+?)》/g;
 
 const ESCAPED_SPACE = /\\s/g;
 
