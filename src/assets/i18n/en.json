@@ -5144,6 +5144,36 @@
           },
           "stare": {
             "name": "Glaring at the dice"
+          },
+          "sanity": {
+            "name": "Sanity check"
+          },
+          "secret": {
+            "name": "Secret roll"
+          },
+          "count": {
+            "name": "Adding up modifiers"
+          },
+          "clover": {
+            "name": "Lucky charm"
+          },
+          "cursed": {
+            "name": "Cursed dice"
+          },
+          "nervous": {
+            "name": "Nervous"
+          },
+          "aghast": {
+            "name": "Wait, what?"
+          },
+          "bonus": {
+            "name": "Bonus!"
+          },
+          "hoard": {
+            "name": "Love my dice"
+          },
+          "doubt": {
+            "name": "Suspicious dice"
           }
         }
       },

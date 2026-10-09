@@ -5146,6 +5146,36 @@
           },
           "stare": {
             "name": "주사위 노려보기"
+          },
+          "sanity": {
+            "name": "이성 판정…"
+          },
+          "secret": {
+            "name": "시크릿 다이스"
+          },
+          "count": {
+            "name": "보정치 계산 중"
+          },
+          "clover": {
+            "name": "행운의 부적"
+          },
+          "cursed": {
+            "name": "저주받은 주사위"
+          },
+          "nervous": {
+            "name": "조마조마"
+          },
+          "aghast": {
+            "name": "엥…"
+          },
+          "bonus": {
+            "name": "보너스!"
+          },
+          "hoard": {
+            "name": "주사위 최고"
+          },
+          "doubt": {
+            "name": "이 주사위 수상해"
           }
         }
       },

@@ -82,6 +82,16 @@ export const BUILTIN_STAMPS: readonly BuiltinStamp[] = [
   picture('roll', 'shake', 'shiver'),
   picture('roll', 'blow'),
   picture('roll', 'stare'),
+  picture('roll', 'sanity', 'shiver'),
+  picture('roll', 'secret'),
+  picture('roll', 'count'),
+  picture('roll', 'clover'),
+  picture('roll', 'cursed', 'shiver'),
+  picture('roll', 'nervous', 'shiver'),
+  picture('roll', 'aghast', 'slam'),
+  picture('roll', 'bonus'),
+  picture('roll', 'hoard'),
+  picture('roll', 'doubt'),
 ];
 
 const BY_ID = new Map(BUILTIN_STAMPS.map((each) => [each.id, each]));

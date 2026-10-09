@@ -5144,6 +5144,36 @@
           },
           "stare": {
             "name": "出目をにらむ"
+          },
+          "sanity": {
+            "name": "正気度…"
+          },
+          "secret": {
+            "name": "シークレットダイス"
+          },
+          "count": {
+            "name": "修正値を計算中"
+          },
+          "clover": {
+            "name": "幸運のお守り"
+          },
+          "cursed": {
+            "name": "呪われたダイス"
+          },
+          "nervous": {
+            "name": "ドキドキ"
+          },
+          "aghast": {
+            "name": "えっ…"
+          },
+          "bonus": {
+            "name": "ボーナスだ!"
+          },
+          "hoard": {
+            "name": "ダイス大好き"
+          },
+          "doubt": {
+            "name": "このダイス怪しい"
           }
         }
       },
