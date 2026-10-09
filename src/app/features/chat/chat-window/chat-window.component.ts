@@ -650,19 +650,7 @@ export class ChatWindowComponent {
   sendChat(value: ChatOutgoing) {
     const tab = this.chatTab();
     if (tab && !canRoleSpeakTab(tab, PeerCursor.myRole)) return;
-    if (tab && value.stamp && value.text.trim().length < 1) {
-      this.chatMessageService.sendStamp(
-        tab,
-        value.stamp.id,
-        value.stamp.words,
-        value.sendFrom,
-        value.sendTo,
-        value.portraitIndex,
-        value.messColor,
-        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
-      );
-      return;
-    }
+    if (tab && this.chatMessageService.sendLoneStamp(tab, value)) return;
     if (tab) {
       let outtext = '';
       let objects: GameCharacter[];

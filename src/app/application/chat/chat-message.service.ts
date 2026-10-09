@@ -26,10 +26,10 @@ import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { copiedMessageContext } from '@axe/domain/chat/chat-message-copy';
-import { OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
+import { ChatOutgoing, OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
+import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
@@ -244,13 +244,33 @@ export class ChatMessageService {
   }
 
   /**
+   * Sends a stamp going out with nothing said with it as a line of its own, as `sendStamp` does;
+   * true where `value` was such a stamp, sent or refused, so the caller sends nothing more for it,
+   * and false for anything else, which the caller sends as a line.
+   */
+  sendLoneStamp(chatTab: ChatTab, value: ChatOutgoing): boolean {
+    if (!value.stamp || value.text.trim().length > 0) return false;
+    this.sendStamp(
+      chatTab,
+      value.stamp.id,
+      value.stamp.words,
+      value.sendFrom,
+      value.sendTo,
+      value.portraitIndex,
+      value.messColor,
+      { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
+    );
+    return true;
+  }
+
+  /**
    * Sends a stamp into a tab as a line of its own, from a piece or a peer, as a line of words is
    * sent but with nothing read out of its words: no dice, no resources, no portrait command.
    *
    * `words` stand in for the stamp wherever it cannot be drawn: in a version that does not know it,
    * in a log, in a video. A stamp that is a picture in the room carries the picture as well, for
-   * those to show. A stamp this version does not know, or one the room does not let be sent, is not
-   * sent, and null comes back.
+   * those to show. A stamp this version does not know, one the room does not let be sent, or one
+   * from a reader whose role may not speak in the tab, is not sent, and null comes back.
    */
   sendStamp(
     chatTab: ChatTab,
@@ -264,6 +284,7 @@ export class ChatMessageService {
   ): ChatMessage | null {
     const stamp = stampOf(stampId);
     if (!stamp || !this.stampRules.allows('line', stampId)) return null;
+    if (!canRoleSpeakTab(chatTab, PeerCursor.myRole)) return null;
 
     const imgIndex = resolvePortraitIndex(portraitIndex);
     const chatMessage: ChatMessageContext = {

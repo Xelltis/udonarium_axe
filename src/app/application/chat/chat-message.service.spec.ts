@@ -397,6 +397,49 @@ describe('ChatMessageService', () => {
       expect(message!.attachmentImageIdentifierList).toEqual(['stamp-picture']);
     });
 
+    it('sends nothing into a tab the reader\u2019s role may not speak in', () => {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const tab = new ChatTab();
+      tab.initialize();
+      tab.guestCanSpeak = false;
+      ObjectStore.instance.add(tab);
+      try {
+        expect(service.sendStamp(tab, 'seal:ok', '［了解］', PeerCursor.myCursor.identifier)).toBeNull();
+        expect(tab.chatMessages).toEqual([]);
+      } finally {
+        PeerCursor.myCursor.role = PeerRole.Player;
+      }
+    });
+
+    it('sends a stamp with nothing said as a line of its own, and leaves one with words to the caller', () => {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const tab = new ChatTab();
+      tab.initialize();
+      ObjectStore.instance.add(tab);
+      const outgoing = {
+        text: '',
+        gameSystem: null,
+        sendFrom: PeerCursor.myCursor.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#000000',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: { id: 'seal:ok', words: '［了解］' },
+      };
+
+      expect(service.sendLoneStamp(tab, { ...outgoing, text: 'いくぞ！' })).toBe(false);
+      expect(tab.chatMessages).toEqual([]);
+      expect(service.sendLoneStamp(tab, { ...outgoing, stamp: undefined })).toBe(false);
+
+      expect(service.sendLoneStamp(tab, outgoing)).toBe(true);
+      expect(tab.chatMessages.map((message) => [message.sentStamp, message.text])).toEqual([['seal:ok', '［了解］']]);
+    });
+
     it('sends nothing for a stamp the room does not let be sent, or where stamps are not sent at all', () => {
       Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:creepy'], false);
       try {

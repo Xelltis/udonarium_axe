@@ -422,19 +422,7 @@ export class ChatPaletteComponent {
   sendChat(value: ChatOutgoing) {
     const character = this.character();
     if (!this.chatTab || !character || !this.palette) return;
-    if (value.stamp && value.text.trim().length < 1) {
-      this.chatMessageService.sendStamp(
-        this.chatTab,
-        value.stamp.id,
-        value.stamp.words,
-        value.sendFrom,
-        value.sendTo,
-        value.portraitIndex,
-        value.messColor,
-        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
-      );
-      return;
-    }
+    if (this.chatMessageService.sendLoneStamp(this.chatTab, value)) return;
 
     const sent = this.characterMacro.send(character, value.text, {
       tab: this.chatTab,
