@@ -1,7 +1,10 @@
 import { Component, viewChild, ViewContainerRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
+import { StampPackPanelComponent } from '@axe/features/chat/stamp-pack-panel/stamp-pack-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RECENT_STAMPS_STORAGE_KEY } from '@axe/ui/components/stamp-picker/stamp-picker.component';
 
@@ -85,5 +88,16 @@ describe('StampPickerService', () => {
     } finally {
       other.remove();
     }
+  });
+
+  it('closes and opens the panel for the room\u2019s sets when asked to manage them', () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    const opened = vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue(null as never);
+
+    service.open(anchor, (id) => picked.push(id));
+    (picker()!.querySelector('[data-testid="stamp-picker-manage"]') as HTMLElement).click();
+
+    expect(picker()).toBeNull();
+    expect(opened).toHaveBeenCalledWith(StampPackPanelComponent, expect.anything());
   });
 });

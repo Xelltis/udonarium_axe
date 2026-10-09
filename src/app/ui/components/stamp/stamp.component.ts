@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -68,6 +69,7 @@ export class StampComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly language = inject(LanguageService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly packs = inject(StampPackService);
 
   /** The stamp, by the identifier it is kept under. */
   readonly stampId = input.required<string>();
@@ -83,7 +85,8 @@ export class StampComponent {
       this.objectChange.fileVersion();
       const image = ImageStorage.instance.get(ref.imageIdentifier);
       if (!image?.url) return null;
-      return { kind: 'image', name: image.name, url: image.url, motion: 'pop' };
+      const name = this.packs.nameOf(ref.imageIdentifier) || image.name;
+      return { kind: 'image', name, url: image.url, motion: 'pop' };
     }
     this.language.currentLang();
     const { stamp } = ref;

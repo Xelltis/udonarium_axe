@@ -56,4 +56,30 @@ describe('StampPickerComponent', () => {
 
     expect(choices(open())).toEqual(['seal:ok']);
   });
+
+  it('offers a tab for each of the room\u2019s own sets, after the families', () => {
+    const root = open();
+    fixture.componentRef.setInput('packs', [
+      { identifier: 'pack-1', name: 'ねこ', stamps: [{ stampId: 'image:cat-a' }, { stampId: 'image:cat-b' }] },
+    ]);
+    fixture.detectChanges();
+
+    const tab = root.querySelector('[data-testid="stamp-picker-tab-pack:pack-1"]') as HTMLElement;
+    expect(tab.textContent!.trim()).toBe('ねこ');
+    tab.click();
+    fixture.detectChanges();
+    expect(choices(root)).toEqual(['image:cat-a', 'image:cat-b']);
+  });
+
+  it('offers to manage the sets only to whoever may', () => {
+    const root = open();
+    expect(root.querySelector('[data-testid="stamp-picker-manage"]')).toBeNull();
+
+    fixture.componentRef.setInput('canManage', true);
+    fixture.detectChanges();
+    const asked = vi.fn();
+    fixture.componentInstance.manage.subscribe(asked);
+    (root.querySelector('[data-testid="stamp-picker-manage"]') as HTMLElement).click();
+    expect(asked).toHaveBeenCalled();
+  });
 });

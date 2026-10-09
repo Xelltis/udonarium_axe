@@ -1,4 +1,7 @@
-<div class="border-ui-border-separator flex shrink-0 items-center gap-0.5 border-b border-solid p-1" role="tablist">
+<div
+  class="border-ui-border-separator flex shrink-0 flex-wrap items-center gap-0.5 border-b border-solid p-1"
+  role="tablist"
+>
   @for (each of tabs(); track each) {
     <button
       type="button"
@@ -10,7 +13,26 @@
       [attr.data-testid]="'stamp-picker-tab-' + each"
       (click)="tab.set(each)"
     >
-      {{ 'ui.stamp.families.' + each | transloco }}
+      @if (tabName(each); as name) {
+        {{ name }}
+      } @else if (tabName(each) === '') {
+        {{ 'ui.stamp.unnamedPack' | transloco }}
+      } @else {
+        {{ 'ui.stamp.families.' + each | transloco }}
+      }
+    </button>
+  }
+  @if (canManage()) {
+    <span class="flex-1"></span>
+    <button
+      type="button"
+      class="rounded-ui-sm text-ui-dim hover:bg-ui-menu-hover hover:text-ui-text flex size-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_i]:text-[16px]!"
+      data-testid="stamp-picker-manage"
+      [title]="'ui.stamp.manage' | transloco"
+      [attr.aria-label]="'ui.stamp.manage' | transloco"
+      (click)="manage.emit()"
+    >
+      <i class="material-icons">settings</i>
     </button>
   }
 </div>

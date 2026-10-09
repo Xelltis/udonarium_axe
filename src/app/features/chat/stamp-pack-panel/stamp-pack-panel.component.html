@@ -1,0 +1,120 @@
+<p class="text-ui-dim m-0 text-xs">{{ 'feature.chat.stampPack.hint' | transloco }}</p>
+
+<div class="flex items-start gap-1.5">
+  <div class="flex min-w-0 flex-1 flex-wrap gap-1" role="tablist">
+    @for (pack of packs(); track pack.identifier) {
+      <button
+        type="button"
+        role="tab"
+        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid bg-transparent px-2 py-0.5 text-xs whitespace-nowrap transition-colors"
+        [class.border-ui-accent!]="pack.identifier === chosen()?.identifier"
+        [class.text-ui-accent!]="pack.identifier === chosen()?.identifier"
+        [attr.aria-selected]="pack.identifier === chosen()?.identifier"
+        data-testid="stamp-pack-tab"
+        (click)="choose(pack.identifier)"
+      >
+        {{ pack.name || ('ui.stamp.unnamedPack' | transloco) }}
+      </button>
+    }
+  </div>
+  @if (canManage()) {
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex shrink-0 cursor-pointer items-center gap-1 border border-solid px-2 py-0.5 text-xs whitespace-nowrap transition-colors [&_.material-icons]:text-[14px]!"
+      data-testid="stamp-pack-create"
+      (click)="createPack()"
+    >
+      <i class="material-icons">add</i>{{ 'feature.chat.stampPack.create' | transloco }}
+    </button>
+  }
+</div>
+
+@if (chosen(); as pack) {
+  @if (canManage()) {
+    <div class="flex items-center gap-1.5">
+      <input
+        class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text focus:border-ui-accent min-w-0 flex-1 border border-solid px-2 py-1 text-xs outline-none"
+        data-testid="stamp-pack-name"
+        [placeholder]="'feature.chat.stampPack.namePlaceholder' | transloco"
+        [value]="pack.name"
+        (change)="renamePack($any($event.target).value)"
+      />
+      <button
+        type="button"
+        class="border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex shrink-0 cursor-pointer items-center border border-solid bg-transparent p-1 transition-colors [&_.material-icons]:text-[16px]!"
+        data-testid="stamp-pack-remove"
+        [title]="'feature.chat.stampPack.removePack' | transloco"
+        [attr.aria-label]="'feature.chat.stampPack.removePack' | transloco"
+        (click)="removePack()"
+      >
+        <i class="material-icons">delete</i>
+      </button>
+    </div>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-1 border border-solid px-2 py-1 text-xs whitespace-nowrap transition-colors [&_.material-icons]:text-[14px]!"
+        data-testid="stamp-pack-add-from-room"
+        (click)="addFromRoom()"
+      >
+        <i class="material-icons">collections</i>{{ 'feature.chat.stampPack.addFromRoom' | transloco }}
+      </button>
+      <label
+        class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-1 border border-solid px-2 py-1 text-xs whitespace-nowrap transition-colors [&_.material-icons]:text-[14px]!"
+      >
+        <i class="material-icons">file_upload</i>{{ 'feature.chat.stampPack.addFromFiles' | transloco }}
+        <input
+          type="file"
+          class="hidden"
+          multiple
+          accept="image/*"
+          data-testid="stamp-pack-add-files"
+          (change)="addFromFiles($event)"
+        />
+      </label>
+      @if (notice(); as message) {
+        <span class="text-[11px] text-amber-400" data-testid="stamp-pack-notice">{{ message }}</span>
+      }
+    </div>
+  }
+
+  <div
+    class="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(96px,1fr))] content-start gap-2 overflow-y-auto"
+    data-testid="stamp-pack-stamps"
+  >
+    @for (stamp of pack.stamps; track stamp.imageIdentifier) {
+      <div
+        class="border-ui-border-panel bg-ui-elevated rounded-ui-sm relative flex flex-col items-center gap-1 border border-solid p-1.5"
+        data-testid="stamp-pack-stamp"
+      >
+        <ui-stamp [stampId]="stamp.stampId" [size]="72" />
+        @if (canManage()) {
+          <input
+            class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text focus:border-ui-accent w-full min-w-0 border border-solid px-1 py-0.5 text-center text-[11px] outline-none"
+            data-testid="stamp-pack-stamp-name"
+            [value]="stamp.name"
+            (change)="renameStamp(stamp.imageIdentifier, $any($event.target).value)"
+          />
+          <button
+            type="button"
+            class="text-ui-dim hover:text-ui-text absolute top-0.5 right-0.5 inline-flex cursor-pointer border-none bg-transparent p-0 [&_.material-icons]:text-[14px]!"
+            data-testid="stamp-pack-stamp-remove"
+            [title]="'feature.chat.stampPack.removeStamp' | transloco"
+            [attr.aria-label]="'feature.chat.stampPack.removeStamp' | transloco"
+            (click)="removeStamp(stamp.imageIdentifier)"
+          >
+            <i class="material-icons">close</i>
+          </button>
+        } @else {
+          <span class="w-full truncate text-center text-[11px]">{{ stamp.name }}</span>
+        }
+      </div>
+    } @empty {
+      <p class="text-ui-dim col-span-full m-0 py-6 text-center text-xs">
+        {{ 'feature.chat.stampPack.emptyPack' | transloco }}
+      </p>
+    }
+  </div>
+} @else {
+  <p class="text-ui-dim m-0 py-6 text-center text-xs">{{ 'feature.chat.stampPack.noPacks' | transloco }}</p>
+}

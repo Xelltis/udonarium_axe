@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { imageStampId } from '@axe/domain/chat/stamp-catalog';
+import { StampPack } from '@axe/domain/chat/stamp-pack';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 
@@ -49,7 +50,27 @@ describe('StampComponent', () => {
     try {
       const drawn = show(imageStampId('stamp-picture'))!;
       expect(drawn.querySelector('img')!.getAttribute('src')).toBe('blob:stamp-picture');
+      expect(drawn.getAttribute('title')).toBe('nice.png');
     } finally {
+      ImageStorage.instance.delete('stamp-picture');
+    }
+  });
+
+  it('names a stamp from the room by the name it has in a set', () => {
+    ImageStorage.instance.add({
+      identifier: 'stamp-picture',
+      name: 'nice.png',
+      type: 'image/png',
+      blob: null,
+      url: 'blob:stamp-picture',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const pack = StampPack.create('セット');
+    pack.addStamp('stamp-picture', 'ナイス');
+    try {
+      expect(show(imageStampId('stamp-picture'))!.getAttribute('title')).toBe('ナイス');
+    } finally {
+      pack.destroy();
       ImageStorage.instance.delete('stamp-picture');
     }
   });

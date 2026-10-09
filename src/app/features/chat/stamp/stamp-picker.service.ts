@@ -1,6 +1,10 @@
-import { ComponentRef, Injectable } from '@angular/core';
+import { ComponentRef, inject, Injectable } from '@angular/core';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
+import { PanelService } from '@axe/application/ui/panel.service';
+import { StampPackPanelComponent } from '@axe/features/chat/stamp-pack-panel/stamp-pack-panel.component';
 import { placePopover } from '@axe/ui/anchored-popover';
 import { StampPickerComponent } from '@axe/ui/components/stamp-picker/stamp-picker.component';
 
@@ -17,11 +21,15 @@ interface OpenPicker {
  * Opens the stamps under a button, one picker at a time for the whole page.
  *
  * A line of chat asks for it to answer that line and the chat input asks for it to send one, so it
- * is made when asked for rather than kept by every line. It closes on a pick, on a press outside it,
- * and on Escape.
+ * is made when asked for rather than kept by every line. It offers the room's own sets with the
+ * stamps that come with the app, and closes on a pick, on a press outside it, on Escape, and on a
+ * request to manage the sets, which opens the panel for them.
  */
 @Injectable({ providedIn: 'root' })
 export class StampPickerService {
+  private readonly packs = inject(StampPackService);
+  private readonly panelService = inject(PanelService);
+  private readonly t = inject(TRANSLATE_FN);
   private opened: OpenPicker | null = null;
 
   /**
@@ -47,9 +55,15 @@ export class StampPickerService {
 
     const ref = parent.createComponent(StampPickerComponent, { index: parent.length, injector: parent.injector });
     const element = ref.location.nativeElement as HTMLElement;
+    ref.setInput('packs', this.packs.packs());
+    ref.setInput('canManage', this.packs.canManage);
     ref.instance.picked.subscribe((stampId) => {
       this.close();
       pick(stampId);
+    });
+    ref.instance.manage.subscribe(() => {
+      this.close();
+      this.openPackPanel();
     });
     ref.changeDetectorRef.detectChanges();
     if (typeof element.showPopover === 'function') element.showPopover();
@@ -80,6 +94,15 @@ export class StampPickerService {
         page.removeEventListener('keydown', onKeyDown, true);
       },
     };
+  }
+
+  /** Opens the panel where the room's own sets of stamps are made and filled. */
+  openPackPanel(): void {
+    this.panelService.open(StampPackPanelComponent, {
+      title: this.t('feature.chat.stampPack.title'),
+      width: 520,
+      height: 480,
+    });
   }
 
   /** Closes the stamps; nothing where none are open. */

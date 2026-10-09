@@ -8,6 +8,7 @@ import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
+import { StampPack } from '@axe/domain/chat/stamp-pack';
 import { createDefaultEffectPresets } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
@@ -291,6 +292,29 @@ describe('Room', () => {
       loadRoom('<a-kind-from-a-newer-version stamps="x"></a-kind-from-a-newer-version><card></card>');
 
       expect(store.getObjects(Card)).toHaveLength(1);
+    });
+  });
+
+  describe("saving the room's own sets of stamps", () => {
+    it('writes each set with its stamps as pictures', () => {
+      const pack = StampPack.create('ねこ');
+      pack.addStamp('picture-a', 'にゃー');
+
+      const xml = new Room().innerXml();
+
+      expect(xml).toMatch(
+        /<stamp-pack name="ねこ"[^>]*>.*<data [^>]*type="image"[^>]*>picture-a<\/data>.*<\/stamp-pack>/s
+      );
+    });
+
+    it('reads them back in place of the ones there were', () => {
+      StampPack.create('まえ');
+
+      loadRoom('<stamp-pack name="ねこ"><data name="にゃー" type="image">picture-a</data></stamp-pack>');
+
+      const packs = store.getObjects<StampPack>(StampPack);
+      expect(packs.map((pack) => pack.name)).toEqual(['ねこ']);
+      expect(packs[0].stamps.map((stamp) => [stamp.stampId, stamp.name])).toEqual([['image:picture-a', 'にゃー']]);
     });
   });
 });

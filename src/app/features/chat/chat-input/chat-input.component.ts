@@ -16,6 +16,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -129,6 +130,7 @@ export class ChatInputComponent {
   private readonly batchService = inject(BatchService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly stampPicker = inject(StampPickerService);
+  private readonly stampPacks = inject(StampPackService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -636,7 +638,7 @@ export class ChatInputComponent {
    * in its colour, leaving whatever is typed in the box where it is.
    */
   sendStamp(stampId: string): void {
-    const words = stampWords(stampId, this.t);
+    const words = stampWords(stampId, this.t, (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier));
     if (words.length < 1) return;
     if (!this.sendFrom.length) this.sendFrom = this.myPeer.identifier;
     this.chat.emit(
