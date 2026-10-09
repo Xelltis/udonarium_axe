@@ -1340,6 +1340,37 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  describe('following a line back to the one it answers', () => {
+    let tab: ChatTab;
+
+    beforeEach(() => {
+      beMyself('me');
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => tab.destroy());
+
+    it('is offered while the original is shown, and not once it is kept from the reader', async () => {
+      const original = tab.addMessage({ from: 'someone', name: 'ノア', text: '元の発言', timestamp: 900 });
+      const answer = tab.addMessage({
+        from: 'third',
+        name: 'サード',
+        text: '返事',
+        timestamp: 1000,
+        replyTo: original.identifier,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.jumpToOriginal')).toBeTruthy();
+
+      original.pseudoDelete(2000);
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.jumpToOriginal')).toBeUndefined();
+    });
+  });
+
   describe('deleting a line', () => {
     let tab: ChatTab;
 
@@ -1651,6 +1682,19 @@ describe('ChatMessageComponent', () => {
       testId('chat-message-history-toggle')!.click();
       fixture.detectChanges();
       expect(testId('chat-message-history')).toBeNull();
+    });
+
+    it('keeps every wording of a secret line from a reader kept from its words', async () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      const message = shown('someone', 'S1d100 黒幕を疑う');
+      message.tag = 'secret';
+      message.edit('S1d100 犯人を疑う', '', 2000);
+      await settle();
+
+      expect(component.versions()).toEqual([]);
+      expect(testId('chat-message-history-toggle')).toBeNull();
+      expect(fixture.nativeElement.textContent).not.toContain('黒幕');
+      expect(fixture.nativeElement.textContent).not.toContain('犯人');
     });
 
     it('only marks a line edited before its history was kept', async () => {

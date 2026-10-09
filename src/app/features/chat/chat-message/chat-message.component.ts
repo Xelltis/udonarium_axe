@@ -189,6 +189,9 @@ export class ChatMessageComponent {
     const chatMessage = this.chatMessageInput();
     if (!chatMessage) return [];
     this.objectChange.versionOf(chatMessage.identifier)();
+    this.objectChange.trackMyCursor();
+    // Words kept from this reader, as a secret roll's are, are kept from them in every wording.
+    if (isChatTextHidden(chatMessage, this.canRevealSecret)) return [];
     return chatMessage.versions;
   });
 
@@ -326,7 +329,7 @@ export class ChatMessageComponent {
         canPseudoDelete: this.canPseudoDelete,
         canShowInTicker: this.canShowInTicker(),
         copyTargets: this.canCopyToTab ? this.copyTargets() : [],
-        hasOriginal: !!(message.replyTo || message.quoteOf),
+        hasOriginal: !!(this.replyPreview() || this.quotePreview()),
         hasHistory: this.versions().length > 0,
         isHistoryOpen: this.isHistoryOpen(),
         text: this.readableText(message),
@@ -351,7 +354,7 @@ export class ChatMessageComponent {
         pseudoDelete: () => void this.pseudoDelete(),
         showInTicker: () => this.clickShowInTicker(),
         toggleHistory: () => this.toggleHistory(),
-        jumpToOriginal: () => (message.replyTo ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
+        jumpToOriginal: () => (this.replyPreview() ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
         copyText: (text) => this.copyText(text),
         selectText: () => this.selectText(),
       },

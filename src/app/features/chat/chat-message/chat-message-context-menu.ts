@@ -18,7 +18,7 @@ export interface ChatMessageMenuState {
   canShowInTicker: boolean;
   /** The tabs the line may be said again in; empty where it may not be copied. */
   copyTargets: readonly { identifier: string; name: string }[];
-  /** Whether the line answers or quotes another one it can be followed back to. */
+  /** Whether the line answers or quotes another one the reader is shown, to be followed back to. */
   hasOriginal: boolean;
   /** Whether earlier wordings of the line were kept, and whether they are open under it. */
   hasHistory: boolean;
