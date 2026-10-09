@@ -5022,7 +5022,8 @@
         "roll": "판정",
         "battle": "전투",
         "explore": "탐색",
-        "feel": "기분"
+        "feel": "기분",
+        "talk": "대화"
       },
       "items": {
         "sfx": {
@@ -5365,6 +5366,44 @@
           },
           "panic": {
             "name": "허둥지둥"
+          }
+        },
+        "talk": {
+          "ok": {
+            "name": "OK!"
+          },
+          "no": {
+            "name": "안 돼"
+          },
+          "wait": {
+            "name": "잠깐만"
+          },
+          "hello": {
+            "name": "안녕!"
+          },
+          "goodgame": {
+            "name": "수고했어"
+          },
+          "thanks": {
+            "name": "고마워"
+          },
+          "sorry": {
+            "name": "미안해"
+          },
+          "question": {
+            "name": "질문!"
+          },
+          "agree": {
+            "name": "응응"
+          },
+          "beg": {
+            "name": "부탁드립니다!"
+          },
+          "brb": {
+            "name": "잠깐 자리 비움"
+          },
+          "goodnight": {
+            "name": "잘 자"
           }
         }
       },

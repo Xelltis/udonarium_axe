@@ -5020,7 +5020,8 @@
         "roll": "Rolls",
         "battle": "Battle",
         "explore": "Exploring",
-        "feel": "Feelings"
+        "feel": "Feelings",
+        "talk": "Table talk"
       },
       "items": {
         "sfx": {
@@ -5363,6 +5364,44 @@
           },
           "panic": {
             "name": "Panic"
+          }
+        },
+        "talk": {
+          "ok": {
+            "name": "OK!"
+          },
+          "no": {
+            "name": "No"
+          },
+          "wait": {
+            "name": "Wait a sec"
+          },
+          "hello": {
+            "name": "Hello!"
+          },
+          "goodgame": {
+            "name": "Good game"
+          },
+          "thanks": {
+            "name": "Thank you"
+          },
+          "sorry": {
+            "name": "Sorry"
+          },
+          "question": {
+            "name": "Question!"
+          },
+          "agree": {
+            "name": "Agreed"
+          },
+          "beg": {
+            "name": "Please!"
+          },
+          "brb": {
+            "name": "BRB"
+          },
+          "goodnight": {
+            "name": "Good night"
           }
         }
       },

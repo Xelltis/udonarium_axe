@@ -5020,7 +5020,8 @@
         "roll": "判定",
         "battle": "戦闘",
         "explore": "探索",
-        "feel": "気持ち"
+        "feel": "気持ち",
+        "talk": "会話"
       },
       "items": {
         "sfx": {
@@ -5363,6 +5364,44 @@
           },
           "panic": {
             "name": "あわわ"
+          }
+        },
+        "talk": {
+          "ok": {
+            "name": "OK!"
+          },
+          "no": {
+            "name": "ダメ"
+          },
+          "wait": {
+            "name": "ちょっと待って"
+          },
+          "hello": {
+            "name": "こんにちは"
+          },
+          "goodgame": {
+            "name": "お疲れさま"
+          },
+          "thanks": {
+            "name": "ありがとう"
+          },
+          "sorry": {
+            "name": "ごめんなさい"
+          },
+          "question": {
+            "name": "質問!"
+          },
+          "agree": {
+            "name": "うんうん"
+          },
+          "beg": {
+            "name": "お願いします!"
+          },
+          "brb": {
+            "name": "ちょっと離席"
+          },
+          "goodnight": {
+            "name": "おやすみ"
           }
         }
       },
