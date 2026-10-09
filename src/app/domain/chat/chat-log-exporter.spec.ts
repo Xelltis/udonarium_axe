@@ -332,6 +332,27 @@ describe('ChatLogExporter', () => {
       expect(result).toContain('<span class="bn">');
     });
 
+    it('quotes a secret roll by what stands in for it to anybody but the one who rolled it', () => {
+      const target = {
+        identifier: 'q',
+        name: '<Secret-BCDice：相手>',
+        text: 'DiceBot : (1d100) → 3',
+        to: '',
+        isSecret: true,
+        isPseudoDeleted: false,
+        isSentBy: (userId: string) => userId === 'roller',
+      } as unknown as ChatMessage;
+      const msg = createMockMessage({
+        quoteOf: 'q',
+        quoteOfMessage: target,
+      } as Partial<ChatMessage> & { quoteOfMessage: ChatMessage });
+
+      const toOthers = ChatLogExporter.formatMessageStandard(false, '', msg, 'someone');
+      expect(toOthers).toContain('（シークレットダイス）');
+      expect(toOthers).not.toContain('→ 3');
+      expect(ChatLogExporter.formatMessageStandard(false, '', msg, 'roller')).toContain('→ 3');
+    });
+
     it('gives the attached picture and its wrapper their own', () => {
       const msg = createMockMessage({
         attachmentImages: [{ identifier: 'img-1', name: 'test.png', url: 'blob:test' }],

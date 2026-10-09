@@ -222,6 +222,14 @@ export class ChatLogExporter {
   }
 
   /**
+   * Whether what a line says is kept from the reader, as a secret roll is from everyone but the one
+   * who made it. Without `userId` the reader is the local user.
+   */
+  static isSealed(message: ChatLogLine, userId?: string): boolean {
+    return message.isSecret && !ChatLogExporter.canSee(message, userId);
+  }
+
+  /**
    * A whole page in the standard layout for one tab, with times, holding only the lines the reader
    * may see.
    */
@@ -430,6 +438,7 @@ export class ChatLogExporter {
           icon: '❝',
           target: quote,
           maxTextLength: 280,
+          userId,
           textDecoder,
         })
       );
@@ -441,6 +450,7 @@ export class ChatLogExporter {
           icon: '↩',
           target: reply,
           maxTextLength: 120,
+          userId,
           textDecoder,
         })
       );
@@ -486,11 +496,14 @@ export class ChatLogExporter {
     icon: string;
     target: ChatLogLine;
     maxTextLength: number;
+    userId?: string;
     textDecoder?: ChatLogTextDecoder;
   }): string {
-    const { label, icon, target, maxTextLength, textDecoder } = opts;
+    const { label, icon, target, maxTextLength, userId, textDecoder } = opts;
     const rawName = ChatLogExporter.decode(target.name, textDecoder);
-    const truncated = ChatLogExporter.referenceExcerpt(target, maxTextLength, textDecoder);
+    const truncated = ChatLogExporter.isSealed(target, userId)
+      ? '（シークレットダイス）'
+      : ChatLogExporter.referenceExcerpt(target, maxTextLength, textDecoder);
     const name = ChatLogExporter.escapeHtml(rawName || label);
     const text = ChatLogExporter.escapeHtml(truncated);
     // It is drawn as a pale block with a rule down its left, so it reads apart from the body.

@@ -354,7 +354,9 @@ function renderReference(
   context: RenderContext
 ): string {
   const name = decode(target.name, context) || label;
-  const excerpt = ChatLogExporter.referenceExcerpt(target, maxTextLength, context.options.textDecoder);
+  const excerpt = ChatLogExporter.isSealed(target, context.options.userId)
+    ? context.labels.secret
+    : ChatLogExporter.referenceExcerpt(target, maxTextLength, context.options.textDecoder);
   return `<div class="ref"><span class="rn">${icon} ${esc(name)}</span><span class="rt">${esc(excerpt)}</span></div>`;
 }
 

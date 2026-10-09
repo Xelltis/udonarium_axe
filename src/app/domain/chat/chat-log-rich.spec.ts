@@ -231,6 +231,19 @@ describe('renderRichChatLog', () => {
     expect(renderRichChatLog('washi', 'tab', [tab('メイン', [answer])], { userId: 'user-C' })).toContain('内緒の話');
   });
 
+  it('quotes a secret roll by what stands in for it in the log of anybody but the one who rolled it', () => {
+    const secret = roll('DiceBot : (1d100) → 3', '', {
+      isSecret: true,
+      isSentBy: (userId: string) => userId === 'roller',
+    });
+    const answer = line({ text: '返事', replyTo: 'x', replyToMessage: secret as never });
+
+    const toOthers = renderRichChatLog('washi', 'tab', [tab('メイン', [answer])], { userId: 'someone' });
+    expect(toOthers).toContain('<span class="rt">シークレットダイス</span>');
+    expect(toOthers).not.toContain('→ 3');
+    expect(renderRichChatLog('washi', 'tab', [tab('メイン', [answer])], { userId: 'roller' })).toContain('→ 3');
+  });
+
   it('keeps a colour it cannot trust out of the style attribute', () => {
     const html = renderRichChatLog('neon', 'tab', [
       tab('メイン', [line({ messColor: 'red;background:url(https://example.com/x)' })]),

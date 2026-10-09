@@ -655,9 +655,11 @@ export class ChatMessageComponent {
     // A line kept from the reader's chat, a whisper they were not part of or a deleted one, is not
     // shown through an answer to it.
     if (!target || !target.isShownInChat) return null;
-    const text = vnBodyOf(target.vnEmote, target.text ?? '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const text = this.isTextKeptFromReader(target)
+      ? this.t('feature.chat.message.secretDice')
+      : vnBodyOf(target.vnEmote, target.text ?? '')
+          .replace(/\s+/g, ' ')
+          .trim();
     return {
       name: target.name ?? '',
       text: text.length > 120 ? text.slice(0, 120) + '…' : text,
@@ -671,12 +673,25 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(msg.quoteOf)();
     const target = this.objectStore.get<ChatMessage>(msg.quoteOf);
     if (!(target instanceof ChatMessage) || !target.isShownInChat) return null;
-    const text = vnBodyOf(target.vnEmote, target.text ?? '').trim();
+    const text = this.isTextKeptFromReader(target)
+      ? this.t('feature.chat.message.secretDice')
+      : vnBodyOf(target.vnEmote, target.text ?? '').trim();
     return {
       name: target.name ?? '',
       text: text.length > 280 ? text.slice(0, 280) + '…' : text,
     };
   });
+
+  /**
+   * Whether the words of a quoted or replied-to line are kept from this reader, as a secret roll's
+   * are, so that what stands in for them follows the reader's role and language.
+   */
+  private isTextKeptFromReader(message: ChatMessage): boolean {
+    if (!message.isSecret) return false;
+    this.objectChange.trackMyCursor();
+    this.language.currentLang();
+    return isChatTextHidden(message, this.canRevealSecret);
+  }
 
   /**
    * Whether a message can be replied to, quoted or made into a note.

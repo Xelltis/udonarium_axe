@@ -127,6 +127,71 @@ describe('ChatMessageComponent', () => {
     }
   });
 
+  describe('a line answering a secret roll', () => {
+    const made: ChatMessage[] = [];
+
+    function line(fields: Partial<ChatMessage>): ChatMessage {
+      const message = new ChatMessage();
+      message.initialize();
+      message.to = '';
+      message.imageIdentifier = '';
+      message.messColor = '#000000';
+      Object.assign(message, fields);
+      made.push(message);
+      return message;
+    }
+
+    function secretRoll(): ChatMessage {
+      return line({
+        from: 'someone-else',
+        originFrom: 'someone-else',
+        name: '<Secret-BCDice：テスト>',
+        tag: 'system secret',
+        text: 'DiceBot : (1d100) → 3',
+      });
+    }
+
+    function answering(field: 'replyTo' | 'quoteOf', target: ChatMessage): void {
+      const answer = line({
+        from: 'someone-else',
+        name: 'テスト',
+        tag: '',
+        text: 'どうだった？',
+        [field]: target.identifier,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+    }
+
+    afterEach(() => {
+      for (const message of made) message.destroy();
+      made.length = 0;
+    });
+
+    it('shows a reader kept from the roll what stands in for it when replied to', () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      answering('replyTo', secretRoll());
+
+      expect(component.replyPreview()?.text).toBe(TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice'));
+      expect(fixture.nativeElement.textContent).not.toContain('→ 3');
+    });
+
+    it('shows a reader kept from the roll what stands in for it when quoted', () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      answering('quoteOf', secretRoll());
+
+      expect(component.quotePreview()?.text).toBe(TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice'));
+      expect(fixture.nativeElement.textContent).not.toContain('→ 3');
+    });
+
+    it('shows the roll to a reader who may see what is hidden', () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(true);
+      answering('replyTo', secretRoll());
+
+      expect(component.replyPreview()?.text).toBe('DiceBot : (1d100) → 3');
+    });
+  });
+
   it('drops the cover on a secret roll as soon as the tag loses it', () => {
     // The reveal changes only the tag. Nothing else drawn while the line is hidden depends on
     // that message, so without a version to watch the cover would stay on until something
