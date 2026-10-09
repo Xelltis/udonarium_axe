@@ -4,6 +4,7 @@ import { resetPeerContextProvider } from '@axe/core/network/peer-context-source'
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { beMyself } from '@axe/testing/peer-context-stub';
 
 describe('PeerCursor', () => {
   let store: ObjectStore;
@@ -23,6 +24,20 @@ describe('PeerCursor', () => {
     (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
     (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
     vi.restoreAllMocks();
+  });
+
+  describe('the local user id', () => {
+    it('is the one on the reader\u2019s own cursor, and before there is one, the peer context\u2019s', () => {
+      beMyself('from-context');
+      expect(PeerCursor.myUserId).toBe('from-context');
+
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'from-cursor';
+      expect(PeerCursor.myUserId).toBe('from-cursor');
+
+      PeerCursor.myCursor.userId = '';
+      expect(PeerCursor.myUserId).toBe('from-context');
+    });
   });
 
   describe('the defaults of the synchronised fields', () => {

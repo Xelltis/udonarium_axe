@@ -1,7 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
@@ -43,12 +42,6 @@ export class ChatReactionService {
     { equal: () => false }
   );
 
-  /** The reader's user id, empty before a room has been joined. */
-  myUserId(): string {
-    const fromCursor = PeerCursor.myCursor?.userId ?? '';
-    return fromCursor.length > 0 ? fromCursor : getPeerContext().userId;
-  }
-
   /**
    * The stamps on a line, each once with how many put it on, who and whether the reader did, the
    * ones that come with the app first in the order they are offered. A stamp this version does not
@@ -57,7 +50,7 @@ export class ChatReactionService {
   talliesOf(messageIdentifier: string): ReactionTally[] {
     const records = this.byMessage().get(messageIdentifier) ?? [];
     this.objectChange.trackMyCursor();
-    const myUserId = this.myUserId();
+    const myUserId = PeerCursor.myUserId;
     const tallies = new Map<string, { names: string[]; mine: boolean }>();
     for (const record of records) {
       for (const stampId of record.stampIds) {
@@ -80,13 +73,13 @@ export class ChatReactionService {
    * is not put on, though one put on before can still be taken off.
    */
   toggle(message: ChatMessage, stampId: string): boolean {
-    const userId = this.myUserId();
+    const userId = PeerCursor.myUserId;
     if (userId.length < 1 || !stampOf(stampId) || !message.isShownInChat) return false;
 
     const name = PeerCursor.myCursor?.name ?? '';
-    const existing = this.objectStore
-      .getObjects<ChatReaction>(ChatReaction)
-      .find((each) => each.messageIdentifier === message.identifier && each.userId === userId);
+    const existing = this.byMessage()
+      .get(message.identifier)
+      ?.find((each) => each.userId === userId);
     const puttingOn = !existing?.stampIds.includes(stampId);
     if (puttingOn && !this.stampRules.allows('reaction', stampId)) return false;
     const record = existing ?? ChatReaction.create(message.identifier, userId, name);
