@@ -333,6 +333,21 @@ describe('ChatTab', () => {
       expect(tab.unreadLength).toBe(3);
     });
 
+    it('passes over a line that arrives deleted, as one in a room read back may', () => {
+      const tab = new ChatTab();
+      tab.initialize();
+      const deleted = new ChatMessage();
+      deleted.text = '消された発言';
+      deleted.pseudoDelete(1000);
+      deleted.initialize();
+
+      tab.appendChild(deleted);
+
+      expect(tab.unreadLength).toBe(0);
+      expect(tab.displayableMessagesLength()).toBe(0);
+      tab.destroy();
+    });
+
     it('clears that count once they are read', () => {
       const tab = new ChatTab();
       tab.initialize();

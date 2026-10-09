@@ -234,13 +234,14 @@ export class ChatTab extends ObjectNode implements InnerXml {
   }
 
   /**
-   * Counts a new line the local user may see as unread, shows the portrait slot it speaks from
-   * again when it is said to everyone, and announces the message as added.
+   * Counts a new line the local user is shown as unread, shows the portrait slot it speaks from
+   * again when it is said to everyone, and announces the message as added. A line that arrives
+   * deleted, as one in a room read back may, is passed over like a whisper to somebody else.
    */
   override onChildAdded(child: ObjectNode) {
     super.onChildAdded(child);
     this.linesBySpeakerAndMoment = null;
-    if (child.parent === this && child instanceof ChatMessage && child.isDisplayable) {
+    if (child.parent === this && child instanceof ChatMessage && child.isShownInChat) {
       if (this.children.length === 1) {
         this._unreadLength = 1;
         this._displayableMessageNum = 1;

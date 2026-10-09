@@ -3,18 +3,19 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 export type ScrollPosition = { top: number; bottom: number; clientHeight: number; scrollHeight: number };
 
 /**
- * The index to start rendering from so that the last `dispLength` displayable messages are
+ * The index to start rendering from so that the last `dispLength` lines the reader is shown are
  * included.
  *
- * Messages that are not displayable are passed over without being counted. When there are fewer
- * displayable messages than that, the result is -1 and the caller clamps it.
+ * Lines the reader is not shown, a whisper to somebody else or a deleted line, are passed over
+ * without being counted. When there are fewer shown than that, the result is -1 and the caller
+ * clamps it.
  */
 export function findDisplayableTopIndex(chatMessages: readonly ChatMessage[], dispLength: number): number {
   const len = chatMessages.length;
   let count = 0;
   let i = len - 1;
   for (; i >= 0; i--) {
-    if (chatMessages[i].isDisplayable) count++;
+    if (chatMessages[i].isShownInChat) count++;
     if (count >= dispLength) return i;
   }
   return i;
