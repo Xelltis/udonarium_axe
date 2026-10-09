@@ -92,6 +92,7 @@
           <input
             class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text focus:border-ui-accent w-full min-w-0 border border-solid px-1 py-0.5 text-center text-[11px] outline-none"
             data-testid="stamp-pack-stamp-name"
+            [placeholder]="'feature.chat.stampPack.stampNamePlaceholder' | transloco"
             [value]="stamp.name"
             (change)="renameStamp(stamp.imageIdentifier, $any($event.target).value)"
           />

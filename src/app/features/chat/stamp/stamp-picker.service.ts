@@ -10,6 +10,8 @@ import { StampPickerComponent } from '@axe/ui/components/stamp-picker/stamp-pick
 
 const PICKER_WIDTH = 320;
 const PICKER_MIN_HEIGHT = 200;
+const PACK_PANEL_WIDTH = 520;
+const PACK_PANEL_HEIGHT = 480;
 
 interface OpenPicker {
   readonly ref: ComponentRef<StampPickerComponent>;
@@ -96,12 +98,14 @@ export class StampPickerService {
     };
   }
 
-  /** Opens the panel where the room's own sets of stamps are made and filled. */
+  /** Opens the panel where the room's own sets of stamps are made and filled, in the middle of the window. */
   openPackPanel(): void {
     this.panelService.open(StampPackPanelComponent, {
       title: this.t('feature.chat.stampPack.title'),
-      width: 520,
-      height: 480,
+      width: PACK_PANEL_WIDTH,
+      height: PACK_PANEL_HEIGHT,
+      left: Math.max(8, (window.innerWidth - PACK_PANEL_WIDTH) / 2),
+      top: Math.max(8, (window.innerHeight - PACK_PANEL_HEIGHT) / 2),
     });
   }
 

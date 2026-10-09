@@ -3308,6 +3308,7 @@
         "create": "新しいセット",
         "newPackName": "新しいセット",
         "namePlaceholder": "セットの名前",
+        "stampNamePlaceholder": "スタンプの名前",
         "removePack": "このセットを削除",
         "removePackConfirm": "セット「{{name}}」を削除します。画像は部屋に残り、すでに使われたスタンプもそのまま表示されます。",
         "addFromRoom": "画像一覧から追加",

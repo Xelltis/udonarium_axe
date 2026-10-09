@@ -31,6 +31,14 @@ describe('StampComponent', () => {
     expect(drawn.getAttribute('title')).toBe(t('ui.stamp.items.sfx.creepy.name'));
   });
 
+  it('lets the words of a sound effect run as wide as they need, and keeps a picture to its box', () => {
+    const words = show('sfx:clap')!;
+    expect(words.style.width).toBe('');
+    expect(words.style.minWidth).toBe('48px');
+
+    expect(show('seal:ok')!.style.width).toBe('48px');
+  });
+
   it('draws a seal and a table mark as pictures', () => {
     expect(show('seal:ok')!.querySelector('svg')).not.toBeNull();
     expect(show('motif:critical')!.querySelector('svg')).not.toBeNull();

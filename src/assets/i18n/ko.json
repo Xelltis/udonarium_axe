@@ -3308,6 +3308,7 @@
         "create": "새 세트",
         "newPackName": "새 세트",
         "namePlaceholder": "세트 이름",
+        "stampNamePlaceholder": "스탬프 이름",
         "removePack": "이 세트 삭제",
         "removePackConfirm": "세트 \"{{name}}\"을(를) 삭제합니다. 이미지는 방에 남고, 이미 쓰인 스탬프도 그대로 표시됩니다.",
         "addFromRoom": "이미지 목록에서 추가",

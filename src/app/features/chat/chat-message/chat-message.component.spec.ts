@@ -2070,7 +2070,7 @@ describe('ChatMessageComponent', () => {
 
       const drawn = host().querySelector('[data-testid="chat-message-stamp"] [data-stamp]') as HTMLElement;
       expect(drawn.dataset['stampId']).toBe('sfx:creepy');
-      expect(drawn.style.width).toBe('96px');
+      expect(drawn.style.height).toBe('96px');
       expect(host().querySelector('[data-chat-search-text]')).toBeNull();
       expect(host().querySelector('[data-testid="chat-message-action-edit"]')).toBeNull();
     });

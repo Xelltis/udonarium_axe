@@ -5,7 +5,8 @@
       data-stamp
       [attr.data-stamp-id]="stampId()"
       [class]="motionClass(v, turn) ?? ''"
-      [style.width.px]="size()"
+      [style.width.px]="v.kind === 'words' ? null : size()"
+      [style.min-width.px]="size()"
       [style.height.px]="size()"
       [attr.title]="v.name"
       [attr.aria-label]="v.name"
