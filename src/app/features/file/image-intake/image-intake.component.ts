@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChi
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { withoutExtension } from '@axe/core/util/file-name';
 import { ConnectedColorEraser } from '@axe/domain/media/erase-connected-color';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -164,6 +165,6 @@ export class ImageIntakeComponent {
 }
 
 function withPngExtension(name: string): string {
-  const base = name.replace(/\.[^./\\]+$/, '');
+  const base = withoutExtension(name);
   return `${base.length > 0 ? base : 'image'}.png`;
 }

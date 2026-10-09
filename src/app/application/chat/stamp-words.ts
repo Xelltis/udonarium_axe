@@ -1,5 +1,6 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { withoutExtension } from '@axe/core/util/file-name';
 import { stampLabelKey, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
 
 /**
@@ -17,7 +18,7 @@ export function stampLabel(
   if (ref.kind === 'image') {
     const name =
       nameInSet(ref.imageIdentifier).trim() ||
-      (ImageStorage.instance.get(ref.imageIdentifier)?.name ?? '').replace(/\.[^.]+$/, '').trim();
+      withoutExtension(ImageStorage.instance.get(ref.imageIdentifier)?.name ?? '').trim();
     return name.length > 0 ? name : t('ui.stamp.picture');
   }
   const writesWords = ref.stamp.family === 'sfx' || ref.stamp.family === 'seal';

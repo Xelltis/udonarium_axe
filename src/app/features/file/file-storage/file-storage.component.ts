@@ -10,6 +10,7 @@ import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { withoutExtension } from '@axe/core/util/file-name';
 import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { ImageIntakeComponent } from '@axe/features/file/image-intake/image-intake.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -293,6 +294,6 @@ function pastedImageName(type: string, at = new Date()): string {
 
 /** The name the copy of a picture with its background cleared is stored under. */
 function clearedImageName(name: string): string {
-  const base = name.replace(/\.[^./\\]+$/, '');
+  const base = withoutExtension(name);
   return `${base.length > 0 ? base : 'image'}-clear.png`;
 }

@@ -2,6 +2,7 @@ import { computed, inject, Injectable } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { withoutExtension } from '@axe/core/util/file-name';
 import { StampPack } from '@axe/domain/chat/stamp-pack';
 import { DataElement } from '@axe/domain/data/data-element';
 
@@ -78,7 +79,7 @@ export class StampPackService {
     if (!this.canManage) return 0;
     let added = 0;
     for (const image of images) {
-      if (pack.addStamp(image.identifier, image.name.replace(/\.[^.]+$/, '').trim())) added++;
+      if (pack.addStamp(image.identifier, withoutExtension(image.name).trim())) added++;
     }
     return added;
   }
