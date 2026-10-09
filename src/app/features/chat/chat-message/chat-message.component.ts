@@ -10,6 +10,7 @@ import {
   inject,
   Injector,
   input,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -17,6 +18,7 @@ import { FormsModule } from '@angular/forms';
 import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
+import { ChatReactionService, ReactionTally } from '@axe/application/chat/chat-reaction.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -52,9 +54,11 @@ import {
 } from '@axe/features/chat/chat-message/chat-message-context-menu';
 import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-message/chat-readable-text';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
+import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { vnEmoteLabels } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { DiceRollStageComponent } from '@axe/ui/components/dice-roll-stage/dice-roll-stage.component';
+import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -77,6 +81,7 @@ const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    StampComponent,
     NgClass,
     NgStyle,
     NgTemplateOutlet,
@@ -325,6 +330,7 @@ export class ChatMessageComponent {
     return buildChatMessageContextMenu(
       {
         canInteract: this.canInteract,
+        canReact: this.canReact,
         canShareAsMemo: this.canShareAsMemo,
         canChange: this.canChange,
         afterWhisperTargets: this.canMakeAfterWhisper
@@ -345,6 +351,7 @@ export class ChatMessageComponent {
       {
         reply: () => this.clickReply(),
         quote: () => this.clickQuote(),
+        react: () => this.openReactionPicker(this.hostElement.nativeElement),
         copyToTab: (identifier) => {
           const tab = this.copyTargets().find((candidate) => candidate.identifier === identifier);
           if (tab) this.copyToTab(tab);
@@ -383,11 +390,18 @@ export class ChatMessageComponent {
    * Deleting stands there beside editing, both being what the speaker does to their own line; it
    * asks before it deletes, so having it at hand does not make it easy to do by mistake.
    */
-  protected toolbarActions(): { answer: boolean; bookmark: boolean; edit: boolean; delete: boolean } | null {
+  protected toolbarActions(): {
+    answer: boolean;
+    react: boolean;
+    bookmark: boolean;
+    edit: boolean;
+    delete: boolean;
+  } | null {
     const message = this.chatMessage;
     if (!message || this.readOnly() || this.isEditing()) return null;
     const actions = {
       answer: this.canInteract,
+      react: this.canReact,
       bookmark: this.canBookmarkAny,
       edit: this.canChange,
       delete: this.canPseudoDelete,
@@ -395,7 +409,9 @@ export class ChatMessageComponent {
     // Asked of every drawn line on every pass, so it is told from these few answers rather than by
     // building the menu: the menu holds at least the words of any line whose words are shown.
     const words = !isChatTextHidden(message, this.canRevealSecret) && (message.text ?? '').trim().length > 0;
-    return actions.answer || actions.bookmark || actions.edit || actions.delete || words ? actions : null;
+    return actions.answer || actions.react || actions.bookmark || actions.edit || actions.delete || words
+      ? actions
+      : null;
   }
 
   /** Opens everything that can be done with the line under the toolbar's last button. */
@@ -708,6 +724,66 @@ export class ChatMessageComponent {
     return true;
   }
 
+  /**
+   * Whether a stamp may be put on the line: any line that may be answered and that the reader is
+   * shown, a dice bot's answer to a roll among them, by a guest as much as a player, since it changes
+   * nothing on the table.
+   */
+  get canReact(): boolean {
+    return this.canInteract && this.chatMessage.isShownInChat;
+  }
+
+  private readonly reactionTallies = computed<readonly ReactionTally[]>(
+    () => {
+      const message = this.chatMessageInput();
+      if (!message) return [];
+      this.objectChange.versionOf(message.identifier)();
+      if (!message.isShownInChat) return [];
+      return this.reactions.talliesOf(message.identifier);
+    },
+    { equal: sameTallies }
+  );
+
+  /**
+   * The stamps on the line, each with a number that goes up whenever more people put it on while the
+   * line is in view, for it to make its move then and not every time the line is drawn again.
+   */
+  protected readonly reactionChips = linkedSignal<
+    readonly ReactionTally[],
+    readonly (ReactionTally & { readonly play: number })[]
+  >({
+    source: this.reactionTallies,
+    computation: (tallies, previous) =>
+      tallies.map((tally) => {
+        const before = previous?.value.find((chip) => chip.stampId === tally.stampId);
+        if (!before) return { ...tally, play: previous ? 1 : 0 };
+        return { ...tally, play: tally.count > before.count ? before.play + 1 : before.play };
+      }),
+  });
+
+  /** Who put a stamp on the line, as the reader's language lists names. */
+  protected reactionNames(tally: ReactionTally): string {
+    const lang = this.language.currentLang();
+    try {
+      return new Intl.ListFormat(lang, { style: 'short', type: 'conjunction' }).format(tally.names);
+    } catch {
+      return tally.names.join(', ');
+    }
+  }
+
+  /** Puts a stamp on the line for the reader, or takes it back off. */
+  protected toggleReaction(stampId: string): void {
+    if (!this.canReact) return;
+    this.reactions.toggle(this.chatMessage, stampId);
+  }
+
+  /** Opens the stamps under the toolbar's button, or under the line on a touch screen. */
+  protected openReactionPicker(anchor: EventTarget | null): void {
+    if (!this.canReact || !(anchor instanceof Element)) return;
+    const message = this.chatMessage;
+    this.stampPicker.toggle(anchor, (stampId) => this.reactions.toggle(message, stampId));
+  }
+
   readonly canShowInTicker = computed(() => {
     // A window that only reads the log offers none of the buttons that act on a line.
     if (this.readOnly()) return false;
@@ -912,6 +988,8 @@ export class ChatMessageComponent {
   }
 
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly reactions = inject(ChatReactionService);
+  private readonly stampPicker = inject(StampPickerService);
   private readonly destroyRef = inject(DestroyRef);
   readonly isHighlighted = signal(false);
   private highlightTimer: ReturnType<typeof setTimeout> | null = null;
@@ -982,4 +1060,18 @@ export class ChatMessageComponent {
     const decoded = this.isSystemMessage ? decodeI18nMessage(text, this.t) : text;
     return decorateChatStyleText(vnBodyOf(this.chatMessage?.vnEmote, decoded));
   }
+}
+
+/** Whether two readings of a line's stamps say the same, so the line is not drawn again for nothing. */
+function sameTallies(a: readonly ReactionTally[], b: readonly ReactionTally[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (tally, index) =>
+        tally.stampId === b[index].stampId &&
+        tally.count === b[index].count &&
+        tally.mine === b[index].mine &&
+        tally.names.join('\n') === b[index].names.join('\n')
+    )
+  );
 }

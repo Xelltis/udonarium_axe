@@ -10,6 +10,7 @@ const translate = (key: string) => key;
 function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuState {
   return {
     canInteract: true,
+    canReact: false,
     canShareAsMemo: true,
     canChange: true,
     bookmarkKinds: [],
@@ -32,6 +33,7 @@ function callbacks(): ChatMessageMenuCallbacks {
   return {
     reply: vi.fn(),
     quote: vi.fn(),
+    react: vi.fn(),
     copyToTab: vi.fn(),
     shareAsMemo: vi.fn(),
     edit: vi.fn(),
@@ -48,6 +50,30 @@ function callbacks(): ChatMessageMenuCallbacks {
 }
 
 describe('buildChatMessageContextMenu()', () => {
+  it('offers to put a stamp on the line among the answers, to whoever may', () => {
+    const handlers = callbacks();
+    const names = (menu: { name: string }[]) => menu.map((entry) => entry.name);
+
+    const menu = buildChatMessageContextMenu(state({ canReact: true }), handlers, translate);
+    expect(names(menu).slice(0, 3)).toEqual([
+      'feature.chat.message.reply',
+      'feature.chat.message.quote',
+      'feature.chat.message.react',
+    ]);
+    menu[2].action!();
+    expect(handlers.react).toHaveBeenCalled();
+
+    const guestMenu = buildChatMessageContextMenu(
+      state({ canInteract: false, canReact: true }),
+      callbacks(),
+      translate
+    );
+    expect(names(guestMenu)[0]).toBe('feature.chat.message.react');
+    expect(names(buildChatMessageContextMenu(state(), callbacks(), translate))).not.toContain(
+      'feature.chat.message.react'
+    );
+  });
+
   it('groups everything by what it is for, from answering the line to deleting it, last and apart', () => {
     const menu = buildChatMessageContextMenu(
       state({

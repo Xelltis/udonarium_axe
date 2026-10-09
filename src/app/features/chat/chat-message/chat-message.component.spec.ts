@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
+import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import {
   DEFAULT_SYSTEM_AVATAR_URL,
@@ -24,12 +25,14 @@ import { emitFileLoaded } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-message.component';
+import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import type { MockInstance } from 'vitest';
@@ -1602,13 +1605,13 @@ describe('ChatMessageComponent', () => {
     it('holds answering, marking, editing and deleting the reader’s own line, then everything else', () => {
       shown('me');
 
-      expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'edit', 'delete', 'more']);
+      expect(actionsShown()).toEqual(['reply', 'quote', 'react', 'bookmark', 'edit', 'delete', 'more']);
     });
 
     it('holds no editing or deleting of somebody else’s line', () => {
       shown('someone');
 
-      expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'more']);
+      expect(actionsShown()).toEqual(['reply', 'quote', 'react', 'bookmark', 'more']);
     });
 
     it('asks before deleting from its button, and deletes once the reader is sure', async () => {
@@ -1968,6 +1971,101 @@ describe('ChatMessageComponent', () => {
 
       expect(message.text).toBe('こんにちは');
       expect(message.vnEmote).toBe('');
+    });
+  });
+
+  describe('stamps put on the line', () => {
+    let tab: ChatTab;
+    const host = () => fixture.nativeElement as HTMLElement;
+
+    function chip(stampId: string): HTMLButtonElement | null {
+      return host().querySelector(`[data-testid="chat-message-reaction-${stampId}"]`);
+    }
+
+    function count(stampId: string): string | undefined {
+      return chip(stampId)?.querySelector('[data-reaction-count]')?.textContent?.trim();
+    }
+
+    function shown(): ChatMessage {
+      const message = tab.addMessage({ from: 'someone', name: 'GM', text: '扉の向こうで音がした', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+      return message;
+    }
+
+    function answered(message: ChatMessage, userId: string, name: string, stamps: string): void {
+      ChatReaction.create(message.identifier, userId, name).stamps = stamps;
+    }
+
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      PeerCursor.myCursor.name = 'わたし';
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => {
+      for (const reaction of ObjectStore.instance.getObjects<ChatReaction>(ChatReaction)) reaction.destroy();
+      tab.destroy();
+    });
+
+    it('shows each stamp on the line with how many put it on, and marks the one the reader put on', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'sfx:creepy seal:ok');
+      answered(message, 'me', 'わたし', 'sfx:creepy');
+      await settle();
+
+      expect(count('sfx:creepy')).toBe('2');
+      expect(chip('sfx:creepy')!.getAttribute('aria-pressed')).toBe('true');
+      expect(chip('seal:ok')!.getAttribute('aria-pressed')).toBe('false');
+      expect(chip('sfx:creepy')!.title).toContain('あいて');
+    });
+
+    it('puts the reader\u2019s stamp on and takes it off from its chip', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'seal:ok');
+      await settle();
+
+      chip('seal:ok')!.click();
+      await settle();
+      expect(count('seal:ok')).toBe('2');
+
+      chip('seal:ok')!.click();
+      await settle();
+      expect(count('seal:ok')).toBe('1');
+    });
+
+    it('opens the stamps under the toolbar button, and puts the one picked on the line', async () => {
+      const message = shown();
+      const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
+
+      const button = host().querySelector<HTMLButtonElement>('[data-testid="chat-message-action-react"]')!;
+      button.click();
+      expect(toggle).toHaveBeenCalledWith(button, expect.any(Function));
+
+      toggle.mock.calls[0][1]('motif:skull');
+      await settle();
+      expect(TestBed.inject(ChatReactionService).talliesOf(message.identifier)).toEqual([
+        expect.objectContaining({ stampId: 'motif:skull', mine: true }),
+      ]);
+      expect(chip('motif:skull')).not.toBeNull();
+    });
+
+    it('shows no stamps on a line taken out of the chat', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'seal:ok');
+      await settle();
+      expect(chip('seal:ok')).not.toBeNull();
+
+      message.pseudoDelete(2000);
+      await settle();
+      expect(chip('seal:ok')).toBeNull();
     });
   });
 });

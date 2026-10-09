@@ -178,6 +178,7 @@
               <dice-roll-stage [messageIdentifier]="chatMessage.identifier" />
             </div>
           }
+          <ng-container [ngTemplateOutlet]="reactionRow" />
           <ng-container [ngTemplateOutlet]="actionToolbar" />
         </div>
       </div>
@@ -335,6 +336,7 @@
             </font>
           </span>
           <ng-container [ngTemplateOutlet]="historyPanel" />
+          <ng-container [ngTemplateOutlet]="reactionRow" />
           <ng-container [ngTemplateOutlet]="actionToolbar" />
         </div>
       </div>
@@ -413,6 +415,30 @@
   included, is under its last button, in the same menu a right click or a press held on the line
   opens. A touch screen has no hover, so it reaches the line through that press alone.
 -->
+<ng-template #reactionRow>
+  @if (reactionChips().length > 0) {
+    <div class="flex flex-wrap gap-1 px-2.5 pt-1 pb-0.5" data-testid="chat-message-reactions">
+      @for (chip of reactionChips(); track chip.stampId) {
+        <button
+          type="button"
+          class="border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-full border border-solid py-0 pr-2 pl-0.5 text-[11px] tabular-nums transition-colors disabled:cursor-default"
+          [class.border-ui-accent!]="chip.mine"
+          [class.bg-ui-accent-bg!]="chip.mine"
+          [class.text-ui-accent!]="chip.mine"
+          [title]="reactionNames(chip)"
+          [attr.aria-pressed]="chip.mine"
+          [attr.data-testid]="'chat-message-reaction-' + chip.stampId"
+          [disabled]="!canReact"
+          (click)="toggleReaction(chip.stampId)"
+        >
+          <ui-stamp [stampId]="chip.stampId" [size]="24" [play]="chip.play" />
+          <span data-reaction-count>{{ chip.count }}</span>
+        </button>
+      }
+    </div>
+  }
+</ng-template>
+
 <ng-template #actionToolbar>
   @if (toolbarActions(); as actions) {
     <div
@@ -441,6 +467,19 @@
           (click)="clickQuote()"
         >
           <i class="material-icons" aria-hidden="true">format_quote</i>
+        </button>
+      }
+      @if (actions.react) {
+        <button
+          type="button"
+          data-testid="chat-message-action-react"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+          [title]="'feature.chat.message.react' | transloco"
+          [attr.aria-label]="'feature.chat.message.react' | transloco"
+          aria-haspopup="listbox"
+          (click)="openReactionPicker($event.currentTarget)"
+        >
+          <i class="material-icons" aria-hidden="true">add_reaction</i>
         </button>
       }
       @if (actions.bookmark) {

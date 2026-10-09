@@ -89,6 +89,15 @@ export function stampOf(id: string | null | undefined): StampRef | null {
   return builtin ? { kind: 'builtin', stamp: builtin } : null;
 }
 
+/**
+ * Where a stamp stands among the others when they are shown together: the ones that come with the
+ * app in the order they are offered, then the room's own.
+ */
+export function stampOrder(id: string): number {
+  const index = BUILTIN_STAMPS.findIndex((each) => each.id === id);
+  return index >= 0 ? index : BUILTIN_STAMPS.length;
+}
+
 /** The identifier of the stamp a picture in the room is. */
 export function imageStampId(imageIdentifier: string): string {
   return `${IMAGE_STAMP_PREFIX}${imageIdentifier}`;

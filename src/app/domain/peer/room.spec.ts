@@ -6,6 +6,8 @@ import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { createDefaultEffectPresets } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
@@ -247,6 +249,48 @@ describe('Room', () => {
       const cards = store.getObjects(Card);
       expect(cards).toHaveLength(1);
       expect(cards[0].owner).toBe('');
+    });
+  });
+
+  describe('saving the stamps put on lines of chat', () => {
+    it('writes the stamps on a line still in the chat, and not those on a line gone with its tab', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      ChatReaction.create(message.identifier, 'noa', 'ノア').stamps = 'sfx:creepy seal:ok';
+      ChatReaction.create('gone-line', 'noa', 'ノア').stamps = 'seal:ok';
+
+      const xml = new Room().innerXml();
+
+      expect(xml).toContain(`<chat-reaction messageIdentifier="${message.identifier}" userId="noa"`);
+      expect(xml).toContain('stamps="sfx:creepy seal:ok"');
+      expect(xml).not.toContain('gone-line');
+    });
+
+    it('reads them back in place of the ones there were', () => {
+      ChatReaction.create('line-before', 'old', 'まえ').stamps = 'seal:ok';
+
+      loadRoom(
+        '<chat-reaction messageIdentifier="line-1" userId="noa" userName="ノア" stamps="motif:skull"></chat-reaction>'
+      );
+
+      expect(store.getObjects(ChatReaction).map((each) => [each.messageIdentifier, each.userId, each.stamps])).toEqual([
+        ['line-1', 'noa', 'motif:skull'],
+      ]);
+    });
+
+    it('starts with none from a room saved before there were any', () => {
+      ChatReaction.create('line-before', 'old', 'まえ').stamps = 'seal:ok';
+
+      loadRoom('<card></card>');
+
+      expect(store.getObjects(ChatReaction)).toEqual([]);
+      expect(store.getObjects(Card)).toHaveLength(1);
+    });
+
+    it('passes over a kind it does not know and reads the rest, as an older version does these', () => {
+      loadRoom('<a-kind-from-a-newer-version stamps="x"></a-kind-from-a-newer-version><card></card>');
+
+      expect(store.getObjects(Card)).toHaveLength(1);
     });
   });
 });

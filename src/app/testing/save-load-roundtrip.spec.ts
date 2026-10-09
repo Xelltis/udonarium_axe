@@ -6,6 +6,8 @@ import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { xml2element } from '@axe/core/util/xml-util';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import {
   DataElement,
@@ -44,6 +46,29 @@ describe('save and load round trip', () => {
 
   afterEach(() => {
     (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+  });
+
+  describe('the stamps put on lines of chat', () => {
+    it('still points at the same line once the chat and the room are saved and read back', () => {
+      const reloadCheck = new ReloadCheck('ReloadCheck');
+      reloadCheck.initialize();
+      reloadCheck.reloadCheckStart(false);
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const line = tab.addMessage({ from: 'gm', name: 'GM', text: '扉の向こうで音がした', timestamp: 1000 });
+      ChatReaction.create(line.identifier, 'noa', 'ノア').stamps = 'sfx:creepy seal:ok';
+
+      const chatXml = serializer.toXml(ChatTabList.instance);
+      const roomXml = `<room>${new Room().innerXml()}</room>`;
+      serializer.parseXml(chatXml);
+      serializer.parseXml(roomXml);
+
+      const reactions = store.getObjects<ChatReaction>(ChatReaction);
+      expect(reactions).toHaveLength(1);
+      expect(reactions[0].stampIds).toEqual(['sfx:creepy', 'seal:ok']);
+      const answered = store.get(reactions[0].messageIdentifier);
+      expect(answered).toBeInstanceOf(ChatMessage);
+      expect((answered as ChatMessage).text).toBe('扉の向こうで音がした');
+    });
   });
 
   describe("the room's own rules", () => {

@@ -5,6 +5,8 @@ import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 /** What the reader may do with one line, as the line works it out. */
 export interface ChatMessageMenuState {
   canInteract: boolean;
+  /** Whether the reader may put a stamp on the line. */
+  canReact: boolean;
   canShareAsMemo: boolean;
   canChange: boolean;
   /** The kinds of mark the reader may put on the line or take off, with whether it carries each. */
@@ -34,6 +36,7 @@ export interface ChatMessageMenuState {
 export interface ChatMessageMenuCallbacks {
   reply: () => void;
   quote: () => void;
+  react: () => void;
   copyToTab: (tabIdentifier: string) => void;
   shareAsMemo: () => void;
   edit: () => void;
@@ -69,6 +72,9 @@ export function buildChatMessageContextMenu(
   if (state.canInteract) {
     answer.push({ name: t('feature.chat.message.reply'), action: () => callbacks.reply() });
     answer.push({ name: t('feature.chat.message.quote'), action: () => callbacks.quote() });
+  }
+  if (state.canReact) {
+    answer.push({ name: t('feature.chat.message.react'), action: () => callbacks.react() });
   }
 
   const words: ContextMenuAction[] = [];
