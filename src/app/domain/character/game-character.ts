@@ -80,6 +80,11 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() chatBubbleDark: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
   @SyncVar() overViewDataTags: string[] = [];
   @SyncVar() syncDummyCounter: number = 0;
+  /**
+   * How each of the character's portraits sits in a cut-in's portrait slot, as
+   * `cut-in-portrait-fit.ts` writes it. Empty leaves every portrait to the cut-in's own framing.
+   */
+  @SyncVar() cutInPortraitFits: string = '';
 
   /**
    * How the piece is getting about, as one of MOVE_MODES. Empty walks.

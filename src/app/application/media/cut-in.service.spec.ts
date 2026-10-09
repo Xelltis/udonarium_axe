@@ -4,10 +4,12 @@ import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
+import { withPortraitFits } from '@axe/domain/media/cut-in-portrait-fit';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -218,6 +220,32 @@ describe('what a line arriving sets off', () => {
     tab.addMessage({ from: 'me', name: '術者', text: '斬る 炎の剣', timestamp: Date.now() });
 
     expect(spy).toHaveBeenCalledWith(cutIn, '', expect.objectContaining({ name: '術者', characterId: '' }));
+  });
+
+  it('plays it for the character who said it, with the portrait it was said with as they set it', () => {
+    const cutIn = makeCutIn('炎の剣');
+    const spy = vi.spyOn(launcher, 'startCutIn').mockImplementation(() => {});
+    const hero = GameCharacter.create('ヒロ', 1, '');
+    hero.cutInPortraitFits = withPortraitFits('', new Map([['hero-smile', { scale: 2, x: 0, y: 0.3 }]]), [
+      'hero-smile',
+    ]);
+
+    tab.addMessage({
+      from: 'me',
+      sendFrom: hero.identifier,
+      name: 'ヒロ',
+      imageIdentifier: 'hero-smile',
+      text: '斬る 炎の剣',
+      timestamp: Date.now(),
+    });
+
+    expect(spy).toHaveBeenCalledWith(cutIn, '', {
+      characterId: hero.identifier,
+      imageIdentifier: 'hero-smile',
+      name: 'ヒロ',
+      fit: { scale: 2, x: 0, y: 0.3 },
+    });
+    hero.destroy();
   });
 
   it('leaves the backlog alone when somebody walks into the room', () => {

@@ -5,6 +5,7 @@
  * The speaker goes out with the launch as a snapshot, so a cut-in already playing is not changed by
  * a later edit to the character.
  */
+import { type CutInPortraitFit, packPortraitFit, unpackPortraitFit } from '@axe/domain/media/cut-in-portrait-fit';
 
 /** The speaker a cut-in is played for. */
 export interface CutInSpeaker {
@@ -13,6 +14,8 @@ export interface CutInSpeaker {
   /** The portrait the line was said with, empty for none. */
   readonly imageIdentifier: string;
   readonly name: string;
+  /** How the character set that portrait in a portrait slot; none leaves it to the cut-in. */
+  readonly fit?: CutInPortraitFit | null;
 }
 
 interface LaunchSpeakerRecord {
@@ -23,6 +26,7 @@ interface LaunchSpeakerRecord {
   readonly c: string;
   readonly i: string;
   readonly n: string;
+  readonly f?: readonly [number, number, number];
 }
 
 /**
@@ -40,6 +44,7 @@ export function encodeLaunchSpeaker(speaker: CutInSpeaker | null, stamp: number,
     c: speaker.characterId,
     i: speaker.imageIdentifier,
     n: speaker.name,
+    ...(speaker.fit ? { f: packPortraitFit(speaker.fit) } : {}),
   };
   return JSON.stringify(record);
 }
@@ -64,6 +69,7 @@ export function readLaunchSpeaker(held: unknown, stamp: number, cutInIdentifier:
     characterId: typeof record.c === 'string' ? record.c : '',
     imageIdentifier: typeof record.i === 'string' ? record.i : '',
     name: typeof record.n === 'string' ? record.n : '',
+    fit: unpackPortraitFit(record.f),
   };
 }
 

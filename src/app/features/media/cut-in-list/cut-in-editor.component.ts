@@ -12,6 +12,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
+import { portraitFitFor } from '@axe/domain/media/cut-in-portrait-fit';
 import { type CutInSpeaker, SPEAKER_NAME_TOKEN } from '@axe/domain/media/cut-in-speaker';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { CutInBgmComponent } from '@axe/features/media/cut-in-bgm/cut-in-bgm.component';
@@ -77,10 +78,12 @@ export class CutInEditorComponent {
     const character = this.objectStore.get<GameCharacter>(this.trySpeakerId());
     if (!(character instanceof GameCharacter) || !this.usesSpeaker()) return null;
     const portrait = portraitElementAt(character, character.selectedPortraitIndex);
+    const imageIdentifier = portrait ? `${portrait.value}` : character.imageFile.identifier;
     return {
       characterId: character.identifier,
-      imageIdentifier: portrait ? `${portrait.value}` : character.imageFile.identifier,
+      imageIdentifier,
       name: character.name,
+      fit: portraitFitFor(character.cutInPortraitFits, imageIdentifier),
     };
   }
 

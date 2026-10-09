@@ -5,6 +5,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
+import { withPortraitFits } from '@axe/domain/media/cut-in-portrait-fit';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { CutInEditorComponent } from '@axe/features/media/cut-in-list/cut-in-editor.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -62,9 +63,12 @@ describe('CutInEditorComponent', () => {
       }
     });
 
-    it('plays it for the character chosen, with the portrait they are showing', () => {
+    it('plays it for the character chosen, with the portrait they are showing as they set it', () => {
       const { scene } = withLayer({ kind: 'text', text: '{character}、参戦！' });
       const hero = GameCharacter.create('ヒロ', 1, 'hero-face');
+      hero.cutInPortraitFits = withPortraitFits('', new Map([['hero-face', { scale: 1.5, x: 0, y: 0.2 }]]), [
+        'hero-face',
+      ]);
       const launcher = new CutInLauncher('CutInLauncher');
       launcher.initialize();
       const start = vi.spyOn(launcher, 'startCutInMySelf').mockImplementation(() => {});
@@ -82,6 +86,7 @@ describe('CutInEditorComponent', () => {
           characterId: hero.identifier,
           imageIdentifier: 'hero-face',
           name: 'ヒロ',
+          fit: { scale: 1.5, x: 0, y: 0.2 },
         });
       } finally {
         hero.destroy();

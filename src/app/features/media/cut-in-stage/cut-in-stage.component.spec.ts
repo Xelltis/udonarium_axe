@@ -359,6 +359,23 @@ describe('CutInStageComponent', () => {
       expect(picture()).toBe('blob:stand-in');
     });
 
+    it('sets the speaker\u2019s portrait as they fitted it, and leaves the stand-in to the layer\u2019s framing', () => {
+      const scene = makeScene();
+      addLayer(scene, { kind: 'image', portraitSlot: true, imageIdentifier: 'stand-in', objectFit: 'cover' });
+      const fitted = () => fixture.nativeElement.querySelector('img[data-portrait-fit]') as HTMLImageElement | null;
+
+      fixture.componentRef.setInput('speaker', { ...speaker, fit: { scale: 2, x: 0.1, y: -0.25 } });
+      show(scene, false, 0);
+      expect(fitted()?.style.transform).toBe('translate(10%, -25%) scale(2)');
+      expect(fitted()?.parentElement?.classList).toContain('overflow-hidden');
+
+      fixture.componentRef.setInput('speaker', { ...speaker, imageIdentifier: 'gone', fit: { scale: 2, x: 0, y: 0 } });
+      fixture.detectChanges();
+      expect(fitted()).toBeNull();
+      expect(picture()).toBe('blob:stand-in');
+      expect((fixture.nativeElement.querySelector('img') as HTMLImageElement).style.objectFit).toBe('cover');
+    });
+
     it('says the speaker\u2019s name where a text layer asks for it, and a stand-in where there is nobody', () => {
       const scene = makeScene();
       addLayer(scene, { kind: 'text', text: '{character}、参戦！' });

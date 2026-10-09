@@ -25,6 +25,7 @@ import {
   letterTimingOf,
   type PlacedLetter,
 } from '@axe/domain/media/cut-in-letter-motion';
+import { type CutInPortraitFit, portraitFitTransform } from '@axe/domain/media/cut-in-portrait-fit';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import {
   layerFilter,
@@ -216,6 +217,19 @@ export class CutInStageComponent {
     const portrait = this.speaker()?.imageIdentifier ?? '';
     return (portrait ? this.imageStorage.get(portrait)?.url : '') || own || PORTRAIT_SILHOUETTE_URL;
   }
+
+  /**
+   * How the speaker set the portrait a portrait's place shows, or null where they did not set it or
+   * the place shows something else, which leaves the picture to the layer's own framing.
+   */
+  protected portraitFitOf(layer: CutInLayer): CutInPortraitFit | null {
+    this.objectChange.fileVersion();
+    const speaker = this.speaker();
+    if (!layer.portraitSlot || !speaker?.fit || !speaker.imageIdentifier) return null;
+    return this.imageStorage.get(speaker.imageIdentifier)?.url ? speaker.fit : null;
+  }
+
+  protected readonly fitTransform = portraitFitTransform;
 
   /** A text layer's words, with the speaker's name put in where it asks for it. */
   protected textOf(layer: CutInLayer): string {

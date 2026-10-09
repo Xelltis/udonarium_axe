@@ -214,7 +214,12 @@ describe('CutInLauncher', () => {
       const cutIn = new CutIn();
       cutIn.initialize();
       const { speakers, off } = started();
-      const speaker = { characterId: 'hero', imageIdentifier: 'hero-smile', name: 'ヒロ' };
+      const speaker = {
+        characterId: 'hero',
+        imageIdentifier: 'hero-smile',
+        name: 'ヒロ',
+        fit: { scale: 1.5, x: 0, y: 0.2 },
+      };
 
       launcher.startCutIn(cutIn, '', speaker);
       launcher.startCutIn(cutIn);
@@ -229,7 +234,12 @@ describe('CutInLauncher', () => {
       const cutIn = new CutIn();
       cutIn.initialize();
       launcher.apply(launcher.toContext());
-      const speaker = { characterId: 'hero', imageIdentifier: 'hero-smile', name: 'ヒロ' };
+      const speaker = {
+        characterId: 'hero',
+        imageIdentifier: 'hero-smile',
+        name: 'ヒロ',
+        fit: { scale: 1.5, x: 0, y: 0.2 },
+      };
       const { speakers, off } = started();
 
       const fromNewer = launcher.toContext();

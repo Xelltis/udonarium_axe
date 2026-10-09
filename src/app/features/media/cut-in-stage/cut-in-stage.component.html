@@ -74,14 +74,27 @@
               }
               @default {
                 @if (imageUrl(layer); as url) {
-                  <img
-                    class="size-full select-none"
-                    draggable="false"
-                    [src]="url | safe: 'resourceUrl'"
-                    [style.object-fit]="layer.objectFit"
-                    [style.object-position]="layer.objectPosX + '% ' + layer.objectPosY + '%'"
-                    alt=""
-                  />
+                  @if (portraitFitOf(layer); as fit) {
+                    <div class="size-full overflow-hidden">
+                      <img
+                        class="size-full object-contain select-none"
+                        draggable="false"
+                        data-portrait-fit
+                        [src]="url | safe: 'resourceUrl'"
+                        [style.transform]="fitTransform(fit)"
+                        alt=""
+                      />
+                    </div>
+                  } @else {
+                    <img
+                      class="size-full select-none"
+                      draggable="false"
+                      [src]="url | safe: 'resourceUrl'"
+                      [style.object-fit]="layer.objectFit"
+                      [style.object-position]="layer.objectPosX + '% ' + layer.objectPosY + '%'"
+                      alt=""
+                    />
+                  }
                 }
               }
             }

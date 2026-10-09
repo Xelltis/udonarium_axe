@@ -6,6 +6,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
+import { portraitFitFor } from '@axe/domain/media/cut-in-portrait-fit';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { parseCutInIdentifiers, pickCutInIdentifier, rollCutIn } from '@axe/domain/media/table-cut-in';
@@ -45,16 +46,19 @@ export class CutInService {
 
   /**
    * Who a line was said by, for a cut-in it sets off to be played for: the character or the
-   * person speaking, with the portrait the line was said with.
+   * person speaking, with the portrait the line was said with and how the character set it in a
+   * portrait slot.
    */
   speakerOf(message: ChatMessage): CutInSpeaker {
     const speaker = this.objectStore.get(message.sendFrom);
     const isCharacter = speaker instanceof GameCharacter;
     const name = isCharacter || speaker instanceof PeerCursor ? speaker.name : message.name;
+    const imageIdentifier = message.imageIdentifier ?? '';
     return {
       characterId: isCharacter ? speaker.identifier : '',
-      imageIdentifier: message.imageIdentifier ?? '',
+      imageIdentifier,
       name: name ?? '',
+      fit: isCharacter ? portraitFitFor(speaker.cutInPortraitFits, imageIdentifier) : null,
     };
   }
 
