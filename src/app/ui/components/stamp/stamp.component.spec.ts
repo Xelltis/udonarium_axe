@@ -39,6 +39,19 @@ describe('StampComponent', () => {
     expect(show('seal:ok')!.style.width).toBe('48px');
   });
 
+  it('gives each seal a filter of its own, which its rings point at', () => {
+    const first = show('seal:ok')!;
+    const other = TestBed.createComponent(StampComponent);
+    other.componentRef.setInput('stampId', 'seal:ok');
+    other.detectChanges();
+    const second = other.nativeElement.querySelector('[data-stamp]') as HTMLElement;
+
+    const ids = [first, second].map((drawn) => drawn.querySelector('filter')!.id);
+    expect(new Set(ids).size).toBe(2);
+    expect(first.querySelector('g[filter]')!.getAttribute('filter')).toBe(`url(#${ids[0]})`);
+    expect(second.querySelector('g[filter]')!.getAttribute('filter')).toBe(`url(#${ids[1]})`);
+  });
+
   it('draws a seal as a picture', () => {
     expect(show('seal:ok')!.querySelector('svg')).not.toBeNull();
   });
@@ -53,8 +66,11 @@ describe('StampComponent', () => {
     expect(drawn.className).toContain('animate-stamp-pop');
   });
 
-  it('shows a stamp from the room by its picture, and nothing while the picture is not here', () => {
-    expect(show(imageStampId('not-here'))).toBeNull();
+  it('shows a stamp from the room by its picture, and its name in words while the picture is not here', () => {
+    const t = TestBed.inject(TRANSLATE_FN);
+    const missing = show(imageStampId('not-here'))!;
+    expect(missing.querySelector('img')).toBeNull();
+    expect(missing.textContent!.trim()).toBe(t('ui.stamp.standIn', { words: t('ui.stamp.picture') }));
 
     ImageStorage.instance.add({
       identifier: 'stamp-picture',

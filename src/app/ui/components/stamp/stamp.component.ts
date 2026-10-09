@@ -5,8 +5,14 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { stampArtUrl, stampLabelKey, StampMotion, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
-import { sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
+import { SEAL_FILTER_ID, sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+
+/** How many stamps have been made, for each to give its seal's filter an id of its own. */
+let stampsMade = 0;
+
+/** The ink the name of a picture from the room is written in while the picture is not here. */
+const MISSING_PICTURE_INK = '#8a8f99';
 
 /** The classes that move a stamp once, written out whole so the rules for stopped motion find them. */
 const MOTION_CLASSES: Readonly<Record<StampMotion, string>> = {
@@ -53,10 +59,10 @@ type StampView =
  * One stamp, drawn at the size asked for.
  *
  * A sound effect is written in heavy leaning letters with a white edge; a seal is drawn; the
- * character's stamps and a stamp from a room's set are their pictures. A stamp this
- * version does not know, or one
- * whose picture is not here, draws nothing at all. Each time `play` is given a new number above 0
- * the stamp makes its move once.
+ * character's stamps and a stamp from a room's set are their pictures; while the picture of a
+ * stamp from the room is not here, its name is written in its place. A stamp this version does not
+ * know draws nothing at all. Each time `play` is given a new number above 0 the stamp makes its move
+ * once.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,13 +84,32 @@ export class StampComponent {
   /** A number to bump, above 0, for the stamp to make its move again. */
   readonly play = input(0);
 
+  /**
+   * The id this stamp's seal gives its filter, its own, so no seal leans on another's: one on a page
+   * not drawn, in a closed list, would take the ink off every seal that pointed at it.
+   */
+  private readonly sealFilterId = `${SEAL_FILTER_ID}-${++stampsMade}`;
+
   protected readonly view = computed<StampView | null>(() => {
     const ref = stampOf(this.stampId());
     if (!ref) return null;
     if (ref.kind === 'image') {
       this.objectChange.fileVersion();
       const image = ImageStorage.instance.get(ref.imageIdentifier);
-      if (!image?.url) return null;
+      if (!image?.url) {
+        this.language.currentLang();
+        const name = this.packs.nameOf(ref.imageIdentifier) || this.t('ui.stamp.picture');
+        const words = this.t('ui.stamp.standIn', { words: name });
+        return {
+          kind: 'words',
+          name,
+          words,
+          color: MISSING_PICTURE_INK,
+          tilt: 0,
+          fontSizePx: this.wordsSize(words),
+          motion: 'pop',
+        };
+      }
       const name = this.packs.nameOf(ref.imageIdentifier) || image.name;
       return { kind: 'image', name, url: image.url, motion: 'pop' };
     }
@@ -95,12 +120,25 @@ export class StampComponent {
     if (art) return { kind: 'image', name, url: art, motion: stamp.motion };
     const words = this.t(stampLabelKey(stamp));
     if (stamp.family === 'seal') {
-      return { kind: 'picture', name, svg: sealStampSvg(words, stamp.color), tilt: stamp.tilt, motion: stamp.motion };
+      const svg = sealStampSvg(words, stamp.color).replaceAll(SEAL_FILTER_ID, this.sealFilterId);
+      return { kind: 'picture', name, svg, tilt: stamp.tilt, motion: stamp.motion };
     }
-    const length = Math.max(2, Array.from(words).length);
-    const fontSizePx = Math.round(this.size() * Math.max(0.24, Math.min(0.6, 1.25 / length)));
-    return { kind: 'words', name, words, color: stamp.color, tilt: stamp.tilt, fontSizePx, motion: stamp.motion };
+    return {
+      kind: 'words',
+      name,
+      words,
+      color: stamp.color,
+      tilt: stamp.tilt,
+      fontSizePx: this.wordsSize(words),
+      motion: stamp.motion,
+    };
   });
+
+  /** How large words are written for the box: smaller the more there are, within bounds. */
+  private wordsSize(words: string): number {
+    const length = Math.max(2, Array.from(words).length);
+    return Math.round(this.size() * Math.max(0.24, Math.min(0.6, 1.25 / length)));
+  }
 
   protected readonly edge = SOUND_EFFECT_EDGE;
 

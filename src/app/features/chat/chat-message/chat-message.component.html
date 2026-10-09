@@ -136,37 +136,41 @@
                   </button>
                 </div>
               </div>
-            } @else if (sentStamp(); as stampId) {
-              @if (chatMessage.saidWithStamp; as said) {
+            } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
+              @if (sentStamp(); as stampId) {
+                @if (chatMessage.saidWithStamp; as said) {
+                  <span
+                    #messageBody
+                    data-chat-search-text
+                    data-testid="chat-message-said-with-stamp"
+                    [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
+                  ></span>
+                }
+              } @else {
                 <span
                   #messageBody
                   data-chat-search-text
-                  data-testid="chat-message-said-with-stamp"
-                  [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
+                  [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"
                 ></span>
               }
-              <div class="py-0.5" data-testid="chat-message-stamp">
-                <ui-stamp
-                  [stampId]="stampId"
-                  [size]="stampLineSize(stampId, false)"
-                  [play]="animeState() === 'active' ? 1 : 0"
-                />
-              </div>
-            } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
-              <span
-                #messageBody
-                data-chat-search-text
-                [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"
-              ></span>
               @for (badge of emoteBadges(); track $index) {
                 <span
                   class="rounded-ui bg-ui-accent-bg text-ui-accent ml-1 px-1 align-middle text-[10px] whitespace-nowrap"
                   >{{ badge }}</span
                 >
               }
-              @if (attachmentImageFiles().length > 0) {
+              @if (sentStamp(); as stampId) {
+                <div class="py-0.5" data-testid="chat-message-stamp">
+                  <ui-stamp
+                    [stampId]="stampId"
+                    [size]="stampLineSize(stampId, false)"
+                    [play]="animeState() === 'active' ? 1 : 0"
+                  />
+                </div>
+              }
+              @if (shownAttachments().length > 0) {
                 <div class="mt-1.5 flex flex-wrap gap-1.5 whitespace-normal">
-                  @for (image of attachmentImageFiles(); track image.identifier) {
+                  @for (image of shownAttachments(); track image.identifier) {
                     <img
                       class="message-attachment-image border-ui-border-panel bg-ui-elevated block size-auto max-h-30 max-w-[min(180px,100%)] rounded-sm border border-solid object-contain"
                       [src]="image.url | safe: 'resourceUrl'"
@@ -314,37 +318,41 @@
                     </button>
                   </span>
                 </span>
-              } @else if (sentStamp(); as stampId) {
-                @if (chatMessage.saidWithStamp; as said) {
+              } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
+                @if (sentStamp(); as stampId) {
+                  @if (chatMessage.saidWithStamp; as said) {
+                    <span
+                      #messageBody
+                      data-chat-search-text
+                      data-testid="chat-message-said-with-stamp"
+                      [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
+                    ></span>
+                  }
+                } @else {
                   <span
                     #messageBody
                     data-chat-search-text
-                    data-testid="chat-message-said-with-stamp"
-                    [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
+                    [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"
                   ></span>
                 }
-                <span class="inline-block align-middle" data-testid="chat-message-stamp">
-                  <ui-stamp
-                    [stampId]="stampId"
-                    [size]="stampLineSize(stampId, true)"
-                    [play]="animeState() === 'active' ? 1 : 0"
-                  />
-                </span>
-              } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
-                <span
-                  #messageBody
-                  data-chat-search-text
-                  [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"
-                ></span>
                 @for (badge of emoteBadges(); track $index) {
                   <span
                     class="rounded-ui bg-ui-accent-bg text-ui-accent ml-1 px-1 align-middle text-[10px] whitespace-nowrap"
                     >{{ badge }}</span
                   >
                 }
-                @if (attachmentImageFiles().length > 0) {
+                @if (sentStamp(); as stampId) {
+                  <span class="inline-block align-middle" data-testid="chat-message-stamp">
+                    <ui-stamp
+                      [stampId]="stampId"
+                      [size]="stampLineSize(stampId, true)"
+                      [play]="animeState() === 'active' ? 1 : 0"
+                    />
+                  </span>
+                }
+                @if (shownAttachments().length > 0) {
                   <span class="ml-1.5 inline-flex align-middle">
-                    @for (image of attachmentImageFiles(); track image.identifier) {
+                    @for (image of shownAttachments(); track image.identifier) {
                       <img
                         class="message-attachment-image border-ui-border-panel bg-ui-elevated block size-auto max-h-12 max-w-18 rounded-sm border border-solid object-contain"
                         [src]="image.url | safe: 'resourceUrl'"

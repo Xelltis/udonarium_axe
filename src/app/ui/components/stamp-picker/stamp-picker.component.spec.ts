@@ -110,6 +110,17 @@ describe('StampPickerComponent', () => {
     expect(choices(again)).toEqual(['sfx:gulp']);
   });
 
+  it('leaves out of the recent ones a picture from a set this room does not have', () => {
+    localStorage.setItem(RECENT_STAMPS_STORAGE_KEY, JSON.stringify(['image:elsewhere', 'seal:ok', 'image:here']));
+    const root = open();
+    fixture.componentRef.setInput('packs', [
+      { identifier: 'pack-1', name: 'ここ', stamps: [{ stampId: 'image:here' }] },
+    ]);
+    fixture.detectChanges();
+
+    expect(choices(root)).toEqual(['seal:ok', 'image:here']);
+  });
+
   it('leaves out of the recent ones a stamp this version does not know', () => {
     localStorage.setItem(RECENT_STAMPS_STORAGE_KEY, JSON.stringify(['sfx:from-a-newer-version', 'seal:ok', 3]));
 

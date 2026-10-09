@@ -127,7 +127,10 @@ export class StampPickerComponent {
   }
 
   private stampsIn(tab: StampTab): readonly string[] {
-    if (tab === 'recent') return this.recent();
+    if (tab === 'recent') {
+      const inRoom = new Set(this.packs().flatMap((pack) => pack.stamps.map((stamp) => stamp.stampId)));
+      return this.recent().filter((id) => stampOf(id)?.kind !== 'image' || inRoom.has(id));
+    }
     if (tab.startsWith('pack:')) {
       const pack = this.packs().find((each) => `pack:${each.identifier}` === tab);
       return pack ? pack.stamps.map((stamp) => stamp.stampId) : [];

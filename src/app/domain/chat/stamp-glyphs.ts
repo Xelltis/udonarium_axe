@@ -24,8 +24,14 @@ function escapeText(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * The id of the filter a seal's rings are inked through. Every seal carries the filter under this one
+ * name, so whoever puts seals on a page gives each its own, or they all answer to the first.
+ */
+export const SEAL_FILTER_ID = 'axe-stamp-seal-rough';
+
 const ROUGH_INK =
-  `<filter id="axe-stamp-seal-rough" filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">` +
+  `<filter id="${SEAL_FILTER_ID}" filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">` +
   `<feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="noise"/>` +
   `<feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3 0 0 0 2.5" result="ink"/>` +
   `<feComposite in="SourceGraphic" in2="ink" operator="in"/>` +
@@ -74,7 +80,7 @@ export function sealStampSvg(words: string, color: string): string {
     }
     return svg(
       `<defs>${ROUGH_INK}</defs>` +
-        `<g filter="url(#axe-stamp-seal-rough)">` +
+        `<g filter="url(#${SEAL_FILTER_ID})">` +
         `<circle cx="50" cy="50" r="45" fill="none" stroke="${color}" stroke-width="6.5"/>` +
         `<circle cx="50" cy="50" r="40" fill="none" stroke="${color}" stroke-width="1.5"/>` +
         `</g>` +

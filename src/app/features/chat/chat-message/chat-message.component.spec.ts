@@ -197,6 +197,33 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  it('keeps a secret line sent with a stamp covered, stamp and all, from all but whoever may see it', () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    const message = new ChatMessage();
+    message.initialize();
+    message.from = 'someone-else';
+    message.originFrom = 'someone-else';
+    message.to = '';
+    message.name = 'テスト';
+    message.tag = 'secret';
+    message.imageIdentifier = '';
+    message.messColor = '#000000';
+    message.text = 'S1D100<=50\n［クリティカル!］';
+    message.stamp = 'roll:critical';
+    try {
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).not.toContain('S1D100');
+      expect(fixture.nativeElement.textContent).toContain(
+        TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice')
+      );
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-message-stamp"]')).toBeNull();
+    } finally {
+      message.destroy();
+    }
+  });
+
   it('drops the cover on a secret roll as soon as the tag loses it', () => {
     // The reveal changes only the tag. Nothing else drawn while the line is hidden depends on
     // that message, so without a version to watch the cover would stay on until something
@@ -2142,6 +2169,56 @@ describe('ChatMessageComponent', () => {
       expect(said.textContent).toBe('いくぞ！');
       expect(host().textContent).not.toContain('［クリティカル!］');
       expect(host().querySelector('[data-testid="chat-message-stamp"] [data-stamp]')).not.toBeNull();
+    });
+
+    it('shows a line sent with a picture from the room that is not here as its words, stand-in and all', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: 'これ\n［ナイス］',
+        timestamp: 1000,
+        stamp: 'image:not-here',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      expect(host().querySelector('[data-testid="chat-message-stamp"]')).toBeNull();
+      expect(host().textContent).toContain('［ナイス］');
+    });
+
+    it('shows the pictures said with a stamp, leaving out the one drawn as the stamp', () => {
+      const storage = TestBed.inject(ImageStorage);
+      for (const identifier of ['said-picture', 'stamp-picture']) {
+        storage.add({
+          identifier,
+          name: `${identifier}.png`,
+          type: 'image/png',
+          blob: null,
+          url: `blob:${identifier}`,
+          thumbnail: { type: '', blob: null, url: '' },
+        });
+      }
+      try {
+        const message = tab.addMessage({
+          from: 'me',
+          name: 'わたし',
+          text: 'これ\n［ナイス］',
+          timestamp: 1000,
+          stamp: 'image:stamp-picture',
+          attachmentImageIdentifiers: JSON.stringify(['said-picture', 'stamp-picture']),
+        });
+        fixture.componentRef.setInput('chatMessage', message);
+        fixture.detectChanges();
+
+        const attached = [...host().querySelectorAll<HTMLImageElement>('img.message-attachment-image')];
+        expect(attached.map((image) => image.getAttribute('src'))).toEqual(['blob:said-picture']);
+        expect(host().querySelector('[data-testid="chat-message-stamp"] img')!.getAttribute('src')).toBe(
+          'blob:stamp-picture'
+        );
+      } finally {
+        storage.delete('said-picture');
+        storage.delete('stamp-picture');
+      }
     });
 
     it('draws nothing above a stamp sent on its own', () => {

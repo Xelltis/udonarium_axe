@@ -59,6 +59,15 @@ describe('copiedMessageContext()', () => {
     });
   });
 
+  it('carries over the stamp a line was sent with, and writes none for a line without one', () => {
+    const stamped = line();
+    stamped.value = 'いくぞ！\n［クリティカル!］';
+    stamped.stamp = 'roll:critical';
+
+    expect(copiedMessageContext(stamped, 4200).stamp).toBe('roll:critical');
+    expect('stamp' in copiedMessageContext(line(), 4200)).toBe(false);
+  });
+
   it('leaves behind what points at the tab it came from', () => {
     const message = line();
     message.value = 'それで？';

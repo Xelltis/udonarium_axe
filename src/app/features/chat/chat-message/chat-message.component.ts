@@ -44,7 +44,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
-import { isPictureStamp } from '@axe/domain/chat/stamp-catalog';
+import { isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -142,12 +142,29 @@ export class ChatMessageComponent {
     return !this.readOnly() && (this.chatMessage?.changeable ?? false) && !this.chatMessage.sentStamp;
   }
 
-  /** The stamp the line was sent as, drawn large in place of its words; null for a line of words. */
+  /**
+   * The stamp the line was sent with, drawn large under what was said with it; null for a line of
+   * words, and for a picture from the room that is not here, whose line is shown as its words, the
+   * stand-in for the stamp among them.
+   */
   protected readonly sentStamp = computed(() => {
     const message = this.chatMessageInput();
     if (!message) return null;
     this.objectChange.versionOf(message.identifier)();
-    return message.sentStamp;
+    const stampId = message.sentStamp;
+    const ref = stampOf(stampId);
+    if (ref?.kind === 'image') {
+      this.objectChange.fileVersion();
+      if (!this.imageStorage.get(ref.imageIdentifier)?.url) return null;
+    }
+    return stampId;
+  });
+
+  /** The pictures attached to the line, less the one drawn as its stamp. */
+  protected readonly shownAttachments = computed(() => {
+    const drawn = stampOf(this.sentStamp());
+    const stampPicture = drawn?.kind === 'image' ? drawn.imageIdentifier : null;
+    return this.attachmentImageFiles().filter((image) => image.identifier !== stampPicture);
   });
   /**
    * How large the stamp a line was sent as is drawn: a picture larger than the app's own, so that
