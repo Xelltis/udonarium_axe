@@ -1576,7 +1576,8 @@
         "cancel": "Cancel",
         "add": "Add",
         "failed": "This picture could not be read",
-        "tooLarge": "It is over 2MB and cannot be added. Clear a different area or use a smaller picture"
+        "tooLarge": "It is over 2MB and cannot be added. Clear a different area or use a smaller picture",
+        "saveFailed": "The picture could not be stored. Please try again"
       },
       "tooLarge": {
         "one": "“{{name}}” was not loaded because it is too large ({{limits}})",

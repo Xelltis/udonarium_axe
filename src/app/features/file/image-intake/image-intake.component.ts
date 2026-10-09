@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChi
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
-import { eraseConnectedColor } from '@axe/domain/media/erase-connected-color';
+import { ConnectedColorEraser } from '@axe/domain/media/erase-connected-color';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** Where the picture stands in being looked at and stored. */
@@ -38,12 +38,16 @@ export class ImageIntakeComponent {
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
 
   readonly state = signal<ImageIntakeState>('loading');
+  /** Whether the last try at storing the picture failed, which leaves it open to try again. */
+  readonly saveFailed = signal(false);
   readonly tolerance = signal(DEFAULT_TOLERANCE);
   readonly points = signal<readonly { x: number; y: number }[]>([]);
 
   private source: Blob | null = null;
   private name = '';
   private original: Picture | null = null;
+  private eraser: ConnectedColorEraser | null = null;
+  private redrawPending = false;
 
   /**
    * Opens a picture to look at, to be stored as `name` once added.
@@ -66,9 +70,11 @@ export class ImageIntakeComponent {
       bitmap.close?.();
       const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
       this.original = { width: canvas.width, height: canvas.height, pixels: new Uint8ClampedArray(data) };
+      this.eraser = new ConnectedColorEraser(canvas.width, canvas.height);
       this.state.set('ready');
     } catch {
       this.original = null;
+      this.eraser = null;
       this.state.set('failed');
     }
   }
@@ -85,10 +91,18 @@ export class ImageIntakeComponent {
     this.redraw();
   }
 
-  /** Sets how far from a picked colour is still cleared, and redoes every point picked. */
+  /**
+   * Sets how far from a picked colour is still cleared, and redoes every point picked on the next
+   * frame, once however many times the slider moved before it.
+   */
   setTolerance(value: number): void {
     this.tolerance.set(Math.max(0, Math.min(128, Math.round(value) || 0)));
-    this.redraw();
+    if (this.redrawPending) return;
+    this.redrawPending = true;
+    requestAnimationFrame(() => {
+      this.redrawPending = false;
+      this.redraw();
+    });
   }
 
   /** Takes back the last point picked. */
@@ -104,31 +118,37 @@ export class ImageIntakeComponent {
 
   /**
    * Stores the picture, as it came or cleared, and closes; one over the size limit is kept open and
-   * said to be too large. A seat that may not edit the table stores nothing.
+   * said to be too large, and one that could not be stored is kept open, said so, to try again. A
+   * seat that may not edit the table stores nothing.
    */
   async add(): Promise<void> {
     if (!this.rolePermission.canEditTabletop || !this.source) return;
     if (this.state() !== 'ready' && this.state() !== 'tooLarge') return;
     this.state.set('saving');
-    const file =
-      this.points().length > 0
-        ? new File([await this.encode()], withPngExtension(this.name), { type: 'image/png' })
-        : new File([this.source], this.name, { type: this.source.type });
-    const { images } = await this.fileArchiver.loadImages([file]);
-    if (images.length > 0) {
-      this.panelService.close();
-    } else {
-      this.state.set('tooLarge');
+    this.saveFailed.set(false);
+    try {
+      const file =
+        this.points().length > 0
+          ? new File([await this.encode()], withPngExtension(this.name), { type: 'image/png' })
+          : new File([this.source], this.name, { type: this.source.type });
+      const { images } = await this.fileArchiver.loadImages([file]);
+      if (images.length > 0) {
+        this.panelService.close();
+      } else {
+        this.state.set('tooLarge');
+      }
+    } catch {
+      this.saveFailed.set(true);
+      this.state.set('ready');
     }
   }
 
   private redraw(): void {
     const original = this.original;
-    if (!original) return;
+    const eraser = this.eraser;
+    if (!original || !eraser) return;
     const pixels = new Uint8ClampedArray(original.pixels);
-    for (const { x, y } of this.points()) {
-      eraseConnectedColor(pixels, original.width, original.height, x, y, this.tolerance());
-    }
+    for (const { x, y } of this.points()) eraser.erase(pixels, x, y, this.tolerance());
     const context = this.canvasRef().nativeElement.getContext('2d', { willReadFrequently: true });
     if (!context) return;
     const frame = context.createImageData(original.width, original.height);

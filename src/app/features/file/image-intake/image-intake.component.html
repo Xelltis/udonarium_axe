@@ -32,6 +32,12 @@
   <span class="w-7 shrink-0 text-right tabular-nums">{{ tolerance() }}</span>
 </label>
 
+@if (saveFailed()) {
+  <p class="m-0 text-xs text-amber-400" data-testid="image-intake-save-failed">
+    {{ 'feature.file.imageIntake.saveFailed' | transloco }}
+  </p>
+}
+
 @if (state() === 'tooLarge') {
   <p class="m-0 text-xs text-amber-400" data-testid="image-intake-too-large">
     {{ 'feature.file.imageIntake.tooLarge' | transloco }}

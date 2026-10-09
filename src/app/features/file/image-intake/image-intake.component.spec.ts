@@ -98,6 +98,7 @@ describe('ImageIntakeComponent', () => {
     pickAt(10, 50);
 
     component.setTolerance(128);
+    await new Promise((settled) => requestAnimationFrame(settled));
     expect(canvas.frames.at(-1)![7]).toBeLessThan(255);
 
     component.undo();
@@ -127,6 +128,34 @@ describe('ImageIntakeComponent', () => {
     expect(component.state()).toBe('tooLarge');
     expect(close).not.toHaveBeenCalled();
     expect(fixture.nativeElement.querySelector('[data-testid="image-intake-too-large"]')).not.toBeNull();
+  });
+
+  it('redraws once for however many times the slider moved within a frame', async () => {
+    const canvas = standInCanvas();
+    await component.open(photo, 'photo.jpg');
+    pickAt(10, 50);
+    const before = canvas.frames.length;
+
+    for (const tolerance of [10, 20, 30, 40]) component.setTolerance(tolerance);
+    await new Promise((settled) => requestAnimationFrame(settled));
+
+    expect(canvas.frames.length - before).toBe(1);
+    expect(component.tolerance()).toBe(40);
+  });
+
+  it('stays open, says so and lets it be tried again when the picture could not be stored', async () => {
+    standInCanvas();
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => callback(null));
+    await component.open(photo, 'photo.jpg');
+    pickAt(10, 50);
+
+    await component.add();
+    fixture.detectChanges();
+
+    expect(component.state()).toBe('ready');
+    expect(close).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('[data-testid="image-intake-save-failed"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="image-intake-add"]').disabled).toBe(false);
   });
 
   it('adds nothing for a seat that may not edit the table', async () => {

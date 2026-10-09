@@ -1,4 +1,4 @@
-import { eraseConnectedColor } from '@axe/domain/media/erase-connected-color';
+import { ConnectedColorEraser, eraseConnectedColor } from '@axe/domain/media/erase-connected-color';
 
 const WHITE = [255, 255, 255];
 const RED = [200, 0, 0];
@@ -44,6 +44,23 @@ describe('clearing a run of one colour', () => {
       [0, 255, 255, 255, 0],
       [0, 0, 0, 0, 0],
     ]);
+  });
+
+  it('clears the same again with the room it kept from the run before', () => {
+    const W = WHITE;
+    const R = RED;
+    const rows = [
+      [W, W, W],
+      [W, R, W],
+      [W, W, W],
+    ];
+    const eraser = new ConnectedColorEraser(3, 3);
+
+    for (let run = 0; run < 3; run++) {
+      const { pixels } = picture(rows);
+      expect(eraser.erase(pixels, 0, 0, 0), `run ${run}`).toBe(8);
+      expect(alphas(pixels, 3)[1]).toEqual([0, 255, 0]);
+    }
   });
 
   it('takes in colours within the tolerance, and no further', () => {
