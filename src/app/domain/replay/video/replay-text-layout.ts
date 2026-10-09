@@ -1,3 +1,5 @@
+import { toGraphemes } from '@axe/core/util/graphemes';
+
 /** How wide a run of text is drawn, in the units the layout is given its width in. */
 export type ReplayTextMeasure = (text: string) => number;
 
@@ -87,7 +89,7 @@ function breakParagraph(paragraph: string, measure: ReplayTextMeasure, maxWidth:
 function unitsOf(paragraph: string): string[] {
   const units: string[] = [];
   let word = '';
-  for (const char of graphemes(paragraph)) {
+  for (const char of toGraphemes(paragraph)) {
     if (WORD_CHAR.test(char)) {
       word += char;
       continue;
@@ -116,7 +118,7 @@ function startLine(text: string, measure: ReplayTextMeasure, maxWidth: number, l
 function breakLongUnit(unit: string, measure: ReplayTextMeasure, maxWidth: number): string[] {
   const pieces: string[] = [];
   let piece = '';
-  for (const char of graphemes(unit)) {
+  for (const char of toGraphemes(unit)) {
     if (piece.length > 0 && measure(piece + char) > maxWidth) {
       pieces.push(piece);
       piece = '';
@@ -125,13 +127,6 @@ function breakLongUnit(unit: string, measure: ReplayTextMeasure, maxWidth: numbe
   }
   pieces.push(piece);
   return pieces;
-}
-
-function graphemes(text: string): string[] {
-  if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
-    return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map((s) => s.segment);
-  }
-  return [...text];
 }
 
 function firstChar(text: string): string {
