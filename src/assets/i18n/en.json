@@ -5252,6 +5252,42 @@
           },
           "found": {
             "name": "Found it!"
+          },
+          "map": {
+            "name": "Reading the map"
+          },
+          "treasure": {
+            "name": "Treasure!"
+          },
+          "trapped": {
+            "name": "It’s a trap!"
+          },
+          "lockpick": {
+            "name": "Picking the lock"
+          },
+          "torch": {
+            "name": "So dark..."
+          },
+          "think": {
+            "name": "Thinking"
+          },
+          "idea": {
+            "name": "I’ve got it!"
+          },
+          "puzzled": {
+            "name": "Stumped"
+          },
+          "shop": {
+            "name": "Shopping"
+          },
+          "eat": {
+            "name": "Meal time"
+          },
+          "camp": {
+            "name": "Making camp"
+          },
+          "toast": {
+            "name": "Cheers!"
           }
         }
       },

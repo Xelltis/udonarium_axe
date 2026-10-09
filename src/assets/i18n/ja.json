@@ -5252,6 +5252,42 @@
           },
           "found": {
             "name": "見つけた!"
+          },
+          "map": {
+            "name": "地図…"
+          },
+          "treasure": {
+            "name": "お宝!"
+          },
+          "trapped": {
+            "name": "罠だ!"
+          },
+          "lockpick": {
+            "name": "鍵開け"
+          },
+          "torch": {
+            "name": "暗いよ…"
+          },
+          "think": {
+            "name": "考え中"
+          },
+          "idea": {
+            "name": "ひらめいた!"
+          },
+          "puzzled": {
+            "name": "わからない…"
+          },
+          "shop": {
+            "name": "お買い物"
+          },
+          "eat": {
+            "name": "ごはん"
+          },
+          "camp": {
+            "name": "野営"
+          },
+          "toast": {
+            "name": "乾杯!"
           }
         }
       },

@@ -118,6 +118,18 @@ export const BUILTIN_STAMPS: readonly BuiltinStamp[] = [
   picture('explore', 'listen'),
   picture('explore', 'sneak'),
   picture('explore', 'found', 'slam'),
+  picture('explore', 'map'),
+  picture('explore', 'treasure', 'beat'),
+  picture('explore', 'trapped', 'shiver'),
+  picture('explore', 'lockpick'),
+  picture('explore', 'torch', 'shiver'),
+  picture('explore', 'think'),
+  picture('explore', 'idea', 'slam'),
+  picture('explore', 'puzzled'),
+  picture('explore', 'shop'),
+  picture('explore', 'eat'),
+  picture('explore', 'camp'),
+  picture('explore', 'toast'),
 ];
 
 const BY_ID = new Map(BUILTIN_STAMPS.map((each) => [each.id, each]));

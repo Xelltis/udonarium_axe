@@ -5254,6 +5254,42 @@
           },
           "found": {
             "name": "찾았다!"
+          },
+          "map": {
+            "name": "지도…"
+          },
+          "treasure": {
+            "name": "보물!"
+          },
+          "trapped": {
+            "name": "함정이다!"
+          },
+          "lockpick": {
+            "name": "자물쇠 따기"
+          },
+          "torch": {
+            "name": "어두워…"
+          },
+          "think": {
+            "name": "생각 중"
+          },
+          "idea": {
+            "name": "번뜩였다!"
+          },
+          "puzzled": {
+            "name": "모르겠어…"
+          },
+          "shop": {
+            "name": "쇼핑"
+          },
+          "eat": {
+            "name": "밥"
+          },
+          "camp": {
+            "name": "야영"
+          },
+          "toast": {
+            "name": "건배!"
           }
         }
       },
