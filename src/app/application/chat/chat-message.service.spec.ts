@@ -10,8 +10,10 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { DataElement } from '@axe/domain/data/data-element';
 import { decodeDiceLook, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { beMyself } from '@axe/testing/peer-context-stub';
@@ -395,6 +397,18 @@ describe('ChatMessageService', () => {
       expect(message!.attachmentImageIdentifierList).toEqual(['stamp-picture']);
     });
 
+    it('sends nothing for a stamp the room does not let be sent, or where stamps are not sent at all', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:creepy'], false);
+      try {
+        expect(sent('sfx:creepy').message).toBeNull();
+
+        Config.instance.stampRules = withStampUseOn(OPEN_STAMP_RULES, 'line', false);
+        expect(sent('seal:ok').message).toBeNull();
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
     it('sends nothing for a stamp this version does not know', () => {
       const { message, tab } = sent('sfx:from-a-newer-version');
 
@@ -442,6 +456,18 @@ describe('ChatMessageService', () => {
       expect(said('これ', 'image:stamp-picture', '［ナイス］').attachmentImageIdentifierList).toEqual([
         'stamp-picture',
       ]);
+    });
+
+    it('sends the words alone under a stamp the room does not let be sent', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['roll:critical'], false);
+      try {
+        const message = said('いくぞ！', 'roll:critical', '［クリティカル!］');
+
+        expect(message.text).toBe('いくぞ！');
+        expect(message.sentStamp).toBeNull();
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
     });
 
     it('sends the words alone under a stamp this version does not know', () => {

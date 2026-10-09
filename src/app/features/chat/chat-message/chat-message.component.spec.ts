@@ -28,6 +28,8 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -2047,14 +2049,49 @@ describe('ChatMessageComponent', () => {
 
       const button = host().querySelector<HTMLButtonElement>('[data-testid="chat-message-action-react"]')!;
       button.click();
-      expect(toggle).toHaveBeenCalledWith(button, expect.any(Function));
+      expect(toggle).toHaveBeenCalledWith(button, 'reaction', expect.any(Function));
 
-      toggle.mock.calls[0][1]('seal:god');
+      toggle.mock.calls[0][2]('seal:god');
       await settle();
       expect(TestBed.inject(ChatReactionService).talliesOf(message.identifier)).toEqual([
         expect.objectContaining({ stampId: 'seal:god', mine: true }),
       ]);
       expect(chip('seal:god')).not.toBeNull();
+    });
+
+    it('offers no stamps to put on where the room turned reactions off, and keeps those already on', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'seal:ok');
+      Config.instance.stampRules = withStampUseOn(OPEN_STAMP_RULES, 'reaction', false);
+      try {
+        TestBed.inject(ObjectChangeService).notifyChanged('Config');
+        await settle();
+
+        expect(host().querySelector('[data-testid="chat-message-action-react"]')).toBeNull();
+        expect(chip('seal:ok')).not.toBeNull();
+        expect(chip('seal:ok')!.disabled).toBe(true);
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
+    it('lets the reader take back a stamp the room has since denied, but not add one', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'seal:ok seal:god');
+      answered(message, 'me', 'わたし', 'seal:god');
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'reaction', ['seal:ok', 'seal:god'], false);
+      try {
+        TestBed.inject(ObjectChangeService).notifyChanged('Config');
+        await settle();
+
+        expect(chip('seal:ok')!.disabled).toBe(true);
+        expect(chip('seal:god')!.disabled).toBe(false);
+        chip('seal:god')!.click();
+        await settle();
+        expect(count('seal:god')).toBe('1');
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
     });
 
     it('draws a line sent as a stamp as the stamp, large, in place of its words, and offers no editing', () => {

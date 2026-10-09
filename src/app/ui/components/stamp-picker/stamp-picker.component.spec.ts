@@ -77,6 +77,24 @@ describe('StampPickerComponent', () => {
     expect(list.scrollTop).toBe(0);
   });
 
+  it('leaves out the stamps it may not offer, and a tab with none left, opening on the first offered', () => {
+    localStorage.setItem(RECENT_STAMPS_STORAGE_KEY, JSON.stringify(['sfx:laugh']));
+    TestBed.configureTestingModule({ imports: [StampPickerComponent], providers: [...TEST_PROVIDERS] });
+    fixture = TestBed.createComponent(StampPickerComponent);
+    fixture.componentRef.setInput('allows', (id: string) => id.startsWith('seal:') && id !== 'seal:ok');
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.querySelector('[data-testid="stamp-picker-tab-recent"]')).toBeNull();
+    expect(root.querySelector('[data-testid="stamp-picker-tab-sfx"]')).toBeNull();
+    expect(root.querySelector('[data-testid="stamp-picker-tab-seal"]')!.getAttribute('aria-selected')).toBe('true');
+    expect(choices(root)).toEqual(
+      stampsOfFamily('seal')
+        .map((each) => each.id)
+        .filter((id) => id !== 'seal:ok')
+    );
+  });
+
   it('says which was picked, and opens on it among the recent ones the next time', () => {
     const root = open();
     const picked: string[] = [];

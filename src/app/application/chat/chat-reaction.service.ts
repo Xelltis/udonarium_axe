@@ -1,4 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -25,6 +26,7 @@ export interface ReactionTally {
 export class ChatReactionService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly stampRules = inject(StampRulesService);
 
   private readonly byMessage = computed(
     () => {
@@ -74,18 +76,20 @@ export class ChatReactionService {
   /**
    * Puts a stamp on a line for the reader, or takes it off where they put it on already. Whether it
    * is now on; false too, with nothing changed, for a stamp this version does not know, a line the
-   * reader is not shown, or before a room has been joined.
+   * reader is not shown, or before a room has been joined. A stamp the room does not let be put on
+   * is not put on, though one put on before can still be taken off.
    */
   toggle(message: ChatMessage, stampId: string): boolean {
     const userId = this.myUserId();
     if (userId.length < 1 || !stampOf(stampId) || !message.isShownInChat) return false;
 
     const name = PeerCursor.myCursor?.name ?? '';
-    const record =
-      this.objectStore
-        .getObjects<ChatReaction>(ChatReaction)
-        .find((each) => each.messageIdentifier === message.identifier && each.userId === userId) ??
-      ChatReaction.create(message.identifier, userId, name);
+    const existing = this.objectStore
+      .getObjects<ChatReaction>(ChatReaction)
+      .find((each) => each.messageIdentifier === message.identifier && each.userId === userId);
+    const puttingOn = !existing?.stampIds.includes(stampId);
+    if (puttingOn && !this.stampRules.allows('reaction', stampId)) return false;
+    const record = existing ?? ChatReaction.create(message.identifier, userId, name);
     if (name.length > 0 && record.userName !== name) record.userName = name;
 
     const on = record.toggle(stampId);

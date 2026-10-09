@@ -20,6 +20,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService, ReactionTally } from '@axe/application/chat/chat-reaction.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
+import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { LanguageService } from '@axe/application/i18n/language.service';
@@ -743,12 +744,25 @@ export class ChatMessageComponent {
   }
 
   /**
-   * Whether a stamp may be put on the line: any line that may be answered and that the reader is
-   * shown, a dice bot's answer to a roll among them, by a guest as much as a player, since it changes
-   * nothing on the table.
+   * Whether the reader may answer the line with stamps at all: any line that may be answered and that
+   * the reader is shown, a dice bot's answer to a roll among them, by a guest as much as a player,
+   * since it changes nothing on the table.
    */
-  get canReact(): boolean {
+  private get canAnswerWithStamps(): boolean {
     return this.canInteract && this.chatMessage.isShownInChat;
+  }
+
+  /** Whether a stamp may be put on the line, which the room may have turned off. */
+  get canReact(): boolean {
+    return this.canAnswerWithStamps && this.stampRules.isOn('reaction');
+  }
+
+  /**
+   * Whether the reader may press a stamp on the line: to take back their own, always, and to add
+   * theirs, where the room lets that stamp be put on.
+   */
+  protected canPressReaction(tally: ReactionTally): boolean {
+    return this.canAnswerWithStamps && (tally.mine || this.stampRules.allows('reaction', tally.stampId));
   }
 
   private readonly reactionTallies = computed<readonly ReactionTally[]>(
@@ -791,7 +805,7 @@ export class ChatMessageComponent {
 
   /** Puts a stamp on the line for the reader, or takes it back off. */
   protected toggleReaction(stampId: string): void {
-    if (!this.canReact) return;
+    if (!this.canAnswerWithStamps) return;
     this.reactions.toggle(this.chatMessage, stampId);
   }
 
@@ -799,7 +813,7 @@ export class ChatMessageComponent {
   protected openReactionPicker(anchor: EventTarget | null): void {
     if (!this.canReact || !(anchor instanceof Element)) return;
     const message = this.chatMessage;
-    this.stampPicker.toggle(anchor, (stampId) => this.reactions.toggle(message, stampId));
+    this.stampPicker.toggle(anchor, 'reaction', (stampId) => this.reactions.toggle(message, stampId));
   }
 
   readonly canShowInTicker = computed(() => {
@@ -1008,6 +1022,7 @@ export class ChatMessageComponent {
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly reactions = inject(ChatReactionService);
   private readonly stampPicker = inject(StampPickerService);
+  private readonly stampRules = inject(StampRulesService);
   private readonly destroyRef = inject(DestroyRef);
   readonly isHighlighted = signal(false);
   private highlightTimer: ReturnType<typeof setTimeout> | null = null;

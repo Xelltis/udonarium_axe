@@ -9,6 +9,7 @@ import {
   readControllerResourcePick,
   writeControllerResourcePick,
 } from '@axe/domain/character/controller-resource-pick';
+import { readStampRules, StampRules, writeStampRules } from '@axe/domain/chat/stamp-rules';
 import { asDiceStage, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import {
@@ -45,6 +46,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_hideSystemAvatar') private _hideSystemAvatar: string = '';
   @SyncVar('_showSpeakerAvatar') private _showSpeakerAvatar: string = '';
   @SyncVar('_controllerResources') private _controllerResources: string = '';
+  @SyncVar('_stampRules') private _stampRules: string = '';
 
   // How the round is taken, which is the room's own decision rather than a table's.
   @SyncVar('_turnOrderMode') private _turnOrderMode: string = '';
@@ -120,6 +122,19 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set controllerResources(pick: ControllerResourcePick) {
     this._controllerResources = writeControllerResourcePick(pick);
+  }
+
+  /**
+   * What the room lets its stamps be used for, with every stamp usable for everything until the room
+   * says otherwise.
+   *
+   * @see StampRules
+   */
+  get stampRules(): StampRules {
+    return readStampRules(this._stampRules);
+  }
+  set stampRules(rules: StampRules) {
+    this._stampRules = writeStampRules(rules);
   }
 
   /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */

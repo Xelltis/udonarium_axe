@@ -12,6 +12,7 @@ import {
   resolvePortraitIndex,
   stripPortraitCommand,
 } from '@axe/application/chat/chat-message-helpers';
+import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { MyDiceService } from '@axe/application/dice/my-dice.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -48,6 +49,7 @@ export class ChatMessageService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly chatTabList = inject(ChatTabList);
   private readonly myDice = inject(MyDiceService);
+  private readonly stampRules = inject(StampRulesService);
 
   private calibrationTimer: ReturnType<typeof setTimeout> | null = null;
   private timeOffset: number = Date.now();
@@ -247,7 +249,8 @@ export class ChatMessageService {
    *
    * `words` stand in for the stamp wherever it cannot be drawn: in a version that does not know it,
    * in a log, in a video. A stamp that is a picture in the room carries the picture as well, for
-   * those to show. A stamp this version does not know is not sent, and null comes back.
+   * those to show. A stamp this version does not know, or one the room does not let be sent, is not
+   * sent, and null comes back.
    */
   sendStamp(
     chatTab: ChatTab,
@@ -260,7 +263,7 @@ export class ChatMessageService {
     bubbles?: { light: string; dark: string }
   ): ChatMessage | null {
     const stamp = stampOf(stampId);
-    if (!stamp) return null;
+    if (!stamp || !this.stampRules.allows('line', stampId)) return null;
 
     const imgIndex = resolvePortraitIndex(portraitIndex);
     const chatMessage: ChatMessageContext = {
@@ -414,11 +417,11 @@ export class ChatMessageService {
   /**
    * Puts a stamp under a line about to be said, with the words standing in for it on a last line; a
    * picture from the room's sets also goes among the attachments, for a version that cannot draw it.
-   * A stamp this version does not know is left off.
+   * A stamp this version does not know, or one the room does not let be sent, is left off.
    */
   private attachStamp(chatMessage: ChatMessageContext, stamp: OutgoingStamp): void {
     const ref = stampOf(stamp.id);
-    if (!ref) return;
+    if (!ref || !this.stampRules.allows('line', stamp.id)) return;
     chatMessage.text = joinStampLine(chatMessage.text ?? '', stamp.words);
     chatMessage.stamp = stamp.id;
     if (ref.kind !== 'image') return;

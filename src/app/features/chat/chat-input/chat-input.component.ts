@@ -17,6 +17,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
+import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { stampWords } from '@axe/application/chat/stamp-words';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -131,6 +132,10 @@ export class ChatInputComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly stampPicker = inject(StampPickerService);
   private readonly stampPacks = inject(StampPackService);
+  private readonly stampRules = inject(StampRulesService);
+
+  /** Whether the room lets stamps be sent as lines, which puts the button for them beside the send button. */
+  protected readonly stampLinesOn = computed(() => this.stampRules.isOn('line'));
   private readonly objectChange = inject(ObjectChangeService);
   private readonly panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -639,7 +644,7 @@ export class ChatInputComponent {
   /** Opens the stamps under the button beside the send button, to send the one picked. */
   protected openStamps(anchor: EventTarget | null): void {
     if (!(anchor instanceof Element)) return;
-    this.stampPicker.toggle(anchor, (stampId) => this.sendStamp(stampId));
+    this.stampPicker.toggle(anchor, 'line', (stampId) => this.sendStamp(stampId));
   }
 
   /**
@@ -648,7 +653,7 @@ export class ChatInputComponent {
    * is cleared; with the box empty it goes as a line of its own.
    */
   sendStamp(stampId: string): void {
-    if (!this.canSpeak()) return;
+    if (!this.canSpeak() || !this.stampRules.allows('line', stampId)) return;
     const words = stampWords(stampId, this.t, (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier));
     if (words.length < 1) return;
     if (this.text.trim().length > 0) {

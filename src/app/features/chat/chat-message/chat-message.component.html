@@ -460,7 +460,7 @@
           [title]="reactionNames(chip)"
           [attr.aria-pressed]="chip.mine"
           [attr.data-testid]="'chat-message-reaction-' + chip.stampId"
-          [disabled]="!canReact"
+          [disabled]="!canPressReaction(chip)"
           (click)="toggleReaction(chip.stampId)"
         >
           <ui-stamp [stampId]="chip.stampId" [size]="28" [play]="chip.play" />

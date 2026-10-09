@@ -51,7 +51,7 @@ describe('StampPickerService', () => {
   });
 
   it('opens under the button, and hands on the stamp picked as it closes', () => {
-    service.open(anchor, (id) => picked.push(id));
+    service.open(anchor, 'line', (id) => picked.push(id));
     expect(picker()).not.toBeNull();
 
     (picker()!.querySelector('[data-testid="stamp-picker-choice-sfx:laugh"]') as HTMLElement).click();
@@ -61,14 +61,14 @@ describe('StampPickerService', () => {
   });
 
   it('closes on a press outside it, and on Escape, but not on a press inside it', () => {
-    service.open(anchor, (id) => picked.push(id));
+    service.open(anchor, 'line', (id) => picked.push(id));
     press(picker()!);
     expect(picker()).not.toBeNull();
 
     press(document.body);
     expect(picker()).toBeNull();
 
-    service.open(anchor, (id) => picked.push(id));
+    service.open(anchor, 'line', (id) => picked.push(id));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(picker()).toBeNull();
     expect(picked).toEqual([]);
@@ -78,12 +78,12 @@ describe('StampPickerService', () => {
     const other = document.createElement('button');
     document.body.appendChild(other);
     try {
-      service.toggle(anchor, () => undefined);
-      service.toggle(other, () => undefined);
+      service.toggle(anchor, 'line', () => undefined);
+      service.toggle(other, 'line', () => undefined);
       expect(document.querySelectorAll('[data-testid="stamp-picker"]')).toHaveLength(1);
       expect(service.isOpenFor(other)).toBe(true);
 
-      service.toggle(other, () => undefined);
+      service.toggle(other, 'line', () => undefined);
       expect(picker()).toBeNull();
     } finally {
       other.remove();
@@ -94,7 +94,7 @@ describe('StampPickerService', () => {
     vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
     const opened = vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue(null as never);
 
-    service.open(anchor, (id) => picked.push(id));
+    service.open(anchor, 'line', (id) => picked.push(id));
     (picker()!.querySelector('[data-testid="stamp-picker-manage"]') as HTMLElement).click();
 
     expect(picker()).toBeNull();

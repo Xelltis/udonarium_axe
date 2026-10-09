@@ -1,9 +1,11 @@
 import { ComponentRef, inject, Injectable } from '@angular/core';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
+import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { StampUse } from '@axe/domain/chat/stamp-rules';
 import { StampPackPanelComponent } from '@axe/features/chat/stamp-pack-panel/stamp-pack-panel.component';
 import { placePopover } from '@axe/ui/anchored-popover';
 import { StampPickerComponent } from '@axe/ui/components/stamp-picker/stamp-picker.component';
@@ -24,30 +26,32 @@ interface OpenPicker {
  *
  * A line of chat asks for it to answer that line and the chat input asks for it to send one, so it
  * is made when asked for rather than kept by every line. It offers the room's own sets with the
- * stamps that come with the app, and closes on a pick, on a press outside it, on Escape, and on a
- * request to manage the sets, which opens the panel for them.
+ * stamps that come with the app, leaving out those the room does not let be used that way, and
+ * closes on a pick, on a press outside it, on Escape, and on a request to manage the sets, which
+ * opens the panel for them.
  */
 @Injectable({ providedIn: 'root' })
 export class StampPickerService {
   private readonly packs = inject(StampPackService);
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly rules = inject(StampRulesService);
   private opened: OpenPicker | null = null;
 
   /**
-   * Opens the stamps under `anchor`, handing the one picked to `pick`, or closes them where the same
-   * button opened them last.
+   * Opens the stamps the room lets be used `use`'s way under `anchor`, handing the one picked to
+   * `pick`, or closes them where the same button opened them last.
    */
-  toggle(anchor: Element, pick: (stampId: string) => void): void {
+  toggle(anchor: Element, use: StampUse, pick: (stampId: string) => void): void {
     if (this.opened?.anchor === anchor) {
       this.close();
       return;
     }
-    this.open(anchor, pick);
+    this.open(anchor, use, pick);
   }
 
-  /** Opens the stamps under `anchor`, closing any already open. */
-  open(anchor: Element, pick: (stampId: string) => void): void {
+  /** Opens the stamps the room lets be used `use`'s way under `anchor`, closing any already open. */
+  open(anchor: Element, use: StampUse, pick: (stampId: string) => void): void {
     this.close();
     const parent =
       OverlayLayers.layerFor(anchor.ownerDocument) ??
@@ -59,6 +63,7 @@ export class StampPickerService {
     const element = ref.location.nativeElement as HTMLElement;
     ref.setInput('packs', this.packs.packs());
     ref.setInput('canManage', this.packs.canManage);
+    ref.setInput('allows', (stampId: string) => this.rules.allows(use, stampId));
     ref.instance.picked.subscribe((stampId) => {
       this.close();
       pick(stampId);

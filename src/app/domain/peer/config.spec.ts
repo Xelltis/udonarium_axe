@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { VolumeType } from '@axe/core/storage/audio-player';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
@@ -128,6 +129,33 @@ describe('Config', () => {
 
       expect(setNewVolume).toHaveBeenCalled();
       expect(Config.instance.roomVolumes.bgm).toBe(0.2);
+    });
+  });
+
+  describe('what the room lets its stamps be used for', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.stampRules = OPEN_STAMP_RULES;
+    });
+
+    it('lets every stamp be used for everything in a room saved before there were rules', () => {
+      Config.instance.stampRules = withStampUseOn(OPEN_STAMP_RULES, 'reaction', false);
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_stampRules'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.stampRules).toEqual(OPEN_STAMP_RULES);
+    });
+
+    it('passes the rules on with the rest of the config', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok'], false);
+
+      expect(attributesOf(Config.instance.toContext())['_stampRules']).toBe('{"line":{"deny":["seal:ok"]}}');
     });
   });
 

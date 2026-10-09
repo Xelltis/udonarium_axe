@@ -3,6 +3,8 @@ import { ChatReactionService } from '@axe/application/chat/chat-reaction.service
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -93,6 +95,25 @@ describe('ChatReactionService', () => {
     answer(message, 'other', 'あいて', 'sfx:from-a-newer-version seal:ok');
 
     expect(service.talliesOf(message.identifier).map((tally) => tally.stampId)).toEqual(['seal:ok']);
+  });
+
+  it('puts on no stamp the room does not let be put on, but takes one back that went on before', () => {
+    const message = line();
+    service.toggle(message, 'seal:ok');
+    Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'reaction', ['seal:ok', 'seal:god'], false);
+    try {
+      expect(service.toggle(message, 'seal:god')).toBe(false);
+      expect(records()[0].stamps).toBe('seal:ok');
+
+      expect(service.toggle(message, 'seal:ok')).toBe(false);
+      expect(records()).toHaveLength(0);
+
+      Config.instance.stampRules = withStampUseOn(OPEN_STAMP_RULES, 'reaction', false);
+      expect(service.toggle(message, 'sfx:creepy')).toBe(false);
+      expect(records()).toHaveLength(0);
+    } finally {
+      Config.instance.stampRules = OPEN_STAMP_RULES;
+    }
   });
 
   it('puts nothing on a line the reader is not shown, a stamp it does not know, or before a room is joined', () => {
