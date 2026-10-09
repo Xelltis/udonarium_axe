@@ -429,7 +429,7 @@
       @for (chip of reactionChips(); track chip.stampId) {
         <button
           type="button"
-          class="border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-full border border-solid py-0 pr-2 pl-0.5 text-[11px] tabular-nums transition-colors disabled:cursor-default"
+          class="border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent inline-flex h-8 cursor-pointer items-center gap-0.5 rounded-full border border-solid py-0 pr-2 pl-0.5 text-[11px] tabular-nums transition-colors disabled:cursor-default"
           [class.border-ui-accent!]="chip.mine"
           [class.bg-ui-accent-bg!]="chip.mine"
           [class.text-ui-accent!]="chip.mine"
@@ -439,7 +439,7 @@
           [disabled]="!canReact"
           (click)="toggleReaction(chip.stampId)"
         >
-          <ui-stamp [stampId]="chip.stampId" [size]="24" [play]="chip.play" />
+          <ui-stamp [stampId]="chip.stampId" [size]="28" [play]="chip.play" />
           <span data-reaction-count>{{ chip.count }}</span>
         </button>
       }

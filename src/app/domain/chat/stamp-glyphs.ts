@@ -134,34 +134,38 @@ const ROUGH_INK =
 const CJK = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+$/u;
 
 /**
- * The round seal of a name stamp with the words inside, in ink that has not taken everywhere.
+ * The round seal of a name stamp with the words inside.
  *
- * One character fills the seal; two of the scripts written downward stand one above the other, as
- * on a seal; anything else runs across, pressed to fit.
+ * The rings are in ink that has not taken everywhere; the words are left whole and drawn heavy, with
+ * an edge of their own colour, so they read at the size of a stamp on a line. One character fills
+ * the seal; two of the scripts written downward stand one above the other, as on a seal; anything
+ * else runs across, pressed to fit.
  */
 export function sealStampSvg(words: string, color: string): string {
   return remember(`seal:${words}:${color}`, () => {
     const letters = Array.from(words.trim());
-    const ink = `fill="${color}" font-family="'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif" font-weight="700" text-anchor="middle"`;
+    const ink =
+      `fill="${color}" stroke="${color}" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke fill"` +
+      ` font-family="'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif" font-weight="900" text-anchor="middle"`;
     let text: string;
     if (letters.length <= 1) {
-      text = `<text x="50" y="66" font-size="48" ${ink}>${escapeText(letters.join(''))}</text>`;
+      text = `<text x="50" y="70" font-size="56" ${ink}>${escapeText(letters.join(''))}</text>`;
     } else if (letters.length === 2 && CJK.test(words.trim())) {
       text =
-        `<text x="50" y="47" font-size="32" ${ink}>${escapeText(letters[0])}</text>` +
-        `<text x="50" y="80" font-size="32" ${ink}>${escapeText(letters[1])}</text>`;
+        `<text x="50" y="46" font-size="35" ${ink}>${escapeText(letters[0])}</text>` +
+        `<text x="50" y="81" font-size="35" ${ink}>${escapeText(letters[1])}</text>`;
     } else {
-      const size = Math.max(18, Math.min(34, Math.floor(120 / letters.length)));
-      const fit = letters.length >= 4 ? ' textLength="66" lengthAdjust="spacingAndGlyphs"' : '';
-      text = `<text x="50" y="${50 + size * 0.36}" font-size="${size}"${fit} ${ink}>${escapeText(letters.join(''))}</text>`;
+      const size = Math.max(20, Math.min(40, Math.floor(150 / letters.length)));
+      const fit = letters.length >= 4 ? ' textLength="70" lengthAdjust="spacingAndGlyphs"' : '';
+      text = `<text x="50" y="${Math.round(50 + size * 0.35)}" font-size="${size}"${fit} ${ink}>${escapeText(letters.join(''))}</text>`;
     }
     return svg(
       `<defs>${ROUGH_INK}</defs>` +
         `<g filter="url(#axe-stamp-seal-rough)">` +
-        `<circle cx="50" cy="50" r="44" fill="none" stroke="${color}" stroke-width="6"/>` +
-        `<circle cx="50" cy="50" r="38" fill="none" stroke="${color}" stroke-width="1.5"/>` +
-        text +
-        `</g>`
+        `<circle cx="50" cy="50" r="45" fill="none" stroke="${color}" stroke-width="6.5"/>` +
+        `<circle cx="50" cy="50" r="40" fill="none" stroke="${color}" stroke-width="1.5"/>` +
+        `</g>` +
+        text
     );
   });
 }

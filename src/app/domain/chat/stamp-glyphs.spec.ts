@@ -20,7 +20,15 @@ describe('the pictures stamps are drawn as', () => {
 
     const across = sealStampSvg('SEEN', '#d2382b');
     expect(across.match(/<text /g)).toHaveLength(1);
-    expect(across).toContain('textLength="66"');
+    expect(across).toContain('textLength="70"');
+  });
+
+  it('keeps the words of a seal whole, out of the rough ink its rings are in', () => {
+    const seal = sealStampSvg('了解', '#d2382b');
+    const rough = seal.slice(seal.indexOf('<g filter='), seal.indexOf('</g>'));
+
+    expect(rough).not.toContain('<text');
+    expect(seal.slice(seal.indexOf('</g>'))).toContain('<text');
   });
 
   it('writes the words of a seal as words, never as markup', () => {
