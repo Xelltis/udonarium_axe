@@ -10,7 +10,7 @@
           [class.text-ui-accent]="each === tab()"
           [attr.aria-selected]="each === tab()"
           [attr.data-testid]="'stamp-picker-tab-' + each"
-          (click)="tab.set(each)"
+          (click)="openTab(each)"
         >
           @if (tabName(each); as name) {
             {{ name }}
@@ -42,8 +42,9 @@
   class="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto p-1.5"
   role="listbox"
   data-testid="stamp-picker-list"
+  #list
   [class]="
-    large() ? 'grid-cols-[repeat(auto-fill,minmax(76px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(52px,1fr))]'
+    narrow() ? 'grid-cols-[repeat(auto-fill,minmax(52px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(76px,1fr))]'
   "
 >
   @for (id of stamps(); track id) {

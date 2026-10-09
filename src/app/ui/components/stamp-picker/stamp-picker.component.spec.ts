@@ -57,6 +57,26 @@ describe('StampPickerComponent', () => {
     expect(drawn.style.height).toBe('68px');
   });
 
+  it('lays the round seals out in narrow cells and gives the words of a sound effect room to keep clear', () => {
+    const root = open();
+    const list = root.querySelector('[data-testid="stamp-picker-list"]') as HTMLElement;
+    expect(list.className).toContain('minmax(76px,1fr)');
+
+    (root.querySelector('[data-testid="stamp-picker-tab-seal"]') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(list.className).toContain('minmax(52px,1fr)');
+  });
+
+  it('opens a tab at the top of its stamps', () => {
+    const root = open();
+    const list = root.querySelector('[data-testid="stamp-picker-list"]') as HTMLElement;
+    list.scrollTop = 120;
+
+    (root.querySelector('[data-testid="stamp-picker-tab-seal"]') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(list.scrollTop).toBe(0);
+  });
+
   it('says which was picked, and opens on it among the recent ones the next time', () => {
     const root = open();
     const picked: string[] = [];
