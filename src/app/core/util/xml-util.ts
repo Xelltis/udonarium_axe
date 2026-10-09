@@ -25,11 +25,29 @@ export function xml2element(xml: string): HTMLElement | null {
 }
 
 /**
- * Escapes a value for XML text or an attribute, turning markup characters into entity references
- * and leaving the rest as it is.
+ * Escapes a value for XML text, turning markup characters into entity references and leaving the
+ * rest as it is.
  */
 export function encodeEntityReference(string: string): string {
   return escapeUTF8(string);
+}
+
+const ATTRIBUTE_WHITESPACE = /[\t\n\r]/g;
+const ATTRIBUTE_WHITESPACE_REFERENCES: Readonly<Record<string, string>> = {
+  '\t': '&#9;',
+  '\n': '&#10;',
+  '\r': '&#13;',
+};
+
+/**
+ * Escapes a value for an XML attribute: markup characters become entity references, and tabs and
+ * line breaks become character references.
+ *
+ * A parser reads a bare tab or line break in an attribute as a space, so a value written without
+ * the references comes back on one line; one written with them comes back as it was, in any reader.
+ */
+export function encodeAttributeValue(string: string): string {
+  return escapeUTF8(string).replace(ATTRIBUTE_WHITESPACE, (char) => ATTRIBUTE_WHITESPACE_REFERENCES[char]);
 }
 
 /** Turns XML entity and character references back into the characters they stand for. */
