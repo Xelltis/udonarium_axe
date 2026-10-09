@@ -1558,6 +1558,37 @@ describe('ChatMessageComponent', () => {
       expect(ask).toHaveBeenCalledWith(expect.objectContaining({ danger: true }));
     });
 
+    it('is not there over a line nothing can be done with', () => {
+      // A notice meant for the reader alone, with no words: nothing to answer, mark, change or copy.
+      const notice = tab.addMessage({
+        from: 'me',
+        to: 'me',
+        name: 'System',
+        text: '',
+        tag: 'to-pl-system-message',
+        timestamp: 1000,
+      });
+      fixture.componentRef.setInput('chatMessage', notice);
+      fixture.detectChanges();
+
+      expect(actionsShown()).toEqual([]);
+    });
+
+    it('holds only the menu over a notice whose words may be copied', () => {
+      const notice = tab.addMessage({
+        from: 'System',
+        name: 'System',
+        text: 'ラウンド2',
+        tag: 'system-message',
+        timestamp: 1000,
+      });
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      fixture.componentRef.setInput('chatMessage', notice);
+      fixture.detectChanges();
+
+      expect(actionsShown()).toEqual(['bookmark', 'more']);
+    });
+
     it('is not there over a line only to be read, nor over one being edited', () => {
       shown('me');
       fixture.componentRef.setInput('readOnly', true);

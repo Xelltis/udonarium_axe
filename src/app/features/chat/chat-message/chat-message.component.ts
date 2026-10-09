@@ -384,14 +384,18 @@ export class ChatMessageComponent {
    * asks before it deletes, so having it at hand does not make it easy to do by mistake.
    */
   protected toolbarActions(): { answer: boolean; bookmark: boolean; edit: boolean; delete: boolean } | null {
-    if (!this.chatMessage || this.readOnly() || this.isEditing()) return null;
-    if (this.lineActions('').length === 0) return null;
-    return {
+    const message = this.chatMessage;
+    if (!message || this.readOnly() || this.isEditing()) return null;
+    const actions = {
       answer: this.canInteract,
       bookmark: this.canBookmarkAny,
       edit: this.canChange,
       delete: this.canPseudoDelete,
     };
+    // Asked of every drawn line on every pass, so it is told from these few answers rather than by
+    // building the menu: the menu holds at least the words of any line whose words are shown.
+    const words = !isChatTextHidden(message, this.canRevealSecret) && (message.text ?? '').trim().length > 0;
+    return actions.answer || actions.bookmark || actions.edit || actions.delete || words ? actions : null;
   }
 
   /** Opens everything that can be done with the line under the toolbar's last button. */
