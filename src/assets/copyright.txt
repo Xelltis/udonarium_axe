@@ -26,6 +26,7 @@ Comment: 本プロジェクトで作成した素材です。作り方は次の�
  （loading.pngは12コマのAPNG）。
  images/trump/*.webpは数札・エース・裏面・白紙が作図、絵札とジョーカーの人物画は
  ローカルのComfyUIによる生成で、指標を重ねたもの。
+ images/stamps/*/*.webpはAdobe Fireflyによる生成で、背景を抜いて白い縁を付けたもの。
 
 Files: images/dice/*
  sounds/alarm/*

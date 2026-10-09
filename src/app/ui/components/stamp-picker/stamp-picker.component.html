@@ -9,11 +9,16 @@
       class="rounded-ui-sm text-ui-muted hover:bg-ui-menu-hover hover:text-ui-text cursor-pointer border border-solid border-transparent bg-transparent px-2 py-0.5 text-[11px] whitespace-nowrap transition-colors"
       [class.border-ui-accent]="each === tab()"
       [class.text-ui-accent]="each === tab()"
+      [class.px-1]="tabIcon(each) !== null"
       [attr.aria-selected]="each === tab()"
       [attr.data-testid]="'stamp-picker-tab-' + each"
+      [attr.title]="tabIcon(each) ? ('ui.stamp.families.' + each | transloco) : null"
+      [attr.aria-label]="tabIcon(each) ? ('ui.stamp.families.' + each | transloco) : null"
       (click)="tab.set(each)"
     >
-      @if (tabName(each); as name) {
+      @if (tabIcon(each); as icon) {
+        <ui-stamp [stampId]="icon" [size]="22" />
+      } @else if (tabName(each); as name) {
         {{ name }}
       } @else if (tabName(each) === '') {
         {{ 'ui.stamp.unnamedPack' | transloco }}
@@ -38,19 +43,23 @@
 </div>
 
 <div
-  class="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(52px,1fr))] content-start gap-1 overflow-y-auto p-1.5"
+  class="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto p-1.5"
   role="listbox"
   data-testid="stamp-picker-list"
+  [class]="
+    large() ? 'grid-cols-[repeat(auto-fill,minmax(76px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(52px,1fr))]'
+  "
 >
   @for (id of stamps(); track id) {
     <button
       type="button"
       role="option"
-      class="rounded-ui-sm hover:bg-ui-menu-hover flex h-13 cursor-pointer items-center justify-center border border-solid border-transparent bg-transparent p-0.5 transition-colors"
+      class="rounded-ui-sm hover:bg-ui-menu-hover flex cursor-pointer items-center justify-center border border-solid border-transparent bg-transparent p-0.5 transition-colors"
+      [class]="large() ? 'h-19' : 'h-13'"
       [attr.data-testid]="'stamp-picker-choice-' + id"
       (click)="pick(id)"
     >
-      <ui-stamp [stampId]="id" [size]="44" />
+      <ui-stamp [stampId]="id" [size]="large() ? 68 : 44" />
     </button>
   }
 </div>

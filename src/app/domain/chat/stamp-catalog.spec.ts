@@ -1,9 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import {
   BUILTIN_STAMPS,
   imageStampId,
+  isArtStampFamily,
   STAMP_FAMILIES,
+  stampArtUrl,
   stampLabelKey,
   stampNameKey,
   stampOf,
@@ -17,9 +19,24 @@ function lookUp(dictionary: Record<string, unknown>, key: string): unknown {
 }
 
 describe('the stamps that come with the app', () => {
-  it('offers eight of each family, each under an identifier of its own', () => {
-    for (const family of STAMP_FAMILIES) expect(stampsOfFamily(family), family).toHaveLength(8);
+  it('offers eight of each family it draws and some of each of the character\u2019s, each under an identifier of its own', () => {
+    for (const family of STAMP_FAMILIES) {
+      if (isArtStampFamily(family)) expect(stampsOfFamily(family).length, family).toBeGreaterThan(0);
+      else expect(stampsOfFamily(family), family).toHaveLength(8);
+    }
     expect(new Set(BUILTIN_STAMPS.map((each) => each.id)).size).toBe(BUILTIN_STAMPS.length);
+  });
+
+  it('has the picture of every one of the character\u2019s stamps among the assets, and none for the ones it draws', () => {
+    for (const stamp of BUILTIN_STAMPS) {
+      const url = stampArtUrl(stamp);
+      if (isArtStampFamily(stamp.family)) {
+        expect(url, stamp.id).toBe(`assets/images/stamps/${stamp.family}/${stamp.key}.webp`);
+        expect(existsSync(`src/${url}`), stamp.id).toBe(true);
+      } else {
+        expect(url, stamp.id).toBeNull();
+      }
+    }
   });
 
   it.each(['ja', 'en', 'ko'])('names every one in %s, and gives the words to those that write any', (lang) => {
@@ -27,7 +44,9 @@ describe('the stamps that come with the app', () => {
 
     for (const stamp of BUILTIN_STAMPS) {
       expect(lookUp(dictionary, stampNameKey(stamp)), stamp.id).toBeTruthy();
-      if (stamp.family !== 'motif') expect(lookUp(dictionary, stampLabelKey(stamp)), stamp.id).toBeTruthy();
+      if (stamp.family === 'sfx' || stamp.family === 'seal') {
+        expect(lookUp(dictionary, stampLabelKey(stamp)), stamp.id).toBeTruthy();
+      }
     }
     for (const family of ['recent', ...STAMP_FAMILIES]) {
       expect(lookUp(dictionary, `ui.stamp.families.${family}`), family).toBeTruthy();

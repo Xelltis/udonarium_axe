@@ -5018,7 +5018,8 @@
         "recent": "최근",
         "sfx": "효과음",
         "seal": "도장",
-        "motif": "그림"
+        "motif": "그림",
+        "roll": "판정"
       },
       "items": {
         "sfx": {
@@ -5113,6 +5114,38 @@
           },
           "potion": {
             "name": "회복·소중해"
+          }
+        },
+        "roll": {
+          "critical": {
+            "name": "크리티컬!"
+          },
+          "fumble": {
+            "name": "펌블…"
+          },
+          "success": {
+            "name": "성공!"
+          },
+          "failure": {
+            "name": "실패…"
+          },
+          "pray": {
+            "name": "기도"
+          },
+          "throw": {
+            "name": "에잇"
+          },
+          "reroll": {
+            "name": "다시 굴리게 해줘"
+          },
+          "shake": {
+            "name": "달그락달그락"
+          },
+          "blow": {
+            "name": "주사위에 후~"
+          },
+          "stare": {
+            "name": "주사위 노려보기"
           }
         }
       },

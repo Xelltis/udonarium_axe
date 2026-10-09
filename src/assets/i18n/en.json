@@ -5016,7 +5016,8 @@
         "recent": "Recent",
         "sfx": "Sound effects",
         "seal": "Seals",
-        "motif": "Table marks"
+        "motif": "Table marks",
+        "roll": "Rolls"
       },
       "items": {
         "sfx": {
@@ -5111,6 +5112,38 @@
           },
           "potion": {
             "name": "Heal / precious"
+          }
+        },
+        "roll": {
+          "critical": {
+            "name": "Critical!"
+          },
+          "fumble": {
+            "name": "Fumble..."
+          },
+          "success": {
+            "name": "Made it!"
+          },
+          "failure": {
+            "name": "Missed..."
+          },
+          "pray": {
+            "name": "Praying"
+          },
+          "throw": {
+            "name": "Here goes!"
+          },
+          "reroll": {
+            "name": "One more roll?"
+          },
+          "shake": {
+            "name": "Shaking the dice"
+          },
+          "blow": {
+            "name": "Blowing on the dice"
+          },
+          "stare": {
+            "name": "Glaring at the dice"
           }
         }
       },

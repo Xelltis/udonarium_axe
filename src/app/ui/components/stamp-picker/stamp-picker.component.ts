@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import { STAMP_FAMILIES, StampFamily, stampOf, stampsOfFamily } from '@axe/domain/chat/stamp-catalog';
+import { isArtStampFamily, STAMP_FAMILIES, StampFamily, stampOf, stampsOfFamily } from '@axe/domain/chat/stamp-catalog';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -37,9 +37,11 @@ function writeRecent(ids: readonly string[]): void {
  * The stamps to choose from, a family to a tab, then a tab for each of the room's own sets, with
  * the ones this viewer picked last on a tab of their own.
  *
- * Picking one only says which; the caller decides whether it answers a line or is sent as one. It
- * is drawn as a popover, which whoever opens it places. For a reader who may change the sets, a
- * button at the end of the tabs asks for them to be managed.
+ * The character's families are tabs with a picture of their first stamp, and their stamps are
+ * offered larger. Picking one only says which; the caller decides whether it answers a line or is
+ * sent as one. It is drawn as a popover of a fixed height, which whoever opens it places, so moving
+ * between tabs does not move it. For a reader who may change the sets, a button at the end of the
+ * tabs asks for them to be managed.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,7 +50,7 @@ function writeRecent(ids: readonly string[]): void {
   host: {
     popover: 'manual',
     class:
-      'rounded-ui-lg border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg fixed inset-auto m-0 flex flex-col overflow-hidden border border-solid p-0 [backdrop-filter:blur(12px)]',
+      'rounded-ui-lg border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg fixed inset-auto m-0 flex h-80 flex-col overflow-hidden border border-solid p-0 [backdrop-filter:blur(12px)]',
     'data-testid': 'stamp-picker',
   },
   imports: [StampComponent, TranslocoModule],
@@ -83,6 +85,14 @@ export class StampPickerComponent {
     }
     return stampsOfFamily(tab as StampFamily).map((each) => each.id);
   });
+
+  /** Whether the stamps of the open tab are the character's, which are offered larger. */
+  protected readonly large = computed(() => isArtStampFamily(this.tab()));
+
+  /** The stamp a tab is shown as, for the character's families, which are told apart by picture. */
+  protected tabIcon(tab: StampTab): string | null {
+    return isArtStampFamily(tab) ? (stampsOfFamily(tab)[0]?.id ?? null) : null;
+  }
 
   /** The name of a tab: a family's, or a set's own. */
   protected tabName(tab: StampTab): string | null {

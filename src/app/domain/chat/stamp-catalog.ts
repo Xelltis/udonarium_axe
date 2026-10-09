@@ -1,16 +1,21 @@
 /**
  * The stamps a line of chat can be answered with, or sent as a line of its own.
  *
- * Three families come with the app, each drawn by the app itself so that every screen shows them
- * the same: the sound effects of a comic, written out large; the round seal of a name stamp; and
- * marks from the table, drawn as pictures. A stamp from a room's own set is a picture in the room,
- * named by the picture it is.
+ * Three families come with the app drawn by the app itself, so that every screen shows them the
+ * same: the sound effects of a comic, written out large; the round seal of a name stamp; and marks
+ * from the table, drawn as pictures. The rest that come with it are pictures of the character who
+ * speaks for the system, a family to a part of play. A stamp from a room's own set is a picture in
+ * the room, named by the picture it is.
  *
  * A stamp is kept, and travels, as its identifier alone, so a family or a stamp added later costs
  * no change to what is saved, and a version that does not know one simply leaves it out.
  */
 
-export const STAMP_FAMILIES = ['sfx', 'seal', 'motif'] as const;
+/** The families that come with the app as pictures, a family to a part of play. */
+export const ART_STAMP_FAMILIES = ['roll'] as const;
+export type ArtStampFamily = (typeof ART_STAMP_FAMILIES)[number];
+
+export const STAMP_FAMILIES = ['sfx', 'seal', 'motif', ...ART_STAMP_FAMILIES] as const;
 export type StampFamily = (typeof STAMP_FAMILIES)[number];
 
 /** How a stamp moves as it is put on, or as it arrives. */
@@ -22,7 +27,7 @@ export interface BuiltinStamp {
   readonly id: string;
   readonly family: StampFamily;
   readonly key: string;
-  /** The colour it is drawn in. */
+  /** The colour it is drawn in, or empty for a picture. */
   readonly color: string;
   /** How far it leans, in degrees. */
   readonly tilt: number;
@@ -31,6 +36,10 @@ export interface BuiltinStamp {
 
 function stamp(family: StampFamily, key: string, color: string, tilt: number, motion: StampMotion): BuiltinStamp {
   return { id: `${family}:${key}`, family, key, color, tilt, motion };
+}
+
+function picture(family: ArtStampFamily, key: string, motion: StampMotion = 'pop'): BuiltinStamp {
+  return stamp(family, key, '', 0, motion);
 }
 
 const SEAL_RED = '#d2382b';
@@ -62,6 +71,17 @@ export const BUILTIN_STAMPS: readonly BuiltinStamp[] = [
   stamp('motif', 'magnifier', '#b07a2a', -6, 'pop'),
   stamp('motif', 'candle', '#f4c542', 0, 'shiver'),
   stamp('motif', 'potion', '#ec4f9a', 4, 'beat'),
+
+  picture('roll', 'critical', 'slam'),
+  picture('roll', 'fumble'),
+  picture('roll', 'success'),
+  picture('roll', 'failure'),
+  picture('roll', 'pray', 'beat'),
+  picture('roll', 'throw'),
+  picture('roll', 'reroll', 'beat'),
+  picture('roll', 'shake', 'shiver'),
+  picture('roll', 'blow'),
+  picture('roll', 'stare'),
 ];
 
 const BY_ID = new Map(BUILTIN_STAMPS.map((each) => [each.id, each]));
@@ -106,6 +126,16 @@ export function imageStampId(imageIdentifier: string): string {
 /** The stamps of one family, in the order they are offered. */
 export function stampsOfFamily(family: StampFamily): readonly BuiltinStamp[] {
   return BUILTIN_STAMPS.filter((each) => each.family === family);
+}
+
+/** Whether a family comes with the app as pictures rather than drawn by the app. */
+export function isArtStampFamily(family: string): family is ArtStampFamily {
+  return (ART_STAMP_FAMILIES as readonly string[]).includes(family);
+}
+
+/** Where the picture of a stamp that comes with the app as a picture is, or null for the others. */
+export function stampArtUrl(stamp: BuiltinStamp): string | null {
+  return isArtStampFamily(stamp.family) ? `assets/images/stamps/${stamp.family}/${stamp.key}.webp` : null;
 }
 
 /** The translation key for the words written on a stamp, for the families that write any. */

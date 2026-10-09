@@ -8,7 +8,7 @@ import { StampPackPanelComponent } from '@axe/features/chat/stamp-pack-panel/sta
 import { placePopover } from '@axe/ui/anchored-popover';
 import { StampPickerComponent } from '@axe/ui/components/stamp-picker/stamp-picker.component';
 
-const PICKER_WIDTH = 320;
+const PICKER_WIDTH = 360;
 const PICKER_MIN_HEIGHT = 200;
 const PACK_PANEL_WIDTH = 520;
 const PACK_PANEL_HEIGHT = 480;

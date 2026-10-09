@@ -4,7 +4,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { stampLabelKey, StampMotion, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
+import { stampArtUrl, stampLabelKey, StampMotion, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { motifStampSvg, sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
@@ -54,7 +54,8 @@ type StampView =
  * One stamp, drawn at the size asked for.
  *
  * A sound effect is written in heavy leaning letters with a white edge; a seal and a table mark are
- * pictures; a stamp from a room's set is its picture. A stamp this version does not know, or one
+ * drawn; the character's stamps and a stamp from a room's set are their pictures. A stamp this
+ * version does not know, or one
  * whose picture is not here, draws nothing at all. Each time `play` is given a new number above 0
  * the stamp makes its move once.
  */
@@ -91,6 +92,8 @@ export class StampComponent {
     this.language.currentLang();
     const { stamp } = ref;
     const name = this.t(stampNameKey(stamp));
+    const art = stampArtUrl(stamp);
+    if (art) return { kind: 'image', name, url: art, motion: stamp.motion };
     if (stamp.family === 'motif') {
       return {
         kind: 'picture',

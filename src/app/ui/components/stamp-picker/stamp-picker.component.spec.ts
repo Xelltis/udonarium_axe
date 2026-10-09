@@ -36,6 +36,23 @@ describe('StampPickerComponent', () => {
     expect(choices(root)).toEqual(stampsOfFamily('seal').map((each) => each.id));
   });
 
+  it('shows each of the character\u2019s families as the picture of its first stamp, and offers its stamps larger', () => {
+    const root = open();
+    const tab = root.querySelector('[data-testid="stamp-picker-tab-roll"]') as HTMLElement;
+    const first = stampsOfFamily('roll')[0].id;
+
+    expect(tab.querySelector('[data-stamp]')!.getAttribute('data-stamp-id')).toBe(first);
+    expect(tab.getAttribute('title')).toBeTruthy();
+    expect(root.querySelector('[data-testid="stamp-picker-tab-sfx"] [data-stamp]')).toBeNull();
+    expect(root.querySelector('[data-testid="stamp-picker-tab-sfx"]')!.getAttribute('title')).toBeNull();
+
+    tab.click();
+    fixture.detectChanges();
+    expect(choices(root)).toEqual(stampsOfFamily('roll').map((each) => each.id));
+    const drawn = root.querySelector(`[data-testid="stamp-picker-choice-${first}"] [data-stamp]`) as HTMLElement;
+    expect(drawn.style.height).toBe('68px');
+  });
+
   it('says which was picked, and opens on it among the recent ones the next time', () => {
     const root = open();
     const picked: string[] = [];

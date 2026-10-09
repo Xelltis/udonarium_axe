@@ -5016,7 +5016,8 @@
         "recent": "最近",
         "sfx": "描き文字",
         "seal": "判子",
-        "motif": "図柄"
+        "motif": "図柄",
+        "roll": "判定"
       },
       "items": {
         "sfx": {
@@ -5111,6 +5112,38 @@
           },
           "potion": {
             "name": "回復・尊い"
+          }
+        },
+        "roll": {
+          "critical": {
+            "name": "クリティカル!"
+          },
+          "fumble": {
+            "name": "ファンブル…"
+          },
+          "success": {
+            "name": "成功!"
+          },
+          "failure": {
+            "name": "失敗…"
+          },
+          "pray": {
+            "name": "祈る"
+          },
+          "throw": {
+            "name": "えいっ"
+          },
+          "reroll": {
+            "name": "振り直させて"
+          },
+          "shake": {
+            "name": "シャカシャカ"
+          },
+          "blow": {
+            "name": "ダイスに息を"
+          },
+          "stare": {
+            "name": "出目をにらむ"
           }
         }
       },

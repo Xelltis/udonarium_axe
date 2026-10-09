@@ -44,6 +44,16 @@ describe('StampComponent', () => {
     expect(show('motif:critical')!.querySelector('svg')).not.toBeNull();
   });
 
+  it('shows one of the character\u2019s stamps by its picture among the assets, under its name', () => {
+    const drawn = show('roll:blow', 1)!;
+    const t = TestBed.inject(TRANSLATE_FN);
+
+    expect(drawn.querySelector('img')!.getAttribute('src')).toBe('assets/images/stamps/roll/blow.webp');
+    expect(drawn.getAttribute('title')).toBe(t('ui.stamp.items.roll.blow.name'));
+    expect(drawn.style.width).toBe('48px');
+    expect(drawn.className).toContain('animate-stamp-pop');
+  });
+
   it('shows a stamp from the room by its picture, and nothing while the picture is not here', () => {
     expect(show(imageStampId('not-here'))).toBeNull();
 
