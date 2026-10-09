@@ -403,6 +403,55 @@ describe('ChatMessageService', () => {
     });
   });
 
+  describe('sending a stamp with words', () => {
+    function said(text: string, stampId: string, words: string): ChatMessage {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const tab = new ChatTab();
+      tab.initialize();
+      ObjectStore.instance.add(tab);
+      const stamp = { id: stampId, words };
+      const none = undefined;
+      return service.sendMessage(
+        tab,
+        text,
+        null,
+        PeerCursor.myCursor.identifier,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        stamp
+      );
+    }
+
+    it('puts the stamp under the words, with the words standing in for it on a last line', () => {
+      const message = said('いくぞ！', 'roll:critical', '［クリティカル!］');
+
+      expect(message.sentStamp).toBe('roll:critical');
+      expect(message.text).toBe('いくぞ！\n［クリティカル!］');
+      expect(message.saidWithStamp).toBe('いくぞ！');
+    });
+
+    it('carries a picture from the room among what the words attach', () => {
+      expect(said('これ', 'image:stamp-picture', '［ナイス］').attachmentImageIdentifierList).toEqual([
+        'stamp-picture',
+      ]);
+    });
+
+    it('sends the words alone under a stamp this version does not know', () => {
+      const message = said('いくぞ！', 'sfx:from-a-newer-version', '［新しいスタンプ］');
+
+      expect(message.text).toBe('いくぞ！');
+      expect(message.sentStamp).toBeNull();
+    });
+  });
+
   describe('what a line records about who spoke it', () => {
     it('writes down the role the speaker was wearing at the time', () => {
       const service = TestBed.inject(ChatMessageService);
@@ -525,6 +574,30 @@ describe('ChatMessageService', () => {
     function speak(text: string) {
       return service.sendMessage(chatTab, text, null, character.identifier);
     }
+
+    it('takes the command off a line sent with a stamp before the stamp\u2019s words go under it', () => {
+      const none = undefined;
+      const stamp = { id: 'feel:smile', words: '［にこにこ］' };
+      const message = service.sendMessage(
+        chatTab,
+        'やった @笑顔',
+        null,
+        character.identifier,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        stamp
+      );
+
+      expect(message.text).toBe('やった \n［にこにこ］');
+      expect(message.imageIdentifier).toBe('img-1');
+    });
 
     it('switches to the portrait the name picks out and takes the command off the line', () => {
       const message = speak('こんにちは @笑顔');

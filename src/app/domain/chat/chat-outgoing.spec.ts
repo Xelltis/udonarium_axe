@@ -47,7 +47,7 @@ describe('composeChatOutgoing', () => {
 });
 
 describe('composeStampOutgoing', () => {
-  it('sends the stamp with its words, read under no dice system, answering nothing and going round no ticker', () => {
+  it('sends the stamp on its own with its words, read under no dice system, answering nothing and going round no ticker', () => {
     const outgoing = composeStampOutgoing(
       {
         sendFrom: 'character-1',
@@ -61,7 +61,7 @@ describe('composeStampOutgoing', () => {
     );
 
     expect(outgoing).toEqual({
-      text: '［了解］',
+      text: '',
       gameSystem: null,
       sendFrom: 'character-1',
       sendTo: 'peer-2',
@@ -72,7 +72,29 @@ describe('composeStampOutgoing', () => {
       replyTo: '',
       quoteOf: '',
       toTicker: false,
-      stamp: 'seal:ok',
+      stamp: { id: 'seal:ok', words: '［了解］' },
     });
+  });
+});
+
+describe('a line sent with a stamp', () => {
+  it('carries the stamp under the words, and a line without one carries none', () => {
+    const base = {
+      text: 'いくぞ！',
+      gameSystem: null,
+      sendFrom: 'character-1',
+      sendTo: '',
+      portraitIndex: 0,
+      color: '#000000',
+      bubbles: { light: '', dark: '' },
+      replyTo: '',
+      quoteOf: '',
+      toTicker: false,
+    };
+
+    expect(composeChatOutgoing({ ...base, stamp: { id: 'roll:critical', words: '［クリティカル!］' } })).toEqual(
+      expect.objectContaining({ text: 'いくぞ！', stamp: { id: 'roll:critical', words: '［クリティカル!］' } })
+    );
+    expect('stamp' in composeChatOutgoing(base)).toBe(false);
   });
 });

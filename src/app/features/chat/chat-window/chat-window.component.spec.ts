@@ -98,7 +98,7 @@ describe('ChatWindowComponent', () => {
     }
   });
 
-  it('sends a stamp as a line of its own, past everything a line of words goes through', () => {
+  it('sends a stamp with nothing said as a line of its own, past everything a line of words goes through', () => {
     const tab = ChatTabList.instance.addChatTab('卓上');
     try {
       component.chatTabidentifier = tab.identifier;
@@ -108,7 +108,7 @@ describe('ChatWindowComponent', () => {
       const stamp = vi.spyOn(service, 'sendStamp');
 
       component.sendChat({
-        text: '［ゾワッ］',
+        text: '',
         gameSystem: null,
         sendFrom: PeerCursor.myCursor.identifier,
         sendTo: '',
@@ -117,7 +117,7 @@ describe('ChatWindowComponent', () => {
         replyTo: '',
         quoteOf: '',
         toTicker: false,
-        stamp: 'sfx:creepy',
+        stamp: { id: 'sfx:creepy', words: '［ゾワッ］' },
       });
 
       expect(words).not.toHaveBeenCalled();
@@ -132,6 +132,40 @@ describe('ChatWindowComponent', () => {
         { light: '', dark: '' }
       );
       expect(tab.chatMessages.map((message) => message.sentStamp)).toEqual(['sfx:creepy']);
+    } finally {
+      tab.destroy();
+    }
+  });
+
+  it('sends a stamp with words under them, through everything a line of words goes through', () => {
+    const tab = ChatTabList.instance.addChatTab('卓上');
+    try {
+      component.chatTabidentifier = tab.identifier;
+      fixture.detectChanges();
+      const service = TestBed.inject(ChatMessageService);
+      const words = vi.spyOn(service, 'sendMessage');
+      const stamp = vi.spyOn(service, 'sendStamp');
+      const crit = { id: 'roll:critical', words: '［クリティカル!］' };
+
+      component.sendChat({
+        text: 'いくぞ！',
+        gameSystem: null,
+        sendFrom: PeerCursor.myCursor.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#000000',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: crit,
+      });
+
+      expect(stamp).not.toHaveBeenCalled();
+      expect(words.mock.calls[0][1]).toBe('いくぞ！');
+      expect(words.mock.calls[0][13]).toEqual(crit);
+      expect(tab.chatMessages.map((message) => [message.saidWithStamp, message.sentStamp])).toEqual([
+        ['いくぞ！', 'roll:critical'],
+      ]);
     } finally {
       tab.destroy();
     }

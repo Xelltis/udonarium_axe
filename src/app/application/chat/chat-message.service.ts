@@ -25,12 +25,14 @@ import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { copiedMessageContext } from '@axe/domain/chat/chat-message-copy';
+import { OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
+import { joinStampLine } from '@axe/domain/chat/stamp-line';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -291,7 +293,9 @@ export class ChatMessageService {
    * tagged with it. A line from a seat that chose how its dice look carries that look, for the dice
    * bot's answer to throw them in; a guest's carries no picture, since a guest may not add to the
    * room's images. A line not whispered to anyone also records who this reader last spoke as, which
-   * `sendSystemMessageAsLastSpeaker` follows.
+   * `sendSystemMessageAsLastSpeaker` follows. A stamp sent with the line goes under it, with the
+   * words standing in for it on a last line of their own, after everything else has been read out of
+   * the line.
    */
   sendMessage(
     chatTab: ChatTab,
@@ -306,7 +310,8 @@ export class ChatMessageService {
     replyTo?: string,
     quoteOf?: string,
     bubbles?: { light: string; dark: string },
-    vnEmote?: string
+    vnEmote?: string,
+    stamp?: OutgoingStamp
   ): ChatMessage {
     const resolvedMessage = this.resolveAttachmentImageReferences(text, sendFrom, attachmentImageIdentifiers ?? []);
     text = resolvedMessage.text;
@@ -352,6 +357,7 @@ export class ChatMessageService {
 
     const portrait = this.applyPortraitCommand(chatMessage, text, sendFrom, imgIndex);
     this.setLastControlInfoToPeer(sendFrom, portrait.identifier, portrait.index, sendTo);
+    if (stamp) this.attachStamp(chatMessage, stamp);
 
     const chat = chatTab.addMessage(chatMessage);
 
@@ -403,6 +409,24 @@ export class ChatMessageService {
     emitSendMessage({ messageIdentifier: chat.identifier, messageTarget: null });
     emitDiceTableMessage({ messageIdentifier: chat.identifier });
     return chat;
+  }
+
+  /**
+   * Puts a stamp under a line about to be said, with the words standing in for it on a last line; a
+   * picture from the room's sets also goes among the attachments, for a version that cannot draw it.
+   * A stamp this version does not know is left off.
+   */
+  private attachStamp(chatMessage: ChatMessageContext, stamp: OutgoingStamp): void {
+    const ref = stampOf(stamp.id);
+    if (!ref) return;
+    chatMessage.text = joinStampLine(chatMessage.text ?? '', stamp.words);
+    chatMessage.stamp = stamp.id;
+    if (ref.kind !== 'image') return;
+    const attached: string[] = chatMessage.attachmentImageIdentifiers
+      ? JSON.parse(chatMessage.attachmentImageIdentifiers)
+      : [];
+    if (!attached.includes(ref.imageIdentifier)) attached.push(ref.imageIdentifier);
+    chatMessage.attachmentImageIdentifiers = JSON.stringify(attached);
   }
 
   private resolveAttachmentImageReferences(

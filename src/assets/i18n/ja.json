@@ -2987,7 +2987,7 @@
         "sendToTickerHint": "この発言を画面の外周にも流します",
         "tools": "入力の設定",
         "myDice": "マイダイス",
-        "stamp": "スタンプを送る"
+        "stamp": "スタンプを送る（入力中の文があれば一緒に）"
       },
       "tab": {
         "unnamedCharacter": "無名のキャラクター",

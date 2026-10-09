@@ -2090,6 +2090,38 @@ describe('ChatMessageComponent', () => {
       expect(drawn.style.height).toBe('128px');
     });
 
+    it('draws what was said with a stamp above it, without the words standing in for the stamp', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: 'いくぞ！\n［クリティカル!］',
+        timestamp: 1000,
+        stamp: 'roll:critical',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      const said = host().querySelector('[data-testid="chat-message-said-with-stamp"]') as HTMLElement;
+      expect(said.textContent).toBe('いくぞ！');
+      expect(host().textContent).not.toContain('［クリティカル!］');
+      expect(host().querySelector('[data-testid="chat-message-stamp"] [data-stamp]')).not.toBeNull();
+    });
+
+    it('draws nothing above a stamp sent on its own', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: '［ゾワッ］',
+        timestamp: 1000,
+        stamp: 'sfx:creepy',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      expect(host().querySelector('[data-testid="chat-message-said-with-stamp"]')).toBeNull();
+      expect(host().textContent).not.toContain('［ゾワッ］');
+    });
+
     it('shows the words of a line sent as a stamp from a newer version', () => {
       const message = tab.addMessage({
         from: 'someone',

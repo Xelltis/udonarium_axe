@@ -644,16 +644,17 @@ export class ChatWindowComponent {
    * its name, with the parts that change the speaker's own resources or buffs taken out after the
    * first copy so they apply once; with nothing targeted, the line says so. Nothing is sent when
    * the reader may not speak in the tab. A line marked for the ticker is also shown there. A stamp
-   * goes as a line of its own, with nothing read out of the words standing in for it.
+   * with nothing said goes as a line of its own, with nothing read out of the words standing in for
+   * it; a stamp with words goes under them, the line going through all the rest as any line does.
    */
   sendChat(value: ChatOutgoing) {
     const tab = this.chatTab();
     if (tab && !canRoleSpeakTab(tab, PeerCursor.myRole)) return;
-    if (tab && value.stamp) {
+    if (tab && value.stamp && value.text.trim().length < 1) {
       this.chatMessageService.sendStamp(
         tab,
-        value.stamp,
-        value.text,
+        value.stamp.id,
+        value.stamp.words,
         value.sendFrom,
         value.sendTo,
         value.portraitIndex,
@@ -732,7 +733,9 @@ export class ChatWindowComponent {
         attachmentImageIdentifiers,
         value.replyTo,
         value.quoteOf,
-        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
+        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' },
+        undefined,
+        value.stamp
       );
       if (value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
     }

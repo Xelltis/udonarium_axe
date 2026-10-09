@@ -6,6 +6,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildMacroMessage } from '@axe/domain/chat/character-macro';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
 import { evaluateCharacterReferences } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DiceBot, PLAIN_DICE_BOT } from '@axe/domain/dice/dice-bot';
@@ -28,6 +29,8 @@ export interface MacroSendOptions {
   replyTo?: string;
   quoteOf?: string;
   targets?: readonly GameCharacter[];
+  /** A stamp to send under the line. */
+  stamp?: OutgoingStamp;
 }
 
 /**
@@ -81,7 +84,9 @@ export class CharacterMacroService {
       message.attachmentImageIdentifiers,
       options.replyTo,
       options.quoteOf,
-      bubbles
+      bubbles,
+      undefined,
+      options.stamp
     );
   }
 

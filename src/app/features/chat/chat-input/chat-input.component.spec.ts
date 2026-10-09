@@ -430,10 +430,10 @@ describe('ChatInputComponent', () => {
       expect(component.colorSelectNo()).toBe(0);
     });
 
-    it('opens the stamps beside the send button, and sends the one picked as a line, leaving the box alone', async () => {
+    it('opens the stamps beside the send button, and sends the one picked on its own from an empty box', () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
-      component.text = '書きかけ';
+      component.text = '';
       const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
       const emitted: Outgoing[] = [];
       component.chat.subscribe((value) => emitted.push(value));
@@ -446,13 +446,51 @@ describe('ChatInputComponent', () => {
       toggle.mock.calls[0][1]('seal:ok');
 
       expect(emitted).toEqual([
-        expect.objectContaining({ stamp: 'seal:ok', gameSystem: null, replyTo: '', toTicker: false }),
+        expect.objectContaining({
+          text: '',
+          stamp: { id: 'seal:ok', words: expect.any(String) },
+          gameSystem: null,
+          replyTo: '',
+          toTicker: false,
+        }),
       ]);
-      expect(emitted[0].text.length).toBeGreaterThan(0);
-      expect(component.text).toBe('書きかけ');
+      expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
+    });
+
+    it('sends the one picked under the words in the box, as the send button sends them, and clears the box', async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      component.text = 'いくぞ！';
+      const outgoing = sent();
+
+      component.sendStamp('roll:critical');
+
+      expect(component.text).toBe('');
+      expect(await outgoing).toEqual(
+        expect.objectContaining({
+          text: 'いくぞ！',
+          gameSystem,
+          stamp: { id: 'roll:critical', words: expect.any(String) },
+        })
+      );
+      expect(DiceBot.gameSystemForLineAsync).toHaveBeenCalledWith(component.gameType, 'いくぞ！');
+    });
+
+    it('sends no stamp from a seat that may not speak', () => {
+      fixture.componentRef.setInput('canSpeak', false);
+      fixture.detectChanges();
+      component.text = 'いくぞ！';
+      const emitted = vi.fn();
+      component.chat.subscribe(emitted);
+
+      component.sendStamp('roll:critical');
+
+      expect(emitted).not.toHaveBeenCalled();
+      expect(component.text).toBe('いくぞ！');
     });
 
     it('sends no stamp this version does not know', () => {
+      fixture.componentRef.setInput('canSpeak', true);
       const emitted = vi.fn();
       component.chat.subscribe(emitted);
 

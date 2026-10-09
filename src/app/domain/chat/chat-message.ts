@@ -16,6 +16,7 @@ import {
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
+import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 import { VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
@@ -80,8 +81,9 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    */
   @SyncVar() vnEmote: string;
   /**
-   * The stamp the line was sent as, by identifier, drawn large in place of its words; the words are
-   * a stand-in for whatever cannot draw it, a version that does not know it, a log, a video.
+   * The stamp the line was sent with, by identifier, drawn large under whatever was said with it. The
+   * last line of the words stands in for it wherever it cannot be drawn: a version that does not know
+   * it, a log, a video.
    *
    * Left without an initialiser, as `vnEmote` is: only a line sent as a stamp writes it.
    */
@@ -528,5 +530,13 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   get sentStamp(): string | null {
     const stamp = `${this.stamp ?? ''}`.trim();
     return stampOf(stamp) ? stamp : null;
+  }
+
+  /**
+   * What was said with the stamp the line was sent with, drawn above it, without the words standing
+   * in for the stamp; empty for a stamp sent on its own, and for a line with no stamp to draw.
+   */
+  get saidWithStamp(): string {
+    return this.sentStamp ? saidWithStamp(this.text) : '';
   }
 }

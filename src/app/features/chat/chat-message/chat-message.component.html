@@ -137,6 +137,14 @@
                 </div>
               </div>
             } @else if (sentStamp(); as stampId) {
+              @if (chatMessage.saidWithStamp; as said) {
+                <span
+                  #messageBody
+                  data-chat-search-text
+                  data-testid="chat-message-said-with-stamp"
+                  [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
+                ></span>
+              }
               <div class="py-0.5" data-testid="chat-message-stamp">
                 <ui-stamp
                   [stampId]="stampId"
@@ -307,6 +315,14 @@
                   </span>
                 </span>
               } @else if (sentStamp(); as stampId) {
+                @if (chatMessage.saidWithStamp; as said) {
+                  <span
+                    #messageBody
+                    data-chat-search-text
+                    data-testid="chat-message-said-with-stamp"
+                    [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
+                  ></span>
+                }
                 <span class="inline-block align-middle" data-testid="chat-message-stamp">
                   <ui-stamp
                     [stampId]="stampId"
