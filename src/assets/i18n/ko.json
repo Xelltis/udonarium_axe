@@ -5057,6 +5057,78 @@
           "smirk": {
             "label": "씨익",
             "name": "음모"
+          },
+          "boom": {
+            "label": "쾅",
+            "name": "충격 전개"
+          },
+          "menace": {
+            "label": "고고고",
+            "name": "불길한 기운"
+          },
+          "silence": {
+            "label": "썰렁",
+            "name": "정적"
+          },
+          "stare": {
+            "label": "빤히",
+            "name": "빤히"
+          },
+          "thump": {
+            "label": "두근두근",
+            "name": "두근두근"
+          },
+          "excited": {
+            "label": "설렘",
+            "name": "기대돼"
+          },
+          "flop": {
+            "label": "꽈당",
+            "name": "꽈당"
+          },
+          "shine": {
+            "label": "반짝",
+            "name": "반짝"
+          },
+          "startle": {
+            "label": "뜨끔",
+            "name": "뜨끔"
+          },
+          "murmur": {
+            "label": "웅성",
+            "name": "웅성웅성"
+          },
+          "entrance": {
+            "label": "짠",
+            "name": "등장"
+          },
+          "glance": {
+            "label": "힐끔",
+            "name": "힐끔"
+          },
+          "huff": {
+            "label": "흥",
+            "name": "흥"
+          },
+          "gloom": {
+            "label": "털썩",
+            "name": "침울"
+          },
+          "idea": {
+            "label": "번뜩",
+            "name": "번뜩"
+          },
+          "leanin": {
+            "label": "벌떡",
+            "name": "벌떡"
+          },
+          "roll": {
+            "label": "데굴데굴",
+            "name": "주사위 굴림"
+          },
+          "dumbfounded": {
+            "label": "멍",
+            "name": "멍"
           }
         },
         "seal": {
@@ -5091,6 +5163,110 @@
           "precious": {
             "label": "존귀",
             "name": "소중해"
+          },
+          "agree": {
+            "label": "그러네",
+            "name": "그러네"
+          },
+          "really": {
+            "label": "글쎄",
+            "name": "글쎄"
+          },
+          "fair": {
+            "label": "일리있음",
+            "name": "일리 있어"
+          },
+          "unfair": {
+            "label": "일리없음",
+            "name": "일리 없어"
+          },
+          "noobjection": {
+            "label": "이의없음",
+            "name": "이의 없음"
+          },
+          "objection": {
+            "label": "이의있음",
+            "name": "이의 있음"
+          },
+          "gotit": {
+            "label": "완전이해",
+            "name": "완전히 이해했어"
+          },
+          "thatsit": {
+            "label": "인정",
+            "name": "인정"
+          },
+          "relate": {
+            "label": "공감",
+            "name": "공감"
+          },
+          "lmao": {
+            "label": "폭소",
+            "name": "폭소"
+          },
+          "genius": {
+            "label": "천재",
+            "name": "천재"
+          },
+          "win": {
+            "label": "우승",
+            "name": "우승"
+          },
+          "best": {
+            "label": "최고",
+            "name": "최고"
+          },
+          "capable": {
+            "label": "유능",
+            "name": "유능"
+          },
+          "noway": {
+            "label": "무리",
+            "name": "무리"
+          },
+          "approved": {
+            "label": "승인",
+            "name": "승인"
+          },
+          "rejected": {
+            "label": "기각",
+            "name": "기각"
+          },
+          "foreshadow": {
+            "label": "복선",
+            "name": "복선"
+          },
+          "ominous": {
+            "label": "불길",
+            "name": "불길해"
+          },
+          "rip": {
+            "label": "명복",
+            "name": "명복을"
+          },
+          "done": {
+            "label": "완료",
+            "name": "완료"
+          },
+          "congrats": {
+            "label": "축",
+            "name": "축하해"
+          },
+          "thanks": {
+            "label": "감사",
+            "name": "감사"
+          },
+          "secret": {
+            "label": "비밀",
+            "name": "비밀"
+          },
+          "lucky": {
+            "label": "길",
+            "name": "길"
+          },
+          "unlucky": {
+            "label": "흉",
+            "name": "흉"
           }
         },
         "roll": {

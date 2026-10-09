@@ -5055,6 +5055,78 @@
           "smirk": {
             "label": "HEH",
             "name": "Scheming"
+          },
+          "boom": {
+            "label": "BOOM",
+            "name": "Big reveal"
+          },
+          "menace": {
+            "label": "RUMBLE",
+            "name": "Menacing"
+          },
+          "silence": {
+            "label": "SILENCE",
+            "name": "Silence"
+          },
+          "stare": {
+            "label": "STARE",
+            "name": "Staring"
+          },
+          "thump": {
+            "label": "THUMP",
+            "name": "Heart racing"
+          },
+          "excited": {
+            "label": "YAY",
+            "name": "Can’t wait"
+          },
+          "flop": {
+            "label": "D’OH",
+            "name": "Pratfall"
+          },
+          "shine": {
+            "label": "SHINE",
+            "name": "Shine"
+          },
+          "startle": {
+            "label": "EEP",
+            "name": "Caught out"
+          },
+          "murmur": {
+            "label": "MURMUR",
+            "name": "Uneasy stir"
+          },
+          "entrance": {
+            "label": "TA-DA",
+            "name": "Grand entrance"
+          },
+          "glance": {
+            "label": "PEEK",
+            "name": "Glance"
+          },
+          "huff": {
+            "label": "HMPH",
+            "name": "Huff"
+          },
+          "gloom": {
+            "label": "GLOOM",
+            "name": "Gloom"
+          },
+          "idea": {
+            "label": "DING",
+            "name": "Got an idea"
+          },
+          "leanin": {
+            "label": "WHOA",
+            "name": "Leaning in"
+          },
+          "roll": {
+            "label": "CLATTER",
+            "name": "Rolling the dice"
+          },
+          "dumbfounded": {
+            "label": "HUH?",
+            "name": "Dumbfounded"
           }
         },
         "seal": {
@@ -5089,6 +5161,110 @@
           "precious": {
             "label": "AWW",
             "name": "Precious"
+          },
+          "agree": {
+            "label": "TRUE",
+            "name": "True"
+          },
+          "really": {
+            "label": "HMM",
+            "name": "Is that so?"
+          },
+          "fair": {
+            "label": "FAIR",
+            "name": "Fair point"
+          },
+          "unfair": {
+            "label": "NAH",
+            "name": "No point"
+          },
+          "noobjection": {
+            "label": "AGREED",
+            "name": "No objection"
+          },
+          "objection": {
+            "label": "OBJECT",
+            "name": "Objection"
+          },
+          "gotit": {
+            "label": "GOT IT",
+            "name": "Totally get it"
+          },
+          "thatsit": {
+            "label": "THIS",
+            "name": "That’s it"
+          },
+          "relate": {
+            "label": "SAME",
+            "name": "I feel you"
+          },
+          "lmao": {
+            "label": "ROFL",
+            "name": "ROFL"
+          },
+          "genius": {
+            "label": "GENIUS",
+            "name": "Genius"
+          },
+          "win": {
+            "label": "WIN",
+            "name": "Winner"
+          },
+          "best": {
+            "label": "BEST",
+            "name": "The best"
+          },
+          "capable": {
+            "label": "PRO",
+            "name": "Capable"
+          },
+          "noway": {
+            "label": "NOPE",
+            "name": "No way"
+          },
+          "approved": {
+            "label": "APPROVED",
+            "name": "Approved"
+          },
+          "rejected": {
+            "label": "DENIED",
+            "name": "Rejected"
+          },
+          "foreshadow": {
+            "label": "FLAG",
+            "name": "Foreshadowing"
+          },
+          "ominous": {
+            "label": "UH-OH",
+            "name": "Ominous"
+          },
+          "rip": {
+            "label": "RIP",
+            "name": "Rest in peace"
+          },
+          "done": {
+            "label": "DONE",
+            "name": "Done"
+          },
+          "congrats": {
+            "label": "YAY",
+            "name": "Congrats"
+          },
+          "thanks": {
+            "label": "THX",
+            "name": "Thanks"
+          },
+          "secret": {
+            "label": "SHH",
+            "name": "Secret"
+          },
+          "lucky": {
+            "label": "LUCK",
+            "name": "Lucky"
+          },
+          "unlucky": {
+            "label": "DOOM",
+            "name": "Unlucky"
           }
         },
         "roll": {

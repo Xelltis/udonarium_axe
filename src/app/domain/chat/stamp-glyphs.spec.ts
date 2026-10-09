@@ -10,6 +10,27 @@ describe('the seals stamps are drawn as', () => {
     expect(across).toContain('textLength="70"');
   });
 
+  it('stands three characters in a column, and sets four in two columns read from the right, as on a seal', () => {
+    const three = sealStampSvg('それな', '#d2382b');
+    expect([...three.matchAll(/<text x="(\d+)" y="(\d+)"[^>]*>(.)</g)].map((m) => [m[3], m[1]])).toEqual([
+      ['そ', '50'],
+      ['れ', '50'],
+      ['な', '50'],
+    ]);
+
+    const four = sealStampSvg('そうだね', '#d2382b');
+    expect([...four.matchAll(/<text x="(\d+)" y="(\d+)"[^>]*>(.)</g)].map((m) => [m[3], m[1], m[2]])).toEqual([
+      ['そ', '64', '47'],
+      ['う', '64', '79'],
+      ['だ', '36', '47'],
+      ['ね', '36', '79'],
+    ]);
+  });
+
+  it('counts the long vowel mark among the letters written downward', () => {
+    expect(sealStampSvg('ゲーム', '#d2382b').match(/<text /g)).toHaveLength(3);
+  });
+
   it('keeps the words of a seal whole, out of the rough ink its rings are in', () => {
     const seal = sealStampSvg('了解', '#d2382b');
     const rough = seal.slice(seal.indexOf('<g filter='), seal.indexOf('</g>'));

@@ -19,11 +19,8 @@ function lookUp(dictionary: Record<string, unknown>, key: string): unknown {
 }
 
 describe('the stamps that come with the app', () => {
-  it('offers eight of each family it draws and some of each of the character\u2019s, each under an identifier of its own', () => {
-    for (const family of STAMP_FAMILIES) {
-      if (isArtStampFamily(family)) expect(stampsOfFamily(family).length, family).toBeGreaterThan(0);
-      else expect(stampsOfFamily(family), family).toHaveLength(8);
-    }
+  it('offers some of every family, each under an identifier of its own', () => {
+    for (const family of STAMP_FAMILIES) expect(stampsOfFamily(family).length, family).toBeGreaterThan(0);
     expect(new Set(BUILTIN_STAMPS.map((each) => each.id)).size).toBe(BUILTIN_STAMPS.length);
   });
 

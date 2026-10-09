@@ -5055,6 +5055,78 @@
           "smirk": {
             "label": "ニヤリ",
             "name": "企み"
+          },
+          "boom": {
+            "label": "ドーン",
+            "name": "衝撃の展開"
+          },
+          "menace": {
+            "label": "ゴゴゴゴ",
+            "name": "不穏な気配"
+          },
+          "silence": {
+            "label": "シーン",
+            "name": "静寂"
+          },
+          "stare": {
+            "label": "ジーッ",
+            "name": "じっと見る"
+          },
+          "thump": {
+            "label": "ドキドキ",
+            "name": "胸が高鳴る"
+          },
+          "excited": {
+            "label": "ワクワク",
+            "name": "楽しみ"
+          },
+          "flop": {
+            "label": "ズコー",
+            "name": "ずっこけ"
+          },
+          "shine": {
+            "label": "キラーン",
+            "name": "キラリ"
+          },
+          "startle": {
+            "label": "ギクッ",
+            "name": "ギクッ"
+          },
+          "murmur": {
+            "label": "ざわ…",
+            "name": "ざわつき"
+          },
+          "entrance": {
+            "label": "バーン",
+            "name": "登場"
+          },
+          "glance": {
+            "label": "チラッ",
+            "name": "チラ見"
+          },
+          "huff": {
+            "label": "プンプン",
+            "name": "ぷんぷん"
+          },
+          "gloom": {
+            "label": "ズーン",
+            "name": "落ち込み"
+          },
+          "idea": {
+            "label": "ピコーン",
+            "name": "ひらめき"
+          },
+          "leanin": {
+            "label": "ガタッ",
+            "name": "身を乗り出す"
+          },
+          "roll": {
+            "label": "コロコロ",
+            "name": "ダイスを振る"
+          },
+          "dumbfounded": {
+            "label": "ポカーン",
+            "name": "ぽかん"
           }
         },
         "seal": {
@@ -5089,6 +5161,110 @@
           "precious": {
             "label": "尊",
             "name": "尊い"
+          },
+          "agree": {
+            "label": "そうだね",
+            "name": "そうだね"
+          },
+          "really": {
+            "label": "せやろか",
+            "name": "せやろか"
+          },
+          "fair": {
+            "label": "一理ある",
+            "name": "一理ある"
+          },
+          "unfair": {
+            "label": "一理ない",
+            "name": "一理ない"
+          },
+          "noobjection": {
+            "label": "異議なし",
+            "name": "異議なし"
+          },
+          "objection": {
+            "label": "異議あり",
+            "name": "異議あり"
+          },
+          "gotit": {
+            "label": "完全理解",
+            "name": "完全に理解した"
+          },
+          "thatsit": {
+            "label": "それな",
+            "name": "それな"
+          },
+          "relate": {
+            "label": "わかる",
+            "name": "わかる"
+          },
+          "lmao": {
+            "label": "大草原",
+            "name": "大爆笑"
+          },
+          "genius": {
+            "label": "天才",
+            "name": "天才"
+          },
+          "win": {
+            "label": "優勝",
+            "name": "優勝"
+          },
+          "best": {
+            "label": "最高",
+            "name": "最高"
+          },
+          "capable": {
+            "label": "有能",
+            "name": "有能"
+          },
+          "noway": {
+            "label": "無理",
+            "name": "無理"
+          },
+          "approved": {
+            "label": "承認",
+            "name": "承認"
+          },
+          "rejected": {
+            "label": "却下",
+            "name": "却下"
+          },
+          "foreshadow": {
+            "label": "伏線",
+            "name": "伏線"
+          },
+          "ominous": {
+            "label": "不穏",
+            "name": "不穏"
+          },
+          "rip": {
+            "label": "南無",
+            "name": "合掌"
+          },
+          "done": {
+            "label": "済",
+            "name": "済み"
+          },
+          "congrats": {
+            "label": "祝",
+            "name": "おめでとう"
+          },
+          "thanks": {
+            "label": "謝",
+            "name": "感謝"
+          },
+          "secret": {
+            "label": "秘",
+            "name": "ないしょ"
+          },
+          "lucky": {
+            "label": "吉",
+            "name": "吉"
+          },
+          "unlucky": {
+            "label": "凶",
+            "name": "凶"
           }
         },
         "roll": {
