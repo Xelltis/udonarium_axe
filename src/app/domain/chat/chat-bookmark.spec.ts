@@ -27,12 +27,19 @@ describe('chat bookmarks', () => {
       late.renameBookmark('共有の名前');
       const personal = new Map([[early.identifier, { title: '自分の名前', at: 5 }]]);
 
-      const entries = collectChatBookmarks([tab], personal);
+      const entries = collectChatBookmarks(tab.chatMessages, personal, () => true);
 
       expect(entries.map((entry) => [entry.message, entry.kind, entry.name])).toEqual([
         [early, 'personal', '自分の名前'],
         [late, 'shared', '共有の名前'],
       ]);
+    });
+
+    it('leave out the lines of a tab the reader may not read', () => {
+      const line = tab.addMessage({ from: 'someone', name: 'ノア', text: '黒幕の名前', timestamp: 1000 });
+      line.bookmark(1);
+
+      expect(collectChatBookmarks(tab.chatMessages, new Map(), () => false)).toEqual([]);
     });
 
     it('leave out a mark of either kind on a line kept from the reader', () => {
@@ -46,7 +53,7 @@ describe('chat bookmarks', () => {
         [deleted.identifier, { title: '', at: 1 }],
       ]);
 
-      expect(collectChatBookmarks([tab], personal)).toEqual([]);
+      expect(collectChatBookmarks(tab.chatMessages, personal, () => true)).toEqual([]);
     });
   });
 

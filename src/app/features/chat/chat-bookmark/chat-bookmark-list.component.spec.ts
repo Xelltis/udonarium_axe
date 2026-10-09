@@ -28,7 +28,7 @@ describe('ChatBookmarkListComponent', () => {
 
   function marked(text: string, timestamp: number, extra: Partial<ChatMessage> = {}): ChatMessage {
     const message = tab.addMessage({ from: 'someone', name: 'ノア', text, timestamp, ...extra });
-    message.bookmark(timestamp);
+    TestBed.inject(ChatBookmarkService).add(message, 'shared');
     return message;
   }
 

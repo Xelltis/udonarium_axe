@@ -26,25 +26,25 @@ export interface ChatBookmarkEntry {
 export const MAX_PERSONAL_CHAT_BOOKMARKS = 1000;
 
 /**
- * The marks this reader may see on the lines of the tabs given, in the order the lines were placed
- * in the log, the room's mark before the reader's own where a line has both.
+ * The marks this reader may see on the lines given, in the order the lines were placed in the log,
+ * the room's mark before the reader's own where a line has both.
  *
- * A mark goes with its line, so a line that has gone takes its marks with it, and a line kept from
- * the reader's chat, such as a whisper they were not part of or a deleted line, keeps its marks from
- * them too.
+ * Only lines in a tab `canView` lets the reader read count. A mark goes with its line, so a line
+ * that has gone takes its marks with it, and a line kept from the reader's chat, such as a whisper
+ * they were not part of or a deleted line, keeps its marks from them too.
  */
 export function collectChatBookmarks(
-  tabs: readonly ChatTab[],
-  personal: ReadonlyMap<string, PersonalChatBookmark> = new Map()
+  lines: Iterable<ChatMessage>,
+  personal: ReadonlyMap<string, PersonalChatBookmark>,
+  canView: (tab: ChatTab) => boolean
 ): ChatBookmarkEntry[] {
   const entries: ChatBookmarkEntry[] = [];
-  for (const tab of tabs) {
-    for (const message of tab.chatMessages) {
-      if (!(message instanceof ChatMessage) || !message.isShownInChat) continue;
-      if (message.isBookmarked) entries.push({ message, tab, kind: 'shared', name: message.bookmarkName });
-      const own = personal.get(message.identifier);
-      if (own) entries.push({ message, tab, kind: 'personal', name: own.title });
-    }
+  for (const message of lines) {
+    const tab = message.parent;
+    if (!(tab instanceof ChatTab) || !canView(tab) || !message.isShownInChat) continue;
+    if (message.isBookmarked) entries.push({ message, tab, kind: 'shared', name: message.bookmarkName });
+    const own = personal.get(message.identifier);
+    if (own) entries.push({ message, tab, kind: 'personal', name: own.title });
   }
   return entries.sort((a, b) => a.message.placedAt - b.message.placedAt);
 }

@@ -126,19 +126,21 @@ describe('ChatBookmarkService', () => {
     expect(service.entries()).toHaveLength(0);
   });
 
-  it('shows the game master the marks in a tab kept from the players', () => {
+  it('shows the game master the marks in a tab kept from the players', async () => {
     beSeat(PeerRole.GameMaster);
     const secret = addTab('GM専用');
     secret.plCanView = false;
     secret.addMessage({ from: 'someone', name: 'GM', text: '黒幕の名前', timestamp: 1000 }).bookmark(1000);
+    await settle();
 
     expect(service.entries()).toHaveLength(1);
   });
 
-  it('lets a guest follow the marks but not change them', () => {
+  it('lets a guest follow the marks but not change them', async () => {
     const main = addTab('メイン');
     const line = say(main, '証言A', 1000);
     line.bookmark(1000);
+    await settle();
     const other = say(main, '証言B', 2000);
     beSeat(PeerRole.Guest);
 
@@ -184,6 +186,41 @@ describe('ChatBookmarkService', () => {
     expect(line.isBookmarked).toBe(true);
     service.toggle(line, 'shared');
     expect(line.isBookmarked).toBe(false);
+  });
+
+  describe('keeping up with the room', () => {
+    it('lists a line marked by somebody else once the change reaches this browser', async () => {
+      const main = addTab('メイン');
+      const line = say(main, '証言A', 1000);
+      expect(service.entries()).toHaveLength(0);
+
+      line.bookmark(2000);
+      await settle();
+
+      expect(service.entries().map((entry) => entry.message)).toEqual([line]);
+    });
+
+    it('finds the marks of lines already in the room when it starts', () => {
+      const main = addTab('メイン');
+      say(main, '証言A', 1000).bookmark(1000);
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+
+      expect(TestBed.inject(ChatBookmarkService).entries()).toHaveLength(1);
+    });
+
+    it('reads no line again while lines nobody marked come and change', async () => {
+      const main = addTab('メイン');
+      service.add(say(main, '証言A', 1000), 'shared');
+      await settle();
+      const before = service.entries();
+
+      const chatter = say(main, '雑談', 2000);
+      chatter.text = '雑談（直した）';
+      await settle();
+
+      expect(service.entries()).toBe(before);
+    });
   });
 
   describe('a reader’s own bookmarks', () => {
