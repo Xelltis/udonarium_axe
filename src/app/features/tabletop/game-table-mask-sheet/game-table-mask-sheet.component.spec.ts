@@ -122,6 +122,34 @@ describe('GameTableMaskSheetComponent', () => {
     });
   });
 
+  describe('the words written across it', () => {
+    it('shows none, and the defaults, on a mask that never had any', () => {
+      expect(field('mask-text').value).toBe('');
+      expect(field('mask-text-size').value).toBe(String(GameTableMask.DEFAULT_TEXT_SIZE));
+      expect(field('mask-text-color').value).toBe('#ffffff');
+      expect(field('mask-text-outline').checked).toBe(true);
+    });
+
+    it('writes the words, their size, colour and outline to the mask', () => {
+      component.maskText = '扉\n（閉）';
+      component.textSize = 40;
+      pickColor('mask-text-color', '#00ff00');
+      component.textOutline = false;
+
+      expect(mask.text).toBe('扉\n（閉）');
+      expect(mask.textSize).toBe(40);
+      expect(mask.textColor).toBe('#00ff00');
+      expect(mask.textOutline).toBe(false);
+    });
+
+    it('leaves the size alone for an empty field', () => {
+      component.textSize = 40;
+      component.textSize = '' as unknown as number;
+
+      expect(mask.textSize).toBe(40);
+    });
+  });
+
   describe('the mask itself', () => {
     it('starts from the default fill on a mask with no colour element, and adds one on the first pick', () => {
       expect(mask.commonDataElement!.getFirstElementByName('color')).toBeNull();

@@ -175,6 +175,45 @@ export class GameTableMaskSheetComponent {
     this._gameTableMask()?.paintColor(color);
   }
 
+  /** The words written across the mask, line breaks and all. */
+  get maskText(): string {
+    return this._gameTableMask()?.text ?? '';
+  }
+  set maskText(text: string) {
+    const mask = this._gameTableMask();
+    if (mask) mask.text = text ?? '';
+  }
+
+  /** The size of the words in pixels. A field left empty changes nothing. */
+  get textSize(): number {
+    return this._gameTableMask()?.textSize ?? GameTableMask.DEFAULT_TEXT_SIZE;
+  }
+  set textSize(size: number) {
+    const mask = this._gameTableMask();
+    if (!mask || size === null || size === undefined || `${size}`.trim() === '') return;
+    mask.textSize = Number(size);
+  }
+
+  /** The colour of the words. */
+  get textColor(): string {
+    return this._gameTableMask()?.textColor ?? GameTableMask.DEFAULT_TEXT_COLOR;
+  }
+
+  /** Sets the colour of the words. */
+  setTextColor(color: string) {
+    const mask = this._gameTableMask();
+    if (mask) mask.textColor = color;
+  }
+
+  /** Whether the words are drawn with a dark outline. */
+  get textOutline(): boolean {
+    return this._gameTableMask()?.textOutline ?? true;
+  }
+  set textOutline(outline: boolean) {
+    const mask = this._gameTableMask();
+    if (mask) mask.textOutline = !!outline;
+  }
+
   /** The colour shown after scratching, or empty when there is none. */
   get scratchedColor(): string {
     return this._gameTableMask()?.scratchedColor ?? '';

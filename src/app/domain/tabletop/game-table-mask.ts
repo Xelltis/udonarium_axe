@@ -2,13 +2,17 @@ import { getPeerContext, getPeerContexts } from '@axe/core/network/peer-context-
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
-import { DataElement } from '@axe/domain/data/data-element';
+import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
+const TEXT_COLOR = /^#[0-9a-f]{6}$/i;
+
 @SyncObject('table-mask')
 export class GameTableMask extends TabletopObject {
+  static readonly DEFAULT_TEXT_SIZE = 24;
+  static readonly DEFAULT_TEXT_COLOR = '#ffffff';
   @SyncVar() isLock: boolean = false;
   @SyncVar() dispLockMark: boolean = true;
 
@@ -95,6 +99,72 @@ export class GameTableMask extends TabletopObject {
     const identifier = this.scratchedImageIdentifier;
     if (identifier.length < 1) return ImageFile.Empty;
     return ImageStorage.instance.get(identifier) ?? ImageFile.Empty;
+  }
+
+  /**
+   * Words written across the mask, line breaks and all; empty for none, which is also what a mask
+   * that never had any reads.
+   *
+   * They live in the common data, as a card's face text does. Setting words adds the element when it
+   * is missing; setting none on such a mask adds nothing.
+   */
+  get text(): string {
+    const element = this.getElement('text', this.commonDataElement);
+    return element ? `${element.value ?? ''}` : '';
+  }
+  set text(text: string) {
+    const element = this.getElement('text', this.commonDataElement);
+    if (element) {
+      element.value = text;
+      return;
+    }
+    const common = this.commonDataElement;
+    if (!common || text.trim().length < 1) return;
+    common.appendChild(DataElement.create('text', text, { type: DataElementType.NOTE }, `text_${this.identifier}`));
+  }
+
+  /**
+   * The size of the words in pixels, a whole number from 8 to 200; the default where none was set or
+   * what was set is not a size.
+   */
+  get textSize(): number {
+    const size = Number(this.optionalText('fontsize') || NaN);
+    return Number.isFinite(size) && size > 0
+      ? Math.max(8, Math.min(200, Math.round(size)))
+      : GameTableMask.DEFAULT_TEXT_SIZE;
+  }
+  set textSize(size: number) {
+    const normalized = Number.isFinite(size) && size > 0 ? Math.max(8, Math.min(200, Math.round(size))) : NaN;
+    this.writeOptionalText('fontsize', Number.isNaN(normalized) ? '' : `${normalized}`, DataElementType.TEXT);
+  }
+
+  /** The colour of the words as `#rrggbb`; white where none was set or what was set is not one. */
+  get textColor(): string {
+    const color = this.optionalText('fontcolor');
+    return TEXT_COLOR.test(color) ? color : GameTableMask.DEFAULT_TEXT_COLOR;
+  }
+  set textColor(color: string) {
+    this.writeOptionalText('fontcolor', TEXT_COLOR.test(color) ? color : '', 'colors');
+  }
+
+  /**
+   * Whether the words are drawn with a dark outline, which keeps them readable over a picture; they
+   * are unless it was turned off. It is kept as a check, ticked or not.
+   */
+  get textOutline(): boolean {
+    return this.getElement('textoutline', this.commonDataElement)?.isChecked ?? true;
+  }
+  set textOutline(outline: boolean) {
+    const value = outline ? 1 : 0;
+    const element = this.getElement('textoutline', this.commonDataElement);
+    if (element) {
+      element.value = value;
+      return;
+    }
+    if (outline) return;
+    this.commonDataElement?.appendChild(
+      DataElement.create('textoutline', value, { type: DataElementType.CHECK }, `textoutline_${this.identifier}`)
+    );
   }
 
   private optionalText(name: string): string {

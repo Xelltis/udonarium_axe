@@ -1971,7 +1971,13 @@
         "openDataSheet": "모든 데이터 항목을 시트로 열기",
         "copy": "복제 만들기",
         "saving": "저장 중 {{percent}}%",
-        "save": "저장"
+        "save": "저장",
+        "textSection": "글자",
+        "text": "문장",
+        "textPlaceholder": "마스크 위에 표시할 문장",
+        "textSize": "크기",
+        "textColor": "색",
+        "textOutline": "테두리 넣기"
       },
       "contextMenu": {
         "altitudeSetting": "고도 설정",

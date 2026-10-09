@@ -1971,7 +1971,13 @@
         "openDataSheet": "すべてのデータ項目をシートで開く",
         "copy": "コピーを作る",
         "saving": "保存中 {{percent}}%",
-        "save": "保存"
+        "save": "保存",
+        "textSection": "文字",
+        "text": "文章",
+        "textPlaceholder": "マスクの上に表示する文章",
+        "textSize": "大きさ",
+        "textColor": "色",
+        "textOutline": "縁取りをつける"
       },
       "contextMenu": {
         "altitudeSetting": "高度設定",

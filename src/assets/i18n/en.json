@@ -1971,7 +1971,13 @@
         "openDataSheet": "Open every data item in a sheet",
         "copy": "Duplicate",
         "saving": "Saving {{percent}}%",
-        "save": "Save"
+        "save": "Save",
+        "textSection": "Text",
+        "text": "Words",
+        "textPlaceholder": "Words shown on the mask",
+        "textSize": "Size",
+        "textColor": "Colour",
+        "textOutline": "Outline the words"
       },
       "contextMenu": {
         "altitudeSetting": "Altitude",
