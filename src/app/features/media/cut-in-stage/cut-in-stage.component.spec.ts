@@ -194,6 +194,15 @@ describe('CutInStageComponent', () => {
     expect(whole.style.clipPath).toBe('');
   });
 
+  it('draws a layer whole under an outline it does not know', () => {
+    const scene = makeScene();
+    addLayer(scene, { clip: 'trapezoid' as never });
+
+    show(scene);
+
+    expect(layerElements()[0].style.clipPath).toBe('');
+  });
+
   it('leans a layer the way it was told to', () => {
     const scene = makeScene();
     addLayer(scene, { skewXDeg: 20 });

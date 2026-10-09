@@ -390,6 +390,13 @@ describe('CutInLayerPropertiesComponent', () => {
       expect(layer.clip).toBe('none');
     });
 
+    it('shows an outline it does not know as none, leaving it as it was', () => {
+      layer.clip = 'trapezoid' as never;
+
+      expect(component.clip).toBe('none');
+      expect(layer.clip).toBe('trapezoid');
+    });
+
     it('takes a lean, held to what still leaves something to see', () => {
       component.skewXDeg = 30;
       expect(layer.skewXDeg).toBe(30);

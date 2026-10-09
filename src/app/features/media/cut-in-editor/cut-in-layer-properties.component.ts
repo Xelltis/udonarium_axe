@@ -351,9 +351,13 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.skewYDeg = Math.min(80, Math.max(-80, Number(skewYDeg) || 0))));
   }
 
-  /** The shape the layer is cut to; an unknown value is written as none. */
+  /**
+   * The shape the layer is cut to, shown as none under a name this version does not know, as the
+   * stage draws it; an unknown value is written as none.
+   */
   get clip(): CutInClip {
-    return this.layer()?.clip ?? 'none';
+    const clip = this.layer()?.clip;
+    return isCutInClip(clip) ? clip : 'none';
   }
   set clip(clip: CutInClip) {
     this.write((layer) => (layer.clip = isCutInClip(clip) ? clip : 'none'));

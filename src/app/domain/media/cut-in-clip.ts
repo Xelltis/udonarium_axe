@@ -62,19 +62,24 @@ const SHAPES: Record<Exclude<CutInClip, 'none' | 'circle'>, readonly ClipPoint[]
   ],
 };
 
-/** The corners of a shape, or none where the layer keeps its own box. */
-export function clipPoints(clip: CutInClip): readonly ClipPoint[] {
-  if (clip === 'none' || clip === 'circle') return [];
+/**
+ * The corners of a shape, or none where the layer keeps its own box.
+ *
+ * A layer keeps its own box under a name this version does not know, as a room saved by a newer
+ * version, or a peer running one, can hand it.
+ */
+export function clipPoints(clip: string): readonly ClipPoint[] {
+  if (!isCutInClip(clip) || clip === 'none' || clip === 'circle') return [];
   return SHAPES[clip];
 }
 
 /** What the browser is told, or nothing at all where the layer keeps its own box. */
-export function clipCss(clip: CutInClip): string {
-  if (clip === 'none') return '';
+export function clipCss(clip: string): string {
   if (clip === 'circle') return 'ellipse(50% 50% at 50% 50%)';
 
-  const corners = clipPoints(clip).map(([x, y]) => `${round(x * 100)}% ${round(y * 100)}%`);
-  return `polygon(${corners.join(', ')})`;
+  const corners = clipPoints(clip);
+  if (corners.length === 0) return '';
+  return `polygon(${corners.map(([x, y]) => `${round(x * 100)}% ${round(y * 100)}%`).join(', ')})`;
 }
 
 /**
