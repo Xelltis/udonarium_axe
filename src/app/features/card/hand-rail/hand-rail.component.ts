@@ -10,12 +10,13 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CardGameService } from '@axe/application/card/card-game.service';
+import { CardGameService, CardSeat } from '@axe/application/card/card-game.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -28,6 +29,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { HandDrawPanelComponent } from '@axe/features/card/hand-draw/hand-draw-panel.component';
 import { elementsAt } from '@axe/features/card/hand-rail/elements-at';
+import { buildGiveHandCardMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
 import { reorderHandCards, selectHandCards } from '@axe/features/card/hand-rail/hand-cards';
 import { HandDragService } from '@axe/features/card/hand-rail/hand-drag.service';
 import {
@@ -69,6 +71,7 @@ export class HandRailComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly panelService = inject(PanelService);
   private readonly cardGame = inject(CardGameService);
+  private readonly contextMenuService = inject(ContextMenuService);
 
   private dragPending: { card: Card; startX: number; startY: number; dragging: boolean } | null = null;
   private activePointerId: number | null = null;
@@ -215,6 +218,26 @@ export class HandRailComponent {
   }
 
   protected readonly pairCount = computed(() => findTrumpPairs(this.cards()).length);
+
+  /** The other participants a card from this hand can be given to. */
+  protected readonly giveTargets = computed<CardSeat[]>(() => {
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
+    this.objectChange.trackMyCursor();
+    for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
+      this.objectChange.versionOf(cursor.identifier)();
+    }
+    const myUserId = this.cardGame.myUserId();
+    return this.cardGame.participants().filter((seat) => seat.userId !== myUserId);
+  });
+
+  /** Opens the choice of who to give the card to, under the button that asked for it. */
+  protected openGiveMenu(event: MouseEvent, card: Card): void {
+    event.stopPropagation();
+    const box = event.currentTarget instanceof Element ? event.currentTarget.getBoundingClientRect() : null;
+    const at = box ? { x: box.left, y: box.bottom + 2 } : { x: event.clientX, y: event.clientY };
+    const menu = buildGiveHandCardMenu(this.giveTargets(), (userId) => this.cardGame.giveFromHand(card, userId));
+    this.contextMenuService.open(at, menu, this.t('feature.card.hand.giveTo'));
+  }
 
   protected openDrawPanel(): void {
     this.panelService.open(HandDrawPanelComponent, {

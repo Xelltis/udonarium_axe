@@ -745,6 +745,8 @@
         "empty": "패가 없습니다",
         "playFaceUp": "앞면으로 내려놓기",
         "playFaceDown": "뒷면으로 내려놓기",
+        "give": "상대에게 건네기",
+        "giveTo": "건넬 상대",
         "drawFromOther": "상대의 패에서 뽑기",
         "discardPairs": "페어 버리기",
         "noPairs": "같은 숫자의 짝이 없습니다"
@@ -786,6 +788,7 @@
       "discardStackName": "버린 패",
       "message": {
         "drewFromHand": "{{to}}이(가) {{from}}의 패에서 1장 뽑았습니다",
+        "gaveFromHand": "{{from}}이(가) {{to}}에게 패를 1장 건넸습니다",
         "discardedPairs": "{{name}}이(가) {{ranks}} 페어를 버렸습니다"
       },
       "drawPanel": {

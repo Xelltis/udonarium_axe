@@ -111,6 +111,52 @@ describe('CardGameService', () => {
     });
   });
 
+  describe('giveFromHand()', () => {
+    it('passes a card face down into the hand of the one it is for, saying so without naming it', () => {
+      const other = peer('other', 'あいて');
+      const card = trumpCard('s07');
+      card.toHand('me');
+
+      expect(service.giveFromHand(card, other.userId)).toBe(true);
+
+      expect(card.location.name).toBe(handLocationOf('other'));
+      expect(card.isFront).toBe(false);
+      expect(service.handCardsOf('me')).toHaveLength(0);
+      expect(sendSystemMessage).toHaveBeenCalledOnce();
+      expect(String(sendSystemMessage.mock.calls[0][0])).not.toContain('カード');
+    });
+
+    it('gives nothing that has already left your hand', () => {
+      peer('other', 'あいて');
+      const card = trumpCard('s07');
+      card.toHand('third');
+
+      expect(service.giveFromHand(card, 'other')).toBe(false);
+
+      expect(card.location.name).toBe(handLocationOf('third'));
+      expect(sendSystemMessage).not.toHaveBeenCalled();
+    });
+
+    it('gives nothing to somebody who has left, or who only watches', () => {
+      peer('watcher', 'みるだけ', PeerRole.Guest);
+      const card = trumpCard('s07');
+      card.toHand('me');
+
+      expect(service.giveFromHand(card, 'gone')).toBe(false);
+      expect(service.giveFromHand(card, 'watcher')).toBe(false);
+
+      expect(card.location.name).toBe(handLocationOf('me'));
+    });
+
+    it('gives nothing to yourself', () => {
+      const card = trumpCard('s07');
+      card.toHand('me');
+
+      expect(service.giveFromHand(card, 'me')).toBe(false);
+      expect(sendSystemMessage).not.toHaveBeenCalled();
+    });
+  });
+
   describe('discardPairs()', () => {
     it('lays a matching pair face up on the discard pile', () => {
       const spade = trumpCard('s07');

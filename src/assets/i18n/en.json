@@ -745,6 +745,8 @@
         "empty": "Your hand is empty",
         "playFaceUp": "Play face up",
         "playFaceDown": "Play face down",
+        "give": "Give to someone",
+        "giveTo": "Give to",
         "drawFromOther": "Draw from a hand",
         "discardPairs": "Discard pairs",
         "noPairs": "No matching pair"
@@ -786,6 +788,7 @@
       "discardStackName": "Discards",
       "message": {
         "drewFromHand": "{{to}} drew a card from {{from}}",
+        "gaveFromHand": "{{from}} gave a card to {{to}}",
         "discardedPairs": "{{name}} discarded pairs of {{ranks}}"
       },
       "drawPanel": {

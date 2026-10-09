@@ -1,7 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card, CardState } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -117,6 +120,76 @@ describe('HandRailComponent', () => {
     (component as unknown as { playFaceUp: (c: Card) => void }).playFaceUp(card);
 
     expect(selection.focusCoordinate()).toEqual(expect.objectContaining({ x: 120, y: 80 }));
+  });
+
+  describe('giving a card from the hand', () => {
+    const made: { destroy(): void }[] = [];
+
+    function otherPlayer(userId: string, name: string): void {
+      const cursor = new PeerCursor();
+      cursor.userId = userId;
+      cursor.peerId = `peer-${userId}`;
+      cursor.name = name;
+      cursor.role = PeerRole.Player;
+      cursor.initialize();
+      made.push(cursor);
+    }
+
+    function handCard(): Card {
+      const card = makeCard(handLocationOf('me'));
+      made.push(card);
+      return card;
+    }
+
+    async function hoverOverTheHand(): Promise<void> {
+      TestBed.inject(HandRailService).open();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      (fixture.nativeElement.querySelector('.hand-card') as HTMLElement).dispatchEvent(
+        new PointerEvent('pointerenter')
+      );
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+
+    function giveButton(): HTMLElement | null {
+      return fixture.nativeElement.querySelector('[data-testid="hand-card-give"]');
+    }
+
+    beforeEach(() => {
+      // A cursor left behind by an earlier file would count as somebody to give to.
+      for (const cursor of ObjectStore.instance.getObjects<PeerCursor>(PeerCursor)) {
+        if (cursor !== PeerCursor.myCursor && cursor.userId !== 'me') ObjectStore.instance.delete(cursor, false);
+      }
+    });
+
+    afterEach(() => {
+      for (const object of made.splice(0)) object.destroy();
+    });
+
+    it('offers the other participants and gives the card to the one picked', async () => {
+      otherPlayer('other', 'あいて');
+      const card = handCard();
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      const announce = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null!);
+
+      await hoverOverTheHand();
+      giveButton()!.click();
+
+      const actions = open.mock.calls[0][1];
+      expect(actions.map((action) => action.name)).toEqual(['あいて']);
+      actions[0].action!();
+      expect(card.location.name).toBe(handLocationOf('other'));
+      expect(announce).toHaveBeenCalledOnce();
+    });
+
+    it('offers no button while there is nobody else to give to', async () => {
+      handCard();
+
+      await hoverOverTheHand();
+
+      expect(giveButton()).toBeNull();
+    });
   });
 
   it('looks for the card just played where it stands, through the table focus', () => {

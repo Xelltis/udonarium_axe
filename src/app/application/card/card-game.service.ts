@@ -7,6 +7,7 @@ import { Card } from '@axe/domain/card/card';
 import { planDeal } from '@axe/domain/card/card-deal';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { selectHandCardsOf } from '@axe/domain/card/hand-cards';
+import { isHandOf } from '@axe/domain/card/hand-location';
 import { findTrumpPairs, selectExtraJokers, trumpRankOf } from '@axe/domain/card/trump-card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -100,6 +101,29 @@ export class CardGameService {
     SoundEffect.play(PresetSound.cardDraw);
     this.chatMessageService.sendSystemMessage(
       this.t('feature.card.message.drewFromHand', { from: fromName, to: PeerCursor.myCursor?.name ?? '' })
+    );
+    return true;
+  }
+
+  /**
+   * Passes a card from your hand into another participant's, face down so only they see its face, and
+   * says in chat who gave a card to whom without saying which.
+   *
+   * It is all checked again as it is done, since the hand and the room may have changed while the
+   * choice was open: nothing moves, and false comes back, when the card has left your hand, you may
+   * no longer hold cards, or the one it is for is not a participant who can.
+   */
+  giveFromHand(card: Card, toUserId: string): boolean {
+    const myUserId = this.myUserId();
+    if (myUserId.length < 1 || toUserId === myUserId) return false;
+    if (!canRoleEdit(PeerCursor.myRole) || !isHandOf(card.location.name, myUserId)) return false;
+    const receiver = this.participants().find((seat) => seat.userId === toUserId);
+    if (!receiver) return false;
+
+    card.toHand(receiver.userId);
+    SoundEffect.play(PresetSound.cardPut);
+    this.chatMessageService.sendSystemMessage(
+      this.t('feature.card.message.gaveFromHand', { from: PeerCursor.myCursor?.name ?? '', to: receiver.name })
     );
     return true;
   }
