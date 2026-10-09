@@ -60,6 +60,18 @@ describe('RemoteControllerComponent', () => {
     });
   });
 
+  it('shows each palette line as written, with nothing before or after it', () => {
+    const char = createChar('テスト');
+    char.remoteController!.setPalette('HP-1\n//回復=3');
+    component.character.set(char);
+    fixture.detectChanges();
+
+    const row = (line: number) =>
+      (fixture.nativeElement as HTMLElement).querySelector(`[data-line="${line}"]`)!.textContent;
+    expect(row(0)).toBe('HP-1');
+    expect(row(1)).toBe('//回復=3');
+  });
+
   describe('targetBlockClick', () => {
     it('turns a target off', () => {
       const char = createChar('test');

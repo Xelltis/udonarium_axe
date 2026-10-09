@@ -152,9 +152,8 @@
                   <div
                     class="text-ui-dim box-border cursor-default overflow-hidden px-2.5 py-0.75 text-[11px] leading-[1.65] wrap-break-word whitespace-pre-wrap italic select-none"
                     [attr.data-line]="row.lineIndex"
-                  >
-                    {{ row.text }}
-                  </div>
+                    [textContent]="row.text"
+                  ></div>
                 } @else if (row.kind === 'empty') {
                   <div class="box-border h-1.5 cursor-default p-0 select-none" [attr.data-line]="row.lineIndex"></div>
                 } @else {
@@ -164,9 +163,8 @@
                     [class.text-ui-accent]="selectedLine() === row.lineIndex"
                     [attr.data-line]="row.lineIndex"
                     (click)="onClickPaletteRow(row)"
-                  >
-                    {{ row.text }}
-                  </div>
+                    [textContent]="row.text"
+                  ></div>
                 }
               }
             </div>

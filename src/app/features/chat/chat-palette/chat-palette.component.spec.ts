@@ -338,6 +338,13 @@ describe('ChatPaletteComponent', () => {
       return event;
     }
 
+    it('shows each line as written, with nothing before or after it', () => {
+      speaker('2d6+3 攻撃\n//修正=2');
+
+      expect(root().querySelector('[data-line="0"]')!.textContent).toBe('2d6+3 攻撃');
+      expect(root().querySelector('[data-line="1"]')!.textContent).toBe('//修正=2');
+    });
+
     it('shows no results until something is searched for', () => {
       speaker('2d6+3 攻撃');
 
