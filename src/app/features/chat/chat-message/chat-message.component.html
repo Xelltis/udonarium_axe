@@ -372,16 +372,22 @@
         {{ 'feature.chat.message.history.title' | transloco }}
       </div>
       <ol class="m-0 flex list-none flex-col gap-1.5 p-0">
-        @for (version of versions(); track $index; let first = $first; let last = $last) {
+        @for (version of versions(); track $index; let last = $last) {
           <li data-testid="chat-message-history-version" class="flex flex-col gap-0.5">
             <span class="text-ui-dim text-[10px] tabular-nums">
-              {{ version.at | date: 'y/M/d H:mm:ss' }} ·
-              @if (first) {
-                {{ 'feature.chat.message.history.original' | transloco }}
-              } @else if (last) {
+              @if (version.since !== null) {
+                {{ version.since | date: 'y/M/d H:mm:ss' }} ·
+              }
+              @if (last) {
                 {{ 'feature.chat.message.history.current' | transloco }}
+              } @else if (version.edit === 0) {
+                {{ 'feature.chat.message.history.original' | transloco }}
+              } @else if (version.edit !== null) {
+                {{ 'feature.chat.message.history.edit' | transloco: { count: version.edit } }}
+              } @else if (version.since === null) {
+                {{ 'feature.chat.message.history.beforeKept' | transloco }}
               } @else {
-                {{ 'feature.chat.message.history.edit' | transloco: { count: $index } }}
+                {{ 'feature.chat.message.history.editUncounted' | transloco }}
               }
             </span>
             <span

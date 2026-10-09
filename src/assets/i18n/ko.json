@@ -3008,6 +3008,8 @@
           "title": "편집 이력",
           "original": "처음 발언",
           "edit": "{{count}}번째 편집",
+          "beforeKept": "이력을 남기기 전에 편집된 문면",
+          "editUncounted": "편집",
           "current": "현재"
         },
         "actions": "발언 조작",

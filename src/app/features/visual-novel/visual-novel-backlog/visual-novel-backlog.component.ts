@@ -311,8 +311,6 @@ export class VisualNovelBacklogComponent {
     });
     if (message.text !== text || message.vnEmote !== emote) {
       message.edit(text, emote, this.chatMessageService.getTime());
-      // An emptied staging is asked for here, which the chat's own edit leaves alone.
-      if (message.vnEmote !== emote) message.vnEmote = emote;
     }
     if (message.vnPortraitPos !== this.editSlot()) {
       message.vnPortraitPos = this.editSlot();

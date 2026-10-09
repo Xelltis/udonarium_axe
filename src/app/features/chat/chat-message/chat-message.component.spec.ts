@@ -1697,6 +1697,21 @@ describe('ChatMessageComponent', () => {
       expect(fixture.nativeElement.textContent).not.toContain('犯人');
     });
 
+    it('does not call the wording of a line edited before histories were kept what it first said', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const message = shown('someone', '二度目の文面');
+      message.fixd = true;
+      message.edit('三度目の文面', '', 3000);
+      await settle();
+
+      testId('chat-message-history-toggle')!.click();
+      fixture.detectChanges();
+
+      const history = testId('chat-message-history')!.textContent!;
+      expect(history).toContain(t('feature.chat.message.history.beforeKept'));
+      expect(history).not.toContain(t('feature.chat.message.history.original'));
+    });
+
     it('only marks a line edited before its history was kept', async () => {
       const message = shown('someone', 'こんばんは');
       message.fixd = true;

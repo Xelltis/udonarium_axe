@@ -3008,6 +3008,8 @@
           "title": "編集履歴",
           "original": "最初の発言",
           "edit": "{{count}}回目の編集",
+          "beforeKept": "履歴を残す前に編集された文面",
+          "editUncounted": "編集",
           "current": "現在"
         },
         "actions": "発言の操作",

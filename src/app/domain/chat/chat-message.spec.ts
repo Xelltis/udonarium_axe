@@ -738,9 +738,9 @@ describe('ChatMessage', () => {
 
       expect(message.fixd).toBe(true);
       expect(message.versions).toEqual([
-        { text: 'こんばんわ', at: 1000 },
-        { text: 'こんばんは', at: 2000 },
-        { text: 'こんばんは！', at: 3000 },
+        { text: 'こんばんわ', since: 1000, edit: 0 },
+        { text: 'こんばんは', since: 2000, edit: 1 },
+        { text: 'こんばんは！', since: 3000, edit: 2 },
       ]);
     });
 
@@ -773,6 +773,29 @@ describe('ChatMessage', () => {
       const message = said('こんばんは');
       message.fixd = true;
 
+      expect(message.versions).toEqual([]);
+    });
+
+    it('does not take the wording of a line edited before histories were kept for what it first said', () => {
+      const message = said('二度目の文面');
+      message.fixd = true;
+
+      message.edit('三度目の文面', '', 3000);
+
+      expect(message.versions).toEqual([
+        { text: '二度目の文面', since: null, edit: null },
+        { text: '三度目の文面', since: 3000, edit: null },
+      ]);
+    });
+
+    it('takes the staging away when it is given none, keeping the words', () => {
+      const message = said('こんばんは');
+      message.vnEmote = 'shape:shout';
+
+      message.edit('こんばんは', '', 2000);
+
+      expect(message.vnEmote).toBe('');
+      expect(message.text).toBe('こんばんは');
       expect(message.versions).toEqual([]);
     });
   });

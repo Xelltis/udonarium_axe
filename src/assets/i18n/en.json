@@ -3008,6 +3008,8 @@
           "title": "Edit history",
           "original": "As first said",
           "edit": "Edit {{count}}",
+          "beforeKept": "As edited before edits were kept",
+          "editUncounted": "Edited",
           "current": "Now"
         },
         "actions": "Line actions",

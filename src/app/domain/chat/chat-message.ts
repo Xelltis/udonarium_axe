@@ -11,7 +11,7 @@ import {
   appendChatMessageEdit,
   type ChatMessageVersion,
   chatMessageVersions,
-  parseChatMessageEdits,
+  hasChatMessageEdits,
 } from '@axe/domain/chat/chat-message-history';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
@@ -369,21 +369,28 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    * the line is shown.
    */
   get versions(): ChatMessageVersion[] {
-    const edits = parseChatMessageEdits(this.editHistory);
-    return chatMessageVersions(edits, vnBodyOf(this.vnEmote, this.text ?? ''), this.timestamp);
+    return chatMessageVersions(this.editHistory, vnBodyOf(this.vnEmote, this.text ?? ''));
   }
 
   /**
    * Edits the line to say `text`, keeping what it said before in its history and marking it as
-   * edited. `staging` is how novel mode is to stage it, kept beside the words. Nothing changes when
-   * the words and their staging are as they were.
+   * edited. `staging` is how novel mode is to stage it, kept beside the words as given, an empty one
+   * taking any staging away. Nothing changes when the words and their staging are as they were.
    */
   edit(text: string, staging: string, at: number): void {
     const before = vnBodyOf(this.vnEmote, this.text ?? '');
-    if (this.text === text && (this.vnEmote ?? '') === staging) return;
-    if (before !== text) this.editHistory = appendChatMessageEdit(this.editHistory, before, at);
+    const stagedBefore = this.vnEmote ?? '';
+    if (this.text === text && stagedBefore === staging) return;
+    if (before !== text) {
+      // A line edited before histories were kept starts its history part way through.
+      const editedBeforeKept = !!this.fixd && !hasChatMessageEdits(this.editHistory);
+      this.editHistory = appendChatMessageEdit(this.editHistory, before, at, {
+        saidAt: this.timestamp,
+        editedBeforeKept,
+      });
+    }
     this.text = text;
-    if (staging.length > 0) this.vnEmote = staging;
+    if (stagedBefore !== staging) this.vnEmote = staging;
     this.fixd = true;
   }
 
