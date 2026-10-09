@@ -753,10 +753,13 @@ export class ChatMessageComponent {
     return !!message && this.chatMessageService.canUndoAfterWhisper(message);
   }
 
-  /** The seats the line could be whispered to afterwards: everyone in the room but this reader. */
+  /**
+   * The seats the line could be whispered to afterwards: everyone in the room but this reader who
+   * may read the tab it is in.
+   */
   whisperTargets(): PeerCursor[] {
     this.objectChange.collectionOf(PeerCursor.aliasName)();
-    return this.chatMessageService.afterWhisperCandidates();
+    return this.chatMessageService.afterWhisperCandidates(this.chatMessage);
   }
 
   /** Makes the line an after-the-fact whisper to the seat chosen, from the list or the line's menu. */

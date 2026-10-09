@@ -27,6 +27,7 @@ import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/
 import { copiedMessageContext } from '@axe/domain/chat/chat-message-copy';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
@@ -582,11 +583,16 @@ export class ChatMessageService {
 
   /**
    * The seats a line can be whispered to afterwards: everyone in the room but this reader, who said
-   * it and keeps it either way.
+   * it and keeps it either way, and but those whose role may not read the tab it is in, who could
+   * never see it.
    */
-  afterWhisperCandidates(): PeerCursor[] {
+  afterWhisperCandidates(message: ChatMessage): PeerCursor[] {
     const me = PeerCursor.myCursor;
-    return this.objectStore.getObjects(PeerCursor).filter((peer) => peer !== me && !!peer.userId);
+    const tab = message.parent;
+    return this.objectStore
+      .getObjects(PeerCursor)
+      .filter((peer) => peer !== me && !!peer.userId)
+      .filter((peer) => !(tab instanceof ChatTab) || canRoleViewTab(tab, peer.role));
   }
 
   /**
@@ -595,7 +601,7 @@ export class ChatMessageService {
    */
   makeAfterWhisper(message: ChatMessage, peer: PeerCursor): void {
     if (!this.canMakeAfterWhisper(message)) return;
-    if (!this.afterWhisperCandidates().includes(peer)) return;
+    if (!this.afterWhisperCandidates(message).includes(peer)) return;
     message.makeAfterWhisper(peer.userId, peer.name, this.getTime());
   }
 

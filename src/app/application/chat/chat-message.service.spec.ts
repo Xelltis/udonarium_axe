@@ -101,7 +101,20 @@ describe('ChatMessageService', () => {
       tab.addMessage({ from, name: 'アリア', text, timestamp: 1000 });
 
     it('offers everyone in the room but the reader', () => {
-      expect(service.afterWhisperCandidates()).toEqual([other]);
+      expect(service.afterWhisperCandidates(lineFrom('me'))).toEqual([other]);
+    });
+
+    it('offers nobody whose role may not read the tab the line is in', () => {
+      tab.plCanView = false;
+      other.role = PeerRole.Player;
+      const mine = lineFrom('me');
+
+      expect(service.afterWhisperCandidates(mine)).toEqual([]);
+      service.makeAfterWhisper(mine, other);
+      expect(mine.isAfterWhisper).toBe(false);
+
+      other.role = PeerRole.GameMaster;
+      expect(service.afterWhisperCandidates(mine)).toEqual([other]);
     });
 
     it('whispers the reader’s own line to the one chosen, and puts it back', () => {
