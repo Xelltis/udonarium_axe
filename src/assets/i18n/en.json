@@ -5018,7 +5018,8 @@
         "seal": "Seals",
         "motif": "Table marks",
         "roll": "Rolls",
-        "battle": "Battle"
+        "battle": "Battle",
+        "explore": "Exploring"
       },
       "items": {
         "sfx": {
@@ -5213,6 +5214,44 @@
           },
           "berserk": {
             "name": "Going all out"
+          },
+          "stunned": {
+            "name": "Seeing stars"
+          },
+          "poison": {
+            "name": "Poisoned"
+          },
+          "asleep": {
+            "name": "Asleep"
+          },
+          "buff": {
+            "name": "Powered up"
+          },
+          "taunt": {
+            "name": "Taunt"
+          },
+          "protect": {
+            "name": "I’ll cover you!"
+          },
+          "smash": {
+            "name": "Full-power strike"
+          },
+          "ready": {
+            "name": "Bring it on"
+          }
+        },
+        "explore": {
+          "magnifier": {
+            "name": "Investigating"
+          },
+          "listen": {
+            "name": "Listening"
+          },
+          "sneak": {
+            "name": "Sneaking"
+          },
+          "found": {
+            "name": "Found it!"
           }
         }
       },

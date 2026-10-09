@@ -5020,7 +5020,8 @@
         "seal": "도장",
         "motif": "그림",
         "roll": "판정",
-        "battle": "전투"
+        "battle": "전투",
+        "explore": "탐색"
       },
       "items": {
         "sfx": {
@@ -5215,6 +5216,44 @@
           },
           "berserk": {
             "name": "진심 모드"
+          },
+          "stunned": {
+            "name": "어질어질"
+          },
+          "poison": {
+            "name": "독…"
+          },
+          "asleep": {
+            "name": "수면"
+          },
+          "buff": {
+            "name": "파워 업"
+          },
+          "taunt": {
+            "name": "메롱"
+          },
+          "protect": {
+            "name": "감싸기!"
+          },
+          "smash": {
+            "name": "혼신의 일격"
+          },
+          "ready": {
+            "name": "덤벼라"
+          }
+        },
+        "explore": {
+          "magnifier": {
+            "name": "조사"
+          },
+          "listen": {
+            "name": "엿듣기"
+          },
+          "sneak": {
+            "name": "은밀 이동"
+          },
+          "found": {
+            "name": "찾았다!"
           }
         }
       },

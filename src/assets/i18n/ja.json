@@ -5018,7 +5018,8 @@
         "seal": "判子",
         "motif": "図柄",
         "roll": "判定",
-        "battle": "戦闘"
+        "battle": "戦闘",
+        "explore": "探索"
       },
       "items": {
         "sfx": {
@@ -5213,6 +5214,44 @@
           },
           "berserk": {
             "name": "本気モード"
+          },
+          "stunned": {
+            "name": "ピヨピヨ"
+          },
+          "poison": {
+            "name": "毒…"
+          },
+          "asleep": {
+            "name": "眠り"
+          },
+          "buff": {
+            "name": "パワーアップ"
+          },
+          "taunt": {
+            "name": "あっかんべー"
+          },
+          "protect": {
+            "name": "かばう!"
+          },
+          "smash": {
+            "name": "渾身の一撃"
+          },
+          "ready": {
+            "name": "かかってこい"
+          }
+        },
+        "explore": {
+          "magnifier": {
+            "name": "調べる"
+          },
+          "listen": {
+            "name": "聞き耳"
+          },
+          "sneak": {
+            "name": "忍び足"
+          },
+          "found": {
+            "name": "見つけた!"
           }
         }
       },
