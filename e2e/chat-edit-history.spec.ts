@@ -18,7 +18,7 @@ test.describe('発言の編集履歴', () => {
     await expect(line).toContainText('こんばんわ');
     for (const next of ['こんばんは', 'こんばんは！']) {
       await line.locator('.msg-text').hover();
-      await line.getByTitle('変更', { exact: true }).first().click();
+      await line.getByTestId('chat-message-action-edit').click();
       const editor = line.locator('textarea');
       await editor.fill(next);
       await editor.press('Enter');

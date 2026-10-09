@@ -2982,7 +2982,7 @@
         "selectText": "텍스트 선택",
         "afterWhisper": "나중에 귓속말로 바꾸기",
         "afterWhisperTo": "귓속말 상대",
-        "afterWhisperNobody": "방에 다른 참가자가 없습니다",
+        "afterWhisperNobody": "나중에 귓속말로 바꾸기 (상대가 없습니다)",
         "undoAfterWhisper": "나중에 귓속말을 취소하고 모두에게 보이기",
         "deleteLine": "삭제",
         "deleteLineHint": "삭제 (모두의 화면에서 사라지지만 로그에는 남습니다)",
@@ -3009,7 +3009,10 @@
           "original": "처음 발언",
           "edit": "{{count}}번째 편집",
           "current": "현재"
-        }
+        },
+        "actions": "발언 조작",
+        "more": "그 밖의 조작",
+        "edit": "편집"
       },
       "stream": {
         "title": "발언의 흐름",

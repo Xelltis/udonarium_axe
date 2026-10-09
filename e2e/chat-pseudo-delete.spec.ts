@@ -19,7 +19,11 @@ test.describe('発言の削除', () => {
     const line = page.locator('chat-tab chat-message').filter({ hasText: 'うっかり書いた発言' });
 
     await line.locator('.msg-text').hover();
-    await line.getByTestId('chat-message-pseudo-delete').click();
+    await line.getByTestId('chat-message-action-more').click();
+    await page
+      .locator('context-menu li')
+      .filter({ hasText: /^\s*削除\s*$/ })
+      .click();
     const dialog = page.locator('confirm-dialog');
     await expect(dialog).toContainText('元に戻せません');
     await dialog.getByRole('button', { name: '削除' }).click();
@@ -32,7 +36,11 @@ test.describe('発言の削除', () => {
     const line = page.locator('chat-tab chat-message').filter({ hasText: '残しておく発言' });
 
     await line.locator('.msg-text').hover();
-    await line.getByTestId('chat-message-pseudo-delete').click();
+    await line.getByTestId('chat-message-action-more').click();
+    await page
+      .locator('context-menu li')
+      .filter({ hasText: /^\s*削除\s*$/ })
+      .click();
     await page.locator('confirm-dialog').getByRole('button', { name: 'キャンセル' }).click();
 
     await expect(page.locator('confirm-dialog')).toHaveCount(0);
@@ -44,7 +52,11 @@ test.describe('発言の削除', () => {
     await say(page, '消す発言');
     const line = page.locator('chat-tab chat-message').filter({ hasText: '消す発言' });
     await line.locator('.msg-text').hover();
-    await line.getByTestId('chat-message-pseudo-delete').click();
+    await line.getByTestId('chat-message-action-more').click();
+    await page
+      .locator('context-menu li')
+      .filter({ hasText: /^\s*削除\s*$/ })
+      .click();
     await page.locator('confirm-dialog').getByRole('button', { name: '削除' }).click();
     await expect(line).toHaveCount(0);
 

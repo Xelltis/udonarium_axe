@@ -54,6 +54,27 @@ describe('ChatMessageComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  /**
+   * The menu a button on the toolbar over the line opens, as handed to the context menu, or none
+   * where the toolbar or the button is not there.
+   */
+  function menuFrom(button: 'more' | 'bookmark'): ContextMenuAction[] {
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    try {
+      const host = fixture.nativeElement as HTMLElement;
+      host.querySelector<HTMLElement>(`[data-testid="chat-message-action-${button}"]`)?.click();
+      return open.mock.calls.at(-1)?.[1] ?? [];
+    } finally {
+      open.mockRestore();
+    }
+  }
+
+  /** The item of a menu by the key of its name, or undefined where the menu does not offer it. */
+  function itemOf(actions: readonly ContextMenuAction[], key: string): ContextMenuAction | undefined {
+    const name = TestBed.inject(TRANSLATE_FN)(key);
+    return actions.find((action) => action.name === name);
+  }
+
   describe('the dice of a roll', () => {
     function lineFrom(from: string, tag: string): void {
       const message = new ChatMessage();
@@ -533,9 +554,8 @@ describe('ChatMessageComponent', () => {
   });
 
   describe('clickShareAsMemo', () => {
-    function memoIcon(): Element | null {
-      const icons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('i.material-icons')];
-      return icons.find((icon) => icon.textContent?.trim() === 'sticky_note_2') ?? null;
+    function memoIcon(): ContextMenuAction | null {
+      return itemOf(menuFrom('more'), 'feature.chat.message.shareAsMemo') ?? null;
     }
 
     it('turns a line into a note and puts it in the store', () => {
@@ -1047,11 +1067,11 @@ describe('ChatMessageComponent', () => {
       fixture.detectChanges();
 
       expect(component.canShowInTicker()).toBe(false);
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-message-ticker"]')).toBeNull();
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.ticker')).toBeUndefined();
       message.destroy();
     });
 
-    it('shows after the other actions and broadcasts an ordinary public message', () => {
+    it('is offered among what passes the line on, and broadcasts an ordinary public message', () => {
       const message = new ChatMessage('ticker-action-message');
       message.initialize();
       message.from = 'tester';
@@ -1065,13 +1085,12 @@ describe('ChatMessageComponent', () => {
       TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
 
       fixture.detectChanges();
-      const action = fixture.nativeElement.querySelector('[data-testid="chat-message-ticker"]') as HTMLElement | null;
+      const menu = menuFrom('more');
+      const ticker = itemOf(menu, 'feature.chat.message.ticker');
 
       expect(component.canShowInTicker()).toBe(true);
-      expect(action?.title).toBe('ティッカー');
-      expect(action?.textContent?.trim()).toBe('campaign');
-      expect(Array.from(action?.parentElement?.querySelectorAll('.material-icons') ?? []).at(-1)).toBe(action);
-      action?.click();
+      expect(menu.indexOf(ticker!)).toBe(menu.indexOf(itemOf(menu, 'feature.chat.message.shareAsMemo')!) + 1);
+      ticker?.action?.();
       expect(spy).toHaveBeenCalledWith(message.identifier);
     });
 
@@ -1092,7 +1111,7 @@ describe('ChatMessageComponent', () => {
       fixture.detectChanges();
 
       expect(component.canShowInTicker()).toBe(false);
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-message-ticker"]')).toBeNull();
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.ticker')).toBeUndefined();
     });
   });
 
@@ -1108,9 +1127,8 @@ describe('ChatMessageComponent', () => {
       return kept;
     }
 
-    function copyIcon(): Element | null {
-      const icons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('i.material-icons')];
-      return icons.find((icon) => icon.textContent?.trim() === 'move_to_inbox') ?? null;
+    function copyIcon(): ContextMenuAction | null {
+      return itemOf(menuFrom('more'), 'feature.chat.message.copyToTab') ?? null;
     }
 
     function spoken(tab: ChatTab): ChatMessage {
@@ -1185,16 +1203,16 @@ describe('ChatMessageComponent', () => {
       expect(here.chatMessages).toHaveLength(1);
     });
 
-    it('closes the list once a tab is chosen', () => {
+    it('lists the tabs under one item of the menu, and says the line again in the one chosen', () => {
       const here = makeTab('メイン');
       const there = makeTab('雑談');
       spoken(here);
 
-      component.toggleCopyPicker();
-      expect(component.isCopyPickerOpen()).toBe(true);
+      const copy = copyIcon()!;
+      expect(copy.subActions?.map((tab) => tab.name)).toEqual(['雑談']);
+      copy.subActions?.[0].action?.();
 
-      component.copyToTab(there);
-      expect(component.isCopyPickerOpen()).toBe(false);
+      expect(there.chatMessages.at(-1)?.text).toBe('こんばんは');
     });
 
     it('copies nothing into a tab the reader may not speak in', () => {
@@ -1239,12 +1257,7 @@ describe('ChatMessageComponent', () => {
     let tab: ChatTab;
     let noa: PeerCursor;
 
-    const testId = (id: string) =>
-      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-testid="${id}"]`);
     const host = () => fixture.nativeElement as HTMLElement;
-    const allTestId = (id: string) => [
-      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(`[data-testid="${id}"]`),
-    ];
 
     /** Changes reach the view through the versions a microtask later, as they do in the room. */
     async function settle(): Promise<void> {
@@ -1280,24 +1293,19 @@ describe('ChatMessageComponent', () => {
       noa.destroy();
     });
 
-    it('whispers the reader’s own line to the one picked, as any whisper is shown, and puts it back', async () => {
+    it('whispers the reader’s own line to the one picked from the menu, as any whisper is shown, and puts it back', async () => {
       const message = shown('me');
 
-      testId('chat-message-after-whisper')!.click();
-      fixture.detectChanges();
-      const targets = allTestId('chat-message-after-whisper-target');
-      expect(targets.map((target) => target.textContent?.trim())).toEqual(['ノア']);
-      targets[0].click();
+      const whisper = itemOf(menuFrom('more'), 'feature.chat.message.afterWhisper')!;
+      expect(whisper.subActions?.map((peer) => peer.name)).toEqual(['ノア']);
+      whisper.subActions?.[0].action?.();
       await settle();
 
       expect(message.to).toBe('noa');
-      expect(testId('chat-message-after-whisper-picker')).toBeNull();
       expect(host().querySelector('.msg-name')?.textContent).toBe('アリア > ノア');
       expect(host().textContent).not.toContain('あとから秘話');
 
-      testId('chat-message-after-whisper')!.click();
-      fixture.detectChanges();
-      testId('chat-message-after-whisper-undo')!.click();
+      itemOf(menuFrom('more'), 'feature.chat.message.undoAfterWhisper')!.action?.();
       await settle();
 
       expect(message.isAfterWhisper).toBe(false);
@@ -1305,23 +1313,19 @@ describe('ChatMessageComponent', () => {
       expect(host().querySelector('.msg-name')?.textContent).toBe('アリア');
     });
 
-    it('says when there is nobody else in the room to whisper to', () => {
+    it('says when there is nobody else in the room to whisper to, offering nothing to press', () => {
       noa.destroy();
       shown('me');
 
-      testId('chat-message-after-whisper')!.click();
-      fixture.detectChanges();
+      const nobody = itemOf(menuFrom('more'), 'feature.chat.message.afterWhisperNobody');
 
-      expect(allTestId('chat-message-after-whisper-target')).toHaveLength(0);
-      expect(testId('chat-message-after-whisper-picker')?.textContent).toContain(
-        TestBed.inject(TRANSLATE_FN)('feature.chat.message.afterWhisperNobody')
-      );
+      expect(nobody?.enabled).toBe(false);
     });
 
     it('offers no after-the-fact whisper of somebody else’s line', () => {
       shown('noa');
 
-      expect(testId('chat-message-after-whisper')).toBeNull();
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.afterWhisper')).toBeUndefined();
     });
 
     it('stops showing a line through an answer to it once it is whispered to somebody else', async () => {
@@ -1338,9 +1342,6 @@ describe('ChatMessageComponent', () => {
 
   describe('deleting a line', () => {
     let tab: ChatTab;
-
-    const testId = (id: string) =>
-      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-testid="${id}"]`);
 
     async function settle(): Promise<void> {
       await Promise.resolve();
@@ -1365,7 +1366,7 @@ describe('ChatMessageComponent', () => {
       const message = shown('me');
       const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
-      testId('chat-message-pseudo-delete')!.click();
+      itemOf(menuFrom('more'), 'feature.chat.message.deleteLine')!.action?.();
       await vi.waitFor(() => expect(message.isPseudoDeleted).toBe(true));
 
       expect(ask).toHaveBeenCalledWith(expect.objectContaining({ danger: true }));
@@ -1375,7 +1376,7 @@ describe('ChatMessageComponent', () => {
       const message = shown('me');
       const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
 
-      testId('chat-message-pseudo-delete')!.click();
+      itemOf(menuFrom('more'), 'feature.chat.message.deleteLine')!.action?.();
       await vi.waitFor(() => expect(ask).toHaveBeenCalled());
       await settle();
 
@@ -1385,7 +1386,16 @@ describe('ChatMessageComponent', () => {
     it('offers no deleting of somebody else’s line', () => {
       shown('someone');
 
-      expect(testId('chat-message-pseudo-delete')).toBeNull();
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.deleteLine')).toBeUndefined();
+    });
+
+    it('offers deleting last in the menu, apart from the rest', () => {
+      shown('me');
+
+      const menu = menuFrom('more');
+
+      expect(menu.at(-1)).toBe(itemOf(menu, 'feature.chat.message.deleteLine'));
+      expect(menu.at(-2)?.name).toBe('');
     });
 
     it('stops showing a deleted line through an answer to it', async () => {
@@ -1432,14 +1442,11 @@ describe('ChatMessageComponent', () => {
       const message = shown('someone');
       expect(testId('chat-message-bookmark-mark')).toBeNull();
 
-      testId('chat-message-bookmark')!.click();
-      fixture.detectChanges();
-      testId('chat-message-bookmark-shared')!.click();
+      itemOf(menuFrom('bookmark'), 'feature.chat.message.bookmarks.shared.add')!.action?.();
       message.renameBookmark('事件の証言A');
       await settle();
 
       expect(message.isBookmarked).toBe(true);
-      expect(testId('chat-message-bookmark-picker')).toBeNull();
       const mark = testId('chat-message-bookmark-mark')!;
       expect(mark.dataset['kind']).toBe('shared');
       expect(mark.title).toContain('事件の証言A');
@@ -1448,9 +1455,7 @@ describe('ChatMessageComponent', () => {
     it('marks a line for the reader alone, with a mark of its own, leaving the line as it was', async () => {
       const message = shown('someone');
 
-      testId('chat-message-bookmark')!.click();
-      fixture.detectChanges();
-      testId('chat-message-bookmark-personal')!.click();
+      itemOf(menuFrom('bookmark'), 'feature.chat.message.bookmarks.personal.add')!.action?.();
       await settle();
 
       expect(message.isBookmarked).toBe(false);
@@ -1465,10 +1470,91 @@ describe('ChatMessageComponent', () => {
       await settle();
 
       expect(testId('chat-message-bookmark-mark')?.dataset['kind']).toBe('shared');
-      testId('chat-message-bookmark')!.click();
+      const menu = menuFrom('bookmark');
+      expect(itemOf(menu, 'feature.chat.message.bookmarks.shared.add')).toBeUndefined();
+      expect(itemOf(menu, 'feature.chat.message.bookmarks.shared.remove')).toBeUndefined();
+      expect(itemOf(menu, 'feature.chat.message.bookmarks.personal.add')).toBeTruthy();
+    });
+  });
+
+  describe('the toolbar over the line', () => {
+    let tab: ChatTab;
+
+    const actionsShown = () =>
+      [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+          '[data-testid^="chat-message-action-"]'
+        ),
+      ].map((button) => button.dataset['testid']!.replace('chat-message-action-', ''));
+
+    function shown(from: string): ChatMessage {
+      const message = tab.addMessage({ from, name: 'アリア', text: '扉の向こうから声がした', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', message);
       fixture.detectChanges();
-      expect(testId('chat-message-bookmark-shared')).toBeNull();
-      expect(testId('chat-message-bookmark-personal')).toBeTruthy();
+      return message;
+    }
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Player;
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => tab.destroy());
+
+    it('holds answering, marking and editing the reader’s own line, then everything else', () => {
+      shown('me');
+
+      expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'edit', 'more']);
+    });
+
+    it('holds no editing of somebody else’s line', () => {
+      shown('someone');
+
+      expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'more']);
+    });
+
+    it('is not there over a line only to be read, nor over one being edited', () => {
+      shown('me');
+      fixture.componentRef.setInput('readOnly', true);
+      fixture.detectChanges();
+      expect(actionsShown()).toEqual([]);
+
+      fixture.componentRef.setInput('readOnly', false);
+      component.startEdit();
+      fixture.detectChanges();
+      expect(actionsShown()).toEqual([]);
+    });
+
+    it('stands on the bubble itself in either layout, so it floats over the line it belongs to', () => {
+      shown('me');
+      const toolbar = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="chat-message-toolbar"]')!;
+      expect(toolbar().parentElement!.classList).toContain('relative');
+
+      fixture.componentRef.setInput('chatSimpleDispFlag', true);
+      fixture.detectChanges();
+
+      expect(toolbar().parentElement!.classList).toContain('relative');
+    });
+
+    it('opens under its last button the same menu as a right click, titled with the speaker', () => {
+      shown('me');
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(false);
+
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>('[data-testid="chat-message-action-more"]')!
+        .click();
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('.msg-text')!
+        .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+
+      const [fromButton, fromRightClick] = open.mock.calls;
+      expect(fromButton[1].map((action) => action.name)).toEqual(fromRightClick[1].map((action) => action.name));
+      expect(fromButton[2]).toBe('アリア');
     });
   });
 

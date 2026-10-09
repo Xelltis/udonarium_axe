@@ -49,46 +49,74 @@ export interface ChatMessageMenuCallbacks {
 }
 
 /**
- * What can be done with a line said in chat.
+ * What can be done with a line said in chat, grouped by what it is for and parted by separators.
  *
- * The same actions sit on the line as buttons that only show under a mouse, so a touch screen
- * reaches them through this instead. Only what those buttons would offer is offered, and copying
- * the words is added, since a press held on the line does not pick them out. Where some of the
- * words were already picked out, copying takes just those. On a touch screen picking the words
- * out is offered too, for copying a part of them or handing them to the system's own actions.
+ * The groups run from what is reached for most to what cannot be taken back: answering the line,
+ * its words, keeping it and passing it on, reading round it, the speaker's own changes to it, and
+ * last, kept apart from the rest, deleting it. The toolbar over the line holds the first few of
+ * these and opens this same menu from its last button, and a touch screen reaches it by a press
+ * held on the line.
+ *
+ * Where some of the words were picked out, copying takes just those. On a touch screen picking the
+ * words out is offered too, for copying a part of them or handing them to the system's own actions.
  */
 export function buildChatMessageContextMenu(
   state: ChatMessageMenuState,
   callbacks: ChatMessageMenuCallbacks,
   t: TranslateFn
 ): ContextMenuAction[] {
-  const actions: ContextMenuAction[] = [];
+  const answer: ContextMenuAction[] = [];
   if (state.canInteract) {
-    actions.push({ name: t('feature.chat.message.reply'), action: () => callbacks.reply() });
-    actions.push({ name: t('feature.chat.message.quote'), action: () => callbacks.quote() });
-    if (state.copyTargets.length > 0) {
-      actions.push({
-        name: t('feature.chat.message.copyToTab'),
-        subActions: state.copyTargets.map((tab) => ({
-          name: tab.name,
-          action: () => callbacks.copyToTab(tab.identifier),
-        })),
-      });
-    }
-    if (state.canShareAsMemo) {
-      actions.push({ name: t('feature.chat.message.shareAsMemo'), action: () => callbacks.shareAsMemo() });
+    answer.push({ name: t('feature.chat.message.reply'), action: () => callbacks.reply() });
+    answer.push({ name: t('feature.chat.message.quote'), action: () => callbacks.quote() });
+  }
+
+  const words: ContextMenuAction[] = [];
+  if (state.text.length > 0) {
+    const copied = state.selectedText.trim().length > 0 ? state.selectedText : state.text;
+    words.push({ name: t('feature.chat.message.copyText'), action: () => callbacks.copyText(copied) });
+    if (state.isTouch) {
+      words.push({ name: t('feature.chat.message.selectText'), action: () => callbacks.selectText() });
     }
   }
-  if (state.canChange) {
-    actions.push({ name: t('feature.chat.messageFix.change'), action: () => callbacks.edit() });
-  }
+
+  const keep: ContextMenuAction[] = [];
   for (const { kind, isBookmarked } of state.bookmarkKinds) {
     const name = t(`feature.chat.message.bookmarks.${kind}.${isBookmarked ? 'remove' : 'add'}`);
-    actions.push({ name, action: () => callbacks.toggleBookmark(kind) });
+    keep.push({ name, action: () => callbacks.toggleBookmark(kind) });
+  }
+  if (state.canInteract && state.canShareAsMemo) {
+    keep.push({ name: t('feature.chat.message.shareAsMemo'), action: () => callbacks.shareAsMemo() });
+  }
+  if (state.canInteract && state.copyTargets.length > 0) {
+    keep.push({
+      name: t('feature.chat.message.copyToTab'),
+      subActions: state.copyTargets.map((tab) => ({
+        name: tab.name,
+        action: () => callbacks.copyToTab(tab.identifier),
+      })),
+    });
+  }
+  if (state.canShowInTicker) {
+    keep.push({ name: t('feature.chat.message.ticker'), action: () => callbacks.showInTicker() });
+  }
+
+  const read: ContextMenuAction[] = [];
+  if (state.hasOriginal) {
+    read.push({ name: t('feature.chat.message.jumpToOriginal'), action: () => callbacks.jumpToOriginal() });
+  }
+  if (state.hasHistory) {
+    const name = t(`feature.chat.message.history.${state.isHistoryOpen ? 'close' : 'open'}`);
+    read.push({ name, action: () => callbacks.toggleHistory() });
+  }
+
+  const own: ContextMenuAction[] = [];
+  if (state.canChange) {
+    own.push({ name: t('feature.chat.message.edit'), action: () => callbacks.edit() });
   }
   if (state.afterWhisperTargets) {
     const targets = state.afterWhisperTargets;
-    actions.push(
+    own.push(
       targets.length > 0
         ? {
             name: t('feature.chat.message.afterWhisper'),
@@ -101,28 +129,15 @@ export function buildChatMessageContextMenu(
     );
   }
   if (state.canUndoAfterWhisper) {
-    actions.push({ name: t('feature.chat.message.undoAfterWhisper'), action: () => callbacks.undoAfterWhisper() });
+    own.push({ name: t('feature.chat.message.undoAfterWhisper'), action: () => callbacks.undoAfterWhisper() });
   }
+
+  const remove: ContextMenuAction[] = [];
   if (state.canPseudoDelete) {
-    actions.push({ name: t('feature.chat.message.deleteLine'), action: () => callbacks.pseudoDelete() });
+    remove.push({ name: t('feature.chat.message.deleteLine'), action: () => callbacks.pseudoDelete() });
   }
-  if (state.canShowInTicker) {
-    actions.push({ name: t('feature.chat.message.ticker'), action: () => callbacks.showInTicker() });
-  }
-  if (state.hasHistory) {
-    const name = t(`feature.chat.message.history.${state.isHistoryOpen ? 'close' : 'open'}`);
-    actions.push({ name, action: () => callbacks.toggleHistory() });
-  }
-  if (state.hasOriginal) {
-    actions.push({ name: t('feature.chat.message.jumpToOriginal'), action: () => callbacks.jumpToOriginal() });
-  }
-  if (state.text.length > 0) {
-    if (actions.length > 0) actions.push(ContextMenuSeparator);
-    const copied = state.selectedText.trim().length > 0 ? state.selectedText : state.text;
-    actions.push({ name: t('feature.chat.message.copyText'), action: () => callbacks.copyText(copied) });
-    if (state.isTouch) {
-      actions.push({ name: t('feature.chat.message.selectText'), action: () => callbacks.selectText() });
-    }
-  }
-  return actions;
+
+  return [answer, words, keep, read, own, remove]
+    .filter((group) => group.length > 0)
+    .flatMap((group, index) => (index === 0 ? group : [ContextMenuSeparator, ...group]));
 }

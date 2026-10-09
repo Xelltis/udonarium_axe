@@ -2982,7 +2982,7 @@
         "selectText": "文字を選ぶ",
         "afterWhisper": "あとから秘話にする",
         "afterWhisperTo": "秘話の相手",
-        "afterWhisperNobody": "部屋にほかの参加者がいません",
+        "afterWhisperNobody": "あとから秘話にする（相手がいません）",
         "undoAfterWhisper": "あとから秘話をやめて全員に戻す",
         "deleteLine": "削除",
         "deleteLineHint": "削除（全員の画面から消えます。ログには残ります）",
@@ -3009,7 +3009,10 @@
           "original": "最初の発言",
           "edit": "{{count}}回目の編集",
           "current": "現在"
-        }
+        },
+        "actions": "発言の操作",
+        "more": "その他の操作",
+        "edit": "編集"
       },
       "stream": {
         "title": "発言の流れ",

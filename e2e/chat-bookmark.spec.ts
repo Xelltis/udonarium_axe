@@ -1,6 +1,17 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 
 import { waitAppReady } from './helpers';
+
+/** Opens the toolbar over a line and picks a kind of bookmark from its bookmark button. */
+async function bookmark(page: Page, line: Locator, kind: '共有' | '個人') {
+  await line.locator('.msg-text').hover();
+  await line.getByTestId('chat-message-action-bookmark').click();
+  await page
+    .locator('context-menu li')
+    .filter({ hasText: `${kind}しおりを` })
+    .first()
+    .click();
+}
 
 async function say(page: Page, lines: string[]) {
   const textarea = page.locator('textarea.chat-input');
@@ -23,9 +34,7 @@ test.describe('チャットのしおり', () => {
   test('挟んだしおりに題名を付け、別のタブから描かれていない古い発言へ戻れること', async ({ page }) => {
     await say(page, ['犯人は左利きだったと思う']);
     const witness = lineSaying(page, '犯人は左利きだったと思う');
-    await witness.locator('.msg-text').hover();
-    await witness.getByTestId('chat-message-bookmark').click();
-    await witness.getByTestId('chat-message-bookmark-shared').click();
+    await bookmark(page, witness, '共有');
     await expect(witness.getByTestId('chat-message-bookmark-mark')).toBeVisible();
 
     await say(
@@ -60,9 +69,7 @@ test.describe('チャットのしおり', () => {
   test('しおりを外すと一覧から消えること', async ({ page }) => {
     await say(page, ['あとで見返す発言']);
     const line = lineSaying(page, 'あとで見返す発言');
-    await line.locator('.msg-text').hover();
-    await line.getByTestId('chat-message-bookmark').click();
-    await line.getByTestId('chat-message-bookmark-shared').click();
+    await bookmark(page, line, '共有');
     await expect(page.getByTestId('chat-bookmarks-toggle-count')).toHaveText('1');
 
     await page.getByTestId('chat-bookmarks-toggle').click();
@@ -77,13 +84,9 @@ test.describe('チャットのしおり', () => {
   test('個人しおりは共有しおりと分かれて一覧に並び、個人だけに絞れること', async ({ page }) => {
     await say(page, ['みんなで覚えておく発言', '自分だけ覚えておく発言']);
     const shared = lineSaying(page, 'みんなで覚えておく発言');
-    await shared.locator('.msg-text').hover();
-    await shared.getByTestId('chat-message-bookmark').click();
-    await shared.getByTestId('chat-message-bookmark-shared').click();
+    await bookmark(page, shared, '共有');
     const personal = lineSaying(page, '自分だけ覚えておく発言');
-    await personal.locator('.msg-text').hover();
-    await personal.getByTestId('chat-message-bookmark').click();
-    await personal.getByTestId('chat-message-bookmark-personal').click();
+    await bookmark(page, personal, '個人');
     await expect(personal.locator('[data-testid="chat-message-bookmark-mark"][data-kind="personal"]')).toBeVisible();
 
     await page.getByTestId('chat-bookmarks-toggle').click();

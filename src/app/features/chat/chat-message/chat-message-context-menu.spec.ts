@@ -47,20 +47,85 @@ function callbacks(): ChatMessageMenuCallbacks {
 }
 
 describe('buildChatMessageContextMenu()', () => {
-  it('offers what the buttons on the line offer, and copying its words last', () => {
-    const menu = buildChatMessageContextMenu(state(), callbacks(), translate);
+  it('groups everything by what it is for, from answering the line to deleting it, last and apart', () => {
+    const menu = buildChatMessageContextMenu(
+      state({
+        bookmarkKinds: [
+          { kind: 'shared', isBookmarked: false },
+          { kind: 'personal', isBookmarked: true },
+        ],
+        afterWhisperTargets: [{ identifier: 'peer-noa', name: 'ノア' }],
+        canUndoAfterWhisper: true,
+        canPseudoDelete: true,
+        hasHistory: true,
+      }),
+      callbacks(),
+      translate
+    );
 
     expect(menu.map((action) => action.name)).toEqual([
       'feature.chat.message.reply',
       'feature.chat.message.quote',
-      'feature.chat.message.copyToTab',
-      'feature.chat.message.shareAsMemo',
-      'feature.chat.messageFix.change',
-      'feature.chat.message.ticker',
-      'feature.chat.message.jumpToOriginal',
       '',
       'feature.chat.message.copyText',
+      '',
+      'feature.chat.message.bookmarks.shared.add',
+      'feature.chat.message.bookmarks.personal.remove',
+      'feature.chat.message.shareAsMemo',
+      'feature.chat.message.copyToTab',
+      'feature.chat.message.ticker',
+      '',
+      'feature.chat.message.jumpToOriginal',
+      'feature.chat.message.history.open',
+      '',
+      'feature.chat.message.edit',
+      'feature.chat.message.afterWhisper',
+      'feature.chat.message.undoAfterWhisper',
+      '',
+      'feature.chat.message.deleteLine',
     ]);
+  });
+
+  it('parts only the groups that have something in them', () => {
+    const menu = buildChatMessageContextMenu(
+      state({
+        canInteract: false,
+        canChange: false,
+        canShowInTicker: false,
+        hasOriginal: false,
+        canPseudoDelete: true,
+      }),
+      callbacks(),
+      translate
+    );
+
+    expect(menu.map((action) => action.name)).toEqual([
+      'feature.chat.message.copyText',
+      '',
+      'feature.chat.message.deleteLine',
+    ]);
+  });
+
+  it('closes the history it opened, and calls back for both', () => {
+    const calls = callbacks();
+    const open = buildChatMessageContextMenu(state({ hasHistory: true, isHistoryOpen: true }), calls, translate);
+
+    open.find((action) => action.name === 'feature.chat.message.history.close')!.action?.();
+
+    expect(calls.toggleHistory).toHaveBeenCalledOnce();
+  });
+
+  it('calls back for the kind of mark chosen', () => {
+    const calls = callbacks();
+    const menu = buildChatMessageContextMenu(
+      state({ bookmarkKinds: [{ kind: 'personal', isBookmarked: false }] }),
+      calls,
+      translate
+    );
+
+    menu.find((action) => action.name === 'feature.chat.message.bookmarks.personal.add')!.action?.();
+
+    expect(calls.toggleBookmark).toHaveBeenCalledWith('personal');
   });
 
   it('offers whispering the line afterwards to one of the room, after editing', () => {
@@ -73,9 +138,7 @@ describe('buildChatMessageContextMenu()', () => {
     const names = menu.map((action) => action.name);
     const whisper = menu.find((action) => action.name === 'feature.chat.message.afterWhisper')!;
 
-    expect(names.indexOf('feature.chat.message.afterWhisper')).toBe(
-      names.indexOf('feature.chat.messageFix.change') + 1
-    );
+    expect(names.indexOf('feature.chat.message.afterWhisper')).toBe(names.indexOf('feature.chat.message.edit') + 1);
     expect(whisper.subActions?.map((peer) => peer.name)).toEqual(['ノア']);
     whisper.subActions?.[0].action?.();
     expect(calls.whisperTo).toHaveBeenCalledWith('peer-noa');
@@ -106,44 +169,6 @@ describe('buildChatMessageContextMenu()', () => {
 
     const others = buildChatMessageContextMenu(state(), calls, translate);
     expect(others.map((action) => action.name)).not.toContain('feature.chat.message.deleteLine');
-  });
-
-  it('offers the room’s mark and the reader’s own right after editing, each to put on or take off', () => {
-    const calls = callbacks();
-    const menu = buildChatMessageContextMenu(
-      state({
-        bookmarkKinds: [
-          { kind: 'shared', isBookmarked: true },
-          { kind: 'personal', isBookmarked: false },
-        ],
-      }),
-      calls,
-      translate
-    );
-    const names = menu.map((action) => action.name);
-    const edit = names.indexOf('feature.chat.messageFix.change');
-
-    expect(names.slice(edit + 1, edit + 3)).toEqual([
-      'feature.chat.message.bookmarks.shared.remove',
-      'feature.chat.message.bookmarks.personal.add',
-    ]);
-    menu.find((action) => action.name === 'feature.chat.message.bookmarks.personal.add')!.action?.();
-    expect(calls.toggleBookmark).toHaveBeenCalledWith('personal');
-  });
-
-  it('offers opening the history of an edited line just before following it back to its original', () => {
-    const calls = callbacks();
-    const menu = buildChatMessageContextMenu(state({ hasHistory: true }), calls, translate);
-    const names = menu.map((action) => action.name);
-
-    expect(names.indexOf('feature.chat.message.history.open')).toBe(
-      names.indexOf('feature.chat.message.jumpToOriginal') - 1
-    );
-    menu.find((action) => action.name === 'feature.chat.message.history.open')!.action?.();
-    expect(calls.toggleHistory).toHaveBeenCalledOnce();
-
-    const open = buildChatMessageContextMenu(state({ hasHistory: true, isHistoryOpen: true }), calls, translate);
-    expect(open.map((action) => action.name)).toContain('feature.chat.message.history.close');
   });
 
   it('offers only the words of a line nothing else can be done with', () => {
@@ -206,11 +231,10 @@ describe('buildChatMessageContextMenu()', () => {
 
   it('offers picking the words out on a touch screen, after copying them', () => {
     const menu = buildChatMessageContextMenu(state({ isTouch: true }), callbacks(), translate);
+    const names = menu.map((action) => action.name);
+    const copy = names.indexOf('feature.chat.message.copyText');
 
-    expect(menu.map((action) => action.name).slice(-2)).toEqual([
-      'feature.chat.message.copyText',
-      'feature.chat.message.selectText',
-    ]);
+    expect(names[copy + 1]).toBe('feature.chat.message.selectText');
   });
 
   it('offers no picking out under a mouse, which picks words out by itself', () => {

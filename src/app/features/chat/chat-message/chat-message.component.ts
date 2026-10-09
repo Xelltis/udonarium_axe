@@ -28,7 +28,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -294,7 +294,21 @@ export class ChatMessageComponent {
     if (picked.reachesLine && !this.viewport.isTouch()) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
-    const actions = buildChatMessageContextMenu(
+    const actions = this.lineActions(picked.inside);
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name));
+  }
+
+  /**
+   * Everything that can be done with the line, as the menu offers it: what a right click or a press
+   * held on the line opens, and the toolbar's last button. `selectedText` is the words picked out
+   * inside the line, copied in place of all of it; empty where none are.
+   */
+  private lineActions(selectedText: string): ContextMenuAction[] {
+    const message = this.chatMessage;
+    return buildChatMessageContextMenu(
       {
         canInteract: this.canInteract,
         canShareAsMemo: this.canShareAsMemo,
@@ -302,10 +316,7 @@ export class ChatMessageComponent {
         afterWhisperTargets: this.canMakeAfterWhisper
           ? this.whisperTargets().map((peer) => ({ identifier: peer.identifier, name: peer.name }))
           : null,
-        bookmarkKinds: BOOKMARK_KINDS.filter((kind) => this.canBookmark(kind)).map((kind) => ({
-          kind,
-          isBookmarked: !!this.bookmarks()[kind],
-        })),
+        bookmarkKinds: this.bookmarkKinds(),
         canUndoAfterWhisper: this.canUndoAfterWhisper,
         canPseudoDelete: this.canPseudoDelete,
         canShowInTicker: this.canShowInTicker(),
@@ -314,7 +325,7 @@ export class ChatMessageComponent {
         hasHistory: this.versions().length > 0,
         isHistoryOpen: this.isHistoryOpen(),
         text: this.readableText(message),
-        selectedText: picked.inside,
+        selectedText,
         isTouch: this.viewport.isTouch(),
       },
       {
@@ -341,10 +352,49 @@ export class ChatMessageComponent {
       },
       this.t
     );
+  }
+
+  /** The kinds of mark the reader may put on the line or take off, with whether it carries each. */
+  private bookmarkKinds(): { kind: ChatBookmarkKind; isBookmarked: boolean }[] {
+    return BOOKMARK_KINDS.filter((kind) => this.canBookmark(kind)).map((kind) => ({
+      kind,
+      isBookmarked: !!this.bookmarks()[kind],
+    }));
+  }
+
+  /**
+   * The answers the toolbar over the line offers at once, or null where it offers nothing: a line
+   * only to be read, a line being edited, or one nothing can be done with.
+   */
+  protected toolbarActions(): { answer: boolean; bookmark: boolean; edit: boolean } | null {
+    if (!this.chatMessage || this.readOnly() || this.isEditing()) return null;
+    if (this.lineActions('').length === 0) return null;
+    return { answer: this.canInteract, bookmark: this.canBookmarkAny, edit: this.canChange };
+  }
+
+  /** Opens everything that can be done with the line under the toolbar's last button. */
+  protected openMoreMenu(event: MouseEvent): void {
+    const actions = this.lineActions('');
     if (actions.length === 0) return;
-    event.preventDefault();
+    this.openMenuUnder(event, actions, this.displayName(this.chatMessage.name));
+  }
+
+  /** Opens the choice of the room's mark and the reader's own under the toolbar's bookmark button. */
+  protected openBookmarkMenu(event: MouseEvent): void {
+    const actions: ContextMenuAction[] = this.bookmarkKinds().map(({ kind, isBookmarked }) => ({
+      name: this.t(`feature.chat.message.bookmarks.${kind}.${isBookmarked ? 'remove' : 'add'}`),
+      action: () => this.toggleBookmark(kind),
+    }));
+    if (actions.length === 0) return;
+    this.openMenuUnder(event, actions, this.t('feature.chat.message.bookmarks.button'));
+  }
+
+  private openMenuUnder(event: MouseEvent, actions: ContextMenuAction[], title: string): void {
     event.stopPropagation();
-    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name));
+    const button = event.currentTarget instanceof Element ? event.currentTarget : null;
+    const box = button?.getBoundingClientRect();
+    const at = box ? { x: box.left, y: box.bottom + 2 } : this.pointerDeviceService.pointers[0];
+    this.contextMenuService.open(at, actions, title);
   }
 
   /**
@@ -664,20 +714,8 @@ export class ChatMessageComponent {
     return BOOKMARK_KINDS.some((kind) => this.canBookmark(kind));
   }
 
-  readonly isBookmarkPickerOpen = signal(false);
-  protected readonly bookmarkKinds = BOOKMARK_KINDS;
-
-  /** Opens or closes the choice of the room's mark or the reader's own, from the bookmark button. */
-  toggleBookmarkPicker(): void {
-    if (!this.canBookmarkAny) return;
-    this.isCopyPickerOpen.set(false);
-    this.isWhisperPickerOpen.set(false);
-    this.isBookmarkPickerOpen.update((open) => !open);
-  }
-
   /** Marks the line with the kind to find again, or takes that mark off, from the choice or the line's menu. */
   toggleBookmark(kind: ChatBookmarkKind): void {
-    this.isBookmarkPickerOpen.set(false);
     if (!this.canBookmark(kind)) return;
     this.chatBookmarks.toggle(this.chatMessage, kind);
   }
@@ -696,32 +734,20 @@ export class ChatMessageComponent {
     return !!message && this.chatMessageService.canUndoAfterWhisper(message);
   }
 
-  readonly isWhisperPickerOpen = signal(false);
-
   /** The seats the line could be whispered to afterwards: everyone in the room but this reader. */
   whisperTargets(): PeerCursor[] {
     this.objectChange.collectionOf(PeerCursor.aliasName)();
     return this.chatMessageService.afterWhisperCandidates();
   }
 
-  /** Opens or closes the list of seats to whisper the line to, from its button. */
-  toggleWhisperPicker(): void {
-    if (!this.canMakeAfterWhisper) return;
-    this.isCopyPickerOpen.set(false);
-    this.isBookmarkPickerOpen.set(false);
-    this.isWhisperPickerOpen.update((open) => !open);
-  }
-
   /** Makes the line an after-the-fact whisper to the seat chosen, from the list or the line's menu. */
   whisperTo(peer: PeerCursor): void {
-    this.isWhisperPickerOpen.set(false);
     if (!this.canMakeAfterWhisper) return;
     this.chatMessageService.makeAfterWhisper(this.chatMessage, peer);
   }
 
   /** Puts an after-the-fact whisper back for everyone, from the list or the line's menu. */
   undoAfterWhisper(): void {
-    this.isWhisperPickerOpen.set(false);
     if (!this.canUndoAfterWhisper) return;
     this.chatMessageService.undoAfterWhisper(this.chatMessage);
   }
@@ -739,8 +765,6 @@ export class ChatMessageComponent {
    */
   async pseudoDelete(): Promise<void> {
     if (!this.canPseudoDelete) return;
-    this.isCopyPickerOpen.set(false);
-    this.isWhisperPickerOpen.set(false);
     const message = this.chatMessage;
     const sure = await this.confirm.ask({
       message: this.t('feature.chat.message.deleteLineConfirm'),
@@ -778,8 +802,6 @@ export class ChatMessageComponent {
     return this.canInteract && this.rolePermission.canEditTabletop;
   }
 
-  readonly isCopyPickerOpen = signal(false);
-
   /**
    * The tabs this line could be said again in.
    *
@@ -807,21 +829,12 @@ export class ChatMessageComponent {
     return this.canInteract && this.copyTargets().length > 0;
   }
 
-  /** Opens or closes the list of tabs to copy the line into, from the copy button. */
-  toggleCopyPicker(): void {
-    if (!this.canCopyToTab) return;
-    this.isWhisperPickerOpen.set(false);
-    this.isBookmarkPickerOpen.set(false);
-    this.isCopyPickerOpen.update((open) => !open);
-  }
-
   /**
    * Posts a copy of this line into another tab, closing the tab list and playing the card sound.
    *
    * Nothing is sent when the line may not be copied or this player's role may not speak in that tab.
    */
   copyToTab(tab: ChatTab): void {
-    this.isCopyPickerOpen.set(false);
     if (!this.canCopyToTab) return;
     const message = this.chatMessage;
     if (!message) return;

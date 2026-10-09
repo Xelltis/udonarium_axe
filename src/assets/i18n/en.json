@@ -2982,7 +2982,7 @@
         "selectText": "Select text",
         "afterWhisper": "Whisper it afterwards",
         "afterWhisperTo": "Whisper to",
-        "afterWhisperNobody": "Nobody else is in the room",
+        "afterWhisperNobody": "Whisper it afterwards (nobody else is here)",
         "undoAfterWhisper": "Undo the whisper and show it to everyone",
         "deleteLine": "Delete",
         "deleteLineHint": "Delete (it leaves everyone’s screen but stays in the log)",
@@ -3009,7 +3009,10 @@
           "original": "As first said",
           "edit": "Edit {{count}}",
           "current": "Now"
-        }
+        },
+        "actions": "Line actions",
+        "more": "More actions",
+        "edit": "Edit"
       },
       "stream": {
         "title": "Message stream",
