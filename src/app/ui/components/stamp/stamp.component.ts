@@ -5,7 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { stampArtUrl, stampLabelKey, StampMotion, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
-import { motifStampSvg, sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
+import { sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 /** The classes that move a stamp once, written out whole so the rules for stopped motion find them. */
@@ -15,7 +15,6 @@ const MOTION_CLASSES: Readonly<Record<StampMotion, string>> = {
   slam: 'animate-stamp-slam',
   beat: 'animate-stamp-beat',
   press: 'animate-stamp-press',
-  spin: 'animate-stamp-spin',
 };
 
 /** The white edge and the drop the words of a sound effect are written with, as in a comic. */
@@ -53,8 +52,8 @@ type StampView =
 /**
  * One stamp, drawn at the size asked for.
  *
- * A sound effect is written in heavy leaning letters with a white edge; a seal and a table mark are
- * drawn; the character's stamps and a stamp from a room's set are their pictures. A stamp this
+ * A sound effect is written in heavy leaning letters with a white edge; a seal is drawn; the
+ * character's stamps and a stamp from a room's set are their pictures. A stamp this
  * version does not know, or one
  * whose picture is not here, draws nothing at all. Each time `play` is given a new number above 0
  * the stamp makes its move once.
@@ -94,15 +93,6 @@ export class StampComponent {
     const name = this.t(stampNameKey(stamp));
     const art = stampArtUrl(stamp);
     if (art) return { kind: 'image', name, url: art, motion: stamp.motion };
-    if (stamp.family === 'motif') {
-      return {
-        kind: 'picture',
-        name,
-        svg: motifStampSvg(stamp.key, stamp.color),
-        tilt: stamp.tilt,
-        motion: stamp.motion,
-      };
-    }
     const words = this.t(stampLabelKey(stamp));
     if (stamp.family === 'seal') {
       return { kind: 'picture', name, svg: sealStampSvg(words, stamp.color), tilt: stamp.tilt, motion: stamp.motion };

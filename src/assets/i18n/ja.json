@@ -5016,7 +5016,6 @@
         "recent": "最近",
         "sfx": "描き文字",
         "seal": "判子",
-        "motif": "図柄",
         "roll": "判定",
         "battle": "戦闘",
         "explore": "探索",
@@ -5090,32 +5089,6 @@
           "precious": {
             "label": "尊",
             "name": "尊い"
-          }
-        },
-        "motif": {
-          "critical": {
-            "name": "クリティカル"
-          },
-          "fumble": {
-            "name": "ファンブル"
-          },
-          "skull": {
-            "name": "死亡フラグ"
-          },
-          "sword": {
-            "name": "いくぞ"
-          },
-          "shield": {
-            "name": "かばう"
-          },
-          "magnifier": {
-            "name": "調べたい"
-          },
-          "candle": {
-            "name": "こわい"
-          },
-          "potion": {
-            "name": "回復・尊い"
           }
         },
         "roll": {

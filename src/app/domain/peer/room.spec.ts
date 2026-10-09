@@ -271,11 +271,11 @@ describe('Room', () => {
       ChatReaction.create('line-before', 'old', 'まえ').stamps = 'seal:ok';
 
       loadRoom(
-        '<chat-reaction messageIdentifier="line-1" userId="noa" userName="ノア" stamps="motif:skull"></chat-reaction>'
+        '<chat-reaction messageIdentifier="line-1" userId="noa" userName="ノア" stamps="seal:god"></chat-reaction>'
       );
 
       expect(store.getObjects(ChatReaction).map((each) => [each.messageIdentifier, each.userId, each.stamps])).toEqual([
-        ['line-1', 'noa', 'motif:skull'],
+        ['line-1', 'noa', 'seal:god'],
       ]);
     });
 

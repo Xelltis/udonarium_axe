@@ -80,7 +80,7 @@ describe('ChatReactionService', () => {
     const message = line();
     answer(message, 'other', 'あいて', 'seal:ok sfx:creepy');
     answer(message, 'me', 'わたし', 'sfx:creepy');
-    answer(line(), 'other', 'あいて', 'motif:skull');
+    answer(line(), 'other', 'あいて', 'seal:god');
 
     expect(service.talliesOf(message.identifier)).toEqual([
       { stampId: 'sfx:creepy', count: 2, names: ['あいて', 'わたし'], mine: true },

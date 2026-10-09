@@ -5016,7 +5016,6 @@
         "recent": "Recent",
         "sfx": "Sound effects",
         "seal": "Seals",
-        "motif": "Table marks",
         "roll": "Rolls",
         "battle": "Battle",
         "explore": "Exploring",
@@ -5090,32 +5089,6 @@
           "precious": {
             "label": "AWW",
             "name": "Precious"
-          }
-        },
-        "motif": {
-          "critical": {
-            "name": "Critical"
-          },
-          "fumble": {
-            "name": "Fumble"
-          },
-          "skull": {
-            "name": "Doom flag"
-          },
-          "sword": {
-            "name": "Let's go"
-          },
-          "shield": {
-            "name": "I cover you"
-          },
-          "magnifier": {
-            "name": "Investigate"
-          },
-          "candle": {
-            "name": "Spooky"
-          },
-          "potion": {
-            "name": "Heal / precious"
           }
         },
         "roll": {

@@ -1,11 +1,10 @@
 /**
  * The stamps a line of chat can be answered with, or sent as a line of its own.
  *
- * Three families come with the app drawn by the app itself, so that every screen shows them the
- * same: the sound effects of a comic, written out large; the round seal of a name stamp; and marks
- * from the table, drawn as pictures. The rest that come with it are pictures of the character who
- * speaks for the system, a family to a part of play. A stamp from a room's own set is a picture in
- * the room, named by the picture it is.
+ * Two families come with the app drawn by the app itself, so that every screen shows them the
+ * same: the sound effects of a comic, written out large, and the round seal of a name stamp. The
+ * rest that come with it are pictures of the character who speaks for the system, a family to a
+ * part of play. A stamp from a room's own set is a picture in the room, named by the picture it is.
  *
  * A stamp is kept, and travels, as its identifier alone, so a family or a stamp added later costs
  * no change to what is saved, and a version that does not know one simply leaves it out.
@@ -15,11 +14,11 @@
 export const ART_STAMP_FAMILIES = ['roll', 'battle', 'explore', 'feel', 'talk'] as const;
 export type ArtStampFamily = (typeof ART_STAMP_FAMILIES)[number];
 
-export const STAMP_FAMILIES = ['sfx', 'seal', 'motif', ...ART_STAMP_FAMILIES] as const;
+export const STAMP_FAMILIES = ['sfx', 'seal', ...ART_STAMP_FAMILIES] as const;
 export type StampFamily = (typeof STAMP_FAMILIES)[number];
 
 /** How a stamp moves as it is put on, or as it arrives. */
-export const STAMP_MOTIONS = ['pop', 'shiver', 'slam', 'beat', 'press', 'spin'] as const;
+export const STAMP_MOTIONS = ['pop', 'shiver', 'slam', 'beat', 'press'] as const;
 export type StampMotion = (typeof STAMP_MOTIONS)[number];
 
 export interface BuiltinStamp {
@@ -62,15 +61,6 @@ export const BUILTIN_STAMPS: readonly BuiltinStamp[] = [
   stamp('seal', 'sob', SEAL_RED, 5, 'press'),
   stamp('seal', 'god', SEAL_RED, -6, 'press'),
   stamp('seal', 'precious', SEAL_RED, 8, 'press'),
-
-  stamp('motif', 'critical', '#f2b300', 0, 'spin'),
-  stamp('motif', 'fumble', '#6b7383', 0, 'spin'),
-  stamp('motif', 'skull', '#efe9d8', -4, 'shiver'),
-  stamp('motif', 'sword', '#b9c4d2', 0, 'slam'),
-  stamp('motif', 'shield', '#3a7bd5', 0, 'pop'),
-  stamp('motif', 'magnifier', '#b07a2a', -6, 'pop'),
-  stamp('motif', 'candle', '#f4c542', 0, 'shiver'),
-  stamp('motif', 'potion', '#ec4f9a', 4, 'beat'),
 
   picture('roll', 'critical', 'slam'),
   picture('roll', 'fumble'),

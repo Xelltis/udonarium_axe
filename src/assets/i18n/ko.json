@@ -5018,7 +5018,6 @@
         "recent": "최근",
         "sfx": "효과음",
         "seal": "도장",
-        "motif": "그림",
         "roll": "판정",
         "battle": "전투",
         "explore": "탐색",
@@ -5092,32 +5091,6 @@
           "precious": {
             "label": "존귀",
             "name": "소중해"
-          }
-        },
-        "motif": {
-          "critical": {
-            "name": "크리티컬"
-          },
-          "fumble": {
-            "name": "펌블"
-          },
-          "skull": {
-            "name": "사망 플래그"
-          },
-          "sword": {
-            "name": "간다"
-          },
-          "shield": {
-            "name": "감싸기"
-          },
-          "magnifier": {
-            "name": "조사하고 싶어"
-          },
-          "candle": {
-            "name": "무서움"
-          },
-          "potion": {
-            "name": "회복·소중해"
           }
         },
         "roll": {

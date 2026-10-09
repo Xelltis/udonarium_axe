@@ -2049,12 +2049,12 @@ describe('ChatMessageComponent', () => {
       button.click();
       expect(toggle).toHaveBeenCalledWith(button, expect.any(Function));
 
-      toggle.mock.calls[0][1]('motif:skull');
+      toggle.mock.calls[0][1]('seal:god');
       await settle();
       expect(TestBed.inject(ChatReactionService).talliesOf(message.identifier)).toEqual([
-        expect.objectContaining({ stampId: 'motif:skull', mine: true }),
+        expect.objectContaining({ stampId: 'seal:god', mine: true }),
       ]);
-      expect(chip('motif:skull')).not.toBeNull();
+      expect(chip('seal:god')).not.toBeNull();
     });
 
     it('draws a line sent as a stamp as the stamp, large, in place of its words, and offers no editing', () => {

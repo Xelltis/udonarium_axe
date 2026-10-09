@@ -1,19 +1,6 @@
-import { stampsOfFamily } from '@axe/domain/chat/stamp-catalog';
-import { motifStampSvg, sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
+import { sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
 
-describe('the pictures stamps are drawn as', () => {
-  it('draws every table mark, and nothing for one it does not know', () => {
-    for (const stamp of stampsOfFamily('motif')) {
-      expect(motifStampSvg(stamp.key, stamp.color), stamp.key).toMatch(/^<svg [^>]*viewBox="0 0 100 100"/);
-    }
-    expect(motifStampSvg('dragon', '#000000')).toBe('');
-  });
-
-  it('writes the number the die came up on it', () => {
-    expect(motifStampSvg('critical', '#f2b300')).toContain('>20</text>');
-    expect(motifStampSvg('fumble', '#6b7383')).toContain('>1</text>');
-  });
-
+describe('the seals stamps are drawn as', () => {
   it('fills a seal with one character, stands two of a script written downward one above the other, and presses the rest across', () => {
     expect(sealStampSvg('草', '#d2382b').match(/<text /g)).toHaveLength(1);
     expect(sealStampSvg('了解', '#d2382b').match(/<text /g)).toHaveLength(2);

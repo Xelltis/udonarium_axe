@@ -45,7 +45,7 @@ describe('StampPickerComponent', () => {
         tab.dataset['testid']!.replace('stamp-picker-tab-', '')
       );
 
-    expect(rows.map(tabsIn)).toEqual([['sfx', 'seal', 'motif'], [...ART_STAMP_FAMILIES]]);
+    expect(rows.map(tabsIn)).toEqual([['sfx', 'seal'], [...ART_STAMP_FAMILIES]]);
     const tab = root.querySelector('[data-testid="stamp-picker-tab-roll"]') as HTMLElement;
     expect(tab.textContent!.trim()).toBe(TestBed.inject(TRANSLATE_FN)('ui.stamp.families.roll'));
 

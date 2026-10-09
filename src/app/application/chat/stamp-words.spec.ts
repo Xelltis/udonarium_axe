@@ -8,10 +8,9 @@ describe('the words that stand in for a stamp', () => {
   const t = (key: string, params?: Record<string, unknown>) =>
     key === 'ui.stamp.standIn' ? `［${params?.['words']}］` : `<${key}>`;
 
-  it('are the words written on a sound effect or a seal, and the name of a table mark or of a picture of the character', () => {
+  it('are the words written on a sound effect or a seal, and the name of a picture of the character', () => {
     expect(stampWords('sfx:creepy', t)).toBe('［<ui.stamp.items.sfx.creepy.label>］');
     expect(stampWords('seal:ok', t)).toBe('［<ui.stamp.items.seal.ok.label>］');
-    expect(stampWords('motif:skull', t)).toBe('［<ui.stamp.items.motif.skull.name>］');
     expect(stampWords('roll:critical', t)).toBe('［<ui.stamp.items.roll.critical.name>］');
   });
 

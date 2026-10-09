@@ -39,9 +39,8 @@ describe('StampComponent', () => {
     expect(show('seal:ok')!.style.width).toBe('48px');
   });
 
-  it('draws a seal and a table mark as pictures', () => {
+  it('draws a seal as a picture', () => {
     expect(show('seal:ok')!.querySelector('svg')).not.toBeNull();
-    expect(show('motif:critical')!.querySelector('svg')).not.toBeNull();
   });
 
   it('shows one of the character\u2019s stamps by its picture among the assets, under its name', () => {
