@@ -31,6 +31,12 @@ describe('the pictures stamps are drawn as', () => {
     expect(seal.slice(seal.indexOf('</g>'))).toContain('<text');
   });
 
+  it('roughens the rings over the whole field, so their outer edge is not cut off', () => {
+    expect(sealStampSvg('了解', '#d2382b')).toContain(
+      '<filter id="axe-stamp-seal-rough" filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">'
+    );
+  });
+
   it('writes the words of a seal as words, never as markup', () => {
     expect(sealStampSvg('<b>', '#d2382b')).toContain('&lt;b&gt;');
   });

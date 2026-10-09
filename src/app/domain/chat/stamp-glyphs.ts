@@ -125,7 +125,7 @@ export function motifStampSvg(key: string, color: string): string {
 }
 
 const ROUGH_INK =
-  `<filter id="axe-stamp-seal-rough" x="0" y="0" width="100%" height="100%">` +
+  `<filter id="axe-stamp-seal-rough" filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">` +
   `<feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="noise"/>` +
   `<feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3 0 0 0 2.5" result="ink"/>` +
   `<feComposite in="SourceGraphic" in2="ink" operator="in"/>` +
