@@ -30,6 +30,7 @@ import {
 import { ChatLogLabels, ChatLogScope } from '@axe/domain/chat/chat-log-rich';
 import { ChatLogStyle, isPlainChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
@@ -52,6 +53,8 @@ const IMAGE_ATTRIBUTE = /ImageIdentifier$|^imageIdentifier$/;
 
 /** Several pictures under one name, which is its own spelling and read on its own terms. */
 const ATTACHMENT_IMAGE_ATTRIBUTE = 'attachmentImageIdentifiers';
+/** The attributes that name stamps, a line's own or those put on a line, a space between each. */
+const STAMP_ATTRIBUTE = /^stamps?$/;
 
 const CHAT_LOG_IMAGE_DECODE_LIMIT = 4;
 
@@ -258,8 +261,13 @@ export class SaveDataService {
 
     for (const element of Array.from(xmlElement.ownerDocument.querySelectorAll('*'))) {
       for (const { name, value } of Array.from(element.attributes)) {
-        if (!value || !IMAGE_ATTRIBUTE.test(name)) continue;
-        images[value] = this.imageStorage.get(value);
+        if (!value) continue;
+        if (IMAGE_ATTRIBUTE.test(name)) images[value] = this.imageStorage.get(value);
+        if (!STAMP_ATTRIBUTE.test(name)) continue;
+        for (const stampId of value.split(/\s+/)) {
+          const ref = stampOf(stampId);
+          if (ref?.kind === 'image') images[ref.imageIdentifier] = this.imageStorage.get(ref.imageIdentifier);
+        }
       }
       const attachmentImageIdentifiers = element.getAttribute(ATTACHMENT_IMAGE_ATTRIBUTE) ?? '';
       for (const attachmentImageIdentifier of this.parseAttachmentImageIdentifiers(attachmentImageIdentifiers)) {

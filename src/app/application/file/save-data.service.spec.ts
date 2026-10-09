@@ -366,6 +366,21 @@ describe('SaveDataService', () => {
     });
   });
 
+  describe('the pictures stamps are', () => {
+    it('bundles a picture put on a line as a reaction, and one a line was sent as, whether or not a set still holds it', () => {
+      const service = TestBed.inject(SaveDataService);
+      const privateApi = service as unknown as SaveDataServicePrivateApi;
+      for (const picture of ['reacted-cat', 'sent-dog']) ImageStorage.instance.add(ImageFile.createEmpty(picture));
+
+      const found = privateApi.searchImageFiles(
+        '<room><chat-reaction messageIdentifier="line-1" stamps="seal:ok image:reacted-cat"></chat-reaction>' +
+          '<chat stamp="image:sent-dog">［いぬ］</chat></room>'
+      );
+
+      expect(found.map((image) => image.identifier).sort()).toEqual(['reacted-cat', 'sent-dog']);
+    });
+  });
+
   describe('the picture a roller put on their dice', () => {
     it('bundles the picture a chat line’s dice wear, so the line throws them in it when the room is loaded', () => {
       const service = TestBed.inject(SaveDataService);
