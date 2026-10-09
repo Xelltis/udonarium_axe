@@ -16,6 +16,7 @@ import {
   MAX_LOADED_AUDIO_BYTES,
   MAX_LOADED_IMAGE_BYTES,
 } from '@axe/core/storage/file-archiver';
+import { calcSHA256Async } from '@axe/core/storage/file-reader-util';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -224,6 +225,51 @@ describe('FileArchiver', () => {
       off();
 
       expect(dropped).toHaveLength(0);
+    });
+  });
+
+  describe('an archive made elsewhere, naming its pictures by the bytes they came as', () => {
+    const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
+    const STORED = 'b'.repeat(64);
+
+    async function loaded(entries: Record<string, Uint8Array>): Promise<{ xml: string[]; added: string[] }> {
+      const xml: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => xml.push(event.xmlElement.outerHTML));
+      const added: string[] = [];
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockImplementation(async (file) => {
+        added.push((file as File).name);
+        return ImageFile.createEmpty((file as File).name.startsWith('a'.repeat(64)) ? 'a'.repeat(64) : STORED);
+      });
+      const zipped = zipSync(entries);
+      await FileArchiver.instance.load([new File([zipped.slice()], 'character.zip', { type: 'application/zip' })]);
+      off();
+      return { xml, added };
+    }
+
+    it('stores the picture as it stores any, and reads the room data under the id it was stored as', async () => {
+      const original = await calcSHA256Async(new Blob([PNG]));
+      const { xml, added } = await loaded({
+        'character.xml': strToU8(`<character><data type="image" name="imageIdentifier">${original}</data></character>`),
+        'face.png': PNG,
+      });
+
+      expect(added).toEqual(['face.png']);
+      expect(xml).toHaveLength(1);
+      expect(xml[0]).toContain(STORED);
+      expect(xml[0]).not.toContain(original);
+    });
+
+    it('leaves alone room data that names a picture saved under its own id, and a longer run of hex digits', async () => {
+      const saved = 'a'.repeat(64);
+      const longer = 'c'.repeat(80);
+      const { xml } = await loaded({
+        'data.xml': strToU8(`<room><a imageIdentifier="${saved}"></a><b note="${longer}"></b></room>`),
+        [`${saved}.png`]: PNG,
+        'other.png': PNG,
+      });
+
+      expect(xml[0]).toContain(saved);
+      expect(xml[0]).toContain(longer);
     });
   });
 
