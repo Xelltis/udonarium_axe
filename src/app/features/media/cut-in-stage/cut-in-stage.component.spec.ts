@@ -258,6 +258,16 @@ describe('CutInStageComponent', () => {
     expect(words.style.letterSpacing).toBe('-10px');
   });
 
+  it('writes a text layer as it was typed, with nothing before or after it', () => {
+    const scene = makeScene();
+    addLayer(scene, { kind: 'text', text: 'ドン\nッ！' });
+
+    show(scene, false, 0);
+
+    const words = fixture.nativeElement.querySelector('.whitespace-pre-wrap') as HTMLElement;
+    expect(words.textContent).toBe('ドン\nッ！');
+  });
+
   it('refuses to let the browser drag a layer picture away', () => {
     const scene = makeScene();
     addLayer(scene, { imageIdentifier: 'nothing' });

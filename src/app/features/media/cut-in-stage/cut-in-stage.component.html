@@ -37,9 +37,8 @@
                   [style.align-items]="layer.vertical ? alignOf(layer) : 'center'"
                   [style.justify-content]="layer.vertical ? 'center' : alignOf(layer)"
                   [style.text-shadow]="textShadowOf(layer)"
-                >
-                  {{ layer.text }}
-                </div>
+                  [textContent]="layer.text"
+                ></div>
               }
               @case ('fill') {
                 <div class="size-full" [style.background]="fillOf(layer)"></div>
