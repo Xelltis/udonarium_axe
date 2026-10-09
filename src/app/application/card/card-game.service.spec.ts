@@ -188,6 +188,20 @@ describe('CardGameService', () => {
       expect(service.absentHands()).toEqual([{ userId: 'gone', name: 'さいごの名前', count: 2 }]);
     });
 
+    it('looks for the names again as lines are said, and not each time a card moves', () => {
+      heldBy('gone', 's03');
+      spoke('gone', 'まえの名前', 1000);
+      expect(service.absentHands()[0].name).toBe('まえの名前');
+
+      const scans = vi.spyOn(TestBed.inject(ObjectStore), 'getObjects');
+      heldBy('gone', 's04');
+      expect(service.absentHands()[0].count).toBe(2);
+      expect(scans.mock.calls.filter((call) => (call as unknown[])[0] === ChatMessage)).toHaveLength(0);
+
+      spoke('gone', 'あとの名前', 2000);
+      expect(service.absentHands()[0].name).toBe('あとの名前');
+    });
+
     it('names a holder who never spoke by the start of their user id', () => {
       heldBy('abcdef123456', 's01');
 

@@ -1,6 +1,7 @@
-import { inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
@@ -39,6 +40,22 @@ export class CardGameService {
   private readonly objectStore = inject(ObjectStore);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly objectChange = inject(ObjectChangeService);
+
+  /**
+   * The name each user last spoke under in chat, for the hands of those who have left. It is looked
+   * for again only as lines are said or taken away, not each time a card moves.
+   */
+  private readonly lastSpokenNames = computed(() => {
+    this.objectChange.collectionOf(ChatMessage.aliasName)();
+    const latest = new Map<string, ChatMessage>();
+    for (const message of this.objectStore.getObjects<ChatMessage>(ChatMessage)) {
+      if (message.isSystem || !message.isDisplayable || (message.name ?? '').length < 1) continue;
+      const before = latest.get(message.from);
+      if (!before || message.timestamp > before.timestamp) latest.set(message.from, message);
+    }
+    return new Map([...latest].map(([userId, message]) => [userId, message.name]));
+  });
 
   /** Your own user id. Outside a room it is not on the cursor yet, so the peer context answers instead. */
   myUserId(): string {
@@ -153,7 +170,7 @@ export class CardGameService {
       counts.set(holder, (counts.get(holder) ?? 0) + 1);
     }
     return [...counts]
-      .map(([userId, count]) => ({ userId, name: this.lastSpokenNameOf(userId), count }))
+      .map(([userId, count]) => ({ userId, name: this.lastSpokenNames().get(userId) ?? userId.slice(0, 6), count }))
       .sort((a, b) => b.count - a.count);
   }
 
@@ -185,16 +202,6 @@ export class CardGameService {
       })
     );
     return cards.length;
-  }
-
-  private lastSpokenNameOf(userId: string): string {
-    let latest: ChatMessage | null = null;
-    for (const message of this.objectStore.getObjects<ChatMessage>(ChatMessage)) {
-      if (message.from !== userId || message.isSystem || !message.isDisplayable) continue;
-      if ((message.name ?? '').length < 1) continue;
-      if (!latest || message.timestamp > latest.timestamp) latest = message;
-    }
-    return latest?.name ?? userId.slice(0, 6);
   }
 
   /**
