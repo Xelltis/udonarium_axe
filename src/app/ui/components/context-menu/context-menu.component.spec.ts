@@ -38,6 +38,27 @@ describe('ContextMenuComponent', () => {
     expect(root.querySelectorAll('[data-context-menu-item-gap]')).toHaveLength(0);
   });
 
+  it('draws an item that is not enabled dimmed, and does nothing when it is pressed', () => {
+    const action = vi.fn();
+    component.contextMenuService.actions = [
+      { name: 'Unavailable', action, enabled: false },
+      { name: 'Available', action: vi.fn() },
+    ];
+    fixture.detectChanges();
+    const close = vi.spyOn(component, 'close');
+
+    const [unavailable, available] = Array.from(
+      component.rootElementRef().nativeElement.querySelectorAll<HTMLElement>('[data-context-menu-item]')
+    );
+    unavailable.click();
+
+    expect(unavailable.getAttribute('aria-disabled')).toBe('true');
+    expect(unavailable.classList.contains('opacity-50')).toBe(true);
+    expect(available.hasAttribute('aria-disabled')).toBe(false);
+    expect(action).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+  });
+
   it('renders radial descendants as separate rounded rows with real transparent spacers', () => {
     component.contextMenuService.actions = [
       { name: 'Action 1', action: vi.fn() },

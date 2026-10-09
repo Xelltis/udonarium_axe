@@ -261,6 +261,7 @@ export class ContextMenuComponent {
    * it opens is turned the way the menu is, and then closes the menu.
    */
   doAction(action: ContextMenuAction, row?: HTMLElement) {
+    if (action.enabled === false) return;
     this.showSubMenu(action, true, row);
     if (action.action != null) {
       const rotationDegrees = this.contextMenuService.rotationDegrees;
