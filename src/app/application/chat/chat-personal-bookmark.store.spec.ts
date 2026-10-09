@@ -59,8 +59,41 @@ describe('ChatPersonalBookmarkStore', () => {
     });
 
     store.add('line-a', 1000);
+    store.add('line-b', 2000);
 
     expect(store.has('line-a')).toBe(true);
+    expect(store.has('line-b')).toBe(true);
     vi.restoreAllMocks();
+  });
+
+  describe('beside another window of the app', () => {
+    it('adds to what the other window kept since, rather than writing over it', () => {
+      const store = fresh();
+      const elsewhere = fresh();
+      elsewhere.add('line-x', 1000);
+
+      store.add('line-y', 2000);
+
+      expect(fresh().has('line-x')).toBe(true);
+      expect(fresh().has('line-y')).toBe(true);
+    });
+
+    it('takes up a change the other window made as soon as the browser reports it', () => {
+      const store = fresh();
+      localStorage.setItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY, JSON.stringify([{ id: 'line-x', at: 1000 }]));
+
+      window.dispatchEvent(new StorageEvent('storage', { key: CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY }));
+
+      expect(store.has('line-x')).toBe(true);
+    });
+
+    it('takes no notice of the browser reporting some other thing it keeps', () => {
+      const store = fresh();
+      localStorage.setItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY, JSON.stringify([{ id: 'line-x', at: 1000 }]));
+
+      window.dispatchEvent(new StorageEvent('storage', { key: 'something-else' }));
+
+      expect(store.has('line-x')).toBe(false);
+    });
   });
 });
