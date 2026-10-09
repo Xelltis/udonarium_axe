@@ -7,10 +7,23 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import {
+  appendChatMessageEdit,
+  type ChatMessageVersion,
+  chatMessageVersions,
+  hasChatMessageEdits,
+} from '@axe/domain/chat/chat-message-history';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
+import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 import { VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
+
+/** Whether an attribute holds a moment, as opposed to being unset; an empty one is not read as 0. */
+function isPositiveTime(value: unknown): boolean {
+  const time = Number(value);
+  return Number.isFinite(time) && time > 0;
+}
 
 export interface ChatMessageTargetContext {
   text: string;
@@ -100,7 +113,51 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   @SyncVar() replyTo: string = '';
   @SyncVar() quoteOf: string = '';
   @SyncVar() fixd: boolean = false;
+  /**
+   * What the line said before each edit, and when the edit came, as `appendChatMessageEdit` writes
+   * it; read with `versions`.
+   *
+   * Kept on the line so that it travels and is saved with it. Left without an initialiser, as
+   * `vnEmote` is: most lines are never edited, and a line edited before this was kept has none.
+   */
+  @SyncVar() editHistory: string;
   @SyncVar() disclosedAt: number;
+  /**
+   * When the one who said the line made it an after-the-fact whisper (あとから秘話), in epoch
+   * milliseconds; read with `isAfterWhisper`.
+   *
+   * Such a line becomes a whisper like any other: addressed and named as one, so from then on it
+   * reaches the one it is whispered to and its speaker alone, in older versions of the tool too.
+   * This only remembers that it was said to everyone first, so that it can be put back. Left without
+   * an initialiser, as `vnEmote` is: most lines never become one.
+   */
+  @SyncVar() afterWhisperAt: number;
+  /**
+   * Who the line was addressed to before it became an after-the-fact whisper, put back by
+   * `undoAfterWhisper`. Empty for everyone.
+   */
+  @SyncVar() afterWhisperTo: string;
+  /** The name the line was said under before it became an after-the-fact whisper, put back by `undoAfterWhisper`. */
+  @SyncVar() afterWhisperName: string;
+  /**
+   * When the one who said the line deleted it, in epoch milliseconds; read with `isPseudoDeleted`.
+   *
+   * The deletion is a pseudo-deletion (疑似削除): the line is gone from everybody's chat as though
+   * it had never been said, its speaker's included, but it is still in the room, saved with the room
+   * and written into the log, which can be asked to leave it out. There is no putting it back. Left
+   * without an initialiser, as `vnEmote` is.
+   */
+  @SyncVar() pseudoDeletedAt: number;
+  /**
+   * When the line was marked to be found again, in epoch milliseconds; read with `isBookmarked`.
+   * Left without an initialiser, as `vnEmote` is.
+   */
+  @SyncVar() bookmarkedAt: number;
+  /**
+   * The name the room gave the mark, empty for one named after the line itself. It outlasts the
+   * mark, so a mark taken off by mistake comes back under the same name.
+   */
+  @SyncVar() bookmarkTitle: string;
 
   targetInfo: ChatMessageTargetContext[];
 
@@ -304,6 +361,116 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    */
   get isSecret(): boolean {
     return this.tags.includes('secret');
+  }
+
+  /**
+   * Every wording the line has had, oldest first, each from when it began to say it, the last being
+   * what it says now; empty for a line with no earlier wordings kept. Read without any staging, as
+   * the line is shown.
+   */
+  get versions(): ChatMessageVersion[] {
+    return chatMessageVersions(this.editHistory, vnBodyOf(this.vnEmote, this.text ?? ''));
+  }
+
+  /**
+   * Edits the line to say `text`, keeping what it said before in its history and marking it as
+   * edited. `staging` is how novel mode is to stage it, kept beside the words as given, an empty one
+   * taking any staging away. Nothing changes when the words and their staging are as they were.
+   */
+  edit(text: string, staging: string, at: number): void {
+    const before = vnBodyOf(this.vnEmote, this.text ?? '');
+    const stagedBefore = this.vnEmote ?? '';
+    if (this.text === text && stagedBefore === staging) return;
+    if (before !== text) {
+      // A line edited before histories were kept starts its history part way through.
+      const editedBeforeKept = !!this.fixd && !hasChatMessageEdits(this.editHistory);
+      this.editHistory = appendChatMessageEdit(this.editHistory, before, at, {
+        saidAt: this.timestamp,
+        editedBeforeKept,
+      });
+    }
+    this.text = text;
+    if (stagedBefore !== staging) this.vnEmote = staging;
+    this.fixd = true;
+  }
+
+  /** Whether the one who said the line made it an after-the-fact whisper. */
+  get isAfterWhisper(): boolean {
+    return isPositiveTime(this.afterWhisperAt);
+  }
+
+  /**
+   * Makes the line a whisper to the user given, named as a whisper is, `speaker > listener`; or
+   * whispers it to them instead of whoever it was whispered to afterwards before. Who it was said to
+   * in the first place, and under what name, are kept for `undoAfterWhisper`. Nothing changes
+   * without anyone to whisper to.
+   */
+  makeAfterWhisper(to: string, toName: string, at: number): void {
+    if (!to) return;
+    if (!this.isAfterWhisper) {
+      this.afterWhisperTo = this.to ?? '';
+      this.afterWhisperName = this.name ?? '';
+      this.afterWhisperAt = at;
+    }
+    this.to = to;
+    const speaker = String(this.afterWhisperName ?? '');
+    this.name = toName ? `${speaker} > ${toName}` : speaker;
+  }
+
+  /** Puts an after-the-fact whisper back where it was, said again to whoever it was said to before. */
+  undoAfterWhisper(): void {
+    if (!this.isAfterWhisper) return;
+    this.to = String(this.afterWhisperTo ?? '');
+    this.name = String(this.afterWhisperName ?? '');
+    this.removeAttribute('afterWhisperTo');
+    this.removeAttribute('afterWhisperName');
+    this.removeAttribute('afterWhisperAt');
+  }
+
+  /** Whether the one who said the line deleted it, leaving it to the log alone. */
+  get isPseudoDeleted(): boolean {
+    return isPositiveTime(this.pseudoDeletedAt);
+  }
+
+  /** Deletes the line from the chat, leaving it in the log. A line deleted already keeps the moment it first was. */
+  pseudoDelete(at: number): void {
+    if (this.isPseudoDeleted) return;
+    this.pseudoDeletedAt = at;
+  }
+
+  /** Whether the local user is shown the line in chat: one they may see, and that was not deleted. */
+  get isShownInChat(): boolean {
+    return this.isDisplayable && !this.isPseudoDeleted;
+  }
+
+  /** Whether the line is marked for the room to find again. */
+  get isBookmarked(): boolean {
+    return isPositiveTime(this.bookmarkedAt);
+  }
+
+  /** The name the room gave the mark on the line, or empty where the line names it. */
+  get bookmarkName(): string {
+    return String(this.bookmarkTitle ?? '').trim();
+  }
+
+  /** Marks the line for the room to find again. A line already marked keeps the moment it was first marked. */
+  bookmark(at: number): void {
+    if (this.isBookmarked) return;
+    this.bookmarkedAt = at;
+  }
+
+  /** Takes the mark off the line, keeping the name it was given. */
+  unbookmark(): void {
+    if (!this.isBookmarked) return;
+    this.removeAttribute('bookmarkedAt');
+  }
+
+  /** Names the mark on the line; an empty name goes back to naming it after the line. */
+  renameBookmark(title: string): void {
+    const next = title.trim();
+    if (next === this.bookmarkName) return;
+    if (next.length > 0) this.bookmarkTitle = next;
+    else this.removeAttribute('bookmarkTitle');
   }
 
   /** The room's tab list, looked up in the object store. */

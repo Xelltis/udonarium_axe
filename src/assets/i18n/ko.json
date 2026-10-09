@@ -2906,6 +2906,32 @@
         "newer": "다음 발언으로 (Shift+Enter)",
         "close": "닫기 (Esc)"
       },
+      "bookmark": {
+        "button": "책갈피",
+        "open": "책갈피 목록",
+        "title": "책갈피",
+        "filter": "표시할 책갈피",
+        "filters": {
+          "all": "전체",
+          "shared": "공유",
+          "personal": "개인"
+        },
+        "kinds": {
+          "shared": "공유",
+          "personal": "개인"
+        },
+        "close": "닫기 (Esc)",
+        "jump": "이 발언으로 이동",
+        "rename": "제목 바꾸기",
+        "renamePlaceholder": "제목 (비워 두면 발언 첫머리)",
+        "renameHint": "Enter로 확정 / Esc로 취소",
+        "remove": "책갈피 빼기",
+        "empty": {
+          "all": "아직 책갈피가 없습니다. 발언의 책갈피 버튼이나 우클릭(길게 누르기) 메뉴로 끼울 수 있습니다. 공유 책갈피는 방의 모든 사람이, 개인 책갈피는 나만 사용합니다.",
+          "shared": "아직 공유 책갈피가 없습니다. 방의 모든 사람에게 보이는 책갈피입니다.",
+          "personal": "아직 개인 책갈피가 없습니다. 나에게만 보이며 이 브라우저에 저장됩니다."
+        }
+      },
       "input": {
         "you": "(당신)",
         "everyone": "전원",
@@ -2953,7 +2979,42 @@
         "ticker": "티커",
         "copyToTab": "다른 탭으로 복사",
         "copyText": "본문 복사",
-        "selectText": "텍스트 선택"
+        "selectText": "텍스트 선택",
+        "afterWhisper": "나중에 귓속말로 바꾸기",
+        "afterWhisperTo": "귓속말 상대",
+        "afterWhisperNobody": "나중에 귓속말로 바꾸기 (상대가 없습니다)",
+        "undoAfterWhisper": "나중에 귓속말을 취소하고 모두에게 보이기",
+        "deleteLine": "삭제",
+        "deleteLineHint": "삭제 (모두의 화면에서 사라지지만 로그에는 남습니다)",
+        "deleteLineConfirm": "이 발언을 삭제할까요? 모두의 화면에서 사라지며 되돌릴 수 없습니다. 로그에는 남습니다.",
+        "bookmarks": {
+          "button": "책갈피",
+          "shared": {
+            "add": "공유 책갈피 끼우기",
+            "remove": "공유 책갈피 빼기",
+            "marked": "공유 책갈피",
+            "markedAs": "공유 책갈피: {{name}}"
+          },
+          "personal": {
+            "add": "개인 책갈피 끼우기",
+            "remove": "개인 책갈피 빼기",
+            "marked": "개인 책갈피",
+            "markedAs": "개인 책갈피: {{name}}"
+          }
+        },
+        "history": {
+          "open": "편집 이력 보기",
+          "close": "편집 이력 닫기",
+          "title": "편집 이력",
+          "original": "처음 발언",
+          "edit": "{{count}}번째 편집",
+          "beforeKept": "이력을 남기기 전에 편집된 문면",
+          "editUncounted": "편집",
+          "current": "현재"
+        },
+        "actions": "발언 조작",
+        "more": "그 밖의 조작",
+        "edit": "편집"
       },
       "stream": {
         "title": "발언의 흐름",
@@ -3076,6 +3137,8 @@
         "previewFrameTitle": "내보낼 로그 견본",
         "previewLimited": "최근 {{count}}건으로 표시하고 있습니다. 저장하면 탭 전체가 내보내집니다.",
         "previewSample": "아직 발언이 없어 견본 대화로 표시하고 있습니다.",
+        "omitDeleted": "삭제한 발언은 로그에 넣지 않기",
+        "omitDeletedHint": "삭제한 발언을 저장하는 로그에서 뺍니다",
         "styles": {
           "standard": {
             "name": "표준",
@@ -3145,6 +3208,7 @@
         "labels": {
           "secret": "시크릿 다이스",
           "edited": "편집됨",
+          "pseudoDeleted": "삭제됨",
           "quote": "인용",
           "reply": "답장 대상",
           "critical": "크리티컬",

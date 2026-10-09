@@ -16,6 +16,7 @@ export type ChatLogScope = 'tab' | 'all';
 export interface ChatLogLabels {
   secret: string;
   edited: string;
+  pseudoDeleted: string;
   quote: string;
   reply: string;
   critical: string;
@@ -31,6 +32,7 @@ export interface ChatLogLabels {
 export const DEFAULT_CHAT_LOG_LABELS: ChatLogLabels = {
   secret: 'シークレットダイス',
   edited: '編集済',
+  pseudoDeleted: '削除済',
   quote: '引用',
   reply: '返信先',
   critical: 'クリティカル',
@@ -271,7 +273,9 @@ function renderSay(entry: ChatLogEntry, continuation: boolean, context: RenderCo
   const body = visible
     ? textHtml(vnBodyOf(message.vnEmote, decode(message.text, context))) + renderAttachments(message, context)
     : `<span class="seal">${esc(labels.secret)}</span>`;
-  const edited = message.fixd ? `<span class="ed">${esc(labels.edited)}</span>` : '';
+  const edited =
+    (message.fixd ? `<span class="ed">${esc(labels.edited)}</span>` : '') +
+    (message.isPseudoDeleted ? `<span class="ed">${esc(labels.pseudoDeleted)}</span>` : '');
 
   return (
     `<article class="${classes.join(' ')}" data-t="${entry.tabIndex}" style="--c:${colorOf(message.messColor)}">` +
@@ -333,8 +337,9 @@ function renderPortrait(message: ChatLogLine, name: string, context: RenderConte
 
 function renderReferences(message: ChatLogLine, context: RenderContext): string {
   const { labels } = context;
-  const quote = message.quoteOf ? message.quoteOfMessage : null;
-  const reply = message.replyTo ? message.replyToMessage : null;
+  const userId = context.options.userId;
+  const quote = ChatLogExporter.referencedLine(message.quoteOf ? message.quoteOfMessage : null, userId);
+  const reply = ChatLogExporter.referencedLine(message.replyTo ? message.replyToMessage : null, userId);
   let html = '';
   if (quote) html += renderReference('❝', quote, 280, labels.quote, context);
   if (reply) html += renderReference('↩', reply, 120, labels.reply, context);

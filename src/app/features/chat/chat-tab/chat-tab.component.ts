@@ -12,6 +12,7 @@ import {
   output,
   signal,
   viewChild,
+  viewChildren,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -591,7 +592,7 @@ export class ChatTabComponent {
   async reveal(message: ChatMessage): Promise<HTMLElement | null> {
     const tab = this.chatTab;
     const panel = this.panelService.scrollablePanel;
-    if (!tab || !panel || !message.isDisplayable) return null;
+    if (!tab || !panel || !message.isShownInChat) return null;
     const index = tab.chatMessages.indexOf(message);
     if (index < 0) return null;
     if (index < this.topIndex || this.bottomIndex < index) this.drawAround(index, panel);
@@ -617,6 +618,15 @@ export class ChatTabComponent {
     this.scrollSpeed = 0;
     this.topElm = this.bottomElm = null;
     this.renderVersion.update((v) => v + 1);
+  }
+
+  private readonly drawnLines = viewChildren(ChatMessageComponent);
+
+  /** Lights up one of the tab's lines for a moment, where it is drawn. */
+  flash(message: ChatMessage): void {
+    this.drawnLines()
+      .find((line) => line.chatMessage === message)
+      ?.flash();
   }
 
   /** Renders the log again; a chat redraw request from the UI signal service leads here. */

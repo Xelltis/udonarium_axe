@@ -1,4 +1,6 @@
+import { ViewContainerRef } from '@angular/core';
 import { inject, TestBed } from '@angular/core/testing';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 
 describe('ContextMenuService', () => {
@@ -16,6 +18,45 @@ describe('ContextMenuService', () => {
   it('should ...', inject([ContextMenuService], (service: ContextMenuService) => {
     expect(service).toBeTruthy();
   }));
+
+  describe('a guest', () => {
+    /** A place to put a menu that only records that one was asked for. */
+    function placeForMenus(): { createComponent: ReturnType<typeof vi.fn> } {
+      return {
+        createComponent: vi.fn(() => {
+          throw new Error('menu asked for');
+        }),
+      };
+    }
+
+    beforeEach(() => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('is opened no ordinary menu', () => {
+      const place = placeForMenus();
+
+      TestBed.inject(ContextMenuService).open({ x: 1, y: 1 }, [{ name: 'a' }], undefined, {
+        parentViewContainerRef: place as unknown as ViewContainerRef,
+      });
+
+      expect(place.createComponent).not.toHaveBeenCalled();
+    });
+
+    it('is opened a menu that says it is fit for a guest', () => {
+      const place = placeForMenus();
+
+      expect(() =>
+        TestBed.inject(ContextMenuService).open({ x: 1, y: 1 }, [{ name: 'a' }], undefined, {
+          parentViewContainerRef: place as unknown as ViewContainerRef,
+          forGuests: true,
+        })
+      ).toThrow('menu asked for');
+      expect(place.createComponent).toHaveBeenCalledOnce();
+    });
+  });
 
   describe('the four-way menu', () => {
     class FourWayMenuStub {}

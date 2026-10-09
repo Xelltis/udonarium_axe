@@ -46,6 +46,8 @@ export class ChatTabSettingComponent {
 
   readonly logStyles = CHAT_LOG_STYLES;
   readonly logStyle = this.logStylePreference.style;
+  /** Whether saved logs leave out deleted lines. */
+  readonly omitDeleted = this.logStylePreference.omitDeleted;
 
   /**
    * The position of the tab that system messages go to when the room has no system tab.
@@ -259,6 +261,11 @@ export class ChatTabSettingComponent {
     this.logStylePreference.choose(style);
   }
 
+  /** Sets whether saved logs leave out deleted lines, remembered in this browser. */
+  setOmitDeleted(omit: boolean): void {
+    this.logStylePreference.setOmitDeleted(omit);
+  }
+
   /** Opens a panel previewing the selected tab's log in the chosen format. */
   openLogPreview(): void {
     const coordinate = this.pointerDeviceService.pointers[0];
@@ -276,7 +283,7 @@ export class ChatTabSettingComponent {
   saveLog() {
     const tab = this.selectedTab();
     if (!tab) return;
-    this.saveDataService.saveChatLog(this.effectiveLogStyle, 'tab', [tab], tab.name);
+    this.saveDataService.saveChatLog(this.effectiveLogStyle, 'tab', [tab], tab.name, this.logOptions());
   }
 
   /** Downloads the logs of every tab together in the chosen format. */
@@ -285,8 +292,13 @@ export class ChatTabSettingComponent {
       this.effectiveLogStyle,
       'all',
       this.chatMessageService.chatTabs,
-      this.t('feature.chat.tabSetting.allTabsLogName')
+      this.t('feature.chat.tabSetting.allTabsLogName'),
+      this.logOptions()
     );
+  }
+
+  private logOptions(): { omitDeleted: boolean } {
+    return { omitDeleted: this.omitDeleted() };
   }
 
   /**

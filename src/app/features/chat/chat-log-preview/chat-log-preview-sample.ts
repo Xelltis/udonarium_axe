@@ -72,6 +72,7 @@ function sampleLine(fields: Partial<ChatLogLine>): ChatLogLine {
     isDicebot: false,
     rollDetail: null,
     isOutOfStory: false,
+    isPseudoDeleted: false,
     ...fields,
     placedAt: fields.placedAt ?? fields.timestamp ?? 0,
   };

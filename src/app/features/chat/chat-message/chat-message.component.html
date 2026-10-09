@@ -1,4 +1,4 @@
-<div class="w-full overflow-x-hidden">
+<div class="w-full overflow-x-clip">
   <div
     [class.animate-chat-slide-in]="animeState() === 'active'"
     [class.animate-chat-fade-in]="animeState() !== 'active'"
@@ -34,83 +34,44 @@
               | chatColorStyle: theme.resolved() : bubbleFor(chatMessage) : skins.toneOf(theme.resolved())
           "
         >
-          <div class="pl-2.5 align-top text-(length:--chat-font-size) font-medium text-inherit">
-            <span class="msg-name">{{ displayName(chatMessage.name) }}</span>
-            <span class="tip"> | </span>
-            <span class="tip msg-from" [title]="chatMessage.from">{{ shortFrom(chatMessage.from) }}</span>
-            <span class="tip"> | </span>
-            <span class="tip msg-timestamp">{{ chatMessage.timestamp | date: 'y/M/d H:mm' }}</span>
-            @if (!isEditing()) {
-              @if (canInteract) {
-                <i
-                  class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                  [title]="'feature.chat.message.reply' | transloco"
-                  (click)="clickReply()"
-                  >reply</i
-                >
-                <i
-                  class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                  [title]="'feature.chat.message.quote' | transloco"
-                  (click)="clickQuote()"
-                  >format_quote</i
-                >
-                @if (canCopyToTab) {
-                  <span class="relative inline-block">
-                    <i
-                      class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                      [class.text-ui-accent]="isCopyPickerOpen()"
-                      [class.opacity-100]="isCopyPickerOpen()"
-                      [title]="'feature.chat.message.copyToTab' | transloco"
-                      (click)="toggleCopyPicker()"
-                      >move_to_inbox</i
-                    >
-                    @if (isCopyPickerOpen()) {
-                      <span
-                        class="border-ui-border-panel bg-ui-panel rounded-ui-sm shadow-ui-md absolute top-[calc(100%+4px)] left-0 z-20 flex w-40 flex-col border border-solid p-1"
-                      >
-                        <span class="text-ui-dim px-1.5 pb-1 text-[10px]">{{
-                          'feature.chat.message.copyToTab' | transloco
-                        }}</span>
-                        @for (tab of copyTargets(); track tab.identifier) {
-                          <button
-                            type="button"
-                            class="text-ui-text hover:bg-ui-hover rounded-ui-sm cursor-pointer truncate border-0 bg-transparent px-1.5 py-1 text-left text-[12px] transition-colors"
-                            [title]="tab.name"
-                            (click)="copyToTab(tab)"
-                          >
-                            {{ tab.name }}
-                          </button>
-                        }
-                      </span>
-                    }
-                  </span>
-                }
-                @if (canShareAsMemo) {
-                  <i
-                    class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                    [title]="'feature.chat.message.shareAsMemo' | transloco"
-                    (click)="clickShareAsMemo()"
-                    >sticky_note_2</i
-                  >
-                }
-              }
-              @if (canChange) {
-                <i
-                  class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                  [title]="'feature.chat.messageFix.change' | transloco"
-                  (click)="startEdit()"
-                  >edit</i
-                >
-              }
-              @if (canShowInTicker()) {
-                <i
-                  data-testid="chat-message-ticker"
-                  class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                  [title]="'feature.chat.message.ticker' | transloco"
-                  (click)="clickShowInTicker()"
-                  >campaign</i
-                >
-              }
+          <div
+            class="flex min-w-0 items-baseline gap-x-1 overflow-hidden pr-1 pl-2.5 text-(length:--chat-font-size) font-medium whitespace-nowrap text-inherit"
+          >
+            <!-- The name gives way last: who and when shrink away first in a narrow window. -->
+            <span class="msg-name min-w-0 truncate" [title]="displayName(chatMessage.name)">{{
+              displayName(chatMessage.name)
+            }}</span>
+            <span class="min-w-0 shrink-100 truncate">
+              <span class="tip"> | </span>
+              <span class="tip msg-from" [title]="chatMessage.from">{{ shortFrom(chatMessage.from) }}</span>
+              <span class="tip"> | </span>
+              <span class="tip msg-timestamp">{{ chatMessage.timestamp | date: 'y/M/d H:mm' }}</span>
+            </span>
+            @if (bookmarks().shared; as mark) {
+              <i
+                data-testid="chat-message-bookmark-mark"
+                data-kind="shared"
+                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
+                [title]="
+                  mark.name
+                    ? ('feature.chat.message.bookmarks.shared.markedAs' | transloco: { name: mark.name })
+                    : ('feature.chat.message.bookmarks.shared.marked' | transloco)
+                "
+                >bookmark</i
+              >
+            }
+            @if (bookmarks().personal; as mark) {
+              <i
+                data-testid="chat-message-bookmark-mark"
+                data-kind="personal"
+                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
+                [title]="
+                  mark.name
+                    ? ('feature.chat.message.bookmarks.personal.markedAs' | transloco: { name: mark.name })
+                    : ('feature.chat.message.bookmarks.personal.marked' | transloco)
+                "
+                >bookmark_border</i
+              >
             }
           </div>
           @if (replyPreview(); as preview) {
@@ -205,14 +166,19 @@
               <span>{{ 'feature.chat.message.secretDice' | transloco }}</span>
             }
             @if (!isEditing() && isEdited()) {
-              &nbsp;{{ 'feature.chat.message.edited' | transloco }}
+              &nbsp;<ng-container
+                [ngTemplateOutlet]="editedMark"
+                [ngTemplateOutletContext]="{ label: 'feature.chat.message.edited' }"
+              />
             }
           </div>
+          <ng-container [ngTemplateOutlet]="historyPanel" />
           @if (chatMessage.isDicebot && !isEditing()) {
             <div class="px-2.5">
               <dice-roll-stage [messageIdentifier]="chatMessage.identifier" />
             </div>
           }
+          <ng-container [ngTemplateOutlet]="actionToolbar" />
         </div>
       </div>
     }
@@ -228,7 +194,7 @@
         (contextmenu)="onMessageContextMenu($event)"
       >
         <div
-          class="group/body rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-text grow border border-solid px-1.5 pt-0.5 pb-0.75"
+          class="group/body rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-text relative grow border border-solid px-1.5 pt-0.5 pb-0.75"
           [ngStyle]="
             chatMessage.messColor
               | chatColorStyle: theme.resolved() : bubbleFor(chatMessage) : skins.toneOf(theme.resolved())
@@ -248,6 +214,32 @@
             }
             @if (simpleDispFlagUserId() || simpleDispFlagTime()) {
               <span class="tip">　</span>
+            }
+            @if (bookmarks().shared; as mark) {
+              <i
+                data-testid="chat-message-bookmark-mark"
+                data-kind="shared"
+                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
+                [title]="
+                  mark.name
+                    ? ('feature.chat.message.bookmarks.shared.markedAs' | transloco: { name: mark.name })
+                    : ('feature.chat.message.bookmarks.shared.marked' | transloco)
+                "
+                >bookmark</i
+              >
+            }
+            @if (bookmarks().personal; as mark) {
+              <i
+                data-testid="chat-message-bookmark-mark"
+                data-kind="personal"
+                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
+                [title]="
+                  mark.name
+                    ? ('feature.chat.message.bookmarks.personal.markedAs' | transloco: { name: mark.name })
+                    : ('feature.chat.message.bookmarks.personal.marked' | transloco)
+                "
+                >bookmark_border</i
+              >
             }
             @if (replyPreview(); as preview) {
               <button
@@ -335,84 +327,171 @@
                 <span>{{ 'feature.chat.message.secretDice' | transloco }}</span>
               }
               @if (!isEditing() && isEdited()) {
-                {{ 'feature.chat.message.editedSimple' | transloco }}
-              }
-              @if (!isEditing()) {
-                @if (canInteract) {
-                  <i
-                    class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                    [title]="'feature.chat.message.reply' | transloco"
-                    (click)="clickReply()"
-                    >reply</i
-                  >
-                  <i
-                    class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                    [title]="'feature.chat.message.quote' | transloco"
-                    (click)="clickQuote()"
-                    >format_quote</i
-                  >
-                  @if (canCopyToTab) {
-                    <span class="relative inline-block">
-                      <i
-                        class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                        [class.text-ui-accent]="isCopyPickerOpen()"
-                        [class.opacity-100]="isCopyPickerOpen()"
-                        [title]="'feature.chat.message.copyToTab' | transloco"
-                        (click)="toggleCopyPicker()"
-                        >move_to_inbox</i
-                      >
-                      @if (isCopyPickerOpen()) {
-                        <span
-                          class="border-ui-border-panel bg-ui-panel rounded-ui-sm shadow-ui-md absolute top-[calc(100%+4px)] left-0 z-20 flex w-40 flex-col border border-solid p-1"
-                        >
-                          <span class="text-ui-dim px-1.5 pb-1 text-[10px]">{{
-                            'feature.chat.message.copyToTab' | transloco
-                          }}</span>
-                          @for (tab of copyTargets(); track tab.identifier) {
-                            <button
-                              type="button"
-                              class="text-ui-text hover:bg-ui-hover rounded-ui-sm cursor-pointer truncate border-0 bg-transparent px-1.5 py-1 text-left text-[12px] transition-colors"
-                              [title]="tab.name"
-                              (click)="copyToTab(tab)"
-                            >
-                              {{ tab.name }}
-                            </button>
-                          }
-                        </span>
-                      }
-                    </span>
-                  }
-                  @if (canShareAsMemo) {
-                    <i
-                      class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                      [title]="'feature.chat.message.shareAsMemo' | transloco"
-                      (click)="clickShareAsMemo()"
-                      >sticky_note_2</i
-                    >
-                  }
-                }
-                @if (canChange) {
-                  <i
-                    class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                    [title]="'feature.chat.messageFix.change' | transloco"
-                    (click)="startEdit()"
-                    >edit</i
-                  >
-                }
-                @if (canShowInTicker()) {
-                  <i
-                    data-testid="chat-message-ticker"
-                    class="material-icons text-ui-dim hover:text-ui-accent ml-1 cursor-pointer align-middle text-[14px]! opacity-0 transition-opacity duration-150 group-hover/body:opacity-100"
-                    [title]="'feature.chat.message.ticker' | transloco"
-                    (click)="clickShowInTicker()"
-                    >campaign</i
-                  >
-                }
+                <ng-container
+                  [ngTemplateOutlet]="editedMark"
+                  [ngTemplateOutletContext]="{ label: 'feature.chat.message.editedSimple' }"
+                />
               }
             </font>
           </span>
+          <ng-container [ngTemplateOutlet]="historyPanel" />
+          <ng-container [ngTemplateOutlet]="actionToolbar" />
         </div>
       </div>
     }
   </div>
 </div>
+
+<!-- The edited mark opens the line's history where one was kept; a line edited before then is only marked. -->
+<ng-template #editedMark let-label="label">
+  @if (versions().length > 0) {
+    <button
+      type="button"
+      data-testid="chat-message-history-toggle"
+      class="text-ui-dim hover:text-ui-accent m-0 inline cursor-pointer border-none bg-transparent p-0 align-baseline text-inherit underline decoration-dotted underline-offset-2 hover:bg-transparent hover:shadow-none"
+      [title]="
+        (isHistoryOpen() ? 'feature.chat.message.history.close' : 'feature.chat.message.history.open') | transloco
+      "
+      [attr.aria-expanded]="isHistoryOpen()"
+      (click)="toggleHistory()"
+    >
+      {{ label | transloco }}
+    </button>
+  } @else {
+    {{ label | transloco }}
+  }
+</ng-template>
+
+<ng-template #historyPanel>
+  @if (isHistoryOpen() && !isEditing() && versions().length > 0) {
+    <div
+      data-testid="chat-message-history"
+      class="border-ui-border-panel mx-2.5 mt-1 mb-0.5 flex flex-col gap-1.5 border-0 border-l-2 border-solid pl-2"
+    >
+      <div class="text-ui-dim text-[10px] font-semibold tracking-[0.04em]">
+        {{ 'feature.chat.message.history.title' | transloco }}
+      </div>
+      <ol class="m-0 flex list-none flex-col gap-1.5 p-0">
+        @for (version of versions(); track $index; let last = $last) {
+          <li data-testid="chat-message-history-version" class="flex flex-col gap-0.5">
+            <span class="text-ui-dim text-[10px] tabular-nums">
+              @if (version.since !== null) {
+                {{ version.since | date: 'y/M/d H:mm:ss' }} ·
+              }
+              @if (last) {
+                {{ 'feature.chat.message.history.current' | transloco }}
+              } @else if (version.edit === 0) {
+                {{ 'feature.chat.message.history.original' | transloco }}
+              } @else if (version.edit !== null) {
+                {{ 'feature.chat.message.history.edit' | transloco: { count: version.edit } }}
+              } @else if (version.since === null) {
+                {{ 'feature.chat.message.history.beforeKept' | transloco }}
+              } @else {
+                {{ 'feature.chat.message.history.editUncounted' | transloco }}
+              }
+            </span>
+            <span
+              class="[&_a]:text-ui-accent text-(length:--chat-font-size) leading-normal whitespace-pre-line text-inherit"
+              [class.opacity-70]="!last"
+              [innerHTML]="decorateVersion(version.text) | linkify | safe"
+            ></span>
+          </li>
+        }
+      </ol>
+    </div>
+  }
+</ng-template>
+
+<!--
+  What can be done with the line, floating over its top right corner while the pointer is on it or
+  the keyboard is on something in it, so it takes no room from the line and every line keeps its
+  height. A button pressed with the mouse keeps the focus without showing it, and so does not hold
+  the toolbar up once the pointer has gone.
+
+  The answers people reach for most stand in it, and what the speaker does to their own line:
+  editing it, and deleting it, which asks first and is told apart by its colour. Everything, those
+  included, is under its last button, in the same menu a right click or a press held on the line
+  opens. A touch screen has no hover, so it reaches the line through that press alone.
+-->
+<ng-template #actionToolbar>
+  @if (toolbarActions(); as actions) {
+    <div
+      role="toolbar"
+      data-testid="chat-message-toolbar"
+      class="border-ui-border-panel bg-ui-panel rounded-ui shadow-ui-md pointer-events-none absolute -top-3.5 right-2 z-20 flex items-center gap-px border border-solid p-px opacity-0 transition-opacity duration-150 group-hover/body:pointer-events-auto group-hover/body:opacity-100 group-has-focus-visible/body:pointer-events-auto group-has-focus-visible/body:opacity-100 pointer-coarse:hidden"
+      [attr.aria-label]="'feature.chat.message.actions' | transloco"
+    >
+      @if (actions.answer) {
+        <button
+          type="button"
+          data-testid="chat-message-action-reply"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+          [title]="'feature.chat.message.reply' | transloco"
+          [attr.aria-label]="'feature.chat.message.reply' | transloco"
+          (click)="clickReply()"
+        >
+          <i class="material-icons" aria-hidden="true">reply</i>
+        </button>
+        <button
+          type="button"
+          data-testid="chat-message-action-quote"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+          [title]="'feature.chat.message.quote' | transloco"
+          [attr.aria-label]="'feature.chat.message.quote' | transloco"
+          (click)="clickQuote()"
+        >
+          <i class="material-icons" aria-hidden="true">format_quote</i>
+        </button>
+      }
+      @if (actions.bookmark) {
+        <button
+          type="button"
+          data-testid="chat-message-action-bookmark"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+          [title]="'feature.chat.message.bookmarks.button' | transloco"
+          [attr.aria-label]="'feature.chat.message.bookmarks.button' | transloco"
+          aria-haspopup="menu"
+          (click)="openBookmarkMenu($event)"
+        >
+          <i class="material-icons" aria-hidden="true">bookmark_add</i>
+        </button>
+      }
+      @if (actions.edit) {
+        <button
+          type="button"
+          data-testid="chat-message-action-edit"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+          [title]="'feature.chat.message.edit' | transloco"
+          [attr.aria-label]="'feature.chat.message.edit' | transloco"
+          (click)="startEdit()"
+        >
+          <i class="material-icons" aria-hidden="true">edit</i>
+        </button>
+      }
+      @if (actions.delete) {
+        <button
+          type="button"
+          data-testid="chat-message-action-delete"
+          class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+          [title]="'feature.chat.message.deleteLine' | transloco"
+          [attr.aria-label]="'feature.chat.message.deleteLine' | transloco"
+          (click)="pseudoDelete()"
+        >
+          <i class="material-icons" aria-hidden="true">delete_outline</i>
+        </button>
+      }
+      <span class="bg-ui-border-panel mx-0.5 h-4 w-px" aria-hidden="true"></span>
+      <button
+        type="button"
+        data-testid="chat-message-action-more"
+        class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+        [title]="'feature.chat.message.more' | transloco"
+        [attr.aria-label]="'feature.chat.message.more' | transloco"
+        aria-haspopup="menu"
+        (click)="openMoreMenu($event)"
+      >
+        <i class="material-icons" aria-hidden="true">more_horiz</i>
+      </button>
+    </div>
+  }
+</ng-template>

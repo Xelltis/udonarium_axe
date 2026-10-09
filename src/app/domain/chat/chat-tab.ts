@@ -69,16 +69,17 @@ export class ChatTab extends ObjectNode implements InnerXml {
   }
 
   /**
-   * How many lines the local user may see the tab holds, counted now rather than as they arrived.
+   * How many lines the local user is shown in the tab, counted now rather than as they arrived.
    *
    * {@link displayableMessagesLength} is a tally kept as lines come in, which is what the
    * scrollbar is sized from and is near enough for that. This walks the tab instead, so a log
-   * that has been cleared says so rather than going on reporting what it once held.
+   * that has been cleared, or a line pseudo-deleted, says so rather than going on reporting what
+   * it once held.
    */
   countDisplayableMessages(): number {
     let count = 0;
     for (const message of this.chatMessages) {
-      if (message instanceof ChatMessage && message.isDisplayable) count++;
+      if (message instanceof ChatMessage && message.isShownInChat) count++;
     }
     return count;
   }
@@ -233,13 +234,14 @@ export class ChatTab extends ObjectNode implements InnerXml {
   }
 
   /**
-   * Counts a new line the local user may see as unread, shows the portrait slot it speaks from
-   * again when it is said to everyone, and announces the message as added.
+   * Counts a new line the local user is shown as unread, shows the portrait slot it speaks from
+   * again when it is said to everyone, and announces the message as added. A line that arrives
+   * deleted, as one in a room read back may, is passed over like a whisper to somebody else.
    */
   override onChildAdded(child: ObjectNode) {
     super.onChildAdded(child);
     this.linesBySpeakerAndMoment = null;
-    if (child.parent === this && child instanceof ChatMessage && child.isDisplayable) {
+    if (child.parent === this && child instanceof ChatMessage && child.isShownInChat) {
       if (this.children.length === 1) {
         this._unreadLength = 1;
         this._displayableMessageNum = 1;

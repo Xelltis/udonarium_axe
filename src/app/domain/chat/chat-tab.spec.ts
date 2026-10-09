@@ -77,6 +77,15 @@ describe('ChatTab', () => {
       // difference between the two.
       expect(tab.displayableMessagesLength()).toBe(2);
     });
+
+    it('stops counting a line somebody else pseudo-deleted', () => {
+      const tab = new ChatTab();
+      tab.initialize();
+      tab.addMessage({ from: 'p1', text: '一言' }).pseudoDelete(1000);
+      tab.addMessage({ from: 'p1', text: '二言' });
+
+      expect(tab.countDisplayableMessages()).toBe(1);
+    });
   });
 
   describe('findRollSource()', () => {
@@ -322,6 +331,21 @@ describe('ChatTab', () => {
       tab.addMessage({ text: 'msg2', name: 'user1' });
       tab.addMessage({ text: 'msg3', name: 'user1' });
       expect(tab.unreadLength).toBe(3);
+    });
+
+    it('passes over a line that arrives deleted, as one in a room read back may', () => {
+      const tab = new ChatTab();
+      tab.initialize();
+      const deleted = new ChatMessage();
+      deleted.text = '消された発言';
+      deleted.pseudoDelete(1000);
+      deleted.initialize();
+
+      tab.appendChild(deleted);
+
+      expect(tab.unreadLength).toBe(0);
+      expect(tab.displayableMessagesLength()).toBe(0);
+      tab.destroy();
     });
 
     it('clears that count once they are read', () => {

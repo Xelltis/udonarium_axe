@@ -37,18 +37,18 @@ describe('chat-tab-scroll-helpers', () => {
 
   describe('findDisplayableTopIndex', () => {
     it('returns nothing when there is not enough to show', () => {
-      const messages = [{ isDisplayable: false }, { isDisplayable: true }] as ChatMessage[];
+      const messages = [{ isShownInChat: false }, { isShownInChat: true }] as ChatMessage[];
 
       expect(findDisplayableTopIndex(messages, 2)).toBe(-1);
     });
 
     it('counts back from the end to find the first line to show', () => {
       const messages = [
-        { isDisplayable: false },
-        { isDisplayable: true },
-        { isDisplayable: true },
-        { isDisplayable: false },
-        { isDisplayable: true },
+        { isShownInChat: false },
+        { isShownInChat: true },
+        { isShownInChat: true },
+        { isShownInChat: false },
+        { isShownInChat: true },
       ] as ChatMessage[];
 
       expect(findDisplayableTopIndex(messages, 2)).toBe(2);

@@ -461,6 +461,66 @@ describe('ChatLogExporter', () => {
     });
   });
 
+  describe('an after-the-fact whisper', () => {
+    const whisperedAfterwards = (overrides: Partial<ChatMessage> = {}) =>
+      createMockMessage({ from: 'user-A', to: 'user-C', text: 'あの人にだけ', ...overrides });
+
+    it('reaches the logs of its speaker and the one it was whispered to alone', () => {
+      const line = whisperedAfterwards();
+
+      expect(ChatLogExporter.isVisibleMessage(line, 'user-A')).toBe(true);
+      expect(ChatLogExporter.isVisibleMessage(line, 'user-C')).toBe(true);
+      expect(ChatLogExporter.isVisibleMessage(line, 'user-B')).toBe(false);
+    });
+
+    it('is not quoted in the log of somebody it was not whispered to', () => {
+      const answer = createMockMessage({
+        text: '返事',
+        replyTo: 'w',
+        replyToMessage: whisperedAfterwards(),
+        quoteOf: 'w',
+        quoteOfMessage: whisperedAfterwards(),
+      } as Partial<ChatMessage>);
+
+      const outsider = ChatLogExporter.formatMessageStandard(false, '', answer, 'user-B');
+      expect(outsider).not.toContain('あの人にだけ');
+      expect(outsider).not.toContain('<blockquote');
+      expect(ChatLogExporter.formatMessageStandard(false, '', answer, 'user-C')).toContain('あの人にだけ');
+    });
+  });
+
+  describe('a deleted line', () => {
+    const deleted = () => createMockMessage({ text: '言い間違い', isPseudoDeleted: true } as Partial<ChatMessage>);
+
+    it('is in everybody’s log, marked in both layouts', () => {
+      expect(ChatLogExporter.isVisibleMessage(deleted(), 'user-B')).toBe(true);
+      expect(ChatLogExporter.formatMessageStandard(false, '', deleted())).toContain('言い間違い (削除済)');
+      expect(ChatLogExporter.formatMessageCoc('メイン', deleted())).toContain('(削除済)');
+    });
+
+    it('is left out of tabs asked to be without such lines, leaving the rest and the tab as they were', () => {
+      const kept = createMockMessage({ text: '残る発言' });
+      const tab = { name: 'メイン', isSystemTab: false, chatMessages: [kept, deleted()] };
+
+      const [result] = ChatLogExporter.withoutDeleted([tab]);
+
+      expect(result.name).toBe('メイン');
+      expect(result.isSystemTab).toBe(false);
+      expect(result.chatMessages).toEqual([kept]);
+      expect(tab.chatMessages).toHaveLength(2);
+    });
+
+    it('is not quoted in the lines that answer it', () => {
+      const answer = createMockMessage({
+        text: '返事',
+        quoteOf: 'd',
+        quoteOfMessage: deleted(),
+      } as Partial<ChatMessage>);
+
+      expect(ChatLogExporter.formatMessageStandard(false, '', answer)).not.toContain('言い間違い');
+    });
+  });
+
   describe('exportTabHtml', () => {
     it('writes the log out', () => {
       const msg = createMockMessage({ name: 'GM', text: '開始' });

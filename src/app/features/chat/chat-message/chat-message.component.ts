@@ -1,4 +1,4 @@
-import { DatePipe, NgClass, NgStyle } from '@angular/common';
+import { DatePipe, NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -14,6 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
@@ -26,7 +27,8 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -34,6 +36,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -43,7 +46,10 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
-import { buildChatMessageContextMenu } from '@axe/features/chat/chat-message/chat-message-context-menu';
+import {
+  buildChatBookmarkMenu,
+  buildChatMessageContextMenu,
+} from '@axe/features/chat/chat-message/chat-message-context-menu';
 import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-message/chat-readable-text';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
@@ -54,6 +60,12 @@ import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** How long a line stays lit after a jump to it, before it fades back. */
+const LINE_FLASH_MS = 1800;
+
+/** The kinds of mark a line can carry, in the order they are offered. */
+const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
 
 @Component({
   selector: 'chat-message',
@@ -67,6 +79,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [
     NgClass,
     NgStyle,
+    NgTemplateOutlet,
     DatePipe,
     FormsModule,
     LinkifyPipe,
@@ -81,6 +94,7 @@ export class ChatMessageComponent {
   protected readonly skins = inject(SkinService);
 
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly chatBookmarks = inject(ChatBookmarkService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
@@ -98,6 +112,7 @@ export class ChatMessageComponent {
   private readonly systemAvatarMenu = inject(SystemAvatarMenuService);
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly contextMenuService = inject(ContextMenuService);
+  private readonly confirm = inject(ConfirmService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly viewport = inject(ViewportService);
 
@@ -159,6 +174,46 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(chatMessage.identifier)();
     return chatMessage.isDirect;
   });
+
+  /**
+   * The marks on the line, the room's and this reader's own, each by the name it shows under, or null
+   * for a kind the line does not carry.
+   */
+  readonly bookmarks = computed<Record<ChatBookmarkKind, { name: string } | null>>(() => {
+    const chatMessage = this.chatMessageInput();
+    if (!chatMessage) return { shared: null, personal: null };
+    this.objectChange.versionOf(chatMessage.identifier)();
+    const markOf = (kind: ChatBookmarkKind) =>
+      this.chatBookmarks.isBookmarked(chatMessage, kind)
+        ? { name: this.chatBookmarks.nameOf(chatMessage, kind) }
+        : null;
+    return { shared: markOf('shared'), personal: markOf('personal') };
+  });
+
+  /** Every wording the line has had, oldest first, or none where no earlier wording was kept. */
+  readonly versions = computed(() => {
+    const chatMessage = this.chatMessageInput();
+    if (!chatMessage) return [];
+    this.objectChange.versionOf(chatMessage.identifier)();
+    this.objectChange.trackMyCursor();
+    // Words kept from this reader, as a secret roll's are, are kept from them in every wording.
+    if (isChatTextHidden(chatMessage, this.canRevealSecret)) return [];
+    return chatMessage.versions;
+  });
+
+  /** Whether the line's history of edits is open under it. */
+  readonly isHistoryOpen = signal(false);
+
+  /** Opens the line's history of edits under it, or closes it, from the edited mark or the line's menu. */
+  toggleHistory(): void {
+    if (this.versions().length === 0) return;
+    this.isHistoryOpen.update((open) => !open);
+  }
+
+  /** An earlier wording of the line as HTML, with markup escaped and the chat's decorations applied. */
+  protected decorateVersion(text: string): string {
+    return decorateChatStyleText(text);
+  }
 
   readonly isEdited = computed(() => {
     const chatMessage = this.chatMessageInput();
@@ -248,16 +303,43 @@ export class ChatMessageComponent {
     if (picked.reachesLine && !this.viewport.isTouch()) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
-    const actions = buildChatMessageContextMenu(
+    const actions = this.lineActions(picked.inside);
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name), {
+      forGuests: true,
+    });
+  }
+
+  /**
+   * Everything that can be done with the line, as the menu offers it: what a right click or a press
+   * held on the line opens, and the toolbar's last button. `selectedText` is the words picked out
+   * inside the line, copied in place of all of it; empty where none are.
+   *
+   * Each item is offered only to whoever may do it, so the menu is opened for a guest too, who finds
+   * in it what a guest may do: copying the words, keeping marks of their own, reading round the line.
+   */
+  private lineActions(selectedText: string): ContextMenuAction[] {
+    const message = this.chatMessage;
+    return buildChatMessageContextMenu(
       {
         canInteract: this.canInteract,
         canShareAsMemo: this.canShareAsMemo,
         canChange: this.canChange,
+        afterWhisperTargets: this.canMakeAfterWhisper
+          ? this.whisperTargets().map((peer) => ({ identifier: peer.identifier, name: peer.name }))
+          : null,
+        bookmarkKinds: this.bookmarkKinds(),
+        canUndoAfterWhisper: this.canUndoAfterWhisper,
+        canPseudoDelete: this.canPseudoDelete,
         canShowInTicker: this.canShowInTicker(),
         copyTargets: this.canCopyToTab ? this.copyTargets() : [],
-        hasOriginal: !!(message.replyTo || message.quoteOf),
+        hasOriginal: !!(this.replyPreview() || this.quotePreview()),
+        hasHistory: this.versions().length > 0,
+        isHistoryOpen: this.isHistoryOpen(),
         text: this.readableText(message),
-        selectedText: picked.inside,
+        selectedText,
         isTouch: this.viewport.isTouch(),
       },
       {
@@ -269,17 +351,73 @@ export class ChatMessageComponent {
         },
         shareAsMemo: () => this.clickShareAsMemo(),
         edit: () => this.startEdit(),
+        whisperTo: (identifier) => {
+          const peer = this.whisperTargets().find((candidate) => candidate.identifier === identifier);
+          if (peer) this.whisperTo(peer);
+        },
+        toggleBookmark: (kind) => this.toggleBookmark(kind),
+        undoAfterWhisper: () => this.undoAfterWhisper(),
+        pseudoDelete: () => void this.pseudoDelete(),
         showInTicker: () => this.clickShowInTicker(),
-        jumpToOriginal: () => (message.replyTo ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
+        toggleHistory: () => this.toggleHistory(),
+        jumpToOriginal: () => (this.replyPreview() ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
         copyText: (text) => this.copyText(text),
         selectText: () => this.selectText(),
       },
       this.t
     );
+  }
+
+  /** The kinds of mark the reader may put on the line or take off, with whether it carries each. */
+  private bookmarkKinds(): { kind: ChatBookmarkKind; isBookmarked: boolean }[] {
+    return BOOKMARK_KINDS.filter((kind) => this.canBookmark(kind)).map((kind) => ({
+      kind,
+      isBookmarked: !!this.bookmarks()[kind],
+    }));
+  }
+
+  /**
+   * The answers the toolbar over the line offers at once, or null where it offers nothing: a line
+   * only to be read, a line being edited, or one nothing can be done with.
+   *
+   * Deleting stands there beside editing, both being what the speaker does to their own line; it
+   * asks before it deletes, so having it at hand does not make it easy to do by mistake.
+   */
+  protected toolbarActions(): { answer: boolean; bookmark: boolean; edit: boolean; delete: boolean } | null {
+    const message = this.chatMessage;
+    if (!message || this.readOnly() || this.isEditing()) return null;
+    const actions = {
+      answer: this.canInteract,
+      bookmark: this.canBookmarkAny,
+      edit: this.canChange,
+      delete: this.canPseudoDelete,
+    };
+    // Asked of every drawn line on every pass, so it is told from these few answers rather than by
+    // building the menu: the menu holds at least the words of any line whose words are shown.
+    const words = !isChatTextHidden(message, this.canRevealSecret) && (message.text ?? '').trim().length > 0;
+    return actions.answer || actions.bookmark || actions.edit || actions.delete || words ? actions : null;
+  }
+
+  /** Opens everything that can be done with the line under the toolbar's last button. */
+  protected openMoreMenu(event: MouseEvent): void {
+    const actions = this.lineActions('');
     if (actions.length === 0) return;
-    event.preventDefault();
+    this.openMenuUnder(event, actions, this.displayName(this.chatMessage.name));
+  }
+
+  /** Opens the choice of the room's mark and the reader's own under the toolbar's bookmark button. */
+  protected openBookmarkMenu(event: MouseEvent): void {
+    const actions = buildChatBookmarkMenu(this.bookmarkKinds(), (kind) => this.toggleBookmark(kind), this.t);
+    if (actions.length === 0) return;
+    this.openMenuUnder(event, actions, this.t('feature.chat.message.bookmarks.button'));
+  }
+
+  private openMenuUnder(event: MouseEvent, actions: ContextMenuAction[], title: string): void {
     event.stopPropagation();
-    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name));
+    const button = event.currentTarget instanceof Element ? event.currentTarget : null;
+    const box = button?.getBoundingClientRect();
+    const at = box ? { x: box.left, y: box.bottom + 2 } : this.pointerDeviceService.pointers[0];
+    this.contextMenuService.open(at, actions, title, { forGuests: true });
   }
 
   /**
@@ -450,7 +588,8 @@ export class ChatMessageComponent {
    * Writes the draft back to the message and closes the editor.
    *
    * Trailing space is dropped, and a draft left empty is treated as a cancel. A change marks the line
-   * as edited and reaches the room through the synced message; an unchanged draft writes nothing.
+   * as edited, keeps what it said before in its history, and reaches the room through the synced
+   * message; an unchanged draft writes nothing.
    */
   saveEdit() {
     const draft = this.editDraft();
@@ -463,11 +602,7 @@ export class ChatMessageComponent {
     // A line said before the staging was kept apart still carries it at the end. Editing the
     // body would take it away with the rest of the suffix, so it moves beside the line first.
     const staging = encodeVnEmote(vnEmoteOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    if (this.chatMessage.text !== next || this.chatMessage.vnEmote !== staging) {
-      this.chatMessage.text = next;
-      if (staging.length > 0) this.chatMessage.vnEmote = staging;
-      this.chatMessage.fixd = true;
-    }
+    this.chatMessage.edit(next, staging, this.chatMessageService.getTime());
     this.editDraft.set(null);
   }
 
@@ -517,7 +652,9 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(msg.identifier)();
     this.objectChange.versionOf(msg.replyTo)();
     const target = msg.replyToMessage;
-    if (!target) return null;
+    // A line kept from the reader's chat, a whisper they were not part of or a deleted one, is not
+    // shown through an answer to it.
+    if (!target || !target.isShownInChat) return null;
     const text = vnBodyOf(target.vnEmote, target.text ?? '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -533,7 +670,7 @@ export class ChatMessageComponent {
     this.objectChange.versionOf(msg.identifier)();
     this.objectChange.versionOf(msg.quoteOf)();
     const target = this.objectStore.get<ChatMessage>(msg.quoteOf);
-    if (!(target instanceof ChatMessage)) return null;
+    if (!(target instanceof ChatMessage) || !target.isShownInChat) return null;
     const text = vnBodyOf(target.vnEmote, target.text ?? '').trim();
     return {
       name: target.name ?? '',
@@ -559,6 +696,9 @@ export class ChatMessageComponent {
   readonly canShowInTicker = computed(() => {
     // A window that only reads the log offers none of the buttons that act on a line.
     if (this.readOnly()) return false;
+    // The band runs round everybody's table, which a guest is there to watch, not to change.
+    this.objectChange.trackMyCursor();
+    if (!this.rolePermission.canEditTabletop) return false;
 
     // Only where the band is actually drawn, which is a table looked straight down on.
     if (!this.tabletopService.mode2d()) return false;
@@ -586,6 +726,81 @@ export class ChatMessageComponent {
     if (!this.canInteract) return;
     if (this.compose) this.compose.requestQuote(this.chatMessage.identifier);
     else this.uiSignalService.requestChatQuote(this.chatMessage.identifier);
+  }
+
+  /** Whether this reader may put a mark of the kind on the line, or take it off. */
+  canBookmark(kind: ChatBookmarkKind): boolean {
+    if (this.readOnly()) return false;
+    const message = this.chatMessage;
+    return !!message && this.chatBookmarks.canBookmark(message, kind);
+  }
+
+  /** Whether the bookmark button is offered: the reader may mark the line with one kind or the other. */
+  get canBookmarkAny(): boolean {
+    return BOOKMARK_KINDS.some((kind) => this.canBookmark(kind));
+  }
+
+  /** Marks the line with the kind to find again, or takes that mark off, from the choice or the line's menu. */
+  toggleBookmark(kind: ChatBookmarkKind): void {
+    if (!this.canBookmark(kind)) return;
+    this.chatBookmarks.toggle(this.chatMessage, kind);
+  }
+
+  /** Whether this reader may make the line an after-the-fact whisper, which they may of a line they said. */
+  get canMakeAfterWhisper(): boolean {
+    if (this.readOnly()) return false;
+    const message = this.chatMessage;
+    return !!message && this.chatMessageService.canMakeAfterWhisper(message);
+  }
+
+  /** Whether this reader may put the line, which they made an after-the-fact whisper, back for everyone. */
+  get canUndoAfterWhisper(): boolean {
+    if (this.readOnly()) return false;
+    const message = this.chatMessage;
+    return !!message && this.chatMessageService.canUndoAfterWhisper(message);
+  }
+
+  /**
+   * The seats the line could be whispered to afterwards: everyone in the room but this reader who
+   * may read the tab it is in.
+   */
+  whisperTargets(): PeerCursor[] {
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
+    return this.chatMessageService.afterWhisperCandidates(this.chatMessage);
+  }
+
+  /** Makes the line an after-the-fact whisper to the seat chosen, from the list or the line's menu. */
+  whisperTo(peer: PeerCursor): void {
+    if (!this.canMakeAfterWhisper) return;
+    this.chatMessageService.makeAfterWhisper(this.chatMessage, peer);
+  }
+
+  /** Puts an after-the-fact whisper back for everyone, from the list or the line's menu. */
+  undoAfterWhisper(): void {
+    if (!this.canUndoAfterWhisper) return;
+    this.chatMessageService.undoAfterWhisper(this.chatMessage);
+  }
+
+  /** Whether this reader may delete the line, which they may of a line they said. */
+  get canPseudoDelete(): boolean {
+    if (this.readOnly()) return false;
+    const message = this.chatMessage;
+    return !!message && this.chatMessageService.canPseudoDelete(message);
+  }
+
+  /**
+   * Deletes the line from everybody's chat, leaving it in the log, from its button or the line's
+   * menu. There is no putting it back, so the reader is asked first.
+   */
+  async pseudoDelete(): Promise<void> {
+    if (!this.canPseudoDelete) return;
+    const message = this.chatMessage;
+    const sure = await this.confirm.ask({
+      message: this.t('feature.chat.message.deleteLineConfirm'),
+      okLabel: this.t('feature.chat.message.deleteLine'),
+      danger: true,
+    });
+    if (sure) this.chatMessageService.pseudoDelete(message);
   }
 
   /** Puts this line in the ticker running round the table, where that ticker is shown at all. */
@@ -616,8 +831,6 @@ export class ChatMessageComponent {
     return this.canInteract && this.rolePermission.canEditTabletop;
   }
 
-  readonly isCopyPickerOpen = signal(false);
-
   /**
    * The tabs this line could be said again in.
    *
@@ -645,19 +858,12 @@ export class ChatMessageComponent {
     return this.canInteract && this.copyTargets().length > 0;
   }
 
-  /** Opens or closes the list of tabs to copy the line into, from the copy button. */
-  toggleCopyPicker(): void {
-    if (!this.canCopyToTab) return;
-    this.isCopyPickerOpen.update((open) => !open);
-  }
-
   /**
    * Posts a copy of this line into another tab, closing the tab list and playing the card sound.
    *
    * Nothing is sent when the line may not be copied or this player's role may not speak in that tab.
    */
   copyToTab(tab: ChatTab): void {
-    this.isCopyPickerOpen.set(false);
     if (!this.canCopyToTab) return;
     const message = this.chatMessage;
     if (!message) return;
@@ -712,14 +918,22 @@ export class ChatMessageComponent {
       // synchronously inside the same effect cycle.
       this.uiSignalService.clearChatJump();
       this.hostElement.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      this.isHighlighted.set(true);
-      if (this.highlightTimer) clearTimeout(this.highlightTimer);
-      this.highlightTimer = setTimeout(() => {
-        this.isHighlighted.set(false);
-        this.highlightTimer = null;
-      }, 1800);
+      this.flash();
     });
   });
+
+  /**
+   * Lights the line up for a moment, as a jump to it does. Lit again before it has faded, it stays
+   * lit for the whole moment from then.
+   */
+  flash(): void {
+    this.isHighlighted.set(true);
+    if (this.highlightTimer) clearTimeout(this.highlightTimer);
+    this.highlightTimer = setTimeout(() => {
+      this.isHighlighted.set(false);
+      this.highlightTimer = null;
+    }, LINE_FLASH_MS);
+  }
 
   /** The speaker's name as shown, translated for a system line and redrawn when the language changes. */
   displayName(name: string): string {

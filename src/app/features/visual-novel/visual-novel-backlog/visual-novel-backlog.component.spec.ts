@@ -112,6 +112,22 @@ describe('VisualNovelBacklogComponent', () => {
     expect(message.imagePos).toBe(2);
     expect(message.fixd).toBe(true);
     expect(component.editingIdentifier()).toBe('');
+    // What it said before is kept, as an edit in the chat keeps it.
+    expect(message.versions.map((version) => version.text)).toEqual(['やあ', 'こんばんは']);
+  });
+
+  it('takes the staging off a line when it is all taken away, keeping the words as they were', () => {
+    addMessage('やあ 〔叫び〕', 'アリス', { imageIdentifier: addImage() });
+    createComponent();
+
+    component.startEditEntry(component.entries()[0]);
+    component.editShape.set('normal');
+    component.saveEditEntry();
+
+    const message = TestBed.inject(VisualNovelPlaybackService).messages()[0];
+    expect(message.text).toBe('やあ');
+    expect(message.vnEmote).toBe('');
+    expect(message.versions).toEqual([]);
   });
 
   it('adds and removes a flip', () => {

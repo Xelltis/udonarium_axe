@@ -27,6 +27,7 @@ import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/
 import { copiedMessageContext } from '@axe/domain/chat/chat-message-copy';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
@@ -561,6 +562,71 @@ export class ChatMessageService {
     if (!(chatTab instanceof ChatTab)) return;
     message.disclosedAt = this.calcTimeStamp(chatTab);
     chatTab.appendChild(message);
+  }
+
+  /**
+   * Whether this reader may make the line an after-the-fact whisper, or whisper one to somebody
+   * else: they said it to everyone, and it is not a notice from the tool.
+   *
+   * A dice result is the dice bot's line, so a roll stays where the table saw it, and a line
+   * whispered from the start is a whisper already.
+   */
+  canMakeAfterWhisper(message: ChatMessage): boolean {
+    if (message.isDirect && !message.isAfterWhisper) return false;
+    return message.changeable;
+  }
+
+  /** Whether this reader may put a line they made an after-the-fact whisper back where it was. */
+  canUndoAfterWhisper(message: ChatMessage): boolean {
+    return message.isAfterWhisper && message.changeable;
+  }
+
+  /**
+   * The seats a line can be whispered to afterwards: everyone in the room but this reader, who said
+   * it and keeps it either way, and but those whose role may not read the tab it is in, who could
+   * never see it.
+   */
+  afterWhisperCandidates(message: ChatMessage): PeerCursor[] {
+    const me = PeerCursor.myCursor;
+    const tab = message.parent;
+    return this.objectStore
+      .getObjects(PeerCursor)
+      .filter((peer) => peer !== me && !!peer.userId)
+      .filter((peer) => !(tab instanceof ChatTab) || canRoleViewTab(tab, peer.role));
+  }
+
+  /**
+   * Makes a line an after-the-fact whisper to one seat, which with the speaker are then the only ones
+   * it reaches. Does nothing for a line this reader may not, or for a seat not in the room.
+   */
+  makeAfterWhisper(message: ChatMessage, peer: PeerCursor): void {
+    if (!this.canMakeAfterWhisper(message)) return;
+    if (!this.afterWhisperCandidates(message).includes(peer)) return;
+    message.makeAfterWhisper(peer.userId, peer.name, this.getTime());
+  }
+
+  /** Puts an after-the-fact whisper back where it was. Does nothing for a line this reader may not put back. */
+  undoAfterWhisper(message: ChatMessage): void {
+    if (!this.canUndoAfterWhisper(message)) return;
+    message.undoAfterWhisper();
+  }
+
+  /**
+   * Whether this reader may delete the line: they said it, and it is not a notice from the tool. A
+   * dice result is the dice bot's line, so a roll stays where the table saw it.
+   */
+  canPseudoDelete(message: ChatMessage): boolean {
+    return !message.isPseudoDeleted && message.changeable;
+  }
+
+  /**
+   * Deletes a line from everybody's chat as though it had never been said, leaving it in the room's
+   * data and its log; it is a pseudo-deletion, which is not put back. Does nothing for a line this
+   * reader may not delete.
+   */
+  pseudoDelete(message: ChatMessage): void {
+    if (!this.canPseudoDelete(message)) return;
+    message.pseudoDelete(this.getTime());
   }
 
   /**

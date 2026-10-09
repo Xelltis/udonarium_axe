@@ -2906,6 +2906,32 @@
         "newer": "Later line (Shift+Enter)",
         "close": "Close (Esc)"
       },
+      "bookmark": {
+        "button": "Bookmarks",
+        "open": "Bookmarks",
+        "title": "Bookmarks",
+        "filter": "Bookmarks to show",
+        "filters": {
+          "all": "All",
+          "shared": "Shared",
+          "personal": "Personal"
+        },
+        "kinds": {
+          "shared": "Shared",
+          "personal": "Personal"
+        },
+        "close": "Close (Esc)",
+        "jump": "Go to this line",
+        "rename": "Rename",
+        "renamePlaceholder": "Title (leave empty for the line’s opening words)",
+        "renameHint": "Enter to save / Esc to cancel",
+        "remove": "Remove bookmark",
+        "empty": {
+          "all": "No bookmarks yet. Bookmark a line with its bookmark button or from its right-click (long-press) menu. Shared bookmarks are for everyone in the room, personal ones for you alone.",
+          "shared": "No shared bookmarks yet. Everyone in the room sees these.",
+          "personal": "No personal bookmarks yet. Only you see these, and they are kept in this browser."
+        }
+      },
       "input": {
         "you": " (you)",
         "everyone": "Everyone",
@@ -2953,7 +2979,42 @@
         "ticker": "Ticker",
         "copyToTab": "Copy to another tab",
         "copyText": "Copy text",
-        "selectText": "Select text"
+        "selectText": "Select text",
+        "afterWhisper": "Whisper it afterwards",
+        "afterWhisperTo": "Whisper to",
+        "afterWhisperNobody": "Whisper it afterwards (nobody else is here)",
+        "undoAfterWhisper": "Undo the whisper and show it to everyone",
+        "deleteLine": "Delete",
+        "deleteLineHint": "Delete (it leaves everyone’s screen but stays in the log)",
+        "deleteLineConfirm": "Delete this line? It leaves everyone’s screen and cannot be brought back. It stays in the log.",
+        "bookmarks": {
+          "button": "Bookmark",
+          "shared": {
+            "add": "Add a shared bookmark",
+            "remove": "Remove the shared bookmark",
+            "marked": "Shared bookmark",
+            "markedAs": "Shared bookmark: {{name}}"
+          },
+          "personal": {
+            "add": "Add a personal bookmark",
+            "remove": "Remove the personal bookmark",
+            "marked": "Personal bookmark",
+            "markedAs": "Personal bookmark: {{name}}"
+          }
+        },
+        "history": {
+          "open": "View edit history",
+          "close": "Close edit history",
+          "title": "Edit history",
+          "original": "As first said",
+          "edit": "Edit {{count}}",
+          "beforeKept": "As edited before edits were kept",
+          "editUncounted": "Edited",
+          "current": "Now"
+        },
+        "actions": "Line actions",
+        "more": "More actions",
+        "edit": "Edit"
       },
       "stream": {
         "title": "Message stream",
@@ -3076,6 +3137,8 @@
         "previewFrameTitle": "Sample of the exported log",
         "previewLimited": "Showing the latest {{count}} lines. Saving writes out the whole tab.",
         "previewSample": "Nothing has been said yet, so a sample conversation is shown.",
+        "omitDeleted": "Leave deleted lines out of the log",
+        "omitDeletedHint": "Deleted lines are left out of the saved log",
         "styles": {
           "standard": {
             "name": "Standard",
@@ -3145,6 +3208,7 @@
         "labels": {
           "secret": "Secret dice",
           "edited": "edited",
+          "pseudoDeleted": "deleted",
           "quote": "Quote",
           "reply": "Reply to",
           "critical": "Critical",

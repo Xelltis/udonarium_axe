@@ -52,6 +52,8 @@ export class ChatTickerComponent {
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
 
   private readonly currentText = signal('');
+  /** The line the ticker is running, so it stops once that line may no longer run there. */
+  private currentIdentifier: string | null = null;
   private readonly seenMessageIdentifiers = new Set<string>();
   private cycleStartedAt: number | null = null;
   private animationFrame: number | null = null;
@@ -70,6 +72,18 @@ export class ChatTickerComponent {
       if (message instanceof ChatMessage) this.replaceMessage(message);
     }, this.destroyRef);
 
+    // A line pseudo-deleted or whispered afterwards while it runs is taken off the ticker, as it is
+    // taken out of the chat.
+    this.objectChange.onObjectChangedForAlias(
+      [ChatMessage.aliasName],
+      (event) => {
+        if (event.identifier !== this.currentIdentifier) return;
+        const message = this.objectStore.get<ChatMessage>(event.identifier);
+        if (!(message instanceof ChatMessage) || !formatChatTickerMessage(message)) this.clearMessage();
+      },
+      this.destroyRef
+    );
+
     effect(() => {
       const visible = this.isVisible();
       afterNextRender(() => (visible ? this.startAnimation() : this.stopAnimation()), { injector: this.injector });
@@ -86,8 +100,15 @@ export class ChatTickerComponent {
     // Waiting for that lap would make replacements look lost, so a selected or newly posted
     // public message becomes the ticker text on the next animation frame.
     this.currentText.set(text);
+    this.currentIdentifier = message.identifier;
     this.cycleStartedAt = null;
     if (this.isVisible()) this.startAnimation();
+  }
+
+  private clearMessage(): void {
+    this.currentText.set('');
+    this.currentIdentifier = null;
+    this.cycleStartedAt = null;
   }
 
   private startAnimation(): void {

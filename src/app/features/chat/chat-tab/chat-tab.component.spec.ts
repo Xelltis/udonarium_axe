@@ -428,5 +428,40 @@ describe('ChatTabComponent', () => {
       expect(await component.reveal(whispered)).toBeNull();
       other.destroy();
     });
+
+    it('lights up the line asked for where it is drawn', () => {
+      const target = chatTab.chatMessages[119];
+      const line = () =>
+        (fixture.nativeElement as HTMLElement).querySelector(`chat-message[data-message-id="${target.identifier}"]`)!;
+
+      component.flash(target);
+      fixture.detectChanges();
+
+      expect(line().classList).toContain('chat-message-highlight');
+    });
+
+    it('stops drawing a line once it is deleted, and hands back nothing for it', async () => {
+      const target = chatTab.chatMessages[119];
+      expect(drawn()).toContain(target.identifier);
+
+      target.pseudoDelete(5000);
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(drawn()).not.toContain(target.identifier);
+      expect(await component.reveal(target)).toBeNull();
+    });
+
+    it('stops drawing a line the reader deleted themselves too', async () => {
+      const mine = chatTab.addMessage({ from: 'reader', name: '自分', text: '言い間違い', timestamp: 999 });
+      fixture.detectChanges();
+      expect(drawn()).toContain(mine.identifier);
+
+      mine.pseudoDelete(5000);
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(drawn()).not.toContain(mine.identifier);
+    });
   });
 });

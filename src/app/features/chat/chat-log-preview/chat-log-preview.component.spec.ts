@@ -1,5 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CHAT_LOG_STYLE_STORAGE_KEY } from '@axe/application/chat/chat-log-style-preference.service';
+import {
+  CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
+  CHAT_LOG_STYLE_STORAGE_KEY,
+} from '@axe/application/chat/chat-log-style-preference.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -8,6 +11,7 @@ import {
   CHAT_LOG_PREVIEW_LIMIT,
   ChatLogPreviewComponent,
 } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatLogPreviewComponent', () => {
@@ -38,6 +42,7 @@ describe('ChatLogPreviewComponent', () => {
 
   beforeEach(() => {
     localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
+    localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
     TestBed.configureTestingModule({ imports: [ChatLogPreviewComponent], providers: [...TEST_PROVIDERS] });
     saveData = TestBed.inject(SaveDataService);
     vi.spyOn(saveData, 'prepareChatLogImages').mockResolvedValue({ resolver: () => '', registryScript: '' });
@@ -48,6 +53,7 @@ describe('ChatLogPreviewComponent', () => {
   afterEach(() => {
     for (const tab of tabs.splice(0)) tab.destroy();
     localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
+    localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
     vi.restoreAllMocks();
   });
 
@@ -116,7 +122,41 @@ describe('ChatLogPreviewComponent', () => {
 
     await component.save();
 
-    expect(spy).toHaveBeenCalledWith('eerie', 'tab', [tab], 'メイン');
+    expect(spy).toHaveBeenCalledWith('eerie', 'tab', [tab], 'メイン', { omitDeleted: false });
+  });
+
+  describe('a deleted line', () => {
+    beforeEach(() => beMyself('me'));
+
+    function tabWithDeletedLine(): ChatTab {
+      const tab = addTab('メイン', 0);
+      tab.addMessage({ from: 'me', name: '自分', text: '残す発言', timestamp: 1000 });
+      tab.addMessage({ from: 'someone', name: '誰か', text: '消した発言', timestamp: 2000 }).pseudoDelete(3000);
+      return tab;
+    }
+
+    it('is in the log until the reader asks for it to be left out', async () => {
+      component.tab.set(tabWithDeletedLine());
+
+      const html = await shown();
+
+      expect(html).toContain('消した発言');
+      expect(html).toContain('(削除済)');
+    });
+
+    it('is left out of the preview and the save once the reader asks', async () => {
+      const tab = tabWithDeletedLine();
+      component.tab.set(tab);
+      component.setOmitDeleted(true);
+
+      const html = await shown();
+      expect(html).toContain('残す発言');
+      expect(html).not.toContain('消した発言');
+
+      const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
+      await component.save();
+      expect(spy.mock.calls[0][4]).toEqual({ omitDeleted: true });
+    });
   });
 
   it('saves every tab when they are all on show', async () => {

@@ -2906,6 +2906,32 @@
         "newer": "次の発言へ（Shift+Enter）",
         "close": "閉じる（Esc）"
       },
+      "bookmark": {
+        "button": "しおり",
+        "open": "しおりの一覧",
+        "title": "しおり",
+        "filter": "表示するしおり",
+        "filters": {
+          "all": "すべて",
+          "shared": "共有",
+          "personal": "個人"
+        },
+        "kinds": {
+          "shared": "共有",
+          "personal": "個人"
+        },
+        "close": "閉じる（Esc）",
+        "jump": "この発言へ移動",
+        "rename": "題名を変える",
+        "renamePlaceholder": "題名（空にすると発言の書き出し）",
+        "renameHint": "Enter で確定 / Esc で取消",
+        "remove": "しおりを外す",
+        "empty": {
+          "all": "しおりはまだありません。発言のしおりボタンか、右クリック（長押し）のメニューで挟めます。共有しおりは部屋の全員で、個人しおりはあなただけが使います。",
+          "shared": "共有しおりはまだありません。部屋の全員に見えるしおりです。",
+          "personal": "個人しおりはまだありません。あなただけに見え、このブラウザに保存されます。"
+        }
+      },
       "input": {
         "you": "（あなた）",
         "everyone": "全員",
@@ -2953,7 +2979,42 @@
         "ticker": "ティッカー",
         "copyToTab": "別のタブにコピー",
         "copyText": "本文をコピー",
-        "selectText": "文字を選ぶ"
+        "selectText": "文字を選ぶ",
+        "afterWhisper": "あとから秘話にする",
+        "afterWhisperTo": "秘話の相手",
+        "afterWhisperNobody": "あとから秘話にする（相手がいません）",
+        "undoAfterWhisper": "あとから秘話をやめて全員に戻す",
+        "deleteLine": "削除",
+        "deleteLineHint": "削除（全員の画面から消えます。ログには残ります）",
+        "deleteLineConfirm": "この発言を削除しますか？全員の画面から消え、元に戻せません。ログには残ります。",
+        "bookmarks": {
+          "button": "しおり",
+          "shared": {
+            "add": "共有しおりを挟む",
+            "remove": "共有しおりを外す",
+            "marked": "共有しおり",
+            "markedAs": "共有しおり：{{name}}"
+          },
+          "personal": {
+            "add": "個人しおりを挟む",
+            "remove": "個人しおりを外す",
+            "marked": "個人しおり",
+            "markedAs": "個人しおり：{{name}}"
+          }
+        },
+        "history": {
+          "open": "編集履歴を見る",
+          "close": "編集履歴を閉じる",
+          "title": "編集履歴",
+          "original": "最初の発言",
+          "edit": "{{count}}回目の編集",
+          "beforeKept": "履歴を残す前に編集された文面",
+          "editUncounted": "編集",
+          "current": "現在"
+        },
+        "actions": "発言の操作",
+        "more": "その他の操作",
+        "edit": "編集"
       },
       "stream": {
         "title": "発言の流れ",
@@ -3076,6 +3137,8 @@
         "previewFrameTitle": "書き出されるログの見本",
         "previewLimited": "直近 {{count}} 件で表示しています。保存するとタブ全体が書き出されます。",
         "previewSample": "まだ発言がないため、見本の会話で表示しています。",
+        "omitDeleted": "削除した発言をログに出力しない",
+        "omitDeletedHint": "削除した発言を、保存するログから外します",
         "styles": {
           "standard": {
             "name": "標準",
@@ -3145,6 +3208,7 @@
         "labels": {
           "secret": "シークレットダイス",
           "edited": "編集済",
+          "pseudoDeleted": "削除済",
           "quote": "引用",
           "reply": "返信先",
           "critical": "クリティカル",

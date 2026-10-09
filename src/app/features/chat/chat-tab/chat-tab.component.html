@@ -6,7 +6,7 @@
   <div class="w-full shrink-0" [style.marginBottom.px]="bottomSpace" #messageContainer>
     @if (chatMessages.length) {
       @for (chatMessage of chatMessages; track trackByChatMessage($index, chatMessage)) {
-        @if (chatMessage.isDisplayable) {
+        @if (chatMessage.isShownInChat) {
           <chat-message
             [chatMessage]="chatMessage"
             [simpleDispFlagTime]="!!chatTabList?.simpleDispFlagTime"

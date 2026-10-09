@@ -84,6 +84,14 @@ describe('chat search', () => {
       expect(findChatSearchHits(tab.chatMessages, chatSearchQuery('ゴブリン'), textOf)).toEqual([toMe]);
     });
 
+    it('leave out a deleted line, whoever deleted it', () => {
+      say('ゴブリンを見た気がする').pseudoDelete(1000);
+      say('ゴブリンは見間違い', { from: 'reader' }).pseudoDelete(1000);
+      const kept = say('ゴブリンが逃げた');
+
+      expect(findChatSearchHits(tab.chatMessages, chatSearchQuery('ゴブリン'), textOf)).toEqual([kept]);
+    });
+
     it('can be found by the name they are shown under', () => {
       const line = say('こんにちは');
 

@@ -14,6 +14,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatWindowComponent } from '@axe/features/chat/chat-window/chat-window.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -661,6 +662,83 @@ describe('ChatWindowComponent', () => {
       button.click();
       await fixture.whenStable();
       expect(searchBox()).toBeNull();
+    });
+  });
+
+  describe('going back to a marked line', () => {
+    const tabs: ChatTab[] = [];
+    const byTestId = (id: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-testid="${id}"]`);
+
+    function addTab(name: string): ChatTab {
+      const tab = ChatTabList.instance.addChatTab(name);
+      tabs.push(tab);
+      return tab;
+    }
+
+    beforeEach(() => {
+      document.body.appendChild(fixture.nativeElement);
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      for (const tab of tabs.splice(0)) tab.destroy();
+      (fixture.nativeElement as HTMLElement).remove();
+      vi.restoreAllMocks();
+    });
+
+    it('opens the list from its button in place of the search, and closes it again', async () => {
+      component.openSearch();
+      await fixture.whenStable();
+
+      byTestId('chat-bookmarks-toggle')!.click();
+      await fixture.whenStable();
+      expect(component.searchOpen()).toBe(false);
+      expect(byTestId('chat-bookmarks')).not.toBeNull();
+      expect(byTestId('chat-bookmarks-empty')).not.toBeNull();
+
+      byTestId('chat-bookmarks-close')!.click();
+      await fixture.whenStable();
+      expect(byTestId('chat-bookmarks')).toBeNull();
+    });
+
+    it('closes the list when the search is opened', async () => {
+      component.toggleBookmarks();
+      await fixture.whenStable();
+
+      component.openSearch();
+      await fixture.whenStable();
+
+      expect(component.bookmarksOpen()).toBe(false);
+    });
+
+    it('counts the marks on its button', async () => {
+      const tab = addTab('メイン');
+      tab.addMessage({ from: 'someone', name: 'ノア', text: '証言A', timestamp: 1000 }).bookmark(1000);
+      await fixture.whenStable();
+
+      expect(byTestId('chat-bookmarks-toggle-count')?.textContent?.trim()).toBe('1');
+    });
+
+    it('turns to the tab of the line, draws the log around it and lights it up', async () => {
+      const here = addTab('メイン');
+      const there = addTab('雑談');
+      const line = there.addMessage({ from: 'someone', name: 'ノア', text: '証言A', timestamp: 1000 });
+      line.bookmark(1000);
+      component.chatTabidentifier = here.identifier;
+      fixture.detectChanges();
+      const drawn = document.createElement('chat-message');
+      const reveal = vi.spyOn(ChatTabComponent.prototype, 'reveal').mockResolvedValue(drawn);
+      const flash = vi.spyOn(ChatTabComponent.prototype, 'flash');
+      component.toggleBookmarks();
+      await fixture.whenStable();
+
+      byTestId('chat-bookmark-open')!.click();
+      await vi.waitFor(() => expect(reveal).toHaveBeenCalledWith(line));
+
+      expect(component.chatTabidentifier).toBe(there.identifier);
+      expect(component.bookmarksOpen()).toBe(false);
+      await vi.waitFor(() => expect(flash).toHaveBeenCalledWith(line));
     });
   });
 

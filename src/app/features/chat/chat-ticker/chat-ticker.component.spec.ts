@@ -77,6 +77,29 @@ describe('ChatTickerComponent', () => {
     expect(internal.cycleStartedAt).toBeNull();
   });
 
+  it('takes a line off once it is deleted or whispered afterwards while it runs', async () => {
+    const deleted = select('pseudo-deleted', '斥候', '言い間違い');
+    deleted.pseudoDelete(1000);
+    await settle();
+    expect(currentText()).toBe('');
+
+    const whispered = select('whispered-later', '斥候', '内緒の話');
+    whispered.makeAfterWhisper('someone', 'ノア', 1000);
+    await settle();
+    expect(currentText()).toBe('');
+  });
+
+  it('keeps running a line when some other line changes', async () => {
+    select('running', '案内役', 'ラウンド開始');
+    const other = new ChatMessage('another-line');
+    other.initialize();
+    messages.push(other);
+    other.pseudoDelete(1000);
+    await settle();
+
+    expect(currentText()).toBe('案内役：ラウンド開始　◆');
+  });
+
   it('lets the next line sent to it take over the one before', () => {
     select('manual-before-post', '斥候', '橋を確認中');
     expect(currentText()).toContain('橋を確認中');
