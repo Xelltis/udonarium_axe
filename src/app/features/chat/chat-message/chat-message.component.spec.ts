@@ -1722,6 +1722,29 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  describe('lighting a line up', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('stays lit for the whole moment from the last time it was lit, however often that was', () => {
+      vi.useFakeTimers();
+      const message = new ChatMessage();
+      message.initialize();
+      message.text = '光る発言';
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      component.flash();
+      vi.advanceTimersByTime(1500);
+      component.flash();
+      vi.advanceTimersByTime(1500);
+      expect(component.isHighlighted()).toBe(true);
+
+      vi.advanceTimersByTime(400);
+      expect(component.isHighlighted()).toBe(false);
+      message.destroy();
+    });
+  });
+
   describe('consuming a jump to the original message', () => {
     /**
      * A jump is always cleared once it is consumed.

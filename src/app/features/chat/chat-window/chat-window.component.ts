@@ -38,7 +38,6 @@ import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permi
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat-bookmark-list.component';
-import { flashChatLine } from '@axe/features/chat/chat-bookmark/chat-line-flash';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
@@ -237,7 +236,7 @@ export class ChatWindowComponent {
       await new Promise<void>((resolve) => afterNextRender(() => resolve(), { injector: this.injector }));
     }
     const line = await this.revealLine(message);
-    if (line) flashChatLine(line);
+    if (line) this.chatTabRef()?.flash(message);
   }
 
   private searchKeysDocument: Document | null = null;

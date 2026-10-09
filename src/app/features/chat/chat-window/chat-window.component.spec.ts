@@ -729,6 +729,7 @@ describe('ChatWindowComponent', () => {
       fixture.detectChanges();
       const drawn = document.createElement('chat-message');
       const reveal = vi.spyOn(ChatTabComponent.prototype, 'reveal').mockResolvedValue(drawn);
+      const flash = vi.spyOn(ChatTabComponent.prototype, 'flash');
       component.toggleBookmarks();
       await fixture.whenStable();
 
@@ -737,7 +738,7 @@ describe('ChatWindowComponent', () => {
 
       expect(component.chatTabidentifier).toBe(there.identifier);
       expect(component.bookmarksOpen()).toBe(false);
-      await vi.waitFor(() => expect(drawn.classList.contains('chat-message-highlight')).toBe(true));
+      await vi.waitFor(() => expect(flash).toHaveBeenCalledWith(line));
     });
   });
 

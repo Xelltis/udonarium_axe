@@ -429,6 +429,17 @@ describe('ChatTabComponent', () => {
       other.destroy();
     });
 
+    it('lights up the line asked for where it is drawn', () => {
+      const target = chatTab.chatMessages[119];
+      const line = () =>
+        (fixture.nativeElement as HTMLElement).querySelector(`chat-message[data-message-id="${target.identifier}"]`)!;
+
+      component.flash(target);
+      fixture.detectChanges();
+
+      expect(line().classList).toContain('chat-message-highlight');
+    });
+
     it('stops drawing a line once it is deleted, and hands back nothing for it', async () => {
       const target = chatTab.chatMessages[119];
       expect(drawn()).toContain(target.identifier);

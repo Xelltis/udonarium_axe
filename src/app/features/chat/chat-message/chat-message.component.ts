@@ -58,6 +58,9 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** How long a line stays lit after a jump to it, before it fades back. */
+const LINE_FLASH_MS = 1800;
+
 /** The kinds of mark a line can carry, in the order they are offered. */
 const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
 
@@ -911,14 +914,22 @@ export class ChatMessageComponent {
       // synchronously inside the same effect cycle.
       this.uiSignalService.clearChatJump();
       this.hostElement.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      this.isHighlighted.set(true);
-      if (this.highlightTimer) clearTimeout(this.highlightTimer);
-      this.highlightTimer = setTimeout(() => {
-        this.isHighlighted.set(false);
-        this.highlightTimer = null;
-      }, 1800);
+      this.flash();
     });
   });
+
+  /**
+   * Lights the line up for a moment, as a jump to it does. Lit again before it has faded, it stays
+   * lit for the whole moment from then.
+   */
+  flash(): void {
+    this.isHighlighted.set(true);
+    if (this.highlightTimer) clearTimeout(this.highlightTimer);
+    this.highlightTimer = setTimeout(() => {
+      this.isHighlighted.set(false);
+      this.highlightTimer = null;
+    }, LINE_FLASH_MS);
+  }
 
   /** The speaker's name as shown, translated for a system line and redrawn when the language changes. */
   displayName(name: string): string {
