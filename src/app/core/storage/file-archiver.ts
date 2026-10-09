@@ -11,6 +11,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import type { ImageFile } from '@axe/core/storage/image-file';
+import { imageTypeOf } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { isCcfoliaRoomArchive } from '@axe/core/storage/room-archive';
@@ -297,7 +298,8 @@ export class FileArchiver {
 
     for (const entry of entries) {
       try {
-        await this.loadFiles([new File([entry.blob], entry.name, { type: entry.type })], dropPoint, false, tooLarge);
+        const type = entry.type || (await imageTypeOf(entry.blob));
+        await this.loadFiles([new File([entry.blob], entry.name, { type })], dropPoint, false, tooLarge);
       } catch (reason) {
         Logger.warn('[FileArchiver] ZIP展開エラー', reason);
       }

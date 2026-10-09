@@ -402,6 +402,28 @@ describe('FileArchiver', () => {
       await expect(FileArchiver.instance.load([badFile])).resolves.toBeUndefined();
     });
 
+    it('takes a picture inside it by its bytes where its name does not say what it is', async () => {
+      const stored: File[] = [];
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockImplementation((file) => {
+        stored.push(file as File);
+        return Promise.resolve(ImageFile.createEmpty('image'));
+      });
+      const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46]);
+      const zipped = zipSync({
+        portrait: png,
+        'texture.dat': jpeg,
+        'notes.dat': strToU8('not a picture'),
+      });
+
+      await FileArchiver.instance.load([new File([zipped.slice()], 'export.zip', { type: 'application/zip' })]);
+
+      expect(stored.map((file) => [file.name, file.type])).toEqual([
+        ['portrait', 'image/png'],
+        ['texture.dat', 'image/jpeg'],
+      ]);
+    });
+
     it('announces a foreign room archive rather than unpacking it', async () => {
       const addAsync = vi
         .spyOn(ImageStorage.instance, 'addAsync')
