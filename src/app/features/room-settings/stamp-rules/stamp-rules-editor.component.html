@@ -1,0 +1,91 @@
+@for (use of uses; track use) {
+  <div
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+    [attr.data-testid]="'room-settings-stamps-' + use"
+  >
+    <div class="min-w-0">
+      <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+        'feature.roomSettings.stampUse_' + use | transloco
+      }}</span>
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.sharedHint' | transloco }}</p>
+    </div>
+    <label class="flex cursor-pointer items-center gap-1.5 text-[12px]" [class.opacity-50]="!canChange()">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [attr.data-testid]="'room-settings-stamps-' + use + '-on'"
+        [checked]="isOn(use)"
+        [disabled]="!canChange()"
+        (change)="setOn(use, $any($event.target).checked)"
+      />
+      {{ 'feature.roomSettings.stampUseOn_' + use | transloco }}
+    </label>
+    @if (isOn(use)) {
+      <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+        {{ 'feature.roomSettings.stampRulesHint' | transloco }}
+      </p>
+      <div class="flex flex-col gap-1.5">
+        @for (group of groups(); track group.key) {
+          <details class="border-ui-border-panel rounded-ui-sm border border-solid">
+            <summary class="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px] select-none">
+              <span class="min-w-0 flex-1 truncate">{{
+                group.familyKey ? (group.familyKey | transloco) : group.name || ('ui.stamp.unnamedPack' | transloco)
+              }}</span>
+              <span class="text-ui-dim text-[11px] tabular-nums"
+                >{{ allowedCount(use, group) }} / {{ group.stampIds.length }}</span
+              >
+            </summary>
+            <div class="flex flex-col gap-1.5 px-2 pb-2">
+              <div class="flex flex-wrap items-center gap-1.5" [class.opacity-50]="!canChange()">
+                <button
+                  class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text border border-solid px-2 py-0.5 text-[12px] disabled:opacity-50"
+                  type="button"
+                  [attr.data-testid]="'room-settings-stamps-' + use + '-allow-' + group.key"
+                  [disabled]="!canChange() || allowedCount(use, group) === group.stampIds.length"
+                  (click)="setGroup(use, group, true)"
+                >
+                  {{ 'feature.roomSettings.stampAllowAll' | transloco }}
+                </button>
+                <button
+                  class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover text-ui-text border border-solid px-2 py-0.5 text-[12px] disabled:opacity-50"
+                  type="button"
+                  [attr.data-testid]="'room-settings-stamps-' + use + '-deny-' + group.key"
+                  [disabled]="!canChange() || allowedCount(use, group) === 0"
+                  (click)="setGroup(use, group, false)"
+                >
+                  {{ 'feature.roomSettings.stampDenyAll' | transloco }}
+                </button>
+              </div>
+              <div
+                class="grid gap-1"
+                [class]="
+                  group.pictures
+                    ? 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]'
+                    : 'grid-cols-[repeat(auto-fill,minmax(64px,1fr))]'
+                "
+              >
+                @for (id of group.stampIds; track id) {
+                  @let on = allowed(use, id);
+                  <button
+                    type="button"
+                    class="rounded-ui-sm hover:bg-ui-hover relative flex h-14 cursor-pointer items-center justify-center overflow-hidden border border-solid bg-transparent p-0.5 transition-[opacity,filter,border-color] disabled:cursor-default"
+                    [class]="on ? 'border-transparent' : 'border-ui-border-panel opacity-35 grayscale'"
+                    [attr.aria-pressed]="on"
+                    [attr.data-testid]="'room-settings-stamp-' + use + '-' + id"
+                    [disabled]="!canChange()"
+                    (click)="toggle(use, id)"
+                  >
+                    <ui-stamp [stampId]="id" [size]="group.pictures ? 48 : 36" />
+                    @if (!on) {
+                      <i class="material-icons text-ui-text absolute top-0 right-0 text-[14px]!">block</i>
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+          </details>
+        }
+      </div>
+    }
+  </div>
+}

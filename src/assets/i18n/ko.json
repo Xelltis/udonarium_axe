@@ -2670,7 +2670,15 @@
       "sizeSlipsPast": "크기가 2칸 이상 다른 상대의 칸은 지나갈 수 있음(멈출 수는 없음)",
       "handTracesWay": "손으로 옮겼을 때도 지나간 길의 장치를 발동",
       "squeezes": "큰 말을 지나갈 수 없는 틈에 밀어 넣을 수 있게 한다 (한 칸분 더 소모)",
-      "jumpCells": "도약 거리 (칸, 0이면 이동력만큼)"
+      "jumpCells": "도약 거리 (칸, 0이면 이동력만큼)",
+      "tab_stamp": "스탬프",
+      "stampUse_line": "스탬프 발언",
+      "stampUse_reaction": "리액션",
+      "stampUseOn_line": "스탬프를 발언으로 보낼 수 있게 하기",
+      "stampUseOn_reaction": "발언에 리액션을 달 수 있게 하기",
+      "stampRulesHint": "스탬프를 누르면 사용 가능/불가가 바뀝니다. 이미 보낸 스탬프는 그대로 보입니다.",
+      "stampAllowAll": "모두 사용 가능",
+      "stampDenyAll": "모두 사용 불가"
     },
     "skin": {
       "title": "화면 색(스킨)",

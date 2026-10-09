@@ -2670,7 +2670,15 @@
       "sizeSlipsPast": "サイズが 2 マス以上違う相手のマスは通り抜けられる（止まれない）",
       "handTracesWay": "掴んで運んだときも、通り道の仕掛けを発動させる",
       "squeezes": "大きなコマを、通れない隙間に押し込めるようにする（1 マスぶん余計に消費）",
-      "jumpCells": "跳躍の距離（マス。0 で移動力いっぱい）"
+      "jumpCells": "跳躍の距離（マス。0 で移動力いっぱい）",
+      "tab_stamp": "スタンプ",
+      "stampUse_line": "スタンプの発言",
+      "stampUse_reaction": "リアクション",
+      "stampUseOn_line": "スタンプを発言として送れるようにする",
+      "stampUseOn_reaction": "発言にリアクションを付けられるようにする",
+      "stampRulesHint": "スタンプを押すと、使える・使えないが切り替わります。使えなくしても、すでに送られたものはそのまま見えます。",
+      "stampAllowAll": "すべて使える",
+      "stampDenyAll": "すべて使えない"
     },
     "skin": {
       "title": "スキン",

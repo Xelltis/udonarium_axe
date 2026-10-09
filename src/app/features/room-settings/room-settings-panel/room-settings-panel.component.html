@@ -809,6 +809,10 @@
       </div>
     }
 
+    @if (tab() === 'stamp') {
+      <room-stamp-rules />
+    }
+
     @if (tab() === 'archive') {
       <div class="contents" [attr.inert]="isReadOnly() ? '' : null">
         <div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">

@@ -9,6 +9,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import {
   DataElement,
   DataElementAttribute,
@@ -112,11 +113,29 @@ describe('save and load round trip', () => {
       expect(Config.instance.factionSkipUnassigned).toBe(true);
     });
 
+    it('carries what the room lets its stamps be used for through a save and a load', () => {
+      const config = Config.instance;
+      config.stampRules = withStampUseOn(
+        withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok', 'image:abc'], false),
+        'reaction',
+        false
+      );
+
+      const xml = serializer.toXml(config);
+      serializer.parseXml(xml);
+
+      expect(Config.instance.stampRules).toEqual({
+        line: { off: false, denied: ['seal:ok', 'image:abc'] },
+        reaction: { off: true, denied: [] },
+      });
+    });
+
     it('reads a room that was saved before it had rules to answer for', () => {
       const xml = '<config identifier="Config" _defaultDiceBot="DiceBot"></config>';
 
       serializer.parseXml(xml);
 
+      expect(Config.instance.stampRules).toEqual(OPEN_STAMP_RULES);
       expect(Config.instance.roomRuleAnswers.zocMode).toBeNull();
       expect(Config.instance.roomRuleAnswers.cellDistance).toBeNull();
       expect(Config.instance.roomRuleAnswers.moveRangeEnabled).toBeNull();

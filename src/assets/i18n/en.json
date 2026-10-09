@@ -2670,7 +2670,15 @@
       "sizeSlipsPast": "Squeeze past a piece two cells or more apart in size (but not stop on it)",
       "handTracesWay": "Spring the ground between the two ends when a hand moves a piece",
       "squeezes": "Let an oversized piece squeeze through a gap too small for it, at a step apiece",
-      "jumpCells": "How far one leap carries, in cells (0 carries as far as the move has left)"
+      "jumpCells": "How far one leap carries, in cells (0 carries as far as the move has left)",
+      "tab_stamp": "Stamps",
+      "stampUse_line": "Stamps as lines",
+      "stampUse_reaction": "Reactions",
+      "stampUseOn_line": "Let stamps be sent as lines",
+      "stampUseOn_reaction": "Let stamps be put on lines as reactions",
+      "stampRulesHint": "Press a stamp to allow or deny it. Stamps already sent stay as they are.",
+      "stampAllowAll": "Allow all",
+      "stampDenyAll": "Deny all"
     },
     "skin": {
       "title": "Skin",
