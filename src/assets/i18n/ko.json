@@ -5019,7 +5019,8 @@
         "sfx": "효과음",
         "seal": "도장",
         "motif": "그림",
-        "roll": "판정"
+        "roll": "판정",
+        "battle": "전투"
       },
       "items": {
         "sfx": {
@@ -5176,6 +5177,44 @@
           },
           "doubt": {
             "name": "이 주사위 수상해"
+          }
+        },
+        "battle": {
+          "sword": {
+            "name": "베기!"
+          },
+          "shield": {
+            "name": "방어"
+          },
+          "magic": {
+            "name": "마법"
+          },
+          "bow": {
+            "name": "조준"
+          },
+          "charge": {
+            "name": "돌격!"
+          },
+          "hurt": {
+            "name": "아파…"
+          },
+          "heal": {
+            "name": "회복"
+          },
+          "fainted": {
+            "name": "전투 불능"
+          },
+          "dodge": {
+            "name": "회피!"
+          },
+          "victory": {
+            "name": "승리!"
+          },
+          "flee": {
+            "name": "도망!"
+          },
+          "berserk": {
+            "name": "진심 모드"
           }
         }
       },

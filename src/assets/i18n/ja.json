@@ -5017,7 +5017,8 @@
         "sfx": "描き文字",
         "seal": "判子",
         "motif": "図柄",
-        "roll": "判定"
+        "roll": "判定",
+        "battle": "戦闘"
       },
       "items": {
         "sfx": {
@@ -5174,6 +5175,44 @@
           },
           "doubt": {
             "name": "このダイス怪しい"
+          }
+        },
+        "battle": {
+          "sword": {
+            "name": "斬る!"
+          },
+          "shield": {
+            "name": "守る"
+          },
+          "magic": {
+            "name": "魔法"
+          },
+          "bow": {
+            "name": "狙い撃つ"
+          },
+          "charge": {
+            "name": "突撃!"
+          },
+          "hurt": {
+            "name": "痛い…"
+          },
+          "heal": {
+            "name": "回復"
+          },
+          "fainted": {
+            "name": "戦闘不能"
+          },
+          "dodge": {
+            "name": "回避!"
+          },
+          "victory": {
+            "name": "勝利!"
+          },
+          "flee": {
+            "name": "逃げる!"
+          },
+          "berserk": {
+            "name": "本気モード"
           }
         }
       },

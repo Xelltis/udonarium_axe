@@ -5017,7 +5017,8 @@
         "sfx": "Sound effects",
         "seal": "Seals",
         "motif": "Table marks",
-        "roll": "Rolls"
+        "roll": "Rolls",
+        "battle": "Battle"
       },
       "items": {
         "sfx": {
@@ -5174,6 +5175,44 @@
           },
           "doubt": {
             "name": "Suspicious dice"
+          }
+        },
+        "battle": {
+          "sword": {
+            "name": "Slash!"
+          },
+          "shield": {
+            "name": "Guard"
+          },
+          "magic": {
+            "name": "Casting"
+          },
+          "bow": {
+            "name": "Taking aim"
+          },
+          "charge": {
+            "name": "Charge!"
+          },
+          "hurt": {
+            "name": "Ouch..."
+          },
+          "heal": {
+            "name": "Healing"
+          },
+          "fainted": {
+            "name": "Knocked out"
+          },
+          "dodge": {
+            "name": "Dodge!"
+          },
+          "victory": {
+            "name": "Victory!"
+          },
+          "flee": {
+            "name": "Run away!"
+          },
+          "berserk": {
+            "name": "Going all out"
           }
         }
       },
