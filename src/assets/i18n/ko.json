@@ -5329,6 +5329,42 @@
           },
           "love": {
             "name": "좋아!"
+          },
+          "scared": {
+            "name": "무서워"
+          },
+          "awkward": {
+            "name": "어색해"
+          },
+          "confused": {
+            "name": "응?"
+          },
+          "excited": {
+            "name": "설레"
+          },
+          "pout": {
+            "name": "뾰로통"
+          },
+          "sigh": {
+            "name": "하아…"
+          },
+          "sleepy": {
+            "name": "졸려"
+          },
+          "evil": {
+            "name": "계획대로"
+          },
+          "moved": {
+            "name": "감동"
+          },
+          "blank": {
+            "name": "멍…"
+          },
+          "proud": {
+            "name": "에헴"
+          },
+          "panic": {
+            "name": "허둥지둥"
           }
         }
       },

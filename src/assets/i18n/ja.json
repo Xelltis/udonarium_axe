@@ -5327,6 +5327,42 @@
           },
           "love": {
             "name": "好き!"
+          },
+          "scared": {
+            "name": "こわい"
+          },
+          "awkward": {
+            "name": "気まずい"
+          },
+          "confused": {
+            "name": "はて?"
+          },
+          "excited": {
+            "name": "ワクワク"
+          },
+          "pout": {
+            "name": "むすっ"
+          },
+          "sigh": {
+            "name": "はぁ…"
+          },
+          "sleepy": {
+            "name": "ねむい"
+          },
+          "evil": {
+            "name": "計画通り"
+          },
+          "moved": {
+            "name": "感動"
+          },
+          "blank": {
+            "name": "虚無"
+          },
+          "proud": {
+            "name": "えっへん"
+          },
+          "panic": {
+            "name": "あわわ"
           }
         }
       },

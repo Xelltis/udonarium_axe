@@ -5327,6 +5327,42 @@
           },
           "love": {
             "name": "Love it!"
+          },
+          "scared": {
+            "name": "Scared"
+          },
+          "awkward": {
+            "name": "Awkward"
+          },
+          "confused": {
+            "name": "Huh?"
+          },
+          "excited": {
+            "name": "Excited"
+          },
+          "pout": {
+            "name": "Sulking"
+          },
+          "sigh": {
+            "name": "Sigh"
+          },
+          "sleepy": {
+            "name": "Sleepy"
+          },
+          "evil": {
+            "name": "All according to plan"
+          },
+          "moved": {
+            "name": "So moved"
+          },
+          "blank": {
+            "name": "Soul has left"
+          },
+          "proud": {
+            "name": "Proud"
+          },
+          "panic": {
+            "name": "Panic"
           }
         }
       },
