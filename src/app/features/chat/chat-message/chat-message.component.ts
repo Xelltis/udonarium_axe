@@ -46,7 +46,10 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
-import { buildChatMessageContextMenu } from '@axe/features/chat/chat-message/chat-message-context-menu';
+import {
+  buildChatBookmarkMenu,
+  buildChatMessageContextMenu,
+} from '@axe/features/chat/chat-message/chat-message-context-menu';
 import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-message/chat-readable-text';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
@@ -400,10 +403,7 @@ export class ChatMessageComponent {
 
   /** Opens the choice of the room's mark and the reader's own under the toolbar's bookmark button. */
   protected openBookmarkMenu(event: MouseEvent): void {
-    const actions: ContextMenuAction[] = this.bookmarkKinds().map(({ kind, isBookmarked }) => ({
-      name: this.t(`feature.chat.message.bookmarks.${kind}.${isBookmarked ? 'remove' : 'add'}`),
-      action: () => this.toggleBookmark(kind),
-    }));
+    const actions = buildChatBookmarkMenu(this.bookmarkKinds(), (kind) => this.toggleBookmark(kind), this.t);
     if (actions.length === 0) return;
     this.openMenuUnder(event, actions, this.t('feature.chat.message.bookmarks.button'));
   }

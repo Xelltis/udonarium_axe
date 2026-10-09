@@ -1,4 +1,5 @@
 import {
+  buildChatBookmarkMenu,
   buildChatMessageContextMenu,
   ChatMessageMenuCallbacks,
   ChatMessageMenuState,
@@ -260,5 +261,32 @@ describe('buildChatMessageContextMenu()', () => {
     expect(calls.reply).toHaveBeenCalledTimes(1);
     expect(calls.copyText).toHaveBeenCalledTimes(1);
     expect(calls.selectText).toHaveBeenCalledTimes(1);
+  });
+
+  describe('buildChatBookmarkMenu()', () => {
+    it('offers the room’s mark and then the reader’s own, each to put on or take off', () => {
+      const toggle = vi.fn();
+      const menu = buildChatBookmarkMenu(
+        [
+          { kind: 'shared', isBookmarked: true },
+          { kind: 'personal', isBookmarked: false },
+        ],
+        toggle,
+        translate
+      );
+
+      expect(menu.map((action) => action.name)).toEqual([
+        'feature.chat.message.bookmarks.shared.remove',
+        'feature.chat.message.bookmarks.personal.add',
+      ]);
+      menu[1].action?.();
+      expect(toggle).toHaveBeenCalledWith('personal');
+    });
+
+    it('offers only the kinds the reader may change', () => {
+      const menu = buildChatBookmarkMenu([{ kind: 'personal', isBookmarked: false }], vi.fn(), translate);
+
+      expect(menu.map((action) => action.name)).toEqual(['feature.chat.message.bookmarks.personal.add']);
+    });
   });
 });

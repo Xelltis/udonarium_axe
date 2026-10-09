@@ -80,11 +80,7 @@ export function buildChatMessageContextMenu(
     }
   }
 
-  const keep: ContextMenuAction[] = [];
-  for (const { kind, isBookmarked } of state.bookmarkKinds) {
-    const name = t(`feature.chat.message.bookmarks.${kind}.${isBookmarked ? 'remove' : 'add'}`);
-    keep.push({ name, action: () => callbacks.toggleBookmark(kind) });
-  }
+  const keep: ContextMenuAction[] = [...buildChatBookmarkMenu(state.bookmarkKinds, callbacks.toggleBookmark, t)];
   if (state.canInteract && state.canShareAsMemo) {
     keep.push({ name: t('feature.chat.message.shareAsMemo'), action: () => callbacks.shareAsMemo() });
   }
@@ -140,4 +136,20 @@ export function buildChatMessageContextMenu(
   return [answer, words, keep, read, own, remove]
     .filter((group) => group.length > 0)
     .flatMap((group, index) => (index === 0 ? group : [ContextMenuSeparator, ...group]));
+}
+
+/**
+ * Putting on or taking off each kind of mark the reader may, as the toolbar's bookmark button offers
+ * it and as the line's menu offers it among what keeps the line: the room's mark, then the
+ * reader's own.
+ */
+export function buildChatBookmarkMenu(
+  kinds: ChatMessageMenuState['bookmarkKinds'],
+  toggle: (kind: ChatBookmarkKind) => void,
+  t: TranslateFn
+): ContextMenuAction[] {
+  return kinds.map(({ kind, isBookmarked }) => ({
+    name: t(`feature.chat.message.bookmarks.${kind}.${isBookmarked ? 'remove' : 'add'}`),
+    action: () => toggle(kind),
+  }));
 }
