@@ -597,6 +597,13 @@
         "strokeWidth": "Outline px",
         "fontFamily": "Font",
         "fontFamilyPlaceholder": "(the default font)",
+        "fontPresets": {
+          "default": "Default",
+          "gothic": "Gothic",
+          "mincho": "Mincho",
+          "rounded": "Rounded",
+          "mono": "Monospace"
+        },
         "fillFrom": "Colour",
         "fillTo": "To colour",
         "fillGradient": "Shade into another colour",

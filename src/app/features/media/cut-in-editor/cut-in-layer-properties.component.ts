@@ -25,6 +25,7 @@ import {
   MAX_FILL_SCALE_PX,
   MIN_FILL_SCALE_PX,
 } from '@axe/domain/media/cut-in-fill';
+import { CUT_IN_FONT_PRESETS, type CutInFontPreset } from '@axe/domain/media/cut-in-font-presets';
 import { CUT_IN_TRACKS, type CutInTrackName } from '@axe/domain/media/cut-in-keyframe';
 import { CUT_IN_TEXT_ALIGNS, CutInLayer, type CutInTextAlign, isCutInTextAlign } from '@axe/domain/media/cut-in-layer';
 import { applyLayerPreset, CUT_IN_LAYER_PRESETS } from '@axe/domain/media/cut-in-layer-presets';
@@ -75,6 +76,7 @@ export class CutInLayerPropertiesComponent {
   readonly easings = CUT_IN_EASING_NAMES;
   readonly fillShapes = CUT_IN_FILL_SHAPES;
   readonly clips = CUT_IN_CLIPS;
+  readonly fontPresets = CUT_IN_FONT_PRESETS;
   readonly wipes = CUT_IN_WIPES;
   readonly entrances = CUT_IN_ENTRANCES;
   readonly exits = CUT_IN_EXITS;
@@ -301,6 +303,11 @@ export class CutInLayerPropertiesComponent {
   }
   set fontFamily(fontFamily: string) {
     this.write((layer) => (layer.fontFamily = fontFamily));
+  }
+
+  /** Sets a text layer in one of the kinds of lettering offered, or back to the default. */
+  useFontPreset(preset: CutInFontPreset): void {
+    this.fontFamily = preset.fontFamily;
   }
 
   /** A text layer's letter colour. */

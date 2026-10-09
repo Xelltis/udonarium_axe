@@ -178,6 +178,23 @@
           [placeholder]="'feature.media.cutInEditor.fontFamilyPlaceholder' | transloco"
           [attr.disabled]="!isEditable() ? '' : null"
         />
+        <div class="col-start-2 flex flex-wrap gap-1">
+          @for (preset of fontPresets; track preset.id) {
+            <button
+              type="button"
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] transition-[background,color] disabled:cursor-default disabled:opacity-50"
+              [class.border-ui-accent!]="fontFamily === preset.fontFamily"
+              [class.text-ui-accent!]="fontFamily === preset.fontFamily"
+              [style.font-family]="preset.fontFamily || null"
+              [attr.aria-pressed]="fontFamily === preset.fontFamily"
+              [attr.data-testid]="'cut-in-font-' + preset.id"
+              [disabled]="!isEditable()"
+              (click)="useFontPreset(preset)"
+            >
+              {{ 'feature.media.cutInEditor.fontPresets.' + preset.id | transloco }}
+            </button>
+          }
+        </div>
       </div>
     }
 

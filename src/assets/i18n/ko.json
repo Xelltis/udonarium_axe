@@ -597,6 +597,13 @@
         "strokeWidth": "테두리 굵기",
         "fontFamily": "폰트",
         "fontFamilyPlaceholder": "(기본 폰트)",
+        "fontPresets": {
+          "default": "기본",
+          "gothic": "고딕",
+          "mincho": "명조",
+          "rounded": "둥근 고딕",
+          "mono": "고정폭"
+        },
         "fillFrom": "색",
         "fillTo": "끝 색",
         "fillGradient": "그러데이션으로",

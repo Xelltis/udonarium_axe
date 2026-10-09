@@ -597,6 +597,13 @@
         "strokeWidth": "縁の太さ",
         "fontFamily": "フォント",
         "fontFamilyPlaceholder": "（既定のフォント）",
+        "fontPresets": {
+          "default": "既定",
+          "gothic": "ゴシック",
+          "mincho": "明朝",
+          "rounded": "丸ゴシック",
+          "mono": "等幅"
+        },
         "fillFrom": "色",
         "fillTo": "終わりの色",
         "fillGradient": "グラデーションにする",

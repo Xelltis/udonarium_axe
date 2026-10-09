@@ -373,6 +373,42 @@ describe('CutInLayerPropertiesComponent', () => {
     });
   });
 
+  describe('the kinds of lettering offered for a text layer', () => {
+    function presetButton(id: string): HTMLButtonElement {
+      return fixture.nativeElement.querySelector(`[data-testid="cut-in-font-${id}"]`);
+    }
+
+    beforeEach(() => {
+      layer.kind = 'text';
+      fixture.componentRef.setInput('layer', layer);
+      fixture.detectChanges();
+    });
+
+    it('sets the text in the lettering picked, as a list of fonts that ends in a family', () => {
+      presetButton('mincho').click();
+
+      expect(layer.fontFamily).toContain('Mincho');
+      expect(layer.fontFamily.endsWith('serif')).toBe(true);
+    });
+
+    it('marks the one in use, and goes back to the default', () => {
+      presetButton('gothic').click();
+      fixture.detectChanges();
+      expect(presetButton('gothic').getAttribute('aria-pressed')).toBe('true');
+      expect(presetButton('default').getAttribute('aria-pressed')).toBe('false');
+
+      presetButton('default').click();
+      expect(layer.fontFamily).toBe('');
+    });
+
+    it('offers nothing to press where the layer may not be edited', () => {
+      fixture.componentRef.setInput('isEditable', false);
+      fixture.detectChanges();
+
+      expect(presetButton('gothic').disabled).toBe(true);
+    });
+  });
+
   describe('the shape a layer is cut down to', () => {
     it('keeps its own box to begin with', () => {
       expect(component.clip).toBe('none');
