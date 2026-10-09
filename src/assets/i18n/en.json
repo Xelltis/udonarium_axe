@@ -5019,7 +5019,8 @@
         "motif": "Table marks",
         "roll": "Rolls",
         "battle": "Battle",
-        "explore": "Exploring"
+        "explore": "Exploring",
+        "feel": "Feelings"
       },
       "items": {
         "sfx": {
@@ -5288,6 +5289,44 @@
           },
           "toast": {
             "name": "Cheers!"
+          },
+          "tome": {
+            "name": "Research"
+          },
+          "peek": {
+            "name": "Peeking"
+          },
+          "lost": {
+            "name": "Lost"
+          },
+          "knock": {
+            "name": "Knock knock"
+          }
+        },
+        "feel": {
+          "smile": {
+            "name": "Smile"
+          },
+          "laugh": {
+            "name": "LOL"
+          },
+          "cry": {
+            "name": "Sobbing"
+          },
+          "angry": {
+            "name": "Angry"
+          },
+          "shock": {
+            "name": "Shocked"
+          },
+          "blush": {
+            "name": "Embarrassed"
+          },
+          "smug": {
+            "name": "Smug"
+          },
+          "love": {
+            "name": "Love it!"
           }
         }
       },

@@ -5019,7 +5019,8 @@
         "motif": "図柄",
         "roll": "判定",
         "battle": "戦闘",
-        "explore": "探索"
+        "explore": "探索",
+        "feel": "気持ち"
       },
       "items": {
         "sfx": {
@@ -5288,6 +5289,44 @@
           },
           "toast": {
             "name": "乾杯!"
+          },
+          "tome": {
+            "name": "文献調査"
+          },
+          "peek": {
+            "name": "そーっと"
+          },
+          "lost": {
+            "name": "迷子"
+          },
+          "knock": {
+            "name": "ノック"
+          }
+        },
+        "feel": {
+          "smile": {
+            "name": "にこにこ"
+          },
+          "laugh": {
+            "name": "大爆笑"
+          },
+          "cry": {
+            "name": "号泣"
+          },
+          "angry": {
+            "name": "怒"
+          },
+          "shock": {
+            "name": "ガーン"
+          },
+          "blush": {
+            "name": "照れる"
+          },
+          "smug": {
+            "name": "ドヤ"
+          },
+          "love": {
+            "name": "好き!"
           }
         }
       },

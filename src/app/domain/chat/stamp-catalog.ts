@@ -12,7 +12,7 @@
  */
 
 /** The families that come with the app as pictures, a family to a part of play. */
-export const ART_STAMP_FAMILIES = ['roll', 'battle', 'explore'] as const;
+export const ART_STAMP_FAMILIES = ['roll', 'battle', 'explore', 'feel'] as const;
 export type ArtStampFamily = (typeof ART_STAMP_FAMILIES)[number];
 
 export const STAMP_FAMILIES = ['sfx', 'seal', 'motif', ...ART_STAMP_FAMILIES] as const;
@@ -130,6 +130,19 @@ export const BUILTIN_STAMPS: readonly BuiltinStamp[] = [
   picture('explore', 'eat'),
   picture('explore', 'camp'),
   picture('explore', 'toast'),
+  picture('explore', 'tome'),
+  picture('explore', 'peek'),
+  picture('explore', 'lost'),
+  picture('explore', 'knock'),
+
+  picture('feel', 'smile'),
+  picture('feel', 'laugh'),
+  picture('feel', 'cry'),
+  picture('feel', 'angry', 'slam'),
+  picture('feel', 'shock', 'slam'),
+  picture('feel', 'blush'),
+  picture('feel', 'smug'),
+  picture('feel', 'love', 'beat'),
 ];
 
 const BY_ID = new Map(BUILTIN_STAMPS.map((each) => [each.id, each]));

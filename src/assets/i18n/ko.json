@@ -5021,7 +5021,8 @@
         "motif": "그림",
         "roll": "판정",
         "battle": "전투",
-        "explore": "탐색"
+        "explore": "탐색",
+        "feel": "기분"
       },
       "items": {
         "sfx": {
@@ -5290,6 +5291,44 @@
           },
           "toast": {
             "name": "건배!"
+          },
+          "tome": {
+            "name": "문헌 조사"
+          },
+          "peek": {
+            "name": "슬쩍"
+          },
+          "lost": {
+            "name": "길 잃음"
+          },
+          "knock": {
+            "name": "노크"
+          }
+        },
+        "feel": {
+          "smile": {
+            "name": "방긋"
+          },
+          "laugh": {
+            "name": "대폭소"
+          },
+          "cry": {
+            "name": "오열"
+          },
+          "angry": {
+            "name": "화났어"
+          },
+          "shock": {
+            "name": "충격"
+          },
+          "blush": {
+            "name": "부끄러워"
+          },
+          "smug": {
+            "name": "의기양양"
+          },
+          "love": {
+            "name": "좋아!"
           }
         }
       },
