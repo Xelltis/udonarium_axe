@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { stampsOfFamily } from '@axe/domain/chat/stamp-catalog';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ART_STAMP_FAMILIES, stampsOfFamily } from '@axe/domain/chat/stamp-catalog';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import {
   RECENT_STAMPS_STORAGE_KEY,
@@ -36,18 +37,21 @@ describe('StampPickerComponent', () => {
     expect(choices(root)).toEqual(stampsOfFamily('seal').map((each) => each.id));
   });
 
-  it('shows each of the character\u2019s families as the picture of its first stamp, and offers its stamps larger', () => {
+  it('puts the families it draws on the first row and the character\u2019s on a second, by name, offering theirs larger', () => {
     const root = open();
-    const tab = root.querySelector('[data-testid="stamp-picker-tab-roll"]') as HTMLElement;
-    const first = stampsOfFamily('roll')[0].id;
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-testid^="stamp-picker-tab-row-"]')];
+    const tabsIn = (row: HTMLElement) =>
+      [...row.querySelectorAll<HTMLElement>('[role="tab"]')].map((tab) =>
+        tab.dataset['testid']!.replace('stamp-picker-tab-', '')
+      );
 
-    expect(tab.querySelector('[data-stamp]')!.getAttribute('data-stamp-id')).toBe(first);
-    expect(tab.getAttribute('title')).toBeTruthy();
-    expect(root.querySelector('[data-testid="stamp-picker-tab-sfx"] [data-stamp]')).toBeNull();
-    expect(root.querySelector('[data-testid="stamp-picker-tab-sfx"]')!.getAttribute('title')).toBeNull();
+    expect(rows.map(tabsIn)).toEqual([['sfx', 'seal', 'motif'], [...ART_STAMP_FAMILIES]]);
+    const tab = root.querySelector('[data-testid="stamp-picker-tab-roll"]') as HTMLElement;
+    expect(tab.textContent!.trim()).toBe(TestBed.inject(TRANSLATE_FN)('ui.stamp.families.roll'));
 
     tab.click();
     fixture.detectChanges();
+    const first = stampsOfFamily('roll')[0].id;
     expect(choices(root)).toEqual(stampsOfFamily('roll').map((each) => each.id));
     const drawn = root.querySelector(`[data-testid="stamp-picker-choice-${first}"] [data-stamp]`) as HTMLElement;
     expect(drawn.style.height).toBe('68px');
@@ -74,7 +78,7 @@ describe('StampPickerComponent', () => {
     expect(choices(open())).toEqual(['seal:ok']);
   });
 
-  it('offers a tab for each of the room\u2019s own sets, after the families', () => {
+  it('offers a tab for each of the room\u2019s own sets, among the pictures after the character\u2019s families', () => {
     const root = open();
     fixture.componentRef.setInput('packs', [
       { identifier: 'pack-1', name: 'ねこ', stamps: [{ stampId: 'image:cat-a' }, { stampId: 'image:cat-b' }] },
@@ -83,9 +87,11 @@ describe('StampPickerComponent', () => {
 
     const tab = root.querySelector('[data-testid="stamp-picker-tab-pack:pack-1"]') as HTMLElement;
     expect(tab.textContent!.trim()).toBe('ねこ');
+    expect(tab.closest('[data-testid="stamp-picker-tab-row-1"]')).not.toBeNull();
     tab.click();
     fixture.detectChanges();
     expect(choices(root)).toEqual(['image:cat-a', 'image:cat-b']);
+    expect(root.querySelector('[data-testid="stamp-picker-choice-image:cat-a"]')!.className).toContain('h-19');
   });
 
   it('offers to manage the sets only to whoever may', () => {

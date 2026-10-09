@@ -1,44 +1,40 @@
-<div
-  class="border-ui-border-separator flex shrink-0 flex-wrap items-center gap-0.5 border-b border-solid p-1"
-  role="tablist"
->
-  @for (each of tabs(); track each) {
-    <button
-      type="button"
-      role="tab"
-      class="rounded-ui-sm text-ui-muted hover:bg-ui-menu-hover hover:text-ui-text cursor-pointer border border-solid border-transparent bg-transparent px-2 py-0.5 text-[11px] whitespace-nowrap transition-colors"
-      [class.border-ui-accent]="each === tab()"
-      [class.text-ui-accent]="each === tab()"
-      [class.px-1]="tabIcon(each) !== null"
-      [attr.aria-selected]="each === tab()"
-      [attr.data-testid]="'stamp-picker-tab-' + each"
-      [attr.title]="tabIcon(each) ? ('ui.stamp.families.' + each | transloco) : null"
-      [attr.aria-label]="tabIcon(each) ? ('ui.stamp.families.' + each | transloco) : null"
-      (click)="tab.set(each)"
-    >
-      @if (tabIcon(each); as icon) {
-        <ui-stamp [stampId]="icon" [size]="22" />
-      } @else if (tabName(each); as name) {
-        {{ name }}
-      } @else if (tabName(each) === '') {
-        {{ 'ui.stamp.unnamedPack' | transloco }}
-      } @else {
-        {{ 'ui.stamp.families.' + each | transloco }}
+<div class="border-ui-border-separator flex shrink-0 flex-col gap-0.5 border-b border-solid p-1" role="tablist">
+  @for (row of tabRows(); track $index) {
+    <div class="flex flex-wrap items-center gap-0.5" [attr.data-testid]="'stamp-picker-tab-row-' + $index">
+      @for (each of row; track each) {
+        <button
+          type="button"
+          role="tab"
+          class="rounded-ui-sm text-ui-muted hover:bg-ui-menu-hover hover:text-ui-text cursor-pointer border border-solid border-transparent bg-transparent px-2 py-0.5 text-[11px] whitespace-nowrap transition-colors"
+          [class.border-ui-accent]="each === tab()"
+          [class.text-ui-accent]="each === tab()"
+          [attr.aria-selected]="each === tab()"
+          [attr.data-testid]="'stamp-picker-tab-' + each"
+          (click)="tab.set(each)"
+        >
+          @if (tabName(each); as name) {
+            {{ name }}
+          } @else if (tabName(each) === '') {
+            {{ 'ui.stamp.unnamedPack' | transloco }}
+          } @else {
+            {{ 'ui.stamp.families.' + each | transloco }}
+          }
+        </button>
       }
-    </button>
-  }
-  @if (canManage()) {
-    <span class="flex-1"></span>
-    <button
-      type="button"
-      class="rounded-ui-sm text-ui-dim hover:bg-ui-menu-hover hover:text-ui-text flex size-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_i]:text-[16px]!"
-      data-testid="stamp-picker-manage"
-      [title]="'ui.stamp.manage' | transloco"
-      [attr.aria-label]="'ui.stamp.manage' | transloco"
-      (click)="manage.emit()"
-    >
-      <i class="material-icons">settings</i>
-    </button>
+      @if ($first && canManage()) {
+        <span class="flex-1"></span>
+        <button
+          type="button"
+          class="rounded-ui-sm text-ui-dim hover:bg-ui-menu-hover hover:text-ui-text flex size-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_i]:text-[16px]!"
+          data-testid="stamp-picker-manage"
+          [title]="'ui.stamp.manage' | transloco"
+          [attr.aria-label]="'ui.stamp.manage' | transloco"
+          (click)="manage.emit()"
+        >
+          <i class="material-icons">settings</i>
+        </button>
+      }
+    </div>
   }
 </div>
 

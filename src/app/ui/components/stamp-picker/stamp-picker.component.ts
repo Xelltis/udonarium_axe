@@ -16,6 +16,11 @@ export interface StampPickerPack {
   readonly stamps: readonly { readonly stampId: string }[];
 }
 
+/** Whether a tab holds pictures: one of the character's families, or one of the room's sets. */
+function isPictureTab(tab: StampTab): boolean {
+  return isArtStampFamily(tab) || tab.startsWith('pack:');
+}
+
 function readRecent(): string[] {
   try {
     const kept = JSON.parse(localStorage.getItem(RECENT_STAMPS_STORAGE_KEY) ?? '[]');
@@ -37,11 +42,11 @@ function writeRecent(ids: readonly string[]): void {
  * The stamps to choose from, a family to a tab, then a tab for each of the room's own sets, with
  * the ones this viewer picked last on a tab of their own.
  *
- * The character's families are tabs with a picture of their first stamp, and their stamps are
- * offered larger. Picking one only says which; the caller decides whether it answers a line or is
- * sent as one. It is drawn as a popover of a fixed height, which whoever opens it places, so moving
- * between tabs does not move it. For a reader who may change the sets, a button at the end of the
- * tabs asks for them to be managed.
+ * The tabs stand in two rows: the families the app draws, then the pictures, the character's
+ * families and the room's sets, whose stamps are offered larger. Picking one only says which; the
+ * caller decides whether it answers a line or is sent as one. It is drawn as a popover of a fixed
+ * height, which whoever opens it places, so moving between tabs does not move it. For a reader who
+ * may change the sets, a button at the end of the first row asks for them to be managed.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,11 +73,14 @@ export class StampPickerComponent {
 
   private readonly recent = signal<readonly string[]>(readRecent());
 
-  protected readonly tabs = computed<readonly StampTab[]>(() => [
-    ...(this.recent().length > 0 ? (['recent'] as const) : []),
-    ...STAMP_FAMILIES,
-    ...this.packs().map((pack) => `pack:${pack.identifier}` as const),
-  ]);
+  protected readonly tabRows = computed<readonly (readonly StampTab[])[]>(() => {
+    const tabs: StampTab[] = [
+      ...(this.recent().length > 0 ? (['recent'] as const) : []),
+      ...STAMP_FAMILIES,
+      ...this.packs().map((pack) => `pack:${pack.identifier}` as const),
+    ];
+    return [tabs.filter((tab) => !isPictureTab(tab)), tabs.filter(isPictureTab)].filter((row) => row.length > 0);
+  });
 
   protected readonly tab = signal<StampTab>(this.recent().length > 0 ? 'recent' : 'sfx');
 
@@ -86,13 +94,8 @@ export class StampPickerComponent {
     return stampsOfFamily(tab as StampFamily).map((each) => each.id);
   });
 
-  /** Whether the stamps of the open tab are the character's, which are offered larger. */
-  protected readonly large = computed(() => isArtStampFamily(this.tab()));
-
-  /** The stamp a tab is shown as, for the character's families, which are told apart by picture. */
-  protected tabIcon(tab: StampTab): string | null {
-    return isArtStampFamily(tab) ? (stampsOfFamily(tab)[0]?.id ?? null) : null;
-  }
+  /** Whether the stamps of the open tab are pictures, which are offered larger. */
+  protected readonly large = computed(() => isPictureTab(this.tab()));
 
   /** The name of a tab: a family's, or a set's own. */
   protected tabName(tab: StampTab): string | null {
