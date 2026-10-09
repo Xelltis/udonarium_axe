@@ -130,15 +130,14 @@ export class CardStackComponent {
     return this.cardStack().isShowTotal;
   }
   /**
-   * The cards in the stack.
-   *
-   * Reads a counter bumped whenever a card leaves the stack, so the count label redraws after a
-   * draw.
+   * How many cards the stack holds, following every card that joins it or leaves it, here or at a
+   * peer.
    */
-  get cards(): readonly Card[] {
-    this.cardsVersion();
-    return this.cardStack().cards;
-  }
+  readonly cardCount = computed(() => {
+    const cardStack = this.cardStack();
+    this.objectChange.versionOf(cardStack.identifier)();
+    return cardStack.cards.length;
+  });
   /** Whether the stack has no cards left, which shrinks its frame to a fixed size. */
   get isEmpty(): boolean {
     return this.cardStack().isEmpty;
@@ -184,17 +183,15 @@ export class CardStackComponent {
   });
 
   protected readonly stackThicknessPx = computed<number>(() => {
-    this.cardsVersion();
     if (this.tabletopService.mode2d() || this.isPoster()) return 0;
-    const count = this.cardStack().cards.length;
+    const count = this.cardCount();
     if (count <= 1) return 0;
     return Math.min(CardStackComponent.STACK_MAX_THICKNESS_PX, count * CardStackComponent.STACK_PIXELS_PER_CARD);
   });
 
   protected readonly stackLayers = computed<readonly { z: number; bg: string }[]>(() => {
-    this.cardsVersion();
     if (this.tabletopService.mode2d() || this.isPoster()) return [];
-    const count = this.cardStack().cards.length;
+    const count = this.cardCount();
     if (count <= 1) return [];
     const thickness = this.stackThicknessPx();
     const layerCount = Math.min(count - 1, CardStackComponent.STACK_MAX_LAYERS);
@@ -259,7 +256,6 @@ export class CardStackComponent {
   }
 
   readonly animeState = signal<'active' | 'inactive'>('inactive');
-  private readonly cardsVersion = signal(0);
 
   private readonly iconHiding = hideIconWhileTouched(this.destroyRef);
   readonly isIconHidden = this.iconHiding.isHidden;
@@ -279,10 +275,6 @@ export class CardStackComponent {
       if (event.identifier === this.cardStack().identifier) {
         this.animeState.set('active');
       }
-    }, this.destroyRef);
-    this.objectChange.cardStackDecreased$.subscribe((event) => {
-      if (event.cardStackIdentifier === this.cardStack().identifier && this.cardStack())
-        this.cardsVersion.update((v) => v + 1);
     }, this.destroyRef);
     setupMovableRotableForPiece(this, {
       target: this.cardStack,

@@ -251,6 +251,31 @@ describe('CardStackComponent', () => {
       }
     });
 
+    it('follows a card put onto the stack and one drawn off it', async () => {
+      const stack = makeStackWithCards(3);
+      fixture.componentRef.setInput('cardStack', stack);
+      try {
+        expect(component.cardCount()).toBe(3);
+        expect(readThickness()).toBeCloseTo(3);
+        expect(readLayers()).toHaveLength(2);
+
+        stack.putOnTop(Card.create('joined', '', '', 2));
+        await fixture.whenStable();
+        expect(component.cardCount()).toBe(4);
+        expect(readThickness()).toBeCloseTo(4);
+        expect(readLayers()).toHaveLength(3);
+
+        stack.drawCard()?.destroy();
+        stack.drawCard()?.destroy();
+        await fixture.whenStable();
+        expect(component.cardCount()).toBe(2);
+        expect(readThickness()).toBeCloseTo(2);
+        expect(readLayers()).toHaveLength(1);
+      } finally {
+        stack.destroy();
+      }
+    });
+
     it('leaves out both in the flat mode', () => {
       const stack = makeStackWithCards(20);
       fixture.componentRef.setInput('cardStack', stack);
