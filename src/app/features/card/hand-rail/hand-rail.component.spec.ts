@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -189,6 +190,77 @@ describe('HandRailComponent', () => {
       await hoverOverTheHand();
 
       expect(giveButton()).toBeNull();
+    });
+  });
+
+  describe('dragging a card out onto the table', () => {
+    let card: Card;
+    let surface: HTMLElement;
+    const ownElementFromPoint = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');
+
+    beforeEach(async () => {
+      card = makeCard(handLocationOf('me'));
+      surface = document.createElement('div');
+      surface.dataset['surface'] = 'floor';
+      document.body.appendChild(surface);
+      // The page here has no layout to find the table under the pointer in.
+      Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => surface });
+      vi.spyOn(TestBed.inject(CoordinateService), 'calcTabletopLocalCoordinate').mockReturnValue({
+        x: 300,
+        y: 200,
+        z: 0,
+      });
+      TestBed.inject(HandRailService).open();
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      if (ownElementFromPoint) Object.defineProperty(document, 'elementFromPoint', ownElementFromPoint);
+      else delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+      surface.remove();
+      card.destroy();
+      vi.restoreAllMocks();
+    });
+
+    function dropOntoTheTable(): void {
+      const element = fixture.nativeElement.querySelector('.hand-card') as HTMLElement;
+      const at = (x: number) => ({ pointerId: 1, pointerType: 'mouse', button: 0, clientX: x, clientY: 50 });
+      element.dispatchEvent(new PointerEvent('pointerdown', at(10)));
+      element.dispatchEvent(new PointerEvent('pointermove', at(60)));
+      element.dispatchEvent(new PointerEvent('pointerup', at(60)));
+    }
+
+    it('leaves the card in the hand until it is told how the card lies', () => {
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+
+      dropOntoTheTable();
+
+      expect(card.location.name).toBe(handLocationOf('me'));
+      expect(open).toHaveBeenCalledOnce();
+      expect(open.mock.calls[0][0]).toEqual({ x: 60, y: 50 });
+    });
+
+    it('lays the card face down where it was dropped when told to', () => {
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      dropOntoTheTable();
+
+      open.mock.calls[0][1][1].action!();
+
+      expect(card.location.name).toBe('table');
+      expect(card.state).toBe(CardState.BACK);
+      expect(card.location.x).toBe(300 - card.size * 25);
+      expect(card.location.y).toBe(200 - card.size * 25);
+    });
+
+    it('lays nothing once the card has left the hand while the choice was open', () => {
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      dropOntoTheTable();
+      card.toHand('other');
+
+      open.mock.calls[0][1][0].action!();
+
+      expect(card.location.name).toBe(handLocationOf('other'));
     });
   });
 

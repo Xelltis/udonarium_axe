@@ -1,4 +1,5 @@
 import type { CardSeat } from '@axe/application/card/card-game.service';
+import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 
 /**
@@ -10,4 +11,15 @@ export function buildGiveHandCardMenu(seats: readonly CardSeat[], give: (userId:
     name: seat.name.length > 0 ? seat.name : seat.userId.slice(0, 6),
     action: () => give(seat.userId),
   }));
+}
+
+/**
+ * The two ways a card dragged out of your hand can be laid where it was dropped, face up first, as
+ * the hand's own buttons offer them.
+ */
+export function buildPlayDroppedCardMenu(play: (faceUp: boolean) => void, t: TranslateFn): ContextMenuAction[] {
+  return [
+    { name: t('feature.card.hand.playFaceUp'), action: () => play(true) },
+    { name: t('feature.card.hand.playFaceDown'), action: () => play(false) },
+  ];
 }
