@@ -4,6 +4,7 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
+import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
@@ -55,6 +56,15 @@ export class NetworkEventHandlerService {
       // Past the limit it treats the failure as permanent, says so and stops rather than looping.
       if (errorType === 'server-error') {
         this.handleServerErrorReconnect();
+        return;
+      }
+
+      // This seat is still in the room under its own name, from another tab or from before a
+      // reload that has not dropped yet. Trying again at once would meet it again, so it goes back
+      // to waiting and says why, without spending one of the tries the other errors are allowed.
+      if (errorType === SAME_NAME_MEMBER_ERROR) {
+        this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.sameNameMember'));
+        Network.openStandby(loadIdentity()?.userId);
         return;
       }
 

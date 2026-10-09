@@ -44,7 +44,9 @@ export class InviteJoinComponent {
   protected readonly message = computed(() => {
     switch (this.state()) {
       case 'joining':
-        return this.t('feature.lobby.invite.joining', { roomName: this.roomName() });
+        return this.roomJoin.waitingForPreviousConnection()
+          ? this.t('feature.lobby.waitingForPreviousConnection')
+          : this.t('feature.lobby.invite.joining', { roomName: this.roomName() });
       case 'notFound':
         return this.t('feature.lobby.invite.notFound', { roomName: this.roomName() });
       case 'failed':

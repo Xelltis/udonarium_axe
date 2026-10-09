@@ -2925,8 +2925,10 @@
         "tokenExpired": "The SkyWay auth token has expired. Reconnecting...",
         "generic": "A network error occurred. ({{errorType}})",
         "reconnecting": "Attempting to reconnect...",
-        "lastReconnect": "This is the last attempt. If it does not connect, leave it a while and come back in."
+        "lastReconnect": "This is the last attempt. If it does not connect, leave it a while and come back in.",
+        "sameNameMember": "You are in this room in another tab, or your previous connection has not dropped yet. Close the other tab, or wait a little and join again"
       },
+      "waitingForPreviousConnection": "Waiting for your previous connection to drop (up to about a minute)",
       "peerCursor": {
         "noSignal": "No keepalive signal from {{name}} for over {{seconds}}s. Connection may be unstable.",
         "reconnected": "Reconnected to {{name}}.",
