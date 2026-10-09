@@ -13,6 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
@@ -40,6 +41,7 @@ import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-men
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -100,6 +102,7 @@ import { GameDataElementBuffComponent } from '@axe/features/character/game-data-
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildConcealMenu } from '@axe/features/tabletop/board-switch/concealment-context-menu';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
+import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
@@ -156,6 +159,12 @@ const HEAL_AURA_MS = 760;
 const GAUGE_STACK_GAP_PX = 32;
 const BUFF_STACK_GAP_PX = 40;
 const TARGET_STACK_GAP_PX = 52;
+/** The space between a bubble and the bars and buffs under it. */
+const SPEECH_STACK_GAP_PX = 6;
+/** How much higher a bubble stands over a piece marked as a target, to clear the mark. */
+const TARGET_MARK_HEIGHT_PX = 34;
+/** How large a stamp shows in a bubble, before the labels' supersampling. */
+const SPEECH_STAMP_PX = 56;
 const BUFF_DETAIL_ROW_HEIGHT_PX = 12;
 const BUFF_BADGE_ROW_HEIGHT_PX = 22;
 const BUFF_BADGES_PER_ROW = 5;
@@ -186,6 +195,7 @@ interface PieceRightDrag {
     NgStyle,
     GameDataElementBuffComponent,
     SafePipe,
+    StampComponent,
     TranslocoModule,
   ],
   host: {
@@ -229,6 +239,8 @@ export class GameCharacterComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
+  private readonly speechBubbles = inject(SpeechBubbleService);
+  private readonly renderLite = inject(RenderLiteService);
 
   readonly isTargeted = computed(() => {
     this.uiSignalService.targetChange();
@@ -988,6 +1000,44 @@ export class GameCharacterComponent {
 
   readonly targetStackFacing = computed<BillboardFacing>(() =>
     this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(0))
+  );
+
+  /** What the character is saying, over its piece; none while the room or this seat hides it. */
+  readonly speechBubble = computed(() => {
+    const character = this.gameCharacter();
+    if (!character || !this.overlay.speech() || !this.speechBubbles.roomAllows()) return null;
+    return this.speechBubbles.bubbleOf(character.identifier)();
+  });
+
+  protected readonly speechStampPx = SPEECH_STAMP_PX * DECOR_SUPERSAMPLE;
+
+  /** The shadow under a bubble, left off where the table is drawn the lighter way. */
+  readonly speechShadow = computed(() => (this.renderLite.active() ? '' : 'shadow-[0_0.15em_0.4em_rgba(0,0,0,0.45)]'));
+
+  /**
+   * How far over the piece a bubble's foot stands: over its bars and its buffs, which it sits on
+   * as the buffs sit on the bars, and over the target mark where there is one.
+   */
+  private readonly speechLift = computed(
+    () =>
+      BUFF_STACK_GAP_PX +
+      this.gaugePanelHeightEstimate() +
+      this.buffPanelHeightEstimate() +
+      SPEECH_STACK_GAP_PX +
+      (this.isTargeted() ? TARGET_MARK_HEIGHT_PX : 0)
+  );
+
+  readonly speechOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.speechOrbit()));
+
+  private speechOrbit(): BillboardFacing {
+    const lift = this.speechLift();
+    if (this.isPoster())
+      return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + lift - BUFF_STACK_GAP_PX)}px)`);
+    return this.labelOrbitFacing(lift, 28 + lift);
+  }
+
+  readonly speechStackFacing = computed<BillboardFacing>(() =>
+    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(this.speechLift()))
   );
 
   private screenLiftFacing(screenLift3d: number, distance2d: number): BillboardFacing {

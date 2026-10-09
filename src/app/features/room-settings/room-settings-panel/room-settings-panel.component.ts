@@ -638,6 +638,19 @@ export class RoomSettingsPanelComponent {
     if (!this.isSharedReadOnly()) this.config.defaultDiceBot = gameType;
   }
 
+  /**
+   * Whether what a character says shows in a bubble over its piece, read from the room's config.
+   *
+   * Only a user allowed to change the shared settings can set it.
+   */
+  get speechBubbles(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.speechBubblesEnabled;
+  }
+  set speechBubbles(enabled: boolean) {
+    if (!this.isSharedReadOnly()) this.config.speechBubblesEnabled = enabled;
+  }
+
   /** Where the room can have its rolls' dice tumble. */
   readonly diceStages: readonly DiceStage[] = DICE_STAGES;
 

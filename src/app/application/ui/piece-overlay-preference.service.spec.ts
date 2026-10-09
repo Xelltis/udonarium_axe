@@ -42,6 +42,21 @@ describe('PieceOverlayPreferenceService', () => {
     expect(service().resourceBars()).toBe(true);
   });
 
+  it('hides what the characters say apart from the rest, and keeps that for the next session too', () => {
+    service().toggleSpeech();
+
+    const overlay = service();
+    expect(overlay.speech()).toBe(false);
+    expect(overlay.resourceBars()).toBe(true);
+    expect(overlay.buffs()).toBe(true);
+  });
+
+  it('shows what the characters say where a choice was kept before it could be hidden', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ resourceBars: false, buffs: true }));
+
+    expect(service().speech()).toBe(true);
+  });
+
   it.each([
     ['nothing JSON can read', 'hidden'],
     ['something that is not an object', '7'],

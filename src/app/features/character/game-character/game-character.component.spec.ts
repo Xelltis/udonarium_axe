@@ -1,6 +1,8 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -21,6 +23,8 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -1553,6 +1557,55 @@ describe('GameCharacterComponent', () => {
 
   it('computes whether it is targeted', () => {
     expect(typeof component.isTargeted).toBe('function');
+  });
+
+  describe('what the character says', () => {
+    let tab: ChatTab;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      ChatTabList.instance.initialize();
+      tab = new ChatTab();
+      tab.initialize();
+      ChatTabList.instance.appendChild(tab);
+      vi.spyOn(TestBed.inject(ChatMessageService), 'getTime').mockImplementation(() => Date.now());
+    });
+
+    afterEach(() => {
+      TestBed.inject(SpeechBubbleService).clear();
+      for (const chatTab of [...ChatTabList.instance.chatTabs]) chatTab.destroy();
+      localStorage.removeItem('ui-piece-overlay');
+      vi.useRealTimers();
+    });
+
+    const bubbleOf = () => fixture.nativeElement.querySelector('[data-testid="speech-bubble"]') as HTMLElement | null;
+
+    it('shows over the piece, kept from a screen reader, and not while this seat hides it', () => {
+      const character = GameCharacter.create('話者', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        tab.addMessage({
+          from: 'me',
+          sendFrom: character.identifier,
+          name: '話者',
+          text: '手を振る。「やあ」',
+          timestamp: Date.now(),
+        });
+        vi.advanceTimersByTime(SPEECH_BUBBLE_WAIT_MS);
+        fixture.detectChanges();
+
+        expect(bubbleOf()?.textContent?.trim()).toBe('やあ');
+        expect(bubbleOf()?.closest('[aria-hidden="true"]')).toBeTruthy();
+
+        TestBed.inject(PieceOverlayPreferenceService).toggleSpeech();
+        fixture.detectChanges();
+        expect(bubbleOf()).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
   });
 
   describe('the target marker', () => {

@@ -47,6 +47,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_showSpeakerAvatar') private _showSpeakerAvatar: string = '';
   @SyncVar('_controllerResources') private _controllerResources: string = '';
   @SyncVar('_stampRules') private _stampRules: string = '';
+  @SyncVar('_speechBubbles') private _speechBubbles: string = '';
 
   // How the round is taken, which is the room's own decision rather than a table's.
   @SyncVar('_turnOrderMode') private _turnOrderMode: string = '';
@@ -199,6 +200,17 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set isSystemAvatarVisible(visible: boolean) {
     this._hideSystemAvatar = visible ? '' : '1';
+  }
+
+  /**
+   * Whether what a character says shows in a bubble over its piece; on unless the room turned it
+   * off, which is the one value that does.
+   */
+  get speechBubblesEnabled(): boolean {
+    return this._speechBubbles !== 'off';
+  }
+  set speechBubblesEnabled(enabled: boolean) {
+    this._speechBubbles = enabled ? '' : 'off';
   }
 
   /**

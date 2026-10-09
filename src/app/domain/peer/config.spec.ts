@@ -159,6 +159,38 @@ describe('Config', () => {
     });
   });
 
+  describe('whether what a character says shows over its piece', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.speechBubblesEnabled = true;
+    });
+
+    it('shows it in a room saved before the switch, and in one holding a value it does not know', () => {
+      Config.instance.speechBubblesEnabled = false;
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_speechBubbles'];
+      older.majorVersion += 1;
+      Config.instance.apply(older);
+      expect(Config.instance.speechBubblesEnabled).toBe(true);
+
+      const newer = Config.instance.toContext();
+      attributesOf(newer)['_speechBubbles'] = 'from-a-newer-version';
+      newer.majorVersion += 1;
+      Config.instance.apply(newer);
+      expect(Config.instance.speechBubblesEnabled).toBe(true);
+    });
+
+    it('passes the room turning it off on with the rest of the config', () => {
+      Config.instance.speechBubblesEnabled = false;
+
+      expect(attributesOf(Config.instance.toContext())['_speechBubbles']).toBe('off');
+      expect(Config.instance.speechBubblesEnabled).toBe(false);
+    });
+  });
+
   describe('how the round is taken', () => {
     it('takes the round one piece at a time until it is told otherwise', () => {
       expect(Config.instance.turnOrderMode).toBe('initiative');
