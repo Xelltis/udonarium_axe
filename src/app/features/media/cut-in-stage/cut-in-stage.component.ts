@@ -11,6 +11,7 @@ import {
   untracked,
   viewChildren,
 } from '@angular/core';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -36,6 +37,7 @@ import {
   toWebAnimationFrames,
   toWipeFrames,
 } from '@axe/domain/media/cut-in-scene-timeline';
+import { type CutInSpeaker, PORTRAIT_SILHOUETTE_URL, withSpeakerName } from '@axe/domain/media/cut-in-speaker';
 import { wipeCss } from '@axe/domain/media/cut-in-wipe';
 import { type StageFit, stageFit } from '@axe/features/media/cut-in-editor/cut-in-stage-geometry';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -68,6 +70,7 @@ export class CutInStageComponent {
   private readonly motion = inject(MotionService);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly t = inject(TRANSLATE_FN);
 
   readonly scene = input<CutInScene | null>(null);
   /** The coordinates the layers were laid out in, which are the cut-in's own. */
@@ -80,6 +83,8 @@ export class CutInStageComponent {
   readonly playheadMs = input(0);
   /** How far the stage is leaned into, past the scale that fits the scene in. */
   readonly zoom = input(1);
+  /** Who the cut-in is played for: whose portrait and name its layers show where they ask. */
+  readonly speaker = input<CutInSpeaker | null>(null);
 
   private readonly layerElements = viewChildren<ElementRef<HTMLElement>>('layerElement');
   private readonly wipeElements = viewChildren<ElementRef<HTMLElement>>('wipeElement');
@@ -200,9 +205,21 @@ export class CutInStageComponent {
     return wipeCss(layer.crumbleShape, sampleLayerAt(layer, this.playheadMs(), this.durationMs()).crumble) || null;
   }
 
+  /**
+   * The picture a layer shows. A portrait's place shows the speaker's portrait, else the layer's own
+   * picture, else a grey head and shoulders.
+   */
   protected imageUrl(layer: CutInLayer): string {
     this.objectChange.fileVersion();
-    return this.imageStorage.get(layer.imageIdentifier)?.url ?? '';
+    const own = this.imageStorage.get(layer.imageIdentifier)?.url ?? '';
+    if (!layer.portraitSlot) return own;
+    const portrait = this.speaker()?.imageIdentifier ?? '';
+    return (portrait ? this.imageStorage.get(portrait)?.url : '') || own || PORTRAIT_SILHOUETTE_URL;
+  }
+
+  /** A text layer's words, with the speaker's name put in where it asks for it. */
+  protected textOf(layer: CutInLayer): string {
+    return withSpeakerName(layer.text, this.speaker()?.name, this.t('feature.media.cutIn.unknownSpeaker'));
   }
 
   /**
@@ -212,10 +229,11 @@ export class CutInStageComponent {
   protected letterLinesOf(layer: CutInLayer): PlacedLetter[][] | null {
     this.objectChange.versionOf(layer.identifier)();
     if (!letterMotionOf(layer.letterMotion)) return null;
+    const text = this.textOf(layer);
     const kept = this.letterLines.get(layer.identifier);
-    if (kept?.text === layer.text) return kept.lines;
-    const lines = lettersOf(layer.text);
-    this.letterLines.set(layer.identifier, { text: layer.text, lines });
+    if (kept?.text === text) return kept.lines;
+    const lines = lettersOf(text);
+    this.letterLines.set(layer.identifier, { text, lines });
     return lines;
   }
 

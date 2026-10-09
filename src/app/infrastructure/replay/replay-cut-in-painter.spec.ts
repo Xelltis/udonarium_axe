@@ -93,6 +93,13 @@ describe('paintReplayCutInScene()', () => {
     expect(plain.texts.map((text) => text.text)).toEqual(['いくぞ']);
   });
 
+  it('leaves a name a text layer asks for unknown, since a video does not know who played the cut-in', () => {
+    const plain = recorder();
+    paintReplayCutInScene(plain.ctx, area, sceneOf([{ kind: 'text', text: '{character}、参戦！' }]), assets, 0);
+
+    expect(plain.texts.map((text) => text.text)).toEqual(['？？？、参戦！']);
+  });
+
   it('draws the picture of every layer that has one', () => {
     const { ctx, images } = recorder();
     const scene = sceneOf([{ imageIdentifier: 'pic' }, { imageIdentifier: 'pic', y: 200 }]);

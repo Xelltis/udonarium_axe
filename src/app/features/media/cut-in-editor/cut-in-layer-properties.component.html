@@ -41,6 +41,19 @@
     @if (layer.kind === 'image') {
       <label
         class="text-ui-muted flex cursor-pointer items-center gap-1 py-0.5 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
+        [title]="'feature.media.cutInEditor.portraitSlotHint' | transloco"
+      >
+        <input
+          type="checkbox"
+          name="cut-in-layer-portrait-slot"
+          data-testid="cut-in-portrait-slot"
+          [(ngModel)]="portraitSlot"
+          [attr.disabled]="!isEditable() ? '' : null"
+        />
+        {{ 'feature.media.cutInEditor.portraitSlot' | transloco }}
+      </label>
+      <label
+        class="text-ui-muted flex cursor-pointer items-center gap-1 py-0.5 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
       >
         <input
           type="checkbox"
@@ -84,6 +97,18 @@
         [placeholder]="'feature.media.cutInEditor.textPlaceholder' | transloco"
         [attr.disabled]="!isEditable() ? '' : null"
       ></textarea>
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] transition-[background,color] disabled:cursor-default disabled:opacity-50"
+          data-testid="cut-in-insert-speaker-name"
+          [disabled]="!isEditable()"
+          (click)="insertSpeakerName()"
+        >
+          {{ 'feature.media.cutInEditor.insertSpeakerName' | transloco }}
+        </button>
+        <span class="text-ui-dim text-[10px]">{{ 'feature.media.cutInEditor.speakerNameHint' | transloco }}</span>
+      </div>
       <div class="grid grid-cols-[3.6rem_minmax(0,1fr)] items-center gap-x-1.5 gap-y-1">
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.fontSize' | transloco }}</label>
         <input

@@ -571,7 +571,10 @@
         "multiDirection_vertical-right": "上下右",
         "multiDirection_vertical-left": "上下左",
         "multiDirection_four-directions": "上下左右",
-        "multiDirectionHint": "卓を真上から見ているあいだだけ、四方に向けて出します。"
+        "multiDirectionHint": "卓を真上から見ているあいだだけ、四方に向けて出します。",
+        "unknownSpeaker": "？？？",
+        "trySpeaker": "誰として再生",
+        "trySpeakerNobody": "指定しない"
       },
       "cutInEditor": {
         "tabBasic": "基本設定",
@@ -755,7 +758,11 @@
           "slide": "すべり込む",
           "wave": "波打つ",
           "shake": "震える"
-        }
+        },
+        "portraitSlot": "再生した人の立ち絵を出す",
+        "portraitSlotHint": "チャットから再生したときは発言したキャラの立ち絵を出します。いないときはこの層の画像を、それもなければ影絵を出します。",
+        "insertSpeakerName": "名前を入れる",
+        "speakerNameHint": "{character} が再生した人の名前になります"
       }
     },
     "card": {

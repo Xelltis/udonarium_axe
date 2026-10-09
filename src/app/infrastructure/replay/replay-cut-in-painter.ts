@@ -1,6 +1,7 @@
 import { clipPoints } from '@axe/domain/media/cut-in-clip';
 import { fillScaleOf, fillStops, rayDegOf } from '@axe/domain/media/cut-in-fill';
 import { letterMotionOf, letterPoseAt, lettersOf, letterTimingOf } from '@axe/domain/media/cut-in-letter-motion';
+import { withSpeakerName } from '@axe/domain/media/cut-in-speaker';
 import { wipePoints } from '@axe/domain/media/cut-in-wipe';
 import {
   layerFill,
@@ -113,6 +114,9 @@ function clipTo(ctx: ReplayFrameCanvas, layer: ReplayCutInLayer, left: number, t
   ctx.clip();
 }
 
+/** What a name asked for by a text layer reads as in a video, which does not know who played it. */
+const UNKNOWN_SPEAKER = '？？？';
+
 /**
  * The words of a text layer, laid out the way the browser lays them out.
  *
@@ -135,7 +139,9 @@ function paintWords(
   const wasSpaced = spaced.letterSpacing;
   if ('letterSpacing' in ctx) spaced.letterSpacing = `${layer.letterSpacingPx}px`;
 
-  const lines = layer.text.split('\n');
+  // A video does not know who a cut-in was played for, so a name asked for is left unknown.
+  const words = withSpeakerName(layer.text, null, UNKNOWN_SPEAKER);
+  const lines = words.split('\n');
   const stroked = layer.strokeWidthPx > 0 && layer.strokeColor.length > 0;
   ctx.strokeStyle = layer.strokeColor;
   ctx.lineWidth = layer.strokeWidthPx * 2;
@@ -145,7 +151,7 @@ function paintWords(
   const step = layer.fontSizePx * Math.max(0.4, layer.lineHeight);
   const motion = letterMotionOf(layer.letterMotion);
   const timing = motion ? letterTimingOf(motion, layer.letterStaggerMs, layer.letterDurationMs) : null;
-  const placed = lettersOf(layer.text);
+  const placed = lettersOf(words);
   const drawLetter = (letter: string, rank: number, x: number, y: number) => {
     if (!motion || !timing) {
       if (stroked) ctx.strokeText(letter, x, y);

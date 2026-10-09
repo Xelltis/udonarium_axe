@@ -17,11 +17,13 @@ import { PresetSound } from '@axe/domain/media/sound-effect';
 /**
  * The cut-ins a new room starts with.
  *
- * Both are the shape a summoning cut-in takes: a face filling a window, the sound of it,
- * and the word for that sound stamped across the corner. The older style stands its
- * window upright; the newer one leans it over and tears its edge. Everything but the
- * face is drawn — bands, lines, dots and words — so opening either in the scene editor
- * shows how it was put together, and the face is one field to change.
+ * The first two are the shape a summoning cut-in takes: a face filling a window, the sound
+ * of it, and the word for that sound stamped across the corner. The older style stands its
+ * window upright; the newer one leans it over and tears its edge. The third shows whoever
+ * set it off: their portrait slides in and their name comes up a letter at a time, ahead of
+ * the call. Everything but the face is drawn — bands, lines, dots and words — so opening any
+ * of them in the scene editor shows how it was put together, and the face is one field to
+ * change.
  *
  * The identifiers are fixed, so everyone in a room ends up with the same two rather than
  * a copy each, the way the built-in effects work.
@@ -62,6 +64,8 @@ interface LayerSeed {
 
   // image
   portrait?: boolean;
+  /** Shows the portrait of whoever the cut-in is played for, the sample's own picture standing in. */
+  portraitSlot?: boolean;
   face?: boolean;
   objectFit?: string;
   objectPosY?: number;
@@ -77,6 +81,8 @@ interface LayerSeed {
   textAlign?: CutInTextAlign;
   strokeColor?: string;
   strokeWidthPx?: number;
+  letterMotion?: string;
+  letterStaggerMs?: number;
 }
 
 interface SoundSeed {
@@ -422,13 +428,148 @@ export const DEFAULT_CUT_IN_SEEDS: readonly CutInSeed[] = [
       },
     ],
   },
+  {
+    identifier: 'sample-cut-in-entry',
+    sceneIdentifier: 'sample-cut-in-entry-scene',
+    name: 'Sample3',
+    width: 800,
+    height: 400,
+    durationMs: 2400,
+    sounds: [{ atMs: 0, soundKey: 'flashImpact', volume: 80 }],
+    layers: [
+      {
+        identifier: 'sample-cut-in-entry-plate',
+        name: '下地',
+        kind: 'fill',
+        x: 0,
+        y: 0,
+        width: 800,
+        height: 400,
+        fillShape: 'linear',
+        fillFrom: '#3a0d18',
+        fillTo: '#0b0710',
+        fillAngleDeg: 120,
+        tracks: {
+          opacity: [
+            { t: 0, v: 0, e: 'linear' },
+            { t: 120, v: 1 },
+            { t: 2150, v: 1, e: 'inCubic' },
+            { t: 2400, v: 0 },
+          ],
+        },
+      },
+      {
+        identifier: 'sample-cut-in-entry-rays',
+        name: '集中線',
+        kind: 'fill',
+        x: 0,
+        y: 0,
+        width: 800,
+        height: 400,
+        fillShape: 'speedlines',
+        fillFrom: '#ffb36b',
+        fillTo: '#0b0710',
+        fillAngleDeg: 0,
+        fillScalePx: 24,
+        tracks: {
+          opacity: [
+            { t: 80, v: 0, e: 'linear' },
+            { t: 200, v: 0.5 },
+            { t: 2100, v: 0.5, e: 'inCubic' },
+            { t: 2400, v: 0 },
+          ],
+        },
+      },
+      {
+        identifier: 'sample-cut-in-entry-portrait',
+        name: '立ち絵 : 再生した人',
+        kind: 'image',
+        x: 30,
+        y: 0,
+        width: 340,
+        height: 400,
+        portrait: true,
+        portraitSlot: true,
+        objectFit: 'cover',
+        objectPosY: 20,
+        tracks: {
+          x: [
+            { t: 0, v: -380, e: 'outCubic' },
+            { t: 320, v: 30 },
+          ],
+          opacity: [
+            { t: 0, v: 0, e: 'linear' },
+            { t: 120, v: 1 },
+            { t: 2150, v: 1, e: 'inCubic' },
+            { t: 2400, v: 0 },
+          ],
+        },
+      },
+      {
+        identifier: 'sample-cut-in-entry-name',
+        name: '文字 : 名前',
+        kind: 'text',
+        x: 370,
+        y: 80,
+        width: 410,
+        height: 90,
+        rotation: -4,
+        text: '{character}',
+        fontSizePx: 44,
+        fontWeight: 800,
+        color: '#ffffff',
+        textAlign: 'center',
+        strokeColor: '#1a0610',
+        strokeWidthPx: 4,
+        letterMotion: 'slide',
+        tracks: {
+          opacity: [
+            { t: 300, v: 0, e: 'linear' },
+            { t: 301, v: 1 },
+            { t: 2150, v: 1, e: 'inCubic' },
+            { t: 2400, v: 0 },
+          ],
+        },
+      },
+      {
+        identifier: 'sample-cut-in-entry-call',
+        name: '文字 : 参戦！',
+        kind: 'text',
+        x: 360,
+        y: 170,
+        width: 430,
+        height: 170,
+        rotation: -6,
+        text: '参戦！',
+        fontSizePx: 118,
+        fontWeight: 900,
+        color: '#ffd23f',
+        textAlign: 'center',
+        strokeColor: '#3a0d00',
+        strokeWidthPx: 7,
+        letterMotion: 'pop',
+        letterStaggerMs: 140,
+        effect: 'glow',
+        effectStrength: 0.6,
+        effectColor: '#ff9a3c',
+        tracks: {
+          opacity: [
+            { t: 700, v: 0, e: 'linear' },
+            { t: 701, v: 1 },
+            { t: 2150, v: 1, e: 'inCubic' },
+            { t: 2400, v: 0 },
+          ],
+        },
+      },
+    ],
+  },
 ] as const;
 
 /**
  * Makes the samples, leaving alone any that are already there.
  *
  * Called on a fresh store, before a room's own objects arrive, so everyone builds the
- * same two under the same identifiers and syncing settles them into one set.
+ * same ones under the same identifiers and syncing settles them into one set.
  */
 export function createDefaultCutIns(imageStorage: ImageStorage): CutIn[] {
   const pictures = {
@@ -529,6 +670,7 @@ function makeLayer(seed: LayerSeed, pictures: SamplePictures): CutInLayer {
   if (seed.fillScalePx !== undefined) layer.fillScalePx = seed.fillScalePx;
 
   if (seed.portrait) layer.imageIdentifier = pictures.portrait;
+  if (seed.portraitSlot) layer.portraitSlot = true;
   if (seed.face) layer.imageIdentifier = pictures.face;
   if (seed.objectFit) layer.objectFit = seed.objectFit;
   if (seed.objectPosY !== undefined) layer.objectPosY = seed.objectPosY;
@@ -542,6 +684,8 @@ function makeLayer(seed: LayerSeed, pictures: SamplePictures): CutInLayer {
   if (seed.textAlign) layer.textAlign = seed.textAlign;
   if (seed.strokeColor) layer.strokeColor = seed.strokeColor;
   if (seed.strokeWidthPx !== undefined) layer.strokeWidthPx = seed.strokeWidthPx;
+  if (seed.letterMotion) layer.letterMotion = seed.letterMotion;
+  if (seed.letterStaggerMs !== undefined) layer.letterStaggerMs = seed.letterStaggerMs;
 
   return layer;
 }

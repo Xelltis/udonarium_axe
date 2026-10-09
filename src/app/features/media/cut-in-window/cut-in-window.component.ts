@@ -27,6 +27,7 @@ import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { cutInPlaybackMs } from '@axe/domain/media/cut-in-playback-window';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { Config } from '@axe/domain/peer/config';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -191,6 +192,8 @@ export class CutInWindowComponent {
   protected readonly playbackStarted = signal(false);
 
   cutIn: CutIn | null = null;
+  /** Who the cut-in is played for: whose portrait and name its layers show, where they ask. */
+  speaker: CutInSpeaker | null = null;
   playListId = '';
 
   private _naturalWidth = 0;

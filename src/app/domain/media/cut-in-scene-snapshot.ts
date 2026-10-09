@@ -51,6 +51,7 @@ const LAYER_FIELDS = [
   'letterSpacingPx',
   'lineHeight',
   'vertical',
+  'portraitSlot',
   'letterMotion',
   'letterStaggerMs',
   'letterDurationMs',

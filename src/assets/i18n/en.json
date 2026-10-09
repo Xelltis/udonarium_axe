@@ -571,7 +571,10 @@
         "multiDirection_vertical-right": "Top, bottom and right",
         "multiDirection_vertical-left": "Top, bottom and left",
         "multiDirection_four-directions": "Top, bottom, left and right",
-        "multiDirectionHint": "Faces the cut-in several ways, but only while the table is seen from above."
+        "multiDirectionHint": "Faces the cut-in several ways, but only while the table is seen from above.",
+        "unknownSpeaker": "???",
+        "trySpeaker": "Play as",
+        "trySpeakerNobody": "Nobody"
       },
       "cutInEditor": {
         "tabBasic": "Settings",
@@ -755,7 +758,11 @@
           "slide": "Slide in",
           "wave": "Wave",
           "shake": "Shake"
-        }
+        },
+        "portraitSlot": "Show the player's portrait",
+        "portraitSlotHint": "Played from chat, this shows the speaking character's portrait; otherwise this layer's own picture, or a silhouette.",
+        "insertSpeakerName": "Insert name",
+        "speakerNameHint": "{character} becomes the name of whoever played it"
       }
     },
     "card": {

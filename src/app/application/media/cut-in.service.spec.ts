@@ -50,7 +50,7 @@ describe('CutInService.activateFromChatText()', () => {
 
     service.activateFromChatText('演出 炎の剣', '');
 
-    expect(spy).toHaveBeenCalledWith(cutIn, '');
+    expect(spy).toHaveBeenCalledWith(cutIn, '', null);
   });
 
   it('ignores a cut-in that chat is not allowed to start', () => {
@@ -147,7 +147,7 @@ describe('CutInService.launchForTable()', () => {
     const spy = vi.spyOn(launcher, 'startCutIn').mockImplementation(() => {});
 
     expect(service.launchForTable(table)).toBe(true);
-    expect(spy).toHaveBeenCalledWith(cutIn, '');
+    expect(spy).toHaveBeenCalledWith(cutIn, '', null);
   });
 
   it('draws the one the roll names when the table asks for several', () => {
@@ -158,7 +158,7 @@ describe('CutInService.launchForTable()', () => {
 
     service.launchForTable(table, () => 1);
 
-    expect(spy).toHaveBeenCalledWith(second, '');
+    expect(spy).toHaveBeenCalledWith(second, '', null);
   });
 
   it('plays nothing once the cut-in it names is gone', () => {
@@ -217,7 +217,7 @@ describe('what a line arriving sets off', () => {
 
     tab.addMessage({ from: 'me', name: '術者', text: '斬る 炎の剣', timestamp: Date.now() });
 
-    expect(spy).toHaveBeenCalledWith(cutIn, '');
+    expect(spy).toHaveBeenCalledWith(cutIn, '', expect.objectContaining({ name: '術者', characterId: '' }));
   });
 
   it('leaves the backlog alone when somebody walks into the room', () => {

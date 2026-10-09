@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { soundOnlyCutIn$, stopCutInByBgm$ } from '@axe/core/event/domain-events';
+import { soundOnlyCutIn$, startCutIn$, stopCutInByBgm$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
+import { encodeLaunchSpeaker } from '@axe/domain/media/cut-in-speaker';
 
 describe('CutInLauncher', () => {
   beforeEach(() => {
@@ -197,6 +198,56 @@ describe('CutInLauncher', () => {
       launcher.startSoundOnlyCutIn(cutIn);
 
       expect(launcher.sendTo).toBe('');
+    });
+  });
+
+  describe('who a launch is played for', () => {
+    function started(): { speakers: unknown[]; off: () => void } {
+      const speakers: unknown[] = [];
+      const off = startCutIn$.subscribe((event) => speakers.push(event.speaker));
+      return { speakers, off };
+    }
+
+    it('plays a launch for the speaker it was started for, and for nobody where none was given', () => {
+      const launcher = new CutInLauncher('CutInLauncher');
+      launcher.initialize();
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      const { speakers, off } = started();
+      const speaker = { characterId: 'hero', imageIdentifier: 'hero-smile', name: 'ヒロ' };
+
+      launcher.startCutIn(cutIn, '', speaker);
+      launcher.startCutIn(cutIn);
+      off();
+
+      expect(speakers).toEqual([speaker, null]);
+    });
+
+    it('plays a launch from another end for its speaker, but not for one an older version sent back', () => {
+      const launcher = new CutInLauncher('CutInLauncher');
+      launcher.initialize();
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      launcher.apply(launcher.toContext());
+      const speaker = { characterId: 'hero', imageIdentifier: 'hero-smile', name: 'ヒロ' };
+      const { speakers, off } = started();
+
+      const fromNewer = launcher.toContext();
+      fromNewer.syncData = {
+        ...fromNewer.syncData,
+        launchCutInIdentifier: cutIn.identifier,
+        launchIsStart: true,
+        launchTimeStamp: 5,
+        launchSpeaker: encodeLaunchSpeaker(speaker, 5, cutIn.identifier),
+      };
+      launcher.apply(fromNewer);
+
+      const fromOlder = launcher.toContext();
+      fromOlder.syncData = { ...fromOlder.syncData, launchTimeStamp: 6 };
+      launcher.apply(fromOlder);
+      off();
+
+      expect(speakers).toEqual([speaker, null]);
     });
   });
 

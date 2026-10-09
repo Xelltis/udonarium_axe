@@ -37,6 +37,7 @@ import {
   type LetterMotion,
   letterMotionOf,
 } from '@axe/domain/media/cut-in-letter-motion';
+import { SPEAKER_NAME_TOKEN } from '@axe/domain/media/cut-in-speaker';
 import { CUT_IN_WIPES, type CutInWipe, isCutInWipe } from '@axe/domain/media/cut-in-wipe';
 import {
   easingAtMoment,
@@ -291,6 +292,19 @@ export class CutInLayerPropertiesComponent {
   }
   set text(text: string) {
     this.write((layer) => (layer.text = text));
+  }
+
+  /** Adds the mark that says the speaker's name to the end of a text layer's words. */
+  insertSpeakerName(): void {
+    this.write((layer) => (layer.text = `${layer.text}${SPEAKER_NAME_TOKEN}`));
+  }
+
+  /** Whether an image layer shows the portrait of whoever the cut-in is played for. */
+  get portraitSlot(): boolean {
+    return this.layer()?.portraitSlot ?? false;
+  }
+  set portraitSlot(slot: boolean) {
+    this.write((layer) => (layer.portraitSlot = slot));
   }
 
   /** A text layer's font size in pixels, never set below 1. */

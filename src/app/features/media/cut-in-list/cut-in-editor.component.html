@@ -47,6 +47,22 @@
         />
       </div>
 
+      @if (usesSpeaker()) {
+        <label class="text-ui-muted flex items-center gap-1.5 text-[11px]" data-testid="cut-in-try-speaker">
+          {{ 'feature.media.cutIn.trySpeaker' | transloco }}
+          <select
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm min-w-0 flex-1 border border-solid p-1 text-[12px] outline-none"
+            name="cut-in-try-speaker"
+            [ngModel]="trySpeakerId()"
+            (ngModelChange)="trySpeakerId.set($event)"
+          >
+            <option [ngValue]="''">{{ 'feature.media.cutIn.trySpeakerNobody' | transloco }}</option>
+            @for (choice of speakerChoices(); track choice.identifier) {
+              <option [ngValue]="choice.identifier">{{ choice.name }}</option>
+            }
+          </select>
+        </label>
+      }
       <div class="flex flex-wrap gap-1.5">
         <button
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm hover:bg-ui-hover hover:border-ui-accent hover:text-ui-accent inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-1 text-[12px] transition-[background,border-color,color] [&_.material-icons]:text-[15px]!"

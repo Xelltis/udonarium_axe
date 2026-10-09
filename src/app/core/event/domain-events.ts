@@ -41,6 +41,8 @@ export interface MessageAddedEvent {
 
 export interface CutInEvent {
   cutIn: unknown;
+  /** Who the cut-in is played for, where a launch says. */
+  speaker?: unknown;
 }
 
 export interface VoteTally {

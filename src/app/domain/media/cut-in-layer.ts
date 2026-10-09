@@ -77,6 +77,11 @@ export class CutInLayer extends ObjectNode {
   /** Which part of the picture is kept when it is cropped, as a percentage across and down. */
   @SyncVar() objectPosX: number = 50;
   @SyncVar() objectPosY: number = 50;
+  /**
+   * Whether the layer shows the portrait of whoever the cut-in is played for, its own picture
+   * standing in where there is nobody; an older version shows its own picture.
+   */
+  @SyncVar() portraitSlot: boolean = false;
 
   // kind: text
   @SyncVar() text: string = '';

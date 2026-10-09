@@ -571,7 +571,10 @@
         "multiDirection_vertical-right": "상하우",
         "multiDirection_vertical-left": "상하좌",
         "multiDirection_four-directions": "상하좌우",
-        "multiDirectionHint": "테이블을 위에서 볼 때만 여러 방향으로 표시합니다."
+        "multiDirectionHint": "테이블을 위에서 볼 때만 여러 방향으로 표시합니다.",
+        "unknownSpeaker": "???",
+        "trySpeaker": "누구로 재생",
+        "trySpeakerNobody": "지정 안 함"
       },
       "cutInEditor": {
         "tabBasic": "기본 설정",
@@ -755,7 +758,11 @@
           "slide": "미끄러져 들어옴",
           "wave": "물결",
           "shake": "떨림"
-        }
+        },
+        "portraitSlot": "재생한 사람의 스탠딩 표시",
+        "portraitSlotHint": "채팅에서 재생하면 발언한 캐릭터의 스탠딩을 표시합니다. 없으면 이 레이어의 이미지를, 그것도 없으면 실루엣을 표시합니다.",
+        "insertSpeakerName": "이름 넣기",
+        "speakerNameHint": "{character}가 재생한 사람의 이름이 됩니다"
       }
     },
     "card": {

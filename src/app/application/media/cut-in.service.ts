@@ -2,11 +2,14 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
+import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { parseCutInIdentifiers, pickCutInIdentifier, rollCutIn } from '@axe/domain/media/table-cut-in';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 
 const CHAT_TAIL_PATTERN = /\s(@?)(\S+)$/i;
@@ -36,8 +39,23 @@ export class CutInService {
       if (!message.isSendFromSelf) return;
       // A line older than this arrived by sync or by loading a room, and was not just said.
       if (Date.now() - message.timestamp > JUST_SAID_MS) return;
-      this.activateFromChatText(message.text, message.to ?? '');
+      this.activateFromChatText(message.text, message.to ?? '', this.speakerOf(message));
     }, this.destroyRef);
+  }
+
+  /**
+   * Who a line was said by, for a cut-in it sets off to be played for: the character or the
+   * person speaking, with the portrait the line was said with.
+   */
+  speakerOf(message: ChatMessage): CutInSpeaker {
+    const speaker = this.objectStore.get(message.sendFrom);
+    const isCharacter = speaker instanceof GameCharacter;
+    const name = isCharacter || speaker instanceof PeerCursor ? speaker.name : message.name;
+    return {
+      characterId: isCharacter ? speaker.identifier : '',
+      imageIdentifier: message.imageIdentifier ?? '',
+      name: name ?? '',
+    };
   }
 
   /**
@@ -46,9 +64,9 @@ export class CutInService {
    * Only cut-ins set to start from chat answer, and a last word written with `@` plays the cut-in's
    * sound alone. `sendTo` is the user id a direct line was sent to, or empty for a line to everyone.
    * It goes onto the launcher, so the other peers leave the cut-in to that one user, while this peer
-   * plays it as well.
+   * plays it as well. The cut-in is played for `speaker` where given.
    */
-  activateFromChatText(text: string, sendTo: string): void {
+  activateFromChatText(text: string, sendTo: string, speaker: CutInSpeaker | null = null): void {
     const matches = ` ${text}`.match(CHAT_TAIL_PATTERN);
     if (!matches) return;
 
@@ -64,7 +82,7 @@ export class CutInService {
     if (isSoundOnly) {
       launcher.startSoundOnlyCutIn(target, sendTo);
     } else {
-      this.launch(target, sendTo);
+      this.launch(target, sendTo, speaker);
     }
   }
 
@@ -83,15 +101,18 @@ export class CutInService {
     return cutIn ? this.launch(cutIn) : false;
   }
 
-  /** Plays a cut-in for everyone, handling the music the same way a chat-started one does. */
-  launch(cutIn: CutIn, sendTo = ''): boolean {
+  /**
+   * Plays a cut-in for everyone, handling the music the same way a chat-started one does, for
+   * `speaker` where given.
+   */
+  launch(cutIn: CutIn, sendTo = '', speaker: CutInSpeaker | null = null): boolean {
     const launcher = this.objectStore.get<CutInLauncher>('CutInLauncher');
     if (!launcher) return false;
 
     if (this.isCutInBgmUploaded(cutIn.audioIdentifier) && cutIn.tagName === '') {
       this.objectStore.get<Jukebox>('Jukebox')?.stop();
     }
-    launcher.startCutIn(cutIn, sendTo);
+    launcher.startCutIn(cutIn, sendTo, speaker);
     return true;
   }
 
