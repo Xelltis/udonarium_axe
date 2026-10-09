@@ -1,4 +1,7 @@
 import { inject, Injectable } from '@angular/core';
+import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
+import { stampLabel } from '@axe/application/chat/stamp-words';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { Network } from '@axe/core/index';
@@ -64,6 +67,8 @@ export class SaveDataService {
   private readonly dataSummarySetting = inject(DataSummarySetting);
   private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
   private readonly translate = inject(TRANSLATE_FN);
+  private readonly chatReactions = inject(ChatReactionService);
+  private readonly stampPacks = inject(StampPackService);
 
   // The exporter would write a raw `@i18n:key:{params}` message, as system notices are,
   // so the translated text is substituted before it gets there.
@@ -320,6 +325,13 @@ export class SaveDataService {
       labels: this.chatLogLabels(),
       lang: document.documentElement.lang || undefined,
       exportedAt: Date.now(),
+      reactionsOf: (messageIdentifier) =>
+        this.chatReactions.talliesOf(messageIdentifier).map((tally) => ({
+          label: stampLabel(tally.stampId, this.translate, (imageIdentifier) =>
+            this.stampPacks.nameOf(imageIdentifier)
+          ),
+          count: tally.count,
+        })),
     });
     return isPlainChatLogStyle(style) ? body : SaveDataService.injectImageRegistry(body, images.registryScript);
   }
@@ -345,6 +357,7 @@ export class SaveDataService {
       everyTab: label('everyTab'),
       messages: (count) => label('messages', { count }),
       exportedWith: label('exportedWith'),
+      reactions: label('reactions'),
     };
   }
 

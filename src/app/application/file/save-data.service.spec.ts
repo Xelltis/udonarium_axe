@@ -1,11 +1,13 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
@@ -249,6 +251,25 @@ describe('SaveDataService', () => {
       const text = await saved[0].blob.text();
       expect(text).toContain('誰か：こんにちは');
       expect(text).not.toContain('<script');
+    });
+  });
+
+  describe('the stamps put on lines, in a saved log', () => {
+    it('are named and counted for the log, the way the reader sees them', () => {
+      const service = TestBed.inject(SaveDataService);
+      const t = TestBed.inject(TRANSLATE_FN);
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const message = tab.addMessage({ from: 'someone', name: '誰か', text: 'こんにちは', timestamp: 1000 });
+      const reaction = ChatReaction.create(message.identifier, 'noa', 'ノア');
+      reaction.stamps = 'sfx:creepy';
+      try {
+        const log = service.renderChatLog('text', 'tab', [tab], { resolver: () => '', registryScript: '' });
+
+        expect(log).toContain(`${t('feature.chat.log.labels.reactions')}: ${t('ui.stamp.items.sfx.creepy.label')}×1`);
+      } finally {
+        reaction.destroy();
+        tab.destroy();
+      }
     });
   });
 

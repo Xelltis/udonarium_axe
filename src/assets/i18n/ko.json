@@ -3261,7 +3261,8 @@
           "allTabs": "전체 탭",
           "everyTab": "전체",
           "messages": "발언 {{count}}건",
-          "exportedWith": "Udonarium Axe에서 내보냄"
+          "exportedWith": "Udonarium Axe에서 내보냄",
+          "reactions": "리액션"
         },
         "sample": {
           "gm": "GM",

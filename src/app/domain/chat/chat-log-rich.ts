@@ -3,6 +3,7 @@ import {
   ChatLogExporter,
   ChatLogImageSrcResolver,
   ChatLogLine,
+  ChatLogReactionResolver,
   ChatLogTab,
   ChatLogTextDecoder,
 } from '@axe/domain/chat/chat-log-exporter';
@@ -27,6 +28,7 @@ export interface ChatLogLabels {
   everyTab: string;
   messages: (count: number) => string;
   exportedWith: string;
+  reactions: string;
 }
 
 export const DEFAULT_CHAT_LOG_LABELS: ChatLogLabels = {
@@ -43,6 +45,7 @@ export const DEFAULT_CHAT_LOG_LABELS: ChatLogLabels = {
   everyTab: 'すべて',
   messages: (count) => `${count} 件の発言`,
   exportedWith: 'Udonarium Axe',
+  reactions: 'リアクション',
 };
 
 export interface ChatLogRenderOptions {
@@ -53,6 +56,8 @@ export interface ChatLogRenderOptions {
   labels?: Partial<ChatLogLabels>;
   lang?: string;
   exportedAt?: number;
+  /** The stamps put on each line, for the log to list under it. */
+  reactionsOf?: ChatLogReactionResolver;
 }
 
 type Kind = 'say' | 'roll' | 'system';
@@ -284,6 +289,7 @@ function renderSay(entry: ChatLogEntry, continuation: boolean, context: RenderCo
     `<div class="hd"><span class="nm">${esc(name)}</span>${tabBadge(entry, context)}${timeOf(message)}</div>` +
     renderReferences(message, context) +
     `<div class="tx">${body}${edited}</div>` +
+    (visible ? renderReactions(message, context) : '') +
     '</div></article>\n'
   );
 }
@@ -311,6 +317,7 @@ function renderRoll(entry: ChatLogEntry, context: RenderContext): string {
     '<div class="bd">' +
     `<div class="hd"><span class="nm">${esc(roller)}</span>${badge}${tabBadge(entry, context)}${timeOf(message)}</div>` +
     `<div class="tx">${body}</div>` +
+    (visible ? renderReactions(message, context) : '') +
     '</div></article>\n'
   );
 }
@@ -358,6 +365,18 @@ function renderReference(
     ? context.labels.secret
     : ChatLogExporter.referenceExcerpt(target, maxTextLength, context.options.textDecoder);
   return `<div class="ref"><span class="rn">${icon} ${esc(name)}</span><span class="rt">${esc(excerpt)}</span></div>`;
+}
+
+function renderReactions(message: ChatLogLine, context: RenderContext): string {
+  const { reactionsOf } = context.options;
+  if (!reactionsOf || !message.identifier) return '';
+  const reactions = reactionsOf(message.identifier);
+  if (reactions.length < 1) return '';
+  return (
+    `<div class="rx" aria-label="${attr(context.labels.reactions)}">` +
+    reactions.map((reaction) => `<span>${esc(reaction.label)} <b>${reaction.count}</b></span>`).join('') +
+    '</div>'
+  );
 }
 
 function renderAttachments(message: ChatLogLine, context: RenderContext): string {

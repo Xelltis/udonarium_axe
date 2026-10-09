@@ -380,4 +380,25 @@ describe('exportChatLog', () => {
   it('writes an empty log rather than failing when there is no tab', () => {
     expect(() => exportChatLog('standard', 'tab', [])).not.toThrow();
   });
+
+  it('lists the stamps put on a line under it, each with how many, and none on a sealed roll', () => {
+    const reactionsOf = (id: string) =>
+      id === 'line-1'
+        ? [
+            { label: 'ゾワッ', count: 2 },
+            { label: '了解', count: 1 },
+          ]
+        : [];
+    const answered = line({ identifier: 'line-1' });
+    const sealed = roll('(1D100) → 3', '', { identifier: 'line-1', isSecret: true, isSentBy: () => false });
+
+    const html = renderRichChatLog('washi', 'tab', [tab('メイン', [answered])], { reactionsOf });
+    expect(html).toContain(
+      '<div class="rx" aria-label="リアクション"><span>ゾワッ <b>2</b></span><span>了解 <b>1</b></span></div>'
+    );
+
+    expect(
+      renderRichChatLog('washi', 'tab', [tab('メイン', [sealed])], { reactionsOf, userId: 'someone' })
+    ).not.toContain('class="rx"');
+  });
 });

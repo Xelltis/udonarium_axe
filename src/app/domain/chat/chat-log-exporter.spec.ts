@@ -662,4 +662,39 @@ describe('ChatLogExporter', () => {
       expect(ChatLogExporter.exportTabHtml(tab)).toContain('重要');
     });
   });
+
+  describe('the stamps put on a line', () => {
+    const reactionsOf = (id: string) =>
+      id === 'line-1'
+        ? [
+            { label: 'ゾワッ', count: 2 },
+            { label: '了解', count: 1 },
+          ]
+        : [];
+
+    it('are listed after the words of a line in the standard layout, each with how many', () => {
+      const msg = createMockMessage({ identifier: 'line-1' } as Partial<ChatMessage>);
+
+      expect(
+        ChatLogExporter.formatMessageStandard(false, '', msg, undefined, undefined, undefined, reactionsOf)
+      ).toContain('テストメッセージ 〔ゾワッ×2 了解×1〕');
+      expect(ChatLogExporter.formatMessageStandard(false, '', msg)).not.toContain('〔');
+    });
+
+    it('are left off a line nobody answered, and off a secret roll the reader may not see', () => {
+      const plain = createMockMessage({ identifier: 'line-2' } as Partial<ChatMessage>);
+      const sealed = createMockMessage({
+        identifier: 'line-1',
+        isSecret: true,
+        isSendFromSelf: false,
+      } as Partial<ChatMessage>);
+
+      expect(
+        ChatLogExporter.formatMessageStandard(false, '', plain, undefined, undefined, undefined, reactionsOf)
+      ).not.toContain('〔');
+      expect(
+        ChatLogExporter.formatMessageStandard(false, '', sealed, undefined, undefined, undefined, reactionsOf)
+      ).not.toContain('ゾワッ');
+    });
+  });
 });

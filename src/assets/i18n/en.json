@@ -3261,7 +3261,8 @@
           "allTabs": "All tabs",
           "everyTab": "All",
           "messages": "{{count}} lines",
-          "exportedWith": "Exported from Udonarium Axe"
+          "exportedWith": "Exported from Udonarium Axe",
+          "reactions": "Reactions"
         },
         "sample": {
           "gm": "GM",

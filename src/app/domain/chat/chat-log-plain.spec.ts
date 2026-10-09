@@ -131,4 +131,17 @@ describe('renderPlainChatLog', () => {
       '[20:17] [メイン] アリア：後',
     ]);
   });
+
+  it('lists the stamps put on a line under it, each with how many', () => {
+    const reactionsOf = (id: string) =>
+      id === 'line-1'
+        ? [
+            { label: 'ゾワッ', count: 2 },
+            { label: '了解', count: 1 },
+          ]
+        : [];
+    const log = renderPlainChatLog('tab', [tab('メイン', [line({ identifier: 'line-1' })])], { reactionsOf });
+
+    expect(log).toContain('アリア：こんばんは\n    リアクション: ゾワッ×2 了解×1\n');
+  });
 });

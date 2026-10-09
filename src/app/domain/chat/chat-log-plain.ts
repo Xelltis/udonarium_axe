@@ -77,10 +77,14 @@ function entryLines(
     (message.fixd ? `（${labels.edited}）` : '') + (message.isPseudoDeleted ? `（${labels.pseudoDeleted}）` : '');
   const [first = '', ...rest] = body;
 
+  const reactions = ChatLogExporter.isSealed(message, options.userId)
+    ? ''
+    : ChatLogExporter.reactionSummary(message, options.reactionsOf);
   return [
     head + first + marks,
     ...rest.map((line) => INDENT + line),
     ...referenceLines(message, labels, options).map((line) => INDENT + line),
+    ...(reactions ? [`${INDENT}${labels.reactions}: ${reactions}`] : []),
   ];
 }
 

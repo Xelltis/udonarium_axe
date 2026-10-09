@@ -3261,7 +3261,8 @@
           "allTabs": "全タブ",
           "everyTab": "すべて",
           "messages": "{{count}} 件の発言",
-          "exportedWith": "Udonarium Axe で書き出し"
+          "exportedWith": "Udonarium Axe で書き出し",
+          "reactions": "リアクション"
         },
         "sample": {
           "gm": "GM",

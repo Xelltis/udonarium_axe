@@ -28,13 +28,20 @@ export function exportChatLog(
   tabs: readonly ChatLogTab[],
   options: ChatLogExportOptions = {}
 ): string {
-  const { userId, imageSrcResolver, textDecoder } = options;
+  const { userId, imageSrcResolver, textDecoder, reactionsOf } = options;
   const tab = tabs[0] ?? EMPTY_TAB;
   switch (style) {
     case 'standard':
       return scope === 'all'
-        ? ChatLogExporter.exportAllTabsHtml(tabs, options.showTime ?? true, userId, imageSrcResolver, textDecoder)
-        : ChatLogExporter.exportTabHtml(tab, userId, imageSrcResolver, textDecoder);
+        ? ChatLogExporter.exportAllTabsHtml(
+            tabs,
+            options.showTime ?? true,
+            userId,
+            imageSrcResolver,
+            textDecoder,
+            reactionsOf
+          )
+        : ChatLogExporter.exportTabHtml(tab, userId, imageSrcResolver, textDecoder, reactionsOf);
     case 'coc':
       return scope === 'all'
         ? ChatLogExporter.exportAllTabsHtmlCoc(tabs, userId, imageSrcResolver, textDecoder)
