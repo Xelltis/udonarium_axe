@@ -15,6 +15,7 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 import { OverviewPanelComponent } from '@axe/features/inventory/overview-panel/overview-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -172,6 +173,30 @@ describe('OverviewPanelComponent', () => {
       const panel = fixture.nativeElement.querySelector('[data-tooltip-rotation]') as HTMLElement;
       expect(panel.hasAttribute('inert')).toBe(false);
     });
+  });
+
+  it('shows a note set to be formatted drawn with its formatting, and one as typed in its text field', () => {
+    const formatted = TextNote.create('メモ', '# 洞窟');
+    formatted.isFormatted = true;
+    const plain = TextNote.create('メモ', '# 洞窟');
+    try {
+      component.tabletopObject = formatted;
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('[data-testid="overview-note-formatted"] h1')!.textContent).toBe('洞窟');
+      expect(root.querySelector('textarea[name="note-text"]')).toBeNull();
+
+      const other = TestBed.createComponent(OverviewPanelComponent);
+      other.componentInstance.tabletopObject = plain;
+      other.detectChanges();
+      const plainRoot = other.nativeElement as HTMLElement;
+      expect(plainRoot.querySelector('[data-testid="overview-note-formatted"]')).toBeNull();
+      expect(plainRoot.querySelector('textarea[name="note-text"]')).not.toBeNull();
+      other.destroy();
+    } finally {
+      formatted.destroy();
+      plain.destroy();
+    }
   });
 
   it('draws card text over the image in a card pop-up', () => {

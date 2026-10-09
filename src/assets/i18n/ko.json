@@ -837,7 +837,13 @@
         "width": "너비",
         "height": "높이",
         "fontSize": "글자 크기",
-        "altitude": "고도"
+        "altitude": "고도",
+        "format": "표시"
+      },
+      "format": {
+        "plain": "그대로",
+        "formatted": "서식",
+        "hint": "줄 앞의 #은 제목, - 나 1.은 목록, >는 인용이 됩니다. `로 감싸면 코드, ``` 줄로 감싸면 코드 단락이 됩니다."
       }
     },
     "cardStack": {

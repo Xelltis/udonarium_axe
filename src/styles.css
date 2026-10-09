@@ -386,6 +386,72 @@ ruby.chat-ruby rt {
   white-space: pre-wrap;
 }
 
+/* A shared note drawn with formatting (formatNoteText). Tailwind's base takes the look off headings,
+   lists and quotes, so they are put back here, in em so they follow the note's own size. */
+.note-formatted > :first-child {
+  margin-top: 0;
+}
+.note-formatted > :last-child {
+  margin-bottom: 0;
+}
+.note-formatted p {
+  margin: 0 0 0.6em;
+}
+.note-formatted h1,
+.note-formatted h2,
+.note-formatted h3 {
+  margin: 0.7em 0 0.3em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.note-formatted h1 {
+  font-size: 1.4em;
+}
+.note-formatted h2 {
+  font-size: 1.2em;
+}
+.note-formatted h3 {
+  font-size: 1.05em;
+}
+.note-formatted ul,
+.note-formatted ol {
+  margin: 0 0 0.6em;
+  padding-left: 1.4em;
+}
+.note-formatted ul {
+  list-style: disc;
+}
+.note-formatted ol {
+  list-style: decimal;
+}
+.note-formatted blockquote {
+  margin: 0 0 0.6em;
+  padding: 0.25em 0.7em;
+  border-left: 3px solid var(--ui-quote-border);
+  border-radius: 0 4px 4px 0;
+  background: var(--ui-quote-bg);
+  color: var(--ui-quote-text);
+}
+.note-formatted code {
+  padding: 0 0.3em;
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.9em;
+}
+.note-formatted pre {
+  margin: 0 0 0.6em;
+  padding: 0.5em 0.7em;
+  overflow-x: auto;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  white-space: pre;
+}
+.note-formatted pre code {
+  padding: 0;
+  background: none;
+}
+
 /* ChatMessageComponent.jumpEffectが要素の[class.chat-message-highlight]を切り替えたとき、
    accentカラーで一瞬光らせる。`animation:`ショートハンドはTailwindのanimate-chat-*と衝突して、
    解除時にスライドインを再生してしまう。そのためbackground-color + box-shadow + transitionで表現する。 */

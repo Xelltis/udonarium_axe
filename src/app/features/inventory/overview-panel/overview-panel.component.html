@@ -131,22 +131,29 @@
       class="bg-ui-panel border-ui-border-panel box-border max-h-100 w-full overflow-x-hidden overflow-y-auto border-x border-b border-solid px-[1.2em] py-[0.6em] leading-[1.8]"
       [ngStyle]="{ width: overViewNoteWidth + 'px', 'max-height': overViewNoteMaxHeight + 'px' }"
     >
-      <div class="relative w-full">
-        <div class="absolute inset-0">
-          <textarea
-            class="text-ui-text hover:bg-ui-hover focus:bg-ui-input box-border size-full resize-none overflow-hidden rounded-xs border-none bg-transparent p-0 font-[inherit] leading-[inherit] wrap-anywhere [word-break:break-word] whitespace-pre-wrap outline-none"
-            name="note-text"
-            name="note-text"
-            [(ngModel)]="note.text"
-            spellcheck="false"
-          ></textarea>
-        </div>
+      @if (note.isFormatted) {
         <div
-          class="invisible h-auto min-h-6 min-w-12 overflow-hidden wrap-anywhere [word-break:break-word] whitespace-pre-wrap"
-        >
-          {{ note.text }}
+          class="note-formatted text-ui-text wrap-anywhere [word-break:break-word]"
+          data-testid="overview-note-formatted"
+          [innerHTML]="formattedNoteHtml(note.text) | safe"
+        ></div>
+      } @else {
+        <div class="relative w-full">
+          <div class="absolute inset-0">
+            <textarea
+              class="text-ui-text hover:bg-ui-hover focus:bg-ui-input box-border size-full resize-none overflow-hidden rounded-xs border-none bg-transparent p-0 font-[inherit] leading-[inherit] wrap-anywhere [word-break:break-word] whitespace-pre-wrap outline-none"
+              name="note-text"
+              [(ngModel)]="note.text"
+              spellcheck="false"
+            ></textarea>
+          </div>
+          <div
+            class="invisible h-auto min-h-6 min-w-12 overflow-hidden wrap-anywhere [word-break:break-word] whitespace-pre-wrap"
+          >
+            {{ note.text }}
+          </div>
         </div>
-      </div>
+      }
     </div>
   </div>
 </ng-template>

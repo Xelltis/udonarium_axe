@@ -837,7 +837,13 @@
         "width": "Width",
         "height": "Height",
         "fontSize": "Font size",
-        "altitude": "Altitude"
+        "altitude": "Altitude",
+        "format": "Display"
+      },
+      "format": {
+        "plain": "As typed",
+        "formatted": "Formatted",
+        "hint": "Start a line with # for a heading, - or 1. for a list, > for a quote. Wrap words in ` for code, or put ``` lines around a block of it."
       }
     },
     "cardStack": {

@@ -837,7 +837,13 @@
         "width": "幅",
         "height": "高さ",
         "fontSize": "文字サイズ",
-        "altitude": "高度"
+        "altitude": "高度",
+        "format": "表示"
+      },
+      "format": {
+        "plain": "通常",
+        "formatted": "整形",
+        "hint": "行の先頭の # で見出し、- や 1. でリスト、> で引用になります。` で囲むとコードになり、``` の行で挟むとコードの段落になります。"
       }
     },
     "cardStack": {

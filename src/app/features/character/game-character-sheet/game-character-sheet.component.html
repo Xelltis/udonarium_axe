@@ -1070,6 +1070,44 @@
               spellcheck="false"
             ></textarea>
           </label>
+          <div class="flex flex-col gap-1.5 text-[0.78em]" data-testid="text-note-format">
+            <div class="flex items-center gap-2">
+              <span class="text-ui-muted">{{ 'feature.textNote.field.format' | transloco }}</span>
+              <div
+                class="border-ui-border-panel bg-ui-input rounded-ui-sm flex gap-0.5 border border-solid p-0.5"
+                role="radiogroup"
+                [attr.aria-label]="'feature.textNote.field.format' | transloco"
+              >
+                @for (formatted of [false, true]; track formatted) {
+                  <button
+                    type="button"
+                    role="radio"
+                    class="rounded-ui-sm cursor-pointer border-0 px-2.5 py-0.5 text-[0.95em] transition-[background,color]"
+                    [class]="
+                      textNoteFormatted(note) === formatted
+                        ? 'bg-ui-accent text-white'
+                        : 'text-ui-muted hover:bg-ui-hover hover:text-ui-text bg-transparent'
+                    "
+                    [attr.aria-checked]="textNoteFormatted(note) === formatted"
+                    [attr.data-testid]="'text-note-format-' + (formatted ? 'formatted' : 'plain')"
+                    (click)="setTextNoteFormatted(note, formatted)"
+                  >
+                    {{
+                      (formatted ? 'feature.textNote.format.formatted' : 'feature.textNote.format.plain') | transloco
+                    }}
+                  </button>
+                }
+              </div>
+            </div>
+            @if (textNoteFormatted(note)) {
+              <p class="text-ui-dim m-0">{{ 'feature.textNote.format.hint' | transloco }}</p>
+              <div
+                class="note-formatted border-ui-border-panel rounded-ui-sm max-h-60 overflow-y-auto border border-dashed px-3 py-2 text-sm/relaxed"
+                data-testid="text-note-format-preview"
+                [innerHTML]="textNoteFormattedHtml(note) | safe"
+              ></div>
+            }
+          </div>
         </section>
 
         <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2.5 border border-solid p-3">
