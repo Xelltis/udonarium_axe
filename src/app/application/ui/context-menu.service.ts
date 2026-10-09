@@ -39,6 +39,11 @@ export interface ContextMenuRadialGroup {
 export interface ContextMenuOpenOptions {
   layer?: number;
   parentViewContainerRef?: ViewContainerRef;
+  /**
+   * Whether a guest may open the menu too. Only for a menu that checks the reader's role for each of
+   * its own items, as what can be done with a chat line does; a guest sees what they may do there.
+   */
+  forGuests?: boolean;
 }
 
 type ContextMenuComponentClass = { new (...args: unknown[]): unknown };
@@ -81,8 +86,9 @@ export class ContextMenuService {
   /**
    * Opens the plain context menu at a screen point, closing any menu this service already has open.
    *
-   * Nothing opens for a peer who may not edit the table. Without a parent container the menu goes
-   * into the layer of the detached window that has the focus, or the app's default layer.
+   * Nothing opens for a peer who may not edit the table, unless the menu says it is fit for a guest.
+   * Without a parent container the menu goes into the layer of the detached window that has the
+   * focus, or the app's default layer.
    */
   open(position: ContextMenuPoint, actions: ContextMenuAction[], title?: string, options?: ContextMenuOpenOptions) {
     this.openComponent(
@@ -99,7 +105,8 @@ export class ContextMenuService {
       undefined,
       title,
       options?.parentViewContainerRef,
-      options?.layer ?? 0
+      options?.layer ?? 0,
+      options?.forGuests ?? false
     );
   }
 
@@ -206,10 +213,11 @@ export class ContextMenuService {
     radialAnchorPosition?: ContextMenuPoint,
     title?: string,
     parentViewContainerRef?: ViewContainerRef,
-    layer = 0
+    layer = 0,
+    forGuests = false
   ) {
     this.close();
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!forGuests && !this.rolePermission.canEditTabletop) return;
 
     const parent =
       parentViewContainerRef ?? OverlayLayers.current() ?? ContextMenuService.defaultParentViewContainerRef;

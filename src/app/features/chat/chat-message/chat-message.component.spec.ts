@@ -1539,6 +1539,27 @@ describe('ChatMessageComponent', () => {
       expect(actionsShown()).toEqual([]);
     });
 
+    it('opens its menus for a guest too, holding only what a guest may do', () => {
+      shown('someone');
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
+      fixture.detectChanges();
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLElement>('[data-testid="chat-message-action-more"]')!
+        .click();
+
+      const [, actions, , options] = open.mock.calls[0];
+      expect(options?.forGuests).toBe(true);
+      expect(itemOf(actions, 'feature.chat.message.copyText')).toBeTruthy();
+      expect(itemOf(actions, 'feature.chat.message.bookmarks.personal.add')).toBeTruthy();
+      expect(itemOf(actions, 'feature.chat.message.bookmarks.shared.add')).toBeUndefined();
+      expect(itemOf(actions, 'feature.chat.message.shareAsMemo')).toBeUndefined();
+      expect(itemOf(actions, 'feature.chat.message.ticker')).toBeUndefined();
+    });
+
     it('stands on the bubble itself in either layout, so it floats over the line it belongs to', () => {
       shown('me');
       const toolbar = () =>

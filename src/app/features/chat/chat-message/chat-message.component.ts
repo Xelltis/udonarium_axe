@@ -298,13 +298,18 @@ export class ChatMessageComponent {
     if (actions.length === 0) return;
     event.preventDefault();
     event.stopPropagation();
-    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name));
+    this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, this.displayName(message.name), {
+      forGuests: true,
+    });
   }
 
   /**
    * Everything that can be done with the line, as the menu offers it: what a right click or a press
    * held on the line opens, and the toolbar's last button. `selectedText` is the words picked out
    * inside the line, copied in place of all of it; empty where none are.
+   *
+   * Each item is offered only to whoever may do it, so the menu is opened for a guest too, who finds
+   * in it what a guest may do: copying the words, keeping marks of their own, reading round the line.
    */
   private lineActions(selectedText: string): ContextMenuAction[] {
     const message = this.chatMessage;
@@ -402,7 +407,7 @@ export class ChatMessageComponent {
     const button = event.currentTarget instanceof Element ? event.currentTarget : null;
     const box = button?.getBoundingClientRect();
     const at = box ? { x: box.left, y: box.bottom + 2 } : this.pointerDeviceService.pointers[0];
-    this.contextMenuService.open(at, actions, title);
+    this.contextMenuService.open(at, actions, title, { forGuests: true });
   }
 
   /**
@@ -681,6 +686,9 @@ export class ChatMessageComponent {
   readonly canShowInTicker = computed(() => {
     // A window that only reads the log offers none of the buttons that act on a line.
     if (this.readOnly()) return false;
+    // The band runs round everybody's table, which a guest is there to watch, not to change.
+    this.objectChange.trackMyCursor();
+    if (!this.rolePermission.canEditTabletop) return false;
 
     // Only where the band is actually drawn, which is a table looked straight down on.
     if (!this.tabletopService.mode2d()) return false;
