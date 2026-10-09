@@ -25,7 +25,7 @@ import {
   ChatLogTextDecoder,
 } from '@axe/domain/chat/chat-log-exporter';
 import { ChatLogLabels, ChatLogScope } from '@axe/domain/chat/chat-log-rich';
-import { ChatLogStyle } from '@axe/domain/chat/chat-log-style';
+import { ChatLogStyle, isPlainChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
@@ -286,7 +286,7 @@ export class SaveDataService {
 
   /**
    * Downloads chat tabs as an HTML log named after the room, with portraits and attachments shrunk
-   * and embedded.
+   * and embedded, or as a `.txt` file of plain text for the `text` style.
    *
    * Asked to leave out deleted lines, it leaves out their pictures as well.
    */
@@ -298,15 +298,18 @@ export class SaveDataService {
     options: { omitDeleted?: boolean } = {}
   ): Promise<void> {
     const logTabs = options.omitDeleted ? ChatLogExporter.withoutDeleted(tabs) : tabs;
-    const images = await this.prepareChatLogImages(logTabs);
+    const plain = isPlainChatLogStyle(style);
+    const images = plain ? SaveDataService.NO_CHAT_LOG_IMAGES : await this.prepareChatLogImages(logTabs);
     const text = this.renderChatLog(style, scope, logTabs, images);
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    downloadBlob(blob, this.appendTimestamp(`${this.chatLogRoomName()}_log_${label}`) + '.html');
+    downloadBlob(blob, this.appendTimestamp(`${this.chatLogRoomName()}_log_${label}`) + (plain ? '.txt' : '.html'));
   }
 
+  private static readonly NO_CHAT_LOG_IMAGES: ChatLogImages = { resolver: () => '', registryScript: '' };
+
   /**
-   * Renders chat tabs as HTML log text, using images already prepared by `prepareChatLogImages`,
-   * without downloading anything.
+   * Renders chat tabs as a log, an HTML page using images already prepared by `prepareChatLogImages`
+   * or plain text for the `text` style, without downloading anything.
    */
   renderChatLog(style: ChatLogStyle, scope: ChatLogScope, tabs: readonly ChatLogTab[], images: ChatLogImages): string {
     const body = exportChatLog(style, scope, tabs, {
@@ -318,7 +321,7 @@ export class SaveDataService {
       lang: document.documentElement.lang || undefined,
       exportedAt: Date.now(),
     });
-    return SaveDataService.injectImageRegistry(body, images.registryScript);
+    return isPlainChatLogStyle(style) ? body : SaveDataService.injectImageRegistry(body, images.registryScript);
   }
 
   private chatLogRoomName(): string {

@@ -3211,6 +3211,10 @@
           "coc": {
             "name": "CoC log",
             "description": "The classic layout other tools can read"
+          },
+          "text": {
+            "name": "Plain text",
+            "description": "Just the words, as a .txt file"
           }
         },
         "labels": {

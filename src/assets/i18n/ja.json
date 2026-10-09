@@ -3211,6 +3211,10 @@
           "coc": {
             "name": "CoCログ形式",
             "description": "他のツールで読み込める従来形式"
+          },
+          "text": {
+            "name": "テキスト",
+            "description": "文字だけの .txt。どこにでも貼れる"
           }
         },
         "labels": {

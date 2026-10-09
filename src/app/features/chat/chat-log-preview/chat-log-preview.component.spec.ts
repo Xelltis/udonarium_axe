@@ -114,6 +114,20 @@ describe('ChatLogPreviewComponent', () => {
     expect(html).toContain('<span class="tg">一つ目</span>');
   });
 
+  it('shows plain text as the words it is saved as, not as a page', async () => {
+    component.tab.set(addTab('メイン', 2));
+    component.choose('text');
+
+    const text = await shown();
+    fixture.detectChanges();
+
+    expect(text).toContain('誰か：line-001');
+    expect(text).not.toContain('<html');
+    const shownText = fixture.nativeElement.querySelector('[data-testid="chat-log-preview-text"]') as HTMLElement;
+    expect(shownText.textContent).toBe(text);
+    expect(fixture.nativeElement.querySelector('[data-testid="chat-log-preview-frame"]')).toBeNull();
+  });
+
   it('saves the whole tab in the style on show', async () => {
     const tab = addTab('メイン', CHAT_LOG_PREVIEW_LIMIT + 10);
     component.tab.set(tab);

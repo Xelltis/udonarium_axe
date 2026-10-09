@@ -3211,6 +3211,10 @@
           "coc": {
             "name": "CoC 로그 형식",
             "description": "다른 도구에서 읽을 수 있는 기존 형식"
+          },
+          "text": {
+            "name": "텍스트",
+            "description": "글자만 담은 .txt 파일"
           }
         },
         "labels": {

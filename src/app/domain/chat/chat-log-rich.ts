@@ -218,7 +218,7 @@ function renderRows(entries: readonly ChatLogEntry[], context: RenderContext): s
   let day = '';
   let previous: ChatLogEntry | null = null;
   for (const entry of entries) {
-    const entryDay = formatDate(entry.message.placedAt);
+    const entryDay = formatLogDate(entry.message.placedAt);
     if (entryDay !== day) {
       day = entryDay;
       parts.push(`<div class="day"><span>${entryDay}</span></div>\n`);
@@ -324,7 +324,7 @@ function tabBadge(entry: ChatLogEntry, context: RenderContext): string {
 }
 
 function timeOf(message: ChatLogLine): string {
-  return `<time>${formatTime(message.timestamp)}</time>`;
+  return `<time>${formatLogTime(message.timestamp)}</time>`;
 }
 
 function renderPortrait(message: ChatLogLine, name: string, context: RenderContext): string {
@@ -410,7 +410,7 @@ function rangeOf(entries: readonly ChatLogEntry[]): string {
   const first = entries[0].message.placedAt;
   const last = entries[entries.length - 1].message.placedAt;
   const from = formatDateTime(first);
-  if (formatDate(first) === formatDate(last)) return `${from} – ${formatTime(last)}`;
+  if (formatLogDate(first) === formatLogDate(last)) return `${from} – ${formatLogTime(last)}`;
   return `${from} – ${formatDateTime(last)}`;
 }
 
@@ -418,16 +418,18 @@ function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
 
-function formatDate(time: number): string {
+/** The day a moment falls on, as `yyyy/mm/dd`, as a log divides its lines by. */
+export function formatLogDate(time: number): string {
   const date = new Date(time);
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
 }
 
-function formatTime(time: number): string {
+/** The time of day of a moment, as `hh:mm`, as a log marks its lines with. */
+export function formatLogTime(time: number): string {
   const date = new Date(time);
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function formatDateTime(time: number): string {
-  return `${formatDate(time)} ${formatTime(time)}`;
+  return `${formatLogDate(time)} ${formatLogTime(time)}`;
 }

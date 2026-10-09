@@ -6,6 +6,7 @@ import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
@@ -215,6 +216,39 @@ describe('SaveDataService', () => {
       await api.prepareChatLogImages([tab]);
 
       expect(spy).toHaveBeenCalledWith(attachment, 360, false);
+    });
+  });
+
+  describe('a chat log saved as plain text', () => {
+    it('is written as a .txt file of the words, with no pictures prepared and no script', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      tab.addMessage({ from: 'someone', name: '誰か', text: 'こんにちは', timestamp: 1000 });
+      const prepare = vi.spyOn(service, 'prepareChatLogImages');
+      const saved: { name: string; blob: Blob }[] = [];
+      let lastBlob: Blob | null = null;
+      vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+        lastBlob = blob as Blob;
+        return 'blob:log';
+      });
+      vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined);
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        saved.push({ name: this.download, blob: lastBlob! });
+      });
+
+      try {
+        await service.saveChatLog('text', 'tab', [tab], 'メイン');
+      } finally {
+        tab.destroy();
+        vi.restoreAllMocks();
+      }
+
+      expect(prepare).not.toHaveBeenCalled();
+      expect(saved).toHaveLength(1);
+      expect(saved[0].name).toMatch(/_log_メイン_[\d-]+_\d{4}\.txt$/);
+      const text = await saved[0].blob.text();
+      expect(text).toContain('誰か：こんにちは');
+      expect(text).not.toContain('<script');
     });
   });
 

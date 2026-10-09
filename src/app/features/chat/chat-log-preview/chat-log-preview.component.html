@@ -112,13 +112,21 @@
       </div>
     }
     @if (html(); as doc) {
-      <iframe
-        data-testid="chat-log-preview-frame"
-        class="block min-h-0 w-full flex-1 border-0 bg-white"
-        sandbox="allow-scripts"
-        [title]="'feature.chat.log.previewFrameTitle' | transloco"
-        [srcdoc]="doc | safe: 'html'"
-      ></iframe>
+      @if (isPlain()) {
+        <pre
+          data-testid="chat-log-preview-text"
+          class="m-0 min-h-0 w-full flex-1 overflow-auto bg-white p-3 font-mono text-[12px]/relaxed whitespace-pre-wrap text-[#222222]"
+          [textContent]="doc"
+        ></pre>
+      } @else {
+        <iframe
+          data-testid="chat-log-preview-frame"
+          class="block min-h-0 w-full flex-1 border-0 bg-white"
+          sandbox="allow-scripts"
+          [title]="'feature.chat.log.previewFrameTitle' | transloco"
+          [srcdoc]="doc | safe: 'html'"
+        ></iframe>
+      }
     } @else {
       <div class="text-ui-dim flex flex-1 items-center justify-center">
         <i class="material-icons animate-spin">sync</i>
