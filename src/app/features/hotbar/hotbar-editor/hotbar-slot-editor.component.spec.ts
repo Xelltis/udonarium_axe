@@ -4,6 +4,7 @@ import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
@@ -320,6 +321,33 @@ describe('HotbarSlotEditorComponent', () => {
 
       const options = component.draft().payload;
       expect(options.kind === 'effect' && options.onSelf).toBe(true);
+    });
+
+    it('lists the effects with the mark of each, in place of a plain list, and takes the one clicked', () => {
+      const presets = ['爆炎', '氷結'].map((name) => {
+        const preset = new EffectPreset();
+        preset.name = name;
+        ObjectStore.instance.add(preset, false);
+        return preset;
+      });
+      onTestFinished(() => presets.forEach((preset) => ObjectStore.instance.remove(preset)));
+      component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('effect'));
+      fixture.detectChanges();
+      const options = () => [
+        ...root().querySelectorAll<HTMLButtonElement>('[data-testid="hotbar-editor-effects"] [role="option"]'),
+      ];
+
+      expect(options()).toHaveLength(2);
+      expect(options().every((option) => option.querySelector('svg') !== null)).toBe(true);
+      expect(root().querySelector('[data-testid="hotbar-editor-choice"]')).toBeNull();
+
+      const picked = options()[1];
+      picked.click();
+      fixture.detectChanges();
+
+      expect(component.draft().value).toBe(picked.textContent!.trim());
+      expect(options()[1].getAttribute('aria-selected')).toBe('true');
+      expect(options()[0].getAttribute('aria-selected')).toBe('false');
     });
 
     it('asks nothing of a mode that has no targets to ignore', () => {

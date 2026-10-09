@@ -16,7 +16,32 @@
 
   <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.hotbar.kindHint.' + kind() | transloco }}</p>
 
-  @if (picksFromList()) {
+  @if (effectChoices().length) {
+    <div class="flex items-start gap-2">
+      <span class="text-ui-muted w-20 shrink-0 pt-1">{{ 'feature.hotbar.editor.argument' | transloco }}</span>
+      <div
+        class="border-ui-border-panel bg-ui-elevated grid max-h-44 min-w-0 flex-1 grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-0.5 overflow-y-auto rounded-[3px] border border-solid p-0.5"
+        role="listbox"
+        data-testid="hotbar-editor-effects"
+      >
+        @for (choice of effectChoices(); track choice.value) {
+          <button
+            type="button"
+            role="option"
+            class="text-ui-text hover:bg-ui-hover m-0 flex min-w-0 cursor-pointer items-center gap-1.5 rounded-[3px] border border-solid border-transparent bg-transparent px-1.5 py-1 text-left text-[12px] transition-colors"
+            [class.border-ui-accent!]="choice.value === draft().value"
+            [class.bg-ui-accent-bg!]="choice.value === draft().value"
+            [attr.aria-selected]="choice.value === draft().value"
+            [attr.data-testid]="'hotbar-editor-effect-' + choice.value"
+            (click)="setChoice(choice.value)"
+          >
+            <span class="size-4 shrink-0" [innerHTML]="choice.glyph | safe: 'html'"></span>
+            <span class="truncate">{{ choice.name }}</span>
+          </button>
+        }
+      </div>
+    </div>
+  } @else if (picksFromList()) {
     <label class="flex items-center gap-2">
       <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.argument' | transloco }}</span>
       <select
