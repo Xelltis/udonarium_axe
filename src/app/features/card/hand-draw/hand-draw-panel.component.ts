@@ -1,10 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { CardGameService } from '@axe/application/card/card-game.service';
+import { AbsentHand, CardGameService } from '@axe/application/card/card-game.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { buildCardReceiverMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -26,6 +31,10 @@ export class HandDrawPanelComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly imageService = inject(ImageService);
   private readonly cardGame = inject(CardGameService);
+  private readonly rolePermission = inject(RolePermissionService);
+  private readonly contextMenuService = inject(ContextMenuService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly t = inject(TRANSLATE_FN);
 
   readonly selectedUserId = signal('');
 
@@ -56,6 +65,43 @@ export class HandDrawPanelComponent {
     for (const card of cards) this.objectChange.versionOf(card.identifier)();
     return cards;
   });
+
+  /**
+   * The hands still held for people who have left the room, which only the game master is shown, to
+   * hand them over to somebody still here.
+   */
+  readonly absentHands = computed<AbsentHand[]>(() => {
+    this.objectChange.trackMyCursor();
+    if (!this.rolePermission.canEditShared) return [];
+    this.objectChange.collectionOf(Card.aliasName)();
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
+    for (const card of this.objectStore.getObjects<Card>(Card)) this.objectChange.versionOf(card.identifier)();
+    return this.cardGame.absentHands();
+  });
+
+  /**
+   * Opens the choice of who an absent player's hand goes to, under the button that asked, and hands it
+   * over once the game master confirms.
+   */
+  openHandOverMenu(event: MouseEvent, hand: AbsentHand): void {
+    event.stopPropagation();
+    const box = event.currentTarget instanceof Element ? event.currentTarget.getBoundingClientRect() : null;
+    const at = box ? { x: box.left, y: box.bottom + 2 } : { x: event.clientX, y: event.clientY };
+    const menu = buildCardReceiverMenu(this.cardGame.participants(), (userId) => void this.handOver(hand, userId));
+    this.contextMenuService.open(at, menu, this.t('feature.card.drawPanel.handOverTo'));
+  }
+
+  private async handOver(hand: AbsentHand, toUserId: string): Promise<void> {
+    const receiver = this.cardGame.participants().find((seat) => seat.userId === toUserId);
+    if (!receiver) return;
+    const question = this.t('feature.card.drawPanel.handOverConfirm', {
+      from: hand.name,
+      to: receiver.name,
+      count: hand.count,
+    });
+    if (!(await this.confirm.ask(question))) return;
+    this.cardGame.handOverAbsentHand(hand.userId, toUserId);
+  }
 
   /**
    * The URL of a card's back, which is all of another player's hand that is shown; the empty image

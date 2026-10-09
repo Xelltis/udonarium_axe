@@ -789,6 +789,7 @@
       "message": {
         "drewFromHand": "{{to}}이(가) {{from}}의 패에서 1장 뽑았습니다",
         "gaveFromHand": "{{from}}이(가) {{to}}에게 패를 1장 건넸습니다",
+        "handedOver": "{{name}}이(가) {{from}}의 패 {{count}}장을 {{to}}에게 넘겼습니다",
         "discardedPairs": "{{name}}이(가) {{ranks}} 페어를 버렸습니다"
       },
       "drawPanel": {
@@ -797,7 +798,11 @@
         "noPlayers": "패를 가진 참가자가 없습니다",
         "cardCount": "{{count}}장",
         "back": "상대 다시 고르기",
-        "pickCard": "뽑을 카드를 골라 주세요"
+        "pickCard": "뽑을 카드를 골라 주세요",
+        "absentHands": "나간 사람의 패",
+        "handOver": "넘겨주기",
+        "handOverTo": "넘겨받을 사람",
+        "handOverConfirm": "{{from}}의 패 {{count}}장을 {{to}}에게 넘깁니다. 카드는 뒷면인 채로 옮겨집니다."
       },
       "deckDialog": {
         "hint": "같은 태그가 붙은 이미지 1장당 카드 1장을 만들어 하나의 덱으로 묶습니다.",

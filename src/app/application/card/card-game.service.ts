@@ -7,11 +7,12 @@ import { Card } from '@axe/domain/card/card';
 import { planDeal } from '@axe/domain/card/card-deal';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { selectHandCardsOf } from '@axe/domain/card/hand-cards';
-import { isHandOf } from '@axe/domain/card/hand-location';
+import { handHolderOf, isHandOf } from '@axe/domain/card/hand-location';
 import { findTrumpPairs, selectExtraJokers, trumpRankOf } from '@axe/domain/card/trump-card';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { canRoleEdit, canRoleEditShared } from '@axe/domain/peer/peer-role';
 
 const DISCARD_STACK_OFFSET = 150;
 
@@ -23,6 +24,14 @@ export interface CardSeat {
 export interface DealResult {
   dealt: number;
   participants: number;
+}
+
+/** A hand still holding cards for somebody who is no longer in the room. */
+export interface AbsentHand {
+  userId: string;
+  /** The name they last spoke under in chat, or the start of their user id where nothing of theirs is shown. */
+  name: string;
+  count: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -126,6 +135,66 @@ export class CardGameService {
       this.t('feature.card.message.gaveFromHand', { from: PeerCursor.myCursor?.name ?? '', to: receiver.name })
     );
     return true;
+  }
+
+  /**
+   * The hands of users who are no longer in the room, found from the cards still held in them, the
+   * longest first.
+   *
+   * Somebody connected is not absent whatever their role, and nor are you.
+   */
+  absentHands(): AbsentHand[] {
+    const present = new Set(this.objectStore.getObjects<PeerCursor>(PeerCursor).map((cursor) => cursor.userId));
+    present.add(this.myUserId());
+    const counts = new Map<string, number>();
+    for (const card of this.objectStore.getObjects<Card>(Card)) {
+      const holder = handHolderOf(card.location.name);
+      if (holder === null || present.has(holder)) continue;
+      counts.set(holder, (counts.get(holder) ?? 0) + 1);
+    }
+    return [...counts]
+      .map(([userId, count]) => ({ userId, name: this.lastSpokenNameOf(userId), count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  /**
+   * Hands every card in an absent user's hand to a participant, face down and in the order they were
+   * held, and says so in chat without saying which cards. Only the game master may.
+   *
+   * Checked again as it is done: nothing moves, and 0 comes back, when the one the hand was held for
+   * has come back, or the one it is for is not a participant who can hold cards. Otherwise it is the
+   * number of cards handed over.
+   */
+  handOverAbsentHand(fromUserId: string, toUserId: string): number {
+    if (!canRoleEditShared(PeerCursor.myRole)) return 0;
+    const absent = this.absentHands().find((hand) => hand.userId === fromUserId);
+    const receiver = this.participants().find((seat) => seat.userId === toUserId);
+    if (!absent || !receiver) return 0;
+
+    const cards = this.handCardsOf(fromUserId);
+    const baseOrder = Date.now();
+    cards.forEach((card, index) => card.toHand(receiver.userId, baseOrder + index));
+
+    SoundEffect.play(PresetSound.cardDraw);
+    this.chatMessageService.sendSystemMessage(
+      this.t('feature.card.message.handedOver', {
+        name: PeerCursor.myCursor?.name ?? '',
+        from: absent.name,
+        to: receiver.name,
+        count: cards.length,
+      })
+    );
+    return cards.length;
+  }
+
+  private lastSpokenNameOf(userId: string): string {
+    let latest: ChatMessage | null = null;
+    for (const message of this.objectStore.getObjects<ChatMessage>(ChatMessage)) {
+      if (message.from !== userId || message.isSystem || !message.isDisplayable) continue;
+      if ((message.name ?? '').length < 1) continue;
+      if (!latest || message.timestamp > latest.timestamp) latest = message;
+    }
+    return latest?.name ?? userId.slice(0, 6);
   }
 
   /**

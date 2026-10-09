@@ -31,7 +31,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { HandDrawPanelComponent } from '@axe/features/card/hand-draw/hand-draw-panel.component';
 import { elementsAt } from '@axe/features/card/hand-rail/elements-at';
-import { buildGiveHandCardMenu, buildPlayDroppedCardMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
+import { buildCardReceiverMenu, buildPlayDroppedCardMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
 import { reorderHandCards, selectHandCards } from '@axe/features/card/hand-rail/hand-cards';
 import { HandDragService } from '@axe/features/card/hand-rail/hand-drag.service';
 import {
@@ -237,7 +237,7 @@ export class HandRailComponent {
     event.stopPropagation();
     const box = event.currentTarget instanceof Element ? event.currentTarget.getBoundingClientRect() : null;
     const at = box ? { x: box.left, y: box.bottom + 2 } : { x: event.clientX, y: event.clientY };
-    const menu = buildGiveHandCardMenu(this.giveTargets(), (userId) => this.cardGame.giveFromHand(card, userId));
+    const menu = buildCardReceiverMenu(this.giveTargets(), (userId) => this.cardGame.giveFromHand(card, userId));
     this.contextMenuService.open(at, menu, this.t('feature.card.hand.giveTo'));
   }
 

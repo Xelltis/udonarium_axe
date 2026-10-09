@@ -1,12 +1,12 @@
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
-import { buildGiveHandCardMenu, buildPlayDroppedCardMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
+import { buildCardReceiverMenu, buildPlayDroppedCardMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
 
 const t = ((key: string) => key) as TranslateFn;
 
 describe('the menu of who a hand card goes to', () => {
   it('names each participant and gives to the one picked', () => {
     const give = vi.fn();
-    const menu = buildGiveHandCardMenu(
+    const menu = buildCardReceiverMenu(
       [
         { userId: 'user-a', name: 'あいて' },
         { userId: 'user-b', name: 'もうひとり' },
@@ -20,7 +20,7 @@ describe('the menu of who a hand card goes to', () => {
   });
 
   it('names somebody with no name by the start of their user id', () => {
-    const menu = buildGiveHandCardMenu([{ userId: 'abcdef123456', name: '' }], vi.fn());
+    const menu = buildCardReceiverMenu([{ userId: 'abcdef123456', name: '' }], vi.fn());
 
     expect(menu[0].name).toBe('abcdef');
   });
