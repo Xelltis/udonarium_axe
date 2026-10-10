@@ -19,6 +19,14 @@ function wasLastIn(roomId: string): boolean {
   return roomId.length > 0 && loadIdentity()?.roomId === roomId;
 }
 
+/**
+ * Whether the peer id is this seat's own connection to the room: the one open now, and in that
+ * room, rather than the standby connection or another member.
+ */
+function isOwnConnectionTo(roomId: string, peerId: string): boolean {
+  return peerId === Network.peerId && PeerContext.parse(peerId).roomId === roomId;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RoomJoinService {
   private readonly objectChange = inject(ObjectChangeService);
@@ -59,6 +67,9 @@ export class RoomJoinService {
    * others have a while to answer. What the listing still holds of this seat is not one of them:
    * where nobody else is left, as in a room its master was alone in, the room being open is the
    * join.
+   *
+   * The room's own connection is told by the peer id it opens with. That id is worked out from
+   * digests once opening is under way, so it is not there to be read when the open is asked for.
    */
   join(peerContexts: readonly IPeerContext[], password: string): Promise<boolean> {
     const context = peerContexts[0];
@@ -69,9 +80,8 @@ export class RoomJoinService {
     }
     const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
     Network.open(userId, context.roomId, context.roomName, password);
-    const selfPeerId = Network.peerId;
-    PeerCursor.myCursor.peerId = selfPeerId;
-    const others = peerContexts.filter((peer) => peer.peerId !== selfPeerId);
+    PeerCursor.myCursor.peerId = Network.peerId;
+    let others: readonly IPeerContext[] = peerContexts;
 
     return new Promise<boolean>((resolve) => {
       const triedPeerIds = new Set<string>();
@@ -93,13 +103,14 @@ export class RoomJoinService {
         offConnect();
         offDisconnect();
         const joined = isJoined || Network.peerContexts.length > 0;
-        if (!joined) this.resetNetwork(selfPeerId);
+        if (!joined) this.resetNetwork(context.roomId);
         resolve(joined);
       };
 
       const offOpen = this.objectChange.networkOpen$.subscribe((event) => {
-        if (event.peerId !== selfPeerId || isOpened) return;
+        if (isOpened || !isOwnConnectionTo(context.roomId, event.peerId)) return;
         isOpened = true;
+        others = peerContexts.filter((peer) => peer.peerId !== event.peerId);
         this.objectStore.clearDeleteHistory();
         if (others.length < 1) {
           settle(true);
@@ -112,7 +123,7 @@ export class RoomJoinService {
       }, this.destroyRef);
 
       const offError = this.objectChange.networkError$.subscribe((event) => {
-        if (isOpened || (event.peerId && event.peerId !== selfPeerId)) return;
+        if (isOpened || (event.peerId && !isOwnConnectionTo(context.roomId, event.peerId))) return;
         settle(false);
       }, this.destroyRef);
 
@@ -136,8 +147,8 @@ export class RoomJoinService {
    * Goes back to waiting outside any room after a join that came to nothing, unless something else
    * has already, as the handling of a network error does.
    */
-  private resetNetwork(roomPeerId: string): void {
-    if (Network.peerContexts.length > 0 || Network.peerId !== roomPeerId) return;
+  private resetNetwork(roomId: string): void {
+    if (Network.peerContexts.length > 0 || PeerContext.parse(Network.peerId).roomId !== roomId) return;
     Network.openStandby();
     PeerCursor.myCursor.peerId = Network.peerId;
   }
