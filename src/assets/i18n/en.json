@@ -5089,6 +5089,8 @@
       "restAsTheyAre": "Add the rest as they are",
       "add": "Add",
       "replace": "Replace",
+      "addAsCopy": "Add as a copy",
+      "addAsCopyHint": "Keeps the original as it is and adds the edited picture as a picture of its own",
       "failed": "This picture could not be read",
       "tooLarge": "It comes out at {{size}}MB, over the 2MB limit, and cannot be added. Keep a smaller part or lower the output size",
       "overLimit": "This picture is {{size}}MB, over the 2MB limit. Adding it converts it to a lighter format; if it still does not fit, crop it or lower the output size",

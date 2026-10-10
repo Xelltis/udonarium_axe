@@ -265,6 +265,18 @@
     </button>
   }
   <span class="flex-1"></span>
+  @if (request()?.replaces) {
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-1 border border-solid px-3 py-1 text-xs transition-[background,color] disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
+      data-testid="image-editor-add-copy"
+      [title]="'ui.imageEditor.addAsCopyHint' | transloco"
+      [disabled]="state() !== 'ready'"
+      (click)="add(true)"
+    >
+      <i class="material-icons">library_add</i>{{ 'ui.imageEditor.addAsCopy' | transloco }}
+    </button>
+  }
   <button
     type="button"
     class="rounded-ui-sm bg-ui-accent inline-flex cursor-pointer items-center gap-1 border-none px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"

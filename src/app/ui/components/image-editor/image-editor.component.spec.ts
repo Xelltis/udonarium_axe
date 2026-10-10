@@ -410,6 +410,29 @@ describe('ImageEditorComponent', () => {
       expect((await outcome).kind).toBe('added');
     });
 
+    it('adds the edit as a copy beside the picture it came from when asked, leaving the room as it was', async () => {
+      standInCanvas(40, 30);
+      const old = ImageFile.createEmpty('old');
+      const { outcome } = await opened({ replaces: old });
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="image-editor-add-copy"]')).not.toBeNull();
+
+      component.act('turn-right');
+      await component.add(true);
+
+      expect(replace).not.toHaveBeenCalled();
+      expect(stored).toHaveLength(1);
+      expect((await outcome).kind).toBe('added');
+    });
+
+    it('offers no copy for a picture that takes the place of nothing', async () => {
+      standInCanvas();
+      await opened();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="image-editor-add-copy"]')).toBeNull();
+    });
+
     it('replaces nothing when the picture comes back the same', async () => {
       standInCanvas();
       const same = ImageFile.createEmpty('stored');

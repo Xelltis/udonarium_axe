@@ -68,6 +68,21 @@ describe('ImageRelinkService', () => {
     expect(ImageTag.get(old.identifier).tag).toBe(SYSTEM_RESERVED_TAG);
   });
 
+  it('leaves the tag and keeping back of a picture already filed alone when the edit comes out as it', () => {
+    const oldTag = ImageTag.create(old.identifier);
+    oldTag.tag = '敵';
+    oldTag.isSecret = false;
+    const nextTag = ImageTag.create(next.identifier);
+    nextTag.tag = '伏せ札';
+    nextTag.isSecret = true;
+
+    service().replace(old, next);
+
+    expect(ImageTag.get(next.identifier).tag).toBe('伏せ札');
+    expect(ImageTag.get(next.identifier).isSecret).toBe(true);
+    expect(ImageTag.get(old.identifier).tag).toBe(SYSTEM_RESERVED_TAG);
+  });
+
   it('does nothing when the picture comes out the same', () => {
     const character = GameCharacter.create('コマ', 1, old.identifier);
 

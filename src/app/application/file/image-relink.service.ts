@@ -51,10 +51,15 @@ export class ImageRelinkService {
     return true;
   }
 
+  /**
+   * Gives the new picture the old one's tag and keeps it back as the old one was, then files the
+   * old one under the reserved tag so it leaves the lists. A new picture that is already filed,
+   * one the edit happened to come out the same as, keeps its own tag and its own keeping back.
+   */
   private handOverTag(from: string, to: string): void {
     const old = ImageTag.get(from);
-    const next = ImageTag.get(to) ?? ImageTag.create(to);
-    if (old) {
+    if (old && !ImageTag.get(to)) {
+      const next = ImageTag.create(to);
       next.tag = old.tag;
       next.isSecret = old.isSecret;
     }

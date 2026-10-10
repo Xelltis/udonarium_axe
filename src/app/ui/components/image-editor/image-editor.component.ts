@@ -526,10 +526,11 @@ export class ImageEditorComponent {
    * as it came unless it is over the size limit, when it is written out again in case that brings
    * it under. One still over the limit is kept open to be cut down or made smaller, and said to be
    * too large, and one that could not be stored is kept open, said so, to try again. One that takes
-   * the place of a picture in the room has everything showing the old one show it instead. A seat
-   * that may not edit the table stores nothing.
+   * the place of a picture in the room has everything showing the old one show it instead, unless it
+   * is added as a copy, which leaves the old one where it is. A seat that may not edit the table
+   * stores nothing.
    */
-  async add(): Promise<void> {
+  async add(asCopy = false): Promise<void> {
     const request = this.request();
     if (!this.rolePermission.canEditTabletop || !request) return;
     if (this.state() !== 'ready') return;
@@ -552,7 +553,7 @@ export class ImageEditorComponent {
         this.state.set('ready');
         return;
       }
-      if (request.replaces && request.replaces.identifier !== image.identifier) {
+      if (!asCopy && request.replaces && request.replaces.identifier !== image.identifier) {
         this.relink.replace(request.replaces, image);
       }
       this.state.set('ready');
