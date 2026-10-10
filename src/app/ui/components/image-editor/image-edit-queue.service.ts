@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { ImageUploadPreferenceService } from '@axe/application/file/image-upload-preference.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { FileArchiver, ImageLoadResult, MAX_LOADED_IMAGE_BYTES } from '@axe/core/storage/file-archiver';
 import { convertBlobToWebP } from '@axe/core/storage/image-downscale';
@@ -11,6 +12,7 @@ import type {
   ImageEditOutcome,
   ImageEditRequest,
 } from '@axe/ui/components/image-editor/image-editor.component';
+import { Z_PANEL_OVER_MODAL } from '@axe/ui/z-layers';
 
 const PANEL_SIZE = { width: 600, height: 680 };
 
@@ -28,6 +30,7 @@ export class ImageEditQueue {
   private readonly panelService = inject(PanelService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly preference = inject(ImageUploadPreferenceService);
+  private readonly modal = inject(ModalService);
   private readonly t = inject(TRANSLATE_FN);
 
   /**
@@ -110,8 +113,9 @@ export class ImageEditQueue {
   }
 
   /**
-   * Opens the editor in the middle of the screen, no taller than the screen. The editor is fetched
-   * the first time it is wanted, so a page that never edits a picture never loads it.
+   * Opens the editor in the middle of the screen, no taller than the screen, and above a modal
+   * when one is up, as the picture picker is. The editor is fetched the first time it is wanted,
+   * so a page that never edits a picture never loads it.
    */
   private async openEditor(): Promise<ImageEditorComponent> {
     const { ImageEditorComponent } = await import('@axe/ui/components/image-editor/image-editor.component');
@@ -123,6 +127,7 @@ export class ImageEditQueue {
       height,
       left: Math.max(0, (window.innerWidth - width) / 2),
       top: Math.max(0, (window.innerHeight - height) / 2),
+      ...(this.modal.isShow ? { layer: Z_PANEL_OVER_MODAL } : {}),
     });
   }
 }

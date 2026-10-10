@@ -44,6 +44,13 @@ export function hotbarPanelLayer(pinned: boolean): number {
 }
 
 /**
+ * A panel opened while a modal is up, which has to clear it to be used at all: the image editor
+ * an upload in the picture picker opens, for one. Above the modal and a bar pinned over it, and
+ * below the dropdowns and text tooltips at 2000000.
+ */
+export const Z_PANEL_OVER_MODAL = Z_HOTBAR_PINNED + 20;
+
+/**
  * Novel mode covers the screen, and the windows opened from it have to clear it.
  *
  * The overlay paints a backdrop over everything at 160, so a panel numbered from the ordinary

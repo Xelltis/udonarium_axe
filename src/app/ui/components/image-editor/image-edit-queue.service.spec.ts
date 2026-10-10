@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { ImageUploadPreferenceService } from '@axe/application/file/image-upload-preference.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { FileArchiver, MAX_LOADED_IMAGE_BYTES } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
 import { ImageEditOutcome, ImageEditRequest } from '@axe/ui/components/image-editor/image-editor.component';
+import { Z_PANEL_OVER_MODAL } from '@axe/ui/z-layers';
 
 function picture(name: string, size = 3): File {
   return new File([new Uint8Array(size)], name, { type: 'image/jpeg' });
@@ -155,6 +157,20 @@ describe('ImageEditQueue', () => {
 
       expect(opened).toEqual([]);
       expect(result).toEqual({ images: [], oversized: [] });
+    });
+  });
+
+  describe('where the editor opens', () => {
+    it('opens among the panels, and above a modal while one is up so it can be used', async () => {
+      const open = vi.mocked(TestBed.inject(PanelService).open);
+      outcomes = [added('a'), added('b')];
+
+      await queue.edit({ blob: picture('a.jpg'), name: 'a.jpg' });
+      expect(open.mock.calls[0][1]).not.toHaveProperty('layer');
+
+      vi.spyOn(TestBed.inject(ModalService), 'isShow', 'get').mockReturnValue(true);
+      await queue.edit({ blob: picture('b.jpg'), name: 'b.jpg' });
+      expect(open.mock.calls[1][1]).toMatchObject({ layer: Z_PANEL_OVER_MODAL });
     });
   });
 
