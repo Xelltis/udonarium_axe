@@ -15,7 +15,6 @@ import {
 import {
   alarmPop$,
   alarmTimeUp$,
-  cardStackDecreased$,
   ccfoliaRoomDropped$,
   endOldVote$,
   fileLoaded$,
@@ -61,7 +60,6 @@ export type {
 export type {
   AlarmPopEvent,
   AlarmTimeUpEvent,
-  CardStackDecreasedEvent,
   CutInEvent,
   FileSelectedEvent,
   FinishVoteEvent,
@@ -298,7 +296,6 @@ export class ObjectChangeService {
   readonly networkError$: ReadableChannel<NetworkErrorEvent> = this._networkError$;
 
   readonly messageAdded$ = messageAdded$;
-  readonly cardStackDecreased$ = cardStackDecreased$;
   readonly startCutIn$ = startCutIn$;
   readonly soundOnlyCutIn$ = soundOnlyCutIn$;
   readonly stopCutInByBgm$ = stopCutInByBgm$;

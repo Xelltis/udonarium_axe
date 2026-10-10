@@ -122,6 +122,56 @@ describe('GameTableMaskSheetComponent', () => {
     });
   });
 
+  describe('the words written across it', () => {
+    it('shows none, and the defaults, on a mask that never had any', () => {
+      expect(field('mask-text').value).toBe('');
+      expect(field('mask-text-size').value).toBe(String(GameTableMask.DEFAULT_TEXT_SIZE));
+      expect(field('mask-text-color').value).toBe('#ffffff');
+      expect(field('mask-text-outline').checked).toBe(true);
+    });
+
+    function typeSize(value: string, settle: boolean): void {
+      const size = field('mask-text-size');
+      size.value = value;
+      size.dispatchEvent(new Event('input'));
+      if (settle) size.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    }
+
+    it('writes the words, their size, colour and outline to the mask', () => {
+      component.maskText = '扉\n（閉）';
+      typeSize('40', true);
+      pickColor('mask-text-color', '#00ff00');
+      component.textOutline = false;
+
+      expect(mask.text).toBe('扉\n（閉）');
+      expect(mask.textSize).toBe(40);
+      expect(mask.textColor).toBe('#00ff00');
+      expect(mask.textOutline).toBe(false);
+    });
+
+    it('lets a size be typed a digit at a time, taking it once it is settled and holding it to its bounds', () => {
+      typeSize('1', false);
+      expect(mask.textSize).toBe(GameTableMask.DEFAULT_TEXT_SIZE);
+      expect(field('mask-text-size').value).toBe('1');
+
+      typeSize('16', true);
+      expect(mask.textSize).toBe(16);
+
+      typeSize('500', true);
+      expect(mask.textSize).toBe(200);
+      expect(field('mask-text-size').value).toBe('200');
+    });
+
+    it('leaves the size alone for an empty field, and shows it again', () => {
+      typeSize('40', true);
+      typeSize('', true);
+
+      expect(mask.textSize).toBe(40);
+      expect(field('mask-text-size').value).toBe('40');
+    });
+  });
+
   describe('the mask itself', () => {
     it('starts from the default fill on a mask with no colour element, and adds one on the first pick', () => {
       expect(mask.commonDataElement!.getFirstElementByName('color')).toBeNull();

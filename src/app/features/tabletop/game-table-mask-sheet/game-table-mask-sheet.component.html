@@ -130,6 +130,64 @@
       <h3
         class="text-ui-accent border-ui-border-panel m-0 mb-2.5 flex items-center gap-1.5 border-b pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-[16px]!"
       >
+        <i class="material-icons">text_fields</i>
+        {{ 'feature.tabletop.maskSheet.textSection' | transloco }}
+      </h3>
+      <div class="mb-2 flex items-start gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 pt-1 text-[12px]">{{
+          'feature.tabletop.maskSheet.text' | transloco
+        }}</label>
+        <textarea
+          class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text box-border min-h-16 min-w-0 flex-1 resize-y border px-2 py-1 font-sans text-[13px]"
+          data-field="mask-text"
+          [placeholder]="'feature.tabletop.maskSheet.textPlaceholder' | transloco"
+          [(ngModel)]="maskText"
+        ></textarea>
+      </div>
+      <div class="mb-2 flex items-center gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 text-[12px]">{{
+          'feature.tabletop.maskSheet.textSize' | transloco
+        }}</label>
+        <input
+          class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text box-border w-17.5 flex-none border px-2 py-1 text-[13px]"
+          type="number"
+          min="8"
+          max="200"
+          step="1"
+          data-field="mask-text-size"
+          [value]="textSize"
+          (change)="commitTextSize($any($event.target))"
+        />
+      </div>
+      <div class="mb-2 flex items-center gap-2 last:mb-0">
+        <label class="text-ui-muted min-w-22.5 text-[12px]">{{
+          'feature.tabletop.maskSheet.textColor' | transloco
+        }}</label>
+        <input
+          #textColorInput
+          class="border-ui-border-panel rounded-ui-sm box-border h-7 w-12 flex-none cursor-pointer border bg-transparent p-0.5"
+          type="color"
+          data-field="mask-text-color"
+          [value]="textColor"
+          (change)="setTextColor(textColorInput.value)"
+        />
+        <span class="text-ui-muted font-mono text-[12px]">{{ textColor }}</span>
+      </div>
+      <label class="text-ui-muted flex cursor-pointer items-center gap-1.5 text-[12px] select-none">
+        <input
+          class="size-3.5 [accent-color:var(--ui-accent)]"
+          type="checkbox"
+          data-field="mask-text-outline"
+          [(ngModel)]="textOutline"
+        />
+        {{ 'feature.tabletop.maskSheet.textOutline' | transloco }}
+      </label>
+    </section>
+
+    <section class="bg-ui-accent-bg border-ui-border-panel rounded-ui-sm box-border border p-3">
+      <h3
+        class="text-ui-accent border-ui-border-panel m-0 mb-2.5 flex items-center gap-1.5 border-b pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-[16px]!"
+      >
         <i class="material-icons">grid_on</i>
         {{ 'feature.tabletop.maskSheet.scratchedSection' | transloco }}
       </h3>

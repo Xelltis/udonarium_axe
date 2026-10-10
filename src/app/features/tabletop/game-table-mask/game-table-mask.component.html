@@ -64,6 +64,16 @@
               [src]="imageFile().url | safe: 'resourceUrl'"
             />
           }
+          @if (writing(); as words) {
+            <div
+              class="pointer-events-none absolute inset-0 box-border flex items-center justify-center overflow-hidden p-[4%] text-center leading-snug font-bold wrap-anywhere whitespace-pre-wrap"
+              data-mask-text
+              [style.font-size.px]="words.size"
+              [style.color]="words.color"
+              [style.text-shadow]="words.outline ? writingOutline : null"
+              [textContent]="words.text"
+            ></div>
+          }
         </div>
         <div
           class="pointer-events-none size-full overflow-hidden backface-hidden transform-3d"

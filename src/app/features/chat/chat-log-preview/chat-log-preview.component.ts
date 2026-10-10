@@ -8,7 +8,12 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ChatLogImages } from '@axe/domain/chat/chat-log-export';
 import { ChatLogExporter, ChatLogTab } from '@axe/domain/chat/chat-log-exporter';
 import { ChatLogScope } from '@axe/domain/chat/chat-log-rich';
-import { CHAT_LOG_STYLE_SWATCHES, CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
+import {
+  CHAT_LOG_STYLE_SWATCHES,
+  CHAT_LOG_STYLES,
+  ChatLogStyle,
+  isPlainChatLogStyle,
+} from '@axe/domain/chat/chat-log-style';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { buildChatLogPreviewSample } from '@axe/features/chat/chat-log-preview/chat-log-preview-sample';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -54,6 +59,8 @@ export class ChatLogPreviewComponent {
     this.style() === 'coc' && this.isSystemTab() ? 'standard' : this.style()
   );
   readonly effectiveScope = computed<ChatLogScope>(() => (this.isSystemTab() ? 'tab' : this.scope()));
+  /** Whether the log is previewed as the plain text it is saved as, rather than as a page. */
+  readonly isPlain = computed(() => isPlainChatLogStyle(this.effectiveStyle()));
 
   readonly html = computed(() => {
     const prepared = this.prepared();

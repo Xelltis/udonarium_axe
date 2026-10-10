@@ -1,5 +1,5 @@
 import { domainPeerDisconnect$ } from '@axe/core/event/domain-events';
-import { getMyPeerId, getPeerIds } from '@axe/core/network/peer-context-source';
+import { getMyPeerId, getPeerContext, getPeerIds } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
@@ -212,6 +212,15 @@ export class PeerCursor extends GameObject {
   /** Whether this peer is a player. */
   get isPlayer(): boolean {
     return this.role === PeerRole.Player;
+  }
+
+  /**
+   * The local user's id: the one on their own cursor, or before that exists, outside a room, the one
+   * the peer context holds; empty before either has one.
+   */
+  static get myUserId(): string {
+    const fromCursor = PeerCursor.myCursor?.userId ?? '';
+    return fromCursor.length > 0 ? fromCursor : getPeerContext().userId;
   }
 
   /** The local user's role; a player until their own cursor exists. */

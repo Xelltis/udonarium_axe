@@ -102,6 +102,23 @@ describe('TextNote', () => {
     });
   });
 
+  describe('how its body is drawn', () => {
+    it('is drawn as it was typed until it is set otherwise, and reads anything but formatted that way', () => {
+      const note = TextNote.create('t', '# 見出し');
+      expect(note.isFormatted).toBe(false);
+
+      note.isFormatted = true;
+      expect(note.textFormat).toBe('formatted');
+      expect(note.text).toBe('# 見出し');
+
+      note.textFormat = 'from-a-newer-version';
+      expect(note.isFormatted).toBe(false);
+
+      note.isFormatted = false;
+      expect(note.textFormat).toBe('');
+    });
+  });
+
   describe('what it inherits', () => {
     it('starts on the table', () => {
       const note = TextNote.create('t', 'text');

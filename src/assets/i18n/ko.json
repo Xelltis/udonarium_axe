@@ -571,7 +571,10 @@
         "multiDirection_vertical-right": "상하우",
         "multiDirection_vertical-left": "상하좌",
         "multiDirection_four-directions": "상하좌우",
-        "multiDirectionHint": "테이블을 위에서 볼 때만 여러 방향으로 표시합니다."
+        "multiDirectionHint": "테이블을 위에서 볼 때만 여러 방향으로 표시합니다.",
+        "unknownSpeaker": "???",
+        "trySpeaker": "누구로 재생",
+        "trySpeakerNobody": "지정 안 함"
       },
       "cutInEditor": {
         "tabBasic": "기본 설정",
@@ -597,6 +600,13 @@
         "strokeWidth": "테두리 굵기",
         "fontFamily": "폰트",
         "fontFamilyPlaceholder": "(기본 폰트)",
+        "fontPresets": {
+          "default": "기본",
+          "gothic": "고딕",
+          "mincho": "명조",
+          "rounded": "둥근 고딕",
+          "mono": "고정폭"
+        },
         "fillFrom": "색",
         "fillTo": "끝 색",
         "fillGradient": "그러데이션으로",
@@ -735,7 +745,24 @@
         "stageZoomFit": "전체 보기(Ctrl+휠로도 확대·축소)",
         "copyPose": "이 순간의 모습 복사(Ctrl+C)",
         "pastePose": "재생 헤드 위치에 붙여넣기(Ctrl+V)",
-        "seekTo": "시각 지정"
+        "seekTo": "시각 지정",
+        "letterMotion": "글자 움직임",
+        "letterStagger": "간격(ms)",
+        "letterDuration": "길이(ms)",
+        "letterDefault": "기본",
+        "letterMotions": {
+          "none": "없음",
+          "type": "타자",
+          "fade": "스르륵",
+          "pop": "통통",
+          "slide": "미끄러져 들어옴",
+          "wave": "물결",
+          "shake": "떨림"
+        },
+        "portraitSlot": "재생한 사람의 스탠딩 표시",
+        "portraitSlotHint": "채팅에서 재생하면 발언한 캐릭터의 스탠딩을 표시합니다. 없으면 이 레이어의 이미지를, 그것도 없으면 실루엣을 표시합니다.",
+        "insertSpeakerName": "이름 넣기",
+        "speakerNameHint": "{character}가 재생한 사람의 이름이 됩니다"
       }
     },
     "card": {
@@ -745,6 +772,8 @@
         "empty": "패가 없습니다",
         "playFaceUp": "앞면으로 내려놓기",
         "playFaceDown": "뒷면으로 내려놓기",
+        "give": "상대에게 건네기",
+        "giveTo": "건넬 상대",
         "drawFromOther": "상대의 패에서 뽑기",
         "discardPairs": "페어 버리기",
         "noPairs": "같은 숫자의 짝이 없습니다"
@@ -786,6 +815,8 @@
       "discardStackName": "버린 패",
       "message": {
         "drewFromHand": "{{to}}이(가) {{from}}의 패에서 1장 뽑았습니다",
+        "gaveFromHand": "{{from}}이(가) {{to}}에게 패를 1장 건넸습니다",
+        "handedOver": "{{name}}이(가) {{from}}의 패 {{count}}장을 {{to}}에게 넘겼습니다",
         "discardedPairs": "{{name}}이(가) {{ranks}} 페어를 버렸습니다"
       },
       "drawPanel": {
@@ -794,7 +825,11 @@
         "noPlayers": "패를 가진 참가자가 없습니다",
         "cardCount": "{{count}}장",
         "back": "상대 다시 고르기",
-        "pickCard": "뽑을 카드를 골라 주세요"
+        "pickCard": "뽑을 카드를 골라 주세요",
+        "absentHands": "나간 사람의 패",
+        "handOver": "넘겨주기",
+        "handOverTo": "넘겨받을 사람",
+        "handOverConfirm": "{{from}}의 패 {{count}}장을 {{to}}에게 넘깁니다. 카드는 뒷면인 채로 옮겨집니다."
       },
       "deckDialog": {
         "hint": "같은 태그가 붙은 이미지 1장당 카드 1장을 만들어 하나의 덱으로 묶습니다.",
@@ -822,7 +857,13 @@
         "width": "너비",
         "height": "높이",
         "fontSize": "글자 크기",
-        "altitude": "고도"
+        "altitude": "고도",
+        "format": "표시"
+      },
+      "format": {
+        "plain": "그대로",
+        "formatted": "서식",
+        "hint": "줄 앞의 #은 제목, - 나 1.은 목록, >는 인용이 됩니다. `로 감싸면 코드, ``` 줄로 감싸면 코드 단락이 됩니다."
       }
     },
     "cardStack": {
@@ -1349,7 +1390,8 @@
         "cardHidden": "카드",
         "diceHidden": "???",
         "imageUnset": "이미지 미설정",
-        "urlEdit": "URL 편집:"
+        "urlEdit": "URL 편집:",
+        "enlarge": "크게 보기"
       },
       "sheet": {
         "toggleEdit": "편집 전환",
@@ -1377,6 +1419,13 @@
         "addPortraitTitle": "입화 추가",
         "removePortraitTitle": "현재 입화 삭제",
         "import": "가져오기",
+        "cutInFit": "컷인 위치",
+        "cutInFitOpenHint": "화자의 입화를 넣는 컷인에서 이 입화를 어떻게 잘라 보여줄지 정합니다",
+        "cutInFitTitle": "컷인 위치 맞추기",
+        "cutInFitHint": "드래그로 이동하고, 휠이나 핀치로 확대·축소합니다. 방향키와 +/-도 쓸 수 있습니다",
+        "cutInFitSet": "이 입화는 여기서 정한 위치로 표시됩니다",
+        "cutInFitUnset": "미설정 (컷인마다의 배치대로 표시됩니다)",
+        "cutInFitPutBack": "되돌리기",
         "chatPosition": "채팅 표시 위치",
         "basicInfo": "기본 정보",
         "gameData": "게임 데이터",
@@ -1545,7 +1594,24 @@
         "makeSecret": "숨기기",
         "clearSecret": "숨김 해제",
         "makeSecretHint": "체크한 이미지를 GM 외의 목록에서 숨깁니다",
-        "secretMark": "숨긴 이미지"
+        "secretMark": "숨긴 이미지",
+        "paste": "붙여넣기",
+        "pasteHint": "클립보드의 이미지를 확인한 뒤 추가합니다(이 목록을 선택하고 Ctrl+V로도 붙여넣을 수 있습니다)",
+        "pasteNothing": "클립보드에 이미지가 없습니다",
+        "pasteWithKeys": "브라우저가 붙여넣기를 허용하지 않았습니다. 목록을 선택하고 Ctrl+V로 붙여넣어 주세요",
+        "clearBackground": "배경 투명화",
+        "clearBackgroundHint": "체크한 이미지 1장의 배경을 지운 사본을 만듭니다"
+      },
+      "imageIntake": {
+        "title": "이미지 추가",
+        "hint": "배경을 클릭하면 그 색과 이어진 범위가 투명해집니다. 여러 번 클릭할 수 있습니다.",
+        "tolerance": "색 범위",
+        "undo": "한 단계 되돌리기",
+        "cancel": "취소",
+        "add": "추가",
+        "failed": "이 이미지를 읽을 수 없습니다",
+        "tooLarge": "2MB를 넘어 추가할 수 없습니다. 투명하게 할 범위를 바꾸거나 작은 이미지를 사용해 주세요",
+        "saveFailed": "이미지를 저장하지 못했습니다. 다시 시도해 주세요"
       },
       "tooLarge": {
         "one": "「{{name}}」은(는) 너무 커서 불러오지 못했습니다({{limits}})",
@@ -1940,7 +2006,13 @@
         "openDataSheet": "모든 데이터 항목을 시트로 열기",
         "copy": "복제 만들기",
         "saving": "저장 중 {{percent}}%",
-        "save": "저장"
+        "save": "저장",
+        "textSection": "글자",
+        "text": "문장",
+        "textPlaceholder": "마스크 위에 표시할 문장",
+        "textSize": "크기",
+        "textColor": "색",
+        "textOutline": "테두리 넣기"
       },
       "contextMenu": {
         "altitudeSetting": "고도 설정",
@@ -2534,6 +2606,9 @@
       "diceStage_table": "테이블 위",
       "diceStage_both": "둘 다",
       "diceStageHint": "채팅에서 굴린 다이스가 3D로 굴러가 나온 눈에서 멈춥니다. 시크릿 굴림은 굴린 사람의 화면에만 나옵니다",
+      "sectionSpeechBubbles": "말풍선",
+      "speechBubbles": "캐릭터의 발언을 머리 위 말풍선으로 표시",
+      "speechBubblesHint": "테이블 위 캐릭터로 말한 공개 발언이 그 말 위에 몇 초간 표시됩니다. 「」가 있으면 그 안만 표시합니다. 귓속말·시크릿·주사위나 명령 발언은 표시되지 않습니다. 각자 툴바에서 자기 화면에서만 숨길 수 있습니다",
       "sectionControllerResources": "리모컨에 표시할 수치와 리소스",
       "controllerResourcesShowAll": "모두 표시",
       "controllerResourcesHideAll": "모두 끄기",
@@ -2633,7 +2708,15 @@
       "sizeSlipsPast": "크기가 2칸 이상 다른 상대의 칸은 지나갈 수 있음(멈출 수는 없음)",
       "handTracesWay": "손으로 옮겼을 때도 지나간 길의 장치를 발동",
       "squeezes": "큰 말을 지나갈 수 없는 틈에 밀어 넣을 수 있게 한다 (한 칸분 더 소모)",
-      "jumpCells": "도약 거리 (칸, 0이면 이동력만큼)"
+      "jumpCells": "도약 거리 (칸, 0이면 이동력만큼)",
+      "tab_stamp": "스탬프",
+      "stampUse_line": "스탬프 발언",
+      "stampUse_reaction": "리액션",
+      "stampUseOn_line": "스탬프를 발언으로 보낼 수 있게 하기",
+      "stampUseOn_reaction": "발언에 리액션을 달 수 있게 하기",
+      "stampRulesHint": "스탬프를 누르면 사용 가능/불가가 바뀝니다. 이미 보낸 스탬프는 그대로 보입니다.",
+      "stampAllowAll": "모두 사용 가능",
+      "stampDenyAll": "모두 사용 불가"
     },
     "skin": {
       "title": "화면 색(스킨)",
@@ -2843,8 +2926,10 @@
         "tokenExpired": "SkyWay 인증 토큰이 만료되었습니다. 재접속합니다.",
         "generic": "네트워크 오류가 발생했습니다.({{errorType}})",
         "reconnecting": "재접속을 시도합니다...",
-        "lastReconnect": "이번이 마지막 재접속 시도입니다. 연결되지 않으면 잠시 후 다시 들어와 주세요."
+        "lastReconnect": "이번이 마지막 재접속 시도입니다. 연결되지 않으면 잠시 후 다시 들어와 주세요.",
+        "sameNameMember": "다른 탭에서 이 방에 들어가 있거나 이전 연결이 아직 끊기지 않았습니다. 다른 탭을 닫거나 잠시 기다린 뒤 다시 들어와 주세요"
       },
+      "waitingForPreviousConnection": "이전 연결이 끊기기를 기다리고 있습니다 (최대 1분 정도)",
       "peerCursor": {
         "noSignal": "{{name}}님에게서 당신에게 오는 접속 확인 신호를 {{seconds}}초 이상 받지 못했습니다. 통신 장애일 수 있습니다.",
         "reconnected": "당신과 {{name}}님의 접속을 확인했습니다.",
@@ -2949,7 +3034,8 @@
         "sendToTicker": "티커",
         "sendToTickerHint": "이 발언을 화면 외곽에도 흘려보냅니다",
         "tools": "입력 설정",
-        "myDice": "마이 주사위"
+        "myDice": "마이 주사위",
+        "stamp": "스탬프 보내기 (입력 중인 글이 있으면 함께)"
       },
       "tab": {
         "unnamedCharacter": "이름 없는 캐릭터",
@@ -2974,6 +3060,7 @@
         "editedSimple": "(수정됨)",
         "reply": "답장",
         "quote": "인용",
+        "react": "리액션",
         "jumpToOriginal": "원래 메시지로 이동",
         "shareAsMemo": "공유 메모로 보내기",
         "ticker": "티커",
@@ -3203,6 +3290,10 @@
           "coc": {
             "name": "CoC 로그 형식",
             "description": "다른 도구에서 읽을 수 있는 기존 형식"
+          },
+          "text": {
+            "name": "텍스트",
+            "description": "글자만 담은 .txt 파일"
           }
         },
         "labels": {
@@ -3218,7 +3309,8 @@
           "allTabs": "전체 탭",
           "everyTab": "전체",
           "messages": "발언 {{count}}건",
-          "exportedWith": "Udonarium Axe에서 내보냄"
+          "exportedWith": "Udonarium Axe에서 내보냄",
+          "reactions": "리액션"
         },
         "sample": {
           "gm": "GM",
@@ -3257,6 +3349,23 @@
         "descSuffix": " 설명",
         "unreachable": "다이스봇「{{name}}」을(를) 불러오지 못해 이 발언의 주사위는 굴리지 않았습니다. 다시 보내도 굴려지지 않으면 페이지를 새로고침하세요.",
         "intro": "【다이스봇】채팅에 주사위용 문자를 입력하면 주사위를 굴릴 수 있습니다\n입력 예) 2d6+1 공격!\n출력 예) 2d6+1 공격!\n　　　　  diceBot: (2d6) → 7\n위처럼 주사위 문자 뒤에 공백을 두고 발언할 수도 있습니다.\n아래는 사용 예\n　3D6+1>=9 : 3d6+1로 목표값 9 이상인지 판정\n　1D100<=50 : D100으로 50% 목표의 하방 굴림 예\n　3U6[5] : 3d6의 눈이 5 이상이면 다시 굴려 합산(상방 무한)\n　3B6 : 3d6의 눈을 따로따로 출력(합산하지 않음)\n　10B6>=4 : 10d6을 굴려 4 이상인 눈의 개수를 셈\n　2R6[>3]>=5 : 2D6의 눈이 3보다 크면 다시 굴려 5 이상인 눈의 개수를 셈\n　(8/2)D(4+6)<=(5*3): 개수·주사위·달성값에 사칙연산도 사용 가능\n　c(10-4*3/2+2): c(계산식)으로 계산만 실행 가능\n　choice[a,b,c]: 나열한 요소에서 하나를 골라 표시. 무작위 공격 대상 결정 등에\n　S3d6 : 각 명령 앞에 \"S\"를 붙이면 남에게 결과가 보이지 않는 시크릿 굴림\n　3d6/2 : 주사위 눈을 나눗셈(끝수 처리는 게임 시스템에 따름). 올림은 /2C, 반올림은 /2R, 버림은 /2F\n　D66 : D66 주사위. 순서는 게임에 따름. D66N: 그대로, D66A: 오름차순, D66D: 내림차순\n\n자세한 내용은 아래 URL의 명령어 가이드를 참고하세요\nhttps://docs.bcdice.org/\n===================================\n"
+      },
+      "stampPack": {
+        "title": "스탬프 세트",
+        "hint": "방의 이미지로 스탬프 세트를 만듭니다. 세트는 방에 저장되며 참가자 모두가 쓸 수 있습니다.",
+        "create": "새 세트",
+        "newPackName": "새 세트",
+        "namePlaceholder": "세트 이름",
+        "stampNamePlaceholder": "스탬프 이름",
+        "removePack": "이 세트 삭제",
+        "removePackConfirm": "세트 \"{{name}}\"을(를) 삭제합니다. 이미지는 방에 남고, 이미 쓰인 스탬프도 그대로 표시됩니다.",
+        "addFromRoom": "이미지 목록에서 추가",
+        "addFromFiles": "파일에서 추가",
+        "removeStamp": "세트에서 빼기",
+        "emptyPack": "아직 스탬프가 없습니다",
+        "noPacks": "방의 스탬프 세트가 아직 없습니다",
+        "tooLarge": "2MB를 넘어 추가하지 못했습니다: {{names}}",
+        "alreadyIn": "그 이미지는 이미 이 세트에 있습니다"
       }
     },
     "visualNovel": {
@@ -4876,6 +4985,8 @@
       "resourceBarsHidden": "리소스 바: 숨김 (클릭하면 표시)",
       "buffsShown": "버프: 표시 중 (클릭하면 숨김)",
       "buffsHidden": "버프: 숨김 (클릭하면 표시)",
+      "speechShown": "말풍선: 표시 중 (클릭하면 숨김)",
+      "speechHidden": "말풍선: 숨김 (클릭하면 표시)",
       "viewFlat": "2D 표시(클릭하면 3D)",
       "viewPerspective": "3D 표시(클릭하면 2D)",
       "viewAutoFlat": "시점: 자동 (2D)",
@@ -4951,6 +5062,590 @@
       "previous": "이전 입화",
       "next": "다음 입화",
       "unnamed": "입화 {{index}}"
+    },
+    "stamp": {
+      "families": {
+        "recent": "최근",
+        "sfx": "효과음",
+        "seal": "도장",
+        "roll": "판정",
+        "battle": "전투",
+        "explore": "탐색",
+        "feel": "기분",
+        "talk": "대화"
+      },
+      "items": {
+        "sfx": {
+          "laugh": {
+            "label": "푸핫",
+            "name": "웃음"
+          },
+          "shock": {
+            "label": "쿵",
+            "name": "충격"
+          },
+          "creepy": {
+            "label": "오싹",
+            "name": "무서움"
+          },
+          "heart": {
+            "label": "두근",
+            "name": "좋아"
+          },
+          "clap": {
+            "label": "짝짝",
+            "name": "박수"
+          },
+          "notice": {
+            "label": "헉!",
+            "name": "깨달음"
+          },
+          "gulp": {
+            "label": "꿀꺽",
+            "name": "긴장"
+          },
+          "smirk": {
+            "label": "씨익",
+            "name": "음모"
+          },
+          "boom": {
+            "label": "쾅",
+            "name": "충격 전개"
+          },
+          "menace": {
+            "label": "고고고",
+            "name": "불길한 기운"
+          },
+          "silence": {
+            "label": "썰렁",
+            "name": "정적"
+          },
+          "stare": {
+            "label": "빤히",
+            "name": "빤히"
+          },
+          "thump": {
+            "label": "두근두근",
+            "name": "두근두근"
+          },
+          "excited": {
+            "label": "설렘",
+            "name": "기대돼"
+          },
+          "flop": {
+            "label": "꽈당",
+            "name": "꽈당"
+          },
+          "shine": {
+            "label": "반짝",
+            "name": "반짝"
+          },
+          "startle": {
+            "label": "뜨끔",
+            "name": "뜨끔"
+          },
+          "murmur": {
+            "label": "웅성",
+            "name": "웅성웅성"
+          },
+          "entrance": {
+            "label": "짠",
+            "name": "등장"
+          },
+          "glance": {
+            "label": "힐끔",
+            "name": "힐끔"
+          },
+          "huff": {
+            "label": "흥",
+            "name": "흥"
+          },
+          "gloom": {
+            "label": "털썩",
+            "name": "침울"
+          },
+          "idea": {
+            "label": "번뜩",
+            "name": "번뜩"
+          },
+          "leanin": {
+            "label": "벌떡",
+            "name": "벌떡"
+          },
+          "roll": {
+            "label": "데굴데굴",
+            "name": "주사위 굴림"
+          },
+          "dumbfounded": {
+            "label": "멍",
+            "name": "멍"
+          }
+        },
+        "seal": {
+          "ok": {
+            "label": "확인",
+            "name": "확인"
+          },
+          "seen": {
+            "label": "봤음",
+            "name": "봤음"
+          },
+          "lol": {
+            "label": "ㅋㅋ",
+            "name": "웃음"
+          },
+          "wow": {
+            "label": "놀람",
+            "name": "놀람"
+          },
+          "fear": {
+            "label": "무섭",
+            "name": "무서움"
+          },
+          "sob": {
+            "label": "눈물",
+            "name": "눈물"
+          },
+          "god": {
+            "label": "갓",
+            "name": "최고"
+          },
+          "precious": {
+            "label": "존귀",
+            "name": "소중해"
+          },
+          "agree": {
+            "label": "그러네",
+            "name": "그러네"
+          },
+          "really": {
+            "label": "글쎄",
+            "name": "글쎄"
+          },
+          "fair": {
+            "label": "일리있음",
+            "name": "일리 있어"
+          },
+          "unfair": {
+            "label": "일리없음",
+            "name": "일리 없어"
+          },
+          "noobjection": {
+            "label": "이의없음",
+            "name": "이의 없음"
+          },
+          "objection": {
+            "label": "이의있음",
+            "name": "이의 있음"
+          },
+          "gotit": {
+            "label": "완전이해",
+            "name": "완전히 이해했어"
+          },
+          "thatsit": {
+            "label": "인정",
+            "name": "인정"
+          },
+          "relate": {
+            "label": "공감",
+            "name": "공감"
+          },
+          "lmao": {
+            "label": "폭소",
+            "name": "폭소"
+          },
+          "genius": {
+            "label": "천재",
+            "name": "천재"
+          },
+          "win": {
+            "label": "우승",
+            "name": "우승"
+          },
+          "best": {
+            "label": "최고",
+            "name": "최고"
+          },
+          "capable": {
+            "label": "유능",
+            "name": "유능"
+          },
+          "noway": {
+            "label": "무리",
+            "name": "무리"
+          },
+          "approved": {
+            "label": "승인",
+            "name": "승인"
+          },
+          "rejected": {
+            "label": "기각",
+            "name": "기각"
+          },
+          "foreshadow": {
+            "label": "복선",
+            "name": "복선"
+          },
+          "ominous": {
+            "label": "불길",
+            "name": "불길해"
+          },
+          "rip": {
+            "label": "명복",
+            "name": "명복을"
+          },
+          "done": {
+            "label": "완료",
+            "name": "완료"
+          },
+          "congrats": {
+            "label": "축",
+            "name": "축하해"
+          },
+          "thanks": {
+            "label": "감사",
+            "name": "감사"
+          },
+          "secret": {
+            "label": "비밀",
+            "name": "비밀"
+          },
+          "lucky": {
+            "label": "길",
+            "name": "길"
+          },
+          "unlucky": {
+            "label": "흉",
+            "name": "흉"
+          }
+        },
+        "roll": {
+          "critical": {
+            "name": "크리티컬!"
+          },
+          "fumble": {
+            "name": "펌블…"
+          },
+          "success": {
+            "name": "성공!"
+          },
+          "failure": {
+            "name": "실패…"
+          },
+          "pray": {
+            "name": "기도"
+          },
+          "throw": {
+            "name": "에잇"
+          },
+          "reroll": {
+            "name": "다시 굴리게 해줘"
+          },
+          "shake": {
+            "name": "달그락달그락"
+          },
+          "blow": {
+            "name": "주사위에 후~"
+          },
+          "stare": {
+            "name": "주사위 노려보기"
+          },
+          "sanity": {
+            "name": "이성 판정…"
+          },
+          "secret": {
+            "name": "시크릿 다이스"
+          },
+          "count": {
+            "name": "보정치 계산 중"
+          },
+          "clover": {
+            "name": "행운의 부적"
+          },
+          "cursed": {
+            "name": "저주받은 주사위"
+          },
+          "nervous": {
+            "name": "조마조마"
+          },
+          "aghast": {
+            "name": "엥…"
+          },
+          "bonus": {
+            "name": "보너스!"
+          },
+          "hoard": {
+            "name": "주사위 최고"
+          },
+          "doubt": {
+            "name": "이 주사위 수상해"
+          }
+        },
+        "battle": {
+          "sword": {
+            "name": "베기!"
+          },
+          "shield": {
+            "name": "방어"
+          },
+          "magic": {
+            "name": "마법"
+          },
+          "bow": {
+            "name": "조준"
+          },
+          "charge": {
+            "name": "돌격!"
+          },
+          "hurt": {
+            "name": "아파…"
+          },
+          "heal": {
+            "name": "회복"
+          },
+          "fainted": {
+            "name": "전투 불능"
+          },
+          "dodge": {
+            "name": "회피!"
+          },
+          "victory": {
+            "name": "승리!"
+          },
+          "flee": {
+            "name": "도망!"
+          },
+          "berserk": {
+            "name": "진심 모드"
+          },
+          "stunned": {
+            "name": "어질어질"
+          },
+          "poison": {
+            "name": "독…"
+          },
+          "asleep": {
+            "name": "수면"
+          },
+          "buff": {
+            "name": "파워 업"
+          },
+          "taunt": {
+            "name": "메롱"
+          },
+          "protect": {
+            "name": "감싸기!"
+          },
+          "smash": {
+            "name": "혼신의 일격"
+          },
+          "ready": {
+            "name": "덤벼라"
+          },
+          "lowhp": {
+            "name": "남은 HP 1"
+          }
+        },
+        "explore": {
+          "magnifier": {
+            "name": "조사"
+          },
+          "listen": {
+            "name": "엿듣기"
+          },
+          "sneak": {
+            "name": "은밀 이동"
+          },
+          "found": {
+            "name": "찾았다!"
+          },
+          "map": {
+            "name": "지도…"
+          },
+          "treasure": {
+            "name": "보물!"
+          },
+          "trapped": {
+            "name": "함정이다!"
+          },
+          "lockpick": {
+            "name": "자물쇠 따기"
+          },
+          "torch": {
+            "name": "어두워…"
+          },
+          "think": {
+            "name": "생각 중"
+          },
+          "idea": {
+            "name": "번뜩였다!"
+          },
+          "puzzled": {
+            "name": "모르겠어…"
+          },
+          "shop": {
+            "name": "쇼핑"
+          },
+          "eat": {
+            "name": "밥"
+          },
+          "camp": {
+            "name": "야영"
+          },
+          "toast": {
+            "name": "건배!"
+          },
+          "tome": {
+            "name": "문헌 조사"
+          },
+          "peek": {
+            "name": "슬쩍"
+          },
+          "lost": {
+            "name": "길 잃음"
+          },
+          "knock": {
+            "name": "노크"
+          }
+        },
+        "feel": {
+          "smile": {
+            "name": "방긋"
+          },
+          "laugh": {
+            "name": "대폭소"
+          },
+          "cry": {
+            "name": "오열"
+          },
+          "angry": {
+            "name": "화났어"
+          },
+          "shock": {
+            "name": "충격"
+          },
+          "blush": {
+            "name": "부끄러워"
+          },
+          "smug": {
+            "name": "의기양양"
+          },
+          "love": {
+            "name": "좋아!"
+          },
+          "scared": {
+            "name": "무서워"
+          },
+          "awkward": {
+            "name": "어색해"
+          },
+          "confused": {
+            "name": "응?"
+          },
+          "excited": {
+            "name": "설레"
+          },
+          "pout": {
+            "name": "뾰로통"
+          },
+          "sigh": {
+            "name": "하아…"
+          },
+          "sleepy": {
+            "name": "졸려"
+          },
+          "evil": {
+            "name": "계획대로"
+          },
+          "moved": {
+            "name": "감동"
+          },
+          "blank": {
+            "name": "멍…"
+          },
+          "proud": {
+            "name": "에헴"
+          },
+          "panic": {
+            "name": "허둥지둥"
+          }
+        },
+        "talk": {
+          "ok": {
+            "name": "OK!"
+          },
+          "no": {
+            "name": "안 돼"
+          },
+          "wait": {
+            "name": "잠깐만"
+          },
+          "hello": {
+            "name": "안녕!"
+          },
+          "goodgame": {
+            "name": "수고했어"
+          },
+          "thanks": {
+            "name": "고마워"
+          },
+          "sorry": {
+            "name": "미안해"
+          },
+          "question": {
+            "name": "질문!"
+          },
+          "agree": {
+            "name": "응응"
+          },
+          "beg": {
+            "name": "부탁드립니다!"
+          },
+          "brb": {
+            "name": "잠깐 자리 비움"
+          },
+          "goodnight": {
+            "name": "잘 자"
+          },
+          "tea": {
+            "name": "휴식"
+          },
+          "clap": {
+            "name": "짝짝"
+          },
+          "cheer": {
+            "name": "힘내!"
+          },
+          "popcorn": {
+            "name": "관전 중"
+          },
+          "memo": {
+            "name": "메모 메모"
+          },
+          "rules": {
+            "name": "룰 확인"
+          },
+          "hurry": {
+            "name": "시간 됐어"
+          },
+          "letsplay": {
+            "name": "놀자!"
+          },
+          "ruling": {
+            "name": "GM 판단으로!"
+          },
+          "oshi": {
+            "name": "입덕"
+          },
+          "foreshadow": {
+            "name": "이건 복선…!"
+          }
+        }
+      },
+      "picture": "스탬프",
+      "standIn": "[{{words}}]",
+      "unnamedPack": "(이름 없음)",
+      "manage": "스탬프 세트 관리"
     }
   }
 }

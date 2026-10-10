@@ -231,6 +231,19 @@ describe('renderRichChatLog', () => {
     expect(renderRichChatLog('washi', 'tab', [tab('メイン', [answer])], { userId: 'user-C' })).toContain('内緒の話');
   });
 
+  it('quotes a secret roll by what stands in for it in the log of anybody but the one who rolled it', () => {
+    const secret = roll('DiceBot : (1d100) → 3', '', {
+      isSecret: true,
+      isSentBy: (userId: string) => userId === 'roller',
+    });
+    const answer = line({ text: '返事', replyTo: 'x', replyToMessage: secret as never });
+
+    const toOthers = renderRichChatLog('washi', 'tab', [tab('メイン', [answer])], { userId: 'someone' });
+    expect(toOthers).toContain('<span class="rt">シークレットダイス</span>');
+    expect(toOthers).not.toContain('→ 3');
+    expect(renderRichChatLog('washi', 'tab', [tab('メイン', [answer])], { userId: 'roller' })).toContain('→ 3');
+  });
+
   it('keeps a colour it cannot trust out of the style attribute', () => {
     const html = renderRichChatLog('neon', 'tab', [
       tab('メイン', [line({ messColor: 'red;background:url(https://example.com/x)' })]),
@@ -366,5 +379,26 @@ describe('exportChatLog', () => {
 
   it('writes an empty log rather than failing when there is no tab', () => {
     expect(() => exportChatLog('standard', 'tab', [])).not.toThrow();
+  });
+
+  it('lists the stamps put on a line under it, each with how many, and none on a sealed roll', () => {
+    const reactionsOf = (id: string) =>
+      id === 'line-1'
+        ? [
+            { label: 'ゾワッ', count: 2 },
+            { label: '了解', count: 1 },
+          ]
+        : [];
+    const answered = line({ identifier: 'line-1' });
+    const sealed = roll('(1D100) → 3', '', { identifier: 'line-1', isSecret: true, isSentBy: () => false });
+
+    const html = renderRichChatLog('washi', 'tab', [tab('メイン', [answered])], { reactionsOf });
+    expect(html).toContain(
+      '<div class="rx" aria-label="リアクション"><span>ゾワッ <b>2</b></span><span>了解 <b>1</b></span></div>'
+    );
+
+    expect(
+      renderRichChatLog('washi', 'tab', [tab('メイン', [sealed])], { reactionsOf, userId: 'someone' })
+    ).not.toContain('class="rx"');
   });
 });

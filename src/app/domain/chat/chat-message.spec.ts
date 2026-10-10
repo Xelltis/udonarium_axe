@@ -799,4 +799,27 @@ describe('ChatMessage', () => {
       expect(message.versions).toEqual([]);
     });
   });
+
+  describe('a line sent as a stamp', () => {
+    function line(stamp?: string): ChatMessage {
+      const message = new ChatMessage();
+      if (stamp !== undefined) message.stamp = stamp;
+      return message;
+    }
+
+    it('names the stamp it was sent as, where this version knows it', () => {
+      expect(line('seal:ok').sentStamp).toBe('seal:ok');
+      expect(line('image:abc').sentStamp).toBe('image:abc');
+    });
+
+    it('is a line of words where it names none, or one from a newer version', () => {
+      expect(line().sentStamp).toBeNull();
+      expect(line('').sentStamp).toBeNull();
+      expect(line('sfx:from-a-newer-version').sentStamp).toBeNull();
+    });
+
+    it('writes nothing about stamps on a line of words, so a saved room is not burdened', () => {
+      expect(Object.keys(line().toAttributes())).not.toContain('stamp');
+    });
+  });
 });

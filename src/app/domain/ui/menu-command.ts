@@ -32,6 +32,7 @@ export const MENU_TOGGLES = [
   'fog',
   'resourceBars',
   'buffs',
+  'speechBubbles',
   'npcBar',
   'widgetPlToolbar',
   'widgetGmToolbar',
@@ -216,6 +217,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
     dims: true,
   }),
   toggle('buffs', 'auto_fix_high', 'app.fab.buffsShown', { testId: 'toolbar-buffs', dims: true }),
+  toggle('speechBubbles', 'chat_bubble', 'app.fab.speechShown', { testId: 'toolbar-speech', dims: true }),
   toggle('npcBar', 'groups', 'app.fab.npcBar', { audience: 'gameMaster' }),
   widget('widgetPlToolbar', 'person', 'app.fab.plTools', { audience: 'player', testId: 'seat-widget-plToolbar' }),
   widget('widgetGmToolbar', 'shield', 'app.fab.gmTools', {

@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
@@ -194,6 +196,15 @@ describe('CutInStageComponent', () => {
     expect(whole.style.clipPath).toBe('');
   });
 
+  it('draws a layer whole under an outline it does not know', () => {
+    const scene = makeScene();
+    addLayer(scene, { clip: 'trapezoid' as never });
+
+    show(scene);
+
+    expect(layerElements()[0].style.clipPath).toBe('');
+  });
+
   it('leans a layer the way it was told to', () => {
     const scene = makeScene();
     addLayer(scene, { skewXDeg: 20 });
@@ -247,6 +258,137 @@ describe('CutInStageComponent', () => {
     expect(words.style.writingMode).toBe('vertical-rl');
     expect(words.style.textOrientation).toBe('upright');
     expect(words.style.letterSpacing).toBe('-10px');
+  });
+
+  it('writes a text layer as it was typed, with nothing before or after it', () => {
+    const scene = makeScene();
+    addLayer(scene, { kind: 'text', text: 'ドン\nッ！' });
+
+    show(scene, false, 0);
+
+    const words = fixture.nativeElement.querySelector('.whitespace-pre-wrap') as HTMLElement;
+    expect(words.textContent).toBe('ドン\nッ！');
+  });
+
+  it('draws a layer whose letters come on one at a time a letter to a span, each on the layer\u2019s clock', () => {
+    const animate = stubAnimate();
+    const scene = makeScene(2000);
+    addLayer(scene, { kind: 'text', text: 'いく\nぞ', letterMotion: 'fade', letterStaggerMs: 100, startMs: 500 });
+
+    show(scene, false, 700);
+
+    const letters = [...fixture.nativeElement.querySelectorAll('[data-letter-rank]')] as HTMLElement[];
+    expect(letters.map((letter) => [letter.textContent, letter.dataset['letterRank']])).toEqual([
+      ['い', '0'],
+      ['く', '1'],
+      ['ぞ', '2'],
+    ]);
+    expect(fixture.nativeElement.querySelectorAll('.whitespace-pre-wrap br')).toHaveLength(1);
+
+    const letterCalls = animate.mock.calls.filter((_, at) => animate.mock.contexts[at] instanceof HTMLSpanElement);
+    expect(letterCalls).toHaveLength(3);
+    const [frames, options] = letterCalls[1] as [{ offset: number; opacity: number }[], KeyframeAnimationOptions];
+    expect(options.duration).toBe(2000);
+    expect(frames.find((frame) => frame.offset === 600 / 2000)!.opacity).toBe(0);
+
+    const handles = animate.mock.results.map(
+      (result) => result.value as { pause: ReturnType<typeof vi.fn>; currentTime: number }
+    );
+    expect(handles.every((handle) => handle.pause.mock.calls.length > 0 && handle.currentTime === 700)).toBe(true);
+  });
+
+  it('writes a layer with a motion this version does not know as it was typed', () => {
+    const scene = makeScene();
+    addLayer(scene, { kind: 'text', text: 'ドン', letterMotion: 'from-a-newer-version' });
+
+    show(scene, false, 0);
+
+    expect(fixture.nativeElement.querySelector('[data-letter-rank]')).toBeNull();
+    expect((fixture.nativeElement.querySelector('.whitespace-pre-wrap') as HTMLElement).textContent).toBe('ドン');
+  });
+
+  describe('a cut-in played for a speaker', () => {
+    const speaker = { characterId: 'hero', imageIdentifier: 'hero-face', name: 'ヒロ' };
+
+    beforeEach(() => {
+      for (const identifier of ['hero-face', 'stand-in']) {
+        ImageStorage.instance.add({
+          identifier,
+          name: `${identifier}.png`,
+          type: 'image/png',
+          blob: null,
+          url: `blob:${identifier}`,
+          thumbnail: { type: '', blob: null, url: '' },
+        });
+      }
+    });
+
+    afterEach(() => {
+      ImageStorage.instance.delete('hero-face');
+      ImageStorage.instance.delete('stand-in');
+    });
+
+    function picture(): string | null {
+      return (fixture.nativeElement.querySelector('img') as HTMLImageElement | null)?.getAttribute('src') ?? null;
+    }
+
+    it('shows the speaker\u2019s portrait in a portrait\u2019s place, and the layer\u2019s own picture otherwise', () => {
+      const scene = makeScene();
+      addLayer(scene, { kind: 'image', portraitSlot: true, imageIdentifier: 'stand-in' });
+
+      fixture.componentRef.setInput('speaker', speaker);
+      show(scene, false, 0);
+      expect(picture()).toBe('blob:hero-face');
+
+      fixture.componentRef.setInput('speaker', null);
+      fixture.detectChanges();
+      expect(picture()).toBe('blob:stand-in');
+    });
+
+    it('shows a grey head and shoulders where there is neither, and leaves an ordinary layer as it was', () => {
+      const scene = makeScene();
+      const slot = addLayer(scene, { kind: 'image', portraitSlot: true });
+      show(scene, false, 0);
+      expect(picture()).toMatch(/^data:image\/svg\+xml/);
+
+      slot.portraitSlot = false;
+      slot.imageIdentifier = 'stand-in';
+      fixture.componentRef.setInput('speaker', speaker);
+      TestBed.inject(ObjectChangeService).notifyChanged(slot.identifier);
+      fixture.detectChanges();
+      expect(picture()).toBe('blob:stand-in');
+    });
+
+    it('sets the speaker\u2019s portrait as they fitted it, and leaves the stand-in to the layer\u2019s framing', () => {
+      const scene = makeScene();
+      addLayer(scene, { kind: 'image', portraitSlot: true, imageIdentifier: 'stand-in', objectFit: 'cover' });
+      const fitted = () => fixture.nativeElement.querySelector('img[data-portrait-fit]') as HTMLImageElement | null;
+
+      fixture.componentRef.setInput('speaker', { ...speaker, fit: { scale: 2, x: 0.1, y: -0.25 } });
+      show(scene, false, 0);
+      expect(fitted()?.style.transform).toBe('translate(10%, -25%) scale(2)');
+      expect(fitted()?.parentElement?.classList).toContain('overflow-hidden');
+
+      fixture.componentRef.setInput('speaker', { ...speaker, imageIdentifier: 'gone', fit: { scale: 2, x: 0, y: 0 } });
+      fixture.detectChanges();
+      expect(fitted()).toBeNull();
+      expect(picture()).toBe('blob:stand-in');
+      expect((fixture.nativeElement.querySelector('img') as HTMLImageElement).style.objectFit).toBe('cover');
+    });
+
+    it('says the speaker\u2019s name where a text layer asks for it, and a stand-in where there is nobody', () => {
+      const scene = makeScene();
+      addLayer(scene, { kind: 'text', text: '{character}、参戦！' });
+
+      fixture.componentRef.setInput('speaker', speaker);
+      show(scene, false, 0);
+      const words = () => (fixture.nativeElement.querySelector('.whitespace-pre-wrap') as HTMLElement).textContent;
+      expect(words()).toBe('ヒロ、参戦！');
+
+      fixture.componentRef.setInput('speaker', null);
+      fixture.detectChanges();
+      expect(words()).toBe('？？？、参戦！');
+    });
   });
 
   it('refuses to let the browser drag a layer picture away', () => {

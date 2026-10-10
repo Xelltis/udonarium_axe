@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { AnimatedImageService } from '@axe/application/media/animated-image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -15,6 +16,7 @@ import { serializeScene } from '@axe/features/map-editor/model/serialize';
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
 import { createBoardScene } from '@axe/features/tabletop/white-board/white-board-scene';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 
 describe('WhiteBoardComponent', () => {
   let fixture: ComponentFixture<WhiteBoardComponent>;
@@ -49,6 +51,15 @@ describe('WhiteBoardComponent', () => {
 
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  it('opens its details from the face lying over it, which is what a pointer on the board is over', () => {
+    fixture.detectChanges();
+
+    const triggers = fixture.debugElement.queryAll(By.directive(TooltipDirective));
+    const own = triggers.filter((trigger) => trigger.injector.get(TooltipDirective).tabletopObject() === board);
+    expect(own).toHaveLength(1);
+    expect((own[0].nativeElement as HTMLElement).getAttribute('data-surface')).toBe(board.identifier);
   });
 
   it('wears a picture that arrived after the board did, without the board being moved', () => {

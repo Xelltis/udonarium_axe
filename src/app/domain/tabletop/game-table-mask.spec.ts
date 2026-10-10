@@ -288,4 +288,85 @@ describe('GameTableMask', () => {
       mask.destroy();
     });
   });
+
+  describe('the words written across it', () => {
+    const made: GameTableMask[] = [];
+
+    function mask(): GameTableMask {
+      const created = GameTableMask.create('test', 2, 2, 100);
+      made.push(created);
+      return created;
+    }
+
+    afterEach(() => {
+      for (const each of made.splice(0)) each.destroy();
+    });
+
+    it('reads none, white, the default size and an outline on a mask that never had any', () => {
+      const plain = mask();
+
+      expect(plain.text).toBe('');
+      expect(plain.textColor).toBe('#ffffff');
+      expect(plain.textSize).toBe(GameTableMask.DEFAULT_TEXT_SIZE);
+      expect(plain.textOutline).toBe(true);
+      for (const name of ['text', 'fontsize', 'fontcolor', 'textoutline']) {
+        expect(plain.commonDataElement!.getFirstElementByName(name), name).toBeNull();
+      }
+    });
+
+    it('keeps the words, line breaks and all, in a note of their own', () => {
+      const written = mask();
+
+      written.text = '立入禁止\n（鍵がかかっている）';
+
+      const element = written.commonDataElement!.getFirstElementByName('text')!;
+      expect(element.identifier).toBe(`text_${written.identifier}`);
+      expect(element.isNote).toBe(true);
+      expect(written.text).toBe('立入禁止\n（鍵がかかっている）');
+    });
+
+    it('adds nothing for no words, and clears words once written', () => {
+      const written = mask();
+      written.text = '  ';
+      expect(written.commonDataElement!.getFirstElementByName('text')).toBeNull();
+
+      written.text = '扉';
+      written.text = '';
+      expect(written.text).toBe('');
+    });
+
+    it('holds the size between 8 and 200, and reads anything else as the default', () => {
+      const written = mask();
+
+      written.textSize = 500;
+      expect(written.textSize).toBe(200);
+      written.textSize = 3;
+      expect(written.textSize).toBe(8);
+      written.textSize = Number.NaN;
+      expect(written.textSize).toBe(GameTableMask.DEFAULT_TEXT_SIZE);
+    });
+
+    it('takes a colour, and reads one that is not a colour as white', () => {
+      const written = mask();
+
+      written.textColor = '#ff0000';
+      expect(written.textColor).toBe('#ff0000');
+      written.commonDataElement!.getFirstElementByName('fontcolor')!.value = 'red';
+      expect(written.textColor).toBe('#ffffff');
+    });
+
+    it('keeps an outline turned off as a check left blank, and adds nothing to keep it on', () => {
+      const written = mask();
+
+      written.textOutline = true;
+      expect(written.commonDataElement!.getFirstElementByName('textoutline')).toBeNull();
+
+      written.textOutline = false;
+      expect(written.textOutline).toBe(false);
+      expect(written.commonDataElement!.getFirstElementByName('textoutline')!.value).toBe(0);
+
+      written.textOutline = true;
+      expect(written.textOutline).toBe(true);
+    });
+  });
 });

@@ -1,10 +1,5 @@
-import {
-  graphemeEnds,
-  toGraphemes,
-  typedLineOf,
-  typedPartsOf,
-  typedTextOf,
-} from '@axe/features/visual-novel/visual-novel-text';
+import { toGraphemes } from '@axe/core/util/graphemes';
+import { graphemeEnds, typedLineOf, typedPartsOf, typedTextOf } from '@axe/features/visual-novel/visual-novel-text';
 
 describe('typedLineOf', () => {
   it('types only the letters a reader sees, never the notation', () => {

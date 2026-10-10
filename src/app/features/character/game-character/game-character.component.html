@@ -516,6 +516,42 @@
                     </div>
                   </div>
                 }
+                @if (speechBubble(); as bubble) {
+                  <div
+                    class="pointer-events-none absolute top-0 left-0 [-webkit-transform-style:preserve-3d] transform-3d"
+                    aria-hidden="true"
+                    [appBillboard]="speechOrbitFacing()"
+                  >
+                    <div
+                      class="absolute bottom-0 left-0 origin-bottom-left [-webkit-transform-style:preserve-3d] transform-3d"
+                      [style.font-size.px]="decorFontSizePx"
+                      [appBillboard]="speechStackFacing()"
+                    >
+                      @for (shown of [bubble]; track shown.key) {
+                        <div
+                          data-testid="speech-bubble"
+                          class="animate-speech-pop relative mb-[0.7em] flex w-max max-w-[16em] origin-bottom flex-col items-center gap-[0.3em] rounded-[0.8em] border-[0.1em] border-solid border-[#333] bg-white px-[0.7em] py-[0.45em] text-[1.3em] leading-snug text-[#222]"
+                          [ngClass]="speechShadow()"
+                        >
+                          @if (shown.stamp) {
+                            @defer (on immediate) {
+                              <ui-stamp [stampId]="shown.stamp" [size]="speechStampPx" />
+                            }
+                          }
+                          @if (shown.text) {
+                            <span class="text-center wrap-anywhere whitespace-pre-wrap">{{ shown.text }}</span>
+                          }
+                          <span
+                            class="absolute top-full left-1/2 size-0 -translate-x-1/2 border-x-[0.55em] border-t-[0.7em] border-solid border-x-transparent border-t-[#333]"
+                          ></span>
+                          <span
+                            class="absolute top-full left-1/2 mt-[-0.14em] size-0 -translate-x-1/2 border-x-[0.42em] border-t-[0.55em] border-solid border-x-transparent border-t-white"
+                          ></span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
             </div>
           </div>

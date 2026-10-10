@@ -69,13 +69,22 @@
             ></textarea>
           } @else {
             <div
-              class="text-ui-text transform-style-flat [&_a]:text-ui-accent m-0 box-border min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto px-2.5 py-2 font-sans text-base leading-[1.65] wrap-anywhere [word-break:break-word] whitespace-pre-line antialiased backface-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-xs [&::-webkit-scrollbar-thumb]:bg-(--ui-panel-border) [&::-webkit-scrollbar-track]:bg-transparent"
+              class="text-ui-text transform-style-flat [&_a]:text-ui-accent m-0 box-border min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto px-2.5 py-2 font-sans text-base leading-[1.65] wrap-anywhere [word-break:break-word] antialiased backface-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-xs [&::-webkit-scrollbar-thumb]:bg-(--ui-panel-border) [&::-webkit-scrollbar-track]:bg-transparent"
               [class.pointer-events-none]="!canView()"
               [class.select-none]="!canView()"
+              [class.whitespace-pre-line]="!formatted() || !canView()"
+              [class.note-formatted]="formatted() && canView()"
               [attr.data-v]="textNoteVersion()"
+              [attr.data-formatted]="formatted() ? '' : null"
               [style.font-size.px]="fontSize + 9"
               [style.filter]="canView() ? null : 'blur(5px)'"
-              [innerHTML]="canView() ? (decoratedHtml() | linkify | safe) : (maskedHtml() | safe)"
+              [innerHTML]="
+                canView()
+                  ? formatted()
+                    ? (formattedHtml() | safe)
+                    : (decoratedHtml() | linkify | safe)
+                  : (maskedHtml() | safe)
+              "
             ></div>
           }
         </div>

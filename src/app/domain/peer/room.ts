@@ -7,6 +7,9 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
+import { StampPack } from '@axe/domain/chat/stamp-pack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { DiceTable } from '@axe/domain/dice/dice-table';
@@ -43,9 +46,11 @@ export class Room extends GameObject implements InnerXml {
 
   /**
    * Writes everything on the table into the save file: tables, parties, characters, ranges, lights, notes,
-   * card stacks, loose cards, dice, coins, cut-ins, dice tables, effect presets and effect fields.
+   * card stacks, loose cards, dice, coins, cut-ins, dice tables, effect presets and effect fields, the room's
+   * own sets of stamps with their pictures, and the stamps put on lines of chat.
    *
-   * Cards inside a stack are written with their stack.
+   * Cards inside a stack are written with their stack. Stamps are written only for lines still in the
+   * chat, since those on a line that went with its tab answer nothing.
    */
   innerXml(): string {
     let xml = '';
@@ -70,6 +75,10 @@ export class Room extends GameObject implements InnerXml {
       ...ObjectStore.instance.getObjects(DiceTable),
       ...ObjectStore.instance.getObjects(EffectPreset),
       ...ObjectStore.instance.getObjects(EffectField),
+      ...ObjectStore.instance.getObjects(StampPack),
+      ...ObjectStore.instance
+        .getObjects(ChatReaction)
+        .filter((reaction) => ObjectStore.instance.get(reaction.messageIdentifier) instanceof ChatMessage),
     ];
 
     for (const object of objects) {
@@ -90,11 +99,14 @@ export class Room extends GameObject implements InnerXml {
     // what was deleted, and only whoever loaded the room still has them. So what is made under
     // a fixed identifier is left alone by a room that brings none of its own: the effect
     // library, which belongs to the toolbox rather than the table, and the sample cut-ins,
-    // which a room saved before they existed knows nothing about.
+    // which a room saved before they existed knows nothing about. The stamps put on lines go the
+    // same way: room data that brings none, such as tables dropped in on their own, leaves the
+    // chat and what was put on it as they are.
     const brings = (aliasName: string): boolean =>
       Array.from(element.children).some((child) => child.nodeName === aliasName);
     const bringsPresets = brings(EffectPreset.aliasName);
     const bringsCutIns = brings(CutIn.aliasName);
+    const bringsReactions = brings(ChatReaction.aliasName);
     const objects: GameObject[] = [
       ...ObjectStore.instance.getObjects(GameTable),
       ...ObjectStore.instance.getObjects(GameTableMask),
@@ -114,6 +126,8 @@ export class Room extends GameObject implements InnerXml {
       ...ObjectStore.instance.getObjects(DiceTable),
       ...(bringsPresets ? ObjectStore.instance.getObjects(EffectPreset) : []),
       ...ObjectStore.instance.getObjects(EffectField),
+      ...ObjectStore.instance.getObjects(StampPack),
+      ...(bringsReactions ? ObjectStore.instance.getObjects(ChatReaction) : []),
     ];
 
     const reLoadOk = this.reloadCheck.answerCheck();

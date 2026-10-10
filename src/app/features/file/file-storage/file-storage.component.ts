@@ -9,7 +9,10 @@ import { emitSelectFile } from '@axe/core/event/domain-events';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import * as MimeType from '@axe/core/storage/mime-type';
+import { withoutExtension } from '@axe/core/util/file-name';
 import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { ImageIntakeComponent } from '@axe/features/file/image-intake/image-intake.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -18,7 +21,7 @@ const ALL_TAG = '__all__';
 @Component({
   selector: 'file-storage',
   templateUrl: './file-storage.component.html',
-  host: { class: 'block' },
+  host: { class: 'block outline-none', tabindex: '-1', '(paste)': 'onPaste($event)' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, SafePipe, TranslocoModule],
 })
@@ -197,6 +200,72 @@ export class FileStorageComponent {
     input.value = '';
   }
 
+  /** What the panel has to say about the last paste or clearing asked for, empty when nothing. */
+  readonly notice = signal('');
+
+  /**
+   * Opens the picture on the clipboard to be looked at and added, from the paste button.
+   *
+   * Where the browser will not hand the clipboard over, or it holds no picture, the panel says so,
+   * and how to paste with the keys instead.
+   */
+  async pasteFromClipboard(): Promise<void> {
+    if (!this.rolePermission.canEditTabletop) return;
+    this.notice.set('');
+    try {
+      for (const item of await navigator.clipboard.read()) {
+        const type = item.types.find((each) => each.startsWith('image/'));
+        if (!type) continue;
+        this.openIntake(await item.getType(type), pastedImageName(type));
+        return;
+      }
+      this.notice.set(this.t('feature.file.fileStorage.pasteNothing'));
+    } catch {
+      this.notice.set(this.t('feature.file.fileStorage.pasteWithKeys'));
+    }
+  }
+
+  /**
+   * Opens a picture pasted with the keys while the panel has the focus. Anything else pasted, as
+   * text into the tag field, is left to go where it was going.
+   */
+  onPaste(event: ClipboardEvent): void {
+    const image = Array.from(event.clipboardData?.files ?? []).find((file) => file.type.startsWith('image/'));
+    if (!image || !this.rolePermission.canEditTabletop) return;
+    event.preventDefault();
+    this.notice.set('');
+    this.openIntake(image, pastedImageName(image.type));
+  }
+
+  /** The one picture ticked, which the background can be cleared from; null unless exactly one is. */
+  checkedImage(): ImageFile | null {
+    if (this.checkedFiles.size !== 1) return null;
+    const [identifier] = this.checkedFiles;
+    return this.images().find((image) => image.identifier === identifier) ?? null;
+  }
+
+  /** Opens the one picture ticked, to add a copy of it with its background cleared. */
+  async clearBackgroundOfChecked(): Promise<void> {
+    const image = this.checkedImage();
+    if (!image || !this.rolePermission.canEditTabletop) return;
+    this.notice.set('');
+    try {
+      const blob = image.blob ?? (await (await fetch(image.url)).blob());
+      this.openIntake(blob, clearedImageName(image.name));
+    } catch {
+      this.notice.set(this.t('feature.file.imageIntake.failed'));
+    }
+  }
+
+  private openIntake(blob: Blob, name: string): void {
+    const intake = this.panelService.open(ImageIntakeComponent, {
+      title: this.t('feature.file.imageIntake.title'),
+      width: 480,
+      height: 520,
+    });
+    void intake.open(blob, name);
+  }
+
   /** Selects a picture and announces it as the chosen file to anything waiting for one. */
   onSelectedFile(file: ImageFile) {
     emitSelectFile({ fileIdentifier: file.identifier });
@@ -212,4 +281,19 @@ export class FileStorageComponent {
       this.checkedFiles.add(identifier);
     }
   }
+}
+
+/** The name a pasted picture is stored under, by when it was pasted, as the clipboard gives none. */
+function pastedImageName(type: string, at = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const stamp =
+    `${at.getFullYear()}${pad(at.getMonth() + 1)}${pad(at.getDate())}` +
+    `-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}`;
+  return `pasted-${stamp}.${MimeType.extension(type)}`;
+}
+
+/** The name the copy of a picture with its background cleared is stored under. */
+function clearedImageName(name: string): string {
+  const base = withoutExtension(name);
+  return `${base.length > 0 ? base : 'image'}-clear.png`;
 }

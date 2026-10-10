@@ -571,7 +571,10 @@
         "multiDirection_vertical-right": "Top, bottom and right",
         "multiDirection_vertical-left": "Top, bottom and left",
         "multiDirection_four-directions": "Top, bottom, left and right",
-        "multiDirectionHint": "Faces the cut-in several ways, but only while the table is seen from above."
+        "multiDirectionHint": "Faces the cut-in several ways, but only while the table is seen from above.",
+        "unknownSpeaker": "???",
+        "trySpeaker": "Play as",
+        "trySpeakerNobody": "Nobody"
       },
       "cutInEditor": {
         "tabBasic": "Settings",
@@ -597,6 +600,13 @@
         "strokeWidth": "Outline px",
         "fontFamily": "Font",
         "fontFamilyPlaceholder": "(the default font)",
+        "fontPresets": {
+          "default": "Default",
+          "gothic": "Gothic",
+          "mincho": "Mincho",
+          "rounded": "Rounded",
+          "mono": "Monospace"
+        },
         "fillFrom": "Colour",
         "fillTo": "To colour",
         "fillGradient": "Shade into another colour",
@@ -735,7 +745,24 @@
         "stageZoomFit": "Fit the whole cut-in (or hold ctrl and scroll)",
         "copyPose": "Take the moment this layer is holding (ctrl and C)",
         "pastePose": "Lay it down at the playhead (ctrl and V)",
-        "seekTo": "Go to a moment"
+        "seekTo": "Go to a moment",
+        "letterMotion": "Letters",
+        "letterStagger": "Gap (ms)",
+        "letterDuration": "Length (ms)",
+        "letterDefault": "Default",
+        "letterMotions": {
+          "none": "All at once",
+          "type": "Type",
+          "fade": "Fade in",
+          "pop": "Pop",
+          "slide": "Slide in",
+          "wave": "Wave",
+          "shake": "Shake"
+        },
+        "portraitSlot": "Show the player's portrait",
+        "portraitSlotHint": "Played from chat, this shows the speaking character's portrait; otherwise this layer's own picture, or a silhouette.",
+        "insertSpeakerName": "Insert name",
+        "speakerNameHint": "{character} becomes the name of whoever played it"
       }
     },
     "card": {
@@ -745,6 +772,8 @@
         "empty": "Your hand is empty",
         "playFaceUp": "Play face up",
         "playFaceDown": "Play face down",
+        "give": "Give to someone",
+        "giveTo": "Give to",
         "drawFromOther": "Draw from a hand",
         "discardPairs": "Discard pairs",
         "noPairs": "No matching pair"
@@ -786,6 +815,8 @@
       "discardStackName": "Discards",
       "message": {
         "drewFromHand": "{{to}} drew a card from {{from}}",
+        "gaveFromHand": "{{from}} gave a card to {{to}}",
+        "handedOver": "{{name}} handed {{from}}'s {{count}} cards over to {{to}}",
         "discardedPairs": "{{name}} discarded pairs of {{ranks}}"
       },
       "drawPanel": {
@@ -794,7 +825,11 @@
         "noPlayers": "Nobody is holding cards",
         "cardCount": "{{count}} cards",
         "back": "Pick another player",
-        "pickCard": "Pick a card to draw"
+        "pickCard": "Pick a card to draw",
+        "absentHands": "Hands of people who left",
+        "handOver": "Hand over",
+        "handOverTo": "Hand over to",
+        "handOverConfirm": "Hand {{from}}'s {{count}} cards over to {{to}}? They move face down."
       },
       "deckDialog": {
         "hint": "Makes one card per image carrying the tag, gathered into a single deck.",
@@ -822,7 +857,13 @@
         "width": "Width",
         "height": "Height",
         "fontSize": "Font size",
-        "altitude": "Altitude"
+        "altitude": "Altitude",
+        "format": "Display"
+      },
+      "format": {
+        "plain": "As typed",
+        "formatted": "Formatted",
+        "hint": "Start a line with # for a heading, - or 1. for a list, > for a quote. Wrap words in ` for code, or put ``` lines around a block of it."
       }
     },
     "cardStack": {
@@ -1349,7 +1390,8 @@
         "cardHidden": "Card",
         "diceHidden": "???",
         "imageUnset": "No image",
-        "urlEdit": "Edit URL:"
+        "urlEdit": "Edit URL:",
+        "enlarge": "View larger"
       },
       "sheet": {
         "toggleEdit": "Toggle edit",
@@ -1377,6 +1419,13 @@
         "addPortraitTitle": "Add portrait",
         "removePortraitTitle": "Remove current portrait",
         "import": "Import",
+        "cutInFit": "Cut-in fit",
+        "cutInFitOpenHint": "Choose how this portrait is framed in cut-ins that show the speaker's portrait",
+        "cutInFitTitle": "Fit for cut-ins",
+        "cutInFitHint": "Drag to move; scroll or pinch to zoom. Arrow keys and +/- work too",
+        "cutInFitSet": "This portrait is shown as framed here",
+        "cutInFitUnset": "Not set (each cut-in frames it its own way)",
+        "cutInFitPutBack": "Reset",
         "chatPosition": "Chat position",
         "basicInfo": "Basic info",
         "gameData": "Game data",
@@ -1545,7 +1594,24 @@
         "makeSecret": "Keep back",
         "clearSecret": "Give up",
         "makeSecretHint": "Keeps the ticked pictures out of everyone else’s lists",
-        "secretMark": "Kept back"
+        "secretMark": "Kept back",
+        "paste": "Paste",
+        "pasteHint": "Look over the picture on the clipboard before adding it (or click this list and press Ctrl+V)",
+        "pasteNothing": "There is no picture on the clipboard",
+        "pasteWithKeys": "The browser did not hand the clipboard over. Click this list and press Ctrl+V",
+        "clearBackground": "Clear background",
+        "clearBackgroundHint": "Adds a copy of the one ticked picture with its background cleared"
+      },
+      "imageIntake": {
+        "title": "Add a picture",
+        "hint": "Click the background to clear the run of colour joined to that point. Click as often as you like.",
+        "tolerance": "Colour range",
+        "undo": "Undo",
+        "cancel": "Cancel",
+        "add": "Add",
+        "failed": "This picture could not be read",
+        "tooLarge": "It is over 2MB and cannot be added. Clear a different area or use a smaller picture",
+        "saveFailed": "The picture could not be stored. Please try again"
       },
       "tooLarge": {
         "one": "“{{name}}” was not loaded because it is too large ({{limits}})",
@@ -1940,7 +2006,13 @@
         "openDataSheet": "Open every data item in a sheet",
         "copy": "Duplicate",
         "saving": "Saving {{percent}}%",
-        "save": "Save"
+        "save": "Save",
+        "textSection": "Text",
+        "text": "Words",
+        "textPlaceholder": "Words shown on the mask",
+        "textSize": "Size",
+        "textColor": "Colour",
+        "textOutline": "Outline the words"
       },
       "contextMenu": {
         "altitudeSetting": "Altitude",
@@ -2534,6 +2606,9 @@
       "diceStage_table": "On the table",
       "diceStage_both": "Both",
       "diceStageHint": "Chat rolls tumble in 3D and land on the numbers rolled. A secret roll shows on the roller's screen alone",
+      "sectionSpeechBubbles": "Speech bubbles",
+      "speechBubbles": "Show what characters say in a bubble over their pieces",
+      "speechBubblesHint": "A public line said as a character on the table shows over its piece for a few seconds, only the words in 「」 where there are any. Whispers, secret lines, and dice or command lines do not show. Each person can hide them on their own screen from the toolbar",
       "sectionControllerResources": "Values and resources on the remote",
       "controllerResourcesShowAll": "Show all",
       "controllerResourcesHideAll": "Hide all",
@@ -2633,7 +2708,15 @@
       "sizeSlipsPast": "Squeeze past a piece two cells or more apart in size (but not stop on it)",
       "handTracesWay": "Spring the ground between the two ends when a hand moves a piece",
       "squeezes": "Let an oversized piece squeeze through a gap too small for it, at a step apiece",
-      "jumpCells": "How far one leap carries, in cells (0 carries as far as the move has left)"
+      "jumpCells": "How far one leap carries, in cells (0 carries as far as the move has left)",
+      "tab_stamp": "Stamps",
+      "stampUse_line": "Stamps as lines",
+      "stampUse_reaction": "Reactions",
+      "stampUseOn_line": "Let stamps be sent as lines",
+      "stampUseOn_reaction": "Let stamps be put on lines as reactions",
+      "stampRulesHint": "Press a stamp to allow or deny it. Stamps already sent stay as they are.",
+      "stampAllowAll": "Allow all",
+      "stampDenyAll": "Deny all"
     },
     "skin": {
       "title": "Skin",
@@ -2843,8 +2926,10 @@
         "tokenExpired": "The SkyWay auth token has expired. Reconnecting...",
         "generic": "A network error occurred. ({{errorType}})",
         "reconnecting": "Attempting to reconnect...",
-        "lastReconnect": "This is the last attempt. If it does not connect, leave it a while and come back in."
+        "lastReconnect": "This is the last attempt. If it does not connect, leave it a while and come back in.",
+        "sameNameMember": "You are in this room in another tab, or your previous connection has not dropped yet. Close the other tab, or wait a little and join again"
       },
+      "waitingForPreviousConnection": "Waiting for your previous connection to drop (up to about a minute)",
       "peerCursor": {
         "noSignal": "No keepalive signal from {{name}} for over {{seconds}}s. Connection may be unstable.",
         "reconnected": "Reconnected to {{name}}.",
@@ -2949,7 +3034,8 @@
         "sendToTicker": "Ticker",
         "sendToTickerHint": "Also run this line around the edge of the screen",
         "tools": "Input settings",
-        "myDice": "My Dice"
+        "myDice": "My Dice",
+        "stamp": "Send a stamp (with what you have typed, if anything)"
       },
       "tab": {
         "unnamedCharacter": "Unnamed character",
@@ -2974,6 +3060,7 @@
         "editedSimple": " (edited)",
         "reply": "Reply",
         "quote": "Quote",
+        "react": "React",
         "jumpToOriginal": "Jump to original message",
         "shareAsMemo": "Send to shared memo",
         "ticker": "Ticker",
@@ -3203,6 +3290,10 @@
           "coc": {
             "name": "CoC log",
             "description": "The classic layout other tools can read"
+          },
+          "text": {
+            "name": "Plain text",
+            "description": "Just the words, as a .txt file"
           }
         },
         "labels": {
@@ -3218,7 +3309,8 @@
           "allTabs": "All tabs",
           "everyTab": "All",
           "messages": "{{count}} lines",
-          "exportedWith": "Exported from Udonarium Axe"
+          "exportedWith": "Exported from Udonarium Axe",
+          "reactions": "Reactions"
         },
         "sample": {
           "gm": "GM",
@@ -3257,6 +3349,23 @@
         "descSuffix": " — help",
         "unreachable": "The dice bot \"{{name}}\" could not be loaded, so no dice were rolled for this line. If sending it again still does not roll, reload the page.",
         "intro": "[Dice bot] Type dice expressions in chat to roll dice.\nInput example) 2d6+1 attack!\nOutput example) 2d6+1 attack!\n              diceBot: (2d6) → 7\nYou can also include a dice expression followed by a space and additional text.\n\nUsage examples\n  3D6+1>=9 : Roll 3d6+1 and check whether the total is 9 or more.\n  1D100<=50 : D100 downward roll with target value 50.\n  3U6[5] : Roll 3d6 with reroll on 5+ (open-ended above).\n  3B6 : Roll 3d6 and output values separately (no sum).\n  10B6>=4 : Roll 10d6 and count dice with value 4+.\n  2R6[>3]>=5 : Reroll dice >3 then count dice with value 5+.\n  (8/2)D(4+6)<=(5*3) : Arithmetic is allowed in count/sides/target.\n  c(10-4*3/2+2) : c(expression) evaluates math only.\n  choice[a,b,c] : Pick one element at random.\n  S3d6 : Prefix S for a secret roll (others cannot see).\n  3d6/2 : Divide the result (rounding depends on system). Use /2C (ceil), /2R (round), /2F (floor).\n  D66 : D66 die. Order depends on the system: D66N (raw), D66A (ascending), D66D (descending).\n\nFor full details see the bcdice command guide:\nhttps://docs.bcdice.org/\n===================================\n"
+      },
+      "stampPack": {
+        "title": "Stamp sets",
+        "hint": "Make sets of stamps from the room's pictures. Sets are saved with the room and everyone can use them.",
+        "create": "New set",
+        "newPackName": "New set",
+        "namePlaceholder": "Name of the set",
+        "stampNamePlaceholder": "Name of the stamp",
+        "removePack": "Delete this set",
+        "removePackConfirm": "Delete the set \"{{name}}\"? Its pictures stay in the room, and stamps already used still show.",
+        "addFromRoom": "Add from the image list",
+        "addFromFiles": "Add from files",
+        "removeStamp": "Take out of the set",
+        "emptyPack": "No stamps yet",
+        "noPacks": "The room has no stamp sets yet",
+        "tooLarge": "Over 2MB and not added: {{names}}",
+        "alreadyIn": "That picture is in this set already"
       }
     },
     "visualNovel": {
@@ -4600,6 +4709,8 @@
       "resourceBarsHidden": "Resource bars: hidden (click to show)",
       "buffsShown": "Buffs: shown (click to hide)",
       "buffsHidden": "Buffs: hidden (click to show)",
+      "speechShown": "Speech bubbles: shown (click to hide)",
+      "speechHidden": "Speech bubbles: hidden (click to show)",
       "viewFlat": "Flat view (click for depth)",
       "viewPerspective": "Table in depth (click to flatten)",
       "viewAutoFlat": "View: auto (2D)",
@@ -4949,6 +5060,590 @@
       "previous": "Previous portrait",
       "next": "Next portrait",
       "unnamed": "Portrait {{index}}"
+    },
+    "stamp": {
+      "families": {
+        "recent": "Recent",
+        "sfx": "Sound effects",
+        "seal": "Seals",
+        "roll": "Rolls",
+        "battle": "Battle",
+        "explore": "Exploring",
+        "feel": "Feelings",
+        "talk": "Table talk"
+      },
+      "items": {
+        "sfx": {
+          "laugh": {
+            "label": "HAHA",
+            "name": "Laugh"
+          },
+          "shock": {
+            "label": "WHAM",
+            "name": "Shock"
+          },
+          "creepy": {
+            "label": "EEK",
+            "name": "Creepy"
+          },
+          "heart": {
+            "label": "AWW",
+            "name": "Love it"
+          },
+          "clap": {
+            "label": "CLAP",
+            "name": "Applause"
+          },
+          "notice": {
+            "label": "GASP",
+            "name": "Realised"
+          },
+          "gulp": {
+            "label": "GULP",
+            "name": "Nervous"
+          },
+          "smirk": {
+            "label": "HEH",
+            "name": "Scheming"
+          },
+          "boom": {
+            "label": "BOOM",
+            "name": "Big reveal"
+          },
+          "menace": {
+            "label": "RUMBLE",
+            "name": "Menacing"
+          },
+          "silence": {
+            "label": "SILENCE",
+            "name": "Silence"
+          },
+          "stare": {
+            "label": "STARE",
+            "name": "Staring"
+          },
+          "thump": {
+            "label": "THUMP",
+            "name": "Heart racing"
+          },
+          "excited": {
+            "label": "YAY",
+            "name": "Can’t wait"
+          },
+          "flop": {
+            "label": "D’OH",
+            "name": "Pratfall"
+          },
+          "shine": {
+            "label": "SHINE",
+            "name": "Shine"
+          },
+          "startle": {
+            "label": "EEP",
+            "name": "Caught out"
+          },
+          "murmur": {
+            "label": "MURMUR",
+            "name": "Uneasy stir"
+          },
+          "entrance": {
+            "label": "TA-DA",
+            "name": "Grand entrance"
+          },
+          "glance": {
+            "label": "PEEK",
+            "name": "Glance"
+          },
+          "huff": {
+            "label": "HMPH",
+            "name": "Huff"
+          },
+          "gloom": {
+            "label": "GLOOM",
+            "name": "Gloom"
+          },
+          "idea": {
+            "label": "DING",
+            "name": "Got an idea"
+          },
+          "leanin": {
+            "label": "WHOA",
+            "name": "Leaning in"
+          },
+          "roll": {
+            "label": "CLATTER",
+            "name": "Rolling the dice"
+          },
+          "dumbfounded": {
+            "label": "HUH?",
+            "name": "Dumbfounded"
+          }
+        },
+        "seal": {
+          "ok": {
+            "label": "OK",
+            "name": "Got it"
+          },
+          "seen": {
+            "label": "SEEN",
+            "name": "Seen"
+          },
+          "lol": {
+            "label": "LOL",
+            "name": "LOL"
+          },
+          "wow": {
+            "label": "WOW",
+            "name": "Wow"
+          },
+          "fear": {
+            "label": "EEK",
+            "name": "Scary"
+          },
+          "sob": {
+            "label": "SOB",
+            "name": "Teary"
+          },
+          "god": {
+            "label": "GOD",
+            "name": "Amazing"
+          },
+          "precious": {
+            "label": "AWW",
+            "name": "Precious"
+          },
+          "agree": {
+            "label": "TRUE",
+            "name": "True"
+          },
+          "really": {
+            "label": "HMM",
+            "name": "Is that so?"
+          },
+          "fair": {
+            "label": "FAIR",
+            "name": "Fair point"
+          },
+          "unfair": {
+            "label": "NAH",
+            "name": "No point"
+          },
+          "noobjection": {
+            "label": "AGREED",
+            "name": "No objection"
+          },
+          "objection": {
+            "label": "OBJECT",
+            "name": "Objection"
+          },
+          "gotit": {
+            "label": "GOT IT",
+            "name": "Totally get it"
+          },
+          "thatsit": {
+            "label": "THIS",
+            "name": "That’s it"
+          },
+          "relate": {
+            "label": "SAME",
+            "name": "I feel you"
+          },
+          "lmao": {
+            "label": "ROFL",
+            "name": "ROFL"
+          },
+          "genius": {
+            "label": "GENIUS",
+            "name": "Genius"
+          },
+          "win": {
+            "label": "WIN",
+            "name": "Winner"
+          },
+          "best": {
+            "label": "BEST",
+            "name": "The best"
+          },
+          "capable": {
+            "label": "PRO",
+            "name": "Capable"
+          },
+          "noway": {
+            "label": "NOPE",
+            "name": "No way"
+          },
+          "approved": {
+            "label": "APPROVED",
+            "name": "Approved"
+          },
+          "rejected": {
+            "label": "DENIED",
+            "name": "Rejected"
+          },
+          "foreshadow": {
+            "label": "FLAG",
+            "name": "Foreshadowing"
+          },
+          "ominous": {
+            "label": "UH-OH",
+            "name": "Ominous"
+          },
+          "rip": {
+            "label": "RIP",
+            "name": "Rest in peace"
+          },
+          "done": {
+            "label": "DONE",
+            "name": "Done"
+          },
+          "congrats": {
+            "label": "YAY",
+            "name": "Congrats"
+          },
+          "thanks": {
+            "label": "THX",
+            "name": "Thanks"
+          },
+          "secret": {
+            "label": "SHH",
+            "name": "Secret"
+          },
+          "lucky": {
+            "label": "LUCK",
+            "name": "Lucky"
+          },
+          "unlucky": {
+            "label": "DOOM",
+            "name": "Unlucky"
+          }
+        },
+        "roll": {
+          "critical": {
+            "name": "Critical!"
+          },
+          "fumble": {
+            "name": "Fumble..."
+          },
+          "success": {
+            "name": "Made it!"
+          },
+          "failure": {
+            "name": "Missed..."
+          },
+          "pray": {
+            "name": "Praying"
+          },
+          "throw": {
+            "name": "Here goes!"
+          },
+          "reroll": {
+            "name": "One more roll?"
+          },
+          "shake": {
+            "name": "Shaking the dice"
+          },
+          "blow": {
+            "name": "Blowing on the dice"
+          },
+          "stare": {
+            "name": "Glaring at the dice"
+          },
+          "sanity": {
+            "name": "Sanity check"
+          },
+          "secret": {
+            "name": "Secret roll"
+          },
+          "count": {
+            "name": "Adding up modifiers"
+          },
+          "clover": {
+            "name": "Lucky charm"
+          },
+          "cursed": {
+            "name": "Cursed dice"
+          },
+          "nervous": {
+            "name": "Nervous"
+          },
+          "aghast": {
+            "name": "Wait, what?"
+          },
+          "bonus": {
+            "name": "Bonus!"
+          },
+          "hoard": {
+            "name": "Love my dice"
+          },
+          "doubt": {
+            "name": "Suspicious dice"
+          }
+        },
+        "battle": {
+          "sword": {
+            "name": "Slash!"
+          },
+          "shield": {
+            "name": "Guard"
+          },
+          "magic": {
+            "name": "Casting"
+          },
+          "bow": {
+            "name": "Taking aim"
+          },
+          "charge": {
+            "name": "Charge!"
+          },
+          "hurt": {
+            "name": "Ouch..."
+          },
+          "heal": {
+            "name": "Healing"
+          },
+          "fainted": {
+            "name": "Knocked out"
+          },
+          "dodge": {
+            "name": "Dodge!"
+          },
+          "victory": {
+            "name": "Victory!"
+          },
+          "flee": {
+            "name": "Run away!"
+          },
+          "berserk": {
+            "name": "Going all out"
+          },
+          "stunned": {
+            "name": "Seeing stars"
+          },
+          "poison": {
+            "name": "Poisoned"
+          },
+          "asleep": {
+            "name": "Asleep"
+          },
+          "buff": {
+            "name": "Powered up"
+          },
+          "taunt": {
+            "name": "Taunt"
+          },
+          "protect": {
+            "name": "I’ll cover you!"
+          },
+          "smash": {
+            "name": "Full-power strike"
+          },
+          "ready": {
+            "name": "Bring it on"
+          },
+          "lowhp": {
+            "name": "1 HP left"
+          }
+        },
+        "explore": {
+          "magnifier": {
+            "name": "Investigating"
+          },
+          "listen": {
+            "name": "Listening"
+          },
+          "sneak": {
+            "name": "Sneaking"
+          },
+          "found": {
+            "name": "Found it!"
+          },
+          "map": {
+            "name": "Reading the map"
+          },
+          "treasure": {
+            "name": "Treasure!"
+          },
+          "trapped": {
+            "name": "It’s a trap!"
+          },
+          "lockpick": {
+            "name": "Picking the lock"
+          },
+          "torch": {
+            "name": "So dark..."
+          },
+          "think": {
+            "name": "Thinking"
+          },
+          "idea": {
+            "name": "I’ve got it!"
+          },
+          "puzzled": {
+            "name": "Stumped"
+          },
+          "shop": {
+            "name": "Shopping"
+          },
+          "eat": {
+            "name": "Meal time"
+          },
+          "camp": {
+            "name": "Making camp"
+          },
+          "toast": {
+            "name": "Cheers!"
+          },
+          "tome": {
+            "name": "Research"
+          },
+          "peek": {
+            "name": "Peeking"
+          },
+          "lost": {
+            "name": "Lost"
+          },
+          "knock": {
+            "name": "Knock knock"
+          }
+        },
+        "feel": {
+          "smile": {
+            "name": "Smile"
+          },
+          "laugh": {
+            "name": "LOL"
+          },
+          "cry": {
+            "name": "Sobbing"
+          },
+          "angry": {
+            "name": "Angry"
+          },
+          "shock": {
+            "name": "Shocked"
+          },
+          "blush": {
+            "name": "Embarrassed"
+          },
+          "smug": {
+            "name": "Smug"
+          },
+          "love": {
+            "name": "Love it!"
+          },
+          "scared": {
+            "name": "Scared"
+          },
+          "awkward": {
+            "name": "Awkward"
+          },
+          "confused": {
+            "name": "Huh?"
+          },
+          "excited": {
+            "name": "Excited"
+          },
+          "pout": {
+            "name": "Sulking"
+          },
+          "sigh": {
+            "name": "Sigh"
+          },
+          "sleepy": {
+            "name": "Sleepy"
+          },
+          "evil": {
+            "name": "All according to plan"
+          },
+          "moved": {
+            "name": "So moved"
+          },
+          "blank": {
+            "name": "Soul has left"
+          },
+          "proud": {
+            "name": "Proud"
+          },
+          "panic": {
+            "name": "Panic"
+          }
+        },
+        "talk": {
+          "ok": {
+            "name": "OK!"
+          },
+          "no": {
+            "name": "No"
+          },
+          "wait": {
+            "name": "Wait a sec"
+          },
+          "hello": {
+            "name": "Hello!"
+          },
+          "goodgame": {
+            "name": "Good game"
+          },
+          "thanks": {
+            "name": "Thank you"
+          },
+          "sorry": {
+            "name": "Sorry"
+          },
+          "question": {
+            "name": "Question!"
+          },
+          "agree": {
+            "name": "Agreed"
+          },
+          "beg": {
+            "name": "Please!"
+          },
+          "brb": {
+            "name": "BRB"
+          },
+          "goodnight": {
+            "name": "Good night"
+          },
+          "tea": {
+            "name": "Tea break"
+          },
+          "clap": {
+            "name": "Applause"
+          },
+          "cheer": {
+            "name": "You can do it!"
+          },
+          "popcorn": {
+            "name": "Just watching"
+          },
+          "memo": {
+            "name": "Taking notes"
+          },
+          "rules": {
+            "name": "Checking the rules"
+          },
+          "hurry": {
+            "name": "Time’s ticking"
+          },
+          "letsplay": {
+            "name": "Let’s play!"
+          },
+          "ruling": {
+            "name": "GM’s call!"
+          },
+          "oshi": {
+            "name": "I stan this"
+          },
+          "foreshadow": {
+            "name": "That’s foreshadowing…!"
+          }
+        }
+      },
+      "picture": "Stamp",
+      "standIn": "[{{words}}]",
+      "unnamedPack": "(unnamed)",
+      "manage": "Manage stamp sets"
     }
   },
   "error": {}

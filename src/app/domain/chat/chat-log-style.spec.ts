@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs';
 
-import { CHAT_LOG_STYLES, isChatLogStyle, isRichChatLogStyle } from '@axe/domain/chat/chat-log-style';
+import {
+  CHAT_LOG_STYLES,
+  isChatLogStyle,
+  isPlainChatLogStyle,
+  isRichChatLogStyle,
+} from '@axe/domain/chat/chat-log-style';
 import { CHAT_LOG_THEME_CSS } from '@axe/domain/chat/chat-log-theme-css';
 
 describe('the chat log styles', () => {
@@ -19,6 +24,12 @@ describe('the chat log styles', () => {
 
     expect(sheets.every((sheet) => sheet.length > 0)).toBe(true);
     expect(new Set(sheets).size).toBe(sheets.length);
+  });
+
+  it('tells plain text apart from the styles drawn as a page', () => {
+    expect(isPlainChatLogStyle('text')).toBe(true);
+    expect(isRichChatLogStyle('text')).toBe(false);
+    expect(CHAT_LOG_STYLES.filter(isPlainChatLogStyle)).toEqual(['text']);
   });
 
   it('knows a style it offers and no other', () => {

@@ -13,6 +13,7 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 import { Title } from '@angular/platform-browser';
+import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { DiceThrowService } from '@axe/application/dice/dice-throw.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
@@ -439,6 +440,7 @@ export class AppComponent {
     inject(CcfoliaRoomImportEventHandlerService);
     inject(FogMemoryWriterService);
     inject(CutInService);
+    inject(SpeechBubbleService);
     inject(GravityService);
     inject(LegacyScratchMaskMigrationService);
     inject(TurnOrderService);

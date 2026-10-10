@@ -216,9 +216,8 @@
         <div
           class="text-ui-dim box-border cursor-default overflow-hidden px-2 py-0.5 text-[0.78em] leading-[1.65] text-ellipsis whitespace-pre italic select-none"
           [attr.data-line]="row.lineIndex"
-        >
-          {{ row.text }}
-        </div>
+          [textContent]="row.text"
+        ></div>
       } @else if (row.kind === 'empty') {
         <div
           class="box-border h-[0.55em] cursor-default overflow-hidden p-0 text-[0.88em] whitespace-pre select-none"
@@ -231,9 +230,8 @@
           [attr.data-line]="row.lineIndex"
           (click)="onClickPaletteRow(row)"
           (contextmenu)="onPaletteRowMenu(row, $event)"
-        >
-          {{ row.text }}
-        </div>
+          [textContent]="row.text"
+        ></div>
       }
     }
   </div>

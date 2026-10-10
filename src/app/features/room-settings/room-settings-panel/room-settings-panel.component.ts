@@ -78,6 +78,7 @@ import {
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { RoomSnapshotPanelComponent } from '@axe/features/room-archive/room-snapshot-panel/room-snapshot-panel.component';
 import { BrowserDataWipeService } from '@axe/features/room-settings/browser-data-wipe.service';
+import { StampRulesEditorComponent } from '@axe/features/room-settings/stamp-rules/stamp-rules-editor.component';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
@@ -106,6 +107,7 @@ type PiecePassageSide = 'samePartyPassage' | 'otherPartyPassage' | 'noPartyPassa
     NgSelectWindowDirective,
     RoomSnapshotPanelComponent,
     SkinPickerComponent,
+    StampRulesEditorComponent,
     TranslocoModule,
   ],
 })
@@ -634,6 +636,19 @@ export class RoomSettingsPanelComponent {
   }
   set defaultDiceBot(gameType: string) {
     if (!this.isSharedReadOnly()) this.config.defaultDiceBot = gameType;
+  }
+
+  /**
+   * Whether what a character says shows in a bubble over its piece, read from the room's config.
+   *
+   * Only a user allowed to change the shared settings can set it.
+   */
+  get speechBubbles(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.speechBubblesEnabled;
+  }
+  set speechBubbles(enabled: boolean) {
+    if (!this.isSharedReadOnly()) this.config.speechBubblesEnabled = enabled;
   }
 
   /** Where the room can have its rolls' dice tumble. */

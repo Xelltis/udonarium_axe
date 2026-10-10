@@ -15,6 +15,8 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { TextNote } from '@axe/domain/tabletop/text-note';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { OverviewPanelComponent } from '@axe/features/inventory/overview-panel/overview-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -174,6 +176,30 @@ describe('OverviewPanelComponent', () => {
     });
   });
 
+  it('shows a note set to be formatted drawn with its formatting, and one as typed in its text field', () => {
+    const formatted = TextNote.create('メモ', '# 洞窟');
+    formatted.isFormatted = true;
+    const plain = TextNote.create('メモ', '# 洞窟');
+    try {
+      component.tabletopObject = formatted;
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('[data-testid="overview-note-formatted"] h1')!.textContent).toBe('洞窟');
+      expect(root.querySelector('textarea[name="note-text"]')).toBeNull();
+
+      const other = TestBed.createComponent(OverviewPanelComponent);
+      other.componentInstance.tabletopObject = plain;
+      other.detectChanges();
+      const plainRoot = other.nativeElement as HTMLElement;
+      expect(plainRoot.querySelector('[data-testid="overview-note-formatted"]')).toBeNull();
+      expect(plainRoot.querySelector('textarea[name="note-text"]')).not.toBeNull();
+      other.destroy();
+    } finally {
+      formatted.destroy();
+      plain.destroy();
+    }
+  });
+
   it('draws card text over the image in a card pop-up', () => {
     const image = ImageStorage.instance.add('card-popup-front.png');
     const card = Card.create('文章カード', image.identifier, 'back.png');
@@ -207,6 +233,30 @@ describe('OverviewPanelComponent', () => {
       component.chanageImageView(false);
       card.destroy();
       ImageStorage.instance.delete(image.identifier);
+    }
+  });
+
+  it('shows a whiteboard’s face in its pop-up, and opens it out to fill the screen from the button', () => {
+    const board = WhiteBoard.create('作戦ボード', 4, 3, 1);
+    component.tabletopObject = board;
+
+    try {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="overview-white-board"] white-board-face')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="overview-white-board"]').textContent).toContain(
+        '作戦ボード'
+      );
+      expect(fixture.nativeElement.querySelector('[data-testid="enlarged-white-board"]')).toBeNull();
+
+      (fixture.nativeElement.querySelector('[data-testid="overview-white-board-zoom"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      const enlarged = fixture.nativeElement.querySelector('[data-testid="enlarged-white-board"]') as HTMLElement;
+      expect(enlarged).toBeTruthy();
+      expect(enlarged.classList).toContain('size-full');
+    } finally {
+      component.chanageImageView(false);
+      board.destroy();
     }
   });
 

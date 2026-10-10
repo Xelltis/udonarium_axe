@@ -1,4 +1,4 @@
-import { composeChatOutgoing } from '@axe/domain/chat/chat-outgoing';
+import { composeChatOutgoing, composeStampOutgoing } from '@axe/domain/chat/chat-outgoing';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 describe('composeChatOutgoing', () => {
@@ -43,5 +43,58 @@ describe('composeChatOutgoing', () => {
     const composed = composeChatOutgoing({ ...draft, replyTo: '', quoteOf: '' });
     expect(composed.replyTo).toBe('');
     expect(composed.quoteOf).toBe('');
+  });
+});
+
+describe('composeStampOutgoing', () => {
+  it('sends the stamp on its own with its words, read under no dice system, answering nothing and going round no ticker', () => {
+    const outgoing = composeStampOutgoing(
+      {
+        sendFrom: 'character-1',
+        sendTo: 'peer-2',
+        portraitIndex: 3,
+        color: '#ff0000',
+        bubbles: { light: '#fee', dark: '#300' },
+      },
+      'seal:ok',
+      '［了解］'
+    );
+
+    expect(outgoing).toEqual({
+      text: '',
+      gameSystem: null,
+      sendFrom: 'character-1',
+      sendTo: 'peer-2',
+      portraitIndex: 3,
+      messColor: '#ff0000',
+      messBubbleLight: '#fee',
+      messBubbleDark: '#300',
+      replyTo: '',
+      quoteOf: '',
+      toTicker: false,
+      stamp: { id: 'seal:ok', words: '［了解］' },
+    });
+  });
+});
+
+describe('a line sent with a stamp', () => {
+  it('carries the stamp under the words, and a line without one carries none', () => {
+    const base = {
+      text: 'いくぞ！',
+      gameSystem: null,
+      sendFrom: 'character-1',
+      sendTo: '',
+      portraitIndex: 0,
+      color: '#000000',
+      bubbles: { light: '', dark: '' },
+      replyTo: '',
+      quoteOf: '',
+      toTicker: false,
+    };
+
+    expect(composeChatOutgoing({ ...base, stamp: { id: 'roll:critical', words: '［クリティカル!］' } })).toEqual(
+      expect.objectContaining({ text: 'いくぞ！', stamp: { id: 'roll:critical', words: '［クリティカル!］' } })
+    );
+    expect('stamp' in composeChatOutgoing(base)).toBe(false);
   });
 });

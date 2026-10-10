@@ -1,0 +1,39 @@
+@if (view(); as v) {
+  @for (turn of [play()]; track turn) {
+    <span
+      class="pointer-events-none relative inline-flex items-center justify-center select-none"
+      data-stamp
+      [attr.data-stamp-id]="stampId()"
+      [class]="motionClass(v, turn) ?? ''"
+      [style.width.px]="v.kind === 'words' ? null : size()"
+      [style.min-width.px]="size()"
+      [style.height.px]="size()"
+      [attr.title]="v.name"
+      [attr.aria-label]="v.name"
+      role="img"
+    >
+      @switch (v.kind) {
+        @case ('words') {
+          <span
+            class="leading-none font-black whitespace-nowrap italic"
+            [style.color]="v.color"
+            [style.font-size.px]="v.fontSizePx"
+            [style.text-shadow]="edge"
+            [style.transform]="'rotate(' + v.tilt + 'deg)'"
+            [textContent]="v.words"
+          ></span>
+        }
+        @case ('picture') {
+          <span
+            class="block size-full"
+            [style.transform]="'rotate(' + v.tilt + 'deg)'"
+            [innerHTML]="v.svg | safe: 'html'"
+          ></span>
+        }
+        @case ('image') {
+          <img class="size-full object-contain" draggable="false" [src]="v.url | safe: 'resourceUrl'" [alt]="v.name" />
+        }
+      }
+    </span>
+  }
+}

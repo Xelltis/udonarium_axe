@@ -1,4 +1,4 @@
-import { looksLikeImage } from '@axe/core/storage/image-sniff';
+import { imageTypeOf, looksLikeImage } from '@axe/core/storage/image-sniff';
 
 function bytes(...values: number[]): Blob {
   return new Blob([new Uint8Array([...values, 0, 0, 0, 0, 0, 0, 0, 0])]);
@@ -49,5 +49,33 @@ describe('whether bytes begin like a picture', () => {
   it('turns away bytes too few to say anything', async () => {
     expect(await looksLikeImage(new Blob([new Uint8Array([0x89])]))).toBe(false);
     expect(await looksLikeImage(new Blob([]))).toBe(false);
+  });
+});
+
+describe('which picture bytes begin as', () => {
+  it('names the type of each format by its signature', async () => {
+    expect(await imageTypeOf(bytes(0x89, 0x50, 0x4e, 0x47))).toBe('image/png');
+    expect(await imageTypeOf(bytes(0xff, 0xd8, 0xff))).toBe('image/jpeg');
+    expect(await imageTypeOf(bytes(0x47, 0x49, 0x46, 0x38))).toBe('image/gif');
+    expect(await imageTypeOf(bytes(0x42, 0x4d))).toBe('image/bmp');
+    expect(
+      await imageTypeOf(new Blob([new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x45, 0x42, 0x50])]))
+    ).toBe('image/webp');
+  });
+
+  it('names a boxed picture by its brand', async () => {
+    const boxed = (brand: string) =>
+      new Blob([
+        new Uint8Array([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, ...[...brand].map((letter) => letter.charCodeAt(0))]),
+      ]);
+
+    expect(await imageTypeOf(boxed('avif'))).toBe('image/avif');
+    expect(await imageTypeOf(boxed('heic'))).toBe('image/heic');
+    expect(await imageTypeOf(boxed('mif1'))).toBe('image/heif');
+    expect(await imageTypeOf(boxed('isom'))).toBe('');
+  });
+
+  it('names nothing for bytes that are no picture, whatever they are said to be', async () => {
+    expect(await imageTypeOf(new Blob(['plain text'], { type: 'image/png' }))).toBe('');
   });
 });

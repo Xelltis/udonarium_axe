@@ -51,11 +51,14 @@ import {
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextNote } from '@axe/domain/tabletop/text-note'; //
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { WhiteBoardFaceComponent } from '@axe/features/tabletop/white-board/white-board-face.component';
 import { CardFacePreviewComponent } from '@axe/ui/components/card-face-preview/card-face-preview.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { edgeDetailAnchor, EdgeDetailSeat } from '@axe/ui/tabletop/edge-detail-layout';
+import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -72,6 +75,7 @@ import { TranslocoModule } from '@jsverse/transloco';
     SafePipe,
     TranslocoModule,
     CardFacePreviewComponent,
+    WhiteBoardFaceComponent,
   ],
   host: {
     class: 'block',
@@ -183,6 +187,11 @@ export class OverviewPanelComponent {
     if (object instanceof Card) return object;
     if (object instanceof CardStack) return object.topCard;
     return null;
+  }
+
+  /** The whiteboard whose face the panel shows, or null for anything else. */
+  get faceWhiteBoard(): WhiteBoard | null {
+    return this.tabletopObject instanceof WhiteBoard ? this.tabletopObject : null;
   }
 
   /**
@@ -813,6 +822,11 @@ export class OverviewPanelComponent {
     if (this.markdown) {
       this.markdown.changeMarkDownCheckBox((event.target as HTMLElement).id, event.timeStamp);
     }
+  }
+
+  /** A shared note's body drawn with formatting, for a note set to be drawn that way. */
+  protected formattedNoteHtml(text: string): string {
+    return formatNoteText(text);
   }
 
   protected editCheckedIds = new Set<string>();

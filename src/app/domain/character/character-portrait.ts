@@ -10,6 +10,11 @@ export function portraitElementAt(character: GameCharacter, index: number): Data
   return index >= 0 && index < children.length ? children[index] : null;
 }
 
+/** The pictures of all the character's portraits, in order. */
+export function portraitPicturesOf(character: GameCharacter): string[] {
+  return (character.imageDataElement?.children ?? []).map((child) => `${child.value ?? ''}`).filter(Boolean);
+}
+
 /**
  * The name given to a picture entry, which is kept in its current value. Empty when it has none.
  */

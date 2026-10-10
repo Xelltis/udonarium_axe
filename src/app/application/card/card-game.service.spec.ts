@@ -111,6 +111,139 @@ describe('CardGameService', () => {
     });
   });
 
+  describe('giveFromHand()', () => {
+    it('passes a card face down into the hand of the one it is for, saying so without naming it', () => {
+      const other = peer('other', 'あいて');
+      const card = trumpCard('s07');
+      card.toHand('me');
+
+      expect(service.giveFromHand(card, other.userId)).toBe(true);
+
+      expect(card.location.name).toBe(handLocationOf('other'));
+      expect(card.isFront).toBe(false);
+      expect(service.handCardsOf('me')).toHaveLength(0);
+      expect(sendSystemMessage).toHaveBeenCalledOnce();
+      expect(String(sendSystemMessage.mock.calls[0][0])).not.toContain('カード');
+    });
+
+    it('gives nothing that has already left your hand', () => {
+      peer('other', 'あいて');
+      const card = trumpCard('s07');
+      card.toHand('third');
+
+      expect(service.giveFromHand(card, 'other')).toBe(false);
+
+      expect(card.location.name).toBe(handLocationOf('third'));
+      expect(sendSystemMessage).not.toHaveBeenCalled();
+    });
+
+    it('gives nothing to somebody who has left, or who only watches', () => {
+      peer('watcher', 'みるだけ', PeerRole.Guest);
+      const card = trumpCard('s07');
+      card.toHand('me');
+
+      expect(service.giveFromHand(card, 'gone')).toBe(false);
+      expect(service.giveFromHand(card, 'watcher')).toBe(false);
+
+      expect(card.location.name).toBe(handLocationOf('me'));
+    });
+
+    it('gives nothing to yourself', () => {
+      const card = trumpCard('s07');
+      card.toHand('me');
+
+      expect(service.giveFromHand(card, 'me')).toBe(false);
+      expect(sendSystemMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the hands of people who have left', () => {
+    function spoke(userId: string, name: string, timestamp: number): void {
+      const message = new ChatMessage();
+      message.initialize();
+      message.from = userId;
+      message.to = '';
+      message.tag = '';
+      message.name = name;
+      message.setAttribute('timestamp', String(timestamp));
+      created.push(message);
+    }
+
+    function heldBy(userId: string, ...codes: string[]): Card[] {
+      return codes.map((code, index) => {
+        const card = trumpCard(code);
+        card.toHand(userId, index);
+        return card;
+      });
+    }
+
+    it('finds a hand nobody in the room holds, under the name its holder last spoke under', () => {
+      peer('other', 'あいて', PeerRole.Guest);
+      heldBy('other', 's01');
+      heldBy('me', 's02');
+      heldBy('gone', 's03', 's04');
+      spoke('gone', 'むかしの名前', 1000);
+      spoke('gone', 'さいごの名前', 2000);
+
+      expect(service.absentHands()).toEqual([{ userId: 'gone', name: 'さいごの名前', count: 2 }]);
+    });
+
+    it('looks for the names again as lines are said, and not each time a card moves', () => {
+      heldBy('gone', 's03');
+      spoke('gone', 'まえの名前', 1000);
+      expect(service.absentHands()[0].name).toBe('まえの名前');
+
+      const scans = vi.spyOn(TestBed.inject(ObjectStore), 'getObjects');
+      heldBy('gone', 's04');
+      expect(service.absentHands()[0].count).toBe(2);
+      expect(scans.mock.calls.filter((call) => (call as unknown[])[0] === ChatMessage)).toHaveLength(0);
+
+      spoke('gone', 'あとの名前', 2000);
+      expect(service.absentHands()[0].name).toBe('あとの名前');
+    });
+
+    it('names a holder who never spoke by the start of their user id', () => {
+      heldBy('abcdef123456', 's01');
+
+      expect(service.absentHands()[0].name).toBe('abcdef');
+    });
+
+    it('lets the game master hand one over face down, in the order it was held', () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      peer('back', 'もどってきた人');
+      const cards = heldBy('gone', 's01', 's02', 's03');
+
+      expect(service.handOverAbsentHand('gone', 'back')).toBe(3);
+
+      expect(service.handCardsOf('back')).toEqual(cards);
+      expect(cards.every((card) => !card.isFront)).toBe(true);
+      expect(service.absentHands()).toEqual([]);
+      expect(sendSystemMessage).toHaveBeenCalledOnce();
+    });
+
+    it('lets nobody but the game master hand one over', () => {
+      peer('back', 'もどってきた人');
+      heldBy('gone', 's01');
+
+      expect(service.handOverAbsentHand('gone', 'back')).toBe(0);
+      expect(service.handCardsOf('gone')).toHaveLength(1);
+    });
+
+    it('hands nothing over once its holder is back, or to somebody who cannot hold it', () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      peer('watcher', 'みるだけ', PeerRole.Guest);
+      heldBy('gone', 's01');
+
+      expect(service.handOverAbsentHand('gone', 'watcher')).toBe(0);
+      peer('gone', 'もどった');
+      peer('back', 'もどってきた人');
+      expect(service.handOverAbsentHand('gone', 'back')).toBe(0);
+
+      expect(service.handCardsOf('gone')).toHaveLength(1);
+      expect(sendSystemMessage).not.toHaveBeenCalled();
+    });
+  });
+
   describe('discardPairs()', () => {
     it('lays a matching pair face up on the discard pile', () => {
       const spade = trumpCard('s07');

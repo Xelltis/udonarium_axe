@@ -186,5 +186,27 @@ describe('ObjectSerializer', () => {
       expect(restored).toBeTruthy();
       expect(restored.aliasName).toBe(original.aliasName);
     });
+
+    it('keeps the line breaks in an attribute', () => {
+      const original = DataElement.create('class', '', { type: 'select', choices: 'fighter\nmage\nthief' });
+      const restored = serializer.parseXml(serializer.toXml(original)) as DataElement;
+      try {
+        expect(restored.getAttribute('choices')).toBe('fighter\nmage\nthief');
+      } finally {
+        original.destroy();
+        restored.destroy();
+      }
+    });
+
+    it('keeps the line breaks in an attribute of a clone', () => {
+      const original = DataElement.create('class', '', { type: 'select', choices: 'fighter\nmage' });
+      const copy = original.clone();
+      try {
+        expect(copy.getAttribute('choices')).toBe('fighter\nmage');
+      } finally {
+        original.destroy();
+        copy.destroy();
+      }
+    });
   });
 });

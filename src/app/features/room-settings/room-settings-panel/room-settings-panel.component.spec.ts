@@ -116,6 +116,29 @@ describe('RoomSettingsPanelComponent', () => {
     expect(select.disabled).toBe(true);
   });
 
+  it('lets the master turn off the bubbles over the pieces, and shows a player only that they are off', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box: HTMLInputElement = fixture.nativeElement.querySelector(
+      '[data-testid="room-settings-speech-bubbles"] input[type="checkbox"]'
+    );
+    expect(box.checked).toBe(true);
+    expect(box.disabled).toBe(false);
+
+    box.click();
+    expect(Config.instance.speechBubblesEnabled).toBe(false);
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    component.speechBubbles = true;
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(Config.instance.speechBubblesEnabled).toBe(false);
+    expect(box.disabled).toBe(true);
+    Config.instance.speechBubblesEnabled = true;
+  });
   it('writes nothing for a reader who may not edit the table', () => {
     PeerCursor.myCursor.role = PeerRole.Guest;
     table.zocMode = 'stop';

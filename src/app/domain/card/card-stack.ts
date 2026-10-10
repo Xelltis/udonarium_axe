@@ -1,4 +1,3 @@
-import { emitCardStackDecreased } from '@axe/core/event/domain-events';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
@@ -41,22 +40,6 @@ export class CardStack extends OwnedTabletopObject {
   /** The stack shows its top card's image, face or back as that card would show; blank when empty. */
   override get imageFile(): ImageFile {
     return this.topCard?.imageFile ?? ImageFile.Empty;
-  }
-
-  // ObjectNode Lifecycle
-  /**
-   * Announces that the stack shrank whenever a card leaves it, by any route.
-   *
-   * Cards sit under an inner card root, and removals below it reach the stack as well.
-   */
-  override onChildRemoved(child: ObjectNode) {
-    super.onChildRemoved(child);
-    if (child instanceof Card) {
-      emitCardStackDecreased({
-        cardStackIdentifier: this.identifier,
-        cardIdentifier: child.identifier,
-      });
-    }
   }
 
   /**

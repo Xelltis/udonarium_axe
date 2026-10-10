@@ -25,9 +25,19 @@ import {
   MAX_FILL_SCALE_PX,
   MIN_FILL_SCALE_PX,
 } from '@axe/domain/media/cut-in-fill';
+import { CUT_IN_FONT_PRESETS, type CutInFontPreset } from '@axe/domain/media/cut-in-font-presets';
 import { CUT_IN_TRACKS, type CutInTrackName } from '@axe/domain/media/cut-in-keyframe';
 import { CUT_IN_TEXT_ALIGNS, CutInLayer, type CutInTextAlign, isCutInTextAlign } from '@axe/domain/media/cut-in-layer';
 import { applyLayerPreset, CUT_IN_LAYER_PRESETS } from '@axe/domain/media/cut-in-layer-presets';
+import {
+  LETTER_DURATION_MAX_MS,
+  LETTER_DURATION_MIN_MS,
+  LETTER_MOTIONS,
+  LETTER_STAGGER_MAX_MS,
+  type LetterMotion,
+  letterMotionOf,
+} from '@axe/domain/media/cut-in-letter-motion';
+import { SPEAKER_NAME_TOKEN } from '@axe/domain/media/cut-in-speaker';
 import { CUT_IN_WIPES, type CutInWipe, isCutInWipe } from '@axe/domain/media/cut-in-wipe';
 import {
   easingAtMoment,
@@ -75,10 +85,15 @@ export class CutInLayerPropertiesComponent {
   readonly easings = CUT_IN_EASING_NAMES;
   readonly fillShapes = CUT_IN_FILL_SHAPES;
   readonly clips = CUT_IN_CLIPS;
+  readonly fontPresets = CUT_IN_FONT_PRESETS;
   readonly wipes = CUT_IN_WIPES;
   readonly entrances = CUT_IN_ENTRANCES;
   readonly exits = CUT_IN_EXITS;
   readonly effects = CUT_IN_EFFECTS;
+  /** The ways a text layer's letters can come on, with all at once first. */
+  readonly letterMotions: readonly string[] = ['', ...LETTER_MOTIONS];
+  /** The motions offered as quick picks beside the list. */
+  readonly letterPresets: readonly LetterMotion[] = ['type', 'fade', 'pop', 'wave'];
   readonly looks = CUT_IN_LAYER_PRESETS;
 
   /** How long an arrival or a departure takes, in ms. */
@@ -279,6 +294,19 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.text = text));
   }
 
+  /** Adds the mark that says the speaker's name to the end of a text layer's words. */
+  insertSpeakerName(): void {
+    this.write((layer) => (layer.text = `${layer.text}${SPEAKER_NAME_TOKEN}`));
+  }
+
+  /** Whether an image layer shows the portrait of whoever the cut-in is played for. */
+  get portraitSlot(): boolean {
+    return this.layer()?.portraitSlot ?? false;
+  }
+  set portraitSlot(slot: boolean) {
+    this.write((layer) => (layer.portraitSlot = slot));
+  }
+
   /** A text layer's font size in pixels, never set below 1. */
   get fontSizePx(): number {
     return Math.round(this.layer()?.fontSizePx ?? 32);
@@ -301,6 +329,11 @@ export class CutInLayerPropertiesComponent {
   }
   set fontFamily(fontFamily: string) {
     this.write((layer) => (layer.fontFamily = fontFamily));
+  }
+
+  /** Sets a text layer in one of the kinds of lettering offered, or back to the default. */
+  useFontPreset(preset: CutInFontPreset): void {
+    this.fontFamily = preset.fontFamily;
   }
 
   /** A text layer's letter colour. */
@@ -351,9 +384,13 @@ export class CutInLayerPropertiesComponent {
     this.write((layer) => (layer.skewYDeg = Math.min(80, Math.max(-80, Number(skewYDeg) || 0))));
   }
 
-  /** The shape the layer is cut to; an unknown value is written as none. */
+  /**
+   * The shape the layer is cut to, shown as none under a name this version does not know, as the
+   * stage draws it; an unknown value is written as none.
+   */
   get clip(): CutInClip {
-    return this.layer()?.clip ?? 'none';
+    const clip = this.layer()?.clip;
+    return isCutInClip(clip) ? clip : 'none';
   }
   set clip(clip: CutInClip) {
     this.write((layer) => (layer.clip = isCutInClip(clip) ? clip : 'none'));
@@ -429,6 +466,54 @@ export class CutInLayerPropertiesComponent {
   }
   set vertical(vertical: boolean) {
     this.write((layer) => (layer.vertical = vertical));
+  }
+
+  /** How a text layer's letters come on, empty for all at once; a value this version does not know reads as empty. */
+  get letterMotion(): string {
+    return letterMotionOf(this.layer()?.letterMotion) ?? '';
+  }
+  set letterMotion(motion: string) {
+    this.write((layer) => (layer.letterMotion = letterMotionOf(motion) ?? ''));
+  }
+
+  /** How far apart the letters come on, in ms, 0 for the motion's own. */
+  get letterStaggerMs(): number {
+    return this.layer()?.letterStaggerMs ?? 0;
+  }
+  set letterStaggerMs(ms: number) {
+    const held = Math.min(LETTER_STAGGER_MAX_MS, Math.max(0, Math.round(Number(ms) || 0)));
+    this.write((layer) => (layer.letterStaggerMs = held));
+  }
+
+  /** How long one letter takes to come on, in ms, 0 for the motion's own. */
+  get letterDurationMs(): number {
+    return this.layer()?.letterDurationMs ?? 0;
+  }
+  set letterDurationMs(ms: number) {
+    const asked = Math.round(Number(ms) || 0);
+    const held = asked <= 0 ? 0 : Math.min(LETTER_DURATION_MAX_MS, Math.max(LETTER_DURATION_MIN_MS, asked));
+    this.write((layer) => (layer.letterDurationMs = held));
+  }
+
+  /** Whether the motion chosen spaces its letters out, which all but shaking do. */
+  get letterTakesStagger(): boolean {
+    const motion = letterMotionOf(this.letterMotion);
+    return motion !== null && motion !== 'shake';
+  }
+
+  /** Whether the motion chosen takes a while for each letter, which typing and shaking do not. */
+  get letterTakesDuration(): boolean {
+    const motion = letterMotionOf(this.letterMotion);
+    return motion !== null && motion !== 'type' && motion !== 'shake';
+  }
+
+  /** Picks a motion for the letters with its own timing, whatever had been set by hand. */
+  useLetterPreset(motion: LetterMotion): void {
+    this.write((layer) => {
+      layer.letterMotion = motion;
+      layer.letterStaggerMs = 0;
+      layer.letterDurationMs = 0;
+    });
   }
 
   /** Whether the fill chosen repeats, and so has a size worth setting. */

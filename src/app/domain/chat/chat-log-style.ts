@@ -15,11 +15,12 @@ export const CHAT_LOG_STYLES = [
   'notebook',
   'pop',
   'coc',
+  'text',
 ] as const;
 
 export type ChatLogStyle = (typeof CHAT_LOG_STYLES)[number];
 
-export type RichChatLogStyle = Exclude<ChatLogStyle, 'standard' | 'coc'>;
+export type RichChatLogStyle = Exclude<ChatLogStyle, 'standard' | 'coc' | 'text'>;
 
 export const DEFAULT_CHAT_LOG_STYLE: ChatLogStyle = 'standard';
 
@@ -46,6 +47,7 @@ export const CHAT_LOG_STYLE_SWATCHES: Readonly<Record<ChatLogStyle, ChatLogStyle
   notebook: { ground: '#d8d0bf', surface: '#fdfcf7', accent: '#e0524f' },
   pop: { ground: '#fff4f8', surface: '#ffffff', accent: '#ff5fa2' },
   coc: { ground: '#ffffff', surface: '#f7f7f7', accent: '#555555' },
+  text: { ground: '#eeeeee', surface: '#ffffff', accent: '#333333' },
 };
 
 /** Whether a stored value names a known log style, for reading a saved preference back. */
@@ -55,8 +57,13 @@ export function isChatLogStyle(value: unknown): value is ChatLogStyle {
 
 /**
  * Whether the style is one of the themed layouts `renderRichChatLog` draws, rather than the
- * standard or the classic `coc` one.
+ * standard or the classic `coc` one, or plain text.
  */
 export function isRichChatLogStyle(style: ChatLogStyle): style is RichChatLogStyle {
-  return style !== 'standard' && style !== 'coc';
+  return style !== 'standard' && style !== 'coc' && style !== 'text';
+}
+
+/** Whether the log is written as plain text, saved as a `.txt` file, rather than as a page. */
+export function isPlainChatLogStyle(style: ChatLogStyle): style is 'text' {
+  return style === 'text';
 }

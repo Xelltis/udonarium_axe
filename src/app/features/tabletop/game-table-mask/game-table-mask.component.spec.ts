@@ -248,6 +248,49 @@ describe('GameTableMaskComponent', () => {
     });
   });
 
+  describe('the words written across it', () => {
+    let mask: GameTableMask;
+
+    function words(): HTMLElement | null {
+      return fixture.nativeElement.querySelector('[data-mask-text]');
+    }
+
+    beforeEach(() => {
+      mask = GameTableMask.create('testMask', 2, 1, 100);
+      fixture.componentRef.setInput('gameTableMask', mask);
+    });
+
+    afterEach(() => {
+      mask.destroy();
+    });
+
+    it('draws nothing on a mask with no words', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(words()).toBeNull();
+    });
+
+    it('draws the words as written, in their size and colour, outlined unless told not to be', async () => {
+      mask.text = '立入禁止\n鍵がかかっている';
+      mask.textSize = 30;
+      mask.textColor = '#ffcc00';
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(words()!.textContent).toBe('立入禁止\n鍵がかかっている');
+      expect(words()!.style.fontSize).toBe('30px');
+      expect(words()!.style.color).toBe('#ffcc00');
+      expect(words()!.style.textShadow).not.toBe('');
+
+      mask.textOutline = false;
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(words()!.style.textShadow).toBe('');
+    });
+  });
+
   describe('the layer drawn in the cells scratched open', () => {
     let mask: GameTableMask;
 

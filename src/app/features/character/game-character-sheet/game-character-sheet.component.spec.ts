@@ -5,6 +5,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -113,6 +114,28 @@ describe('GameCharacterSheetComponent', () => {
       expect(dropped.stopPropagation).not.toHaveBeenCalled();
     } finally {
       character.destroy();
+    }
+  });
+
+  it('switches a note between as typed and formatted, and shows the formatted body under its text', () => {
+    const note = TextNote.create('メモ', '# 洞窟');
+    component.tabletopObject = note;
+    try {
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('[data-testid="text-note-format-preview"]')).toBeNull();
+
+      (root.querySelector('[data-testid="text-note-format-formatted"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(note.isFormatted).toBe(true);
+      expect(note.text).toBe('# 洞窟');
+      expect(root.querySelector('[data-testid="text-note-format-preview"] h1')!.textContent).toBe('洞窟');
+      expect(root.querySelector('[data-testid="text-note-format-formatted"]')!.getAttribute('aria-checked')).toBe(
+        'true'
+      );
+    } finally {
+      note.destroy();
     }
   });
 

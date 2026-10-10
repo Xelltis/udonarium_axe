@@ -4,9 +4,9 @@ import { ChatMessage, ChatMessageContext } from '@axe/domain/chat/chat-message';
  * A line as it would read had it been said in another tab.
  *
  * Everything that makes the line what it is comes over - who said it, under what name and
- * picture, in what colour, and whether it was meant for one person. What ties it to where it
- * was said does not: a reply or a quotation points at a line in the tab it was copied from,
- * and would jump nowhere from the new one.
+ * picture, in what colour, the stamp it was sent with, and whether it was meant for one person.
+ * What ties it to where it was said does not: a reply or a quotation points at a line in the tab
+ * it was copied from, and would jump nowhere from the new one.
  */
 export function copiedMessageContext(message: ChatMessage, timestamp: number): ChatMessageContext {
   return {
@@ -28,5 +28,6 @@ export function copiedMessageContext(message: ChatMessage, timestamp: number): C
     sendFrom: message.sendFrom,
     diceLook: message.diceLook,
     diceImageIdentifier: message.diceImageIdentifier,
+    ...(message.stamp ? { stamp: message.stamp } : {}),
   };
 }

@@ -1,5 +1,10 @@
 import { Logger as AppLogger } from '@axe/core/logging/logger';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
+import {
+  joinUnderOwnName,
+  SAME_NAME_MEMBER_WAIT_MS,
+  SameNameWaitCancelledError,
+} from '@axe/core/network/skyway/same-name-member';
 import { SkyWayBackend } from '@axe/core/network/skyway/skyway-backend';
 import { sha256Base64Url } from '@axe/core/util/crypto-util';
 import {
@@ -31,6 +36,10 @@ export class SkyWayFacade {
     return this.peer.isOpen;
   }
   private isDestroyed = false;
+  /** Calls off the waits of the open under way, when it is closed or another open begins. */
+  private openAbort: AbortController | null = null;
+  /** When joining stops waiting for a member left under this peer's name, for the room and lobby alike. */
+  private joinDeadline = 0;
 
   onOpen: ((peer: IPeerContext) => void) | null = null;
   onClose: ((peer: IPeerContext) => void) | null = null;
@@ -42,11 +51,19 @@ export class SkyWayFacade {
   /**
    * Creates a SkyWay context with a backend token, then joins the room and a lobby as the peer.
    *
-   * An open session is closed first. Failures are reported through onFatalError, not thrown, and
-   * onOpen fires at the end. A peer that is not in a room gets a context but joins no channel.
+   * An open session is closed first, and an open still under way is called off. Failures are
+   * reported through onFatalError, not thrown, and onOpen fires at the end. A peer that is not in a
+   * room gets a context but joins no channel.
+   *
+   * A member left in a channel under this peer's name, as a reload leaves one, is waited out
+   * before joining, for as long as the SDK can take to drop it.
    */
   async open(peer: IPeerContext) {
     if (this.isOpen) await this.close();
+    this.openAbort?.abort();
+    const abort = new AbortController();
+    this.openAbort = abort;
+    this.joinDeadline = Date.now() + SAME_NAME_MEMBER_WAIT_MS;
     try {
       this.peer = PeerContext.parse(peer.peerId);
       this.peer.userId = peer.userId;
@@ -62,6 +79,7 @@ export class SkyWayFacade {
 
       this.onOpen?.(this.peer);
     } catch (err) {
+      if (abort.signal.aborted || err instanceof SameNameWaitCancelledError) return;
       AppLogger.error('[SkyWay] open失敗', err);
       this.onFatalError?.(this.peer, (err as Error).name, (err as Error).message, err as Error);
     }
@@ -70,6 +88,8 @@ export class SkyWayFacade {
   /** Leaves the lobby and room and disposes the context; errors are logged, not thrown. */
   async close() {
     try {
+      this.openAbort?.abort();
+      this.openAbort = null;
       this.peer = PeerContext.parse('???');
       this.isDestroyed = true;
 
@@ -109,6 +129,7 @@ export class SkyWayFacade {
         this.publication.onSubscribed.removeAllListeners();
         this.publication = null;
       }
+      this.joinDeadline = Date.now() + SAME_NAME_MEMBER_WAIT_MS;
       await this.joinRoomPerson();
       await this.createRoomDataStream();
       await this.joinLobbyPerson();
@@ -208,11 +229,20 @@ export class SkyWayFacade {
     await this.leaveLobbyPerson();
     if (this.isDestroyed || !this.peer.isRoom || !this.context || this.context?.disposed || this.lobby == null) return;
 
-    const lobbyPerson = await this.lobby.join({
-      name: this.peer.peerId,
-      metadata: JSON.stringify({ roomName: this.peer.roomName }),
-      preventAutoLeaveOnBeforeUnload: true,
-    });
+    const lobby = this.lobby;
+    const name = this.peer.peerId;
+    const lobbyPerson = await joinUnderOwnName(
+      lobby,
+      name,
+      () =>
+        lobby.join({
+          name,
+          metadata: JSON.stringify({ roomName: this.peer.roomName }),
+          preventAutoLeaveOnBeforeUnload: true,
+        }),
+      this.joinDeadline,
+      this.openAbort?.signal
+    );
 
     lobbyPerson.onLeft.add(() => {});
 
@@ -253,11 +283,20 @@ export class SkyWayFacade {
     await this.leaveRoomPerson();
     if (this.isDestroyed || !this.peer.isRoom || !this.context || this.context?.disposed || this.room == null) return;
 
-    const roomPerson = await this.room.join({
-      name: this.peer.peerId,
-      metadata: JSON.stringify({ roomName: this.peer.roomName }),
-      preventAutoLeaveOnBeforeUnload: true,
-    });
+    const room = this.room;
+    const name = this.peer.peerId;
+    const roomPerson = await joinUnderOwnName(
+      room,
+      name,
+      () =>
+        room.join({
+          name,
+          metadata: JSON.stringify({ roomName: this.peer.roomName }),
+          preventAutoLeaveOnBeforeUnload: true,
+        }),
+      this.joinDeadline,
+      this.openAbort?.signal
+    );
 
     roomPerson.onFatalError.add((err) => {
       AppLogger.error('[SkyWay] ルーム致命的エラー', err);

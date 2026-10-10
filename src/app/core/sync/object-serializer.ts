@@ -2,7 +2,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { Attributes } from '@axe/core/sync/attributes';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
-import { decodeEntityReference, encodeEntityReference, xml2element } from '@axe/core/util/xml-util';
+import { decodeEntityReference, encodeAttributeValue, xml2element } from '@axe/core/util/xml-util';
 
 export interface XmlAttributes extends GameObject {
   toAttributes(): Attributes;
@@ -41,7 +41,7 @@ export class ObjectSerializer {
 
     let attrStr = '';
     for (const name of Object.keys(attributes)) {
-      const attribute = encodeEntityReference(`${attributes[name]}`);
+      const attribute = encodeAttributeValue(`${attributes[name]}`);
       if (attribute == null) continue;
       attrStr += ` ${name}="${attribute}"`;
     }

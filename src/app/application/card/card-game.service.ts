@@ -1,16 +1,18 @@
-import { inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { planDeal } from '@axe/domain/card/card-deal';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { selectHandCardsOf } from '@axe/domain/card/hand-cards';
+import { handHolderOf, isHandOf } from '@axe/domain/card/hand-location';
 import { findTrumpPairs, selectExtraJokers, trumpRankOf } from '@axe/domain/card/trump-card';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { canRoleEdit, canRoleEditShared } from '@axe/domain/peer/peer-role';
 
 const DISCARD_STACK_OFFSET = 150;
 
@@ -24,16 +26,39 @@ export interface DealResult {
   participants: number;
 }
 
+/** A hand still holding cards for somebody who is no longer in the room. */
+export interface AbsentHand {
+  userId: string;
+  /** The name they last spoke under in chat, or the start of their user id where nothing of theirs is shown. */
+  name: string;
+  count: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CardGameService {
   private readonly objectStore = inject(ObjectStore);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly objectChange = inject(ObjectChangeService);
+
+  /**
+   * The name each user last spoke under in chat, for the hands of those who have left. It is looked
+   * for again only as lines are said or taken away, not each time a card moves.
+   */
+  private readonly lastSpokenNames = computed(() => {
+    this.objectChange.collectionOf(ChatMessage.aliasName)();
+    const latest = new Map<string, ChatMessage>();
+    for (const message of this.objectStore.getObjects<ChatMessage>(ChatMessage)) {
+      if (message.isSystem || !message.isDisplayable || (message.name ?? '').length < 1) continue;
+      const before = latest.get(message.from);
+      if (!before || message.timestamp > before.timestamp) latest.set(message.from, message);
+    }
+    return new Map([...latest].map(([userId, message]) => [userId, message.name]));
+  });
 
   /** Your own user id. Outside a room it is not on the cursor yet, so the peer context answers instead. */
   myUserId(): string {
-    const fromCursor = PeerCursor.myCursor?.userId ?? '';
-    return fromCursor.length > 0 ? fromCursor : getPeerContext().userId;
+    return PeerCursor.myUserId;
   }
 
   /** Who can hold cards, judged the same way the hand rail judges it. */
@@ -102,6 +127,79 @@ export class CardGameService {
       this.t('feature.card.message.drewFromHand', { from: fromName, to: PeerCursor.myCursor?.name ?? '' })
     );
     return true;
+  }
+
+  /**
+   * Passes a card from your hand into another participant's, face down so only they see its face, and
+   * says in chat who gave a card to whom without saying which.
+   *
+   * It is all checked again as it is done, since the hand and the room may have changed while the
+   * choice was open: nothing moves, and false comes back, when the card has left your hand, you may
+   * no longer hold cards, or the one it is for is not a participant who can.
+   */
+  giveFromHand(card: Card, toUserId: string): boolean {
+    const myUserId = this.myUserId();
+    if (myUserId.length < 1 || toUserId === myUserId) return false;
+    if (!canRoleEdit(PeerCursor.myRole) || !isHandOf(card.location.name, myUserId)) return false;
+    const receiver = this.participants().find((seat) => seat.userId === toUserId);
+    if (!receiver) return false;
+
+    card.toHand(receiver.userId);
+    SoundEffect.play(PresetSound.cardPut);
+    this.chatMessageService.sendSystemMessage(
+      this.t('feature.card.message.gaveFromHand', { from: PeerCursor.myCursor?.name ?? '', to: receiver.name })
+    );
+    return true;
+  }
+
+  /**
+   * The hands of users who are no longer in the room, found from the cards still held in them, the
+   * longest first.
+   *
+   * Somebody connected is not absent whatever their role, and nor are you.
+   */
+  absentHands(): AbsentHand[] {
+    const present = new Set(this.objectStore.getObjects<PeerCursor>(PeerCursor).map((cursor) => cursor.userId));
+    present.add(this.myUserId());
+    const counts = new Map<string, number>();
+    for (const card of this.objectStore.getObjects<Card>(Card)) {
+      const holder = handHolderOf(card.location.name);
+      if (holder === null || present.has(holder)) continue;
+      counts.set(holder, (counts.get(holder) ?? 0) + 1);
+    }
+    return [...counts]
+      .map(([userId, count]) => ({ userId, name: this.lastSpokenNames().get(userId) ?? userId.slice(0, 6), count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  /**
+   * Hands every card in an absent user's hand to a participant, face down and in the order they were
+   * held, and says so in chat without saying which cards. Only the game master may.
+   *
+   * Checked again as it is done: nothing moves, and 0 comes back, when the one the hand was held for
+   * has come back, or the one it is for is not a participant who can hold cards. Otherwise it is the
+   * number of cards handed over.
+   */
+  handOverAbsentHand(fromUserId: string, toUserId: string): number {
+    if (!canRoleEditShared(PeerCursor.myRole)) return 0;
+    const absent = this.absentHands().find((hand) => hand.userId === fromUserId);
+    const receiver = this.participants().find((seat) => seat.userId === toUserId);
+    if (!absent || !receiver) return 0;
+
+    const cards = this.handCardsOf(fromUserId);
+    const baseOrder = Date.now();
+    cards.forEach((card, index) => card.toHand(receiver.userId, baseOrder + index));
+
+    SoundEffect.play(PresetSound.cardDraw);
+    this.chatMessageService.sendSystemMessage(
+      this.t('feature.card.message.handedOver', {
+        name: PeerCursor.myCursor?.name ?? '',
+        from: absent.name,
+        to: receiver.name,
+        count: cards.length,
+      })
+    );
+    return cards.length;
   }
 
   /**

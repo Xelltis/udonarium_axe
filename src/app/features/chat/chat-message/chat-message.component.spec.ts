@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
+import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import {
   DEFAULT_SYSTEM_AVATAR_URL,
@@ -24,12 +25,16 @@ import { emitFileLoaded } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-message.component';
+import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import type { MockInstance } from 'vitest';
@@ -124,6 +129,98 @@ describe('ChatMessageComponent', () => {
       expect(attachment?.getAttribute('src')).toBe('stamp-image.png');
     } finally {
       ImageStorage.instance.delete(image.identifier);
+    }
+  });
+
+  describe('a line answering a secret roll', () => {
+    const made: ChatMessage[] = [];
+
+    function line(fields: Partial<ChatMessage>): ChatMessage {
+      const message = new ChatMessage();
+      message.initialize();
+      message.to = '';
+      message.imageIdentifier = '';
+      message.messColor = '#000000';
+      Object.assign(message, fields);
+      made.push(message);
+      return message;
+    }
+
+    function secretRoll(): ChatMessage {
+      return line({
+        from: 'someone-else',
+        originFrom: 'someone-else',
+        name: '<Secret-BCDice：テスト>',
+        tag: 'system secret',
+        text: 'DiceBot : (1d100) → 3',
+      });
+    }
+
+    function answering(field: 'replyTo' | 'quoteOf', target: ChatMessage): void {
+      const answer = line({
+        from: 'someone-else',
+        name: 'テスト',
+        tag: '',
+        text: 'どうだった？',
+        [field]: target.identifier,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+    }
+
+    afterEach(() => {
+      for (const message of made) message.destroy();
+      made.length = 0;
+    });
+
+    it('shows a reader kept from the roll what stands in for it when replied to', () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      answering('replyTo', secretRoll());
+
+      expect(component.replyPreview()?.text).toBe(TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice'));
+      expect(fixture.nativeElement.textContent).not.toContain('→ 3');
+    });
+
+    it('shows a reader kept from the roll what stands in for it when quoted', () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      answering('quoteOf', secretRoll());
+
+      expect(component.quotePreview()?.text).toBe(TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice'));
+      expect(fixture.nativeElement.textContent).not.toContain('→ 3');
+    });
+
+    it('shows the roll to a reader who may see what is hidden', () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(true);
+      answering('replyTo', secretRoll());
+
+      expect(component.replyPreview()?.text).toBe('DiceBot : (1d100) → 3');
+    });
+  });
+
+  it('keeps a secret line sent with a stamp covered, stamp and all, from all but whoever may see it', () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    const message = new ChatMessage();
+    message.initialize();
+    message.from = 'someone-else';
+    message.originFrom = 'someone-else';
+    message.to = '';
+    message.name = 'テスト';
+    message.tag = 'secret';
+    message.imageIdentifier = '';
+    message.messColor = '#000000';
+    message.text = 'S1D100<=50\n［クリティカル!］';
+    message.stamp = 'roll:critical';
+    try {
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).not.toContain('S1D100');
+      expect(fixture.nativeElement.textContent).toContain(
+        TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice')
+      );
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-message-stamp"]')).toBeNull();
+    } finally {
+      message.destroy();
     }
   });
 
@@ -1537,13 +1634,13 @@ describe('ChatMessageComponent', () => {
     it('holds answering, marking, editing and deleting the reader’s own line, then everything else', () => {
       shown('me');
 
-      expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'edit', 'delete', 'more']);
+      expect(actionsShown()).toEqual(['reply', 'quote', 'react', 'bookmark', 'edit', 'delete', 'more']);
     });
 
     it('holds no editing or deleting of somebody else’s line', () => {
       shown('someone');
 
-      expect(actionsShown()).toEqual(['reply', 'quote', 'bookmark', 'more']);
+      expect(actionsShown()).toEqual(['reply', 'quote', 'react', 'bookmark', 'more']);
     });
 
     it('asks before deleting from its button, and deletes once the reader is sure', async () => {
@@ -1903,6 +2000,266 @@ describe('ChatMessageComponent', () => {
 
       expect(message.text).toBe('こんにちは');
       expect(message.vnEmote).toBe('');
+    });
+  });
+
+  describe('stamps put on the line', () => {
+    let tab: ChatTab;
+    const host = () => fixture.nativeElement as HTMLElement;
+
+    function chip(stampId: string): HTMLButtonElement | null {
+      return host().querySelector(`[data-testid="chat-message-reaction-${stampId}"]`);
+    }
+
+    function count(stampId: string): string | undefined {
+      return chip(stampId)?.querySelector('[data-reaction-count]')?.textContent?.trim();
+    }
+
+    function shown(): ChatMessage {
+      const message = tab.addMessage({ from: 'someone', name: 'GM', text: '扉の向こうで音がした', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+      return message;
+    }
+
+    function answered(message: ChatMessage, userId: string, name: string, stamps: string): void {
+      ChatReaction.create(message.identifier, userId, name).stamps = stamps;
+    }
+
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      PeerCursor.myCursor.name = 'わたし';
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => {
+      for (const reaction of ObjectStore.instance.getObjects<ChatReaction>(ChatReaction)) reaction.destroy();
+      tab.destroy();
+    });
+
+    it('shows each stamp on the line with how many put it on, and marks the one the reader put on', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'sfx:creepy seal:ok');
+      answered(message, 'me', 'わたし', 'sfx:creepy');
+      await settle();
+
+      expect(count('sfx:creepy')).toBe('2');
+      expect(chip('sfx:creepy')!.getAttribute('aria-pressed')).toBe('true');
+      expect(chip('seal:ok')!.getAttribute('aria-pressed')).toBe('false');
+      expect(chip('sfx:creepy')!.title).toContain('あいて');
+    });
+
+    it('puts the reader\u2019s stamp on and takes it off from its chip', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'seal:ok');
+      await settle();
+
+      chip('seal:ok')!.click();
+      await settle();
+      expect(count('seal:ok')).toBe('2');
+
+      chip('seal:ok')!.click();
+      await settle();
+      expect(count('seal:ok')).toBe('1');
+    });
+
+    it('opens the stamps under the toolbar button, and puts the one picked on the line', async () => {
+      const message = shown();
+      const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
+
+      const button = host().querySelector<HTMLButtonElement>('[data-testid="chat-message-action-react"]')!;
+      button.click();
+      expect(toggle).toHaveBeenCalledWith(button, 'reaction', expect.any(Function));
+
+      toggle.mock.calls[0][2]('seal:god');
+      await settle();
+      expect(TestBed.inject(ChatReactionService).talliesOf(message.identifier)).toEqual([
+        expect.objectContaining({ stampId: 'seal:god', mine: true }),
+      ]);
+      expect(chip('seal:god')).not.toBeNull();
+    });
+
+    it('offers no stamps to put on where the room turned reactions off, and keeps those already on', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'seal:ok');
+      Config.instance.stampRules = withStampUseOn(OPEN_STAMP_RULES, 'reaction', false);
+      try {
+        TestBed.inject(ObjectChangeService).notifyChanged('Config');
+        await settle();
+
+        expect(host().querySelector('[data-testid="chat-message-action-react"]')).toBeNull();
+        expect(chip('seal:ok')).not.toBeNull();
+        expect(chip('seal:ok')!.disabled).toBe(true);
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
+    it('lets the reader take back a stamp the room has since denied, but not add one', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'seal:ok seal:god');
+      answered(message, 'me', 'わたし', 'seal:god');
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'reaction', ['seal:ok', 'seal:god'], false);
+      try {
+        TestBed.inject(ObjectChangeService).notifyChanged('Config');
+        await settle();
+
+        expect(chip('seal:ok')!.disabled).toBe(true);
+        expect(chip('seal:god')!.disabled).toBe(false);
+        chip('seal:god')!.click();
+        await settle();
+        expect(count('seal:god')).toBe('1');
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
+    it('draws a line sent as a stamp as the stamp, large, in place of its words, and offers no editing', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: '［ゾワッ］',
+        timestamp: 1000,
+        stamp: 'sfx:creepy',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      const drawn = host().querySelector('[data-testid="chat-message-stamp"] [data-stamp]') as HTMLElement;
+      expect(drawn.dataset['stampId']).toBe('sfx:creepy');
+      expect(drawn.style.height).toBe('96px');
+      expect(host().querySelector('[data-chat-search-text]')).toBeNull();
+      expect(host().querySelector('[data-testid="chat-message-action-edit"]')).toBeNull();
+    });
+
+    it('draws a line sent as a picture larger, so the words in it read', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: '［クリティカル!］',
+        timestamp: 1000,
+        stamp: 'roll:critical',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      const drawn = host().querySelector('[data-testid="chat-message-stamp"] [data-stamp]') as HTMLElement;
+      expect(drawn.style.height).toBe('128px');
+    });
+
+    it('draws what was said with a stamp above it, without the words standing in for the stamp', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: 'いくぞ！\n［クリティカル!］',
+        timestamp: 1000,
+        stamp: 'roll:critical',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      const said = host().querySelector('[data-testid="chat-message-said-with-stamp"]') as HTMLElement;
+      expect(said.textContent).toBe('いくぞ！');
+      expect(host().textContent).not.toContain('［クリティカル!］');
+      expect(host().querySelector('[data-testid="chat-message-stamp"] [data-stamp]')).not.toBeNull();
+    });
+
+    it('shows a line sent with a picture from the room that is not here as its words, stand-in and all', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: 'これ\n［ナイス］',
+        timestamp: 1000,
+        stamp: 'image:not-here',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      expect(host().querySelector('[data-testid="chat-message-stamp"]')).toBeNull();
+      expect(host().textContent).toContain('［ナイス］');
+    });
+
+    it('shows the pictures said with a stamp, leaving out the one drawn as the stamp', () => {
+      const storage = TestBed.inject(ImageStorage);
+      for (const identifier of ['said-picture', 'stamp-picture']) {
+        storage.add({
+          identifier,
+          name: `${identifier}.png`,
+          type: 'image/png',
+          blob: null,
+          url: `blob:${identifier}`,
+          thumbnail: { type: '', blob: null, url: '' },
+        });
+      }
+      try {
+        const message = tab.addMessage({
+          from: 'me',
+          name: 'わたし',
+          text: 'これ\n［ナイス］',
+          timestamp: 1000,
+          stamp: 'image:stamp-picture',
+          attachmentImageIdentifiers: JSON.stringify(['said-picture', 'stamp-picture']),
+        });
+        fixture.componentRef.setInput('chatMessage', message);
+        fixture.detectChanges();
+
+        const attached = [...host().querySelectorAll<HTMLImageElement>('img.message-attachment-image')];
+        expect(attached.map((image) => image.getAttribute('src'))).toEqual(['blob:said-picture']);
+        expect(host().querySelector('[data-testid="chat-message-stamp"] img')!.getAttribute('src')).toBe(
+          'blob:stamp-picture'
+        );
+      } finally {
+        storage.delete('said-picture');
+        storage.delete('stamp-picture');
+      }
+    });
+
+    it('draws nothing above a stamp sent on its own', () => {
+      const message = tab.addMessage({
+        from: 'me',
+        name: 'わたし',
+        text: '［ゾワッ］',
+        timestamp: 1000,
+        stamp: 'sfx:creepy',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      expect(host().querySelector('[data-testid="chat-message-said-with-stamp"]')).toBeNull();
+      expect(host().textContent).not.toContain('［ゾワッ］');
+    });
+
+    it('shows the words of a line sent as a stamp from a newer version', () => {
+      const message = tab.addMessage({
+        from: 'someone',
+        name: 'GM',
+        text: '［新しいスタンプ］',
+        timestamp: 1000,
+        stamp: 'sfx:from-a-newer-version',
+      });
+      fixture.componentRef.setInput('chatMessage', message);
+      fixture.detectChanges();
+
+      expect(host().querySelector('[data-testid="chat-message-stamp"]')).toBeNull();
+      expect(host().textContent).toContain('［新しいスタンプ］');
+    });
+
+    it('shows no stamps on a line taken out of the chat', async () => {
+      const message = shown();
+      answered(message, 'other', 'あいて', 'seal:ok');
+      await settle();
+      expect(chip('seal:ok')).not.toBeNull();
+
+      message.pseudoDelete(2000);
+      await settle();
+      expect(chip('seal:ok')).toBeNull();
     });
   });
 });

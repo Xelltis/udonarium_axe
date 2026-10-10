@@ -65,6 +65,7 @@ import { GameDataElementComponent } from '@axe/features/data-element/game-data-e
 import { DisclosureControlComponent } from '@axe/features/disclosure/disclosure-control/disclosure-control.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How long a section picked from the row of sections stays lit while the sheet scrolls to it. */
@@ -447,6 +448,20 @@ export class GameCharacterSheetComponent {
   /** Sets the note's body text from its text area. */
   setTextNoteText(note: TextNote, event: Event): void {
     note.text = (event.target as HTMLTextAreaElement).value;
+  }
+  /** Whether the note's body is drawn with formatting, for its switch. */
+  textNoteFormatted(note: TextNote): boolean {
+    this.objectChange.versionOf(note.identifier)();
+    return note.isFormatted;
+  }
+  /** Draws the note's body with formatting, or as it was typed; the body itself stays as it is. */
+  setTextNoteFormatted(note: TextNote, formatted: boolean): void {
+    note.isFormatted = formatted;
+  }
+  /** The note's body drawn with formatting, for the preview under its text area. */
+  textNoteFormattedHtml(note: TextNote): string {
+    this.objectChange.versionOf(note.identifier)();
+    return formatNoteText(note.text);
   }
   /** The note's width, for its width field. */
   textNoteWidth(note: TextNote): number {

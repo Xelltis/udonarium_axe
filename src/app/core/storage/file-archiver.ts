@@ -11,6 +11,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import type { ImageFile } from '@axe/core/storage/image-file';
+import { imageTypeOf } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { isCcfoliaRoomArchive } from '@axe/core/storage/room-archive';
@@ -295,13 +296,49 @@ export class FileArchiver {
       return;
     }
 
+    // Pictures first, so the room data beside them can be read under the ids they were stored as.
+    const renamed = new Map<string, string>();
+    const rest: File[] = [];
     for (const entry of entries) {
       try {
-        await this.loadFiles([new File([entry.blob], entry.name, { type: entry.type })], dropPoint, false, tooLarge);
+        const type = entry.type || (await imageTypeOf(entry.blob));
+        const file = new File([entry.blob], entry.name, { type });
+        if (type.startsWith('image/') && !SAVED_IMAGE_NAME.test(entry.name)) {
+          await this.loadArchivedImage(file, renamed, tooLarge);
+        } else {
+          rest.push(file);
+        }
       } catch (reason) {
         Logger.warn('[FileArchiver] ZIP展開エラー', reason);
       }
     }
+    for (const entry of rest) {
+      try {
+        const file = renamed.size > 0 && isXmlCandidateFile(entry) ? await withImagesRenamed(entry, renamed) : entry;
+        await this.loadFiles([file], dropPoint, false, tooLarge);
+      } catch (reason) {
+        Logger.warn('[FileArchiver] ZIP展開エラー', reason);
+      }
+    }
+  }
+
+  /**
+   * Stores a picture an archive carries under a name of its own, as any picture is stored: turned
+   * into a WebP where it can be, and known by the hash of what it is stored as. Room data made
+   * elsewhere may name the picture by the hash of the bytes it came as instead; where the two
+   * differ, the one is noted against the other in `renamed`, for that data to be read under the id
+   * the picture is kept under.
+   */
+  private async loadArchivedImage(file: File, renamed: Map<string, string>, tooLarge: FileTooLarge[]): Promise<void> {
+    if (!(this.reloadCheck?.isLoadOk() ?? true)) return;
+    const original = await FileReaderUtil.calcSHA256Async(file);
+    const image = await this.storeImage(file);
+    if (!image) {
+      tooLarge.push({ name: file.name, kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES });
+    } else if (image.identifier !== original) {
+      renamed.set(original, image.identifier);
+    }
+    emitFileLoaded();
   }
 
   /** Unpacks a zip into its entries, in a worker where one can be used. */
@@ -342,4 +379,17 @@ async function toUnzipped(entries: readonly ZipEntry[]): Promise<Unzipped> {
 
 function toArrayOfFileList(fileList: FileList): File[] {
   return Array.from(fileList);
+}
+
+/** The name a picture is saved under in a room's archive: the hash it is known by, then its extension. */
+const SAVED_IMAGE_NAME = /^[0-9a-f]{64}\./;
+
+/** A picture's id, as a run of 64 hex digits standing on its own. */
+const IMAGE_ID = /(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])/g;
+
+/** Room data with every picture id in `renamed` given the id the picture was stored under. */
+async function withImagesRenamed(file: File, renamed: ReadonlyMap<string, string>): Promise<File> {
+  const text = await FileReaderUtil.readAsTextAsync(file);
+  const rewritten = text.replace(IMAGE_ID, (id) => renamed.get(id) ?? id);
+  return rewritten === text ? file : new File([rewritten], file.name, { type: file.type });
 }

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
@@ -64,6 +65,36 @@ describe('LobbyComponent', () => {
       await component.connect([ctx]);
 
       expect(openSpy).toHaveBeenCalledOnce();
+    });
+
+    it('holds a second press back while a join is under way, and lets one through once it ends', async () => {
+      const ctx = PeerContext.parse('test-peer');
+      vi.spyOn(ctx, 'verifyPassword').mockResolvedValue(true);
+      let finish: (joined: boolean) => void = () => {};
+      vi.spyOn(TestBed.inject(RoomJoinService), 'join').mockImplementation(
+        () => new Promise<boolean>((resolve) => (finish = resolve))
+      );
+
+      await component.connect([ctx]);
+      await component.connect([ctx]);
+      expect(TestBed.inject(RoomJoinService).join).toHaveBeenCalledOnce();
+      expect(component.isJoining()).toBe(true);
+
+      finish(false);
+      await vi.waitFor(() => expect(component.isJoining()).toBe(false));
+      await component.connect([ctx]);
+      expect(TestBed.inject(RoomJoinService).join).toHaveBeenCalledTimes(2);
+    });
+
+    it('says when the join is waiting for this seat’s previous connection to drop', () => {
+      const waiting = () => fixture.nativeElement.querySelector('[data-testid="lobby-waiting-previous"]');
+      fixture.detectChanges();
+      expect(waiting()).toBeNull();
+
+      TestBed.inject(RoomJoinService).waitingForPreviousConnection.set(true);
+      fixture.detectChanges();
+      expect(waiting()).not.toBeNull();
+      TestBed.inject(RoomJoinService).waitingForPreviousConnection.set(false);
     });
 
     it('does not open it when the password dialogue is dismissed', async () => {

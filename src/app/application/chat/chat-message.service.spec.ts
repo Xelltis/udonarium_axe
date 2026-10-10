@@ -10,8 +10,10 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { DataElement } from '@axe/domain/data/data-element';
 import { decodeDiceLook, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { beMyself } from '@axe/testing/peer-context-stub';
@@ -365,6 +367,160 @@ describe('ChatMessageService', () => {
     });
   });
 
+  describe('sending a stamp', () => {
+    function sent(stampId: string, sendTo?: string): { message: ChatMessage | null; tab: ChatTab } {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const tab = new ChatTab();
+      tab.initialize();
+      ObjectStore.instance.add(tab);
+      const message = service.sendStamp(tab, stampId, '［ゾワッ］', PeerCursor.myCursor.identifier, sendTo);
+      return { message, tab };
+    }
+
+    it('sends it as a line of its own, with its words standing in for it and nothing read out of them', () => {
+      const dice = vi.spyOn(TestBed.inject(ObjectStore), 'get');
+      const { message, tab } = sent('sfx:creepy');
+
+      expect(message!.stamp).toBe('sfx:creepy');
+      expect(message!.sentStamp).toBe('sfx:creepy');
+      expect(message!.text).toBe('［ゾワッ］');
+      expect(message!.tag ?? '').toBe('');
+      expect(message!.attachmentImageIdentifiers).toBe('');
+      expect(tab.chatMessages).toEqual([message]);
+      expect(dice).not.toHaveBeenCalledWith('DiceBot');
+    });
+
+    it('carries a picture from the room with it, for whatever cannot draw the stamp', () => {
+      const { message } = sent('image:stamp-picture');
+
+      expect(message!.attachmentImageIdentifierList).toEqual(['stamp-picture']);
+    });
+
+    it('sends nothing into a tab the reader\u2019s role may not speak in', () => {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const tab = new ChatTab();
+      tab.initialize();
+      tab.guestCanSpeak = false;
+      ObjectStore.instance.add(tab);
+      try {
+        expect(service.sendStamp(tab, 'seal:ok', '［了解］', PeerCursor.myCursor.identifier)).toBeNull();
+        expect(tab.chatMessages).toEqual([]);
+      } finally {
+        PeerCursor.myCursor.role = PeerRole.Player;
+      }
+    });
+
+    it('sends a stamp with nothing said as a line of its own, and leaves one with words to the caller', () => {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const tab = new ChatTab();
+      tab.initialize();
+      ObjectStore.instance.add(tab);
+      const outgoing = {
+        text: '',
+        gameSystem: null,
+        sendFrom: PeerCursor.myCursor.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#000000',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: { id: 'seal:ok', words: '［了解］' },
+      };
+
+      expect(service.sendLoneStamp(tab, { ...outgoing, text: 'いくぞ！' })).toBe(false);
+      expect(tab.chatMessages).toEqual([]);
+      expect(service.sendLoneStamp(tab, { ...outgoing, stamp: undefined })).toBe(false);
+
+      expect(service.sendLoneStamp(tab, outgoing)).toBe(true);
+      expect(tab.chatMessages.map((message) => [message.sentStamp, message.text])).toEqual([['seal:ok', '［了解］']]);
+    });
+
+    it('sends nothing for a stamp the room does not let be sent, or where stamps are not sent at all', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:creepy'], false);
+      try {
+        expect(sent('sfx:creepy').message).toBeNull();
+
+        Config.instance.stampRules = withStampUseOn(OPEN_STAMP_RULES, 'line', false);
+        expect(sent('seal:ok').message).toBeNull();
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
+    it('sends nothing for a stamp this version does not know', () => {
+      const { message, tab } = sent('sfx:from-a-newer-version');
+
+      expect(message).toBeNull();
+      expect(tab.chatMessages).toEqual([]);
+    });
+  });
+
+  describe('sending a stamp with words', () => {
+    function said(text: string, stampId: string, words: string): ChatMessage {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const tab = new ChatTab();
+      tab.initialize();
+      ObjectStore.instance.add(tab);
+      const stamp = { id: stampId, words };
+      const none = undefined;
+      return service.sendMessage(
+        tab,
+        text,
+        null,
+        PeerCursor.myCursor.identifier,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        stamp
+      );
+    }
+
+    it('puts the stamp under the words, with the words standing in for it on a last line', () => {
+      const message = said('いくぞ！', 'roll:critical', '［クリティカル!］');
+
+      expect(message.sentStamp).toBe('roll:critical');
+      expect(message.text).toBe('いくぞ！\n［クリティカル!］');
+      expect(message.saidWithStamp).toBe('いくぞ！');
+    });
+
+    it('carries a picture from the room among what the words attach', () => {
+      expect(said('これ', 'image:stamp-picture', '［ナイス］').attachmentImageIdentifierList).toEqual([
+        'stamp-picture',
+      ]);
+    });
+
+    it('sends the words alone under a stamp the room does not let be sent', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['roll:critical'], false);
+      try {
+        const message = said('いくぞ！', 'roll:critical', '［クリティカル!］');
+
+        expect(message.text).toBe('いくぞ！');
+        expect(message.sentStamp).toBeNull();
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
+    it('sends the words alone under a stamp this version does not know', () => {
+      const message = said('いくぞ！', 'sfx:from-a-newer-version', '［新しいスタンプ］');
+
+      expect(message.text).toBe('いくぞ！');
+      expect(message.sentStamp).toBeNull();
+    });
+  });
+
   describe('what a line records about who spoke it', () => {
     it('writes down the role the speaker was wearing at the time', () => {
       const service = TestBed.inject(ChatMessageService);
@@ -487,6 +643,30 @@ describe('ChatMessageService', () => {
     function speak(text: string) {
       return service.sendMessage(chatTab, text, null, character.identifier);
     }
+
+    it('takes the command off a line sent with a stamp before the stamp\u2019s words go under it', () => {
+      const none = undefined;
+      const stamp = { id: 'feel:smile', words: '［にこにこ］' };
+      const message = service.sendMessage(
+        chatTab,
+        'やった @笑顔',
+        null,
+        character.identifier,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        none,
+        stamp
+      );
+
+      expect(message.text).toBe('やった \n［にこにこ］');
+      expect(message.imageIdentifier).toBe('img-1');
+    });
 
     it('switches to the portrait the name picks out and takes the command off the line', () => {
       const message = speak('こんにちは @笑顔');

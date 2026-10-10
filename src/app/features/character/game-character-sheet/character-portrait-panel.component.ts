@@ -10,6 +10,10 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { portraitElementAt, portraitNameOf, setPortraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import {
+  CutInPortraitFitDialogComponent,
+  type CutInPortraitFitDialogOption,
+} from '@axe/features/character/game-character-sheet/cut-in-portrait-fit-dialog.component';
 import { ImportCharacterImgComponent } from '@axe/features/character/import-character-img/import-character-img.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -188,6 +192,19 @@ export class CharacterPortraitPanelComponent {
     };
     const component = this.panelService.open<ImportCharacterImgComponent>(ImportCharacterImgComponent, option);
     component.tabletopObject = char;
+  }
+
+  /**
+   * Opens the dialog that sets how the character's portraits sit in a cut-in's portrait slot,
+   * starting on the one the piece shows, from the button under the portraits.
+   */
+  openCutInFit(): void {
+    const char = this.character();
+    const option: CutInPortraitFitDialogOption = {
+      characterIdentifier: char.identifier,
+      pictureIdentifier: `${portraitElementAt(char, this.readKomaIndex(char))?.value ?? ''}`,
+    };
+    void this.modalService.open(CutInPortraitFitDialogComponent, option);
   }
 
   private readKomaIndex(char: GameCharacter): number {

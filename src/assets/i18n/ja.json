@@ -571,7 +571,10 @@
         "multiDirection_vertical-right": "上下右",
         "multiDirection_vertical-left": "上下左",
         "multiDirection_four-directions": "上下左右",
-        "multiDirectionHint": "卓を真上から見ているあいだだけ、四方に向けて出します。"
+        "multiDirectionHint": "卓を真上から見ているあいだだけ、四方に向けて出します。",
+        "unknownSpeaker": "？？？",
+        "trySpeaker": "誰として再生",
+        "trySpeakerNobody": "指定しない"
       },
       "cutInEditor": {
         "tabBasic": "基本設定",
@@ -597,6 +600,13 @@
         "strokeWidth": "縁の太さ",
         "fontFamily": "フォント",
         "fontFamilyPlaceholder": "（既定のフォント）",
+        "fontPresets": {
+          "default": "既定",
+          "gothic": "ゴシック",
+          "mincho": "明朝",
+          "rounded": "丸ゴシック",
+          "mono": "等幅"
+        },
         "fillFrom": "色",
         "fillTo": "終わりの色",
         "fillGradient": "グラデーションにする",
@@ -735,7 +745,24 @@
         "stageZoomFit": "全体を表示（Ctrl+ホイールでも拡縮）",
         "copyPose": "この瞬間の姿をコピー（Ctrl+C）",
         "pastePose": "再生ヘッドの位置に貼り付け（Ctrl+V）",
-        "seekTo": "時刻を指定"
+        "seekTo": "時刻を指定",
+        "letterMotion": "文字の動き",
+        "letterStagger": "間隔(ms)",
+        "letterDuration": "長さ(ms)",
+        "letterDefault": "既定",
+        "letterMotions": {
+          "none": "なし",
+          "type": "タイプ",
+          "fade": "ふわっと",
+          "pop": "弾む",
+          "slide": "すべり込む",
+          "wave": "波打つ",
+          "shake": "震える"
+        },
+        "portraitSlot": "再生した人の立ち絵を出す",
+        "portraitSlotHint": "チャットから再生したときは発言したキャラの立ち絵を出します。いないときはこの層の画像を、それもなければ影絵を出します。",
+        "insertSpeakerName": "名前を入れる",
+        "speakerNameHint": "{character} が再生した人の名前になります"
       }
     },
     "card": {
@@ -745,6 +772,8 @@
         "empty": "手札がありません",
         "playFaceUp": "表向きで場に出す",
         "playFaceDown": "裏向きで場に出す",
+        "give": "相手に渡す",
+        "giveTo": "渡す相手",
         "drawFromOther": "相手の手札から引く",
         "discardPairs": "ペアを捨てる",
         "noPairs": "同じ数字の組がありません"
@@ -786,6 +815,8 @@
       "discardStackName": "捨て札",
       "message": {
         "drewFromHand": "{{to}} が {{from}} の手札から 1 枚引きました",
+        "gaveFromHand": "{{from}} が {{to}} に手札を 1 枚渡しました",
+        "handedOver": "{{name}} が {{from}} の手札 {{count}} 枚を {{to}} に引き継ぎました",
         "discardedPairs": "{{name}} が {{ranks}} のペアを捨てました"
       },
       "drawPanel": {
@@ -794,7 +825,11 @@
         "noPlayers": "手札を持っている参加者がいません",
         "cardCount": "{{count}} 枚",
         "back": "相手を選び直す",
-        "pickCard": "引くカードを選んでください"
+        "pickCard": "引くカードを選んでください",
+        "absentHands": "退室した人の手札",
+        "handOver": "引き継がせる",
+        "handOverTo": "引き継ぐ相手",
+        "handOverConfirm": "{{from}} の手札 {{count}} 枚を {{to}} に引き継ぎます。カードは伏せたまま移ります。"
       },
       "deckDialog": {
         "hint": "同じタグを付けた画像 1 枚につきカード 1 枚を作り、1 つの山札にまとめます。",
@@ -822,7 +857,13 @@
         "width": "幅",
         "height": "高さ",
         "fontSize": "文字サイズ",
-        "altitude": "高度"
+        "altitude": "高度",
+        "format": "表示"
+      },
+      "format": {
+        "plain": "通常",
+        "formatted": "整形",
+        "hint": "行の先頭の # で見出し、- や 1. でリスト、> で引用になります。` で囲むとコードになり、``` の行で挟むとコードの段落になります。"
       }
     },
     "cardStack": {
@@ -1349,7 +1390,8 @@
         "cardHidden": "カード",
         "diceHidden": "???",
         "imageUnset": "画像未設定",
-        "urlEdit": "URL編集:"
+        "urlEdit": "URL編集:",
+        "enlarge": "拡大して見る"
       },
       "sheet": {
         "toggleEdit": "編集切り替え",
@@ -1377,6 +1419,13 @@
         "addPortraitTitle": "立ち絵を追加",
         "removePortraitTitle": "現在の立ち絵を削除",
         "import": "インポート",
+        "cutInFit": "カットイン位置",
+        "cutInFitOpenHint": "話者の立ち絵を差し込むカットインで、この立ち絵をどう切り取るかを決めます",
+        "cutInFitTitle": "カットインの位置合わせ",
+        "cutInFitHint": "ドラッグで動かし、ホイールかピンチで拡大・縮小します。矢印キーと＋／－でも動かせます",
+        "cutInFitSet": "この立ち絵は、ここで決めた位置で出ます",
+        "cutInFitUnset": "未設定（カットインごとの配置のまま出ます）",
+        "cutInFitPutBack": "元に戻す",
         "chatPosition": "チャット表示位置",
         "basicInfo": "基本情報",
         "gameData": "ゲームデータ",
@@ -1545,7 +1594,24 @@
         "makeSecret": "秘匿にする",
         "clearSecret": "秘匿を解除",
         "makeSecretHint": "チェックした画像を GM 以外の一覧から隠します",
-        "secretMark": "秘匿画像"
+        "secretMark": "秘匿画像",
+        "paste": "貼り付け",
+        "pasteHint": "クリップボードの画像を確かめてから追加します（この一覧を選んで Ctrl+V でも貼れます）",
+        "pasteNothing": "クリップボードに画像がありません",
+        "pasteWithKeys": "ブラウザが貼り付けを許しませんでした。一覧を選んで Ctrl+V で貼ってください",
+        "clearBackground": "背景を透過",
+        "clearBackgroundHint": "チェックした画像 1 枚の背景を消した複製を作ります"
+      },
+      "imageIntake": {
+        "title": "画像を追加",
+        "hint": "背景をクリックすると、その色とつながった範囲が透明になります。何度でもクリックできます。",
+        "tolerance": "色の幅",
+        "undo": "ひとつ戻す",
+        "cancel": "やめる",
+        "add": "追加",
+        "failed": "この画像は読み込めませんでした",
+        "tooLarge": "2MB を超えるため追加できません。透過する範囲を変えるか、小さな画像にしてください",
+        "saveFailed": "画像を保存できませんでした。もう一度お試しください"
       },
       "tooLarge": {
         "one": "「{{name}}」は大きすぎるため読み込めませんでした（{{limits}}）",
@@ -1940,7 +2006,13 @@
         "openDataSheet": "すべてのデータ項目をシートで開く",
         "copy": "コピーを作る",
         "saving": "保存中 {{percent}}%",
-        "save": "保存"
+        "save": "保存",
+        "textSection": "文字",
+        "text": "文章",
+        "textPlaceholder": "マスクの上に表示する文章",
+        "textSize": "大きさ",
+        "textColor": "色",
+        "textOutline": "縁取りをつける"
       },
       "contextMenu": {
         "altitudeSetting": "高度設定",
@@ -2534,6 +2606,9 @@
       "diceStage_table": "卓の上",
       "diceStage_both": "両方",
       "diceStageHint": "チャットで振ったダイスが 3D で転がり、出た目で止まります。シークレットのロールは振った人の画面にだけ出ます",
+      "sectionSpeechBubbles": "吹き出し",
+      "speechBubbles": "キャラクターの発言を頭上の吹き出しに出す",
+      "speechBubblesHint": "卓上のキャラクターとして話した公開の行が、そのコマの上に数秒出ます。「」があればその中だけを出します。秘話・シークレット・ダイスやコマンドの行は出ません。各自はツールバーで自分の画面だけ隠せます",
       "sectionControllerResources": "リモコンに出す数値とリソース",
       "controllerResourcesShowAll": "すべて出す",
       "controllerResourcesHideAll": "すべて外す",
@@ -2633,7 +2708,15 @@
       "sizeSlipsPast": "サイズが 2 マス以上違う相手のマスは通り抜けられる（止まれない）",
       "handTracesWay": "掴んで運んだときも、通り道の仕掛けを発動させる",
       "squeezes": "大きなコマを、通れない隙間に押し込めるようにする（1 マスぶん余計に消費）",
-      "jumpCells": "跳躍の距離（マス。0 で移動力いっぱい）"
+      "jumpCells": "跳躍の距離（マス。0 で移動力いっぱい）",
+      "tab_stamp": "スタンプ",
+      "stampUse_line": "スタンプの発言",
+      "stampUse_reaction": "リアクション",
+      "stampUseOn_line": "スタンプを発言として送れるようにする",
+      "stampUseOn_reaction": "発言にリアクションを付けられるようにする",
+      "stampRulesHint": "スタンプを押すと、使える・使えないが切り替わります。使えなくしても、すでに送られたものはそのまま見えます。",
+      "stampAllowAll": "すべて使える",
+      "stampDenyAll": "すべて使えない"
     },
     "skin": {
       "title": "スキン",
@@ -2843,8 +2926,10 @@
         "tokenExpired": "SkyWayの認証トークンが期限切れになりました。再接続します。",
         "generic": "ネットワークエラーが発生しました。({{errorType}})",
         "reconnecting": "再接続を試みます...",
-        "lastReconnect": "再接続はこれで最後です。つながらないときは、しばらく置いてから入り直してください。"
+        "lastReconnect": "再接続はこれで最後です。つながらないときは、しばらく置いてから入り直してください。",
+        "sameNameMember": "別のタブでこの部屋に入っているか、前の接続がまだ切れていません。別のタブを閉じるか、少し待ってから入り直してください"
       },
+      "waitingForPreviousConnection": "前の接続が切れるのを待っています（最長1分ほど）",
       "peerCursor": {
         "noSignal": "{{name}} さんからあなたへの接続確認信号が{{seconds}}秒以上受信できません。通信障害の可能性があります。",
         "reconnected": "あなたと {{name}} さんの接続を確認しました。",
@@ -2949,7 +3034,8 @@
         "sendToTicker": "ティッカー",
         "sendToTickerHint": "この発言を画面の外周にも流します",
         "tools": "入力の設定",
-        "myDice": "マイダイス"
+        "myDice": "マイダイス",
+        "stamp": "スタンプを送る（入力中の文があれば一緒に）"
       },
       "tab": {
         "unnamedCharacter": "無名のキャラクター",
@@ -2974,6 +3060,7 @@
         "editedSimple": "（編集済）",
         "reply": "返信",
         "quote": "引用",
+        "react": "リアクション",
         "jumpToOriginal": "元のメッセージへ移動",
         "shareAsMemo": "共有メモにする",
         "ticker": "ティッカー",
@@ -3203,6 +3290,10 @@
           "coc": {
             "name": "CoCログ形式",
             "description": "他のツールで読み込める従来形式"
+          },
+          "text": {
+            "name": "テキスト",
+            "description": "文字だけの .txt。どこにでも貼れる"
           }
         },
         "labels": {
@@ -3218,7 +3309,8 @@
           "allTabs": "全タブ",
           "everyTab": "すべて",
           "messages": "{{count}} 件の発言",
-          "exportedWith": "Udonarium Axe で書き出し"
+          "exportedWith": "Udonarium Axe で書き出し",
+          "reactions": "リアクション"
         },
         "sample": {
           "gm": "GM",
@@ -3257,6 +3349,23 @@
         "descSuffix": "の説明",
         "unreachable": "ダイスボット「{{name}}」を読み込めなかったので、この発言のダイスは振られていません。もう一度送っても振れないときは、ページを再読み込みしてください。",
         "intro": "【ダイスボット】チャットにダイス用の文字を入力するとダイスロールが可能\n入力例）２ｄ６＋１　攻撃！\n出力例）2d6+1　攻撃！\n　　　　  diceBot: (2d6) → 7\n上記のようにダイス文字の後ろに空白を入れて発言する事も可能。\n以下、使用例\n　3D6+1>=9 ：3d6+1で目標値9以上かの判定\n　1D100<=50 ：D100で50％目標の下方ロールの例\n　3U6[5] ：3d6のダイス目が5以上の場合に振り足しして合計する(上方無限)\n　3B6 ：3d6のダイス目をバラバラのまま出力する（合計しない）\n　10B6>=4 ：10d6を振り4以上のダイス目の個数を数える\n　2R6[>3]>=5 ：2D6のダイス目が3より大きい場合に振り足して、5以上のダイス目の個数を数える\n　(8/2)D(4+6)<=(5*3)：個数・ダイス・達成値には四則演算も使用可能\n　c(10-4*3/2+2)：c(計算式）で計算だけの実行も可能\n　choice[a,b,c]：列挙した要素から一つを選択表示。ランダム攻撃対象決定などに\n　S3d6 ： 各コマンドの先頭に「S」を付けると他人結果の見えないシークレットロール\n　3d6/2 ： ダイス出目を割り算（端数処理はゲームシステム依存）。切り上げは /2C、四捨五入は /2R、切り捨ては /2F\n　D66 ： D66ダイス。順序はゲームに依存。D66N：そのまま、D66A：昇順、D66D：降順\n\n詳細は下記URLのコマンドガイドを参照\nhttps://docs.bcdice.org/\n===================================\n"
+      },
+      "stampPack": {
+        "title": "スタンプのセット",
+        "hint": "部屋の画像からスタンプのセットを作ります。セットは部屋に保存され、参加者みんなが使えます。",
+        "create": "新しいセット",
+        "newPackName": "新しいセット",
+        "namePlaceholder": "セットの名前",
+        "stampNamePlaceholder": "スタンプの名前",
+        "removePack": "このセットを削除",
+        "removePackConfirm": "セット「{{name}}」を削除します。画像は部屋に残り、すでに使われたスタンプもそのまま表示されます。",
+        "addFromRoom": "画像一覧から追加",
+        "addFromFiles": "ファイルから追加",
+        "removeStamp": "セットから外す",
+        "emptyPack": "まだスタンプがありません",
+        "noPacks": "部屋のスタンプのセットはまだありません",
+        "tooLarge": "2MB を超えるため追加できませんでした：{{names}}",
+        "alreadyIn": "その画像はもうこのセットにあります"
       }
     },
     "visualNovel": {
@@ -4600,6 +4709,8 @@
       "resourceBarsHidden": "リソースバー: 非表示（クリックで表示）",
       "buffsShown": "バフ: 表示中（クリックで隠す）",
       "buffsHidden": "バフ: 非表示（クリックで表示）",
+      "speechShown": "吹き出し: 表示中（クリックで隠す）",
+      "speechHidden": "吹き出し: 非表示（クリックで表示）",
       "viewFlat": "2D 表示（クリックで 3D）",
       "viewPerspective": "3D 表示（クリックで 2D）",
       "viewAutoFlat": "視点: 自動（2D）",
@@ -4949,6 +5060,590 @@
       "previous": "前の立ち絵",
       "next": "次の立ち絵",
       "unnamed": "立ち絵 {{index}}"
+    },
+    "stamp": {
+      "families": {
+        "recent": "最近",
+        "sfx": "描き文字",
+        "seal": "判子",
+        "roll": "判定",
+        "battle": "戦闘",
+        "explore": "探索",
+        "feel": "気持ち",
+        "talk": "会話"
+      },
+      "items": {
+        "sfx": {
+          "laugh": {
+            "label": "ドッ",
+            "name": "笑"
+          },
+          "shock": {
+            "label": "ガーン",
+            "name": "ショック"
+          },
+          "creepy": {
+            "label": "ゾワッ",
+            "name": "こわい"
+          },
+          "heart": {
+            "label": "キュン",
+            "name": "すき"
+          },
+          "clap": {
+            "label": "パチパチ",
+            "name": "拍手"
+          },
+          "notice": {
+            "label": "ハッ!",
+            "name": "気づき"
+          },
+          "gulp": {
+            "label": "ゴクリ",
+            "name": "緊張"
+          },
+          "smirk": {
+            "label": "ニヤリ",
+            "name": "企み"
+          },
+          "boom": {
+            "label": "ドーン",
+            "name": "衝撃の展開"
+          },
+          "menace": {
+            "label": "ゴゴゴゴ",
+            "name": "不穏な気配"
+          },
+          "silence": {
+            "label": "シーン",
+            "name": "静寂"
+          },
+          "stare": {
+            "label": "ジーッ",
+            "name": "じっと見る"
+          },
+          "thump": {
+            "label": "ドキドキ",
+            "name": "胸が高鳴る"
+          },
+          "excited": {
+            "label": "ワクワク",
+            "name": "楽しみ"
+          },
+          "flop": {
+            "label": "ズコー",
+            "name": "ずっこけ"
+          },
+          "shine": {
+            "label": "キラーン",
+            "name": "キラリ"
+          },
+          "startle": {
+            "label": "ギクッ",
+            "name": "ギクッ"
+          },
+          "murmur": {
+            "label": "ざわ…",
+            "name": "ざわつき"
+          },
+          "entrance": {
+            "label": "バーン",
+            "name": "登場"
+          },
+          "glance": {
+            "label": "チラッ",
+            "name": "チラ見"
+          },
+          "huff": {
+            "label": "プンプン",
+            "name": "ぷんぷん"
+          },
+          "gloom": {
+            "label": "ズーン",
+            "name": "落ち込み"
+          },
+          "idea": {
+            "label": "ピコーン",
+            "name": "ひらめき"
+          },
+          "leanin": {
+            "label": "ガタッ",
+            "name": "身を乗り出す"
+          },
+          "roll": {
+            "label": "コロコロ",
+            "name": "ダイスを振る"
+          },
+          "dumbfounded": {
+            "label": "ポカーン",
+            "name": "ぽかん"
+          }
+        },
+        "seal": {
+          "ok": {
+            "label": "了解",
+            "name": "了解"
+          },
+          "seen": {
+            "label": "見た",
+            "name": "見た"
+          },
+          "lol": {
+            "label": "草",
+            "name": "笑"
+          },
+          "wow": {
+            "label": "驚",
+            "name": "驚き"
+          },
+          "fear": {
+            "label": "怖",
+            "name": "こわい"
+          },
+          "sob": {
+            "label": "泣",
+            "name": "泣ける"
+          },
+          "god": {
+            "label": "神",
+            "name": "神"
+          },
+          "precious": {
+            "label": "尊",
+            "name": "尊い"
+          },
+          "agree": {
+            "label": "そうだね",
+            "name": "そうだね"
+          },
+          "really": {
+            "label": "せやろか",
+            "name": "せやろか"
+          },
+          "fair": {
+            "label": "一理ある",
+            "name": "一理ある"
+          },
+          "unfair": {
+            "label": "一理ない",
+            "name": "一理ない"
+          },
+          "noobjection": {
+            "label": "異議なし",
+            "name": "異議なし"
+          },
+          "objection": {
+            "label": "異議あり",
+            "name": "異議あり"
+          },
+          "gotit": {
+            "label": "完全理解",
+            "name": "完全に理解した"
+          },
+          "thatsit": {
+            "label": "それな",
+            "name": "それな"
+          },
+          "relate": {
+            "label": "わかる",
+            "name": "わかる"
+          },
+          "lmao": {
+            "label": "大草原",
+            "name": "大爆笑"
+          },
+          "genius": {
+            "label": "天才",
+            "name": "天才"
+          },
+          "win": {
+            "label": "優勝",
+            "name": "優勝"
+          },
+          "best": {
+            "label": "最高",
+            "name": "最高"
+          },
+          "capable": {
+            "label": "有能",
+            "name": "有能"
+          },
+          "noway": {
+            "label": "無理",
+            "name": "無理"
+          },
+          "approved": {
+            "label": "承認",
+            "name": "承認"
+          },
+          "rejected": {
+            "label": "却下",
+            "name": "却下"
+          },
+          "foreshadow": {
+            "label": "伏線",
+            "name": "伏線"
+          },
+          "ominous": {
+            "label": "不穏",
+            "name": "不穏"
+          },
+          "rip": {
+            "label": "南無",
+            "name": "合掌"
+          },
+          "done": {
+            "label": "済",
+            "name": "済み"
+          },
+          "congrats": {
+            "label": "祝",
+            "name": "おめでとう"
+          },
+          "thanks": {
+            "label": "謝",
+            "name": "感謝"
+          },
+          "secret": {
+            "label": "秘",
+            "name": "ないしょ"
+          },
+          "lucky": {
+            "label": "吉",
+            "name": "吉"
+          },
+          "unlucky": {
+            "label": "凶",
+            "name": "凶"
+          }
+        },
+        "roll": {
+          "critical": {
+            "name": "クリティカル!"
+          },
+          "fumble": {
+            "name": "ファンブル…"
+          },
+          "success": {
+            "name": "成功!"
+          },
+          "failure": {
+            "name": "失敗…"
+          },
+          "pray": {
+            "name": "祈る"
+          },
+          "throw": {
+            "name": "えいっ"
+          },
+          "reroll": {
+            "name": "振り直させて"
+          },
+          "shake": {
+            "name": "シャカシャカ"
+          },
+          "blow": {
+            "name": "ダイスに息を"
+          },
+          "stare": {
+            "name": "出目をにらむ"
+          },
+          "sanity": {
+            "name": "正気度…"
+          },
+          "secret": {
+            "name": "シークレットダイス"
+          },
+          "count": {
+            "name": "修正値を計算中"
+          },
+          "clover": {
+            "name": "幸運のお守り"
+          },
+          "cursed": {
+            "name": "呪われたダイス"
+          },
+          "nervous": {
+            "name": "ドキドキ"
+          },
+          "aghast": {
+            "name": "えっ…"
+          },
+          "bonus": {
+            "name": "ボーナスだ!"
+          },
+          "hoard": {
+            "name": "ダイス大好き"
+          },
+          "doubt": {
+            "name": "このダイス怪しい"
+          }
+        },
+        "battle": {
+          "sword": {
+            "name": "斬る!"
+          },
+          "shield": {
+            "name": "守る"
+          },
+          "magic": {
+            "name": "魔法"
+          },
+          "bow": {
+            "name": "狙い撃つ"
+          },
+          "charge": {
+            "name": "突撃!"
+          },
+          "hurt": {
+            "name": "痛い…"
+          },
+          "heal": {
+            "name": "回復"
+          },
+          "fainted": {
+            "name": "戦闘不能"
+          },
+          "dodge": {
+            "name": "回避!"
+          },
+          "victory": {
+            "name": "勝利!"
+          },
+          "flee": {
+            "name": "逃げる!"
+          },
+          "berserk": {
+            "name": "本気モード"
+          },
+          "stunned": {
+            "name": "ピヨピヨ"
+          },
+          "poison": {
+            "name": "毒…"
+          },
+          "asleep": {
+            "name": "眠り"
+          },
+          "buff": {
+            "name": "パワーアップ"
+          },
+          "taunt": {
+            "name": "あっかんべー"
+          },
+          "protect": {
+            "name": "かばう!"
+          },
+          "smash": {
+            "name": "渾身の一撃"
+          },
+          "ready": {
+            "name": "かかってこい"
+          },
+          "lowhp": {
+            "name": "残りHP1"
+          }
+        },
+        "explore": {
+          "magnifier": {
+            "name": "調べる"
+          },
+          "listen": {
+            "name": "聞き耳"
+          },
+          "sneak": {
+            "name": "忍び足"
+          },
+          "found": {
+            "name": "見つけた!"
+          },
+          "map": {
+            "name": "地図…"
+          },
+          "treasure": {
+            "name": "お宝!"
+          },
+          "trapped": {
+            "name": "罠だ!"
+          },
+          "lockpick": {
+            "name": "鍵開け"
+          },
+          "torch": {
+            "name": "暗いよ…"
+          },
+          "think": {
+            "name": "考え中"
+          },
+          "idea": {
+            "name": "ひらめいた!"
+          },
+          "puzzled": {
+            "name": "わからない…"
+          },
+          "shop": {
+            "name": "お買い物"
+          },
+          "eat": {
+            "name": "ごはん"
+          },
+          "camp": {
+            "name": "野営"
+          },
+          "toast": {
+            "name": "乾杯!"
+          },
+          "tome": {
+            "name": "文献調査"
+          },
+          "peek": {
+            "name": "そーっと"
+          },
+          "lost": {
+            "name": "迷子"
+          },
+          "knock": {
+            "name": "ノック"
+          }
+        },
+        "feel": {
+          "smile": {
+            "name": "にこにこ"
+          },
+          "laugh": {
+            "name": "大爆笑"
+          },
+          "cry": {
+            "name": "号泣"
+          },
+          "angry": {
+            "name": "怒"
+          },
+          "shock": {
+            "name": "ガーン"
+          },
+          "blush": {
+            "name": "照れる"
+          },
+          "smug": {
+            "name": "ドヤ"
+          },
+          "love": {
+            "name": "好き!"
+          },
+          "scared": {
+            "name": "こわい"
+          },
+          "awkward": {
+            "name": "気まずい"
+          },
+          "confused": {
+            "name": "はて?"
+          },
+          "excited": {
+            "name": "ワクワク"
+          },
+          "pout": {
+            "name": "むすっ"
+          },
+          "sigh": {
+            "name": "はぁ…"
+          },
+          "sleepy": {
+            "name": "ねむい"
+          },
+          "evil": {
+            "name": "計画通り"
+          },
+          "moved": {
+            "name": "感動"
+          },
+          "blank": {
+            "name": "虚無"
+          },
+          "proud": {
+            "name": "えっへん"
+          },
+          "panic": {
+            "name": "あわわ"
+          }
+        },
+        "talk": {
+          "ok": {
+            "name": "OK!"
+          },
+          "no": {
+            "name": "ダメ"
+          },
+          "wait": {
+            "name": "ちょっと待って"
+          },
+          "hello": {
+            "name": "こんにちは"
+          },
+          "goodgame": {
+            "name": "お疲れさま"
+          },
+          "thanks": {
+            "name": "ありがとう"
+          },
+          "sorry": {
+            "name": "ごめんなさい"
+          },
+          "question": {
+            "name": "質問!"
+          },
+          "agree": {
+            "name": "うんうん"
+          },
+          "beg": {
+            "name": "お願いします!"
+          },
+          "brb": {
+            "name": "ちょっと離席"
+          },
+          "goodnight": {
+            "name": "おやすみ"
+          },
+          "tea": {
+            "name": "休憩"
+          },
+          "clap": {
+            "name": "パチパチ"
+          },
+          "cheer": {
+            "name": "がんばれ!"
+          },
+          "popcorn": {
+            "name": "見守り中"
+          },
+          "memo": {
+            "name": "メモメモ"
+          },
+          "rules": {
+            "name": "ルール確認"
+          },
+          "hurry": {
+            "name": "時間だよ"
+          },
+          "letsplay": {
+            "name": "遊ぼう!"
+          },
+          "ruling": {
+            "name": "GM判断で!"
+          },
+          "oshi": {
+            "name": "推せる!"
+          },
+          "foreshadow": {
+            "name": "これは伏線…!"
+          }
+        }
+      },
+      "picture": "スタンプ",
+      "standIn": "［{{words}}］",
+      "unnamedPack": "（名前なし）",
+      "manage": "スタンプのセットを管理"
     }
   },
   "error": {}

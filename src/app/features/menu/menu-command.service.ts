@@ -270,6 +270,8 @@ export class MenuCommandService {
           return this.fogEnabled() ? 'foggy' : 'filter_drama';
         case 'buffs':
           return this.overlay.buffs() ? 'auto_fix_high' : 'auto_fix_off';
+        case 'speechBubbles':
+          return this.overlay.speech() ? 'chat_bubble' : 'speaker_notes_off';
         default:
           return command.icon;
       }
@@ -306,6 +308,8 @@ export class MenuCommandService {
           return this.overlay.resourceBars() ? 'app.fab.resourceBarsShown' : 'app.fab.resourceBarsHidden';
         case 'buffs':
           return this.overlay.buffs() ? 'app.fab.buffsShown' : 'app.fab.buffsHidden';
+        case 'speechBubbles':
+          return this.overlay.speech() ? 'app.fab.speechShown' : 'app.fab.speechHidden';
         default:
           return command.labelKey;
       }
@@ -346,6 +350,8 @@ export class MenuCommandService {
         return this.overlay.resourceBars();
       case 'buffs':
         return this.overlay.buffs();
+      case 'speechBubbles':
+        return this.overlay.speech();
       case 'npcBar':
         return this.npcBar.isOpen();
       case 'widgetPlToolbar':
@@ -426,6 +432,9 @@ export class MenuCommandService {
         return;
       case 'buffs':
         this.overlay.toggleBuffs();
+        return;
+      case 'speechBubbles':
+        this.overlay.toggleSpeech();
         return;
       case 'npcBar':
         this.npcBar.toggle();

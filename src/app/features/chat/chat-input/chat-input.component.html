@@ -229,6 +229,19 @@
           (keydown.arrowdown)="selectAutoComplete($event, 1)"
           #textArea
         ></textarea>
+        @if (stampLinesOn()) {
+          <button
+            type="button"
+            class="border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid bg-transparent p-0 transition-colors hover:shadow-none [&_i]:text-[19px] [&_i]:leading-none"
+            data-testid="chat-input-stamp"
+            aria-haspopup="listbox"
+            [title]="'feature.chat.input.stamp' | transloco"
+            [attr.aria-label]="'feature.chat.input.stamp' | transloco"
+            (click)="openStamps($event.currentTarget)"
+          >
+            <i class="material-icons">emoji_emotions</i>
+          </button>
+        }
         <button
           type="submit"
           class="border-ui-accent bg-ui-accent hover:border-ui-accent hover:bg-ui-accent m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 text-[12px] font-semibold text-white transition-[background,border-color,filter] hover:text-white hover:shadow-none hover:brightness-110 [&_i]:text-[18px] [&_i]:leading-none"

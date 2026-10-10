@@ -122,6 +122,59 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  describe('sending a stamp', () => {
+    it('sends one with nothing said as a line of its own, past the macros, as the chat window does', () => {
+      const speaker = createChar('術者');
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.character.set(speaker);
+      component.chatTabidentifier.set(tab.identifier);
+      const macro = vi.spyOn(TestBed.inject(CharacterMacroService), 'send').mockReturnValue(null);
+      const stamp = vi.spyOn(component.chatMessageService, 'sendStamp').mockReturnValue(null);
+
+      component.sendChat({
+        text: '',
+        gameSystem: null,
+        sendFrom: speaker.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#112233',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: { id: 'seal:ok', words: '［了解］' },
+      });
+
+      expect(macro).not.toHaveBeenCalled();
+      expect(stamp.mock.calls[0].slice(1, 4)).toEqual(['seal:ok', '［了解］', speaker.identifier]);
+    });
+
+    it('sends one with words under them, through the macros', () => {
+      const speaker = createChar('術者');
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.character.set(speaker);
+      component.chatTabidentifier.set(tab.identifier);
+      const macro = vi.spyOn(TestBed.inject(CharacterMacroService), 'send').mockReturnValue(null);
+      const stamp = vi.spyOn(component.chatMessageService, 'sendStamp').mockReturnValue(null);
+      const crit = { id: 'roll:critical', words: '［クリティカル!］' };
+
+      component.sendChat({
+        text: '2d6 いくぞ',
+        gameSystem: null,
+        sendFrom: speaker.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#112233',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: crit,
+      });
+
+      expect(stamp).not.toHaveBeenCalled();
+      expect(macro).toHaveBeenCalledWith(speaker, '2d6 いくぞ', expect.objectContaining({ stamp: crit }));
+    });
+  });
+
   describe('sending a line to the ticker', () => {
     it('shows the line on the ticker where the switch is on, as the chat window does', () => {
       const speaker = createChar('術者');
@@ -337,6 +390,13 @@ describe('ChatPaletteComponent', () => {
       fixture.detectChanges();
       return event;
     }
+
+    it('shows each line as written, with nothing before or after it', () => {
+      speaker('2d6+3 攻撃\n//修正=2');
+
+      expect(root().querySelector('[data-line="0"]')!.textContent).toBe('2d6+3 攻撃');
+      expect(root().querySelector('[data-line="1"]')!.textContent).toBe('//修正=2');
+    });
 
     it('shows no results until something is searched for', () => {
       speaker('2d6+3 攻撃');

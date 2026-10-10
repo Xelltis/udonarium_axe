@@ -159,6 +159,18 @@ describe('ObjectChangeService', () => {
     });
   });
 
+  it('says which of this end’s connections a network error came from, where it is known', async () => {
+    const promise = nextEvent(service.networkError$);
+
+    localDispatch('NETWORK_ERROR', { peerId: 'me-room', errorType: 'same-name-member', errorMessage: 'still there' });
+
+    await expect(promise).resolves.toEqual({
+      peerId: 'me-room',
+      errorType: 'same-name-member',
+      errorMessage: 'still there',
+    });
+  });
+
   describe('versionOf()', () => {
     it('exposes the method', () => {
       expect(typeof service.versionOf).toBe('function');

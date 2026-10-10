@@ -15,6 +15,8 @@ import {
 } from '@axe/domain/chat/chat-message-history';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
+import { stampOf } from '@axe/domain/chat/stamp-catalog';
+import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 import { VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
@@ -53,6 +55,7 @@ export interface ChatMessageContext {
   quoteOf?: string;
   vnEmote?: string;
   senderRole?: string;
+  stamp?: string;
   diceLook?: string;
   diceImageIdentifier?: string;
 }
@@ -77,6 +80,14 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    * not. Unset reads back as an empty string, which is what an absent staging means anyway.
    */
   @SyncVar() vnEmote: string;
+  /**
+   * The stamp the line was sent with, by identifier, drawn large under whatever was said with it. The
+   * last line of the words stands in for it wherever it cannot be drawn: a version that does not know
+   * it, a log, a video.
+   *
+   * Left without an initialiser, as `vnEmote` is: only a line sent as a stamp writes it.
+   */
+  @SyncVar() stamp: string;
   /**
    * What the person speaking was when they said it.
    *
@@ -510,5 +521,22 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   isChangeableBy(userId: string): boolean {
     if (this.isSystemMessage) return false;
     return userId === this.from;
+  }
+
+  /**
+   * The stamp the line was sent as, where this version knows it, to draw in place of the words;
+   * null for a line of words, and for a stamp from a newer version, whose stand-in words are shown.
+   */
+  get sentStamp(): string | null {
+    const stamp = `${this.stamp ?? ''}`.trim();
+    return stampOf(stamp) ? stamp : null;
+  }
+
+  /**
+   * What was said with the stamp the line was sent with, drawn above it, without the words standing
+   * in for the stamp; empty for a stamp sent on its own, and for a line with no stamp to draw.
+   */
+  get saidWithStamp(): string {
+    return this.sentStamp ? saidWithStamp(this.text) : '';
   }
 }

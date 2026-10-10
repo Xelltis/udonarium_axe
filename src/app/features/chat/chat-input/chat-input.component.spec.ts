@@ -1,11 +1,13 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -14,6 +16,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
+import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -427,6 +430,99 @@ describe('ChatInputComponent', () => {
 
       component.setColorNum(-3);
       expect(component.colorSelectNo()).toBe(0);
+    });
+
+    it('opens the stamps beside the send button, and sends the one picked on its own from an empty box', () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      component.text = '';
+      const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
+      const emitted: Outgoing[] = [];
+      component.chat.subscribe((value) => emitted.push(value));
+
+      const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        '[data-testid="chat-input-stamp"]'
+      )!;
+      button.click();
+      expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function));
+      toggle.mock.calls[0][2]('seal:ok');
+
+      expect(emitted).toEqual([
+        expect.objectContaining({
+          text: '',
+          stamp: { id: 'seal:ok', words: expect.any(String) },
+          gameSystem: null,
+          replyTo: '',
+          toTicker: false,
+        }),
+      ]);
+      expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
+    });
+
+    it('sends the one picked under the words in the box, as the send button sends them, and clears the box', async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      component.text = 'いくぞ！';
+      const outgoing = sent();
+
+      component.sendStamp('roll:critical');
+
+      expect(component.text).toBe('');
+      expect(await outgoing).toEqual(
+        expect.objectContaining({
+          text: 'いくぞ！',
+          gameSystem,
+          stamp: { id: 'roll:critical', words: expect.any(String) },
+        })
+      );
+      expect(DiceBot.gameSystemForLineAsync).toHaveBeenCalledWith(component.gameType, 'いくぞ！');
+    });
+
+    it('offers no stamps where the room does not let them be sent, and sends none it denies', () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      const config = Config.instance;
+      config.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['roll:critical'], false);
+      try {
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-testid="chat-input-stamp"]')).not.toBeNull();
+        const emitted = vi.fn();
+        component.chat.subscribe(emitted);
+        component.text = 'いくぞ！';
+
+        component.sendStamp('roll:critical');
+        expect(emitted).not.toHaveBeenCalled();
+        expect(component.text).toBe('いくぞ！');
+
+        config.stampRules = withStampUseOn(OPEN_STAMP_RULES, 'line', false);
+        TestBed.inject(ObjectChangeService).notifyChanged('Config');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-testid="chat-input-stamp"]')).toBeNull();
+      } finally {
+        config.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
+    it('sends no stamp from a seat that may not speak', () => {
+      fixture.componentRef.setInput('canSpeak', false);
+      fixture.detectChanges();
+      component.text = 'いくぞ！';
+      const emitted = vi.fn();
+      component.chat.subscribe(emitted);
+
+      component.sendStamp('roll:critical');
+
+      expect(emitted).not.toHaveBeenCalled();
+      expect(component.text).toBe('いくぞ！');
+    });
+
+    it('sends no stamp this version does not know', () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      const emitted = vi.fn();
+      component.chat.subscribe(emitted);
+
+      component.sendStamp('sfx:from-a-newer-version');
+
+      expect(emitted).not.toHaveBeenCalled();
     });
 
     it('sends on enter alone and never on another key or mid-composition', async () => {

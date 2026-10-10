@@ -35,6 +35,12 @@ export class LobbyComponent {
 
   isReloading = signal(false);
 
+  /** Whether a join from the list is under way, which holds the other join buttons back. */
+  readonly isJoining = signal(false);
+
+  /** Whether the join under way is waiting for this seat's previous connection to drop. */
+  protected readonly waitingForPreviousConnection = this.roomJoin.waitingForPreviousConnection;
+
   help = signal(this.t('feature.lobby.lobby.hintInitial'));
 
   /**
@@ -127,27 +133,39 @@ export class LobbyComponent {
    * Joins the room a list entry stands for, asking for its password first when it has one.
    *
    * The password is kept on the reader's cursor for reconnecting. A wrong password leaves the lobby
-   * open; a successful join closes it.
+   * open; a successful join closes it. One join goes at a time: a second press while one is under
+   * way, which can take up to a minute after a reload, does nothing.
    */
   async connect(peerContexts: PeerContext[]) {
-    const context = peerContexts[0];
-    let password = '';
+    if (this.isJoining()) return;
+    this.isJoining.set(true);
+    let isJoinStarted = false;
+    try {
+      const context = peerContexts[0];
+      let password = '';
 
-    if (context.hasPassword) {
-      const options: PasswordCheckOptions = {
-        peerContext: context,
-        title: `${context.roomName}/${context.roomId}`,
-      };
-      password = await this.modalService.open<string>(PasswordCheckComponent, options);
-      if (password == null) password = '';
-      this.myPeer.reConnectPass = password;
+      if (context.hasPassword) {
+        const options: PasswordCheckOptions = {
+          peerContext: context,
+          title: `${context.roomName}/${context.roomId}`,
+        };
+        password = await this.modalService.open<string>(PasswordCheckComponent, options);
+        if (password == null) password = '';
+        this.myPeer.reConnectPass = password;
+      }
+
+      if (!(await context.verifyPassword(password))) return;
+
+      isJoinStarted = true;
+      void this.roomJoin
+        .join(peerContexts, password)
+        .then((isJoined) => {
+          if (isJoined) this.modalService.resolve();
+        })
+        .finally(() => this.isJoining.set(false));
+    } finally {
+      if (!isJoinStarted) this.isJoining.set(false);
     }
-
-    if (!(await context.verifyPassword(password))) return;
-
-    void this.roomJoin.join(peerContexts, password).then((isJoined) => {
-      if (isJoined) this.modalService.resolve();
-    });
   }
 
   /**

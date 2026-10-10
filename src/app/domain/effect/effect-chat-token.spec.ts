@@ -25,11 +25,27 @@ describe('parseEffectChatToken()', () => {
   it('picks one up mid-line', () => {
     expect(parseEffectChatToken('《斬撃》 で斬りかかる')).toEqual({ name: '斬撃', text: 'で斬りかかる' });
   });
+
+  it('never reads the reading of a ruby as one', () => {
+    expect(parseEffectChatToken('|炎《ほのお》を放つ')).toBeNull();
+    expect(parseEffectChatToken('｜炎《ほのお》を放つ')).toBeNull();
+  });
+
+  it('finds the one that comes after a ruby, keeping the ruby in the line', () => {
+    expect(parseEffectChatToken('|火球《ファイアボール》を撃つ《爆炎》')).toEqual({
+      name: '爆炎',
+      text: '|火球《ファイアボール》を撃つ',
+    });
+  });
 });
 
 describe('stripEffectChatTokens()', () => {
   it('takes every token out', () => {
     expect(stripEffectChatTokens('攻撃《斬撃》と《爆炎》')).toBe('攻撃と');
+  });
+
+  it('leaves a ruby as it is', () => {
+    expect(stripEffectChatTokens('|斬撃《スラッシュ》《斬撃》')).toBe('|斬撃《スラッシュ》');
   });
 
   it('leaves the dice and the resource changes alone', () => {

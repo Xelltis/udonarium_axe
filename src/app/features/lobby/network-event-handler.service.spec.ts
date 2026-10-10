@@ -143,6 +143,20 @@ describe('NetworkEventHandlerService', () => {
     expect(openStandbySpy).not.toHaveBeenCalled();
   });
 
+  it('says this seat is still in the room under its own name, and goes back to waiting without using up a try', () => {
+    const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+
+    for (let i = 0; i < 5; i++) stubChange.networkError$.emit({ errorType: 'same-name-member', errorMessage: '' });
+
+    expect(openStandbySpy).toHaveBeenCalledTimes(5);
+    expect(chatStub.sendSystemMessage).toHaveBeenCalledTimes(5);
+    expect(chatStub.sendSystemMessage.mock.calls[0][0] as string).toContain('feature.lobby.errors.sameNameMember');
+
+    chatStub.sendSystemMessage.mockClear();
+    stubChange.networkError$.emit({ errorType: 'token-expired', errorMessage: '' });
+    expect(chatStub.sendSystemMessage.mock.calls.at(-1)?.[0] as string).toContain('feature.lobby.errors.reconnecting');
+  });
+
   it('backs off and reconnects after a server error, up to a limit', async () => {
     vi.useFakeTimers();
     try {

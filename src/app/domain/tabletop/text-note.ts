@@ -18,6 +18,19 @@ export class TextNote extends OwnedTabletopObject {
   @SyncVar() limitHeight: boolean = false;
   @SyncVar() overViewWidth: number = 250;
   @SyncVar() overViewMaxHeight: number = 250;
+  /**
+   * How the body is drawn: empty as it was typed, `formatted` with headings, lists, quotes and code
+   * read from the marks that start its lines. The body itself is the same either way.
+   */
+  @SyncVar() textFormat: string = '';
+
+  /** Whether the body is drawn with formatting; anything but `formatted` is drawn as typed. */
+  get isFormatted(): boolean {
+    return this.textFormat === 'formatted';
+  }
+  set isFormatted(formatted: boolean) {
+    this.textFormat = formatted ? 'formatted' : '';
+  }
 
   /** How many grid cells wide the note is, kept in its common data. */
   get width(): number {

@@ -1,4 +1,10 @@
-import { decodeEntityReference, encodeEntityReference, sanitizeXml, xml2element } from '@axe/core/util/xml-util';
+import {
+  decodeEntityReference,
+  encodeAttributeValue,
+  encodeEntityReference,
+  sanitizeXml,
+  xml2element,
+} from '@axe/core/util/xml-util';
 
 describe('XmlUtil', () => {
   describe('encodeEntityReference()', () => {
@@ -38,6 +44,25 @@ describe('XmlUtil', () => {
 
     it('encodes a string carrying non-ascii text', () => {
       expect(encodeEntityReference('テスト&データ')).toBe('テスト&amp;データ');
+    });
+  });
+
+  describe('encodeAttributeValue()', () => {
+    it('escapes the markup characters as encodeEntityReference does', () => {
+      expect(encodeAttributeValue('<a href="x">&\'</a>')).toBe(encodeEntityReference('<a href="x">&\'</a>'));
+    });
+
+    it('writes tabs and line breaks as character references', () => {
+      expect(encodeAttributeValue('a\tb\nc\r\nd')).toBe('a&#9;b&#10;c&#13;&#10;d');
+    });
+
+    it('reads back with its line breaks through the parser', () => {
+      const element = xml2element(`<node text="${encodeAttributeValue('first\nsecond')}" />`);
+      expect(element?.getAttribute('text')).toBe('first\nsecond');
+    });
+
+    it('leaves a value without them as it is', () => {
+      expect(encodeAttributeValue('plain テキスト')).toBe('plain テキスト');
     });
   });
 

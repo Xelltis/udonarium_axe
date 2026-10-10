@@ -16,6 +16,9 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
+import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
+import { stampWords } from '@axe/application/chat/stamp-words';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -36,7 +39,7 @@ import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatBubbleColors, chatBubbleOf, chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
-import { composeChatOutgoing } from '@axe/domain/chat/chat-outgoing';
+import { composeChatOutgoing, composeStampOutgoing, OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -48,6 +51,7 @@ import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
+import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
@@ -126,6 +130,12 @@ export class ChatInputComponent {
   }
   private readonly batchService = inject(BatchService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly stampPicker = inject(StampPickerService);
+  private readonly stampPacks = inject(StampPackService);
+  private readonly stampRules = inject(StampRulesService);
+
+  /** Whether the room lets stamps be sent as lines, which puts the button for them beside the send button. */
+  protected readonly stampLinesOn = computed(() => this.stampRules.isOn('line'));
   private readonly objectChange = inject(ObjectChangeService);
   private readonly panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -595,6 +605,14 @@ export class ChatInputComponent {
       return;
     }
 
+    this.sendDraft();
+  }
+
+  /**
+   * Sends what the box holds, with a stamp under it where one is given, and clears the box, the reply
+   * and the quote.
+   */
+  private sendDraft(stamp?: OutgoingStamp): void {
     if (!this.sendFrom.length) this.sendFrom = this.myPeer.identifier;
 
     this.chatHistory.push(this.text);
@@ -609,6 +627,7 @@ export class ChatInputComponent {
       replyTo: this.replyTarget()?.identifier ?? '',
       quoteOf: this.quoteTarget()?.identifier ?? '',
       toTicker: this.showsTickerSwitch() && this.sendsToTicker(),
+      ...(stamp ? { stamp } : {}),
     };
     DiceBot.gameSystemForLineAsync(this.gameType, draft.text).then((gameSystem) => {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
@@ -620,6 +639,41 @@ export class ChatInputComponent {
     this.kickCalcFitHeight();
     this.cancelReply();
     this.cancelQuote();
+  }
+
+  /** Opens the stamps under the button beside the send button, to send the one picked. */
+  protected openStamps(anchor: EventTarget | null): void {
+    if (!(anchor instanceof Element)) return;
+    this.stampPicker.toggle(anchor, 'line', (stampId) => this.sendStamp(stampId));
+  }
+
+  /**
+   * Sends a stamp, from whoever the box speaks as and to whoever it speaks to, in its colour. With
+   * words in the box it goes under them as one line, sent as the send button sends them, and the box
+   * is cleared; with the box empty it goes as a line of its own.
+   */
+  sendStamp(stampId: string): void {
+    if (!this.canSpeak() || !this.stampRules.allows('line', stampId)) return;
+    const words = stampWords(stampId, this.t, (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier));
+    if (words.length < 1) return;
+    if (this.text.trim().length > 0) {
+      this.sendDraft({ id: stampId, words });
+      return;
+    }
+    if (!this.sendFrom.length) this.sendFrom = this.myPeer.identifier;
+    this.chat.emit(
+      composeStampOutgoing(
+        {
+          sendFrom: this.sendFrom,
+          sendTo: this.sendTo,
+          portraitIndex: this.portraitIndex,
+          color: this.selectChatColor,
+          bubbles: this.chatBubbles(this.colorSelectNo()),
+        },
+        stampId,
+        words
+      )
+    );
   }
 
   /**
