@@ -1,3 +1,13 @@
+## [1.64.1](https://github.com/Xelltis/udonarium_axe/compare/v1.64.0...v1.64.1) (2026-10-10)
+
+### 🐛 Bug Fixes
+
+* **lobby:** connect to the others in a room joined from the lobby ([78323e0](https://github.com/Xelltis/udonarium_axe/commit/78323e01d50e44b5e1a957c05c96b66be4a7f799))
+
+### 📝 Documentation
+
+* **website:** write up the v1.64.1 fix for joining a room ([055a176](https://github.com/Xelltis/udonarium_axe/commit/055a176fe220ae933dd24a5bf28e2e0bda15cce1))
+
 ## [1.64.0](https://github.com/Xelltis/udonarium_axe/compare/v1.63.0...v1.64.0) (2026-10-10)
 
 ### ✨ Features
