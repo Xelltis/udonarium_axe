@@ -238,6 +238,8 @@ export interface LightBeam {
   clip: string;
   color: string;
   fins: string[];
+  /** Where the light hangs that throws the beam, in table pixels. */
+  origin: { x: number; y: number; z: number };
 }
 
 export interface LightGlow {
@@ -387,7 +389,14 @@ export function computeLightBeam(light: SceneLight): LightBeam | null {
     const tz = light.z - pz * (width / 2);
     fins.push(`matrix3d(${px},${py},${pz},0,${axis.x},${axis.y},${axis.z},0,${nx},${ny},${nz},0,${tx},${ty},${tz},1)`);
   }
-  return { width, height, clip: 'polygon(50% 0%, 0% 100%, 100% 100%)', color: light.color, fins };
+  return {
+    width,
+    height,
+    clip: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+    color: light.color,
+    fins,
+    origin: { x: light.x, y: light.y, z: light.z },
+  };
 }
 
 /**

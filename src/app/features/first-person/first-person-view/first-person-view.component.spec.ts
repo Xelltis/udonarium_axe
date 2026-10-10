@@ -7,6 +7,7 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -22,6 +23,7 @@ import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { scaleOf } from '@axe/features/first-person/first-person-style';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
@@ -614,6 +616,84 @@ describe('FirstPersonViewComponent', () => {
       rangeAt(4, 11);
 
       expect(element(mount()).querySelectorAll('[data-range]')).toHaveLength(0);
+    });
+  });
+
+  describe('what stands beyond the walls', () => {
+    function picture(identifier: string): void {
+      ImageStorage.instance.add({
+        identifier,
+        name: `${identifier}.png`,
+        type: 'image/png',
+        blob: null,
+        url: `blob:${identifier}`,
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+    }
+
+    afterEach(() => {
+      ImageStorage.instance.delete('sky-picture');
+      ImageStorage.instance.delete('hills-picture');
+    });
+
+    it('lays the picture the table is laid on behind the view, and leaves the dark without one', () => {
+      lookOutOf(pieceAt(4, 7));
+      expect(element(mount()).querySelector('[data-sky]')).toBeNull();
+
+      picture('sky-picture');
+      table.backgroundImageIdentifier = 'sky-picture';
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+      const sky = element(mount()).querySelector<HTMLElement>('[data-sky]');
+
+      expect(sky?.style.backgroundImage).toContain('blob:sky-picture');
+    });
+
+    it('moves a backdrop across by a view for each turn as wide as the view', async () => {
+      TestBed.inject(MotionService).setting.set('off');
+      picture('hills-picture');
+      const hills = new TableBackgroundLayer();
+      hills.initialize();
+      hills.imageIdentifier = 'hills-picture';
+      hills.placement = 'backdrop';
+      table.appendChild(hills);
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const backdrop = () => element(fixture).querySelector<HTMLElement>('[data-backdrop]')!;
+      expect(backdrop().style.backgroundPosition).toBe('0px bottom');
+
+      await TestBed.inject(FirstPersonService).turn(1);
+      fixture.detectChanges();
+
+      const viewWidth = (fixture.nativeElement as HTMLElement).clientWidth || window.innerWidth;
+      expect(backdrop().style.backgroundPosition).toBe(`${-viewWidth}px bottom`);
+    });
+  });
+
+  describe('the beams lights throw', () => {
+    function spotlightAt(col: number, row: number): LightSource {
+      const lamp = LightSource.create('スポット');
+      lamp.location = { name: 'table', x: col * GRID, y: row * GRID };
+      lamp.lightAngle = 60;
+      lamp.lightPitch = -60;
+      lamp.lightDimRadius = 3;
+      table.appendChild(lamp);
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+      return lamp;
+    }
+
+    it('stands the beam of a light ahead, and none for a light behind the eye', () => {
+      spotlightAt(4, 3);
+      spotlightAt(4, 11);
+      lookOutOf(pieceAt(4, 7));
+
+      expect(element(mount()).querySelectorAll('[data-beam]').length).toBeGreaterThan(0);
+    });
+
+    it('stands none for a light hung behind the eye', () => {
+      spotlightAt(4, 11);
+      lookOutOf(pieceAt(4, 7));
+
+      expect(element(mount()).querySelectorAll('[data-beam]')).toHaveLength(0);
     });
   });
 });

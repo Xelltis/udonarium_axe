@@ -4,6 +4,25 @@
   [class.animate-effect-shake-hard]="shake() === 'hard'"
   [style.perspective.px]="perspective()"
 >
+  @if (sky(); as sky) {
+    @if (sky.background) {
+      <div
+        class="pointer-events-none absolute inset-0 bg-cover bg-center"
+        data-sky
+        [style.background-image]="'url(' + sky.background + ')'"
+      ></div>
+    }
+    @for (layer of sky.backdrops; track layer.id) {
+      <div
+        class="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-repeat-x"
+        data-backdrop
+        [style.background-image]="'url(' + layer.url + ')'"
+        [style.background-size]="'auto 100%'"
+        [style.background-position]="skyShift() + 'px bottom'"
+        [style.opacity]="layer.opacity"
+      ></div>
+    }
+  }
   <div class="absolute top-1/2 left-1/2 size-0 transform-3d" [style.transform]="camera()">
     @for (quad of quadViews(); track quad.id) {
       <div
@@ -161,6 +180,26 @@
             class="absolute -top-10 left-1/2 -translate-x-1/2 rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
             >{{ prop.label }}</span
           >
+        }
+      </div>
+    }
+    @if (beamViews().length > 0) {
+      <div
+        class="pointer-events-none absolute top-0 left-0 origin-top-left transform-3d"
+        [style.transform]="'scale3d(' + scale() + ', ' + scale() + ', ' + scale() + ')'"
+      >
+        @for (beam of beamViews(); track beam.id) {
+          @for (fin of beam.fins; track $index) {
+            <div
+              class="pointer-events-none absolute top-0 left-0 origin-top-left opacity-[0.16] backface-visible"
+              data-beam
+              [style.width.px]="beam.width"
+              [style.height.px]="beam.height"
+              [style.transform]="fin"
+              [style.clip-path]="beam.clip"
+              [style.background]="beam.background"
+            ></div>
+          }
         }
       </div>
     }

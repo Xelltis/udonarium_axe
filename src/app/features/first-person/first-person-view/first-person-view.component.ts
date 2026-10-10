@@ -49,6 +49,7 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import {
@@ -101,6 +102,8 @@ const PIECE_WIDE_RATIO = 0.9;
 const PIECE_TALL_RATIO = 1.5;
 /** How far over the floor a range area is laid, clear of the floor and of anything lying on it. */
 const RANGE_LIFT_PX = 0.75;
+/** The width the view is laid out for before it has been measured. */
+const DEFAULT_VIEW_WIDTH_PX = 1280;
 
 interface QuadView {
   id: string;
@@ -150,6 +153,20 @@ interface RangeView {
   id: string;
   range: RangeArea;
   style: QuadStyle;
+}
+
+interface BeamView {
+  id: string;
+  width: number;
+  height: number;
+  clip: string;
+  background: string;
+  fins: string[];
+}
+
+interface SkyView {
+  background: string;
+  backdrops: { id: string; url: string; opacity: number }[];
 }
 
 @Component({
@@ -239,7 +256,9 @@ export class FirstPersonViewComponent {
 
   protected readonly scale = computed(() => scaleOf(this.gridSize()));
 
-  protected readonly perspective = computed(() => perspectivePx(this.width() || 1280, FIRST_PERSON_FOV_DEG));
+  protected readonly perspective = computed(() =>
+    perspectivePx(this.width() || DEFAULT_VIEW_WIDTH_PX, FIRST_PERSON_FOV_DEG)
+  );
 
   protected readonly camera = computed(() => {
     const pose = this.shown();
@@ -445,6 +464,67 @@ export class FirstPersonViewComponent {
     }
     return views;
   });
+
+  /**
+   * The beams the table's cone lights throw, as the table stands them, for the lights hanging in
+   * front of the eye and no further off than the view reaches. One hung over the eye itself would
+   * stand through it, which a flat sheet cannot be drawn doing, so it is left out.
+   */
+  protected readonly beamViews = computed<BeamView[]>(() => {
+    const pose = this.shown();
+    const gridSize = this.gridSize();
+    if (!pose || gridSize <= 0) return [];
+    const eye = eyeFrameOf(pose);
+    const reach = this.firstPerson.depthPx();
+    return this.vision.lightBeams().flatMap((beam, index) => {
+      const depth = depthOf(eye, beam.origin);
+      if (depth < gridSize || depth > reach + beam.height) return [];
+      return [
+        {
+          id: `${index}:${beam.origin.x}:${beam.origin.y}`,
+          width: beam.width,
+          height: beam.height,
+          clip: beam.clip,
+          background: `linear-gradient(to bottom, ${beam.color} 0%, transparent 88%)`,
+          fins: beam.fins,
+        },
+      ];
+    });
+  });
+
+  /**
+   * What is seen above the walls and past the end of the view: the picture the table is laid
+   * on, and over it the backdrops the table stands against, back to front. Nothing when the
+   * table has neither, which leaves the dark.
+   */
+  protected readonly sky = computed<SkyView | null>(() => {
+    const table = this.firstPerson.table();
+    if (!table) return null;
+    this.objectChange.fileVersion();
+    this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
+    const background = this.imageService.getEmptyOr(table.backgroundImageIdentifier).url;
+    const backdrops = table.backgroundLayers
+      .filter((layer) => {
+        this.objectChange.versionOf(layer.identifier)();
+        return layer.enabled && layer.placedBackdrop && layer.opacity > 0;
+      })
+      .sort((a, b) => a.order - b.order)
+      .map((layer) => ({
+        id: layer.identifier,
+        url: this.imageService.getEmptyOr(layer.imageIdentifier).url,
+        opacity: layer.opacity,
+      }))
+      .filter((layer) => layer.url !== '');
+    return background || backdrops.length > 0 ? { background, backdrops } : null;
+  });
+
+  /**
+   * How far the backdrops are moved across for the way the eye faces: a whole view's width for
+   * each turn as wide as the view sees, as anything far enough off would be.
+   */
+  protected readonly skyShift = computed(
+    () => -((this.shown()?.yaw ?? 0) / FIRST_PERSON_FOV_DEG) * (this.width() || DEFAULT_VIEW_WIDTH_PX)
+  );
 
   protected readonly glowViews = computed<GlowView[]>(() => {
     const pose = this.shown();
