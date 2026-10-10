@@ -50,9 +50,11 @@ describe('tabletop-action-helpers', () => {
 
   it('offers the square in the create menu as a diamond or square to the grid, and the diamond nowhere else', () => {
     const entries = getRangeMenuEntries();
+    const square = entries.find((entry) => entry.typeName === 'SQUARE');
 
     expect(entries.map((entry) => entry.typeName)).not.toContain('RHOMBUS');
-    expect(entries.find((entry) => entry.typeName === 'SQUARE')?.variants).toEqual([
+    expect(square?.menuName).toBe('feature.tabletop.action.rangeShapeSquareFamily');
+    expect(square?.variants).toEqual([
       { menuName: 'feature.tabletop.action.rangeShapeAsDiamond', typeName: 'RHOMBUS' },
       { menuName: 'feature.tabletop.action.rangeShapeAsSquare', typeName: 'SQUARE' },
     ]);

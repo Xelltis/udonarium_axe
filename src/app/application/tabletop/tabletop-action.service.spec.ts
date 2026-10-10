@@ -101,7 +101,7 @@ describe('TabletopActionService', () => {
       const menu = service
         .makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 })
         .find((entry) => entry.name === '射程範囲を作成');
-      const square = menu?.subActions?.find((entry) => entry.name === '四角形');
+      const square = menu?.subActions?.find((entry) => entry.name === '四角形・ダイヤ');
 
       expect(square?.action).toBeUndefined();
       expect(square?.subActions?.map((entry) => entry.name)).toEqual(['ダイヤとして出力', '四角形として出力']);

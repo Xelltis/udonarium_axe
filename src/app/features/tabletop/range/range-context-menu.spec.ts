@@ -58,14 +58,14 @@ describe('buildRangeContextMenu', () => {
     range.type = 'SQUARE';
 
     try {
-      const square = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形'));
-      expect(square?.name).toBe('✔ 四角形');
+      const square = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形・ダイヤ'));
+      expect(square?.name).toBe('✔ 四角形・ダイヤ');
       expect(square?.action).toBeUndefined();
       expect(square?.subActions?.map((action) => action.name)).toEqual(['ダイヤとして出力', '✔ 四角形として出力']);
 
       square!.subActions![0].action!();
       expect(range.type).toBe('RHOMBUS');
-      const again = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形'));
+      const again = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形・ダイヤ'));
       expect(again?.subActions?.map((action) => action.name)).toEqual(['✔ ダイヤとして出力', '四角形として出力']);
     } finally {
       range.destroy();

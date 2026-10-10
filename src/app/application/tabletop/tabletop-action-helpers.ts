@@ -133,6 +133,7 @@ export function getRangeMenuEntries(): RangeMenuEntry[] {
       item.typeName === 'SQUARE'
         ? {
             ...item,
+            menuName: 'feature.tabletop.action.rangeShapeSquareFamily',
             variants: [
               { menuName: 'feature.tabletop.action.rangeShapeAsDiamond', typeName: 'RHOMBUS' },
               { menuName: 'feature.tabletop.action.rangeShapeAsSquare', typeName: 'SQUARE' },

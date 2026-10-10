@@ -175,7 +175,8 @@ function buildShapeAction(range: RangeArea, t: TranslateFn): ContextMenuAction {
   });
   const quadrilateral: ContextMenuAction = {
     name:
-      (range.type === 'SQUARE' || range.type === 'RHOMBUS' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeSquare'),
+      (range.type === 'SQUARE' || range.type === 'RHOMBUS' ? '✔ ' : '') +
+      t('feature.tabletop.contextMenu.shapeSquareFamily'),
     action: undefined,
     subActions: [pick('RHOMBUS', 'shapeAsDiamond'), pick('SQUARE', 'shapeAsSquare')],
   };

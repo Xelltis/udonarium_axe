@@ -13,7 +13,7 @@ async function createCircleRange(page: Page) {
 async function createSquareRange(page: Page, as: 'ダイヤとして出力' | '四角形として出力') {
   const menu = await openTableContextMenu(page);
   await menu.getByText('射程範囲を作成').hover();
-  await menu.getByText('四角形', { exact: true }).hover();
+  await menu.getByText('四角形・ダイヤ', { exact: true }).hover();
   await expect(menu.getByText(as, { exact: true })).toBeVisible({ timeout: 5000 });
   await menu.getByText(as, { exact: true }).click();
   await expect(page.locator('range').first()).toBeAttached({ timeout: 10000 });
@@ -35,7 +35,7 @@ test.describe('射程範囲 (range-area) のコンテキストメニュー', () 
   test('「形状変更」サブメニューに 7 種類の形状が含まれること', async ({ page }) => {
     const menu = await openRangeMenu(page);
     await menu.getByText('形状変更').hover();
-    for (const shape of ['直線', 'コーン', '三角形', '四角形', '五角形', '六角形', '円形']) {
+    for (const shape of ['直線', 'コーン', '三角形', '四角形・ダイヤ', '五角形', '六角形', '円形']) {
       await expect(menu.getByText(shape)).toBeVisible({ timeout: 5000 });
     }
   });
@@ -67,12 +67,14 @@ test.describe('射程範囲の四角形とダイヤ', () => {
     await waitAppReady(page);
   });
 
-  test('作成メニューの「四角形」から「ダイヤとして出力」で作り、形状変更でダイヤに印が付くこと', async ({ page }) => {
+  test('作成メニューの「四角形・ダイヤ」から「ダイヤとして出力」で作り、形状変更でダイヤに印が付くこと', async ({
+    page,
+  }) => {
     await createSquareRange(page, 'ダイヤとして出力');
 
     const menu = await openRangeMenu(page);
     await menu.getByText('形状変更').hover();
-    await menu.getByText('四角形', { exact: false }).first().hover();
+    await menu.getByText('✔ 四角形・ダイヤ', { exact: true }).hover();
     await expect(menu.getByText('✔ ダイヤとして出力')).toBeVisible({ timeout: 5000 });
     await expect(menu.getByText('四角形として出力', { exact: true })).toBeVisible();
   });

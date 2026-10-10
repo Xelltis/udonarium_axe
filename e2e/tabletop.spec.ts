@@ -72,7 +72,7 @@ test.describe('コンテキストメニューからオブジェクト作成', ()
   test('射程範囲の種類が揃っていること', async ({ page }) => {
     const menu = await openTableContextMenu(page);
     await menu.getByText('射程範囲を作成').hover();
-    for (const name of ['直線', 'コーン', '三角形', '四角形', '五角形', '六角形', '円形']) {
+    for (const name of ['直線', 'コーン', '三角形', '四角形・ダイヤ', '五角形', '六角形', '円形']) {
       await expect(menu.getByText(name, { exact: true })).toBeVisible({ timeout: 5000 });
     }
   });
