@@ -17,6 +17,7 @@
 | `character` / `card` / `coin` / `dice-symbol` / `terrain` / `table-mask` / `table-scratch-mask` / `text-note` / `light-source` / `range` / `effect-field` / `card-stack` | `object.move` / `rotate` / `face` / `owner` / `lock` / `image` / `create` / `remove` | 座標・回転・持ち主・固定はalias非依存の共通規則                                                                             |
 | `cut-in-launcher`                                                                                                                                                        | `media.cutin`                                                                        | `launchTimeStamp` / `soundOnlyTimeStamp`の更新で発火                                                                        |
 | `jukebox`                                                                                                                                                                | `media.bgm` / `media.se`                                                             | 曲の切り替え・停止・SEトリガ                                                                                                |
+| `background-sound`                                                                                                                                                       | `media.bgs`                                                                          | 環境音の開始と停止（`isPlaying`の変化）。音量だけの変更は記録しない                                                         |
 | `vn-stage`                                                                                                                                                               | `vn.scene` / `vn.playhead` / `vn.direct`                                             | 背景転換・語りの送り・進行役の交代                                                                                          |
 | `TurnState`                                                                                                                                                              | `turn.change`                                                                        | ラウンド・フェーズ・手番のコマ・陣営フェイズ                                                                                |
 | `Vote`                                                                                                                                                                   | `vote.start` / `vote.finish`                                                         | 投票と点呼を区別する                                                                                                        |
@@ -42,6 +43,18 @@
 | `PeerCursor`の改名                                                                                                                               | 人物辞書が当時の名前を保持するため、行としては起こさない       |
 | `Alarm`                                                                                                                                          | タイマー。鳴った事実はSEとして残る                             |
 | `node` / `TabletopObject`                                                                                                                        | 抽象基底。実体は個別alias側で拾う                              |
+
+## 共通規則だけで拾っているもの
+
+専用の規則は置いていない。作成は`object.create`、座標・回転・固定の変化は共通規則で記録する。
+それ以外の中身の変更は`object.update`に落ちるので、標準設定では残らない。
+
+| alias                          | 共通規則のあとに落ちるもの                             |
+| ------------------------------ | ------------------------------------------------------ |
+| `white-board`                  | 角度（`pitch`）・色・描いた中身（`scene`）             |
+| `chat-reaction`                | 付け外ししたスタンプ（`stamps`）                       |
+| `stamp-pack`                   | 組の名前と、入っている画像                             |
+| `board-switch` / `board-stash` | スイッチの中身と押された記録、スイッチで伏せた物の控え |
 
 ## 記録できないもの
 
