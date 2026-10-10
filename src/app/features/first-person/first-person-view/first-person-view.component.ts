@@ -684,7 +684,12 @@ export class FirstPersonViewComponent {
     this.effectTargeting.cancel();
   }
 
+  /**
+   * Walks, turns, aims and the rest from the keys, leaving alone a key something else on the page
+   * has already taken, as the table takes Escape to back out of picking targets.
+   */
   onKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented) return;
     const command = firstPersonKeyDown(event.code, {
       typing: isTypingTarget(event.target),
       composing: event.isComposing,

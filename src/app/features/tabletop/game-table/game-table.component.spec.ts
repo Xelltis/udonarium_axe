@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CardTargetService } from '@axe/application/card/card-target.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
@@ -584,6 +586,27 @@ describe('GameTableComponent', () => {
     });
 
     afterEach(() => TestBed.inject(HeldPieceService).letGo());
+  });
+
+  describe('backing out on Escape', () => {
+    it('takes the key when it backs out of picking targets, so nothing else acts on it too', () => {
+      vi.spyOn(TestBed.inject(EffectTargetingService), 'cancel').mockReturnValue(true);
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+      component.onEscapeKey(event);
+
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('leaves the key for others when there was nothing to back out of', () => {
+      vi.spyOn(TestBed.inject(EffectTargetingService), 'cancel').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(CardTargetService), 'cancelPicking').mockReturnValue(false);
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+      component.onEscapeKey(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
   });
 
   describe('saying how far something is being turned', () => {

@@ -1300,11 +1300,14 @@ export class GameTableComponent {
 
   /**
    * Backs out on Escape: from picking an effect's targets first, then from picking a card's target,
-   * and otherwise clears the selection.
+   * and otherwise clears the selection. Backing out of a pick takes the key, so whatever else
+   * listens for Escape, as the first-person view does to leave, lets it be.
    */
-  onEscapeKey(_e: Event) {
-    if (this.effectTargetingService.cancel()) return;
-    if (this.cardTargetService.cancelPicking()) return;
+  onEscapeKey(event: Event) {
+    if (this.effectTargetingService.cancel() || this.cardTargetService.cancelPicking()) {
+      event.preventDefault();
+      return;
+    }
     this.selectionSignalService.clearSelection();
   }
 

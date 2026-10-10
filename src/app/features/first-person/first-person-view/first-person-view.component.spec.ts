@@ -220,6 +220,21 @@ describe('FirstPersonViewComponent', () => {
     expect(enemy.targeted).toBe(false);
   });
 
+  it('leaves a key alone that something else on the page has already taken', () => {
+    lookOutOf(pieceAt(4, 7));
+    mount();
+    const takeIt = (event: Event) => event.preventDefault();
+    document.addEventListener('keydown', takeIt, true);
+
+    try {
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true, cancelable: true }));
+    } finally {
+      document.removeEventListener('keydown', takeIt, true);
+    }
+
+    expect(TestBed.inject(FirstPersonService).showing()).toBe(true);
+  });
+
   it('does not aim with T at a piece a wall hides', () => {
     const wall = Terrain.create('壁', 3, 1, 2, 'stone', 'slab');
     wall.location = { name: 'table', x: 3 * GRID, y: 5 * GRID };
