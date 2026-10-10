@@ -22,6 +22,7 @@ import { VolumeType } from '@axe/core/storage/audio-player';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
+import { BUFF_BADGES_PER_ROW } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -1004,6 +1005,30 @@ describe('GameCharacterComponent', () => {
         expect(component.buffBadges()).toEqual([
           expect.objectContaining({ icon: '☠️', name: '毒', strength: '2', rounds: 3 }),
         ]);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('lays the buff icons out in as many columns as the panel is reckoned by', () => {
+      const character = GameCharacter.create('バフ', 1, '');
+      character.addExtendData();
+      character.location = { name: 'table', x: 0, y: 0 };
+      fixture.componentRef.setInput('gameCharacter', character);
+      const container = DataElement.create('バフ', '', {});
+      character.buffDataElement!.appendChild(container);
+      for (let index = 0; index < 7; index++) {
+        container.appendChild(DataElement.create(`加護${index}`, 2, { type: DataElementType.NUMBER_RESOURCE }));
+      }
+      TestBed.inject(ObjectChangeService).notifyChanged(character.buffDataElement!.identifier);
+
+      try {
+        fixture.detectChanges();
+        const grid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+          '[data-testid="buff-badge"]'
+        )?.parentElement;
+
+        expect(grid?.style.gridTemplateColumns).toBe(`repeat(${BUFF_BADGES_PER_ROW}, minmax(0, 1fr))`);
       } finally {
         character.destroy();
       }

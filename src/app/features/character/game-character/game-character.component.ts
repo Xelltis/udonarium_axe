@@ -976,6 +976,9 @@ export class GameCharacterComponent {
     );
   }
 
+  /** The columns the buff icons are laid out in, the same count the panel's height is reckoned by. */
+  protected readonly buffBadgeColumns = `repeat(${BUFF_BADGES_PER_ROW}, minmax(0, 1fr))`;
+
   private readonly buffPanelHeightEstimate = computed(() => {
     if (this.multiAngleResourceBuffOrbitEnabled() || this.hideBuff() || this.buffNum() < 1) return 0;
     if (this.buffViewMode() === 'detail') return this.buffChildren().length * BUFF_DETAIL_ROW_HEIGHT_PX;

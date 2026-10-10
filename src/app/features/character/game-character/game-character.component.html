@@ -265,7 +265,10 @@
                                 >
                               }
                               @default {
-                                <div class="animate-buff-swap grid w-max grid-cols-5 items-end gap-[0.8em]">
+                                <div
+                                  class="animate-buff-swap grid w-max items-end gap-[0.8em]"
+                                  [style.grid-template-columns]="buffBadgeColumns"
+                                >
                                   @for (badge of buffBadges(); track badge.identifier) {
                                     <span
                                       data-testid="buff-badge"
