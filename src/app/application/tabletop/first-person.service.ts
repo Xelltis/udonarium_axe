@@ -215,20 +215,26 @@ export class FirstPersonService {
     if (!sight) return null;
     const overlay = this.vision.overlayVision();
     if (this.isGameMaster() || !overlay || overlay.visible.count !== sight.count) return sight;
-    return intersection(sight, overlay.visible);
+    const lit = sight.copy();
+    lit.and(overlay.visible);
+    return lit;
   });
 
-  /** Ground the eye reaches that the party remembers rather than sees, for drawing darker. */
+  /**
+   * Ground the eye reaches that the party remembers rather than sees, for drawing darker. A seat
+   * that remembers nothing never asks how far the eye reaches in the dark, which is a second pass
+   * over the board.
+   */
   readonly dimCells = computed<CellBits | null>(() => {
     const lit = this.litCells();
-    const reach = this.reach();
-    if (!lit || !reach) return null;
+    if (!lit) return null;
     const remembered = this.remembered();
-    if (!remembered || remembered.count !== reach.count) return new CellBits(lit.count);
-    const dim = intersection(reach, remembered);
-    for (let cell = 0; cell < dim.count; cell++) {
-      if (lit.get(cell)) dim.unset(cell);
-    }
+    if (!remembered || remembered.count !== lit.count) return new CellBits(lit.count);
+    const reach = this.reach();
+    if (!reach || reach.count !== lit.count) return new CellBits(lit.count);
+    const dim = reach.copy();
+    dim.and(remembered);
+    dim.without(lit);
     return dim;
   });
 
@@ -285,28 +291,35 @@ export class FirstPersonService {
     });
   }
 
-  readonly minimap = computed<MinimapView | null>(() => {
+  /**
+   * The board as the minimap draws it - its walls, the ground nobody may enter and its doors -
+   * worked out again only when the board changes, not at every step and turn of the eye.
+   */
+  private readonly minimapGround = computed(() => {
     this.worldEpoch();
     const table = this.table();
     const grid = this.grid();
-    const pose = this.pose();
-    if (!table || !grid || !pose) return null;
+    if (!table || !grid) return null;
     const doors = new Map<number, boolean>();
     for (const terrain of table.terrains) {
       if (!terrain.isDoor || surfaceOf(terrain) !== 'floor') continue;
       const box = terrainBoxOf(terrain, table.gridSize);
       forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => doors.set(cell, terrain.isDoorOpen));
     }
-    return minimapViewOf(
-      {
-        grid,
-        walls: blockedByTerrain(grid, table.terrains),
-        noEntry: moveBlockMapOn(table)?.read(grid) ?? null,
-        doors,
-        reveal: this.reveal(),
-      },
-      pose
-    );
+    return {
+      grid,
+      walls: blockedByTerrain(grid, table.terrains),
+      noEntry: moveBlockMapOn(table)?.read(grid) ?? null,
+      doors,
+    };
+  });
+
+  /** The minimap round the eye: the board as it stands, cut to what this seat has been shown. */
+  readonly minimap = computed<MinimapView | null>(() => {
+    const ground = this.minimapGround();
+    const pose = this.pose();
+    if (!ground || !pose) return null;
+    return minimapViewOf({ ...ground, reveal: this.reveal() }, pose);
   });
 
   readonly canWalk = computed(() => {
@@ -527,14 +540,6 @@ export class FirstPersonService {
       if (next) void this.run(next);
     }
   }
-}
-
-function intersection(bits: CellBits, mask: CellBits): CellBits {
-  const both = bits.copy();
-  for (let cell = 0; cell < both.count; cell++) {
-    if (both.get(cell) && !mask.get(cell)) both.unset(cell);
-  }
-  return both;
 }
 
 function samePose(a: FirstPersonPose | null, b: FirstPersonPose | null): boolean {

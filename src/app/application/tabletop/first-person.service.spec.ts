@@ -681,5 +681,18 @@ describe('FirstPersonService', () => {
       expect(tones.get(cellIndexOf(grid, 4, 5))).toBe('doorShut');
       expect(tones.get(cellIndexOf(grid, 5, 5))).toBe('floor');
     });
+
+    it('works the board out again only when the board changes, not as the eye turns', async () => {
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+      expect(service().minimap()).not.toBeNull();
+      const terrains = vi.spyOn(table, 'terrains', 'get');
+
+      await service().turn(1);
+      touch(piece.identifier);
+
+      expect(service().minimap()).not.toBeNull();
+      expect(terrains).not.toHaveBeenCalled();
+    });
   });
 });
