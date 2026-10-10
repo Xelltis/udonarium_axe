@@ -50,12 +50,12 @@
             class="size-full object-contain object-bottom"
             [style.filter]="piece.imageFilter"
             [src]="piece.url"
-            [alt]="piece.name"
+            [alt]="piece.label"
             draggable="false"
             (load)="notePictureAspect(piece.url, $event)"
           />
         } @else {
-          <span class="rounded-sm bg-black/60 px-2 py-1 text-white">{{ piece.name }}</span>
+          <span class="rounded-sm bg-black/60 px-2 py-1 text-white">{{ piece.label || '?' }}</span>
         }
         @if (piece.targeted) {
           <span
@@ -378,7 +378,13 @@
     </button>
   </div>
   <div class="pointer-events-auto flex flex-wrap items-center justify-start gap-2 text-sm">
-    <span class="flex h-10 items-center rounded-sm bg-black/60 px-3 font-bold text-white">{{ pieceName() }}</span>
+    @if (pieceName(); as name) {
+      <span
+        class="flex h-10 items-center rounded-sm bg-black/60 px-3 font-bold text-white"
+        data-testid="first-person-name"
+        >{{ name }}</span
+      >
+    }
     <button
       type="button"
       class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80 disabled:opacity-40"

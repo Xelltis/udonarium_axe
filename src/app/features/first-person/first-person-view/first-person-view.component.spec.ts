@@ -220,6 +220,32 @@ describe('FirstPersonViewComponent', () => {
     expect(enemy.targeted).toBe(false);
   });
 
+  it('keeps back the name of a piece that hides it, in the picture, the stand-in and the controls', () => {
+    const viewer = pieceAt(4, 7);
+    viewer.name = '影の主';
+    viewer.hideName = true;
+    const enemy = pieceAt(4, 4);
+    enemy.name = '名無しの敵';
+    enemy.hideName = true;
+    lookOutOf(viewer);
+
+    const view = element(mount());
+
+    expect(view.textContent).not.toContain('名無しの敵');
+    expect(view.textContent).not.toContain('影の主');
+    expect(view.querySelector(`[data-piece="${enemy.identifier}"] img`)?.getAttribute('alt') ?? '').toBe('');
+  });
+
+  it('shows the master the names pieces hide from everyone else', () => {
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const viewer = pieceAt(4, 7);
+    viewer.name = '影の主';
+    viewer.hideName = true;
+    lookOutOf(viewer);
+
+    expect(element(mount()).querySelector('[data-testid="first-person-name"]')?.textContent).toContain('影の主');
+  });
+
   it('leaves a key alone that something else on the page has already taken', () => {
     lookOutOf(pieceAt(4, 7));
     mount();

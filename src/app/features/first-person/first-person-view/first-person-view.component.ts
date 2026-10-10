@@ -138,7 +138,6 @@ interface GaugeView {
 
 interface PieceView {
   id: string;
-  name: string;
   label: string;
   url: string;
   targeted: boolean;
@@ -404,7 +403,6 @@ export class FirstPersonViewComponent {
       const chromeRows = { badges: badges.length > 0, gauges: gauges.length, label: label !== '' || pick > 0 };
       views.push({
         id: piece.identifier,
-        name: piece.name,
         label,
         url: piece.imageFile.url,
         targeted: piece.targeted,
@@ -632,7 +630,17 @@ export class FirstPersonViewComponent {
       .map((glow) => ({ id: glow.id, style: glowStyle(glow, pose.yaw, scale) }));
   });
 
-  protected readonly pieceName = computed(() => this.firstPerson.piece()?.name ?? '');
+  /**
+   * The name of the piece looked out of, kept back where the piece hides its name from whoever is
+   * not the master, as a view the master shares can be of such a piece.
+   */
+  protected readonly pieceName = computed(() => {
+    const piece = this.firstPerson.piece();
+    if (!piece) return '';
+    this.objectChange.versionOf(piece.identifier)();
+    this.objectChange.trackMyCursor();
+    return piece.hideName && !this.rolePermission.canSeeHidden ? '' : piece.name;
+  });
 
   protected readonly facing = computed(() => facingNameOf(this.firstPerson.pose()?.yaw ?? 0));
 
