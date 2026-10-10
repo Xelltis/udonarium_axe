@@ -90,6 +90,13 @@ export interface FileTooLarge {
   name: string;
   kind: 'image' | 'audio';
   limitBytes: number;
+  /**
+   * The picture itself, for one dropped or chosen on its own rather than found inside an archive,
+   * so it can be made smaller and added after all.
+   */
+  file?: File;
+  /** Where on the table it was dropped, for one that would have been placed there. */
+  dropPoint?: { x: number; y: number };
 }
 
 export interface FilesTooLargeEvent {

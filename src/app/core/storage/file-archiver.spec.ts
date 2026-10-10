@@ -376,11 +376,36 @@ describe('FileArchiver', () => {
         {
           files: [
             { name: 'long.ogg', kind: 'audio', limitBytes: MAX_LOADED_AUDIO_BYTES },
-            { name: 'huge.png', kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES },
+            { name: 'huge.png', kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES, file: expect.any(File) },
           ],
         },
       ]);
       expect(AudioStorage.instance.addAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('hands back a picture left out with where it was dropped, to be made smaller and added after all', async () => {
+      const huge = sized('huge.png', 'image/png', MAX_LOADED_IMAGE_BYTES + 1);
+
+      await FileArchiver.instance.load([huge], { x: 120, y: 80 });
+
+      expect(announced[0].files).toEqual([
+        {
+          name: 'huge.png',
+          kind: 'image',
+          limitBytes: MAX_LOADED_IMAGE_BYTES,
+          file: huge,
+          dropPoint: { x: 120, y: 80 },
+        },
+      ]);
+    });
+
+    it('hands back no picture left out from inside an archive, which belongs to what the archive holds', async () => {
+      const archive = zipSync({ 'scenery.png': new Uint8Array(MAX_LOADED_IMAGE_BYTES + 1) });
+      const zipFile = new File([archive.slice()], 'room.zip', { type: 'application/zip' });
+
+      await FileArchiver.instance.load([zipFile], { x: 120, y: 80 });
+
+      expect(announced[0].files).toEqual([{ name: 'scenery.png', kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES }]);
     });
 
     it('names a sound left out from inside an archive along with the rest', async () => {

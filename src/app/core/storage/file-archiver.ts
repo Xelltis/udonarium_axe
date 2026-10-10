@@ -162,10 +162,11 @@ export class FileArchiver {
    * zips by loading what is inside.
    *
    * Images over 2 MB and audio over 10 MB are left out, those inside a zip included, and once the
-   * load is done they are announced together, so the reader learns why they did not appear. Given
-   * a drop point, each image is announced for placing on the table, the next one offset a little
-   * from the last. Images inside a zip are not placed, and a zip exported as a CCFOLIA room is
-   * handed on whole instead.
+   * load is done they are announced together, so the reader learns why they did not appear. An
+   * image left out that was not inside a zip is announced with the file itself and where it was
+   * dropped, so it can be made smaller and added after all. Given a drop point, each image is
+   * announced for placing on the table, the next one offset a little from the last. Images inside
+   * a zip are not placed, and a zip exported as a CCFOLIA room is handed on whole instead.
    */
   async load(files: File[] | FileList, dropPoint?: { x: number; y: number }): Promise<void> {
     const tooLarge: FileTooLarge[] = [];
@@ -185,7 +186,7 @@ export class FileArchiver {
     let droppedImageCount = 0;
     for (const file of loadFiles) {
       const imageDropPoint = placesDroppedImages ? this.offsetDropPoint(dropPoint, droppedImageCount) : undefined;
-      const isImageDropped = await this.handleImage(file, imageDropPoint, tooLarge);
+      const isImageDropped = await this.handleImage(file, imageDropPoint, tooLarge, placesDroppedImages);
       if (isImageDropped) droppedImageCount++;
       await this.handleAudio(file, tooLarge);
       await this.handleText(file, dropPoint);
@@ -225,14 +226,20 @@ export class FileArchiver {
   private async handleImage(
     file: File,
     dropPoint: { x: number; y: number } | undefined,
-    tooLarge: FileTooLarge[]
+    tooLarge: FileTooLarge[],
+    handsBackTooLarge: boolean
   ): Promise<boolean> {
     if (!file.type.startsWith('image/')) return false;
     // With no guard there is nothing to stop it.
     if (!(this.reloadCheck?.isLoadOk() ?? true)) return false;
     const image = await this.storeImage(file);
     if (!image) {
-      tooLarge.push({ name: file.name, kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES });
+      tooLarge.push({
+        name: file.name,
+        kind: 'image',
+        limitBytes: MAX_LOADED_IMAGE_BYTES,
+        ...(handsBackTooLarge ? { file, ...(dropPoint ? { dropPoint } : {}) } : {}),
+      });
       return false;
     }
     if (dropPoint) emitImageDropped({ identifier: image.identifier, fileName: file.name, dropPoint });
