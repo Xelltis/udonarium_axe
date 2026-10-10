@@ -696,4 +696,23 @@ describe('FirstPersonViewComponent', () => {
       expect(element(mount()).querySelectorAll('[data-beam]')).toHaveLength(0);
     });
   });
+
+  describe('the fog in the air', () => {
+    it('hangs no sheets over a table that keeps no fog', () => {
+      lookOutOf(pieceAt(4, 7));
+
+      expect(element(mount()).querySelectorAll('[data-fog-air]')).toHaveLength(0);
+    });
+
+    it('hangs every sheet over the room where the table keeps fog', () => {
+      table.fogEnabled = true;
+      const memory = new FogMemory();
+      memory.initialize();
+      table.appendChild(memory);
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+      lookOutOf(pieceAt(4, 7));
+
+      expect(element(mount()).querySelectorAll('[data-fog-air] first-person-fog-air')).toHaveLength(3);
+    });
+  });
 });

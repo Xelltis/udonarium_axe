@@ -203,6 +203,16 @@
         }
       </div>
     }
+    @for (sheet of fogAirViews(); track sheet.id) {
+      <div class="pointer-events-none absolute top-0 left-0 overflow-hidden" data-fog-air [style]="sheet.style">
+        <first-person-fog-air
+          class="block size-full"
+          [layer]="sheet.layer"
+          [index]="sheet.id"
+          [gridSize]="gridSize()"
+        />
+      </div>
+    }
     @for (view of rangeViews(); track view.id) {
       <div class="pointer-events-none absolute top-0 left-0" data-range [style]="view.style">
         <first-person-range

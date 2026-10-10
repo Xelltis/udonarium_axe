@@ -56,6 +56,7 @@ import {
   EffectEye,
   TableEffectOverlayComponent,
 } from '@axe/features/effect/table-effect-overlay/table-effect-overlay.component';
+import { FirstPersonFogAirComponent } from '@axe/features/first-person/first-person-fog-air/first-person-fog-air.component';
 import { facingNameOf, isHexLattice, padRows } from '@axe/features/first-person/first-person-hud';
 import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
 import {
@@ -82,6 +83,8 @@ import {
   shadeFor,
   wallQuadStyle,
 } from '@axe/features/first-person/first-person-style';
+import { FogAirLayer, fogAirLayers } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
+import { FOG_AIR_SHEET_MARGIN } from '@axe/features/tabletop/fog-of-war/fog-air-sheet';
 import { rangeQuadrantCells } from '@axe/features/tabletop/range/range-paint';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
@@ -164,6 +167,12 @@ interface BeamView {
   fins: string[];
 }
 
+interface FogAirView {
+  id: number;
+  layer: FogAirLayer;
+  style: QuadStyle;
+}
+
 interface SkyView {
   background: string;
   backdrops: { id: string; url: string; opacity: number }[];
@@ -180,6 +189,7 @@ interface SkyView {
   imports: [
     TranslocoModule,
     EffectTargetOverlayComponent,
+    FirstPersonFogAirComponent,
     FirstPersonRangeComponent,
     TableEffectOverlayComponent,
     TableWeatherOverlayComponent,
@@ -489,6 +499,36 @@ export class FirstPersonViewComponent {
           fins: beam.fins,
         },
       ];
+    });
+  });
+
+  /**
+   * The sheets of fog hanging over ground nobody has walked to, each laid across the board at its
+   * height as the table hangs it, cut at the eye where it runs over the viewer. None without fog.
+   */
+  protected readonly fogAirViews = computed<FogAirView[]>(() => {
+    const pose = this.shown();
+    const table = this.firstPerson.table();
+    const gridSize = this.gridSize();
+    if (!pose || !table || gridSize <= 0 || !this.vision.overlayVision()?.fogEnabled) return [];
+    const width = table.width * gridSize;
+    const height = table.height * gridSize;
+    const eye = eyeFrameOf(pose);
+    const scale = this.scale();
+    return fogAirLayers(gridSize).flatMap((layer, index) => {
+      const footprint: PropShape = {
+        kind: 'lie',
+        x: width / 2,
+        y: height / 2,
+        z: layer.heightPx,
+        width: width * (1 + FOG_AIR_SHEET_MARGIN * 2),
+        height: height * (1 + FOG_AIR_SHEET_MARGIN * 2),
+        rotate: 0,
+      };
+      const clip = propClip(footprint, eye, gridSize * NEAR_CELLS, scale);
+      if (clip === null) return [];
+      const style = propStyle(footprint, pose.yaw, scale);
+      return [{ id: index, layer, style: clip ? { ...style, clipPath: clip } : style }];
     });
   });
 
