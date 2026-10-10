@@ -31,7 +31,6 @@ import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
 import { isOwnedByUser } from '@axe/features/pl-tools/owned-character-list/owned-characters';
-import { FirstPersonSeat, firstPersonSeats } from '@axe/features/pl-tools/pl-toolbar/first-person-seats';
 import { UiButtonGuideComponent } from '@axe/ui/components/button-guide/button-guide.component';
 import { UiIconButtonComponent } from '@axe/ui/components/icon-button/icon-button.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -77,15 +76,7 @@ export class PlToolbarComponent {
 
   protected readonly firstPersonOpen = signal(false);
 
-  protected readonly firstPersonSeats = computed<FirstPersonSeat[]>(() => {
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    this.objectChange.trackMyCursor();
-    return firstPersonSeats(
-      this.objectStore.getObjects<GameCharacter>(GameCharacter),
-      PeerCursor.myCursor?.userId ?? '',
-      (character) => this.firstPerson.canLookOutOf(character)
-    );
-  });
+  protected readonly firstPersonSeats = this.firstPerson.seats;
 
   protected readonly firstPersonForced = computed(() => this.firstPerson.forced());
 

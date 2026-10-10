@@ -27,6 +27,7 @@ import {
   turnedRotate,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { FIRST_PERSON_FOV_DEG } from '@axe/domain/tabletop/first-person/first-person-scene';
+import { FirstPersonSeat, firstPersonSeats } from '@axe/domain/tabletop/first-person/first-person-seats';
 import {
   FirstPersonTarget,
   firstPersonTarget,
@@ -320,6 +321,18 @@ export class FirstPersonService {
     piece.lightEnabled = true;
     return true;
   }
+
+  /** The pieces this seat may look out of: those it may move, standing where a view can be drawn from. */
+  readonly seats = computed<FirstPersonSeat[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    this.objectChange.trackMyCursor();
+    this.table();
+    return firstPersonSeats(
+      this.objectStore.getObjects<GameCharacter>(GameCharacter),
+      PeerCursor.myCursor?.userId ?? '',
+      (character) => this.canLookOutOf(character)
+    );
+  });
 
   canLookOutOf(piece: GameCharacter): boolean {
     const table = this.table();

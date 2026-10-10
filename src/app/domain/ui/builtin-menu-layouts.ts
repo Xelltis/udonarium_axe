@@ -34,6 +34,7 @@ const FAB: MenuLayout = {
       'dungeonGenerator',
       'tabletopDisplay',
       'visualNovel',
+      'firstPersonView',
     ]),
     group('gameResources', 'backpack', 'app.fab.gameResources', [
       'inventory',

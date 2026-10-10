@@ -129,7 +129,7 @@ describe('how a menu is arranged', () => {
       expect(commands('plToolbar').slice(0, 2)).toEqual(['ownedCharacters', 'inventory']);
     });
 
-    it('holds the table tools it always held, in the order it held them', () => {
+    it('holds the table tools it always held, in the order it held them, and the first-person view last', () => {
       const table = DEFAULT_MENU_LAYOUTS.fab.nodes.find((node) => node.id === 'table') as MenuGroup;
 
       expect(table.items.map((item) => item.command)).toEqual([
@@ -138,6 +138,7 @@ describe('how a menu is arranged', () => {
         'dungeonGenerator',
         'tabletopDisplay',
         'visualNovel',
+        'firstPersonView',
       ]);
     });
 

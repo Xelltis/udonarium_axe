@@ -1,6 +1,6 @@
 import { GRAVEYARD_LOCATION } from '@axe/domain/character/character-control';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { firstPersonSeats } from '@axe/features/pl-tools/pl-toolbar/first-person-seats';
+import { firstPersonSeats } from '@axe/domain/tabletop/first-person/first-person-seats';
 
 describe('firstPersonSeats', () => {
   function pieceNamed(name: string, owner = ''): GameCharacter {
